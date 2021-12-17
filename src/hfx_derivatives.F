@@ -12,69 +12,69 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_derivatives
-   USE admm_types,                      ONLY: admm_type
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind_set
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_p_file,&
-                                              cp_print_key_finished_output,&
-                                              cp_print_key_should_output,&
-                                              cp_print_key_unit_nr
-   USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_matrix_type,&
-                                              dbcsr_p_type,&
-                                              dbcsr_type_antisymmetric
-   USE gamma,                           ONLY: init_md_ftable
-   USE hfx_communication,               ONLY: get_full_density
-   USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
-                                              hfx_add_single_cache_element,&
-                                              hfx_decompress_first_cache,&
-                                              hfx_flush_last_cache,&
-                                              hfx_get_mult_cache_elements,&
-                                              hfx_get_single_cache_element,&
-                                              hfx_reset_cache_and_container
-   USE hfx_libint_interface,            ONLY: evaluate_deriv_eri
-   USE hfx_load_balance_methods,        ONLY: collect_load_balance_info,&
-                                              hfx_load_balance,&
-                                              hfx_update_load_balance
-   USE hfx_pair_list_methods,           ONLY: build_atomic_pair_list,&
-                                              build_pair_list,&
-                                              build_pair_list_pgf,&
-                                              build_pgf_product_list,&
-                                              pgf_product_list_size
-   USE hfx_screening_methods,           ONLY: update_pmax_mat
-   USE hfx_types,                       ONLY: &
-        alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, hfx_cache_type, &
-        hfx_cell_type, hfx_container_type, hfx_distribution, hfx_general_type, hfx_init_container, &
-        hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, &
-        hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, &
-        hfx_type, init_t_c_g0_lmax, log_zero, pair_list_type, pair_set_list_type
-   USE input_constants,                 ONLY: do_potential_mix_cl_trunc,&
-                                              do_potential_truncated,&
-                                              hfx_do_eval_forces
-   USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: dp,&
-                                              int_8
-   USE libint_wrapper,                  ONLY: cp_libint_t
-   USE machine,                         ONLY: m_walltime
-   USE mathconstants,                   ONLY: fac
-   USE message_passing,                 ONLY: mp_sum
-   USE orbital_pointers,                ONLY: nco,&
-                                              ncoset,&
-                                              nso
-   USE particle_types,                  ONLY: particle_type
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
-   USE qs_force_types,                  ONLY: qs_force_type
-   USE t_c_g0,                          ONLY: init
-   USE util,                            ONLY: sort
-   USE virial_types,                    ONLY: virial_type
+   USE admm_types, ONLY: admm_type
+   USE atomic_kind_types, ONLY: atomic_kind_type, &
+                                get_atomic_kind_set
+   USE cell_types, ONLY: cell_type, &
+                         pbc
+   USE cp_control_types, ONLY: dft_control_type
+   USE cp_files, ONLY: close_file, &
+                       open_file
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_type
+   USE cp_output_handling, ONLY: cp_p_file, &
+                                 cp_print_key_finished_output, &
+                                 cp_print_key_should_output, &
+                                 cp_print_key_unit_nr
+   USE cp_para_types, ONLY: cp_para_env_type
+   USE dbcsr_api, ONLY: dbcsr_get_matrix_type, &
+                        dbcsr_p_type, &
+                        dbcsr_type_antisymmetric
+   USE gamma, ONLY: init_md_ftable
+   USE hfx_communication, ONLY: get_full_density
+   USE hfx_compression_methods, ONLY: hfx_add_mult_cache_elements, &
+                                      hfx_add_single_cache_element, &
+                                      hfx_decompress_first_cache, &
+                                      hfx_flush_last_cache, &
+                                      hfx_get_mult_cache_elements, &
+                                      hfx_get_single_cache_element, &
+                                      hfx_reset_cache_and_container
+   USE hfx_libint_interface, ONLY: evaluate_deriv_eri
+   USE hfx_load_balance_methods, ONLY: collect_load_balance_info, &
+                                       hfx_load_balance, &
+                                       hfx_update_load_balance
+   USE hfx_pair_list_methods, ONLY: build_atomic_pair_list, &
+                                    build_pair_list, &
+                                    build_pair_list_pgf, &
+                                    build_pgf_product_list, &
+                                    pgf_product_list_size
+   USE hfx_screening_methods, ONLY: update_pmax_mat
+   USE hfx_types, ONLY: &
+      alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, hfx_cache_type, &
+      hfx_cell_type, hfx_container_type, hfx_distribution, hfx_general_type, hfx_init_container, &
+      hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, &
+      hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, &
+      hfx_type, init_t_c_g0_lmax, log_zero, pair_list_type, pair_set_list_type
+   USE input_constants, ONLY: do_potential_mix_cl_trunc, &
+                              do_potential_truncated, &
+                              hfx_do_eval_forces
+   USE input_section_types, ONLY: section_vals_type
+   USE kinds, ONLY: dp, &
+                    int_8
+   USE libint_wrapper, ONLY: cp_libint_t
+   USE machine, ONLY: m_walltime
+   USE mathconstants, ONLY: fac
+   USE message_passing, ONLY: mp_sum
+   USE orbital_pointers, ONLY: nco, &
+                               ncoset, &
+                               nso
+   USE particle_types, ONLY: particle_type
+   USE qs_environment_types, ONLY: get_qs_env, &
+                                   qs_environment_type
+   USE qs_force_types, ONLY: qs_force_type
+   USE t_c_g0, ONLY: init
+   USE util, ONLY: sort
+   USE virial_types, ONLY: virial_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -128,55 +128,55 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center'
 
       INTEGER :: atomic_offset_ac, atomic_offset_ad, atomic_offset_bc, atomic_offset_bd, bin, &
-         bits_max_val, buffer_left, buffer_size, buffer_start, cache_size, coord, current_counter, &
-         forces_map(4, 2), handle, handle_bin, handle_getP, handle_load, handle_main, i, i_atom, &
-         i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, &
-         i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop, i_thread, iatom, iatom_block, &
-         iatom_end, iatom_start, ikind, iset, iw, j, j_atom, jatom, jatom_block, jatom_end, &
-         jatom_start, jkind, jset, k, k_atom, katom, katom_block, katom_end, katom_start
+                 bits_max_val, buffer_left, buffer_size, buffer_start, cache_size, coord, current_counter, &
+                 forces_map(4, 2), handle, handle_bin, handle_getP, handle_load, handle_main, i, i_atom, &
+                 i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop, &
+                 i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop, i_thread, iatom, iatom_block, &
+                 iatom_end, iatom_start, ikind, iset, iw, j, j_atom, jatom, jatom_block, jatom_end, &
+                 jatom_start, jkind, jset, k, k_atom, katom, katom_block, katom_end, katom_start
       INTEGER :: kind_kind_idx, kkind, kset, l_atom, l_max, latom, latom_block, latom_end, &
-         latom_start, lkind, lset, max_am, max_pgf, max_set, my_bin_id, my_bin_size, my_thread_id, &
-         n_threads, natom, nbits, ncob, ncos_max, nints, nkimages, nkind, nneighbors, nseta, &
-         nsetb, nsgf_max, nspins, sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
-         sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, &
-         sphi_d_u2, sphi_d_u3, swap_id, tmp_i4, unit_id
+                 latom_start, lkind, lset, max_am, max_pgf, max_set, my_bin_id, my_bin_size, my_thread_id, &
+                 n_threads, natom, nbits, ncob, ncos_max, nints, nkimages, nkind, nneighbors, nseta, &
+                 nsetb, nsgf_max, nspins, sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
+                 sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, &
+                 sphi_d_u2, sphi_d_u3, swap_id, tmp_i4, unit_id
       INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, max_val_memory, &
-         mem_compression_counter, mem_eris, mem_max_val, my_current_counter, my_istart, &
-         n_processes, nblocks, ncpu, neris_incore, neris_onthefly, neris_tmp, neris_total, &
-         nprim_ints, shm_neris_incore, shm_neris_onthefly, shm_neris_total, shm_nprim_ints, &
-         shm_stor_count_max_val, shm_storage_counter_integrals, stor_count_max_val, &
-         storage_counter_integrals, tmp_block, tmp_i8(6)
+                        mem_compression_counter, mem_eris, mem_max_val, my_current_counter, my_istart, &
+                        n_processes, nblocks, ncpu, neris_incore, neris_onthefly, neris_tmp, neris_total, &
+                        nprim_ints, shm_neris_incore, shm_neris_onthefly, shm_neris_total, shm_nprim_ints, &
+                        shm_stor_count_max_val, shm_storage_counter_integrals, stor_count_max_val, &
+                        storage_counter_integrals, tmp_block, tmp_i8(6)
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:)          :: tmp_task_list_cost
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, last_sgf_global, &
                                                             nimages, tmp_index
       INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, lc_min, ld_max, &
-         ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, nsgfc, nsgfd, shm_block_offset
+                                        ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, nsgfc, nsgfd, shm_block_offset
       INTEGER, DIMENSION(:, :), POINTER :: first_sgfb, nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d, &
-         offset_ac_set, offset_ad_set, offset_bc_set, offset_bd_set, shm_atomic_block_offset
+                                           offset_ac_set, offset_ad_set, offset_bc_set, offset_bd_set, shm_atomic_block_offset
       INTEGER, DIMENSION(:, :), POINTER, SAVE            :: shm_is_assoc_atomic_block
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: shm_set_offset
       INTEGER, SAVE                                      :: shm_number_of_p_entries
       LOGICAL :: bins_left, buffer_overflow, do_dynamic_load_balancing, do_it, do_periodic, &
-         do_print_load_balance_info, is_anti_symmetric, my_resp_only, screen_pmat_forces, &
-         treat_forces_in_core, use_disk_storage, with_resp_density
+                 do_print_load_balance_info, is_anti_symmetric, my_resp_only, screen_pmat_forces, &
+                 treat_forces_in_core, use_disk_storage, with_resp_density
       LOGICAL, DIMENSION(:, :), POINTER                  :: shm_atomic_pair_list
       REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, cartesian_estimate_virial, &
-         compression_factor, eps_schwarz, eps_storage, fac, hf_fraction, ln_10, log10_eps_schwarz, &
-         log10_pmax, log_2, max_contraction_val, max_val1, max_val2, max_val2_set, &
-         my_adiabatic_rescale_factor, pmax_atom, pmax_blocks, pmax_entry, pmax_tmp, ra(3), rab2, &
-         rb(3), rc(3), rcd2, rd(3), spherical_estimate, spherical_estimate_virial, symm_fac, &
-         tmp_virial(3, 3)
+                  compression_factor, eps_schwarz, eps_storage, fac, hf_fraction, ln_10, log10_eps_schwarz, &
+                  log10_pmax, log_2, max_contraction_val, max_val1, max_val2, max_val2_set, &
+                  my_adiabatic_rescale_factor, pmax_atom, pmax_blocks, pmax_entry, pmax_tmp, ra(3), rab2, &
+                  rb(3), rc(3), rcd2, rd(3), spherical_estimate, spherical_estimate_virial, symm_fac, &
+                  tmp_virial(3, 3)
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: ede_buffer1, ede_buffer2, ede_primitives_tmp, &
-         ede_primitives_tmp_virial, ede_work, ede_work2, ede_work2_virial, ede_work_forces, &
-         ede_work_virial, pac_buf, pac_buf_beta, pac_buf_resp, pac_buf_resp_beta, pad_buf, &
-         pad_buf_beta, pad_buf_resp, pad_buf_resp_beta, pbc_buf, pbc_buf_beta, pbc_buf_resp, &
-         pbc_buf_resp_beta, pbd_buf, pbd_buf_beta, pbd_buf_resp, pbd_buf_resp_beta
+                                             ede_primitives_tmp_virial, ede_work, ede_work2, ede_work2_virial, ede_work_forces, &
+                                             ede_work_virial, pac_buf, pac_buf_beta, pac_buf_resp, pac_buf_resp_beta, pad_buf, &
+                                             pad_buf_beta, pad_buf_resp, pad_buf_resp_beta, pbc_buf, pbc_buf_beta, pbc_buf_resp, &
+                                             pbc_buf_resp_beta, pbd_buf, pbd_buf_beta, pbd_buf_resp, pbd_buf_resp_beta
       REAL(dp), ALLOCATABLE, DIMENSION(:), TARGET        :: primitive_forces, primitive_forces_virial
       REAL(dp), DIMENSION(:), POINTER                    :: full_density_resp, &
                                                             full_density_resp_beta, T2
       REAL(dp), DIMENSION(:, :), POINTER :: full_density_alpha, full_density_beta, &
-         max_contraction, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, shm_pmax_atom, shm_pmax_block, &
-         sphi_b, zeta, zetb, zetc, zetd
+                                            max_contraction, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, shm_pmax_atom, shm_pmax_block, &
+                                            sphi_b, zeta, zetb, zetc, zetd
       REAL(dp), DIMENSION(:, :, :), POINTER              :: sphi_a_ext_set, sphi_b_ext_set, &
                                                             sphi_c_ext_set, sphi_d_ext_set
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: sphi_a_ext, sphi_b_ext, sphi_c_ext, &
@@ -1854,9 +1854,9 @@ CONTAINS
       TYPE(cp_libint_t)                                  :: deriv
       REAL(dp), INTENT(IN)                               :: ra(3), rb(3), rc(3), rd(3)
       INTEGER, INTENT(IN) :: npgfa, npgfb, npgfc, npgfd, la_min, la_max, lb_min, lb_max, lc_min, &
-         lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
-         sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
-         sphi_d_u3
+                             lc_max, ld_min, ld_max, nsgfa, nsgfb, nsgfc, nsgfd, sphi_a_u1, sphi_a_u2, sphi_a_u3, &
+                             sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
+                             sphi_d_u3
       REAL(dp), DIMENSION(1:npgfa), INTENT(IN)           :: zeta
       REAL(dp), DIMENSION(1:npgfb), INTENT(IN)           :: zetb
       REAL(dp), DIMENSION(1:npgfc), INTENT(IN)           :: zetc
@@ -1878,8 +1878,8 @@ CONTAINS
          DIMENSION(:), INTENT(INOUT)                     :: pgf_product_list
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: nsgfl_a, nsgfl_b, nsgfl_c, nsgfl_d
       REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1, sphi_a_u2, sphi_a_u3), &
-         sphi_b_ext(sphi_b_u1, sphi_b_u2, sphi_b_u3), sphi_c_ext(sphi_c_u1, sphi_c_u2, sphi_c_u3), &
-         sphi_d_ext(sphi_d_u1, sphi_d_u2, sphi_d_u3)
+                              sphi_b_ext(sphi_b_u1, sphi_b_u2, sphi_b_u3), sphi_c_ext(sphi_c_u1, sphi_c_u2, sphi_c_u3), &
+                              sphi_d_ext(sphi_d_u1, sphi_d_u2, sphi_d_u3)
       REAL(dp), DIMENSION(*)                             :: ede_work, ede_work2, ede_work_forces, &
                                                             ede_buffer1, ede_buffer2, &
                                                             ede_primitives_tmp
@@ -1892,8 +1892,8 @@ CONTAINS
       REAL(dp)                                           :: cart_estimate_virial
 
       INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, max_l, ncoa, ncob, &
-         ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
-         nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
+                 ncoc, ncod, nelements_ij, nelements_kl, nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, &
+                 nsob, nsoc, nsod, s_offset_a, s_offset_b, s_offset_c, s_offset_d
       REAL(dp)                                           :: EtaInv, tmp_max, tmp_max_virial, Zeta_A, &
                                                             Zeta_B, Zeta_C, Zeta_D, ZetaInv
 
@@ -2373,6 +2373,6 @@ CONTAINS
       tmp_virial(i, j) = tmp_virial(i, j) - temp4
    END SUBROUTINE update_virial
 
-#include "hfx_get_pmax_val.f90"
+   #:include 'hfx_get_pmax_val.fypp'
 
 END MODULE hfx_derivatives
