@@ -4190,8 +4190,6 @@ CONTAINS
       CALL mp_timestop(handle)
    END SUBROUTINE mp_win_unlock_all
 
-   #:include 'message_passing.f90'
-
 ! **************************************************************************************************
 !> \brief Tests the MPI library
 !> \param comm the relevant, initialized communicator
@@ -4609,5 +4607,7 @@ CONTAINS
       IF (mp_collect_timings) &
          CALL timestop(handle)
    END SUBROUTINE mp_timestop
+
+   #:include 'message_passing.fypp'
 
 END MODULE message_passing
