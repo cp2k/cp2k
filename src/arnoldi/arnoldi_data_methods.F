@@ -385,7 +385,271 @@ CONTAINS
 
    END SUBROUTINE set_arnoldi_initial_vector
 
-   #:include 'arnoldi_data_selection.f90'
-   #:include 'arnoldi_data_manipulation.f90'
+!!! Here come the methods handling the selection of eigenvalues and eigenvectors !!!
+!!! If you want a personal method, simply created a Subroutine returning the index
+!!! array selected ind which contains as the first nval_out entries the index of the evals
+
+   #:include 'arnoldi.fypp'
+   #:for nametype1, type_prec, real_zero, nametype_zero, type_nametype1, vartype in inst_params_1
+! **************************************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+! **************************************************************************************************
+      SUBROUTINE select_evals_${nametype1}$ (arnoldi_data)
+         TYPE(arnoldi_data_type)                :: arnoldi_data
+
+         INTEGER                                  :: my_crit, last_el, my_ind, i
+         REAL(${type_prec}$)                        :: convergence
+         TYPE(arnoldi_data_${nametype1}$_type), POINTER   :: ar_data
+         TYPE(arnoldi_control_type), POINTER           :: control
+
+         control => get_control(arnoldi_data)
+         ar_data => get_data_${nametype1}$ (arnoldi_data)
+
+         last_el = control%current_step
+         convergence = REAL(0.0, ${type_prec}$)
+         my_crit = control%selection_crit
+         control%nval_out = MIN(control%nval_req, control%current_step)
+         SELECT CASE (my_crit)
+            ! minimum and maximum real eval
+         CASE (1)
+            CALL index_min_max_real_eval_${nametype1}$ (ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
+            ! n maximum real eval
+         CASE (2)
+            CALL index_nmax_real_eval_${nametype1}$ (ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
+            ! n minimum real eval
+         CASE (3)
+            CALL index_nmin_real_eval_${nametype1}$ (ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
+         CASE DEFAULT
+            CPABORT("unknown selection index")
+         END SELECT
+         ! test whether we are converged
+         DO i = 1, control%nval_out
+            my_ind = control%selected_ind(i)
+            convergence = MAX(convergence, &
+                              ABS(ar_data%revec(last_el, my_ind)*ar_data%Hessenberg(last_el + 1, last_el)))
+         END DO
+         control%converged = convergence .LT. control%threshold
+
+      END SUBROUTINE select_evals_${nametype1}$
+
+! **************************************************************************************************
+!> \brief ...
+!> \param evals ...
+!> \param current_step ...
+!> \param selected_ind ...
+!> \param neval ...
+! **************************************************************************************************
+      SUBROUTINE index_min_max_real_eval_${nametype1}$ (evals, current_step, selected_ind, neval)
+         COMPLEX(${type_prec}$), DIMENSION(:)       :: evals
+         INTEGER, INTENT(IN)                      :: current_step
+         INTEGER, DIMENSION(:)                    :: selected_ind
+         INTEGER                                  :: neval
+
+         INTEGER, DIMENSION(current_step)         :: indexing
+         REAL(${type_prec}$), DIMENSION(current_step)        :: tmp_array
+         INTEGER                                   :: i
+
+         neval = 0
+         selected_ind = 0
+         tmp_array(1:current_step) = REAL(evals(1:current_step), ${type_prec}$)
+         CALL sort(tmp_array, current_step, indexing)
+         DO i = 1, current_step
+            IF (ABS(AIMAG(evals(indexing(i)))) < EPSILON(${real_zero}$)) THEN
+               selected_ind(1) = indexing(i)
+               neval = neval + 1
+               EXIT
+            END IF
+         END DO
+         DO i = current_step, 1, -1
+            IF (ABS(AIMAG(evals(indexing(i)))) < EPSILON(${real_zero}$)) THEN
+               selected_ind(2) = indexing(i)
+               neval = neval + 1
+               EXIT
+            END IF
+         END DO
+
+      END SUBROUTINE index_min_max_real_eval_${nametype1}$
+
+! **************************************************************************************************
+!> \brief ...
+!> \param evals ...
+!> \param current_step ...
+!> \param selected_ind ...
+!> \param neval ...
+! **************************************************************************************************
+      SUBROUTINE index_nmax_real_eval_${nametype1}$ (evals, current_step, selected_ind, neval)
+         COMPLEX(${type_prec}$), DIMENSION(:)       :: evals
+         INTEGER, INTENT(IN)                      :: current_step
+         INTEGER, DIMENSION(:)                    :: selected_ind
+         INTEGER                                  :: neval
+
+         INTEGER                                  :: i, nlimit
+         INTEGER, DIMENSION(current_step)         :: indexing
+         REAL(${type_prec}$), DIMENSION(current_step)        :: tmp_array
+
+         nlimit = neval; neval = 0
+         selected_ind = 0
+         tmp_array(1:current_step) = REAL(evals(1:current_step), ${type_prec}$)
+         CALL sort(tmp_array, current_step, indexing)
+         DO i = 1, current_step
+            IF (ABS(AIMAG(evals(indexing(current_step + 1 - i)))) < EPSILON(${real_zero}$)) THEN
+               selected_ind(i) = indexing(current_step + 1 - i)
+               neval = neval + 1
+               IF (neval == nlimit) EXIT
+            END IF
+         END DO
+
+      END SUBROUTINE index_nmax_real_eval_${nametype1}$
+
+! **************************************************************************************************
+!> \brief ...
+!> \param evals ...
+!> \param current_step ...
+!> \param selected_ind ...
+!> \param neval ...
+! **************************************************************************************************
+      SUBROUTINE index_nmin_real_eval_${nametype1}$ (evals, current_step, selected_ind, neval)
+         COMPLEX(${type_prec}$), DIMENSION(:)       :: evals
+         INTEGER, INTENT(IN)                      :: current_step
+         INTEGER, DIMENSION(:)                    :: selected_ind
+         INTEGER                                  :: neval, nlimit
+
+         INTEGER                                  :: i
+         INTEGER, DIMENSION(current_step)         :: indexing
+         REAL(${type_prec}$), DIMENSION(current_step)        :: tmp_array
+
+         nlimit = neval; neval = 0
+         selected_ind = 0
+         tmp_array(1:current_step) = REAL(evals(1:current_step), ${type_prec}$)
+         CALL sort(tmp_array, current_step, indexing)
+         DO i = 1, current_step
+            IF (ABS(AIMAG(evals(indexing(i)))) < EPSILON(${real_zero}$)) THEN
+               selected_ind(i) = indexing(i)
+               neval = neval + 1
+               IF (neval == nlimit) EXIT
+            END IF
+         END DO
+
+      END SUBROUTINE index_nmin_real_eval_${nametype1}$
+
+! **************************************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param matrix ...
+!> \param max_iter ...
+! **************************************************************************************************
+      SUBROUTINE setup_arnoldi_data_${nametype1}$ (arnoldi_data, matrix, max_iter)
+         TYPE(arnoldi_data_type)                 :: arnoldi_data
+         TYPE(dbcsr_p_type), DIMENSION(:)     :: matrix
+         INTEGER                                 :: max_iter
+
+         INTEGER                                           :: nrow_local
+         TYPE(arnoldi_data_${nametype1}$_type), POINTER      :: ar_data
+
+         ALLOCATE (ar_data)
+         CALL dbcsr_get_info(matrix=matrix(1)%matrix, nfullrows_local=nrow_local)
+         ALLOCATE (ar_data%f_vec(nrow_local))
+         ALLOCATE (ar_data%x_vec(nrow_local))
+         ALLOCATE (ar_data%Hessenberg(max_iter + 1, max_iter))
+         ALLOCATE (ar_data%local_history(nrow_local, max_iter))
+
+         ALLOCATE (ar_data%evals(max_iter))
+         ALLOCATE (ar_data%revec(max_iter, max_iter))
+
+         CALL set_data_${nametype1}$ (arnoldi_data, ar_data)
+
+      END SUBROUTINE setup_arnoldi_data_${nametype1}$
+
+! **************************************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+! **************************************************************************************************
+      SUBROUTINE deallocate_arnoldi_data_${nametype1}$ (arnoldi_data)
+         TYPE(arnoldi_data_type)                     :: arnoldi_data
+
+         TYPE(arnoldi_data_${nametype1}$_type), POINTER            :: ar_data
+
+         ar_data => get_data_${nametype1}$ (arnoldi_data)
+         IF (ASSOCIATED(ar_data%f_vec)) DEALLOCATE (ar_data%f_vec)
+         IF (ASSOCIATED(ar_data%x_vec)) DEALLOCATE (ar_data%x_vec)
+         IF (ASSOCIATED(ar_data%Hessenberg)) DEALLOCATE (ar_data%Hessenberg)
+         IF (ASSOCIATED(ar_data%local_history)) DEALLOCATE (ar_data%local_history)
+         IF (ASSOCIATED(ar_data%evals)) DEALLOCATE (ar_data%evals)
+         IF (ASSOCIATED(ar_data%revec)) DEALLOCATE (ar_data%revec)
+         DEALLOCATE (ar_data)
+
+      END SUBROUTINE deallocate_arnoldi_data_${nametype1}$
+
+! **************************************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param ind ...
+!> \param matrix ...
+!> \param vector ...
+! **************************************************************************************************
+      SUBROUTINE get_selected_ritz_vector_${nametype1}$ (arnoldi_data, ind, matrix, vector)
+         TYPE(arnoldi_data_type)                 :: arnoldi_data
+         INTEGER                                  :: ind
+         TYPE(dbcsr_type)                          :: matrix
+         TYPE(dbcsr_type)                          :: vector
+
+         TYPE(arnoldi_data_${nametype1}$_type), POINTER      :: ar_data
+         INTEGER                                           :: vsize, myind, sspace_size, i
+         INTEGER, DIMENSION(:), POINTER           :: selected_ind
+         COMPLEX(${type_prec}$), DIMENSION(:), ALLOCATABLE       :: ritz_v
+         ${type_nametype1}$, DIMENSION(:), POINTER          :: data_vec
+         TYPE(arnoldi_control_type), POINTER           :: control
+
+         control => get_control(arnoldi_data)
+         selected_ind => get_sel_ind(arnoldi_data)
+         ar_data => get_data_${nametype1}$ (arnoldi_data)
+         sspace_size = get_subsp_size(arnoldi_data)
+         vsize = SIZE(ar_data%f_vec)
+         myind = selected_ind(ind)
+         ALLOCATE (ritz_v(vsize))
+         ritz_v = CMPLX(0.0, 0.0, ${type_prec}$)
+
+         CALL dbcsr_release(vector)
+         CALL create_col_vec_from_matrix(vector, matrix, 1)
+         IF (control%local_comp) THEN
+            DO i = 1, sspace_size
+               ritz_v(:) = ritz_v(:) + ar_data%local_history(:, i)*ar_data%revec(i, myind)
+            END DO
+            data_vec => dbcsr_get_data_p(vector, select_data_type=${nametype_zero}$)
+            ! is a bit odd but ritz_v is always complex and matrix type determines where it goes
+            ! again I hope the user knows what is required
+            data_vec(1:vsize) = ${vartype}$ (ritz_v(1:vsize), KIND=${type_prec}$)
+         END IF
+
+         DEALLOCATE (ritz_v)
+
+      END SUBROUTINE get_selected_ritz_vector_${nametype1}$
+
+! **************************************************************************************************
+!> \brief ...
+!> \param arnoldi_data ...
+!> \param vector ...
+! **************************************************************************************************
+      SUBROUTINE set_initial_vector_${nametype1}$ (arnoldi_data, vector)
+         TYPE(arnoldi_data_type)                 :: arnoldi_data
+         TYPE(dbcsr_type)                          :: vector
+
+         TYPE(arnoldi_data_${nametype1}$_type), POINTER     :: ar_data
+         ${type_nametype1}$, DIMENSION(:), POINTER          :: data_vec
+         INTEGER                                           :: nrow_local, ncol_local
+         TYPE(arnoldi_control_type), POINTER           :: control
+
+         control => get_control(arnoldi_data)
+
+         CALL dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+         ar_data => get_data_${nametype1}$ (arnoldi_data)
+         data_vec => dbcsr_get_data_p(vector, select_data_type=${nametype_zero}$)
+         IF (nrow_local*ncol_local > 0) ar_data%f_vec(1:nrow_local) = data_vec(1:nrow_local)
+
+      END SUBROUTINE set_initial_vector_${nametype1}$
+
+   #:endfor
+
 END MODULE arnoldi_data_methods
 
