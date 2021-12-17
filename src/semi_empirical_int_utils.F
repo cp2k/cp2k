@@ -11,26 +11,27 @@
 ! **************************************************************************************************
 MODULE semi_empirical_int_utils
 
-   USE input_constants,                 ONLY: do_method_pchg,&
-                                              do_se_IS_kdso_d
-   USE kinds,                           ONLY: dp
-   USE semi_empirical_int3_utils,       ONLY: charg_int_3,&
-                                              dcharg_int_3,&
-                                              ijkl_low_3
-   USE semi_empirical_int_arrays,       ONLY: &
-        CLMp, CLMxx, CLMxy, CLMyy, CLMz, CLMzp, CLMzz, clm_d, clm_sp, ijkl_ind, indexa, indexb, &
-        int2c_type
-   USE semi_empirical_types,            ONLY: rotmat_type,&
-                                              se_int_control_type,&
-                                              se_int_screen_type,&
-                                              se_taper_type,&
-                                              semi_empirical_type
+   USE input_constants, ONLY: do_method_pchg, &
+                              do_se_IS_kdso_d
+   USE kinds, ONLY: dp
+   USE semi_empirical_int3_utils, ONLY: charg_int_3, &
+                                        dcharg_int_3, &
+                                        ijkl_low_3
+   USE semi_empirical_int_arrays, ONLY: &
+      CLMp, CLMxx, CLMxy, CLMyy, CLMz, CLMzp, CLMzz, clm_d, clm_sp, ijkl_ind, indexa, indexb, &
+      int2c_type
+   USE semi_empirical_types, ONLY: rotmat_type, &
+                                   se_int_control_type, &
+                                   se_int_screen_type, &
+                                   se_taper_type, &
+                                   semi_empirical_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
-#include "semi_empirical_int_debug.f90"
-
    PRIVATE
+
+   #:include 'semi_empirical_int_debug.fypp'
+
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_utils'
 
@@ -53,10 +54,10 @@ MODULE semi_empirical_int_utils
 ! **************************************************************************************************
       FUNCTION eval_func_sp(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add0, fact_screen) RESULT(charg)
          USE kinds, ONLY: dp
-      REAL(KIND=dp), INTENT(IN)                          :: r
-      INTEGER, INTENT(IN)                                :: l1_i, l2_i, m1_i, m2_i
-      REAL(KIND=dp), INTENT(IN)                          :: da_i, db_i, add0, fact_screen
-      REAL(KIND=dp)                                      :: charg
+         REAL(KIND=dp), INTENT(IN)                          :: r
+         INTEGER, INTENT(IN)                                :: l1_i, l2_i, m1_i, m2_i
+         REAL(KIND=dp), INTENT(IN)                          :: da_i, db_i, add0, fact_screen
+         REAL(KIND=dp)                                      :: charg
 
       END FUNCTION eval_func_sp
    END INTERFACE
@@ -76,10 +77,10 @@ MODULE semi_empirical_int_utils
 ! **************************************************************************************************
       FUNCTION eval_func_d(r, l1_i, l2_i, m, da_i, db_i, add0, fact_screen) RESULT(charg)
          USE kinds, ONLY: dp
-      REAL(KIND=dp), INTENT(IN)                          :: r
-      INTEGER, INTENT(IN)                                :: l1_i, l2_i, m
-      REAL(KIND=dp), INTENT(IN)                          :: da_i, db_i, add0, fact_screen
-      REAL(KIND=dp)                                      :: charg
+         REAL(KIND=dp), INTENT(IN)                          :: r
+         INTEGER, INTENT(IN)                                :: l1_i, l2_i, m
+         REAL(KIND=dp), INTENT(IN)                          :: da_i, db_i, add0, fact_screen
+         REAL(KIND=dp)                                      :: charg
 
       END FUNCTION eval_func_d
    END INTERFACE
