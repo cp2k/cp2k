@@ -4,7 +4,7 @@
 #
 # Tested with: GNU 8.3.0, Cray-MPICH 7.7.16, Cray-libsci 20.09.1, Cray-FFTW 3.3.8,
 #              LIBINT 2.6.0, LIBXC 5.1.7, LIBVORI 210412, LIBXSMM 1.16.2,
-#              ELPA 2021.11.001.rc1, PLUMED 2.7.3, SPGLIB 1.16.2, GSL 2.7,
+#              ELPA 2021.11.001, PLUMED 2.7.3, SPGLIB 1.16.2, GSL 2.7,
 #              COSMA 2.5.1, SIRIUS 7.3.0
 #
 # Usage: Source this arch file and then run make as instructed.
@@ -60,7 +60,7 @@
 DO_CHECKS      := no
 USE_ACC        := yes
 USE_COSMA      := 2.5.1
-USE_ELPA       := 2021.11.001.rc1
+USE_ELPA       := 2021.11.001
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 210412
 USE_LIBXC      := 5.1.7
