@@ -3,7 +3,7 @@
 # CP2K (GNU) arch file for the Merlin cluster (PSI)
 #
 # Tested with: GNU 10.3.0, MPICH 3.3.2, ScaLAPACK 2.1.0, OpenBLAS 0.3.18,
-#              FFTW 3.3.10, LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.11.001.rc1,
+#              FFTW 3.3.10, LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.11.001,
 #              PLUMED 2.7.3, SPGLIB 1.16.2, LIBVORI 210412, GSL 2.7,
 #              COSMA 2.5.1, SIRIUS 7.3.0
 #
@@ -47,7 +47,7 @@
 DO_CHECKS      := no
 SHARED         := no
 USE_COSMA      := 2.5.1
-USE_ELPA       := 2021.11.001.rc1
+USE_ELPA       := 2021.11.001
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 210412
