@@ -6,9 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Interface to chargemol
+!> \brief Write wfx file, works as interface to chargemol and multiwfn
+!> \note  Works only for HF and KS-type wavefunctions, execution is aborted otherwise
 !> \par History
 !>      06.2020 created [Hossam Elgabarty]
+!>      01.2021 modified [Hossam]
 !> \author Hossam Elgabarty
 ! **************************************************************************************************
 MODULE qs_chargemol
@@ -68,16 +70,6 @@ MODULE qs_chargemol
 
 CONTAINS
 
-   ! **************************************************************************************************
-   !> \brief Write chargemol wfx file
-   !> \note  Currently the subroutine works only for HF and KS methods, execution is aborted otherwise
-   !> \param qs_env ...
-   !> \param dft_section ...
-   !> \par History
-   !>      06.2020 created [Hossam Elgabarty]
-   !>      01.2021 modified [Hossam]
-   !> \author Hossam Elgabarty
-   ! **************************************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
@@ -739,10 +731,6 @@ CONTAINS
                                             gcc=gcc, &
                                             l=l)
 
-                     IF (debug_this_module .AND. iatom == 1 .AND. imo == 1) THEN
-                        PRINT *, orb_basis_set%ncgf, orb_basis_set%nsgf
-                     END IF
-
                      icgf = 1
                      DO iset = 1, nset
                         DO ishell = 1, nshell(iset)
@@ -750,16 +738,6 @@ CONTAINS
 
                            DO ico = orb_basis_set%first_cgf(ishell, iset), &
                               orb_basis_set%last_cgf(ishell, iset)
-
-                              IF (debug_this_module .AND. imo == 1) THEN
-                                 PRINT *, "atom ", iatom, " set ", iset
-                                 PRINT *, "cgf ", orb_basis_set%first_cgf(ishell, iset), &
-                                    orb_basis_set%last_cgf(ishell, iset)
-                                 PRINT *, orb_basis_set%cgf_symbol(ico)
-                                 PRINT *, iset, orb_basis_set%lx(ico), &
-                                    orb_basis_set%ly(ico), &
-                                    orb_basis_set%lz(ico)
-                              END IF
 
                               !loop over primitives
                               DO ipgf = 1, orb_basis_set%npgf(iset)
@@ -881,11 +859,6 @@ CONTAINS
 
    END SUBROUTINE write_wfx
 
-! ! ********************************************************************************
-! !> \brief Figure out type of cartesian primitive gaussian (S, PX, PY ... HXXXXX)
-! !> \param  ...
-! !> \return ...
-! ! ********************************************************************************
 ! **************************************************************************************************
 !> \brief ...
 !> \param l_symb ...
