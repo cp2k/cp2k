@@ -6,9 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Interface to chargemol
+!> \brief Write wfx file, works as interface to chargemol and multiwfn
+!> \note  Works only for HF and KS-type wavefunctions, execution is aborted otherwise
 !> \par History
 !>      06.2020 created [Hossam Elgabarty]
+!>      01.2021 modified [Hossam]
 !> \author Hossam Elgabarty
 ! **************************************************************************************************
 MODULE qs_chargemol
@@ -28,11 +30,13 @@ MODULE qs_chargemol
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_generate_filename
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_datum
    USE orbital_pointers,                ONLY: nco,&
                                               nso
@@ -67,21 +71,15 @@ MODULE qs_chargemol
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Write chargemol wfx file
+!> \brief ...
 !> \param qs_env ...
 !> \param dft_section ...
-!> \par History
-!>      06.2020 created [Hossam Elgabarty]
-!> \author Hossam Elgabarty
-!> \note  The subroutine works only for nspins = 1, execution is aborted otherwise
-!> \note  all nspins = 2 code in only a placeholder for future implementation
 ! **************************************************************************************************
    SUBROUTINE write_wfx(qs_env, dft_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_wfx', routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: gcc_eps = 1.0E-7_dp
 
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
       CHARACTER(len=2)                                   :: asym
@@ -90,21 +88,24 @@ CONTAINS
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
       CHARACTER(len=default_string_length)               :: filename
       INTEGER :: handle, i, iatom, icgf, ico, ikind, iloop, imo, ipgf, irow, iset, isgf, ishell, &
-         ispin, iwfx, lshell, max_l, ncgf, ncol_global, nelec_alpha, nelec_beta, noccup, &
+         ispin, iwfx, lshell, max_l, ncgf, ncol_global, nelec_alpha, nelec_beta, nkpoint, noccup, &
          nrow_global, nset, nsgf, nspins, num_atoms, output_unit, roks_high, roks_low, tot_npgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomic_numbers, kind_of
       INTEGER, DIMENSION(:), POINTER                     :: lmax, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
-      LOGICAL                                            :: do_kpoints, newl, periodic
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: core_charges
+      LOGICAL                                            :: do_kpoints, newl, periodic, unrestricted
+      REAL(KIND=dp)                                      :: zeta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, cmatrix, smatrix
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: core_charges
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(kpoint_type), POINTER                         :: kpoint_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -115,7 +116,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: chargemol_section
 
-      !--------------------------------------------------------------------------------------------!
+      ! !--------------------------------------------------------------------------------------------!
 
       CALL timeset(routineN, handle)
 
@@ -135,38 +136,42 @@ CONTAINS
       CALL get_qs_env(qs_env, cell=cell, mos=mos, particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, scf_env=scf_env, scf_control=scf_control, &
                       dft_control=dft_control, energy=energy, force=force, subsys=subsys, &
-                      atomic_kind_set=atomic_kind_set, do_kpoints=do_kpoints)
+                      atomic_kind_set=atomic_kind_set, do_kpoints=do_kpoints, &
+                      kpoints=kpoint_env, matrix_s=matrix_s)
+
+      nkpoint = kpoint_env%nkp
 
       IF (scf_control%use_ot) THEN
          CPABORT("OT is incompatible with .wfx output. Switch off OT.")
       END IF
 
-      IF (dft_control%lsd .OR. dft_control%do_tddfpt_calculation) THEN
+      IF (dft_control%do_tddfpt_calculation .OR. dft_control%roks) THEN
          CALL cp_abort(__LOCATION__, "The output of chargemol . wfx files is currently"// &
-                       "implemented only for closed-shell wavefunctions.")
+                       "implemented only for (un)restricted HF and Kohn-Sham-like methods.")
+      END IF
+
+      IF (dft_control%lsd) THEN
+         unrestricted = .TRUE.
+      ELSE
+         unrestricted = .FALSE.
       END IF
 
       chargemol_section => section_vals_get_subs_vals(dft_section, "PRINT%CHARGEMOL")
 
       CALL section_vals_val_get(chargemol_section, "PERIODIC", l_val=periodic)
 
-      IF (do_kpoints) THEN
-         CALL cp_abort(__LOCATION__, "The output of chargemol . wfx files is currently"// &
-                       "not implemented for k-points (only for gamma point).")
-      END IF
-
-      !---------------------------------------------------------------------------------!
+    !!---------------------------------------------------------------------------------!
       ! output unit
-      !---------------------------------------------------------------------------------!
+    !!---------------------------------------------------------------------------------!
 
-      filename = cp_print_key_generate_filename(logger, chargemol_section, middle_name="CHARGEMOL", &
+      filename = cp_print_key_generate_filename(logger, chargemol_section, &
                                                 extension=".wfx", my_local=.FALSE.)
 
       CALL open_file(filename, file_status="UNKNOWN", &
                      file_action="WRITE", &
                      unit_number=iwfx)
 
-      !---------------------------------------------------------------------------------!
+    !!---------------------------------------------------------------------------------!
 
       IF (iwfx > 0) THEN
 
@@ -189,9 +194,9 @@ CONTAINS
             END IF
          END IF
 
-         !!---------------------------------------------------------------------------------!
+       !!---------------------------------------------------------------------------------!
          ! Initial parsing of topology and basis set, check maximum l .le. chargemol_lmax
-         !!---------------------------------------------------------------------------------!
+       !!---------------------------------------------------------------------------------!
          num_atoms = SIZE(particle_set)
          ALLOCATE (atoms_cart(3, num_atoms))
          ALLOCATE (atom_symbols(num_atoms))
@@ -224,9 +229,9 @@ CONTAINS
             END IF
          END DO
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Header comment and Title
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "# Chargemol input file generated by CP2K "
          CALL m_datum(datx)
          WRITE (iwfx, "(A,/)") "# Creation date "//TRIM(datx)
@@ -235,32 +240,35 @@ CONTAINS
          WRITE (iwfx, *) TRIM(logger%iter_info%project_name)
          WRITE (iwfx, "(A,/)") "</Title>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Keywords
          ! TODO: check: always GTO??
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Keywords>"
          WRITE (iwfx, "(A)") "GTO"
          WRITE (iwfx, "(A,/)") "</Keywords>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Model
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "#<Model>"
-         WRITE (iwfx, "(A)") "#"
+         IF (unrestricted) THEN
+            WRITE (iwfx, "(A)") "#Unrestricted Kohn-Sham"
+         ELSE
+            WRITE (iwfx, "(A)") "#Restricted Kohn-Sham"
+         END IF
          WRITE (iwfx, "(A,/)") "#</Model>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Number of nuclei
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Number of Nuclei>"
          WRITE (iwfx, "(I6)") num_atoms
          WRITE (iwfx, "(A,/)") "</Number of Nuclei>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Number of Occupied MOs
-         ! Q: Is this really the best way? to rely on homo?
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Number of Occupied Molecular Orbitals>"
          noccup = 0
          IF (dft_control%roks .AND. nspins == 2) THEN
@@ -273,94 +281,94 @@ CONTAINS
          WRITE (iwfx, "(2I6)") noccup
          WRITE (iwfx, "(A,/)") "</Number of Occupied Molecular Orbitals>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Number of Perturbations
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Number of Perturbations>"
          WRITE (iwfx, "(I6)") 0
          WRITE (iwfx, "(A,/)") "</Number of Perturbations>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Total charge
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Net Charge>"
-         WRITE (iwfx, "(I6)") dft_control%charge
+         WRITE (iwfx, "(F8.4)") REAL(dft_control%charge, KIND=dp)
          WRITE (iwfx, "(A,/)") "</Net Charge>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Number of electrons
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Number of Electrons>"
          WRITE (iwfx, "(I6)") scf_env%nelectron
          WRITE (iwfx, "(A,/)") "</Number of Electrons>"
 
-         ! ===========================================================================!
+         !===========================================================================!
          ! Number of Alpha electrons
-         ! ===========================================================================!
+         !===========================================================================!
          WRITE (iwfx, "(A)") "<Number of Alpha Electrons>"
          WRITE (iwfx, "(I6)") nelec_alpha
          WRITE (iwfx, "(A,/)") "</Number of Alpha Electrons>"
 
-         ! ===========================================================================!
+         !===========================================================================!
          ! Number of Beta electrons
-         ! ===========================================================================!
+         !===========================================================================!
          WRITE (iwfx, "(A)") "<Number of Beta Electrons>"
          WRITE (iwfx, "(I6)") nelec_beta
          WRITE (iwfx, "(A,/)") "</Number of Beta Electrons>"
 
-         ! ===========================================================================!
+         !===========================================================================!
          ! Spin multiplicity
-         ! ===========================================================================!
+         !===========================================================================!
          WRITE (iwfx, "(A)") "<Electron Spin Multiplicity>"
          WRITE (iwfx, "(I4)") dft_control%multiplicity
          WRITE (iwfx, "(A,/)") "</Electron Spin Multiplicity>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Number of Core Electrons
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Number of Core Electrons>"
-         WRITE (iwfx, "(F20.12)") SUM(atomic_numbers) - SUM(core_charges)
+         WRITE (iwfx, "(F16.10)") SUM(atomic_numbers) - SUM(core_charges)
          WRITE (iwfx, "(A,/)") "</Number of Core Electrons>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Nuclear Names
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Nuclear Names>"
          DO iatom = 1, num_atoms
             WRITE (iwfx, "(A4)") atom_symbols(iatom)
          END DO
          WRITE (iwfx, "(A,/)") "</Nuclear Names>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Atomic Numbers
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Atomic Numbers>"
          DO iatom = 1, num_atoms
             WRITE (iwfx, "(I4)") atomic_numbers(iatom)
          END DO
          WRITE (iwfx, "(A,/)") "</Atomic Numbers>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Nuclear charges
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Nuclear Charges>"
          DO iatom = 1, num_atoms
             WRITE (iwfx, "(F12.8)") core_charges(iatom)
          END DO
          WRITE (iwfx, "(A,/)") "</Nuclear Charges>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Nuclear coordinates
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Nuclear Cartesian Coordinates>"
          DO iatom = 1, num_atoms
             WRITE (iwfx, "(3ES26.16E3)") atoms_cart(1:3, iatom)
          END DO
          WRITE (iwfx, "(A,/)") "</Nuclear Cartesian Coordinates>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Periodic boundary conditions
-         ! ===========================================================================!
+         ! !===========================================================================!
          IF (periodic) THEN
             CALL get_cell(cell)
             IF (SUM(cell%perd) == 0) THEN
@@ -374,7 +382,7 @@ CONTAINS
                WRITE (iwfx, "(A)") "<Translation Vectors>"
                DO iatom = 1, 3
                   IF (cell%perd(iatom) == 1) THEN
-                     WRITE (iwfx, "(3F12.6)") cell%hmat(iatom, 1:3)
+                     WRITE (iwfx, "(3F12.6)") cell%hmat(1:3, iatom)
                   END IF
                END DO
                WRITE (iwfx, "(A,/)") "</Translation Vectors>"
@@ -390,9 +398,9 @@ CONTAINS
             WRITE (iwfx, "(A,/)") "</Kpoint Fractional Coordinates>"
          END IF
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Primitive centers
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Primitive Centers>"
          tot_npgf = 0
          DO iatom = 1, num_atoms
@@ -413,17 +421,16 @@ CONTAINS
                      lshell = l(ishell, iset)
                      DO ico = 1, nco(lshell)
                         DO ipgf = 1, npgf(iset)
-                           IF (ABS(gcc(ipgf, ishell, iset)) > gcc_eps) THEN
-                              tot_npgf = tot_npgf + 1
-                              IF (MOD(iloop + 10, 10) /= 0) THEN
-                                 WRITE (iwfx, "(I4)", advance="no") iatom
-                                 newl = .TRUE.
-                              ELSE
-                                 WRITE (iwfx, "(I4)") iatom
-                                 newl = .FALSE.
-                              END IF
-                              iloop = iloop + 1
+                           tot_npgf = tot_npgf + 1
+                           IF (MOD(iloop + 10, 10) /= 0) THEN
+                              WRITE (iwfx, "(I4)", advance="no") iatom
+                              newl = .TRUE.
+                           ELSE
+                              WRITE (iwfx, "(I4)") iatom
+                              newl = .FALSE.
                            END IF
+                           iloop = iloop + 1
+                           !END IF
                         END DO
                      END DO
                   END DO
@@ -437,16 +444,16 @@ CONTAINS
          END DO
          WRITE (iwfx, "(A,/)") "</Primitive Centers>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Number of primitives
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Number of Primitives>"
          WRITE (iwfx, "(I8)") tot_npgf
          WRITE (iwfx, "(A,/)") "</Number of Primitives>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Primitive Types
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Primitive Types>"
          DO iatom = 1, num_atoms
             iloop = 1
@@ -474,24 +481,17 @@ CONTAINS
                      lshell = l(ishell, iset)
                      DO ico = 1, nco(lshell)
                         DO ipgf = 1, orb_basis_set%npgf(iset)
-                           IF (ABS(gcc(ipgf, ishell, iset)) > gcc_eps) THEN
-                              IF (MOD(iloop + 5, 5) /= 0) THEN
-                                 WRITE (iwfx, '(I6)', advance="no") &
-                                    pgf_type_chargemol(bcgf_symbol(icgf) (3:))
-                                 !WRITE (iwfx, '(I2,2x,A6,2x,I2)', advance = "no") &
-                                 !     pgf_type_chargemol(bcgf_symbol(icgf)(3:)),&
-                                 !bcgf_symbol(icgf), icgf
-                                 newl = .TRUE.
-                              ELSE
-                                 WRITE (iwfx, '(I6)') &
-                                    pgf_type_chargemol(bcgf_symbol(icgf) (3:))
-                                 !WRITE (iwfx, '(I2,2x,A6,2x,I2)') &
-                                 !pgf_type_chargemol(bcgf_symbol(icgf)(3:)),&
-                                 !bcgf_symbol(icgf), icgf
-                                 newl = .FALSE.
-                              END IF
-                              iloop = iloop + 1
+                           IF (MOD(iloop + 10, 10) /= 0) THEN
+                              WRITE (iwfx, '(I6)', advance="no") &
+                                 pgf_type_chargemol(bcgf_symbol(icgf) (3:))
+                              newl = .TRUE.
+                           ELSE
+                              WRITE (iwfx, '(I6)') &
+                                 pgf_type_chargemol(bcgf_symbol(icgf) (3:))
+                              newl = .FALSE.
                            END IF
+                           iloop = iloop + 1
+                           !END IF
                         END DO
                         icgf = icgf + 1
                      END DO !ico
@@ -507,12 +507,12 @@ CONTAINS
          END DO ! iatom
          WRITE (iwfx, "(A,/)") "</Primitive Types>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Primitive Exponents
-         ! ===========================================================================!
-         !! NOTE: CP2K orders the atomic orbitals as follows:
-         !! Cartesian orbitals: x (slowest loop), y, z (fastest loop)
-         !! Spherical orbitals: m = -l, ..., 0, ..., +l
+         ! !===========================================================================!
+       !! NOTE: CP2K orders the atomic orbitals as follows:
+       !! Cartesian orbitals: x (slowest loop), y, z (fastest loop)
+       !! Spherical orbitals: m = -l, ..., 0, ..., +l
 
          WRITE (iwfx, "(A)") "<Primitive Exponents>"
          DO iatom = 1, num_atoms
@@ -537,16 +537,15 @@ CONTAINS
                      lshell = l(ishell, iset)
                      DO ico = 1, nco(lshell)
                         DO ipgf = 1, npgf(iset)
-                           IF (ABS(gcc(ipgf, ishell, iset)) > gcc_eps) THEN
-                              IF (MOD(iloop + 5, 5) /= 0) THEN
-                                 WRITE (iwfx, "(ES20.10)", advance="no") zet(ipgf, iset)
-                                 newl = .TRUE.
-                              ELSE
-                                 WRITE (iwfx, "(ES20.10)") zet(ipgf, iset)
-                                 newl = .FALSE.
-                              END IF
-                              iloop = iloop + 1
+                           IF (MOD(iloop + 5, 5) /= 0) THEN
+                              WRITE (iwfx, "(ES20.10)", advance="no") zet(ipgf, iset)
+                              newl = .TRUE.
+                           ELSE
+                              WRITE (iwfx, "(ES20.10)") zet(ipgf, iset)
+                              newl = .FALSE.
                            END IF
+                           iloop = iloop + 1
+                           !END IF
                         END DO
                      END DO
                   END DO
@@ -560,10 +559,10 @@ CONTAINS
          END DO
          WRITE (iwfx, "(A,/)") "</Primitive Exponents>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          !  MO occupation numbers
          !  nonesense for roks at the moment
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Molecular Orbital Occupation Numbers>"
          IF (.NOT. dft_control%roks) THEN
             DO ispin = 1, nspins
@@ -585,9 +584,9 @@ CONTAINS
          END IF
          WRITE (iwfx, "(A,/)") "</Molecular Orbital Occupation Numbers>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! MO energies
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Molecular Orbital Energies>"
          DO ispin = 1, nspins
             DO imo = 1, mos(ispin)%mo_set%homo
@@ -596,10 +595,10 @@ CONTAINS
          END DO
          WRITE (iwfx, "(A,/)") "</Molecular Orbital Energies>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! MO Spin types
          ! nonesense for ROKS
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Molecular Orbital Spin Types>"
          DO imo = 1, mos(1)%mo_set%homo
             IF (nspins == 1) THEN
@@ -607,34 +606,33 @@ CONTAINS
             ELSEIF (dft_control%uks) THEN
                WRITE (iwfx, '(A6)') "Alpha"
             ELSE
-               CALL cp_abort(__LOCATION__, "This calculation method is currently"// &
+               CALL cp_abort(__LOCATION__, "This wavefunction type is currently"// &
                              " not supported by the chargemol interface.")
             END IF
          END DO
-
          IF (nspins == 2) THEN
             DO imo = 1, mos(2)%mo_set%homo
                WRITE (iwfx, '(A5)') "Beta"
             END DO
          END IF
-
          WRITE (iwfx, "(A,/)") "</Molecular Orbital Spin Types>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Kpoint index of orbitals
-         ! ===========================================================================!
-         WRITE (iwfx, "(A)") "<Kpoint Index for Orbitals>"
-         DO ispin = 1, nspins
-            DO imo = 1, mos(ispin)%mo_set%homo
-               WRITE (iwfx, "(I6)") 1
+         ! !===========================================================================!
+         IF (periodic) THEN
+            WRITE (iwfx, "(A)") "<Kpoint Index for Orbitals>"
+            DO ispin = 1, nspins
+               DO imo = 1, mos(ispin)%mo_set%homo
+                  WRITE (iwfx, "(I6)") 1
+               END DO
             END DO
-         END DO
-         WRITE (iwfx, "(A,/)") "</Kpoint Index for Orbitals>"
+            WRITE (iwfx, "(A,/)") "</Kpoint Index for Orbitals>"
+         END IF
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! MO Primitive Coefficients
-         ! broken for ROKS, should i just output mos(roks_high)?
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Molecular Orbital Primitive Coefficients>"
          NULLIFY (orb_basis_set)
          NULLIFY (gcc)
@@ -655,12 +653,13 @@ CONTAINS
                                 ncol_global=ncol_global)
 
             ALLOCATE (smatrix(nrow_global, ncol_global))
+            smatrix = 0.0_dp
 
             CALL cp_fm_get_submatrix(mos(ispin)%mo_set%mo_coeff, smatrix)
 
             CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
-            ALLOCATE (cmatrix(ncgf, ncgf))
+            ALLOCATE (cmatrix(ncgf, ncol_global))
 
             cmatrix = 0.0_dp
 
@@ -685,6 +684,17 @@ CONTAINS
                                    orbtramat(lshell)%c2s, nso(lshell), &
                                    smatrix(isgf, 1), nsgf, 0.0_dp, &
                                    cmatrix(icgf, 1), ncgf)
+                        !IF (iatom==1 .and. debug_this_module) THEN
+                        !   print *, lshell
+                        !   print *, "size ", size(orbtramat(lshell)%s2c,1),",",size(orbtramat(lshell)%s2c,2)
+                        !   DO itest =  1, size(orbtramat(lshell)%s2c,1)
+                        !      print *, orbtramat(lshell)%s2c(itest,:)
+                        !   END DO
+                        !   print *, " "
+                        !   DO itest =  1, 5
+                        !      print *, my_d_orbtramat(itest,:)
+                        !   END DO
+                        !END IF
                         icgf = icgf + nco(lshell)
                         isgf = isgf + nso(lshell)
                      END DO
@@ -705,7 +715,8 @@ CONTAINS
                END IF
                WRITE (iwfx, "(A)") "</MO Number>"
 
-               irow = 1
+               irow = 1    ! row of cmatrix, each row corresponds to
+               ! a contracted Cartesian function
                DO iatom = 1, num_atoms
                   iloop = 1
                   NULLIFY (orb_basis_set)
@@ -723,29 +734,33 @@ CONTAINS
                      icgf = 1
                      DO iset = 1, nset
                         DO ishell = 1, nshell(iset)
-                           lshell = l(ishell, iset)
-                           DO ico = 1, nco(lshell)
+                           lshell = orb_basis_set%l(ishell, iset)
+
+                           DO ico = orb_basis_set%first_cgf(ishell, iset), &
+                              orb_basis_set%last_cgf(ishell, iset)
+
+                              !loop over primitives
                               DO ipgf = 1, orb_basis_set%npgf(iset)
-                                 IF (ABS(gcc(ipgf, ishell, iset)) > gcc_eps) THEN
-                                    IF (MOD(iloop + 5, 5) /= 0) THEN
-                                       WRITE (iwfx, '(ES20.10)', advance="no") &
-                                          cmatrix(irow, imo)* &
-                                          orb_basis_set%norm_cgf(icgf)* &
-                                          orb_basis_set%gcc(ipgf, ishell, iset)
-                                       newl = .TRUE.
-                                    ELSE
-                                       WRITE (iwfx, '(ES20.10)') cmatrix(irow, imo)* &
-                                          orb_basis_set%norm_cgf(icgf)* &
-                                          orb_basis_set%gcc(ipgf, ishell, iset)
-                                       newl = .FALSE.
-                                    END IF
-                                    iloop = iloop + 1
+
+                                 zeta = orb_basis_set%zet(ipgf, iset)
+
+                                 IF (MOD(iloop + 5, 5) /= 0) THEN
+                                    WRITE (iwfx, '(ES20.10)', advance="no") &
+                                       cmatrix(irow, imo)* &
+                                       orb_basis_set%norm_cgf(ico)* &
+                                       orb_basis_set%gcc(ipgf, ishell, iset)
+                                    newl = .TRUE.
+                                 ELSE
+                                    WRITE (iwfx, '(ES20.10)') &
+                                       cmatrix(irow, imo)* &
+                                       orb_basis_set%norm_cgf(ico)* &
+                                       orb_basis_set%gcc(ipgf, ishell, iset)
+                                    newl = .FALSE.
                                  END IF
-                              END DO
+                                 iloop = iloop + 1
+                              END DO ! end loop over primitives
                               irow = irow + 1
-                              !WRITE bcgf_symbol(icgf)
                            END DO !ico
-                           icgf = icgf + 1
                         END DO ! ishell
                      END DO ! iset
 
@@ -765,24 +780,24 @@ CONTAINS
          END DO ! ispin
          WRITE (iwfx, "(A,/)") "</Molecular Orbital Primitive Coefficients>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Energy
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Energy>"
          WRITE (iwfx, "(ES26.16E3)") energy%total
          WRITE (iwfx, "(A,/)") "</Energy>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Virial ratio
-         ! ===========================================================================!
+         ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Virial Ratio (-V/T)>"
          WRITE (iwfx, "(ES20.12)") - 1*(energy%total - energy%kinetic)/energy%kinetic
          WRITE (iwfx, "(A,/)") "</Virial Ratio (-V/T)>"
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Force-related quantities
          ! inactivated for now
-         ! ===========================================================================!
+         ! !===========================================================================!
          IF (ASSOCIATED(force) .AND. debug_this_module) THEN
             WRITE (iwfx, "(A)") "<Nuclear Cartesian Energy Gradients>"
 
@@ -811,18 +826,25 @@ CONTAINS
             WRITE (iwfx, "(A)") ""
             WRITE (iwfx, "(A,/)") "</Full Virial Ratio, -(V - W)/T)>"
 
+            DEALLOCATE (atom_of_kind)
+            DEALLOCATE (kind_of)
+
          END IF
 
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Core-density
-         ! ===========================================================================!
+         ! !===========================================================================!
          ! Additional Electron Density Function (EDF)
          ! WRITE (iwfx, "(A)") "#<Additional Electron Density Function (EDF)>"
          ! WRITE (iwfx, "(A,/)") "#</Additional Electron Density Function (EDF)>"
 
-         ! -----------------------------------!
+         ! !-----------------------------------!
          ! Done
-         ! -----------------------------------!
+         ! !-----------------------------------!
+         DEALLOCATE (atoms_cart)
+         DEALLOCATE (atom_symbols)
+         DEALLOCATE (atomic_numbers)
+         DEALLOCATE (core_charges)
 
       ELSE  ! no output unit
          iwfx = -1
@@ -838,7 +860,7 @@ CONTAINS
    END SUBROUTINE write_wfx
 
 ! **************************************************************************************************
-!> \brief Figure out type of cartesian primitive gaussian (S, PX, PY ... HXXXXX)
+!> \brief ...
 !> \param l_symb ...
 !> \return ...
 ! **************************************************************************************************
@@ -967,3 +989,4 @@ CONTAINS
    END FUNCTION pgf_type_chargemol
 
 END MODULE qs_chargemol
+
