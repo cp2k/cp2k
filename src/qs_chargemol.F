@@ -90,9 +90,6 @@ MODULE qs_chargemol
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                             make_basis_simple,&
-                                             make_basis_sm
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE qs_energy_types,                 ONLY: qs_energy_type
