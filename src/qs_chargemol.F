@@ -390,21 +390,21 @@ CONTAINS
        WRITE (iwfx, "(A,/)") "</Number of Electrons>"
                      
        !===========================================================================!
-       Number of Alpha electrons
+       ! Number of Alpha electrons
        !===========================================================================!
        WRITE (iwfx, "(A)") "<Number of Alpha Electrons>"
        WRITE (iwfx, "(I6)")  nelec_alpha
        WRITE (iwfx, "(A,/)") "</Number of Alpha Electrons>"
        
        !===========================================================================!
-       Number of Beta electrons
+       ! Number of Beta electrons
        !===========================================================================!
        WRITE (iwfx, "(A)") "<Number of Beta Electrons>"
        WRITE (iwfx, "(I6)")  nelec_beta
        WRITE (iwfx, "(A,/)") "</Number of Beta Electrons>"
 
        !===========================================================================!
-       Spin multiplicity
+       ! Spin multiplicity
        !===========================================================================!
        WRITE (iwfx, "(A)") "<Electron Spin Multiplicity>"
        WRITE (iwfx, "(I4)")  dft_control%multiplicity
