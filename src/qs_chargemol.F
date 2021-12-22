@@ -88,7 +88,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_wfx', routineP = moduleN//':'//routineN
-      REAL(KIND=dp), PARAMETER                           :: gcc_eps = 1.0E-7_dp
 
       CHARACTER(LEN=12), DIMENSION(:), POINTER           :: bcgf_symbol
       CHARACTER(len=2)                                   :: asym
@@ -98,7 +97,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: filename
       INTEGER :: handle, i, iatom, icgf, ico, ikind, iloop, imo, ipgf, irow, iset, isgf, ishell, &
          ispin, iwfx, lshell, max_l, ncgf, ncol_global, nelec_alpha, nelec_beta, nkpoint, noccup, &
-         nrow_global, nset, nsgf, nspins, num_atoms, output_unit, roks_high, roks_low, tot_npgf = 0
+         nrow_global, nset, nsgf, nspins, num_atoms, output_unit, roks_high, roks_low, tot_npgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomic_numbers, kind_of
       INTEGER, DIMENSION(:), POINTER                     :: lmax, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l
@@ -296,12 +295,12 @@ CONTAINS
          WRITE (iwfx, "(A)") "<Number of Perturbations>"
          WRITE (iwfx, "(I6)") 0
          WRITE (iwfx, "(A,/)") "</Number of Perturbations>"
-
+         
          ! !===========================================================================!
          ! Total charge
          ! !===========================================================================!
          WRITE (iwfx, "(A)") "<Net Charge>"
-         WRITE (iwfx, "(F8.4)") FLOAT(dft_control%charge)
+         WRITE (iwfx, "(F8.4)") REAL(dft_control%charge, KIND=dp)
          WRITE (iwfx, "(A,/)") "</Net Charge>"
 
          ! !===========================================================================!
@@ -619,13 +618,11 @@ CONTAINS
                              " not supported by the chargemol interface.")
             END IF
          END DO
-
          IF (nspins == 2) THEN
             DO imo = 1, mos(2)%mo_set%homo
                WRITE (iwfx, '(A5)') "Beta"
             END DO
          END IF
-
          WRITE (iwfx, "(A,/)") "</Molecular Orbital Spin Types>"
 
          ! !===========================================================================!
