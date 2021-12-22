@@ -359,9 +359,26 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "WANNIER_SPREADS", &
                                        description="Controls the printing of the wannier functions", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="")
+
+      CALL keyword_create(keyword, __LOCATION__, name="SECOND_MOMENTS", &
+           description="Prints out the upper triangular part of the position covariance matrix. "// &
+                        "Default is to use a non-periodic position operator. ", &
+                        usage="SECOND_MOMENTS", default_l_val=.FALSE., &
+                        lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PERIODIC", &
+           description="For the covariance matrix, use the periodic position operator."// &
+                       " Requires setting LMAXN1 in QS section to 6 or higher.", &
+                       usage="PERIODIC", default_l_val=.FALSE., &
+                       lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
-
+      
       NULLIFY (print_key)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOC_RESTART", &
                                        description="Controls the printing of restart file for localized MOS", &

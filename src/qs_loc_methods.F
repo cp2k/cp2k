@@ -25,7 +25,9 @@ MODULE qs_loc_methods
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              cp_dbcsr_sm_fm_multiply
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_schur_product
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -46,7 +48,10 @@ MODULE qs_loc_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE dbcsr_api,                       ONLY: dbcsr_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set
    USE input_constants,                 ONLY: &
         do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_l1_norm_sd, do_loc_none, do_loc_scdm, &
         dump_dcd, dump_dcd_aligned_cell, dump_xmol, op_loc_berry, op_loc_boys, op_loc_pipek, &
@@ -64,7 +69,11 @@ MODULE qs_loc_methods
    USE machine,                         ONLY: m_flush
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_maxloc,&
+                                              mp_sum
    USE motion_utils,                    ONLY: get_output_format
+   USE orbital_pointers,                ONLY: ncoset
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set,&
                                               write_particle_coordinates
@@ -99,6 +108,7 @@ MODULE qs_loc_methods
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
+   USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE string_utilities,                ONLY: xstring
@@ -113,7 +123,8 @@ MODULE qs_loc_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_methods'
 
 ! *** Public ***
-   PUBLIC ::  qs_loc_driver, qs_print_cubes, centers_spreads_berry
+   PUBLIC ::  qs_loc_driver, qs_print_cubes, centers_spreads_berry, centers_second_moments_loc,&
+              centers_second_moments_berry
 
 CONTAINS
 
@@ -1091,4 +1102,398 @@ CONTAINS
       CALL deallocate_atomic_kind_set(atomic_kind_set)
    END SUBROUTINE print_wannier_traj
 
+! **************************************************************************************************
+!> \brief Compute the second moments of the centers using the local (non-periodic) pos operators
+!> \param qs_env ...
+!> \param qs_loc_env ...
+!> \param ispin ...
+!> \param print_loc_section ...
+!> \par History
+!>      07.2020 created [H. Elgabarty]
+!> \author Hossam Elgabarty
+! **************************************************************************************************
+   SUBROUTINE centers_second_moments_loc(qs_env, qs_loc_env, print_loc_section, ispin)
+     
+     ! I might not actually need the qs_env
+     TYPE(qs_environment_type), POINTER                 :: qs_env     
+     TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+     TYPE(cp_para_env_type), POINTER                    :: para_env
+     
+     ! two pointers, one to each spin channel's coeff. matrix, each nao x nmoloc
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
+     TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+     TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
+     TYPE(cp_fm_type), POINTER                          :: mo_localized, momv, mvector, omvector
+     TYPE(section_vals_type), POINTER                   :: print_loc_section
+     REAL(dp), DIMENSION(:, :), POINTER                 :: centers
+     REAL(KIND=dp), DIMENSION(3)                        :: rcc
+     REAL(KIND=dp), DIMENSION(6)                        :: cov
+     !TYPE(localized_wfn_control_type), POINTER          :: localized_wfn_control
+
+     !INTEGER, INTENT(IN)                                :: nmoloc
+     INTEGER, INTENT(IN)                                :: ispin
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'centers_second_moments_loc', &
+          routineP = moduleN//':'//routineN
+
+     INTEGER  :: nmoloc, istate, ncol_global, nrow_global, imoment, nm, output_unit,&
+                output_unit_sm
+     INTEGER, PARAMETER                                 :: norder = 2 
+     TYPE(cp_logger_type), POINTER                      :: logger
+     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: moment_set
+     CHARACTER(len=default_path_length)                 :: file_tmp
+     LOGICAL, PARAMETER                   :: debug_this_subroutine = .FALSE.
+     
+     logger => cp_get_default_logger()
+
+     output_unit = cp_print_key_unit_nr(logger, print_loc_section, "PROGRAM_RUN_INFO", &
+                                         extension=".locInfo")
+
+     IF (output_unit > 0) THEN
+        WRITE (output_unit, '(/,T2,A)') &
+             '!-----------------------------------------------------------------------------!'
+        WRITE (output_unit, '(T12,A)') "Computing second moments of Wannier functions..."
+        WRITE (output_unit, '(T2,A)') &
+             '!-----------------------------------------------------------------------------!'
+     END IF
+
+
+     file_tmp = "_r_loc_cov_matrix_"//TRIM(ADJUSTL(cp_to_string(ispin)))
+     output_unit_sm = cp_print_key_unit_nr(logger, print_loc_section, "WANNIER_SPREADS", &
+                                        middle_name=file_tmp, extension=".data")
+
+     CALL get_qs_loc_env(qs_loc_env=qs_loc_env, moloc_coeff=moloc_coeff)
+     centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
+
+     CALL get_qs_env(qs_env, matrix_s=matrix_s)
+
+     nm = ncoset(norder) - 1
+
+     !CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell)
+     !particle_set => qs_loc_env%particle_set
+     para_env => qs_loc_env%para_env
+
+     CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, ncol_global=nmoloc)
+     ALLOCATE(moment_set(nm,nmoloc))
+     moment_set = 0.0_dp
+
+     mo_localized => moloc_coeff(ispin)%matrix
+        
+     DO istate = 1, nmoloc
+        rcc = centers(1:3, istate)
+        !rcc = 0.0_dp
+        
+        ALLOCATE (moments(nm))
+        DO imoment = 1, nm
+           ALLOCATE (moments(imoment)%matrix)
+           CALL dbcsr_copy(moments(imoment)%matrix, matrix_s(ispin)%matrix, 'MOM MAT')
+           CALL dbcsr_set(moments(imoment)%matrix, 0.0_dp)
+        END DO
+        !
+        
+        CALL build_local_moment_matrix(qs_env, moments, norder, rcc)
+        
+        CALL cp_fm_get_info(mo_localized, ncol_global=ncol_global, nrow_global=nrow_global)
+        CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=1, &
+             para_env=mo_localized%matrix_struct%para_env, &
+             context=mo_localized%matrix_struct%context)
+        CALL cp_fm_create(mvector, fm_struct, name="mvector")
+        CALL cp_fm_create(omvector, fm_struct, name="omvector")
+        CALL cp_fm_create(momv, fm_struct, name="omvector")
+        CALL cp_fm_struct_release(fm_struct)
+        
+        !cp_fm_to_fm_columns(msource, mtarget, ncol, source_start,target_start)
+        CALL cp_fm_to_fm(mo_localized, mvector, 1, istate, 1)
+        
+        DO imoment = 1, nm
+           CALL cp_dbcsr_sm_fm_multiply(moments(imoment)%matrix, mvector, omvector, 1)
+           CALL cp_fm_schur_product(mvector, omvector, momv)
+           !moment_set(imoment, istate) = moment_set(imoment, istate) + SUM(momv%local_data)
+           moment_set(imoment, istate) = SUM(momv%local_data)
+        END DO
+        !
+        CALL cp_fm_release(mvector)
+        CALL cp_fm_release(omvector)
+        CALL cp_fm_release(momv)
+
+     
+
+        DO imoment = 1, nm
+           CALL dbcsr_deallocate_matrix(moments(imoment)%matrix)
+        END DO
+        DEALLOCATE (moments)
+     END DO
+
+     CALL mp_sum(moment_set, para_env%group)
+
+     IF (output_unit_sm > 0) THEN
+        WRITE (UNIT=output_unit_sm, FMT='(A,T13,A,I1)') "#",&
+             "SECOND MOMENTS OF WANNIER CENTERS FOR SPIN ", ispin
+        WRITE (UNIT=output_unit_sm, FMT='(A,T29,A2,5(14x,A2))') "#","XX","XY","XZ","YY","YZ","ZZ"
+        DO istate = 1, nmoloc
+           cov = 0.0_dp
+           cov(1) = moment_set(4, istate) - moment_set(1, istate)*moment_set(1, istate)
+           cov(2) = moment_set(5, istate) - moment_set(1, istate)*moment_set(2, istate)
+           cov(3) = moment_set(6, istate) - moment_set(1, istate)*moment_set(3, istate)
+           cov(4) = moment_set(7, istate) - moment_set(2, istate)*moment_set(2, istate)
+           cov(5) = moment_set(8, istate) - moment_set(2, istate)*moment_set(3, istate)
+           cov(6) = moment_set(9, istate) - moment_set(3, istate)*moment_set(3, istate)
+           WRITE (UNIT=output_unit_sm, FMT='(T4,A,I6,6(T20,6F16.8))') "Center:", istate,  cov(1:6)
+           IF (debug_this_subroutine) THEN
+              WRITE (UNIT=output_unit_sm, FMT='(T4,A,I5,9(T20,9F12.6))') "Center:", istate,  moment_set(1:, istate)
+           END IF
+        END DO
+     END IF
+     CALL cp_print_key_finished_output(output_unit_sm, logger, print_loc_section, "WANNIER_SPREADS")
+     CALL cp_print_key_finished_output(output_unit, logger, print_loc_section, "PROGRAM_RUN_INFO")
+     
+     DEALLOCATE (moment_set)
+
+   END SUBROUTINE centers_second_moments_loc
+
+! **************************************************************************************************
+!> \brief Compute the second moments of the centers using a periodic quadrupole operator
+!> \brief c.f. Wheeler et al. PRB 100 245135 2019, and Kang et al. PRB 100 245134 2019
+!> \brief The calculation is based on a Taylor expansion of the exp(i k_i r_i r_j k_j) operator to
+!> \brief to first order in the cosine and the sine parts
+!> \param qs_env ...
+!> \param qs_loc_env ...
+!> \param print_loc_section ...
+!> \param ispin ...
+!> \par History
+!>      08.2020 created [H. Elgabarty]
+!> \author Hossam Elgabarty
+! **************************************************************************************************
+   SUBROUTINE centers_second_moments_berry(qs_env, qs_loc_env, print_loc_section, ispin)
+     
+     TYPE(qs_environment_type), POINTER                 :: qs_env     
+     TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
+     TYPE(cp_para_env_type), POINTER                    :: para_env
+     TYPE(cell_type), POINTER                           :: cell
+     ! two pointers, one to each spin channel's coeff. matrix (nao x nmoloc)
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
+     TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+     TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
+     TYPE(cp_fm_type), POINTER                          :: mo_localized, momv, mvector, omvector
+     TYPE(section_vals_type), POINTER                   :: print_loc_section
+     REAL(dp), DIMENSION(:, :), POINTER                 :: centers
+     REAL(KIND=dp), DIMENSION(3)                        :: rcc
+     REAL(KIND=dp), DIMENSION(6)                        :: cov
+     INTEGER, INTENT(IN)                                :: ispin
+     INTEGER  :: nmoloc, istate, ncol_global, nrow_global, imoment, nm, output_unit, icov, &
+                 output_unit_sm
+     INTEGER, PARAMETER                                 :: taylor_order=1
+     INTEGER                                            :: norder
+     COMPLEX(KIND=dp)                                   :: z
+     REAL(KIND=dp)                                      :: imagpart, realpart, Lx, Ly, Lz
+     TYPE(cp_logger_type), POINTER                      :: logger
+     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: moment_set
+     CHARACTER(len=default_path_length)                 :: file_tmp
+     LOGICAL, PARAMETER                                 :: debug_this_subroutine = .FALSE.
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'centers_second_moments_loc', &
+          routineP = moduleN//':'//routineN
+
+     
+     logger => cp_get_default_logger()
+
+     output_unit = cp_print_key_unit_nr(logger, print_loc_section, "PROGRAM_RUN_INFO", &
+          extension=".locInfo")
+
+     IF (output_unit > 0) THEN
+        WRITE (output_unit, '(/,T2,A)') &
+             '!-----------------------------------------------------------------------------!'
+        WRITE (output_unit, '(T12,A)') "Computing second moments of Wannier functions..."
+        WRITE (output_unit, '(T2,A)') &
+             '!-----------------------------------------------------------------------------!'
+     END IF
+     
+     
+     file_tmp = "_r_berry_cov_matrix_"//TRIM(ADJUSTL(cp_to_string(ispin)))
+     output_unit_sm = cp_print_key_unit_nr(logger, print_loc_section, "WANNIER_SPREADS", &
+                                        middle_name=file_tmp, extension=".data")
+
+     norder = 2*(2*taylor_order+1)
+     nm = (6 + 11*norder + 6*norder**2 + norder**3)/6 - 1
+
+     NULLIFY(cell)
+     CALL get_qs_loc_env(qs_loc_env=qs_loc_env, moloc_coeff=moloc_coeff, cell=cell)
+     Lx = cell%hmat(1,1)
+     Ly = cell%hmat(2,2)
+     Lz = cell%hmat(3,3)
+     
+     centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
+
+     para_env => qs_loc_env%para_env
+     
+     CALL get_qs_env(qs_env, matrix_s=matrix_s)
+
+     CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, ncol_global=nmoloc)
+
+     ALLOCATE(moment_set(nm,nmoloc))
+     moment_set = 0.0_dp
+
+     mo_localized => moloc_coeff(ispin)%matrix
+        
+     DO istate = 1, nmoloc
+        rcc = centers(1:3, istate)
+        !rcc = 0.0_dp
+        
+        ALLOCATE (moments(nm))
+        DO imoment = 1, nm
+           ALLOCATE (moments(imoment)%matrix)
+           CALL dbcsr_copy(moments(imoment)%matrix, matrix_s(ispin)%matrix, 'MOM MAT')
+           CALL dbcsr_set(moments(imoment)%matrix, 0.0_dp)
+        END DO
+        !
+        
+        CALL build_local_moment_matrix(qs_env, moments, norder, rcc)
+        
+        CALL cp_fm_get_info(mo_localized, ncol_global=ncol_global, nrow_global=nrow_global)
+        CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=1, &
+                                 para_env=mo_localized%matrix_struct%para_env, &
+                                 context=mo_localized%matrix_struct%context)
+        CALL cp_fm_create(mvector, fm_struct, name="mvector")
+        CALL cp_fm_create(omvector, fm_struct, name="omvector")
+        CALL cp_fm_create(momv, fm_struct, name="omvector")
+        CALL cp_fm_struct_release(fm_struct)
+        
+        ! cp_fm_to_fm_columns(msource, mtarget, ncol, source_start,target_start)
+        CALL cp_fm_to_fm(mo_localized, mvector, 1, istate, 1)
+        
+        DO imoment = 1, nm
+           CALL cp_dbcsr_sm_fm_multiply(moments(imoment)%matrix, mvector, omvector, 1)
+           CALL cp_fm_schur_product(mvector, omvector, momv)
+           moment_set(imoment, istate) = SUM(momv%local_data)
+        END DO
+        !
+        CALL cp_fm_release(mvector)
+        CALL cp_fm_release(omvector)
+        CALL cp_fm_release(momv)
+        
+        DO imoment = 1, nm
+           CALL dbcsr_deallocate_matrix(moments(imoment)%matrix)
+        END DO
+        DEALLOCATE (moments)
+     END DO
+     
+     CALL mp_sum(moment_set, para_env%group)
+     
+     IF (output_unit_sm > 0) THEN
+        WRITE (UNIT=output_unit_sm, FMT='(A,T13,A,I1)') "#",&
+             "SECOND MOMENTS OF WANNIER CENTERS FOR SPIN ", ispin
+        WRITE (UNIT=output_unit_sm, FMT='(A,T29,A2,5(14x,A2))') "#","XX","XY","XZ","YY","YZ","ZZ"
+        DO istate = 1, nmoloc
+           cov = 0.0_dp
+           DO icov = 1,6
+              realpart = 0.0_dp
+              imagpart = 0.0_dp
+              z = CMPLX(realpart, imagpart, dp)
+              SELECT CASE (icov)
+                 
+                 !! XX
+              CASE (1)
+                 realpart = 1.0 - 0.5 * twopi*twopi/Lx/Lx/Lx/Lx &
+                      * moment_set(20, istate)
+                 imagpart = twopi/Lx/Lx * moment_set(4, istate) &
+                            - twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Lx/6.0 * moment_set(56, istate)
+
+                 ! third order
+                 !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/24.0 * moment_set(120, istate)
+                 !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/120 &
+                 !     * moment_set(220, istate)
+                 
+                 z = CMPLX(realpart,imagpart, dp)
+                 cov(1) = Lx*Lx/twopi*AIMAG(LOG(z)) - Lx*Lx/twopi/twopi*moment_set(1, istate)*moment_set(1, istate)
+                 
+                 !! XY
+              CASE (2)
+                 realpart = 1.0 - 0.5 * twopi*twopi/Lx/Ly/Lx/Ly &
+                      * moment_set(23, istate)
+                 imagpart = twopi/Lx/Ly * moment_set(5, istate) &
+                      - twopi*twopi*twopi/Lx/Lx/Lx/Ly/Ly/Ly/6.0 * moment_set(62, istate)
+                 
+                 ! third order
+                 !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Ly/Ly/Ly/Ly/24.0 * moment_set(130, istate)
+                 !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Ly/Ly/Ly/Ly/Ly/120 &
+                 !     * moment_set(235, istate)
+
+                 z = CMPLX(realpart,imagpart, dp)
+                 cov(2) = Lx*Ly/twopi*AIMAG(LOG(z)) - Lx*Ly/twopi/twopi*moment_set(1, istate)*moment_set(2, istate)
+
+                 !! XZ
+              CASE (3)
+                 realpart = 1.0 - 0.5 * twopi*twopi/Lx/Lz/Lx/Lz &
+                            * moment_set(25, istate)
+                 imagpart = twopi/Lx/Lz * moment_set(6, istate) &
+                            - twopi*twopi*twopi/Lx/Lx/Lx/Lz/Lz/Lz/6.0 * moment_set(65, istate)
+                 
+                 ! third order
+                 !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lz/Lz/Lz/Lz/24.0 * moment_set(134, istate)
+                 !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Ly/Ly/Ly/Ly/Ly/120 &
+                 !     * moment_set(240, istate)
+
+                 z = CMPLX(realpart,imagpart, dp)
+                 cov(3) = Lx*Lz/twopi*AIMAG(LOG(z)) - Lx*Lz/twopi/twopi*moment_set(1, istate)*moment_set(3, istate)
+
+                 !! YY
+              CASE (4) 
+                 realpart = 1.0 - 0.5 * twopi*twopi/Ly/Ly/Ly/Ly &
+                            * moment_set(30, istate)
+                 imagpart = twopi/Ly/Ly * moment_set(7, istate) &
+                            - twopi*twopi*twopi/Ly/Ly/Ly/Ly/Ly/Ly/6.0 * moment_set(77, istate)
+                 
+                 ! third order
+                 !realpart = realpart + twopi*twopi*twopi*twopi/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/24.0 * moment_set(156, istate)
+                 !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/120 &
+                 !     * moment_set(275, istate)
+
+                 z = CMPLX(realpart,imagpart, dp)
+                 cov(4) = Ly*Ly/twopi*AIMAG(LOG(z)) - Ly*Ly/twopi/twopi*moment_set(2, istate)*moment_set(2, istate)
+
+                 !! YZ
+              CASE (5)
+                 realpart = 1.0 - 0.5 * twopi*twopi/Ly/Lz/Ly/Lz &
+                            * moment_set(32, istate)
+                 imagpart = twopi/Ly/Lz * moment_set(8, istate) &
+                            - twopi*twopi*twopi/Ly/Ly/Ly/Lz/Lz/Lz/6.0 * moment_set(80, istate)
+                 
+                 ! third order
+                 !realpart = realpart + twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Ly/Ly/Ly/Ly/24.0 * moment_set(160, istate)
+                 !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Ly/Ly/Ly/Ly/Ly/120 &
+                 !     * moment_set(280, istate)
+
+                 z = CMPLX(realpart,imagpart, dp)
+                 cov(5) = Ly*Lz/twopi*AIMAG(LOG(z)) - Ly*Lz/twopi/twopi*moment_set(2, istate)*moment_set(3, istate)
+
+                 !! ZZ
+              CASE (6)
+                 realpart = 1.0 - 0.5 * twopi*twopi/Lz/Lz/Lz/Lz &
+                            * moment_set(34, istate)
+                 imagpart = twopi/Lz/Lz * moment_set(9, istate) &
+                            - twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Lz/6.0 * moment_set(83, istate)
+                 
+                 ! third order
+                 !realpart = realpart + twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/24.0 * moment_set(164, istate)
+                 !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/120 &
+                 !     * moment_set(285, istate)
+
+                 z = CMPLX(realpart,imagpart, dp)
+                 cov(6) = Lz*Lz/twopi*AIMAG(LOG(z)) - Lz*Lz/twopi/twopi*moment_set(3, istate)*moment_set(3, istate)
+
+              END SELECT
+           END DO
+           WRITE (UNIT=output_unit_sm, FMT='(T4,A,I6,6(T20,6F16.8))') "Center:", istate,  cov(1:6)
+           IF (debug_this_subroutine) THEN
+              WRITE (UNIT=output_unit_sm, FMT='(T4,A,I5,9(T20,9F12.6))') "Center:", istate,  moment_set(1:, istate)
+           END IF
+        END DO
+     END IF
+     CALL cp_print_key_finished_output(output_unit_sm, logger, print_loc_section, "WANNIER_SPREADS")
+     CALL cp_print_key_finished_output(output_unit, logger, print_loc_section, "PROGRAM_RUN_INFO")
+     
+     DEALLOCATE (moment_set)
+
+   END SUBROUTINE centers_second_moments_berry   
+   
 END MODULE qs_loc_methods
