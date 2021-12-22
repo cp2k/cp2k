@@ -287,7 +287,7 @@ CONTAINS
          WRITE (iwfx, "(A)") "<Number of Perturbations>"
          WRITE (iwfx, "(I6)") 0
          WRITE (iwfx, "(A,/)") "</Number of Perturbations>"
-         
+
          ! !===========================================================================!
          ! Total charge
          ! !===========================================================================!
