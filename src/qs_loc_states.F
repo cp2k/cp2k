@@ -18,7 +18,6 @@ MODULE qs_loc_states
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE dbcsr_api,                       ONLY: dbcsr_p_type
-
    USE input_section_types,             ONLY: section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -32,9 +31,9 @@ MODULE qs_loc_states
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_loc_methods,                  ONLY: qs_loc_driver,&
+   USE qs_loc_methods,                  ONLY: centers_second_moments_berry,&
                                               centers_second_moments_loc,&
-                                              centers_second_moments_berry
+                                              qs_loc_driver
    USE qs_loc_molecules,                ONLY: wfc_to_molecule
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
@@ -178,8 +177,8 @@ CONTAINS
          END IF
 
          ! Compute all the second moments of the Wannier states
-         IF ( section_get_lval(loc_print_section, "WANNIER_SPREADS%SECOND_MOMENTS")) THEN
-            IF ( section_get_lval(loc_print_section, "WANNIER_SPREADS%PERIODIC")) THEN
+         IF (section_get_lval(loc_print_section, "WANNIER_SPREADS%SECOND_MOMENTS")) THEN
+            IF (section_get_lval(loc_print_section, "WANNIER_SPREADS%PERIODIC")) THEN
                IF (dft_control%qs_control%gapw_control%lmax_sphere .LT. 6) THEN
                   CPABORT("Periodic second moments require LMAXN1>=6 In QS section")
                END IF
@@ -189,8 +188,7 @@ CONTAINS
             END IF
          END IF
       END DO
-      
-      
+
       ! Compute molecular dipoles
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "MOLECULAR_DIPOLES"), cp_p_file)) THEN
