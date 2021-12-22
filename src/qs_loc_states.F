@@ -18,7 +18,8 @@ MODULE qs_loc_states
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE dbcsr_api,                       ONLY: dbcsr_p_type
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_get_lval,&
+                                              section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE molecular_dipoles,               ONLY: calculate_molecular_dipole
@@ -30,7 +31,9 @@ MODULE qs_loc_states
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_loc_methods,                  ONLY: qs_loc_driver
+   USE qs_loc_methods,                  ONLY: centers_second_moments_berry,&
+                                              centers_second_moments_loc,&
+                                              qs_loc_driver
    USE qs_loc_molecules,                ONLY: wfc_to_molecule
    USE qs_loc_types,                    ONLY: qs_loc_env_new_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
@@ -170,6 +173,18 @@ CONTAINS
                   marked_states(:, ispin, mystate) = marked_states_spin(:)
                   DEALLOCATE (marked_states_spin)
                END IF
+            END IF
+         END IF
+
+         ! Compute all the second moments of the Wannier states
+         IF (section_get_lval(loc_print_section, "WANNIER_SPREADS%SECOND_MOMENTS")) THEN
+            IF (section_get_lval(loc_print_section, "WANNIER_SPREADS%PERIODIC")) THEN
+               IF (dft_control%qs_control%gapw_control%lmax_sphere .LT. 6) THEN
+                  CPABORT("Periodic second moments require LMAXN1>=6 In QS section")
+               END IF
+               CALL centers_second_moments_berry(qs_env, qs_loc_env, loc_print_section, ispin)
+            ELSE
+               CALL centers_second_moments_loc(qs_env, qs_loc_env, loc_print_section, ispin)
             END IF
          END IF
       END DO
