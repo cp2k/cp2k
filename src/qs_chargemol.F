@@ -452,7 +452,7 @@ CONTAINS
           WRITE (iwfx, "(3ES26.16E3)") atoms_cart(1:3, iatom)
        END DO
        WRITE (iwfx, "(A,/)") "</Nuclear Cartesian Coordinates>"
-
+       
        ! !===========================================================================!
        ! Periodic boundary conditions
        ! !===========================================================================!
@@ -931,6 +931,9 @@ CONTAINS
           WRITE (iwfx, "(A)")  ""
           WRITE (iwfx, "(A,/)") "</Full Virial Ratio, -(V - W)/T)>"
 
+          DEALLOCATE (atom_of_kind)
+          DEALLOCATE (kind_of)
+          
        END IF
 
        ! !===========================================================================!
@@ -943,6 +946,10 @@ CONTAINS
        ! !-----------------------------------!
        ! Done
        ! !-----------------------------------!
+       DEALLOCATE (atoms_cart)
+       DEALLOCATE (atom_symbols)
+       DEALLOCATE (atomic_numbers)
+       DEALLOCATE (core_charges)
        
     ELSE  ! no output unit
        iwfx = -1
