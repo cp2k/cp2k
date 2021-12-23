@@ -329,6 +329,8 @@ SIRIUS is a domain specific library for electronic structure calculations.
 
 ### 2u. ROCM/HIP (Support for AMD GPU)
 
+:warning: **Experimental**, please report any problem.
+
 The code for the HIP based grid backend was developed and tested on Mi100 but
 should work out of the box on Nvidia hardware as well.
 
@@ -354,6 +356,8 @@ should work out of the box on Nvidia hardware as well.
   It requires to link `-lroctx64 -lroctracer64`.
 
 ### 2v. OpenCL Devices
+
+:warning: **Experimental**, please report any problem.
 
 OpenCL devices are currently supported by DBCSR and can cover GPUs and other devices.
 Kernels can be automatically tuned similar to the CUDA/HIP backend in DBCSR.
