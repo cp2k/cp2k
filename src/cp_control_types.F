@@ -443,7 +443,7 @@ MODULE cp_control_types
       INTEGER                              :: nprocs
       !> type of kernel function/approximation to use
       INTEGER                              :: kernel
-      !> fro full kernel, do we have HFX/ADMM
+      !> for full kernel, do we have HFX/ADMM
       LOGICAL                              :: do_hfx
       LOGICAL                              :: do_admm
       !> options used in sTDA calculation (Kernel)

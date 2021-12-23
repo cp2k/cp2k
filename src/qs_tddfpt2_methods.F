@@ -99,6 +99,7 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_oecorr,&
                                               tddfpt_release_ground_state_mos
    USE string_utilities,                ONLY: integer_to_string
+   USE xc_write_output,                 ONLY: xc_write
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -139,7 +140,8 @@ CONTAINS
                                                             iter, log_unit, mult, nao, niters, &
                                                             nspins, nstates, nstates_read
       INTEGER, DIMENSION(maxspins)                       :: nactive
-      LOGICAL                                            :: do_admm, do_hfx, is_restarted
+      LOGICAL                                            :: do_admm, do_exck, do_hfx, do_hfxlr, &
+                                                            is_restarted
       REAL(kind=dp)                                      :: conv
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(admm_type), POINTER                           :: admm_env
@@ -173,7 +175,8 @@ CONTAINS
       ! input section print/xc
       NULLIFY (tddfpt_section)
       tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
-      CALL tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section, lri_section)
+      CALL tddfpt_input(qs_env, do_hfx, do_admm, do_exck, do_hfxlr, &
+                        xc_section, tddfpt_print_section, lri_section)
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
@@ -189,6 +192,7 @@ CONTAINS
 
       log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "PROGRAM_BANNER", extension=".tddfptLog")
       CALL tddfpt_header(log_unit)
+      CALL kernel_info(log_unit, dft_control, tddfpt_control, xc_section)
       CALL cp_print_key_finished_output(log_unit, logger, tddfpt_print_section, "PROGRAM_BANNER")
 
       ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
@@ -613,21 +617,26 @@ CONTAINS
 !> \param qs_env  Quickstep environment
 !> \param do_hfx ...
 !> \param do_admm ...
+!> \param do_exck ...
+!> \param do_hfxlr ...
 !> \param xc_section ...
 !> \param tddfpt_print_section ...
 !> \param lri_section ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, xc_section, tddfpt_print_section, lri_section)
+   SUBROUTINE tddfpt_input(qs_env, do_hfx, do_admm, do_exck, do_hfxlr, &
+                           xc_section, tddfpt_print_section, lri_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm
+      LOGICAL, INTENT(INOUT)                             :: do_hfx, do_admm, do_exck, do_hfxlr
       TYPE(section_vals_type), POINTER                   :: xc_section, tddfpt_print_section, &
                                                             lri_section
 
       CHARACTER(len=20)                                  :: nstates_str
-      LOGICAL                                            :: explicit_xc
+      LOGICAL                                            :: exar, exf, exgcp, exhf, exhfxk, exk, &
+                                                            explicit_root, expot, exvdw, exwfn
       REAL(kind=dp)                                      :: C_hf
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input, tddfpt_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, input, tddfpt_section, &
+                                                            xc_root, xc_sub
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       NULLIFY (dft_control, input)
@@ -649,34 +658,115 @@ CONTAINS
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
 
       IF ((tddfpt_control%kernel == tddfpt_kernel_full) .OR. (tddfpt_control%kernel == tddfpt_kernel_flex)) THEN
+         NULLIFY (xc_root)
+         xc_root => section_vals_get_subs_vals(tddfpt_section, "XC")
+         CALL section_vals_get(xc_root, explicit=explicit_root)
          NULLIFY (xc_section)
-         xc_section => section_vals_get_subs_vals(tddfpt_section, "XC%XC_FUNCTIONAL")
-         CALL section_vals_get(xc_section, explicit=explicit_xc)
-         IF (explicit_xc) THEN
-            xc_section => section_vals_get_subs_vals(tddfpt_section, "XC")
-         ELSE
-            xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         END IF
-         hfx_section => section_vals_get_subs_vals(xc_section, "HF")
-
-         CALL section_vals_get(hfx_section, explicit=do_hfx)
-         IF (do_hfx) THEN
-            CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
-            do_hfx = (C_hf /= 0.0_dp)
-         END IF
-         do_admm = do_hfx .AND. dft_control%do_admm
-
-         IF (do_admm) THEN
-            IF (explicit_xc) THEN
+         IF (explicit_root) THEN
+            ! No ADIABATIC_RESCALING option possible
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "ADIABATIC_RESCALING")
+            CALL section_vals_get(xc_sub, explicit=exar)
+            IF (exar) THEN
+               CALL cp_warn(__LOCATION__, "TDDFPT Kernel with ADIABATIC_RESCALING not possible.")
+               CPABORT("TDDFPT Input")
+            END IF
+            ! No GCP_POTENTIAL option possible
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "GCP_POTENTIAL")
+            CALL section_vals_get(xc_sub, explicit=exgcp)
+            IF (exgcp) THEN
+               CALL cp_warn(__LOCATION__, "TDDFPT Kernel with GCP_POTENTIAL not possible.")
+               CPABORT("TDDFPT Input")
+            END IF
+            ! No VDW_POTENTIAL option possible
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "VDW_POTENTIAL")
+            CALL section_vals_get(xc_sub, explicit=exvdw)
+            IF (exvdw) THEN
+               CALL cp_warn(__LOCATION__, "TDDFPT Kernel with VDW_POTENTIAL not possible.")
+               CPABORT("TDDFPT Input")
+            END IF
+            ! No WF_CORRELATION option possible
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "WF_CORRELATION")
+            CALL section_vals_get(xc_sub, explicit=exwfn)
+            IF (exwfn) THEN
+               CALL cp_warn(__LOCATION__, "TDDFPT Kernel with WF_CORRELATION not possible.")
+               CPABORT("TDDFPT Input")
+            END IF
+            ! No XC_POTENTIAL option possible
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "XC_POTENTIAL")
+            CALL section_vals_get(xc_sub, explicit=expot)
+            IF (expot) THEN
+               CALL cp_warn(__LOCATION__, "TDDFPT Kernel with XC_POTENTIAL not possible.")
+               CPABORT("TDDFPT Input")
+            END IF
+            !
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "XC_FUNCTIONAL")
+            CALL section_vals_get(xc_sub, explicit=exf)
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "XC_KERNEL")
+            CALL section_vals_get(xc_sub, explicit=exk)
+            IF ((exf .AND. exk) .OR. .NOT. (exf .OR. exk)) THEN
+               CALL cp_warn(__LOCATION__, "TDDFPT Kernel needs XC_FUNCTIONAL or XC_KERNEL section.")
+               CPABORT("TDDFPT Input")
+            END IF
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "HF")
+            CALL section_vals_get(xc_sub, explicit=exhf)
+            NULLIFY (xc_sub)
+            xc_sub => section_vals_get_subs_vals(xc_root, "HFX_KERNEL")
+            CALL section_vals_get(xc_sub, explicit=exhfxk)
+            IF (exhf .AND. exhfxk) THEN
+               CALL cp_warn(__LOCATION__, "TDDFPT Kernel: HF and HFX_KERNEL are exclusive.")
+               CPABORT("TDDFPT Input")
+            END IF
+            !
+            xc_section => xc_root
+            hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+            CALL section_vals_get(hfx_section, explicit=do_hfx)
+            IF (do_hfx) THEN
+               CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
+               do_hfx = (C_hf /= 0.0_dp)
+            END IF
+            do_admm = do_hfx .AND. dft_control%do_admm
+            IF (do_admm) THEN
                ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
                CALL cp_abort(__LOCATION__, &
                              "ADMM is not implemented for a TDDFT kernel XC-functional which is different from "// &
                              "the one used for the ground-state calculation. A ground-state 'admm_env' cannot be reused.")
             END IF
+            ! SET HFX_KERNEL and/or XC_KERNEL
+            IF (exhfxk) THEN
+               do_exck = .TRUE.
+            ELSE
+               do_exck = .FALSE.
+            END IF
+            IF (exk) THEN
+               do_hfxlr = .TRUE.
+            ELSE
+               do_hfxlr = .FALSE.
+            END IF
+         ELSE
+            xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+            hfx_section => section_vals_get_subs_vals(xc_section, "HF")
+            CALL section_vals_get(hfx_section, explicit=do_hfx)
+            IF (do_hfx) THEN
+               CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
+               do_hfx = (C_hf /= 0.0_dp)
+            END IF
+            do_admm = do_hfx .AND. dft_control%do_admm
+            do_exck = .FALSE.
+            do_hfxlr = .FALSE.
          END IF
       ELSE
          do_hfx = .FALSE.
          do_admm = .FALSE.
+         do_exck = .FALSE.
+         do_hfxlr = .FALSE.
       END IF
 
       ! reset rks_triplets if UKS is in use
@@ -691,5 +781,85 @@ CONTAINS
       END IF
 
    END SUBROUTINE tddfpt_input
+
+! **************************************************************************************************
+!> \brief ...
+!> \param log_unit ...
+!> \param dft_control ...
+!> \param tddfpt_control ...
+!> \param xc_section ...
+! **************************************************************************************************
+   SUBROUTINE kernel_info(log_unit, dft_control, tddfpt_control, xc_section)
+      INTEGER, INTENT(IN)                                :: log_unit
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+      TYPE(section_vals_type), POINTER                   :: xc_section
+
+      CHARACTER(LEN=4)                                   :: ktype
+      LOGICAL                                            :: lsd
+
+      lsd = (dft_control%nspins > 1)
+      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
+         ktype = "FULL"
+         IF (log_unit > 0) THEN
+            WRITE (log_unit, "(T2,A,T77,A4)") "KERNEL|", TRIM(ktype)
+            CALL xc_write(log_unit, xc_section, lsd)
+            IF (tddfpt_control%do_hfx) THEN
+               IF (tddfpt_control%do_admm) THEN
+                  WRITE (log_unit, "(T2,A,T62,A19)") "KERNEL|", "ADMM exact exchange"
+                  IF (tddfpt_control%admm_symm) THEN
+                     WRITE (log_unit, "(T2,A,T60,A21)") "KERNEL|", "symmetric ADMM kernel"
+                  END IF
+               ELSE
+                  WRITE (log_unit, "(T2,A,T67,A14)") "KERNEL|", "exact exchange"
+               END IF
+            END IF
+            IF (tddfpt_control%do_lrigpw) THEN
+               WRITE (log_unit, "(T2,A,T43,A38)") "KERNEL|", "LRI approximation of transition density"
+            END IF
+         END IF
+      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
+         ktype = "sTDA"
+         IF (log_unit > 0) THEN
+            WRITE (log_unit, "(T2,A,T77,A4)") "KERNEL|", TRIM(ktype)
+            IF (tddfpt_control%stda_control%do_ewald) THEN
+               WRITE (log_unit, "(T2,A,T78,A3)") "KERNEL| Coulomb term uses Ewald summation"
+            ELSE
+               WRITE (log_unit, "(T2,A,T78,A3)") "KERNEL| Coulomb term uses direct summation (MIC)"
+            END IF
+            IF (tddfpt_control%stda_control%do_exchange) THEN
+               WRITE (log_unit, "(T2,A,T78,A3)") "KERNEL| Exact exchange term", "YES"
+               WRITE (log_unit, "(T2,A,T71,F10.3)") "KERNEL| Short range HFX fraction:", &
+                  tddfpt_control%stda_control%hfx_fraction
+            ELSE
+               WRITE (log_unit, "(T2,A,T79,A2)") "KERNEL| Exact exchange term", "NO"
+            END IF
+            WRITE (log_unit, "(T2,A,T66,E15.3)") "KERNEL| Transition density filter", &
+               tddfpt_control%stda_control%eps_td_filter
+         END IF
+      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_none) THEN
+         ktype = "NONE"
+         IF (log_unit > 0) THEN
+            WRITE (log_unit, "(T2,A,T77,A4)") "KERNEL|", TRIM(ktype)
+         END IF
+      ELSE
+         !CPABORT("Unknown kernel")
+      END IF
+      !
+      IF (log_unit > 0) THEN
+         IF (tddfpt_control%rks_triplets) THEN
+            WRITE (log_unit, "(T2,A,T74,A7)") "KERNEL| Spin symmetry of excitations", "Triplet"
+         ELSE IF (lsd) THEN
+            WRITE (log_unit, "(T2,A,T69,A12)") "KERNEL| Spin symmetry of excitations", "Unrestricted"
+         ELSE
+            WRITE (log_unit, "(T2,A,T74,A7)") "KERNEL| Spin symmetry of excitations", "Singlet"
+         END IF
+         WRITE (log_unit, "(T2,A,T73,I8)") "TDDFPT| Number of states calculated", tddfpt_control%nstates
+         WRITE (log_unit, "(T2,A,T73,I8)") "TDDFPT| Number of Davidson iterations", tddfpt_control%niters
+         WRITE (log_unit, "(T2,A,T66,E15.3)") "TDDFPT| Davidson iteration convergence", tddfpt_control%conv
+         WRITE (log_unit, "(T2,A,T73,I8)") "TDDFPT| Max. number of Krylov space vectors", tddfpt_control%nkvs
+      END IF
+
+   END SUBROUTINE kernel_info
 
 END MODULE qs_tddfpt2_methods
