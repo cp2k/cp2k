@@ -121,7 +121,7 @@ async def main() -> None:
     for batch in batches:
         if not batch.requirements_satisfied(flags, cfg.mpiranks):
             print(f"Skipping {batch.name} because its requirements are not satisfied.")
-        elif not any(re.match(p, batch.name) for p in cfg.restrictdirs):
+        elif not any(re.fullmatch(p, batch.name) for p in cfg.restrictdirs):
             num_restrictdirs += 1
         else:
             tasks.append(asyncio.get_event_loop().create_task(run_batch(batch, cfg)))
