@@ -129,8 +129,8 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CUDA_FLAGS=''
   add_include_from_paths CUDA_FLAGS "cuda.h" $INCLUDE_PATHS
   NVFLAGS+=" ${CUDA_FLAGS}"
-  CFLAGS+=" -I${CUDA_PATH}/include"
-  CXXFLAGS+=" -I${CUDA_PATH}/include"
+  CFLAGS+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
+  CXXFLAGS+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
 
   # Set LD-flags
   CUDA_LDFLAGS=''
@@ -192,7 +192,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__GRID_HIP|)" # -D__DBCSR_ACC
       HIP_FLAGS=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
       add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
-      HIP_INCLUDES+=" -I${CUDA_PATH}/include"
+      HIP_INCLUDES+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
       # GCC issues lots of warnings for hip/nvidia_detail/hip_runtime_api.h
       CFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
       CXXFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
