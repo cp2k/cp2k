@@ -25,6 +25,7 @@ MODULE structure_factor_types
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: shell_ex, shell_ey, shell_ez
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: core_ex, core_ey, core_ez
       INTEGER, DIMENSION(:, :), POINTER :: centre, core_centre, shell_centre
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: delta, core_delta, shell_delta
       INTEGER :: lb(3)
    END TYPE structure_factor_type
 
