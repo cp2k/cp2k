@@ -39,13 +39,13 @@ MODULE qs_kernel_types
 ! **************************************************************************************************
    TYPE full_kernel_env_type
       ! ground state electron density
-      TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set
+      TYPE(xc_rho_set_type), POINTER                     :: xc_rho_set => Null()
       ! response density
-      TYPE(xc_rho_set_type), POINTER                     :: xc_rho1_set
+      TYPE(xc_rho_set_type), POINTER                     :: xc_rho1_set => Null()
       !> first and second derivatives of exchange-correlation functional
-      TYPE(xc_derivative_set_type), POINTER              :: xc_deriv_set
+      TYPE(xc_derivative_set_type), POINTER              :: xc_deriv_set => Null()
       !> XC input section
-      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(section_vals_type), POINTER                   :: xc_section => Null()
       !> flags which indicate required components of the exchange-correlation functional
       !> (density, gradient, etc)
       TYPE(xc_rho_cflags_type)                           :: xc_rho1_cflags
@@ -60,8 +60,8 @@ MODULE qs_kernel_types
       LOGICAL                                            :: deriv2_analytic
       LOGICAL                                            :: deriv3_analytic
       ! Local resolution of the identity for Coulomb (at the moment only for flex kernel)
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_environment_type), POINTER                :: lri_env => Null()
+      TYPE(lri_density_type), POINTER                    :: lri_density => Null()
    END TYPE full_kernel_env_type
 ! **************************************************************************************************
 !> \brief Type to hold environments for the different kernels
