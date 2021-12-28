@@ -103,6 +103,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
       INTEGER, DIMENSION(3)                              :: nd, npts
       REAL(KIND=dp)                                      :: alpha, dvols, fat(3), ffa, ffb, fint, vgc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       REAL(KIND=dp), DIMENSION(3, 3)                     :: f_stress, h_stress
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -138,8 +139,8 @@ CONTAINS
       CALL rs_grid_set_box(grid_spme, rs=rden)
       CALL rs_grid_zero(rden)
 
-      ALLOCATE (center(3, npart))
-      CALL get_center(particle_set, box, center, npts, n)
+      ALLOCATE (center(3, npart), delta(3, npart))
+      CALL get_center(particle_set, box, center, delta, npts, n)
 
       !-------------- DENSITY CALCULATION ----------------
       ipart = 0
@@ -148,7 +149,7 @@ CONTAINS
          IF (p1 == 0) EXIT
 
          ! calculate function on small boxes
-         CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
+         CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
                         is_shell=.FALSE., unit_charge=.TRUE.)
          rhos(:, :, :) = rhos(:, :, :)*mcharge(p1)
 
@@ -200,7 +201,7 @@ CONTAINS
                CALL set_list(particle_set, npart, center, p1, rden, ipart)
                IF (p1 == 0) EXIT
                ! calculate function on small boxes
-               CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
+               CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
                               is_shell=.FALSE., unit_charge=.TRUE.)
                CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
                atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1) + 0.5_dp*mcharge(p1)*fint*dvols
@@ -232,7 +233,7 @@ CONTAINS
                      CALL set_list(particle_set, npart, center, p1, rden, ipart)
                      IF (p1 == 0) EXIT
                      ! calculate function on small boxes
-                     CALL get_patch(particle_set, box, green, npts, p1, rhos, &
+                     CALL get_patch(particle_set, delta, green, p1, rhos, &
                                     is_core=.FALSE., is_shell=.FALSE., unit_charge=.TRUE.)
                      ! integrate box and potential
                      CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
@@ -300,7 +301,7 @@ CONTAINS
          IF (p1 == 0) EXIT
 
          ! calculate function on small boxes
-         CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
+         CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
                         is_shell=.FALSE., unit_charge=.TRUE.)
 
          CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
@@ -330,7 +331,7 @@ CONTAINS
          END IF
       END IF
       DEALLOCATE (rhos)
-      DEALLOCATE (center)
+      DEALLOCATE (center, delta)
 
       CALL timestop(handle)
 
@@ -433,6 +434,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
       INTEGER, DIMENSION(3)                              :: npts
       REAL(KIND=dp)                                      :: alpha, dvols, fat(3), fint, vgc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(greens_fn_type), POINTER                      :: green
@@ -467,8 +469,8 @@ CONTAINS
       CALL rs_grid_set_box(grid_spme, rs=rden)
       CALL rs_grid_zero(rden)
 
-      ALLOCATE (center(3, npart))
-      CALL get_center(particle_set, box, center, npts, n)
+      ALLOCATE (center(3, npart), delta(3, npart))
+      CALL get_center(particle_set, box, center, delta, npts, n)
 
       !-------------- DENSITY CALCULATION ----------------
       ipart = 0
@@ -477,7 +479,7 @@ CONTAINS
          IF (p1 == 0) EXIT
 
          ! calculate function on small boxes
-         CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
+         CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
                         is_shell=.FALSE., unit_charge=.TRUE.)
          rhos(:, :, :) = rhos(:, :, :)*mcharge(p1)
 
@@ -544,7 +546,7 @@ CONTAINS
          IF (p1 == 0) EXIT
 
          ! calculate function on small boxes
-         CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
+         CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
                         is_shell=.FALSE., unit_charge=.TRUE.)
 
          CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
@@ -570,7 +572,7 @@ CONTAINS
          DEALLOCATE (drpot)
       END IF
       DEALLOCATE (rhos)
-      DEALLOCATE (center)
+      DEALLOCATE (center, delta)
 
       CALL timestop(handle)
 

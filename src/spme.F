@@ -17,8 +17,7 @@ MODULE spme
    USE atprop_types,                    ONLY: atprop_type
    USE bibliography,                    ONLY: Essmann1995,&
                                               cite_reference
-   USE cell_types,                      ONLY: cell_type,&
-                                              real_to_scaled
+   USE cell_types,                      ONLY: cell_type
    USE dgs,                             ONLY: dg_sum_patch,&
                                               dg_sum_patch_force_1d,&
                                               dg_sum_patch_force_3d
@@ -117,6 +116,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nd, npts
       LOGICAL                                            :: do_shell
       REAL(KIND=dp)                                      :: alpha, dvols, fat1, ffa, ffb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: core_delta, delta, shell_delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       REAL(KIND=dp), DIMENSION(3)                        :: fat
       REAL(KIND=dp), DIMENSION(3, 3)                     :: f_stress, h_stress
@@ -153,18 +153,19 @@ CONTAINS
       CALL rs_grid_set_box(grid_spme, rs=rden)
       CALL rs_grid_zero(rden)
 
-      ALLOCATE (center(3, npart))
-      CALL get_center(particle_set, box, center, npts, n)
+      ALLOCATE (center(3, npart), delta(3, npart))
+      CALL get_center(particle_set, box, center, delta, npts, n)
+
       IF (PRESENT(shell_particle_set) .AND. (PRESENT(core_particle_set))) THEN
          CPASSERT(ASSOCIATED(shell_particle_set))
          CPASSERT(ASSOCIATED(core_particle_set))
          nshell = SIZE(shell_particle_set)
          ncore = SIZE(core_particle_set)
          CPASSERT(nshell == ncore)
-         ALLOCATE (shell_center(3, nshell))
-         CALL get_center(shell_particle_set, box, shell_center, npts, n)
-         ALLOCATE (core_center(3, nshell))
-         CALL get_center(core_particle_set, box, core_center, npts, n)
+         ALLOCATE (shell_center(3, nshell), shell_delta(3, nshell))
+         CALL get_center(shell_particle_set, box, shell_center, shell_delta, npts, n)
+         ALLOCATE (core_center(3, nshell), core_delta(3, nshell))
+         CALL get_center(core_particle_set, box, core_center, core_delta, npts, n)
       END IF
 
       !-------------- DENSITY CALCULATION ----------------
@@ -177,7 +178,7 @@ CONTAINS
          do_shell = (particle_set(p1)%shell_index /= 0)
          IF (do_shell) CYCLE
          ! calculate function on small boxes
-         CALL get_patch(particle_set, box, green, npts, p1, rhos, is_core=.FALSE., &
+         CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
                         is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
 
          ! add boxes to real space grid (big box)
@@ -191,7 +192,7 @@ CONTAINS
             CALL set_list(shell_particle_set, nshell, shell_center, p1_shell, &
                           rden, ipart)
             IF (p1_shell == 0) EXIT
-            CALL get_patch(shell_particle_set, box, green, npts, p1_shell, rhos, &
+            CALL get_patch(shell_particle_set, shell_delta, green, p1_shell, rhos, &
                            is_core=.FALSE., is_shell=.TRUE., unit_charge=.FALSE.)
 
             ! add boxes to real space grid (big box)
@@ -203,7 +204,7 @@ CONTAINS
             CALL set_list(core_particle_set, nshell, core_center, p1_shell, &
                           rden, ipart)
             IF (p1_shell == 0) EXIT
-            CALL get_patch(core_particle_set, box, green, npts, p1_shell, rhos, &
+            CALL get_patch(core_particle_set, core_delta, green, p1_shell, rhos, &
                            is_core=.TRUE., is_shell=.FALSE., unit_charge=.FALSE.)
 
             ! add boxes to real space grid (big box)
@@ -252,7 +253,7 @@ CONTAINS
             do_shell = (particle_set(p1)%shell_index /= 0)
             IF (do_shell) CYCLE
             ! calculate function on small boxes
-            CALL get_patch(particle_set, box, green, grid_spme%npts, p1, rhos, is_core=.FALSE., &
+            CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
                            is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
             ! integrate box and potential
             CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fat1)
@@ -271,7 +272,7 @@ CONTAINS
             DO
                CALL set_list(shell_particle_set, nshell, shell_center, p1_shell, rden, ipart)
                IF (p1_shell == 0) EXIT
-               CALL get_patch(shell_particle_set, box, green, npts, p1_shell, rhos, &
+               CALL get_patch(shell_particle_set, shell_delta, green, p1_shell, rhos, &
                               is_core=.FALSE., is_shell=.TRUE., unit_charge=.FALSE.)
                CALL dg_sum_patch_force_1d(rpot, rhos, shell_center(:, p1_shell), fat1)
                p1 = shell_particle_set(p1_shell)%atom_index
@@ -283,7 +284,7 @@ CONTAINS
             DO
                CALL set_list(core_particle_set, nshell, core_center, p1_shell, rden, ipart)
                IF (p1_shell == 0) EXIT
-               CALL get_patch(core_particle_set, box, green, npts, p1_shell, rhos, &
+               CALL get_patch(core_particle_set, core_delta, green, p1_shell, rhos, &
                               is_core=.TRUE., is_shell=.FALSE., unit_charge=.FALSE.)
                CALL dg_sum_patch_force_1d(rpot, rhos, core_center(:, p1_shell), fat1)
                p1 = core_particle_set(p1_shell)%atom_index
@@ -315,7 +316,7 @@ CONTAINS
                      CALL set_list(particle_set, npart, center, p1, rden, ipart)
                      IF (p1 == 0) EXIT
                      ! calculate function on small boxes
-                     CALL get_patch(particle_set, box, green, grid_spme%npts, p1, rhos, &
+                     CALL get_patch(particle_set, delta, green, p1, rhos, &
                                     is_core=.FALSE., is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
                      ! integrate box and potential
                      CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fat1)
@@ -370,7 +371,7 @@ CONTAINS
          do_shell = (particle_set(p1)%shell_index /= 0)
          IF (do_shell) CYCLE
          ! calculate function on small boxes
-         CALL get_patch(particle_set, box, green, grid_spme%npts, p1, rhos, is_core=.FALSE., &
+         CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
                         is_shell=.FALSE., unit_charge=.FALSE., charges=charges)
 
          ! add boxes to real space grid (big box)
@@ -390,7 +391,7 @@ CONTAINS
                              rden, ipart)
                IF (p1_shell == 0) EXIT
 
-               CALL get_patch(shell_particle_set, box, green, grid_spme%npts, &
+               CALL get_patch(shell_particle_set, shell_delta, green, &
                               p1_shell, rhos, is_core=.FALSE., is_shell=.TRUE., unit_charge=.FALSE.)
 
                ! add boxes to real space grid (big box)
@@ -410,7 +411,7 @@ CONTAINS
                              rden, ipart)
                IF (p1_shell == 0) EXIT
 
-               CALL get_patch(core_particle_set, box, green, grid_spme%npts, &
+               CALL get_patch(core_particle_set, core_delta, green, &
                               p1_shell, rhos, is_core=.TRUE., is_shell=.FALSE., unit_charge=.FALSE.)
 
                ! add boxes to real space grid (big box)
@@ -434,12 +435,12 @@ CONTAINS
       END IF
 
       DEALLOCATE (rhos)
-      DEALLOCATE (center)
+      DEALLOCATE (center, delta)
       IF (ALLOCATED(shell_center)) THEN
-         DEALLOCATE (shell_center)
+         DEALLOCATE (shell_center, shell_delta)
       END IF
       IF (ALLOCATED(core_center)) THEN
-         DEALLOCATE (core_center)
+         DEALLOCATE (core_center, core_delta)
       END IF
       CALL timestop(handle)
 
@@ -477,6 +478,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
       INTEGER, DIMENSION(3)                              :: npts
       REAL(KIND=dp)                                      :: alpha, dvols, fat1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       TYPE(greens_fn_type), POINTER                      :: green
       TYPE(pw_grid_type), POINTER                        :: grid_spme
@@ -509,8 +511,8 @@ CONTAINS
       CALL rs_grid_set_box(grid_spme, rs=rden)
       CALL rs_grid_zero(rden)
 
-      ALLOCATE (center(3, npart_a))
-      CALL get_center(particle_set_a, box, center, npts, n)
+      ALLOCATE (center(3, npart_a), delta(3, npart_a))
+      CALL get_center(particle_set_a, box, center, delta, npts, n)
 
       !-------------- DENSITY CALCULATION ----------------
       ipart = 0
@@ -520,12 +522,12 @@ CONTAINS
          IF (p1 == 0) EXIT
 
          ! calculate function on small boxes
-         CALL get_patch(particle_set_a, box, green, npts, p1, rhos, charges_a)
+         CALL get_patch(particle_set_a, delta, green, p1, rhos, charges_a)
 
          ! add boxes to real space grid (big box)
          CALL dg_sum_patch(rden, rhos, center(:, p1))
       END DO
-      DEALLOCATE (center)
+      DEALLOCATE (center, delta)
       !----------- END OF DENSITY CALCULATION -------------
 
       CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
@@ -548,8 +550,8 @@ CONTAINS
       !---------- END OF ELECTROSTATIC CALCULATION --------
 
       !-------------- POTENTAIL AT ATOMIC POSITIONS -------
-      ALLOCATE (center(3, npart_b))
-      CALL get_center(particle_set_b, box, center, npts, n)
+      ALLOCATE (center(3, npart_b), delta(3, npart_b))
+      CALL get_center(particle_set_b, box, center, delta, npts, n)
       rpot => rden
       phi_g%cc = phi_g%cc*green%p3m_charge%cr
       CALL pw_transfer(phi_g, rhob_r)
@@ -559,7 +561,7 @@ CONTAINS
          CALL set_list(particle_set_b, npart_b, center, p1, rden, ipart)
          IF (p1 == 0) EXIT
          ! calculate function on small boxes
-         CALL get_patch(particle_set_b, box, green, grid_spme%npts, p1, rhos, &
+         CALL get_patch(particle_set_b, delta, green, p1, rhos, &
                         is_core=.FALSE., is_shell=.FALSE., unit_charge=.TRUE.)
          ! integrate box and potential
          CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fat1)
@@ -573,7 +575,7 @@ CONTAINS
       CALL rs_grid_release(rden)
 
       DEALLOCATE (rhos)
-      DEALLOCATE (center)
+      DEALLOCATE (center, delta)
       CALL timestop(handle)
 
    END SUBROUTINE spme_potential
@@ -612,6 +614,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
       INTEGER, DIMENSION(3)                              :: npts
       REAL(KIND=dp)                                      :: alpha, dvols
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       REAL(KIND=dp), DIMENSION(3)                        :: fat
       TYPE(greens_fn_type), POINTER                      :: green
@@ -647,8 +650,8 @@ CONTAINS
       CALL rs_grid_set_box(grid_spme, rs=rden)
       CALL rs_grid_zero(rden)
 
-      ALLOCATE (center(3, npart_a))
-      CALL get_center(particle_set_a, box, center, npts, n)
+      ALLOCATE (center(3, npart_a), delta(3, npart_a))
+      CALL get_center(particle_set_a, box, center, delta, npts, n)
 
       !-------------- DENSITY CALCULATION ----------------
       ipart = 0
@@ -658,12 +661,12 @@ CONTAINS
          IF (p1 == 0) EXIT
 
          ! calculate function on small boxes
-         CALL get_patch(particle_set_a, box, green, npts, p1, rhos, charges_a)
+         CALL get_patch(particle_set_a, delta, green, p1, rhos, charges_a)
 
          ! add boxes to real space grid (big box)
          CALL dg_sum_patch(rden, rhos, center(:, p1))
       END DO
-      DEALLOCATE (center)
+      DEALLOCATE (center, delta)
       !----------- END OF DENSITY CALCULATION -------------
 
       CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
@@ -703,14 +706,14 @@ CONTAINS
          CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
       END DO
       !----------------- FORCE CALCULATION ----------------
-      ALLOCATE (center(3, npart_b))
-      CALL get_center(particle_set_b, box, center, npts, n)
+      ALLOCATE (center(3, npart_b), delta(3, npart_b))
+      CALL get_center(particle_set_b, box, center, delta, npts, n)
       ipart = 0
       DO
          CALL set_list(particle_set_b, npart_b, center, p1, rden, ipart)
          IF (p1 == 0) EXIT
          ! calculate function on small boxes
-         CALL get_patch(particle_set_b, box, green, grid_spme%npts, p1, rhos, &
+         CALL get_patch(particle_set_b, delta, green, p1, rhos, &
                         is_core=.FALSE., is_shell=.FALSE., unit_charge=.FALSE., charges=charges_b)
          ! add boxes to real space grid (big box)
          CALL dg_sum_patch_force_3d(drpot, rhos, center(:, p1), fat)
@@ -731,7 +734,7 @@ CONTAINS
       CALL rs_grid_release(rden)
 
       DEALLOCATE (rhos)
-      DEALLOCATE (center)
+      DEALLOCATE (center, delta)
       CALL timestop(handle)
 
    END SUBROUTINE spme_forces
@@ -739,9 +742,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates local density in a small box
 !> \param part ...
-!> \param box ...
+!> \param delta ...
 !> \param green ...
-!> \param npts ...
 !> \param p ...
 !> \param rhos ...
 !> \param is_core ...
@@ -752,13 +754,12 @@ CONTAINS
 !>      none
 !> \author JGH (21-Mar-2001)
 ! **************************************************************************************************
-   SUBROUTINE get_patch_a(part, box, green, npts, p, rhos, is_core, is_shell, &
+   SUBROUTINE get_patch_a(part, delta, green, p, rhos, is_core, is_shell, &
                           unit_charge, charges)
 
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: part
-      TYPE(cell_type), POINTER                           :: box
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: delta
       TYPE(greens_fn_type), POINTER                      :: green
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: npts
       INTEGER, INTENT(IN)                                :: p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
       LOGICAL, INTENT(IN)                                :: is_core, is_shell, unit_charge
@@ -767,7 +768,7 @@ CONTAINS
       INTEGER                                            :: nbox
       LOGICAL                                            :: use_charge_array
       REAL(KIND=dp)                                      :: q
-      REAL(KIND=dp), DIMENSION(3)                        :: delta, r
+      REAL(KIND=dp), DIMENSION(3)                        :: r
       TYPE(shell_kind_type), POINTER                     :: shell
 
       NULLIFY (shell)
@@ -792,17 +793,15 @@ CONTAINS
          END IF
          IF (use_charge_array) q = charges(p)
       END IF
-      CALL get_delta(box, r, npts, delta, nbox)
-      CALL spme_get_patch(rhos, nbox, delta, q, green%p3m_coeff)
+      CALL spme_get_patch(rhos, nbox, delta(:, p), q, green%p3m_coeff)
 
    END SUBROUTINE get_patch_a
 
 ! **************************************************************************************************
 !> \brief Calculates local density in a small box
 !> \param part ...
-!> \param box ...
+!> \param delta ...
 !> \param green ...
-!> \param npts ...
 !> \param p ...
 !> \param rhos ...
 !> \param charges ...
@@ -810,25 +809,23 @@ CONTAINS
 !>      none
 !> \author JGH (21-Mar-2001)
 ! **************************************************************************************************
-   SUBROUTINE get_patch_b(part, box, green, npts, p, rhos, charges)
+   SUBROUTINE get_patch_b(part, delta, green, p, rhos, charges)
 
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: part
-      TYPE(cell_type), POINTER                           :: box
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: delta
       TYPE(greens_fn_type), POINTER                      :: green
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: npts
       INTEGER, INTENT(IN)                                :: p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
 
       INTEGER                                            :: nbox
       REAL(KIND=dp)                                      :: q
-      REAL(KIND=dp), DIMENSION(3)                        :: delta, r
+      REAL(KIND=dp), DIMENSION(3)                        :: r
 
       nbox = SIZE(rhos, 1)
       r = part(p)%r
       q = charges(p)
-      CALL get_delta(box, r, npts, delta, nbox)
-      CALL spme_get_patch(rhos, nbox, delta, q, green%p3m_coeff)
+      CALL spme_get_patch(rhos, nbox, delta(:, p), q, green%p3m_coeff)
 
    END SUBROUTINE get_patch_b
 
@@ -901,51 +898,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE spme_get_patch
-
-! **************************************************************************************************
-!> \brief ...
-!> \param box ...
-!> \param r ...
-!> \param npts ...
-!> \param delta ...
-!> \param n ...
-! **************************************************************************************************
-   SUBROUTINE get_delta(box, r, npts, delta, n)
-
-      TYPE(cell_type), POINTER                           :: box
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: npts
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: delta
-      INTEGER, INTENT(IN)                                :: n
-
-      INTEGER                                            :: mp
-      INTEGER, DIMENSION(3)                              :: center
-      REAL(KIND=dp)                                      :: rmp
-      REAL(KIND=dp), DIMENSION(3)                        :: ca, grid_i, s
-
-      mp = MAXVAL(npts(:))
-      rmp = REAL(mp, KIND=dp)
-      ! compute the scaled coordinate of atomi
-      CALL real_to_scaled(s, r, box)
-      s = s - REAL(NINT(s), KIND=dp)
-
-      ! find the continuous ``grid'' point
-      grid_i(1:3) = REAL(npts(1:3), KIND=dp)*s(1:3)
-
-      ! find the closest grid point
-
-      IF (MOD(n, 2) == 0) THEN
-         center(:) = INT(grid_i(:) + rmp) - mp
-         ca(:) = REAL(center(:), KIND=dp) + 0.5_dp
-      ELSE
-         center(:) = NINT(grid_i(:))
-         ca(:) = REAL(center(:), KIND=dp)
-      END IF
-
-      ! find the distance vector
-      delta(:) = grid_i(:) - ca(:)
-
-   END SUBROUTINE get_delta
 
 END MODULE spme
 
