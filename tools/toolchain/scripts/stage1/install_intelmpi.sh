@@ -31,15 +31,15 @@ case "$with_intelmpi" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel MPI from system paths ===================="
-    check_command mpirun "intelmpi" && MPIRUN="$(which mpirun)" || exit
-    check_command mpiicc "intelmpi" && MPICC="$(which mpiicc)" || exit
-    check_command mpiifort "intelmpi" && MPIFC="$(which mpiifort)" || exit
+    check_command mpirun "intelmpi" && MPIRUN="$(command -v mpirun)" || exit
+    check_command mpiicc "intelmpi" && MPICC="$(command -v mpiicc)" || exit
+    check_command mpiifort "intelmpi" && MPIFC="$(command -v mpiifort)" || exit
     if [ $(command -v mpiicpc >&- 2>&-) ]; then
-       check_command mpiicpc "intelmpi" && MPICXX="$(which mpiicpc)"
+      check_command mpiicpc "intelmpi" && MPICXX="$(command -v mpiicpc)"
     elif [ $(command -v mpic++ >&- 2>&-) ]; then
-       check_command mpic++ "intelmpi" && MPICXX="$(which mpic++)"
+      check_command mpic++ "intelmpi" && MPICXX="$(command -v mpic++)"
     else
-      check_command mpicxx "intelmpi" && MPICXX="$(which mpicxx)" || exit
+      check_command mpicxx "intelmpi" && MPICXX="$(command -v mpicxx)" || exit
     fi
     add_include_from_paths INTELMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
     add_lib_from_paths INTELMPI_LDFLAGS "libmpi.*" $LIB_PATHS
