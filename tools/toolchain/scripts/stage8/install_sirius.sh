@@ -106,6 +106,10 @@ case "$with_sirius" in
       [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
+
+      # fix the CUDA include path
+      patch -p1 < "${SCRIPT_DIR}/stage8/sirius-7.3.0-cudatoolkit.patch"
+
       rm -Rf build
       mkdir build
       cd build
@@ -136,7 +140,7 @@ case "$with_sirius" in
       fi
 
       cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
+        -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
         -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
         -DCMAKE_CXX_COMPILER="${MPICXX}" \
         -DCMAKE_C_COMPILER="${MPICC}" \
@@ -161,7 +165,7 @@ case "$with_sirius" in
         cd build-cuda
         CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${SPFFT_ROOT}/lib/cmake:${SPFFT_ROOT}/lib64/cmake" \
           cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
-          -DCMAKE_CXXFLAGS_RELEASE="${SIRIUS_OPT}" \
+          -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
           -DUSE_CUDA=ON \
