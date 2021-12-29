@@ -2,14 +2,17 @@
 #
 # CP2K (Intel/MKL) arch file for the Merlin cluster (PSI)
 #
-# Tested with: Intel 21.3, Intel MPI, Intel MKL, GSL 2.7,
+# Tested with: Intel 21.4, Intel MPI, Intel MKL, GSL 2.7,
 #              LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.11.001,
 #              PLUMED 2.7.3, SPGLIB 1.16.2, LIBVORI 210412,
 #              COSMA 2.5.1, SIRIUS 7.3.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #        The compiler version can be specified as argument.
-#        Otherwise a toolchain installation is expected as default.
+#        Otherwise a CP2K toolchain installation is expected as default,
+#        which can be created by running in advance
+#        > cd tools/toolchain
+#        > ./install_cp2k_toolchain.sh --with-intelmpi=system --with-mkl=system --with-plumed
 #
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
 #
