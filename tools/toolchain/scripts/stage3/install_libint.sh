@@ -86,8 +86,10 @@ case "$with_libint" in
         --libdir="${pkg_install_dir}/lib" \
         > configure.log 2>&1
 
-      # Fix bug in makefile for Fortran module
-      sed -i "s/\$(CXX) \$(CXXFLAGS)/\$(FC) \$(FCFLAGS)/g" fortran/Makefile
+      if [ ${MPI_MODE} == "intelmpi" ]; then
+        # Fix bug in makefile for Fortran module
+        sed -i "s/\$(CXX) \$(CXXFLAGS)/\$(FC) \$(FCFLAGS)/g" fortran/Makefile
+      fi
 
       make -j $(get_nprocs) > make.log 2>&1
       make install > install.log 2>&1
