@@ -70,6 +70,7 @@ case "$with_fftw" in
     [ "$MPI_MODE" != "no" ] && check_lib -lfftw3_mpi "FFTW"
     add_include_from_paths FFTW_CFLAGS "fftw3.h" $INCLUDE_PATHS
     add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" $LIB_PATHS
+    pkg_install_dir="${FFTW_ROOT}"
     ;;
   __DONTUSE__) ;;
 
