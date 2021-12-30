@@ -65,6 +65,8 @@ EOF
       # stage of building an executable that uses the libxsmm
       # library
       cd libxsmm-${libxsmm_ver}
+      # Avoid an unintended (incompatible) setting of FORTRAN
+      unset FORTRAN
       make -j $(get_nprocs) \
         CXX=$CXX \
         CC=$CC \
