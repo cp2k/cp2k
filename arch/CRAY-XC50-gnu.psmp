@@ -119,12 +119,12 @@ endif
 
 ifneq ($(USE_ELPA),)
    USE_ELPA       := $(strip $(USE_ELPA))
-   ELPA_INC       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/gpu/include/elpa-$(USE_ELPA)
+   ELPA_INC       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/gpu/include/elpa_openmp-$(USE_ELPA)
    ELPA_LIB       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/gpu/lib
    CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
    DFLAGS         += -D__ELPA
    DFLAGS         += -D__ELPA_NVIDIA_GPU
-   LIBS           += $(ELPA_LIB)/libelpa.a
+   LIBS           += $(ELPA_LIB)/libelpa_openmp.a
 endif
 
 ifneq ($(USE_LIBVORI),)
