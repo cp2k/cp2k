@@ -43,10 +43,9 @@ MODULE mp2_integrals
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_clear, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
         dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
-        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_num_blocks, &
-        dbcsr_t_get_stored_coordinates, dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, &
-        dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_put_block, dbcsr_t_reserve_blocks, &
-        dbcsr_t_reserved_block_indices, dbcsr_t_split_blocks, dbcsr_t_type
+        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_stored_coordinates, &
+        dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
+        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, dbcsr_t_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type
@@ -857,10 +856,9 @@ CONTAINS
                   bounds(:, 2) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
                   CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_tmp, bounds=bounds)
 
-                  ALLOCATE (t_3c_O_ind(i, j, i_mem)%ind(dbcsr_t_get_num_blocks(t_3c_tmp), 3))
-                  CALL dbcsr_t_reserved_block_indices(t_3c_tmp, t_3c_O_ind(i, j, i_mem)%ind)
                   CALL alloc_containers(t_3c_O_compressed(i, j, i_mem), 1)
-                  CALL compress_tensor(t_3c_tmp, t_3c_O_compressed(i, j, i_mem), &
+                  CALL compress_tensor(t_3c_tmp, t_3c_O_ind(i, j, i_mem)%ind, &
+                                       t_3c_O_compressed(i, j, i_mem), &
                                        qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
                END DO
                CALL dbcsr_t_clear(t_3c_O(i, j))

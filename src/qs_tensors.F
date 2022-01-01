@@ -34,10 +34,9 @@ MODULE qs_tensors
                                               dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_blk_sizes, dbcsr_t_clear, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
-        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_nze_total, &
-        dbcsr_t_get_stored_coordinates, dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, &
-        dbcsr_t_iterator_start, dbcsr_t_iterator_stop, dbcsr_t_iterator_type, dbcsr_t_ndims, &
-        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_type
+        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_num_blocks, &
+        dbcsr_t_get_nze_total, dbcsr_t_get_stored_coordinates, dbcsr_t_ndims, dbcsr_t_put_block, &
+        dbcsr_t_reserve_blocks, dbcsr_t_reserved_block_indices, dbcsr_t_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
@@ -2740,19 +2739,21 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param tensor tensor with data. Data is cleared after compression.
+!> \param blk_indices ...
 !> \param compressed compressed tensor data
 !> \param eps all entries < eps are discarded
 !> \param memory ...
 ! **************************************************************************************************
-   SUBROUTINE compress_tensor(tensor, compressed, eps, memory)
+   SUBROUTINE compress_tensor(tensor, blk_indices, compressed, eps, memory)
       TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: blk_indices
       TYPE(hfx_compression_type), INTENT(INOUT)          :: compressed
       REAL(dp), INTENT(IN)                               :: eps
       REAL(dp), INTENT(INOUT)                            :: memory
 
-      INTEGER                                            :: blk, buffer_left, buffer_size, &
-                                                            buffer_start, i, memory_usage, nbits, &
-                                                            nints
+      INTEGER                                            :: buffer_left, buffer_size, buffer_start, &
+                                                            i, memory_usage, nbits, nints
       INTEGER(int_8)                                     :: estimate_to_store_int, &
                                                             storage_counter_integrals
       INTEGER, DIMENSION(3)                              :: ind
@@ -2760,7 +2761,6 @@ CONTAINS
       REAL(dp)                                           :: spherical_estimate
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: blk_data
       REAL(dp), DIMENSION(:), POINTER                    :: blk_data_1d
-      TYPE(dbcsr_t_iterator_type)                        :: iter
       TYPE(hfx_cache_type), DIMENSION(:), POINTER        :: integral_caches
       TYPE(hfx_cache_type), POINTER                      :: maxval_cache
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
@@ -2780,9 +2780,13 @@ CONTAINS
       maxval_cache => compressed%maxval_cache(1)
       integral_caches => compressed%integral_caches(:, 1)
 
-      CALL dbcsr_t_iterator_start(iter, tensor)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk)
+      IF (ALLOCATED(blk_indices)) DEALLOCATE (blk_indices)
+      ALLOCATE (blk_indices(dbcsr_t_get_num_blocks(tensor), 3))
+      CALL dbcsr_t_reserved_block_indices(tensor, blk_indices)
+
+      ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
+      DO i = 1, SIZE(blk_indices, 1)
+         ind = blk_indices(i, :)
          CALL dbcsr_t_get_block(tensor, ind, blk_data, found)
          CPASSERT(found)
          nints = SIZE(blk_data)
@@ -2822,7 +2826,6 @@ CONTAINS
 
          NULLIFY (blk_data_1d); DEALLOCATE (blk_data)
       END DO
-      CALL dbcsr_t_iterator_stop(iter)
 
       CALL dbcsr_t_clear(tensor)
 
@@ -2860,15 +2863,13 @@ CONTAINS
       TYPE(hfx_compression_type), INTENT(INOUT)          :: compressed
       REAL(dp), INTENT(IN)                               :: eps
 
-      INTEGER                                            :: blk, buffer_left, buffer_size, &
-                                                            buffer_start, i, memory_usage, nbits, &
-                                                            nints
+      INTEGER                                            :: buffer_left, buffer_size, buffer_start, &
+                                                            i, memory_usage, nbits, nints
       INTEGER(int_8)                                     :: estimate_to_store_int
       INTEGER, DIMENSION(3)                              :: blk_size, ind
       REAL(dp)                                           :: spherical_estimate
       REAL(dp), ALLOCATABLE, DIMENSION(:), TARGET        :: blk_data
       REAL(dp), DIMENSION(:, :, :), POINTER              :: blk_data_3d
-      TYPE(dbcsr_t_iterator_type)                        :: iter
       TYPE(hfx_cache_type), DIMENSION(:), POINTER        :: integral_caches
       TYPE(hfx_cache_type), POINTER                      :: maxval_cache
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
@@ -2889,9 +2890,11 @@ CONTAINS
       END DO
 
       CALL dbcsr_t_reserve_blocks(tensor, blk_indices)
-      CALL dbcsr_t_iterator_start(iter, tensor)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk, blk_size=blk_size)
+
+      ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
+      DO i = 1, SIZE(blk_indices, 1)
+         ind = blk_indices(i, :)
+         CALL dbcsr_t_blk_sizes(tensor, ind, blk_size)
          nints = PRODUCT(blk_size)
          CALL hfx_get_single_cache_element( &
             estimate_to_store_int, 6, &
@@ -2923,8 +2926,6 @@ CONTAINS
          CALL dbcsr_t_put_block(tensor, ind, blk_size, blk_data_3d)
          NULLIFY (blk_data_3d); DEALLOCATE (blk_data)
       END DO
-
-      CALL dbcsr_t_iterator_stop(iter)
 
       CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_usage, .FALSE.)
       DO i = 1, 64

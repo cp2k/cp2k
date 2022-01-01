@@ -33,9 +33,8 @@ MODULE rpa_gw_im_time_util
         dbcsr_scalar, dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry
    USE dbcsr_tensor_api,                ONLY: &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
-        dbcsr_t_default_distvec, dbcsr_t_destroy, dbcsr_t_get_info, dbcsr_t_get_num_blocks, &
-        dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
-        dbcsr_t_reserved_block_indices, dbcsr_t_type
+        dbcsr_t_default_distvec, dbcsr_t_destroy, dbcsr_t_get_info, dbcsr_t_pgrid_create, &
+        dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_type
    USE hfx_types,                       ONLY: alloc_containers,&
                                               block_ind_type,&
                                               hfx_compression_type
@@ -409,12 +408,12 @@ CONTAINS
       END IF
 
       CALL alloc_containers(t_3c_O_mo_compressed, 1)
-      ALLOCATE (t_3c_O_mo_ind(dbcsr_t_get_num_blocks(t_3c_overl_int_ao_mo), 3))
-      CALL dbcsr_t_reserved_block_indices(t_3c_overl_int_ao_mo, t_3c_O_mo_ind)
-
       CALL get_tensor_occupancy(t_3c_overl_int_ao_mo, nze, occ)
       memory_3c = 0.0_dp
-      CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
+
+      CALL compress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
+                           qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
+
       CALL mp_sum(memory_3c, para_env%group)
       compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
 
