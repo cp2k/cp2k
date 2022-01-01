@@ -3,7 +3,7 @@
 # Compare CP2K outputs
 # Author: Alfio Lazzaro
 # Email: alfio.lazzaro@hpe.com
-# Year: 2016-2021
+# Year: 2016-2022
 
 # Example 1: show timings for a CP2K output
 #       > diff_cp2k.py <name_file>
