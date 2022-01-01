@@ -43,11 +43,11 @@ MODULE hfx_ri
         dbcsr_t_batched_contract_finalize, dbcsr_t_batched_contract_init, dbcsr_t_clear, &
         dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, &
         dbcsr_t_copy_tensor_to_matrix, dbcsr_t_create, dbcsr_t_destroy, dbcsr_t_filter, &
-        dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_num_blocks, dbcsr_t_get_num_blocks_total, &
+        dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_num_blocks_total, &
         dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, &
         dbcsr_t_iterator_stop, dbcsr_t_iterator_type, dbcsr_t_mp_environ_pgrid, &
         dbcsr_t_nd_mp_comm, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
-        dbcsr_t_reserved_block_indices, dbcsr_t_type
+        dbcsr_t_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE hfx_types,                       ONLY: alloc_containers,&
                                               block_ind_type,&
@@ -774,11 +774,8 @@ CONTAINS
             CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_1(1, 1), nze, occ)
             nze_O = nze_O + nze
 
-            IF (ALLOCATED(ri_data%blk_indices(j_mem, i_mem)%ind)) DEALLOCATE (ri_data%blk_indices(j_mem, i_mem)%ind)
-            ALLOCATE (ri_data%blk_indices(j_mem, i_mem)%ind(dbcsr_t_get_num_blocks(ri_data%t_3c_int_ctr_1(1, 1)), 3))
-            CALL dbcsr_t_reserved_block_indices(ri_data%t_3c_int_ctr_1(1, 1), ri_data%blk_indices(j_mem, i_mem)%ind)
-            CALL compress_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%store_3c(j_mem, i_mem), ri_data%filter_eps_storage, &
-                                 memory_3c)
+            CALL compress_tensor(ri_data%t_3c_int_ctr_1(1, 1), ri_data%blk_indices(j_mem, i_mem)%ind, &
+                                 ri_data%store_3c(j_mem, i_mem), ri_data%filter_eps_storage, memory_3c)
 
             CALL timestop(handle2)
          END DO
@@ -1576,14 +1573,9 @@ CONTAINS
                                          ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage)
                   CALL dbcsr_t_copy(tensor_old, t_3c, move_data=.TRUE.)
 
-                  DEALLOCATE (blk_indices%ind)
-                  ALLOCATE (blk_indices%ind(dbcsr_t_get_num_blocks(t_3c), 3))
-
-                  CALL dbcsr_t_reserved_block_indices(t_3c, blk_indices%ind)
-
                   unused = 0
-                  CALL compress_tensor(t_3c, ri_data%store_3c(i_mem, j_mem), ri_data%filter_eps_storage, &
-                                       unused)
+                  CALL compress_tensor(t_3c, blk_indices%ind, ri_data%store_3c(i_mem, j_mem), &
+                                       ri_data%filter_eps_storage, unused)
                END ASSOCIATE
             END DO
          END DO
@@ -2597,9 +2589,8 @@ CONTAINS
                CALL dbcsr_t_copy(t_3c_3, t_3c_int_1, order=[2, 1, 3], summation=.TRUE., move_data=.TRUE.)
             END DO
 
-            ALLOCATE (blk_indices(j_mem, i_mem)%ind(dbcsr_t_get_num_blocks(t_3c_int_1), 3))
-            CALL dbcsr_t_reserved_block_indices(t_3c_int_1, blk_indices(j_mem, i_mem)%ind)
-            CALL compress_tensor(t_3c_int_1, store_3c(j_mem, i_mem), ri_data%filter_eps_storage, memory)
+            CALL compress_tensor(t_3c_int_1, blk_indices(j_mem, i_mem)%ind, &
+                                 store_3c(j_mem, i_mem), ri_data%filter_eps_storage, memory)
 
          END DO
       END DO
