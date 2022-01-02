@@ -23,11 +23,14 @@ done
 # Install or compile packages using newly installed tools
 # ------------------------------------------------------------------------
 
-# setup compiler flags, leading to nice stack traces on crashes but
-# still optimised
-CFLAGS="-O2 -fno-omit-frame-pointer -g -march=native -mtune=native ${TSANFLAGS}"
+# setup compiler flags, leading to nice stack traces on crashes but still optimised
+if [ "${generic}" == "__TRUE__" ]; then
+  CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -g -mtune=generic ${TSANFLAGS}"
+else
+  CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -g -march=native -mtune=native ${TSANFLAGS}"
+fi
+FFLAGS="${CFLAGS} -fbacktrace"
 CXXFLAGS="${CFLAGS}"
-FFLAGS="-O2 -fbacktrace -fno-omit-frame-pointer -g -march=native -mtune=native ${TSANFLAGS}"
 F77FLAGS="${FFLAGS}"
 F90FLAGS="${FFLAGS}"
 FCFLAGS="${FFLAGS}"

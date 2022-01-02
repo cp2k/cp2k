@@ -72,7 +72,7 @@ FC             := mpif90
 LD             := mpif90
 AR             := ar -r
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
+CFLAGS         := -O3 -fopenmp -funroll-loops -g -mtune=native
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
