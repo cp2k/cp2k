@@ -1,0 +1,153 @@
+#!/bin/bash
+#
+# CP2K (GNU) arch file for a serial static ARM64 binary
+#
+# Tested with: GNU 11.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBBVORI 210412,
+#              LIBXC 5.1.7, OpenBLAS 0.3.19, SPGLIB 1.16.2
+#
+# Usage: Source this arch file and then run make as instructed after a
+#        CP2K toolchain installation has been performed successfully with
+#        > cd tools/toolchain
+#        > ./install_cp2k_toolchain.sh --mpi-mode=no --with-gcc=system --with-cmake=system
+#
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
+#
+# \
+	if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
+      echo "ERROR: Script ${0##*/} must be sourced"; \
+      echo "Usage: source ${0##*/}"; \
+      exit 1; \
+   fi; \
+   this_file=${BASH_SOURCE##*/}; \
+	if [[ -f "${PWD}/tools/toolchain/install/setup" ]]; then \
+      printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
+	   source ${PWD}/tools/toolchain/install/setup; \
+	   printf "done\n"; \
+	fi; \
+	echo "Check the output above for error messages and consistency!"; \
+	echo "If everything is OK, you can build a CP2K production binary with"; \
+	echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+	return
+
+# Set options
+DO_CHECKS      := no
+USE_FFTW       := 3.3.10
+USE_LIBINT     := 2.6.0
+USE_LIBVORI    := 210412
+USE_LIBXC      := 5.1.7
+USE_OPENBLAS   := 0.3.19
+USE_SPGLIB     := 1.16.2
+
+LMAX           := 5
+MAX_CONTR      := 4
+
+CC             := gcc
+CXX            := g++
+FC             := gfortran
+LD             := gfortran
+AR             := ar -r
+
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=native -mtune=native
+
+DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
+
+INSTALL_PATH   := $(PWD)/tools/toolchain/install
+
+# Settings for regression testing
+ifeq ($(DO_CHECKS), yes)
+   DFLAGS         += -D__CHECK_DIAG
+   FCFLAGS_DEBUG  := -fcheck=bounds,do,recursion,pointer
+   FCFLAGS_DEBUG  += -fcheck=all,no-array-temps
+   FCFLAGS_DEBUG  += -ffpe-trap=invalid,overflow,zero
+   FCFLAGS_DEBUG  += -fimplicit-none
+   FCFLAGS_DEBUG  += -finit-derived
+   FCFLAGS_DEBUG  += -finit-real=snan
+   FCFLAGS_DEBUG  += -finit-integer=-42
+   FCFLAGS_DEBUG  += -finline-matmul-limit=0
+   LDFLAGS        += -fsanitize=leak
+   WFLAGS         := -Werror=aliasing
+   WFLAGS         += -Werror=ampersand
+   WFLAGS         += -Werror=c-binding-type
+   WFLAGS         += -Werror=conversion
+   WFLAGS         += -Werror=intrinsic-shadow
+   WFLAGS         += -Werror=intrinsics-std
+   WFLAGS         += -Werror=line-truncation
+   WFLAGS         += -Wrealloc-lhs
+   WFLAGS         += -Werror=tabs
+   WFLAGS         += -Werror=target-lifetime
+   WFLAGS         += -Werror=underflow
+   WFLAGS         += -Werror=unused-but-set-variable
+   WFLAGS         += -Werror=unused-dummy-argument
+   WFLAGS         += -Werror=unused-variable
+endif
+
+ifneq ($(USE_LIBVORI),)
+   USE_LIBVORI    := $(strip $(USE_LIBVORI))
+   LIBVORI_LIB    := $(INSTALL_PATH)/libvori-$(USE_LIBVORI)/lib
+   DFLAGS         += -D__LIBVORI
+   LIBS           += $(LIBVORI_LIB)/libvori.a
+endif
+
+ifneq ($(USE_LIBXC),)
+   USE_LIBXC      := $(strip $(USE_LIBXC))
+   LIBXC_INC      := $(INSTALL_PATH)/libxc-$(USE_LIBXC)/include
+   LIBXC_LIB      := $(INSTALL_PATH)/libxc-$(USE_LIBXC)/lib
+   CFLAGS         += -I$(LIBXC_INC)
+   DFLAGS         += -D__LIBXC
+   LIBS           += $(LIBXC_LIB)/libxcf03.a
+   LIBS           += $(LIBXC_LIB)/libxc.a
+endif
+
+ifneq ($(USE_LIBINT),)
+   USE_LIBINT     := $(strip $(USE_LIBINT))
+   LMAX           := $(strip $(LMAX))
+   LIBINT_INC     := $(INSTALL_PATH)/libint-v$(USE_LIBINT)-cp2k-lmax-$(LMAX)/include
+   LIBINT_LIB     := $(INSTALL_PATH)/libint-v$(USE_LIBINT)-cp2k-lmax-$(LMAX)/lib
+   CFLAGS         += -I$(LIBINT_INC)
+   DFLAGS         += -D__LIBINT
+   LIBS           += $(LIBINT_LIB)/libint2.a
+   LIBS           += $(LIBINT_LIB)/libint2.a
+endif
+
+ifneq ($(USE_SPGLIB),)
+   USE_SPGLIB     := $(strip $(USE_SPGLIB))
+   SPGLIB_INC     := $(INSTALL_PATH)/spglib-$(USE_SPGLIB)/include
+   SPGLIB_LIB     := $(INSTALL_PATH)/spglib-$(USE_SPGLIB)/lib
+   CFLAGS         += -I$(SPGLIB_INC)
+   DFLAGS         += -D__SPGLIB
+   LIBS           += $(SPGLIB_LIB)/libsymspg.a
+endif
+
+ifneq ($(USE_FFTW),)
+   USE_FFTW       := $(strip $(USE_FFTW))
+   FFTW_INC       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/include
+   FFTW_LIB       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/lib
+   CFLAGS         += -I$(FFTW_INC)
+   DFLAGS         += -D__FFTW3
+   LIBS           += $(FFTW_LIB)/libfftw3_omp.a
+   LIBS           += $(FFTW_LIB)/libfftw3.a
+endif
+
+ifneq ($(USE_OPENBLAS),)
+   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
+   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
+   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
+   CFLAGS         += -I$(OPENBLAS_INC)
+   LIBS           += $(OPENBLAS_LIB)/libopenblas.a
+endif
+
+CFLAGS         += $(DFLAGS)
+
+FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
+FCFLAGS        += -fallow-argument-mismatch
+FCFLAGS        += -fbacktrace
+FCFLAGS        += -ffree-form
+FCFLAGS        += -ffree-line-length-none
+FCFLAGS        += -fno-omit-frame-pointer
+FCFLAGS        += -std=f2008
+
+LDFLAGS        += $(FCFLAGS) -static
+
+LIBS           += -ldl -lstdc++
+
+# End
