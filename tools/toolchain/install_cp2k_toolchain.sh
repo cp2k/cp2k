@@ -107,6 +107,8 @@ OPTIONS:
 --libint-lmax             Maximum supported angular momentum by libint.
                           Higher values will increase build time and library size.
                           Default = 5
+--generic                 Compile for a generic target system, i.e. do not optimize for
+                          the actual host system.
 --dry-run                 Write only config files, but don't actually build packages.
 
 The --enable-FEATURE options follow the rules:
@@ -332,6 +334,7 @@ fi
 
 # default enable options
 dry_run=__FALSE__
+export generic="__FALSE__"
 enable_tsan=__FALSE__
 enable_gcc_master=__FALSE__
 enable_libxsmm_master=__FALSE__
@@ -464,6 +467,9 @@ while [ $# -ge 1 ]; do
     --libint-lmax=*)
       user_input="${1#*=}"
       export LIBINT_LMAX="$user_input"
+      ;;
+    --generic)
+      export generic="__TRUE__"
       ;;
     --dry-run)
       dry_run="__TRUE__"
@@ -751,9 +757,9 @@ fi
 mkdir -p "$INSTALLDIR"
 
 # variables used for generating cp2k ARCH file
-export CP_DFLAGS=''
-export CP_LIBS=''
-export CP_CFLAGS='-fopenmp'
+export CP_DFLAGS=""
+export CP_LIBS=""
+export CP_CFLAGS=""
 export CP_LDFLAGS="-Wl,--enable-new-dtags"
 
 # ------------------------------------------------------------------------

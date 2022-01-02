@@ -56,17 +56,7 @@ case "$with_openblas" in
       #                     for a good compromise between memory usage and scalability
       #
       # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
-      (
-        make -j $(get_nprocs) \
-          MAKE_NB_JOBS=0 \
-          NUM_THREADS=64 \
-          USE_THREAD=1 \
-          USE_OPENMP=1 \
-          CC="${CC}" \
-          FC="${FC}" \
-          PREFIX="${pkg_install_dir}" \
-          > make.log 2>&1
-      ) || (
+      if [ "${generic}" == "__TRUE__" ]; then
         make -j $(get_nprocs) \
           MAKE_NB_JOBS=0 \
           TARGET=NEHALEM \
@@ -76,8 +66,31 @@ case "$with_openblas" in
           CC="${CC}" \
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
-          > make.nehalem.log 2>&1
-      )
+          > make.generic.log 2>&1
+      else
+        (
+          make -j $(get_nprocs) \
+            MAKE_NB_JOBS=0 \
+            NUM_THREADS=64 \
+            USE_THREAD=1 \
+            USE_OPENMP=1 \
+            CC="${CC}" \
+            FC="${FC}" \
+            PREFIX="${pkg_install_dir}" \
+            > make.log 2>&1
+        ) || (
+          make -j $(get_nprocs) \
+            MAKE_NB_JOBS=0 \
+            TARGET=NEHALEM \
+            NUM_THREADS=64 \
+            USE_THREAD=1 \
+            USE_OPENMP=1 \
+            CC="${CC}" \
+            FC="${FC}" \
+            PREFIX="${pkg_install_dir}" \
+            > make.nehalem.log 2>&1
+        )
+      fi
       make -j $(get_nprocs) \
         MAKE_NB_JOBS=0 \
         NUM_THREADS=64 \
