@@ -7,11 +7,14 @@
 #              ELPA 2021.11.001, PLUMED 2.7.2, SPGLIB 1.16.2, GSL 2.7,
 #              COSMA 2.5.1, SIRIUS 7.3.0
 #
-# Usage: Source this arch file and then run make as instructed.
-#        The compiler version can be specified as argument.
-#        Otherwise a toolchain installation is expected as default.
+# Usage: Source this arch file with the GNU compiler version specified as argument:
+#        > source arch/CRAY-XC40-gnu.psmp 10.3.0
+#        Then run make as instructed after a CP2K toolchain installation has been
+#        performed successfully with
+#        > cd tools/toolchain
+#        > ./install_cp2k_toolchain.sh -j 16 --with-gcc=system --with-plumed --with-libvdwxc
 #
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
+# Author: Matthias Krack (matthias.krack@psi.ch, PSI, January 2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -81,7 +84,7 @@ LD             := ftn
 AR             := ar -r
 
 # cc, CC, and ftn include already the proper -march flag
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
+CFLAGS         := -O3 -fopenmp -funroll-loops -g
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
@@ -105,11 +108,12 @@ endif
 
 ifneq ($(USE_ELPA),)
    USE_ELPA       := $(strip $(USE_ELPA))
-   ELPA_INC       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/cpu/include/elpa_openmp-$(USE_ELPA)
-   ELPA_LIB       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/cpu/lib
+   TARGET         := cpu
+   ELPA_INC       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/$(TARGET)/include/elpa-$(USE_ELPA)
+   ELPA_LIB       := $(INSTALL_PATH)/elpa-$(USE_ELPA)/$(TARGET)/lib
    CFLAGS         += -I$(ELPA_INC)/elpa -I$(ELPA_INC)/modules
    DFLAGS         += -D__ELPA
-   LIBS           += $(ELPA_LIB)/libelpa_openmp.a
+   LIBS           += $(ELPA_LIB)/libelpa.a
 endif
 
 ifneq ($(USE_LIBVORI),)
