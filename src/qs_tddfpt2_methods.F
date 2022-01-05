@@ -457,6 +457,7 @@ CONTAINS
 
       ! excited state potential energy surface
       IF (qs_env%excited_state) THEN
+         IF (ASSOCIATED(matrix_ks_oep)) CALL get_qs_env(qs_env, matrix_ks=matrix_ks) ! for gradients unshifted KS matrix
          CALL get_qs_env(qs_env, exstate_env=ex_env)
          IF (ex_env%state > nstates) THEN
             CALL cp_warn(__LOCATION__, "There were not enough excited states calculated.")
