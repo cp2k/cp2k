@@ -41,6 +41,7 @@ MODULE qs_tddfpt2_forces
    USE hfx_ri,                          ONLY: hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
+                                              oe_shift,&
                                               tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
@@ -253,6 +254,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iounit, ispin, natom, norb, &
                                                             nspins
+      REAL(KIND=dp)                                      :: evalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -266,6 +268,7 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
 
@@ -280,6 +283,8 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, para_env=para_env, &
                       sab_orb=sab_orb, dft_control=dft_control, force=force)
+      NULLIFY (tddfpt_control)
+      tddfpt_control => dft_control%tddfpt2_control
       nspins = dft_control%nspins
 
       IF (debug_forces) THEN
@@ -302,7 +307,11 @@ CONTAINS
          CALL dbcsr_set(matrix_wz(ispin)%matrix, 0.0_dp)
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=norb)
          CALL cp_dbcsr_plus_fm_fm_t(matrix_wz(ispin)%matrix, matrix_v=evect(ispin)%matrix, ncol=norb)
-         CALL dbcsr_scale(matrix_wz(ispin)%matrix, ex_env%evalue)
+         evalue = ex_env%evalue
+         IF (tddfpt_control%oe_corr == oe_shift) THEN
+            evalue = ex_env%evalue - tddfpt_control%ev_shift
+         END IF
+         CALL dbcsr_scale(matrix_wz(ispin)%matrix, evalue)
          CALL calculate_wx_matrix(gs_mos(ispin)%mos_occ, evect(ispin)%matrix, matrix_ks(ispin)%matrix, &
                                   matrix_wz(ispin)%matrix)
       END DO
@@ -335,8 +344,12 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_wz(ispin)%matrix, sab_orb)
          CALL dbcsr_set(matrix_wz(ispin)%matrix, 0.0_dp)
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=norb)
+         evalue = ex_env%evalue
+         IF (tddfpt_control%oe_corr == oe_shift) THEN
+            evalue = ex_env%evalue - tddfpt_control%ev_shift
+         END IF
          CALL calculate_xwx_matrix(gs_mos(ispin)%mos_occ, evect(ispin)%matrix, matrix_s(1)%matrix, &
-                                   matrix_ks(ispin)%matrix, matrix_wz(ispin)%matrix, ex_env%evalue)
+                                   matrix_ks(ispin)%matrix, matrix_wz(ispin)%matrix, evalue)
       END DO
       IF (nspins == 2) THEN
          CALL dbcsr_add(matrix_wz(1)%matrix, matrix_wz(2)%matrix, &
