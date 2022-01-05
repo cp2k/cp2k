@@ -74,10 +74,9 @@ case "$with_elpa" in
       done
 
       # specific settings needed on CRAY Linux Environment
-      if [ "$ENABLE_CRAY" = "__TRUE__" ]; then
+      if [ ${CRAY_PRGENVCRAY} ]; then
         # extra LDFLAGS needed
         cray_ldflags="-dynamic"
-        cray_config_flags="--enable-allow-thread-limiting --without-threading-support-check-during-build"
       fi
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
@@ -94,13 +93,13 @@ case "$with_elpa" in
         grep '\bavx512cd\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512cd"
         grep '\bavx512bw\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512bw"
         grep '\bavx512v1\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512v1"
-        config_flags="${cray_config_flags} --enable-avx=${has_AVX} --enable-avx2=${has_AVX2} --enable-avx512=${has_AVX512}"
+        config_flags="--enable-avx=${has_AVX} --enable-avx2=${has_AVX2} --enable-avx512=${has_AVX512}"
       else
         AVX_flag=""
         AVX512_flags=""
         FMA_flag=""
         SSE4_flag=""
-        config_flags="${cray_config_flags} --disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
+        config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
       fi
       for TARGET in "cpu" "nvidia"; do
         [ "$TARGET" == "nvidia" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
@@ -110,7 +109,7 @@ case "$with_elpa" in
         cd "build_${TARGET}"
         ../configure --prefix="${pkg_install_dir}/${TARGET}/" \
           --libdir="${pkg_install_dir}/${TARGET}/lib" \
-          --enable-openmp=yes \
+          --enable-openmp=no \
           --enable-shared=no \
           --enable-static=yes \
           ${config_flags} \
