@@ -70,7 +70,7 @@ case "$with_libvdwxc" in
       for patch in "${patches[@]}"; do
         patch -p1 < ../"${patch##*/}"
       done
-      unset MPICC MPICXX MPIF90 MPIFC MPIF77
+      # unset MPICC MPICXX MPIF90 MPIFC MPIF77
       if [ "$MPI_MODE" = "no" ]; then
         # compile libvdwxc without mpi support since fftw (or mkl) do not have mpi support activated
         ./configure \
@@ -80,13 +80,12 @@ case "$with_libvdwxc" in
           --without-mpi \
           >> configure.log 2>&1
       else
-        CC="${MPICC}" FC="${MPIFC}" ./configure \
+        ./configure \
+          FFTW3_INCLUDES="-I${FFTW_ROOT}/include" \
+          FFTW3_LIBS="-L${FFTW_ROOT}/lib" \
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
-          --disable-shared \
-          --with-mpi \
-          FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
-          >> configure.log 2>&1
+          > configure.log 2>&1
       fi
       make -j $(get_nprocs) > compile.log 2>&1
       make install > compile.log 2>&1
