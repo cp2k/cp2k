@@ -1,0 +1,195 @@
+#!-------------------------------------------------------------------------------------------------!
+#!   CP2K: A general program to perform molecular dynamics simulations                             !
+#!   Copyright 2000-2022 CP2K developers group <https://cp2k.org>                                  !
+#!                                                                                                 !
+#!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
+#!-------------------------------------------------------------------------------------------------!
+
+#:mute
+
+   #! maximum number of dimensions of fortran arrays
+   #:set fortran_max_ndim = 7
+
+   #! maximum tensor rank
+   #:set maxrank = 4
+
+   #:def arrlist(name, nmin=1, nmax=maxrank, ndim_pre=0, ndim_post=0)
+      #!    expand array into list of elements "name(1), name(2), ..., name(n)
+      $:    ", ".join([name + "(" + ":," * ndim_pre + str(i) + ",:"*ndim_post + ")" for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def varlist(name, nmin=1, nmax=maxrank, suffix="")
+      #!    create variable list "name_1, name_2, ..., name_n
+      $:    ", ".join([name + "_" + str(i) + suffix for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def shape_colon(n=maxrank)
+      #!    repeated colon ':' for e.g. assumed shape array notation
+      $:    ','.join([':']*n)
+   #:enddef
+
+   #:def shape_explicit(name, n=maxrank)
+      #!    explicit shape for pointer bounds remapping
+      $:    ", ".join(['LBOUND('+name+', '+ str(i) + '):UBOUND('+name+', '+str(i)+')' for i in range(1,n+1)])
+   #:enddef
+
+   #! added
+
+   #:def varlist_equal(name, nmin=1, nmax=maxrank, suffix="", namesuffix="")
+      #!    create variable list "name_1=name_1, name_2=name_2, ..., name_n=name_n
+      $:    ", ".join([name + "_" + str(i) + suffix + " = " + namesuffix + name + "_" + str(i) + suffix for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def pointer_list(name, nmin=1, nmax=maxrank, suffix="")
+      #!    create pointer list "name_1(:), name_2(:), ..., name_n(:)"
+      $:    ", ".join([name + "_" + str(i) + suffix + "(" + ":" + ")" for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def c_varlist_and_size(name, nmin=1, nmax=maxrank, suffix="")
+      #!    create variable list "name_1, name_2, ..., name_n
+      $:    ", ".join([name + "_" + str(i) + ", " + name + "_" + str(i) + "_" + "size" + suffix for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def c_size(name, nmin=1, nmax=maxrank, suffix="")
+      #!    create variable list "name_1_size, name_2_size, ..., name_n_size
+      $:    ", ".join([name + "_" + str(i) + "_" + "size" + suffix for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def c_arrlist_and_size(name, nmin=1, nmax=maxrank)
+      #!    expand array into list of elements "name_1(name_1_size), name_2(name_2_size), ..., name_n(name_n_size)
+      $:    ", ".join([name + "_" + str(i) + "(" +  name + "_" + str(i) + "_" + "size" + ")" for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def c_bind_pointer(name, nmin=1, nmax=maxrank, suffix="")
+      #! bind c pointers: "name_1 => c_name_1 \n name_2 => c_name_2 ..."
+      $:   "\n ".join([name + "_" + str(i) + suffix + " => " + "c_" +  name + "_" + str(i) + suffix for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def extern_varlist_and_size(name, type, nmin=1, nmax=maxrank, suffix="")
+      #!    create variable list "type* name_1, type name_1_size, type* name_2, type name_2_size ...
+      $:    ", ".join([type + "* " + name + "_" + str(i) + ", " + type + " " + name + "_" + str(i) + "_" + "size" + suffix for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #:def extern_alloc_varlist_and_size(name, nmin=1, nmax=maxrank, suffix="")
+      #!    create variable list "int* name_1, int name_1_size, int* name_2, int name_2_size ...
+      $:    ", ".join(["int** " + name + "_" + str(i) + ", " + "int* " + name + "_" + str(i) + "_" + "size" + suffix for i in range(nmin, nmax+1)])
+   #:enddef
+
+   #! Handling optional arguments for non-interoperable types
+
+   #:def add_num(num,numout)
+      #! binary number counter e.g. [1,0,0,0] -> [0,1,0,0]
+      #:set carry = 1
+      #:for i in range(0,len(num))
+         #:set outi = 0
+         #:if carry == 1
+            #:if num[i] == 0
+               #:set outi = 1
+               #:set carry = 0
+            #:else
+               #:set outi = 0
+               #:set carry = 1
+            #:endif
+         #:else
+            #:set outi = num[i]
+         #:endif
+         #:mute
+            $: numout.append(outi)
+         #:endmute
+      #:endfor
+   #:enddef
+
+   #:def init(list,n)
+      #:mute
+         #! fill a list with n zeros
+         #:for i in range(n)
+            $: list.append(0)
+         #:endfor
+      #:endmute
+   #:enddef
+
+   #:def gen_permlist(permlist,n)
+      #:mute
+         #! generates a list of permutations from n entries
+         #! example n = 2 -> [[0,0],[0,1],[1,0],[1,1]] where 0/1 means present/not present
+         #:set idx = []
+         #:set newidx = []
+         ${init(idx,n)}$
+
+         #:set imax = pow(2,n)
+         #:for i in range(0,imax)
+            $: permlist.append(idx)
+            ${add_num(idx,newidx)}$
+            #:set idx = newidx
+            #:set newidx = []
+         #:endfor
+      #:endmute
+   #:enddef
+
+   #:def gen_vargroups(varlist,vargroups)
+      #:mute
+         #! generates permuted groups of variables from a variable list
+         #! optional variables that appear together may be grouped
+         #! example: varlist = [[var1], [var2,var3]]
+         #! this gives: vargroups = [ [[var1],[var2,var3]], [[var1]], [[var2,var3]], []]
+         #:set permlist = []
+         ${gen_permlist(permlist,len(varlist))}$
+         #:for p in permlist
+            #:set group = []
+            #:for i in range(len(varlist))
+               #:if p[i] == 0
+                  $: group.append(varlist[i])
+               #:endif
+            #:endfor
+            $: vargroups.append(group)
+         #:endfor
+      #:endmute
+   #:enddef
+
+   #:def flatten(group,flatgroup)
+      #:mute
+         #! flattens an array by one level:
+         #! [[var1],[var2,var3]] -> [var1,var2,var3]
+         #:for sub in group
+            #:for x in sub
+               $: flatgroup.append(x)
+            #:endfor
+         #:endfor
+      #:endmute
+   #:enddef
+
+   #:def print_group(group, prefix=", ")
+      #! for a group [[var1],[var2,var3]]
+      #! prints "var1 = var1, var2 = var2, var3 = var3"
+      #:set flatgroup = [item for sublist in group for item in sublist]
+      $: prefix * (bool(len(group))) + ", ".join([str(i) + ' = ' + str(i) for i in flatgroup])
+   #:enddef
+
+   #:def print_groupif(vargroups,varlist,i,check='PRESENT',prefix='')
+      #! for a group [[var1]] and a varlist [[var1]],[var2,var3]]
+      #! prints "(ELSE) IF (PRESENT(var1) .AND. .NOT. PRESENT(var2) .AND. .NOT. PRESENT(var3)) THEN"
+      #! to be used in a loop
+      #:set group = vargroups[i]
+      #:set diff = [item for item in varlist if item not in group]
+      #:set stat = "ELSE IF"
+      #:if i == 0
+         #:set stat = "IF"
+      #:elif i == len(vargroups) - 1
+         #:set stat = "ELSE"
+      #:endif
+      #:if stat != "ELSE"
+         #:set flatgroup = []
+         #:set flatdiff = []
+         #:mute
+            ${flatten(group,flatgroup)}$
+            ${flatten(diff,flatdiff)}$
+         #:endmute
+         $: stat + "(" +  " .AND. ".join([check + "(" +  prefix + str(i) + ")" for i in flatgroup]) &
+            + " .AND. " * (bool(len(diff)) * bool(len(diff) - len(varlist))) &
+            + " .AND. ".join([".NOT. " + check + "(" +  prefix + str(i) + ")" for i in flatdiff]) + ") THEN "
+      #:else
+         ELSE
+      #:endif
+   #:enddef
+
+#:endmute

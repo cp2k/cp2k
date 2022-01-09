@@ -1,0 +1,10 @@
+{
+    "description": "Tall-And-Skinny matrices",
+    "requires": [
+        "../../dbm",
+        "../../base",
+        "../../common",
+        "../../mpiwrap",
+        "../../offload",
+    ],
+}
