@@ -289,6 +289,9 @@ CONTAINS
 #if defined(__GRID_HIP)
       flags = TRIM(flags)//" grid_hip"
 #endif
+#if defined(__DBM_CUDA)
+      flags = TRIM(flags)//" dbm_cuda"
+#endif
 #if defined(__OFFLOAD_PROFILING)
       flags = TRIM(flags)//" offload_profiling"
 #endif
