@@ -38,14 +38,12 @@ MODULE mp2_integrals
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_release_p, dbcsr_scalar, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
-   USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_clear, dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
-        dbcsr_t_distribution_destroy, dbcsr_t_distribution_new, dbcsr_t_distribution_type, &
-        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_stored_coordinates, &
-        dbcsr_t_mp_environ_pgrid, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, &
-        dbcsr_t_put_block, dbcsr_t_reserve_blocks, dbcsr_t_split_blocks, dbcsr_t_type
+        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE dbt_api,                         ONLY: &
+        dbt_clear, dbt_contract, dbt_copy, dbt_create, dbt_destroy, dbt_distribution_destroy, &
+        dbt_distribution_new, dbt_distribution_type, dbt_filter, dbt_get_block, dbt_get_info, &
+        dbt_get_stored_coordinates, dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, &
+        dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_split_blocks, dbt_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type
@@ -230,8 +228,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints_cubic_RPA
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(dbcsr_t_type), INTENT(OUT)                    :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
+      TYPE(dbt_type), INTENT(OUT)                        :: t_3c_M
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: t_3c_O
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
@@ -268,9 +266,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_V
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
-      TYPE(dbcsr_t_pgrid_type)                           :: pgrid_t3c_M, pgrid_t3c_overl
-      TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_template, t_3c_tmp
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_overl_int
+      TYPE(dbt_pgrid_type)                               :: pgrid_t3c_M, pgrid_t3c_overl
+      TYPE(dbt_type)                                     :: t_3c_overl_int_template, t_3c_tmp
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_overl_int
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ao, basis_set_ri_aux
@@ -696,7 +694,7 @@ CONTAINS
          CALL get_qs_env(qs_env, natom=natom, nkind=nkind, dft_control=dft_control)
 
          pdims_t3c = 0
-         CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_overl)
+         CALL dbt_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_overl)
 
          ! set up basis
          ALLOCATE (sizes_RI(natom), sizes_AO(natom))
@@ -717,7 +715,7 @@ CONTAINS
                                name="O (RI AO | AO)")
 
          CALL get_qs_env(qs_env, nkind=nkind, particle_set=particle_set)
-         CALL dbcsr_t_mp_environ_pgrid(pgrid_t3c_overl, pdims, pcoord)
+         CALL dbt_mp_environ_pgrid(pgrid_t3c_overl, pdims, pcoord)
          CALL mp_cart_create(pgrid_t3c_overl%mp_comm_2d, 3, pdims, pcoord, mp_comm_t3c_2)
          CALL distribution_3d_create(dist_3d, dist_RI, dist_AO_1, dist_AO_2, &
                                      nkind, particle_set, mp_comm_t3c_2, own_comm=.TRUE.)
@@ -744,11 +742,11 @@ CONTAINS
 
          DO i = 1, SIZE(t_3c_overl_int, 1)
             DO j = 1, SIZE(t_3c_overl_int, 2)
-               CALL dbcsr_t_create(t_3c_overl_int_template, t_3c_overl_int(i, j))
+               CALL dbt_create(t_3c_overl_int_template, t_3c_overl_int(i, j))
             END DO
          END DO
 
-         CALL dbcsr_t_destroy(t_3c_overl_int_template)
+         CALL dbt_destroy(t_3c_overl_int_template)
 
          ! split blocks to improve load balancing for tensor contraction
          min_bsize = qs_env%mp2_env%ri_rpa_im_time%min_bsize
@@ -757,7 +755,7 @@ CONTAINS
          CALL pgf_block_sizes(atomic_kind_set, basis_set_ri_aux, min_bsize, sizes_RI_split)
 
          pdims_t3c = 0
-         CALL dbcsr_t_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M)
+         CALL dbt_pgrid_create(para_env%group, pdims_t3c, pgrid_t3c_M)
 
          ASSOCIATE (cut_memory => qs_env%mp2_env%ri_rpa_im_time%cut_memory)
             CALL create_tensor_batches(sizes_AO_split, cut_memory, starts_array_mc, ends_array_mc, &
@@ -772,7 +770,7 @@ CONTAINS
 
          DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
 
-         CALL dbcsr_t_pgrid_destroy(pgrid_t3c_M)
+         CALL dbt_pgrid_destroy(pgrid_t3c_M)
 
          ALLOCATE (t_3c_O(SIZE(t_3c_overl_int, 1), SIZE(t_3c_overl_int, 2)))
          ALLOCATE (t_3c_O_compressed(SIZE(t_3c_overl_int, 1), SIZE(t_3c_overl_int, 2), cut_memory))
@@ -783,10 +781,10 @@ CONTAINS
                                name="O (RI AO | AO)")
          DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
 
-         CALL dbcsr_t_pgrid_destroy(pgrid_t3c_overl)
+         CALL dbt_pgrid_destroy(pgrid_t3c_overl)
          DO i = 1, SIZE(t_3c_O, 1)
             DO j = 1, SIZE(t_3c_O, 2)
-               IF (i > 1 .OR. j > 1) CALL dbcsr_t_create(t_3c_O(1, 1), t_3c_O(i, j))
+               IF (i > 1 .OR. j > 1) CALL dbt_create(t_3c_O(1, 1), t_3c_O(i, j))
             END DO
          END DO
 
@@ -809,42 +807,41 @@ CONTAINS
             DO i = 1, SIZE(t_3c_overl_int, 1)
                DO j = 1, SIZE(t_3c_overl_int, 2)
 
-                  CALL dbcsr_t_copy(t_3c_overl_int(i, j), t_3c_O(i, j), order=[1, 3, 2], &
-                                    summation=.TRUE., move_data=.TRUE.)
-                  CALL dbcsr_t_clear(t_3c_overl_int(i, j))
-                  CALL dbcsr_t_filter(t_3c_O(i, j), qs_env%mp2_env%ri_rpa_im_time%eps_filter/2)
+                  CALL dbt_copy(t_3c_overl_int(i, j), t_3c_O(i, j), order=[1, 3, 2], &
+                                summation=.TRUE., move_data=.TRUE.)
+                  CALL dbt_clear(t_3c_overl_int(i, j))
+                  CALL dbt_filter(t_3c_O(i, j), qs_env%mp2_env%ri_rpa_im_time%eps_filter/2)
                END DO
             END DO
-
             CALL timestop(handle4)
          END DO
 
          DO i = 1, SIZE(t_3c_overl_int, 1)
             DO j = 1, SIZE(t_3c_overl_int, 2)
-               CALL dbcsr_t_destroy(t_3c_overl_int(i, j))
+               CALL dbt_destroy(t_3c_overl_int(i, j))
             END DO
          END DO
          DEALLOCATE (t_3c_overl_int)
 
          CALL timeset(routineN//"_copy_3c", handle4)
          ! desymmetrize
-         CALL dbcsr_t_create(t_3c_O(1, 1), t_3c_tmp)
+         CALL dbt_create(t_3c_O(1, 1), t_3c_tmp)
          DO jcell = 1, nimg
             DO kcell = 1, jcell
-               CALL dbcsr_t_copy(t_3c_O(jcell, kcell), t_3c_tmp)
-               CALL dbcsr_t_copy(t_3c_tmp, t_3c_O(kcell, jcell), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
-               CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
+               CALL dbt_copy(t_3c_O(jcell, kcell), t_3c_tmp)
+               CALL dbt_copy(t_3c_tmp, t_3c_O(kcell, jcell), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
+               CALL dbt_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
             END DO
          END DO
          DO jcell = 1, nimg
             DO kcell = jcell + 1, nimg
-               CALL dbcsr_t_copy(t_3c_O(jcell, kcell), t_3c_tmp)
-               CALL dbcsr_t_copy(t_3c_tmp, t_3c_O(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
-               CALL dbcsr_t_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
+               CALL dbt_copy(t_3c_O(jcell, kcell), t_3c_tmp)
+               CALL dbt_copy(t_3c_tmp, t_3c_O(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
+               CALL dbt_filter(t_3c_O(kcell, jcell), qs_env%mp2_env%ri_rpa_im_time%eps_filter)
             END DO
          END DO
 
-         CALL dbcsr_t_get_info(t_3c_O(1, 1), nfull_total=bounds_3c)
+         CALL dbt_get_info(t_3c_O(1, 1), nfull_total=bounds_3c)
          CALL get_tensor_occupancy(t_3c_O(1, 1), nze, occ)
          memory_3c = 0.0_dp
 
@@ -854,14 +851,14 @@ CONTAINS
             DO j = 1, SIZE(t_3c_O, 2)
                DO i_mem = 1, cut_memory
                   bounds(:, 2) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
-                  CALL dbcsr_t_copy(t_3c_O(i, j), t_3c_tmp, bounds=bounds)
+                  CALL dbt_copy(t_3c_O(i, j), t_3c_tmp, bounds=bounds)
 
                   CALL alloc_containers(t_3c_O_compressed(i, j, i_mem), 1)
                   CALL compress_tensor(t_3c_tmp, t_3c_O_ind(i, j, i_mem)%ind, &
                                        t_3c_O_compressed(i, j, i_mem), &
                                        qs_env%mp2_env%ri_rpa_im_time%eps_compress, memory_3c)
                END DO
-               CALL dbcsr_t_clear(t_3c_O(i, j))
+               CALL dbt_clear(t_3c_O(i, j))
             END DO
          END DO
 
@@ -877,7 +874,7 @@ CONTAINS
                "MEMORY_INFO| Compression factor:                  ", compression_factor
          END IF
 
-         CALL dbcsr_t_destroy(t_3c_tmp)
+         CALL dbt_destroy(t_3c_tmp)
 
          CALL timestop(handle4)
 
@@ -927,9 +924,9 @@ CONTAINS
       LOGICAL                                            :: found
       INTEGER, DIMENSION(ngroup)                         :: dist_L_P, dist_L_R
       INTEGER, DIMENSION(para_env_sub%num_pe)            :: dist_B_a
-      TYPE(dbcsr_t_distribution_type)                    :: dist_B, dist_L
-      TYPE(dbcsr_t_pgrid_type)                           :: mp_comm_B, mp_comm_L
-      TYPE(dbcsr_t_type)                                 :: tB_in, tB_in_split, tB_out, &
+      TYPE(dbt_distribution_type)                        :: dist_B, dist_L
+      TYPE(dbt_pgrid_type)                               :: mp_comm_B, mp_comm_L
+      TYPE(dbt_type)                                     :: tB_in, tB_in_split, tB_out, &
                                                             tB_out_split, tL, tL_split
 
       CALL timeset(routineN, handle)
@@ -972,8 +969,8 @@ CONTAINS
       pdims_B = [ngroup, nproc, 1]
       pdims_L = [nproc, ngroup]
 
-      CALL dbcsr_t_pgrid_create(mp_comm, pdims_B, mp_comm_B)
-      CALL dbcsr_t_pgrid_create(mp_comm, pdims_L, mp_comm_L)
+      CALL dbt_pgrid_create(mp_comm, pdims_B, mp_comm_B)
+      CALL dbt_pgrid_create(mp_comm, pdims_L, mp_comm_L)
 
       ! setup distribution vectors such that distribution matches parallel data layout of BIb_C and my_Lrows
       dist_B_i = [0]
@@ -982,21 +979,21 @@ CONTAINS
       dist_L_P = (/(i, i=0, ngroup - 1)/)
 
       ! create distributions and tensors
-      CALL dbcsr_t_distribution_new(dist_B, mp_comm_B, dist_L_P, dist_B_a, dist_B_i)
-      CALL dbcsr_t_distribution_new(dist_L, mp_comm_L, dist_L_R, dist_L_P)
+      CALL dbt_distribution_new(dist_B, mp_comm_B, dist_L_P, dist_B_a, dist_B_i)
+      CALL dbt_distribution_new(dist_L, mp_comm_L, dist_L_R, dist_L_P)
 
-      CALL dbcsr_t_create(tB_in, "(R|ai)", dist_B, map_B_1, map_B_2, dbcsr_type_real_8, sizes_L, sizes_B, sizes_i)
-      CALL dbcsr_t_create(tB_out, "(P|ai)", dist_B, map_B_1, map_B_2, dbcsr_type_real_8, sizes_L, sizes_B, sizes_i)
-      CALL dbcsr_t_create(tL, "(R|P)", dist_L, map_L_1, map_L_2, dbcsr_type_real_8, sizes_L, sizes_L)
+      CALL dbt_create(tB_in, "(R|ai)", dist_B, map_B_1, map_B_2, sizes_L, sizes_B, sizes_i)
+      CALL dbt_create(tB_out, "(P|ai)", dist_B, map_B_1, map_B_2, sizes_L, sizes_B, sizes_i)
+      CALL dbt_create(tL, "(R|P)", dist_L, map_L_1, map_L_2, sizes_L, sizes_L)
 
       IF (debug) THEN
          ! check that tensor distribution is correct
-         CALL dbcsr_t_get_stored_coordinates(tB_in, [loc_P, loc_a, 1], check_proc)
+         CALL dbt_get_stored_coordinates(tB_in, [loc_P, loc_a, 1], check_proc)
          CPASSERT(check_proc .EQ. iproc_glob)
       END IF
 
       ! reserve (R|ai) block
-      CALL dbcsr_t_reserve_blocks(tB_in, [loc_P], [loc_a], [1])
+      CALL dbt_reserve_blocks(tB_in, [loc_P], [loc_a], [1])
 
       ! reserve (R|P) blocks
       ! in my_Lrows, R index is replicated. For (R|P), we distribute quadratic blocks cyclically over
@@ -1007,59 +1004,59 @@ CONTAINS
       block_ind_L_R(:) = 0; block_ind_L_P(:) = 0
       ii = 0
       DO i = 1, ngroup
-         CALL dbcsr_t_get_stored_coordinates(tL, [i, loc_P], check_proc)
+         CALL dbt_get_stored_coordinates(tL, [i, loc_P], check_proc)
          IF (check_proc == iproc_glob) THEN
             ii = ii + 1
             block_ind_L_R(ii) = i
             block_ind_L_P(ii) = loc_P
          END IF
       END DO
-      CALL dbcsr_t_reserve_blocks(tL, block_ind_L_R(1:ii), block_ind_L_P(1:ii))
+      CALL dbt_reserve_blocks(tL, block_ind_L_R(1:ii), block_ind_L_P(1:ii))
 
       ! insert (R|ai) block
-      CALL dbcsr_t_put_block(tB_in, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C)
+      CALL dbt_put_block(tB_in, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C)
 
       ! insert (R|P) blocks
       ioff = 0
       DO i = 1, ngroup
          istart = ioff + 1; iend = ioff + sizes_L(i)
          ioff = ioff + sizes_L(i)
-         CALL dbcsr_t_get_stored_coordinates(tL, [i, loc_P], check_proc)
+         CALL dbt_get_stored_coordinates(tL, [i, loc_P], check_proc)
          IF (check_proc == iproc_glob) THEN
-            CALL dbcsr_t_put_block(tL, [i, loc_P], [sizes_L(i), sizes_L(loc_P)], my_Lrows(istart:iend, :))
+            CALL dbt_put_block(tL, [i, loc_P], [sizes_L(i), sizes_L(loc_P)], my_Lrows(istart:iend, :))
          END IF
       END DO
 
-      CALL dbcsr_t_split_blocks(tB_in, tB_in_split, [blk_size(2), blk_size(1), blk_size(1)])
-      CALL dbcsr_t_split_blocks(tL, tL_split, [blk_size(2), blk_size(2)])
-      CALL dbcsr_t_split_blocks(tB_out, tB_out_split, [blk_size(2), blk_size(1), blk_size(1)])
+      CALL dbt_split_blocks(tB_in, tB_in_split, [blk_size(2), blk_size(1), blk_size(1)])
+      CALL dbt_split_blocks(tL, tL_split, [blk_size(2), blk_size(2)])
+      CALL dbt_split_blocks(tB_out, tB_out_split, [blk_size(2), blk_size(1), blk_size(1)])
 
       ! contract
-      CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=tB_in_split, tensor_2=tL_split, &
-                            beta=dbcsr_scalar(0.0_dp), tensor_3=tB_out_split, &
-                            contract_1=[1], notcontract_1=[2, 3], &
-                            contract_2=[1], notcontract_2=[2], &
-                            map_1=[2, 3], map_2=[1], optimize_dist=.TRUE.)
+      CALL dbt_contract(alpha=1.0_dp, tensor_1=tB_in_split, tensor_2=tL_split, &
+                        beta=0.0_dp, tensor_3=tB_out_split, &
+                        contract_1=[1], notcontract_1=[2, 3], &
+                        contract_2=[1], notcontract_2=[2], &
+                        map_1=[2, 3], map_2=[1], optimize_dist=.TRUE.)
 
       ! retrieve local block of contraction result (P|ai)
-      CALL dbcsr_t_copy(tB_out_split, tB_out)
+      CALL dbt_copy(tB_out_split, tB_out)
 
-      CALL dbcsr_t_get_block(tB_out, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C, found)
+      CALL dbt_get_block(tB_out, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C, found)
       CPASSERT(found)
 
       ! cleanup
-      CALL dbcsr_t_destroy(tB_in)
-      CALL dbcsr_t_destroy(tB_in_split)
-      CALL dbcsr_t_destroy(tB_out)
-      CALL dbcsr_t_destroy(tB_out_split)
-      CALL dbcsr_t_destroy(tL)
-      CALL dbcsr_t_destroy(tL_split)
+      CALL dbt_destroy(tB_in)
+      CALL dbt_destroy(tB_in_split)
+      CALL dbt_destroy(tB_out)
+      CALL dbt_destroy(tB_out_split)
+      CALL dbt_destroy(tL)
+      CALL dbt_destroy(tL_split)
 
-      CALL dbcsr_t_distribution_destroy(dist_B)
-      CALL dbcsr_t_distribution_destroy(dist_L)
+      CALL dbt_distribution_destroy(dist_B)
+      CALL dbt_distribution_destroy(dist_L)
 
-      CALL dbcsr_t_pgrid_destroy(mp_comm_B)
-      CALL dbcsr_t_pgrid_destroy(mp_comm_L)
+      CALL dbt_pgrid_destroy(mp_comm_B)
+      CALL dbt_pgrid_destroy(mp_comm_L)
 
       CALL timestop(handle)
 

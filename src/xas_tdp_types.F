@@ -28,8 +28,8 @@ MODULE xas_tdp_types
                                               dbcsr_release,&
                                               dbcsr_release_p,&
                                               dbcsr_type
-   USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
-                                              dbcsr_t_type
+   USE dbt_api,                         ONLY: dbt_destroy,&
+                                              dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                               distribution_2d_type
    USE input_constants,                 ONLY: &
@@ -199,8 +199,8 @@ MODULE xas_tdp_types
       INTEGER, DIMENSION(:), POINTER          :: ex_atom_indices
       INTEGER, DIMENSION(:), POINTER          :: ex_kind_indices
       INTEGER, DIMENSION(:, :), POINTER       :: state_types
-      TYPE(dbcsr_t_type), POINTER             :: ri_3c_coul
-      TYPE(dbcsr_t_type), POINTER             :: ri_3c_ex
+      TYPE(dbt_type), POINTER             :: ri_3c_coul
+      TYPE(dbt_type), POINTER             :: ri_3c_ex
       TYPE(donor_state_type), DIMENSION(:), &
          POINTER   :: donor_states
       INTEGER, DIMENSION(:, :, :), POINTER     :: mos_of_ex_atoms
@@ -819,11 +819,11 @@ CONTAINS
             DEALLOCATE (xas_tdp_env%quadmat)
          END IF
          IF (ASSOCIATED(xas_tdp_env%ri_3c_coul)) THEN
-            CALL dbcsr_t_destroy(xas_tdp_env%ri_3c_coul)
+            CALL dbt_destroy(xas_tdp_env%ri_3c_coul)
             DEALLOCATE (xas_tdp_env%ri_3c_coul)
          END IF
          IF (ASSOCIATED(xas_tdp_env%ri_3c_ex)) THEN
-            CALL dbcsr_t_destroy(xas_tdp_env%ri_3c_ex)
+            CALL dbt_destroy(xas_tdp_env%ri_3c_ex)
             DEALLOCATE (xas_tdp_env%ri_3c_ex)
          END IF
          IF (ASSOCIATED(xas_tdp_env%ri_fxc)) THEN
@@ -1362,7 +1362,7 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(xas_tdp_env%ri_3c_ex)) THEN
-            CALL dbcsr_t_destroy(xas_tdp_env%ri_3c_ex)
+            CALL dbt_destroy(xas_tdp_env%ri_3c_ex)
             DEALLOCATE (xas_tdp_env%ri_3c_ex)
          END IF
       END IF

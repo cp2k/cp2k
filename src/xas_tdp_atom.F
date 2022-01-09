@@ -40,14 +40,14 @@ MODULE xas_tdp_atom
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_symmetric
-   USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
-                                              dbcsr_t_get_block,&
-                                              dbcsr_t_iterator_blocks_left,&
-                                              dbcsr_t_iterator_next_block,&
-                                              dbcsr_t_iterator_start,&
-                                              dbcsr_t_iterator_stop,&
-                                              dbcsr_t_iterator_type,&
-                                              dbcsr_t_type
+   USE dbt_api,                         ONLY: dbt_destroy,&
+                                              dbt_get_block,&
+                                              dbt_iterator_blocks_left,&
+                                              dbt_iterator_next_block,&
+                                              dbt_iterator_start,&
+                                              dbt_iterator_stop,&
+                                              dbt_iterator_type,&
+                                              dbt_type
    USE input_constants,                 ONLY: do_potential_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -848,8 +848,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_density_coeffs'
 
-      INTEGER                                            :: blk, exat, handle, i, iat, iatom, iex, &
-                                                            inb, ind(3), ispin, jatom, jnb, katom, &
+      INTEGER                                            :: exat, handle, i, iat, iatom, iex, inb, &
+                                                            ind(3), ispin, jatom, jnb, katom, &
                                                             natom, nex, nkind, nnb, nspins, &
                                                             output_unit, ri_at
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_size_orb, blk_size_ri, idx_to_nb, &
@@ -867,10 +867,10 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: overlap, rho_ao
-      TYPE(dbcsr_t_iterator_type)                        :: iter
-      TYPE(dbcsr_t_type)                                 :: pqX
       TYPE(dbcsr_type)                                   :: ri_sinv
       TYPE(dbcsr_type), POINTER                          :: ri_mats
+      TYPE(dbt_iterator_type)                            :: iter
+      TYPE(dbt_type)                                     :: pqX
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_orb, basis_set_ri
       TYPE(libint_potential_type)                        :: pot
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -992,10 +992,10 @@ CONTAINS
 
          !Do the actual contraction: coeff_y = sum_pq sum_x P_pq (phi_p phi_q xi_x) S_xy^-1
 
-         CALL dbcsr_t_iterator_start(iter, pqX)
-         DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-            CALL dbcsr_t_iterator_next_block(iter, ind, blk)
-            CALL dbcsr_t_get_block(pqX, ind, t_block, tensor_found)
+         CALL dbt_iterator_start(iter, pqX)
+         DO WHILE (dbt_iterator_blocks_left(iter))
+            CALL dbt_iterator_next_block(iter, ind)
+            CALL dbt_get_block(pqX, ind, t_block, tensor_found)
 
             iatom = ind(1)
             jatom = ind(2)
@@ -1062,11 +1062,11 @@ CONTAINS
 
             DEALLOCATE (t_block)
          END DO !iter
-         CALL dbcsr_t_iterator_stop(iter)
+         CALL dbt_iterator_stop(iter)
 
          !clean-up
          CALL dbcsr_release(ri_sinv)
-         CALL dbcsr_t_destroy(pqX)
+         CALL dbt_destroy(pqX)
          CALL release_neighbor_list_sets(ab_list)
          CALL release_neighbor_list_sets(ac_list)
          DEALLOCATE (neighbors, idx_to_nb)
