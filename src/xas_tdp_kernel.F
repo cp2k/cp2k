@@ -23,13 +23,13 @@ MODULE xas_tdp_kernel
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
         dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
-   USE dbcsr_tensor_api,                ONLY: dbcsr_t_get_block,&
-                                              dbcsr_t_iterator_blocks_left,&
-                                              dbcsr_t_iterator_next_block,&
-                                              dbcsr_t_iterator_start,&
-                                              dbcsr_t_iterator_stop,&
-                                              dbcsr_t_iterator_type,&
-                                              dbcsr_t_type
+   USE dbt_api,                         ONLY: dbt_get_block,&
+                                              dbt_iterator_blocks_left,&
+                                              dbt_iterator_next_block,&
+                                              dbt_iterator_start,&
+                                              dbt_iterator_stop,&
+                                              dbt_iterator_type,&
+                                              dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_bcast
@@ -994,8 +994,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: opt_dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrices, matrix_s
-      TYPE(dbcsr_t_type), POINTER                        :: pq_X
       TYPE(dbcsr_type), POINTER                          :: aI_P, P_Ib, work
+      TYPE(dbt_type), POINTER                            :: pq_X
       TYPE(distribution_2d_type), POINTER                :: opt_dist2d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: ri_basis
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1098,21 +1098,21 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE contract3_RI_to_doMOs(ab_Q, vec, mat_abIJ, atom_k)
 
-      TYPE(dbcsr_t_type)                                 :: ab_Q
+      TYPE(dbt_type)                                     :: ab_Q
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: vec
       TYPE(dbcsr_type)                                   :: mat_abIJ
       INTEGER, INTENT(IN)                                :: atom_k
 
       CHARACTER(len=*), PARAMETER :: routineN = 'contract3_RI_to_doMOs'
 
-      INTEGER                                            :: blk, handle, iatom, ik, ind(3), jatom, &
-                                                            katom, nk, s1, s2
+      INTEGER                                            :: handle, iatom, ik, ind(3), jatom, katom, &
+                                                            nk, s1, s2
       LOGICAL                                            :: found, t_found
       REAL(dp)                                           :: prefac
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: iabc
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
-      TYPE(dbcsr_t_iterator_type)                        :: iter
       TYPE(dbcsr_type)                                   :: work
+      TYPE(dbt_iterator_type)                            :: iter
 
       NULLIFY (pblock)
 
@@ -1120,9 +1120,9 @@ CONTAINS
 
       nk = SIZE(vec)
 
-      CALL dbcsr_t_iterator_start(iter, ab_Q)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk)
+      CALL dbt_iterator_start(iter, ab_Q)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind)
 
          iatom = ind(1)
          jatom = ind(2)
@@ -1133,7 +1133,7 @@ CONTAINS
          prefac = 1.0_dp
          IF (iatom == jatom) prefac = 0.5_dp
 
-         CALL dbcsr_t_get_block(ab_Q, ind, iabc, t_found)
+         CALL dbt_get_block(ab_Q, ind, iabc, t_found)
 
          CALL dbcsr_get_block_p(mat_abIJ, iatom, jatom, pblock, found)
          IF ((.NOT. found) .OR. (.NOT. t_found)) CYCLE
@@ -1145,7 +1145,7 @@ CONTAINS
 
          DEALLOCATE (iabc)
       END DO !iter
-      CALL dbcsr_t_iterator_stop(iter)
+      CALL dbt_iterator_stop(iter)
 
       !matrix only half filled => need to add its transpose
       CALL dbcsr_create(work, template=mat_abIJ)
@@ -1175,20 +1175,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE contract2_AO_to_doMO_low(ab_Q, vec, mat_aIb, mat_bIa, atom_k)
 
-      TYPE(dbcsr_t_type)                                 :: ab_Q
+      TYPE(dbt_type)                                     :: ab_Q
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: vec
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_aIb, mat_bIa
       INTEGER, INTENT(IN)                                :: atom_k
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract2_AO_to_doMO_low'
 
-      INTEGER                                            :: blk, handle, i, iatom, ind(3), j, jatom, &
+      INTEGER                                            :: handle, i, iatom, ind(3), j, jatom, &
                                                             katom, n, s1, s2
       INTEGER, DIMENSION(:), POINTER                     :: atom_blk_size
       LOGICAL                                            :: found, t_found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: iabc
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock
-      TYPE(dbcsr_t_iterator_type)                        :: iter
+      TYPE(dbt_iterator_type)                            :: iter
 
       NULLIFY (atom_blk_size, pblock)
 
@@ -1196,9 +1196,9 @@ CONTAINS
 
       CALL dbcsr_get_info(mat_aIb, row_blk_size=atom_blk_size)
 
-      CALL dbcsr_t_iterator_start(iter, ab_Q)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk)
+      CALL dbt_iterator_start(iter, ab_Q)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind)
 
          iatom = ind(1)
          jatom = ind(2)
@@ -1206,7 +1206,7 @@ CONTAINS
 
          IF (atom_k .NE. katom) CYCLE
 
-         CALL dbcsr_t_get_block(ab_Q, ind, iabc, t_found)
+         CALL dbt_get_block(ab_Q, ind, iabc, t_found)
          IF (.NOT. t_found) CYCLE
 
          ! Deal with mat_aIb
@@ -1245,7 +1245,7 @@ CONTAINS
 
          DEALLOCATE (iabc)
       END DO !iter
-      CALL dbcsr_t_iterator_stop(iter)
+      CALL dbt_iterator_stop(iter)
 
       CALL timestop(handle)
 

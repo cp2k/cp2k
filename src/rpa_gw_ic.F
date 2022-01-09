@@ -12,14 +12,12 @@
 ! **************************************************************************************************
 MODULE rpa_gw_ic
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_scalar,&
-                                              dbcsr_type
-   USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
-        dbcsr_t_destroy, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_iterator_blocks_left, &
-        dbcsr_t_iterator_next_block, dbcsr_t_iterator_start, dbcsr_t_iterator_stop, &
-        dbcsr_t_iterator_type, dbcsr_t_nblks_total, dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, &
-        dbcsr_t_pgrid_type, dbcsr_t_type
+   USE dbcsr_api,                       ONLY: dbcsr_type
+   USE dbt_api,                         ONLY: &
+        dbt_contract, dbt_copy, dbt_copy_matrix_to_tensor, dbt_create, dbt_destroy, dbt_get_block, &
+        dbt_get_info, dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, &
+        dbt_iterator_stop, dbt_iterator_type, dbt_nblks_total, dbt_pgrid_create, &
+        dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_dims_create,&
                                               mp_sum
@@ -61,7 +59,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: Eigenval
       TYPE(dbcsr_type), INTENT(IN), TARGET               :: mat_SinvVSinv
-      TYPE(dbcsr_t_type)                                 :: t_3c_overl_nnP_ic, &
+      TYPE(dbt_type)                                     :: t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, unit_nr
@@ -78,8 +76,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: pdims
       LOGICAL                                            :: do_closed_shell, my_do_alpha, my_do_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Delta_Sigma_Neaton
-      TYPE(dbcsr_t_pgrid_type)                           :: pgrid_2d
-      TYPE(dbcsr_t_type) :: t_3c_overl_nnP_ic_reflected_ctr, t_SinvVSinv, t_SinvVSinv_tmp
+      TYPE(dbt_pgrid_type)                               :: pgrid_2d
+      TYPE(dbt_type) :: t_3c_overl_nnP_ic_reflected_ctr, t_SinvVSinv, t_SinvVSinv_tmp
 
       CALL timeset(routineN, handle)
 
@@ -104,34 +102,34 @@ CONTAINS
       mo_end = homo + gw_corr_lev_virt
       CPASSERT(mo_end - mo_start + 1 == gw_corr_lev_tot)
 
-      ALLOCATE (sizes_RI_split(dbcsr_t_nblks_total(t_3c_overl_nnP_ic_reflected, 1)))
-      CALL dbcsr_t_get_info(t_3c_overl_nnP_ic_reflected, blk_size_1=sizes_RI_split)
+      ALLOCATE (sizes_RI_split(dbt_nblks_total(t_3c_overl_nnP_ic_reflected, 1)))
+      CALL dbt_get_info(t_3c_overl_nnP_ic_reflected, blk_size_1=sizes_RI_split)
 
-      CALL dbcsr_t_create(mat_SinvVSinv, t_SinvVSinv_tmp)
-      CALL dbcsr_t_copy_matrix_to_tensor(mat_SinvVSinv, t_SinvVSinv_tmp)
+      CALL dbt_create(mat_SinvVSinv, t_SinvVSinv_tmp)
+      CALL dbt_copy_matrix_to_tensor(mat_SinvVSinv, t_SinvVSinv_tmp)
       pdims = 0
       CALL mp_dims_create(para_env%num_pe, pdims)
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims, pgrid_2d)
+      CALL dbt_pgrid_create(para_env%group, pdims, pgrid_2d)
       CALL create_2c_tensor(t_SinvVSinv, dist_1, dist_2, pgrid_2d, sizes_RI_split, sizes_RI_split, &
                             name="(RI|RI)")
       DEALLOCATE (dist_1, dist_2)
-      CALL dbcsr_t_pgrid_destroy(pgrid_2d)
+      CALL dbt_pgrid_destroy(pgrid_2d)
 
-      CALL dbcsr_t_copy(t_SinvVSinv_tmp, t_SinvVSinv)
-      CALL dbcsr_t_destroy(t_SinvVSinv_tmp)
-      CALL dbcsr_t_create(t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_ctr)
-      CALL dbcsr_t_contract(dbcsr_scalar(0.5_dp), t_SinvVSinv, t_3c_overl_nnP_ic_reflected, &
-                            dbcsr_scalar(0.0_dp), t_3c_overl_nnP_ic_reflected_ctr, &
-                            contract_1=[2], notcontract_1=[1], &
-                            contract_2=[1], notcontract_2=[2, 3], &
-                            map_1=[1], map_2=[2, 3])
+      CALL dbt_copy(t_SinvVSinv_tmp, t_SinvVSinv)
+      CALL dbt_destroy(t_SinvVSinv_tmp)
+      CALL dbt_create(t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_ctr)
+      CALL dbt_contract(0.5_dp, t_SinvVSinv, t_3c_overl_nnP_ic_reflected, &
+                        0.0_dp, t_3c_overl_nnP_ic_reflected_ctr, &
+                        contract_1=[2], notcontract_1=[1], &
+                        contract_2=[1], notcontract_2=[2, 3], &
+                        map_1=[1], map_2=[2, 3])
 
       CALL trace_ic_gw(t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected_ctr, Delta_Sigma_Neaton, [mo_start, mo_end], para_env)
 
       Delta_Sigma_Neaton(gw_corr_lev_occ + 1:) = -Delta_Sigma_Neaton(gw_corr_lev_occ + 1:)
 
-      CALL dbcsr_t_destroy(t_SinvVSinv)
-      CALL dbcsr_t_destroy(t_3c_overl_nnP_ic_reflected_ctr)
+      CALL dbt_destroy(t_SinvVSinv)
+      CALL dbt_destroy(t_3c_overl_nnP_ic_reflected_ctr)
 
       IF (unit_nr > 0) THEN
 
@@ -220,29 +218,29 @@ CONTAINS
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE trace_ic_gw(t3c_1, t3c_2, Delta_Sigma_Neaton, mo_bounds, para_env)
-      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t3c_1, t3c_2
+      TYPE(dbt_type), INTENT(INOUT)                      :: t3c_1, t3c_2
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: Delta_Sigma_Neaton
       INTEGER, DIMENSION(2), INTENT(IN)                  :: mo_bounds
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trace_ic_gw'
 
-      INTEGER                                            :: blk, handle, n, n_end, n_end_block, &
-                                                            n_start, n_start_block
+      INTEGER                                            :: handle, n, n_end, n_end_block, n_start, &
+                                                            n_start_block
       INTEGER, DIMENSION(3)                              :: boff, bsize, ind
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_1, block_2
-      TYPE(dbcsr_t_iterator_type)                        :: iter
+      TYPE(dbt_iterator_type)                            :: iter
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_t_iterator_start(iter, t3c_1)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk, blk_size=bsize, blk_offset=boff)
+      CALL dbt_iterator_start(iter, t3c_1)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind, blk_size=bsize, blk_offset=boff)
          IF (ind(2) /= ind(3)) CYCLE
-         CALL dbcsr_t_get_block(t3c_1, ind, block_1, found)
+         CALL dbt_get_block(t3c_1, ind, block_1, found)
          CPASSERT(found)
-         CALL dbcsr_t_get_block(t3c_2, ind, block_2, found)
+         CALL dbt_get_block(t3c_2, ind, block_2, found)
          IF (.NOT. found) CYCLE
 
          IF (boff(3) < mo_bounds(1)) THEN
@@ -268,7 +266,7 @@ CONTAINS
                n=n_start_block, n_end_block)/)
          DEALLOCATE (block_1, block_2)
       END DO
-      CALL dbcsr_t_iterator_stop(iter)
+      CALL dbt_iterator_stop(iter)
 
       CALL mp_sum(Delta_Sigma_Neaton, para_env%group)
 

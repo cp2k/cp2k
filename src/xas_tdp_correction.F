@@ -47,15 +47,13 @@ MODULE xas_tdp_correction
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_info, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scalar, dbcsr_type
-   USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_contract, dbcsr_t_copy, dbcsr_t_copy_matrix_to_tensor, dbcsr_t_create, &
-        dbcsr_t_default_distvec, dbcsr_t_destroy, dbcsr_t_distribution_destroy, &
-        dbcsr_t_distribution_new, dbcsr_t_distribution_type, dbcsr_t_finalize, dbcsr_t_get_block, &
-        dbcsr_t_get_info, dbcsr_t_iterator_blocks_left, dbcsr_t_iterator_next_block, &
-        dbcsr_t_iterator_start, dbcsr_t_iterator_stop, dbcsr_t_iterator_type, &
-        dbcsr_t_pgrid_create, dbcsr_t_pgrid_destroy, dbcsr_t_pgrid_type, dbcsr_t_put_block, &
-        dbcsr_t_type
+        dbcsr_release, dbcsr_type
+   USE dbt_api,                         ONLY: &
+        dbt_contract, dbt_copy, dbt_copy_matrix_to_tensor, dbt_create, dbt_default_distvec, &
+        dbt_destroy, dbt_distribution_destroy, dbt_distribution_new, dbt_distribution_type, &
+        dbt_finalize, dbt_get_block, dbt_get_info, dbt_iterator_blocks_left, &
+        dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, &
+        dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, dbt_type
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section
    USE input_section_types,             ONLY: section_vals_create,&
                                               section_vals_get_subs_vals,&
@@ -130,8 +128,8 @@ CONTAINS
                                                             mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, fock_matrix, matrix_ks
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:)      :: ja_X, oI_Y
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: mo_template
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ja_X, oI_Y
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: mo_template
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: backup_mos, mos
       TYPE(section_vals_type), POINTER                   :: xc_fun_empty, xc_fun_original, xc_section
@@ -422,14 +420,14 @@ CONTAINS
 
       !Final clean-up
       DO ido_mo = 1, nspins*ndo_mo
-         CALL dbcsr_t_destroy(oI_Y(ido_mo))
+         CALL dbt_destroy(oI_Y(ido_mo))
       END DO
       DO ispin = 1, nspins
-         CALL dbcsr_t_destroy(ja_X(ispin))
+         CALL dbt_destroy(ja_X(ispin))
          DEALLOCATE (homo_evals(ispin)%array)
          DEALLOCATE (lumo_evals(ispin)%array)
          DO jspin = 1, nspins
-            CALL dbcsr_t_destroy(mo_template(ispin, jspin))
+            CALL dbt_destroy(mo_template(ispin, jspin))
          END DO
       END DO
       DEALLOCATE (oI_Y, homo_evals, lumo_evals)
@@ -455,9 +453,9 @@ CONTAINS
                                   donor_state, xas_tdp_control, qs_env)
 
       INTEGER, INTENT(IN)                                :: first_domo
-      TYPE(dbcsr_t_type), INTENT(inout)                  :: ja_X
-      TYPE(dbcsr_t_type), DIMENSION(:), INTENT(inout)    :: oI_Y
-      TYPE(dbcsr_t_type), INTENT(inout)                  :: mo_template
+      TYPE(dbt_type), INTENT(inout)                      :: ja_X
+      TYPE(dbt_type), DIMENSION(:), INTENT(inout)        :: oI_Y
+      TYPE(dbt_type), INTENT(inout)                      :: mo_template
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: homo_evals, lumo_evals
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
@@ -472,7 +470,7 @@ CONTAINS
       REAL(dp)                                           :: c_os, c_ss, dg, diff, ds1, ds2, eps_I, &
                                                             eps_iter, g, omega_k, parts(4), s1, s2
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_t_type)                                 :: aj_Ib, aj_Ib_diff, aj_X, ja_Ik, &
+      TYPE(dbt_type)                                     :: aj_Ib, aj_Ib_diff, aj_X, ja_Ik, &
                                                             ja_Ik_diff
 
       CALL timeset(routineN, handle)
@@ -497,14 +495,14 @@ CONTAINS
 
       !need transposed tensor of (ja|X) for optimal contraction scheme (s.t. (aj|X) block is on same
       !processor as (ja|X))
-      CALL dbcsr_t_create(ja_X, aj_X)
-      CALL dbcsr_t_copy(ja_X, aj_X, order=[2, 1, 3])
+      CALL dbt_create(ja_X, aj_X)
+      CALL dbt_copy(ja_X, aj_X, order=[2, 1, 3])
 
       !split the MO blocks into batches for memory friendly batched contraction
       !huge dense tensors never need to be stored
-      CALL dbcsr_t_get_info(ja_X, nblks_total=nblks)
+      CALL dbt_get_info(ja_X, nblks_total=nblks)
       ALLOCATE (mo_blk_size(nblks(1)))
-      CALL dbcsr_t_get_info(ja_X, blk_size_1=mo_blk_size)
+      CALL dbt_get_info(ja_X, blk_size_1=mo_blk_size)
 
       tmp_sum = 0
       DO i = 1, nblks(1)
@@ -546,11 +544,11 @@ CONTAINS
                occ_bo = get_limit(nblk_occ, nbatch_occ, ibatch - 1)
                bounds_1d = [SUM(mo_blk_size(1:occ_bo(1) - 1)) + 1, SUM(mo_blk_size(1:occ_bo(2)))]
 
-               CALL dbcsr_t_create(mo_template, ja_Ik)
-               CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=ja_X, tensor_2=oI_Y(ido_mo), &
-                                     beta=dbcsr_scalar(0.0_dp), tensor_3=ja_Ik, contract_1=[3], &
-                                     notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
-                                     map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
+               CALL dbt_create(mo_template, ja_Ik)
+               CALL dbt_contract(alpha=1.0_dp, tensor_1=ja_X, tensor_2=oI_Y(ido_mo), &
+                                 beta=0.0_dp, tensor_3=ja_Ik, contract_1=[3], &
+                                 notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
+                                 map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
 
                !opposite-spin contribution
                CALL calc_os_oov_contrib(parts(1), parts(2), ja_Ik, homo_evals, lumo_evals, homo_evals, &
@@ -564,20 +562,20 @@ CONTAINS
                !directly compute the difference (ja|Ik) - (ka|Ij)
                IF (ABS(c_ss) > EPSILON(1.0_dp)) THEN
 
-                  CALL dbcsr_t_create(ja_Ik, ja_Ik_diff, map1_2d=[1], map2_2d=[2, 3])
-                  CALL dbcsr_t_copy(ja_Ik, ja_Ik_diff, move_data=.TRUE.)
+                  CALL dbt_create(ja_Ik, ja_Ik_diff, map1_2d=[1], map2_2d=[2, 3])
+                  CALL dbt_copy(ja_Ik, ja_Ik_diff, move_data=.TRUE.)
 
-                  CALL dbcsr_t_contract(alpha=dbcsr_scalar(-1.0_dp), tensor_1=oI_Y(ido_mo), tensor_2=aj_X, &
-                                        beta=dbcsr_scalar(1.0_dp), tensor_3=ja_Ik_diff, contract_1=[2], &
-                                        notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
-                                        map_1=[1], map_2=[2, 3], bounds_2=[1, nhomo], bounds_3=bounds_2d)
+                  CALL dbt_contract(alpha=-1.0_dp, tensor_1=oI_Y(ido_mo), tensor_2=aj_X, &
+                                    beta=1.0_dp, tensor_3=ja_Ik_diff, contract_1=[2], &
+                                    notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
+                                    map_1=[1], map_2=[2, 3], bounds_2=[1, nhomo], bounds_3=bounds_2d)
 
                   CALL calc_ss_oov_contrib(parts(1), parts(2), ja_Ik_diff, homo_evals, lumo_evals, omega_k, c_ss)
 
-                  CALL dbcsr_t_destroy(ja_Ik_diff)
+                  CALL dbt_destroy(ja_Ik_diff)
                END IF !c_ss != 0
 
-               CALL dbcsr_t_destroy(ja_Ik)
+               CALL dbt_destroy(ja_Ik)
             END DO
 
             DO ibatch = 1, nbatch_virt
@@ -586,11 +584,11 @@ CONTAINS
                bounds_1d = [SUM(mo_blk_size(1:nblk_occ + virt_bo(1) - 1)) + 1, &
                             SUM(mo_blk_size(1:nblk_occ + virt_bo(2)))]
 
-               CALL dbcsr_t_create(mo_template, aj_Ib)
-               CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=aj_X, tensor_2=oI_Y(ido_mo), &
-                                     beta=dbcsr_scalar(0.0_dp), tensor_3=aj_Ib, contract_1=[3], &
-                                     notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
-                                     map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
+               CALL dbt_create(mo_template, aj_Ib)
+               CALL dbt_contract(alpha=1.0_dp, tensor_1=aj_X, tensor_2=oI_Y(ido_mo), &
+                                 beta=0.0_dp, tensor_3=aj_Ib, contract_1=[3], &
+                                 notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
+                                 map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
 
                !opposite-spin contribution
                CALL calc_os_ovv_contrib(parts(3), parts(4), aj_Ib, lumo_evals, homo_evals, lumo_evals, &
@@ -603,21 +601,21 @@ CONTAINS
                   bounds_2d(2, 1) = nhomo
                   bounds_2d(:, 2) = bounds_1d
 
-                  CALL dbcsr_t_create(aj_Ib, aj_Ib_diff, map1_2d=[1], map2_2d=[2, 3])
-                  CALL dbcsr_t_copy(aj_Ib, aj_Ib_diff, move_data=.TRUE.)
+                  CALL dbt_create(aj_Ib, aj_Ib_diff, map1_2d=[1], map2_2d=[2, 3])
+                  CALL dbt_copy(aj_Ib, aj_Ib_diff, move_data=.TRUE.)
 
-                  CALL dbcsr_t_contract(alpha=dbcsr_scalar(-1.0_dp), tensor_1=oI_Y(ido_mo), tensor_2=ja_X, &
-                                        beta=dbcsr_scalar(1.0_dp), tensor_3=aj_Ib_diff, contract_1=[2], &
-                                        notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
-                                        map_1=[1], map_2=[2, 3], &
-                                        bounds_2=[nhomo + 1, nhomo + nlumo], bounds_3=bounds_2d)
+                  CALL dbt_contract(alpha=-1.0_dp, tensor_1=oI_Y(ido_mo), tensor_2=ja_X, &
+                                    beta=1.0_dp, tensor_3=aj_Ib_diff, contract_1=[2], &
+                                    notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
+                                    map_1=[1], map_2=[2, 3], &
+                                    bounds_2=[nhomo + 1, nhomo + nlumo], bounds_3=bounds_2d)
 
                   CALL calc_ss_ovv_contrib(parts(3), parts(4), aj_Ib_diff, homo_evals, lumo_evals, omega_k, c_ss)
 
-                  CALL dbcsr_t_destroy(aj_Ib_diff)
+                  CALL dbt_destroy(aj_Ib_diff)
                END IF ! c_ss not 0
 
-               CALL dbcsr_t_destroy(aj_Ib)
+               CALL dbt_destroy(aj_Ib)
             END DO
 
             CALL mp_sum(parts, para_env%group)
@@ -658,7 +656,7 @@ CONTAINS
 
       END DO !ido_mo
 
-      CALL dbcsr_t_destroy(aj_X)
+      CALL dbt_destroy(aj_X)
 
       CALL timestop(handle)
 
@@ -681,8 +679,8 @@ CONTAINS
                                  donor_state, xas_tdp_control, qs_env)
 
       INTEGER, INTENT(IN)                                :: first_domo(2)
-      TYPE(dbcsr_t_type), DIMENSION(:), INTENT(inout)    :: ja_X, oI_Y
-      TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(inout) :: mo_template
+      TYPE(dbt_type), DIMENSION(:), INTENT(inout)        :: ja_X, oI_Y
+      TYPE(dbt_type), DIMENSION(:, :), INTENT(inout)     :: mo_template
       TYPE(cp_1d_r_p_type), DIMENSION(:), INTENT(in)     :: homo_evals, lumo_evals
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
@@ -697,7 +695,7 @@ CONTAINS
       REAL(dp)                                           :: c_os, c_ss, dg, diff, ds1, ds2, eps_I, &
                                                             eps_iter, g, omega_k, parts(4), s1, s2
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_t_type)                                 :: aj_Ib, aj_Ib_diff, aj_X(2), ja_Ik, &
+      TYPE(dbt_type)                                     :: aj_Ib, aj_Ib_diff, aj_X(2), ja_Ik, &
                                                             ja_Ik_diff
 
       CALL timeset(routineN, handle)
@@ -727,8 +725,8 @@ CONTAINS
 
          !need transposed tensor of (ja|X) for optimal contraction scheme,
          !s.t. (aj|X) block is on same processor as (ja|X)) and differences can be taken
-         CALL dbcsr_t_create(ja_X(ispin), aj_X(ispin))
-         CALL dbcsr_t_copy(ja_X(ispin), aj_X(ispin), order=[2, 1, 3])
+         CALL dbt_create(ja_X(ispin), aj_X(ispin))
+         CALL dbt_copy(ja_X(ispin), aj_X(ispin), order=[2, 1, 3])
 
       END DO ! ispin
       DO ispin = 1, nspins
@@ -737,9 +735,9 @@ CONTAINS
 
          !split the MO blocks into batches for memory friendly batched contraction
          !huge dense tensors never need to be stored. Split MOs for the current spin
-         CALL dbcsr_t_get_info(ja_X(ispin), nblks_total=nblks)
+         CALL dbt_get_info(ja_X(ispin), nblks_total=nblks)
          ALLOCATE (mo_blk_size(nblks(1)))
-         CALL dbcsr_t_get_info(ja_X(ispin), blk_size_1=mo_blk_size)
+         CALL dbt_get_info(ja_X(ispin), blk_size_1=mo_blk_size)
 
          tmp_sum = 0
          DO i = 1, nblks(1)
@@ -783,49 +781,49 @@ CONTAINS
                   occ_bo = get_limit(nblk_occ, nbatch_occ, ibatch - 1)
                   bounds_1d = [SUM(mo_blk_size(1:occ_bo(1) - 1)) + 1, SUM(mo_blk_size(1:occ_bo(2)))]
 
-                  CALL dbcsr_t_create(mo_template(other_spin, ispin), ja_Ik)
-                  CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=ja_X(other_spin), &
-                                        tensor_2=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
-                                        beta=dbcsr_scalar(0.0_dp), tensor_3=ja_Ik, contract_1=[3], &
-                                        notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
-                                        map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
+                  CALL dbt_create(mo_template(other_spin, ispin), ja_Ik)
+                  CALL dbt_contract(alpha=1.0_dp, tensor_1=ja_X(other_spin), &
+                                    tensor_2=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
+                                    beta=0.0_dp, tensor_3=ja_Ik, contract_1=[3], &
+                                    notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
+                                    map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
 
                   CALL calc_os_oov_contrib(parts(1), parts(2), ja_Ik, homo_evals(other_spin)%array, &
                                            lumo_evals(other_spin)%array, homo_evals(ispin)%array, &
                                            omega_k, c_os, nhomo(other_spin))
 
-                  CALL dbcsr_t_destroy(ja_Ik)
+                  CALL dbt_destroy(ja_Ik)
 
                   !same-spin contribution, need to compute (ja|Ik) - (ka|Ij), all with the current spin
                   !skip if c_ss == 0
                   IF (ABS(c_ss) > EPSILON(1.0_dp)) THEN
 
                      !same batching as opposite spin
-                     CALL dbcsr_t_create(mo_template(ispin, ispin), ja_Ik)
-                     CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=ja_X(ispin), &
-                                           tensor_2=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
-                                           beta=dbcsr_scalar(0.0_dp), tensor_3=ja_Ik, contract_1=[3], &
-                                           notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
-                                           map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
+                     CALL dbt_create(mo_template(ispin, ispin), ja_Ik)
+                     CALL dbt_contract(alpha=1.0_dp, tensor_1=ja_X(ispin), &
+                                       tensor_2=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
+                                       beta=0.0_dp, tensor_3=ja_Ik, contract_1=[3], &
+                                       notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
+                                       map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
 
                      bounds_2d(:, 2) = bounds_1d
                      bounds_2d(1, 1) = nhomo(ispin) + 1
                      bounds_2d(2, 1) = nhomo(ispin) + nlumo(ispin)
 
                      !the tensor difference is directly taken here
-                     CALL dbcsr_t_create(ja_Ik, ja_Ik_diff, map1_2d=[1], map2_2d=[2, 3])
-                     CALL dbcsr_t_copy(ja_Ik, ja_Ik_diff, move_data=.TRUE.)
+                     CALL dbt_create(ja_Ik, ja_Ik_diff, map1_2d=[1], map2_2d=[2, 3])
+                     CALL dbt_copy(ja_Ik, ja_Ik_diff, move_data=.TRUE.)
 
-                     CALL dbcsr_t_contract(alpha=dbcsr_scalar(-1.0_dp), tensor_1=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
-                                           tensor_2=aj_X(ispin), beta=dbcsr_scalar(1.0_dp), tensor_3=ja_Ik_diff, &
-                                           contract_1=[2], notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
-                                           map_1=[1], map_2=[2, 3], bounds_2=[1, nhomo(ispin)], bounds_3=bounds_2d)
+                     CALL dbt_contract(alpha=-1.0_dp, tensor_1=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
+                                       tensor_2=aj_X(ispin), beta=1.0_dp, tensor_3=ja_Ik_diff, &
+                                       contract_1=[2], notcontract_1=[1], contract_2=[3], notcontract_2=[1, 2], &
+                                       map_1=[1], map_2=[2, 3], bounds_2=[1, nhomo(ispin)], bounds_3=bounds_2d)
 
                      CALL calc_ss_oov_contrib(parts(1), parts(2), ja_Ik_diff, homo_evals(ispin)%array, &
                                               lumo_evals(ispin)%array, omega_k, c_ss)
 
-                     CALL dbcsr_t_destroy(ja_Ik_diff)
-                     CALL dbcsr_t_destroy(ja_Ik)
+                     CALL dbt_destroy(ja_Ik_diff)
+                     CALL dbt_destroy(ja_Ik)
                   END IF !c_ss !!= 0
 
                END DO
@@ -838,50 +836,50 @@ CONTAINS
                   bounds_1d = [SUM(mo_blk_size(1:nblk_occ + virt_bo(1) - 1)) + 1, &
                                SUM(mo_blk_size(1:nblk_occ + virt_bo(2)))]
 
-                  CALL dbcsr_t_create(mo_template(other_spin, ispin), aj_Ib)
-                  CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=aj_X(other_spin), &
-                                        tensor_2=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
-                                        beta=dbcsr_scalar(0.0_dp), tensor_3=aj_Ib, contract_1=[3], &
-                                        notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
-                                        map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
+                  CALL dbt_create(mo_template(other_spin, ispin), aj_Ib)
+                  CALL dbt_contract(alpha=1.0_dp, tensor_1=aj_X(other_spin), &
+                                    tensor_2=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
+                                    beta=0.0_dp, tensor_3=aj_Ib, contract_1=[3], &
+                                    notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
+                                    map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
 
                   CALL calc_os_ovv_contrib(parts(3), parts(4), aj_Ib, lumo_evals(other_spin)%array, &
                                            homo_evals(other_spin)%array, lumo_evals(ispin)%array, &
                                            omega_k, c_os, nhomo(other_spin), nhomo(ispin))
 
-                  CALL dbcsr_t_destroy(aj_Ib)
+                  CALL dbt_destroy(aj_Ib)
 
                   !same-spin contribution, need to compute (aj|Ib) - (bj|Ia), all with the current spin
                   !skip if c_ss == 0
                   IF (ABS(c_ss) > EPSILON(1.0_dp)) THEN
 
                      !same batching as opposite spin
-                     CALL dbcsr_t_create(mo_template(ispin, ispin), aj_Ib)
-                     CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=aj_X(ispin), &
-                                           tensor_2=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
-                                           beta=dbcsr_scalar(0.0_dp), tensor_3=aj_Ib, contract_1=[3], &
-                                           notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
-                                           map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
+                     CALL dbt_create(mo_template(ispin, ispin), aj_Ib)
+                     CALL dbt_contract(alpha=1.0_dp, tensor_1=aj_X(ispin), &
+                                       tensor_2=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
+                                       beta=0.0_dp, tensor_3=aj_Ib, contract_1=[3], &
+                                       notcontract_1=[1, 2], contract_2=[2], notcontract_2=[1], &
+                                       map_1=[1, 2], map_2=[3], bounds_3=bounds_1d)
 
                      bounds_2d(1, 1) = 1
                      bounds_2d(2, 1) = nhomo(ispin)
                      bounds_2d(:, 2) = bounds_1d
 
-                     CALL dbcsr_t_create(aj_Ib, aj_Ib_diff, map1_2d=[1], map2_2d=[2, 3])
-                     CALL dbcsr_t_copy(aj_Ib, aj_Ib_diff, move_data=.TRUE.)
+                     CALL dbt_create(aj_Ib, aj_Ib_diff, map1_2d=[1], map2_2d=[2, 3])
+                     CALL dbt_copy(aj_Ib, aj_Ib_diff, move_data=.TRUE.)
 
-                     CALL dbcsr_t_contract(alpha=dbcsr_scalar(-1.0_dp), tensor_1=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
-                                           tensor_2=ja_X(ispin), beta=dbcsr_scalar(1.0_dp), tensor_3=aj_Ib_diff, &
-                                           contract_1=[2], notcontract_1=[1], contract_2=[3], &
-                                           notcontract_2=[1, 2], map_1=[1], map_2=[2, 3], &
-                                           bounds_2=[nhomo(ispin) + 1, nhomo(ispin) + nlumo(ispin)], &
-                                           bounds_3=bounds_2d)
+                     CALL dbt_contract(alpha=-1.0_dp, tensor_1=oI_Y((ispin - 1)*ndo_mo + ido_mo), &
+                                       tensor_2=ja_X(ispin), beta=1.0_dp, tensor_3=aj_Ib_diff, &
+                                       contract_1=[2], notcontract_1=[1], contract_2=[3], &
+                                       notcontract_2=[1, 2], map_1=[1], map_2=[2, 3], &
+                                       bounds_2=[nhomo(ispin) + 1, nhomo(ispin) + nlumo(ispin)], &
+                                       bounds_3=bounds_2d)
 
                      CALL calc_ss_ovv_contrib(parts(3), parts(4), aj_Ib_diff, homo_evals(ispin)%array, &
                                               lumo_evals(ispin)%array, omega_k, c_ss)
 
-                     CALL dbcsr_t_destroy(aj_Ib_diff)
-                     CALL dbcsr_t_destroy(aj_Ib)
+                     CALL dbt_destroy(aj_Ib_diff)
+                     CALL dbt_destroy(aj_Ib)
                   END IF ! c_ss not 0
 
                END DO
@@ -928,7 +926,7 @@ CONTAINS
       END DO ! ispin
 
       DO ispin = 1, nspins
-         CALL dbcsr_t_destroy(aj_X(ispin))
+         CALL dbt_destroy(aj_X(ispin))
       END DO
 
       CALL timestop(handle)
@@ -947,7 +945,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_full_pqX_from_3c_ex(pq_X, exat, xas_tdp_env, qs_env)
 
-      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: pq_X
+      TYPE(dbt_type), INTENT(INOUT)                      :: pq_X
       INTEGER, INTENT(IN)                                :: exat
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -955,84 +953,81 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_full_pqX_from_3c_ex', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: blk, i, ind(3), natom, nblk_ri, nsgf_x
+      INTEGER                                            :: i, ind(3), natom, nblk_ri, nsgf_x
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: orb_blk_size, proc_dist_1, proc_dist_2, &
                                                             proc_dist_3
       INTEGER, DIMENSION(3)                              :: pdims
       LOGICAL                                            :: found
-      REAL(dp)                                           :: factor
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: pblock
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_t_distribution_type)                    :: t_dist
-      TYPE(dbcsr_t_iterator_type)                        :: iter
-      TYPE(dbcsr_t_pgrid_type)                           :: t_pgrid
-      TYPE(dbcsr_t_type)                                 :: pq_X_tmp, work
+      TYPE(dbt_distribution_type)                        :: t_dist
+      TYPE(dbt_iterator_type)                            :: iter
+      TYPE(dbt_pgrid_type)                               :: t_pgrid
+      TYPE(dbt_type)                                     :: pq_X_tmp, work
 
       NULLIFY (para_env)
 
       !create work tensor with same 2D dist as pq_X, but only keep excited atom along RI direction
       CALL get_qs_env(qs_env, para_env=para_env, natom=natom)
-      CALL dbcsr_t_get_info(xas_tdp_env%ri_3c_ex, pdims=pdims)
+      CALL dbt_get_info(xas_tdp_env%ri_3c_ex, pdims=pdims)
       nsgf_x = SIZE(xas_tdp_env%ri_inv_ex, 1)
       nblk_ri = 1
 
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims, t_pgrid)
+      CALL dbt_pgrid_create(para_env%group, pdims, t_pgrid)
       ALLOCATE (proc_dist_1(natom), proc_dist_2(natom), orb_blk_size(natom))
-      CALL dbcsr_t_get_info(xas_tdp_env%ri_3c_ex, proc_dist_1=proc_dist_1, proc_dist_2=proc_dist_2, &
-                            blk_size_1=orb_blk_size)
-      CALL dbcsr_t_distribution_new(t_dist, t_pgrid, nd_dist_1=proc_dist_1, nd_dist_2=proc_dist_2, &
-                                    nd_dist_3=[(0, i=1, nblk_ri)])
+      CALL dbt_get_info(xas_tdp_env%ri_3c_ex, proc_dist_1=proc_dist_1, proc_dist_2=proc_dist_2, &
+                        blk_size_1=orb_blk_size)
+      CALL dbt_distribution_new(t_dist, t_pgrid, nd_dist_1=proc_dist_1, nd_dist_2=proc_dist_2, &
+                                nd_dist_3=[(0, i=1, nblk_ri)])
 
-      CALL dbcsr_t_create(work, name="(pq|X)", dist=t_dist, map1_2d=[1], map2_2d=[2, 3], &
-                          blk_size_1=orb_blk_size, blk_size_2=orb_blk_size, blk_size_3=[nsgf_x])
-      CALL dbcsr_t_distribution_destroy(t_dist)
+      CALL dbt_create(work, name="(pq|X)", dist=t_dist, map1_2d=[1], map2_2d=[2, 3], &
+                      blk_size_1=orb_blk_size, blk_size_2=orb_blk_size, blk_size_3=[nsgf_x])
+      CALL dbt_distribution_destroy(t_dist)
 
       !dist of 3c_ex and work match, can simply copy blocks over. Diagonal with factor 0.5
-      CALL dbcsr_t_iterator_start(iter, xas_tdp_env%ri_3c_ex)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk)
-         CALL dbcsr_t_get_block(xas_tdp_env%ri_3c_ex, ind, pblock, found)
+      CALL dbt_iterator_start(iter, xas_tdp_env%ri_3c_ex)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind)
+         CALL dbt_get_block(xas_tdp_env%ri_3c_ex, ind, pblock, found)
 
-         factor = 1.0_dp
-         IF (ind(1) == ind(2)) factor = 0.5_dp
+         IF (ind(1) == ind(2)) pblock = 0.5_dp*pblock
          IF (ind(3) /= exat) CYCLE
 
-         CALL dbcsr_t_put_block(work, [ind(1), ind(2), 1], &
-                                [orb_blk_size(ind(1)), orb_blk_size(ind(2)), nsgf_x], &
-                                pblock, scale=factor)
+         CALL dbt_put_block(work, [ind(1), ind(2), 1], &
+                            [orb_blk_size(ind(1)), orb_blk_size(ind(2)), nsgf_x], pblock)
 
          DEALLOCATE (pblock)
       END DO
-      CALL dbcsr_t_iterator_stop(iter)
-      CALL dbcsr_t_finalize(work)
+      CALL dbt_iterator_stop(iter)
+      CALL dbt_finalize(work)
 
       !create (pq|X) based on work and copy over
-      CALL dbcsr_t_create(work, pq_X_tmp)
-      CALL dbcsr_t_copy(work, pq_X_tmp)
-      CALL dbcsr_t_copy(work, pq_X_tmp, order=[2, 1, 3], summation=.TRUE., move_data=.TRUE.)
+      CALL dbt_create(work, pq_X_tmp)
+      CALL dbt_copy(work, pq_X_tmp)
+      CALL dbt_copy(work, pq_X_tmp, order=[2, 1, 3], summation=.TRUE., move_data=.TRUE.)
 
-      CALL dbcsr_t_destroy(work)
+      CALL dbt_destroy(work)
 
       !create the pgrid, based on the 2D dbcsr grid
-      CALL dbcsr_t_pgrid_destroy(t_pgrid)
+      CALL dbt_pgrid_destroy(t_pgrid)
       pdims = 0
-      CALL dbcsr_t_pgrid_create(para_env%group, pdims, t_pgrid, tensor_dims=[natom, natom, 1])
+      CALL dbt_pgrid_create(para_env%group, pdims, t_pgrid, tensor_dims=[natom, natom, 1])
 
       !cyclic distribution accross all directions.
       ALLOCATE (proc_dist_3(nblk_ri))
-      CALL dbcsr_t_default_distvec(natom, pdims(1), orb_blk_size, proc_dist_1)
-      CALL dbcsr_t_default_distvec(natom, pdims(2), orb_blk_size, proc_dist_2)
-      CALL dbcsr_t_default_distvec(nblk_ri, pdims(3), [nsgf_x], proc_dist_3)
-      CALL dbcsr_t_distribution_new(t_dist, t_pgrid, nd_dist_1=proc_dist_1, nd_dist_2=proc_dist_2, &
-                                    nd_dist_3=proc_dist_3)
+      CALL dbt_default_distvec(natom, pdims(1), orb_blk_size, proc_dist_1)
+      CALL dbt_default_distvec(natom, pdims(2), orb_blk_size, proc_dist_2)
+      CALL dbt_default_distvec(nblk_ri, pdims(3), [nsgf_x], proc_dist_3)
+      CALL dbt_distribution_new(t_dist, t_pgrid, nd_dist_1=proc_dist_1, nd_dist_2=proc_dist_2, &
+                                nd_dist_3=proc_dist_3)
 
-      CALL dbcsr_t_create(pq_X, name="(pq|X)", dist=t_dist, map1_2d=[2, 3], map2_2d=[1], &
-                          blk_size_1=orb_blk_size, blk_size_2=orb_blk_size, blk_size_3=[nsgf_x])
-      CALL dbcsr_t_copy(pq_X_tmp, pq_X, move_data=.TRUE.)
+      CALL dbt_create(pq_X, name="(pq|X)", dist=t_dist, map1_2d=[2, 3], map2_2d=[1], &
+                      blk_size_1=orb_blk_size, blk_size_2=orb_blk_size, blk_size_3=[nsgf_x])
+      CALL dbt_copy(pq_X_tmp, pq_X, move_data=.TRUE.)
 
-      CALL dbcsr_t_distribution_destroy(t_dist)
-      CALL dbcsr_t_pgrid_destroy(t_pgrid)
-      CALL dbcsr_t_destroy(pq_X_tmp)
+      CALL dbt_distribution_destroy(t_dist)
+      CALL dbt_pgrid_destroy(t_pgrid)
+      CALL dbt_destroy(pq_X_tmp)
 
    END SUBROUTINE get_full_pqX_from_3c_ex
 
@@ -1055,9 +1050,9 @@ CONTAINS
    SUBROUTINE contract_AOs_to_MOs(ja_X, oI_Y, ja_Io_template, mo_coeffs, nocc, nvirt, &
                                   donor_state, xas_tdp_env, xas_tdp_control, qs_env)
 
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:), &
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: ja_X, oI_Y
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: ja_Io_template
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: mo_coeffs
       INTEGER, INTENT(IN)                                :: nocc(2), nvirt(2)
@@ -1081,10 +1076,10 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: mat_dist
       TYPE(dbcsr_distribution_type), POINTER             :: std_mat_dist
-      TYPE(dbcsr_t_distribution_type)                    :: t_dist
-      TYPE(dbcsr_t_pgrid_type)                           :: t_pgrid
-      TYPE(dbcsr_t_type)                                 :: jq_X, pq_X, t_mo_coeffs
       TYPE(dbcsr_type)                                   :: dbcsr_mo_coeffs
+      TYPE(dbt_distribution_type)                        :: t_dist
+      TYPE(dbt_pgrid_type)                               :: t_pgrid
+      TYPE(dbt_type)                                     :: jq_X, pq_X, t_mo_coeffs
 
       NULLIFY (ao_blk_size, ao_col_dist, ao_row_dist, mo_dist_3, ri_blk_size, ri_dist_3, mat_pgrid, &
                para_env, std_mat_dist)
@@ -1109,8 +1104,8 @@ CONTAINS
 
          !Create the tensor pgrid. AOs and RI independent from spin
          IF (ispin == 1) THEN
-            CALL dbcsr_t_get_info(pq_X, pdims=pdims, nblks_total=nblk_pqX)
-            CALL dbcsr_t_pgrid_create(para_env%group, pdims, t_pgrid)
+            CALL dbt_get_info(pq_X, pdims=pdims, nblks_total=nblk_pqX)
+            CALL dbt_pgrid_create(para_env%group, pdims, t_pgrid)
             nblk_aos = nblk_pqX(1)
             nblk_ri = nblk_pqX(3)
          END IF
@@ -1133,13 +1128,13 @@ CONTAINS
          CALL get_qs_env(qs_env, dbcsr_dist=std_mat_dist)
          CALL dbcsr_distribution_get(std_mat_dist, pgrid=mat_pgrid)
          ALLOCATE (ao_blk_size(nblk_aos), ri_blk_size(nblk_ri))
-         CALL dbcsr_t_get_info(pq_X, blk_size_1=ao_blk_size, blk_size_3=ri_blk_size)
+         CALL dbt_get_info(pq_X, blk_size_1=ao_blk_size, blk_size_3=ri_blk_size)
 
          !we opt for a cyclic dist for the MOs (since they should be rather dense anyways)
          ALLOCATE (ao_row_dist(nblk_aos), mo_col_dist(ispin)%array(nblk_mos(ispin)))
-         CALL dbcsr_t_default_distvec(nblk_aos, SIZE(mat_pgrid, 1), ao_blk_size, ao_row_dist)
-         CALL dbcsr_t_default_distvec(nblk_mos(ispin), SIZE(mat_pgrid, 2), mo_blk_size(ispin)%array, &
-                                      mo_col_dist(ispin)%array)
+         CALL dbt_default_distvec(nblk_aos, SIZE(mat_pgrid, 1), ao_blk_size, ao_row_dist)
+         CALL dbt_default_distvec(nblk_mos(ispin), SIZE(mat_pgrid, 2), mo_blk_size(ispin)%array, &
+                                  mo_col_dist(ispin)%array)
          CALL dbcsr_distribution_new(mat_dist, group=para_env%group, pgrid=mat_pgrid, &
                                      row_dist=ao_row_dist, col_dist=mo_col_dist(ispin)%array)
 
@@ -1147,68 +1142,68 @@ CONTAINS
                            row_blk_size=ao_blk_size, col_blk_size=mo_blk_size(ispin)%array)
          CALL copy_fm_to_dbcsr(mo_coeffs(ispin)%matrix, dbcsr_mo_coeffs)
 
-         CALL dbcsr_t_create(dbcsr_mo_coeffs, t_mo_coeffs)
-         CALL dbcsr_t_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
+         CALL dbt_create(dbcsr_mo_coeffs, t_mo_coeffs)
+         CALL dbt_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
 
          !prepare the (jq|X) tensor for the first contraction (over occupied MOs)
          ALLOCATE (mo_row_dist(ispin)%array(nblk_mos(ispin)), ao_col_dist(nblk_aos), ri_dist_3(nblk_ri))
-         CALL dbcsr_t_default_distvec(nblk_mos(ispin), pdims(1), mo_blk_size(ispin)%array, mo_row_dist(ispin)%array)
-         CALL dbcsr_t_default_distvec(nblk_aos, pdims(2), ao_blk_size, ao_col_dist)
-         CALL dbcsr_t_default_distvec(nblk_ri, pdims(3), ri_blk_size, ri_dist_3)
-         CALL dbcsr_t_distribution_new(t_dist, t_pgrid, nd_dist_1=mo_row_dist(ispin)%array, &
-                                       nd_dist_2=ao_col_dist, nd_dist_3=ri_dist_3)
+         CALL dbt_default_distvec(nblk_mos(ispin), pdims(1), mo_blk_size(ispin)%array, mo_row_dist(ispin)%array)
+         CALL dbt_default_distvec(nblk_aos, pdims(2), ao_blk_size, ao_col_dist)
+         CALL dbt_default_distvec(nblk_ri, pdims(3), ri_blk_size, ri_dist_3)
+         CALL dbt_distribution_new(t_dist, t_pgrid, nd_dist_1=mo_row_dist(ispin)%array, &
+                                   nd_dist_2=ao_col_dist, nd_dist_3=ri_dist_3)
 
-         CALL dbcsr_t_create(jq_X, name="(jq|X)", dist=t_dist, map1_2d=[1, 3], map2_2d=[2], &
-                             blk_size_1=mo_blk_size(ispin)%array, blk_size_2=ao_blk_size, blk_size_3=ri_blk_size)
-         CALL dbcsr_t_distribution_destroy(t_dist)
+         CALL dbt_create(jq_X, name="(jq|X)", dist=t_dist, map1_2d=[1, 3], map2_2d=[2], &
+                         blk_size_1=mo_blk_size(ispin)%array, blk_size_2=ao_blk_size, blk_size_3=ri_blk_size)
+         CALL dbt_distribution_destroy(t_dist)
 
          !contract (pq|X) into (jq|X)
-         CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=pq_X, tensor_2=t_mo_coeffs, &
-                               beta=dbcsr_scalar(0.0_dp), tensor_3=jq_X, contract_1=[1], &
-                               notcontract_1=[2, 3], contract_2=[1], notcontract_2=[2], &
-                               map_1=[2, 3], map_2=[1], bounds_3=[1, nocc(ispin)], &!only want occupied MOs for j
-                               move_data=.TRUE.)
+         CALL dbt_contract(alpha=1.0_dp, tensor_1=pq_X, tensor_2=t_mo_coeffs, &
+                           beta=0.0_dp, tensor_3=jq_X, contract_1=[1], &
+                           notcontract_1=[2, 3], contract_2=[1], notcontract_2=[2], &
+                           map_1=[2, 3], map_2=[1], bounds_3=[1, nocc(ispin)], &!only want occupied MOs for j
+                           move_data=.TRUE.)
 
-         CALL dbcsr_t_destroy(pq_X)
-         CALL dbcsr_t_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
+         CALL dbt_destroy(pq_X)
+         CALL dbt_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
 
          !prepare (ja|X) tensor for the second contraction (over virtual MOs)
          !only virtual-occupied bit of the first 2 indices is occupied + it should be dense
          !take blk dist such that blocks are evenly distributed
-         CALL dbcsr_t_default_distvec(nblk_occ(ispin), pdims(1), mo_blk_size(ispin)%array(1:nblk_occ(ispin)), &
-                                      mo_row_dist(ispin)%array(1:nblk_occ(ispin)))
-         CALL dbcsr_t_default_distvec(nblk_virt(ispin), pdims(1), &
-                                      mo_blk_size(ispin)%array(nblk_occ(ispin) + 1:nblk_mos(ispin)), &
-                                      mo_row_dist(ispin)%array(nblk_occ(ispin) + 1:nblk_mos(ispin)))
-         CALL dbcsr_t_default_distvec(nblk_occ(ispin), pdims(2), mo_blk_size(ispin)%array(1:nblk_occ(ispin)), &
-                                      mo_col_dist(ispin)%array(1:nblk_occ(ispin)))
-         CALL dbcsr_t_default_distvec(nblk_virt(ispin), pdims(2), &
-                                      mo_blk_size(ispin)%array(nblk_occ(ispin) + 1:nblk_mos(ispin)), &
-                                      mo_col_dist(ispin)%array(nblk_occ(ispin) + 1:nblk_mos(ispin)))
-         CALL dbcsr_t_distribution_new(t_dist, t_pgrid, nd_dist_1=mo_row_dist(ispin)%array, &
-                                       nd_dist_2=mo_col_dist(ispin)%array, nd_dist_3=ri_dist_3)
+         CALL dbt_default_distvec(nblk_occ(ispin), pdims(1), mo_blk_size(ispin)%array(1:nblk_occ(ispin)), &
+                                  mo_row_dist(ispin)%array(1:nblk_occ(ispin)))
+         CALL dbt_default_distvec(nblk_virt(ispin), pdims(1), &
+                                  mo_blk_size(ispin)%array(nblk_occ(ispin) + 1:nblk_mos(ispin)), &
+                                  mo_row_dist(ispin)%array(nblk_occ(ispin) + 1:nblk_mos(ispin)))
+         CALL dbt_default_distvec(nblk_occ(ispin), pdims(2), mo_blk_size(ispin)%array(1:nblk_occ(ispin)), &
+                                  mo_col_dist(ispin)%array(1:nblk_occ(ispin)))
+         CALL dbt_default_distvec(nblk_virt(ispin), pdims(2), &
+                                  mo_blk_size(ispin)%array(nblk_occ(ispin) + 1:nblk_mos(ispin)), &
+                                  mo_col_dist(ispin)%array(nblk_occ(ispin) + 1:nblk_mos(ispin)))
+         CALL dbt_distribution_new(t_dist, t_pgrid, nd_dist_1=mo_row_dist(ispin)%array, &
+                                   nd_dist_2=mo_col_dist(ispin)%array, nd_dist_3=ri_dist_3)
 
-         CALL dbcsr_t_create(ja_X(ispin), name="(ja|X)", dist=t_dist, map1_2d=[1, 2], map2_2d=[3], &
-                             blk_size_1=mo_blk_size(ispin)%array, blk_size_2=mo_blk_size(ispin)%array, &
-                             blk_size_3=ri_blk_size)
-         CALL dbcsr_t_distribution_destroy(t_dist)
+         CALL dbt_create(ja_X(ispin), name="(ja|X)", dist=t_dist, map1_2d=[1, 2], map2_2d=[3], &
+                         blk_size_1=mo_blk_size(ispin)%array, blk_size_2=mo_blk_size(ispin)%array, &
+                         blk_size_3=ri_blk_size)
+         CALL dbt_distribution_destroy(t_dist)
 
          !contract (jq|X) into (ja|X)
-         CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=jq_X, tensor_2=t_mo_coeffs, &
-                               beta=dbcsr_scalar(0.0_dp), tensor_3=ja_X(ispin), contract_1=[2], &
-                               notcontract_1=[1, 3], contract_2=[1], notcontract_2=[2], &
-                               map_1=[1, 3], map_2=[2], move_data=.TRUE., &
-                               bounds_3=[nocc(ispin) + 1, nocc(ispin) + nvirt(ispin)])
+         CALL dbt_contract(alpha=1.0_dp, tensor_1=jq_X, tensor_2=t_mo_coeffs, &
+                           beta=0.0_dp, tensor_3=ja_X(ispin), contract_1=[2], &
+                           notcontract_1=[1, 3], contract_2=[1], notcontract_2=[2], &
+                           map_1=[1, 3], map_2=[2], move_data=.TRUE., &
+                           bounds_3=[nocc(ispin) + 1, nocc(ispin) + nvirt(ispin)])
 
-         CALL dbcsr_t_destroy(jq_X)
-         CALL dbcsr_t_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
+         CALL dbt_destroy(jq_X)
+         CALL dbt_copy_matrix_to_tensor(dbcsr_mo_coeffs, t_mo_coeffs)
 
          !Finally, get the oI_Y tensors
          CALL get_oIY_tensors(oI_Y, ispin, ao_blk_size, mo_blk_size(ispin)%array, ri_blk_size, &
                               t_mo_coeffs, donor_state, xas_tdp_env, xas_tdp_control, qs_env)
 
          !intermediate clen-up
-         CALL dbcsr_t_destroy(t_mo_coeffs)
+         CALL dbt_destroy(t_mo_coeffs)
          CALL dbcsr_distribution_release(mat_dist)
          CALL dbcsr_release(dbcsr_mo_coeffs)
          DEALLOCATE (ao_col_dist, ri_dist_3, ri_blk_size, ao_blk_size, ao_row_dist)
@@ -1221,24 +1216,24 @@ CONTAINS
       DO ispin = 1, nspins
          DO jspin = 1, nspins
             ALLOCATE (mo_dist_3(nblk_mos(jspin)))
-            CALL dbcsr_t_default_distvec(nblk_occ(jspin), pdims(3), mo_blk_size(jspin)%array(1:nblk_occ(jspin)), &
-                                         mo_dist_3(1:nblk_occ(jspin)))
-            CALL dbcsr_t_default_distvec(nblk_virt(jspin), pdims(3), &
-                                         mo_blk_size(jspin)%array(nblk_occ(jspin) + 1:nblk_mos(jspin)), &
-                                         mo_dist_3(nblk_occ(jspin) + 1:nblk_mos(jspin)))
-            CALL dbcsr_t_distribution_new(t_dist, t_pgrid, nd_dist_1=mo_row_dist(ispin)%array, &
-                                          nd_dist_2=mo_col_dist(ispin)%array, nd_dist_3=mo_dist_3)
+            CALL dbt_default_distvec(nblk_occ(jspin), pdims(3), mo_blk_size(jspin)%array(1:nblk_occ(jspin)), &
+                                     mo_dist_3(1:nblk_occ(jspin)))
+            CALL dbt_default_distvec(nblk_virt(jspin), pdims(3), &
+                                     mo_blk_size(jspin)%array(nblk_occ(jspin) + 1:nblk_mos(jspin)), &
+                                     mo_dist_3(nblk_occ(jspin) + 1:nblk_mos(jspin)))
+            CALL dbt_distribution_new(t_dist, t_pgrid, nd_dist_1=mo_row_dist(ispin)%array, &
+                                      nd_dist_2=mo_col_dist(ispin)%array, nd_dist_3=mo_dist_3)
 
-            CALL dbcsr_t_create(ja_Io_template(ispin, jspin), name="(ja|Io)", dist=t_dist, map1_2d=[1, 2], &
-                                map2_2d=[3], blk_size_1=mo_blk_size(ispin)%array, &
-                                blk_size_2=mo_blk_size(ispin)%array, blk_size_3=mo_blk_size(jspin)%array)
-            CALL dbcsr_t_distribution_destroy(t_dist)
+            CALL dbt_create(ja_Io_template(ispin, jspin), name="(ja|Io)", dist=t_dist, map1_2d=[1, 2], &
+                            map2_2d=[3], blk_size_1=mo_blk_size(ispin)%array, &
+                            blk_size_2=mo_blk_size(ispin)%array, blk_size_3=mo_blk_size(jspin)%array)
+            CALL dbt_distribution_destroy(t_dist)
             DEALLOCATE (mo_dist_3)
          END DO
       END DO
 
       !clean-up
-      CALL dbcsr_t_pgrid_destroy(t_pgrid)
+      CALL dbt_pgrid_destroy(t_pgrid)
       DO ispin = 1, nspins
          DEALLOCATE (mo_blk_size(ispin)%array)
          DEALLOCATE (mo_col_dist(ispin)%array)
@@ -1265,11 +1260,11 @@ CONTAINS
    SUBROUTINE get_oIY_tensors(oI_Y, ispin, ao_blk_size, mo_blk_size, ri_blk_size, t_mo_coeffs, &
                               donor_state, xas_tdp_env, xas_tdp_control, qs_env)
 
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:), &
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: oI_Y
       INTEGER, INTENT(IN)                                :: ispin
       INTEGER, DIMENSION(:), POINTER                     :: ao_blk_size, mo_blk_size, ri_blk_size
-      TYPE(dbcsr_t_type), INTENT(inout)                  :: t_mo_coeffs
+      TYPE(dbt_type), INTENT(inout)                      :: t_mo_coeffs
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
@@ -1277,9 +1272,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_oIY_tensors'
 
-      INTEGER                                            :: blk, bo(2), handle, i, ido_mo, ind(2), &
-                                                            natom, nblk_aos, nblk_mos, nblk_ri, &
-                                                            ndo_mo, pdims_2d(2), proc_id
+      INTEGER                                            :: bo(2), handle, i, ido_mo, ind(2), natom, &
+                                                            nblk_aos, nblk_mos, nblk_ri, ndo_mo, &
+                                                            pdims_2d(2), proc_id
       INTEGER, DIMENSION(:), POINTER                     :: ao_row_dist, mo_row_dist, ri_col_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: mat_pgrid
       LOGICAL                                            :: found
@@ -1287,10 +1282,10 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: std_mat_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: pI_Y
-      TYPE(dbcsr_t_distribution_type)                    :: t_dist
-      TYPE(dbcsr_t_iterator_type)                        :: iter
-      TYPE(dbcsr_t_pgrid_type)                           :: t_pgrid
-      TYPE(dbcsr_t_type)                                 :: t_pI_Y, t_work
+      TYPE(dbt_distribution_type)                        :: t_dist
+      TYPE(dbt_iterator_type)                            :: iter
+      TYPE(dbt_pgrid_type)                               :: t_pgrid
+      TYPE(dbt_type)                                     :: t_pI_Y, t_work
 
       CALL timeset(routineN, handle)
 
@@ -1313,79 +1308,79 @@ CONTAINS
       DO ido_mo = (ispin - 1)*ndo_mo + 1, ispin*ndo_mo
 
          !cast the matrix into a tensor
-         CALL dbcsr_t_create(pI_Y(ido_mo)%matrix, t_work)
-         CALL dbcsr_t_copy_matrix_to_tensor(pI_Y(ido_mo)%matrix, t_work)
+         CALL dbt_create(pI_Y(ido_mo)%matrix, t_work)
+         CALL dbt_copy_matrix_to_tensor(pI_Y(ido_mo)%matrix, t_work)
 
          !find col proc_id of the only populated column of t_work
          ALLOCATE (ri_col_dist(natom))
-         CALL dbcsr_t_get_info(t_work, proc_dist_2=ri_col_dist)
+         CALL dbt_get_info(t_work, proc_dist_2=ri_col_dist)
          proc_id = ri_col_dist(donor_state%at_index)
          DEALLOCATE (ri_col_dist)
 
          !preapre (oI_Y) tensor and (pI|Y) tensor in proper dist and blk sizes
          pdims_2d(1) = SIZE(mat_pgrid, 1); pdims_2d(2) = SIZE(mat_pgrid, 2)
-         CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, t_pgrid)
+         CALL dbt_pgrid_create(para_env%group, pdims_2d, t_pgrid)
 
          ALLOCATE (ri_col_dist(nblk_ri), ao_row_dist(nblk_aos), mo_row_dist(nblk_mos))
-         CALL dbcsr_t_get_info(t_work, proc_dist_1=ao_row_dist)
+         CALL dbt_get_info(t_work, proc_dist_1=ao_row_dist)
          ri_col_dist = proc_id
 
-         CALL dbcsr_t_distribution_new(t_dist, t_pgrid, nd_dist_1=ao_row_dist, nd_dist_2=ri_col_dist)
-         CALL dbcsr_t_create(t_pI_Y, name="(pI|Y)", dist=t_dist, map1_2d=[1], map2_2d=[2], &
-                             blk_size_1=ao_blk_size, blk_size_2=ri_blk_size)
-         CALL dbcsr_t_distribution_destroy(t_dist)
+         CALL dbt_distribution_new(t_dist, t_pgrid, nd_dist_1=ao_row_dist, nd_dist_2=ri_col_dist)
+         CALL dbt_create(t_pI_Y, name="(pI|Y)", dist=t_dist, map1_2d=[1], map2_2d=[2], &
+                         blk_size_1=ao_blk_size, blk_size_2=ri_blk_size)
+         CALL dbt_distribution_destroy(t_dist)
 
          !copy block by block, dist match
-         CALL dbcsr_t_iterator_start(iter, t_work)
-         DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-            CALL dbcsr_t_iterator_next_block(iter, ind, blk)
-            CALL dbcsr_t_get_block(t_work, ind, pblock, found)
+         CALL dbt_iterator_start(iter, t_work)
+         DO WHILE (dbt_iterator_blocks_left(iter))
+            CALL dbt_iterator_next_block(iter, ind)
+            CALL dbt_get_block(t_work, ind, pblock, found)
 
             DO i = 1, nblk_ri
                bo(1) = SUM(ri_blk_size(1:i - 1)) + 1
                bo(2) = bo(1) + ri_blk_size(i) - 1
-               CALL dbcsr_t_put_block(t_pI_Y, [ind(1), i], [ao_blk_size(ind(1)), ri_blk_size(i)], &
-                                      pblock(:, bo(1):bo(2)))
+               CALL dbt_put_block(t_pI_Y, [ind(1), i], [ao_blk_size(ind(1)), ri_blk_size(i)], &
+                                  pblock(:, bo(1):bo(2)))
             END DO
 
             DEALLOCATE (pblock)
          END DO
-         CALL dbcsr_t_iterator_stop(iter)
-         CALL dbcsr_t_finalize(t_pI_Y)
+         CALL dbt_iterator_stop(iter)
+         CALL dbt_finalize(t_pI_Y)
 
          !get optimal pgrid  for (oI|Y)
-         CALL dbcsr_t_pgrid_destroy(t_pgrid)
+         CALL dbt_pgrid_destroy(t_pgrid)
          pdims_2d = 0
-         CALL dbcsr_t_pgrid_create(para_env%group, pdims_2d, t_pgrid, tensor_dims=[nblk_mos, nblk_ri])
+         CALL dbt_pgrid_create(para_env%group, pdims_2d, t_pgrid, tensor_dims=[nblk_mos, nblk_ri])
 
-         CALL dbcsr_t_default_distvec(nblk_aos, pdims_2d(1), ao_blk_size, ao_row_dist)
-         CALL dbcsr_t_default_distvec(nblk_mos, pdims_2d(1), mo_blk_size, mo_row_dist)
-         CALL dbcsr_t_default_distvec(nblk_ri, pdims_2d(2), ri_blk_size, ri_col_dist)
+         CALL dbt_default_distvec(nblk_aos, pdims_2d(1), ao_blk_size, ao_row_dist)
+         CALL dbt_default_distvec(nblk_mos, pdims_2d(1), mo_blk_size, mo_row_dist)
+         CALL dbt_default_distvec(nblk_ri, pdims_2d(2), ri_blk_size, ri_col_dist)
 
          !transfer pI_Y to the correct pgrid
-         CALL dbcsr_t_destroy(t_work)
-         CALL dbcsr_t_distribution_new(t_dist, t_pgrid, nd_dist_1=ao_row_dist, nd_dist_2=ri_col_dist)
-         CALL dbcsr_t_create(t_work, name="t_pI_Y", dist=t_dist, map1_2d=[1], map2_2d=[2], &
-                             blk_size_1=ao_blk_size, blk_size_2=ri_blk_size)
-         CALL dbcsr_t_copy(t_pI_Y, t_work, move_data=.TRUE.)
-         CALL dbcsr_t_distribution_destroy(t_dist)
+         CALL dbt_destroy(t_work)
+         CALL dbt_distribution_new(t_dist, t_pgrid, nd_dist_1=ao_row_dist, nd_dist_2=ri_col_dist)
+         CALL dbt_create(t_work, name="t_pI_Y", dist=t_dist, map1_2d=[1], map2_2d=[2], &
+                         blk_size_1=ao_blk_size, blk_size_2=ri_blk_size)
+         CALL dbt_copy(t_pI_Y, t_work, move_data=.TRUE.)
+         CALL dbt_distribution_destroy(t_dist)
 
          !create (oI|Y)
-         CALL dbcsr_t_distribution_new(t_dist, t_pgrid, nd_dist_1=mo_row_dist, nd_dist_2=ri_col_dist)
-         CALL dbcsr_t_create(oI_Y(ido_mo), name="(oI|Y)", dist=t_dist, map1_2d=[1], map2_2d=[2], &
-                             blk_size_1=mo_blk_size, blk_size_2=ri_blk_size)
-         CALL dbcsr_t_distribution_destroy(t_dist)
+         CALL dbt_distribution_new(t_dist, t_pgrid, nd_dist_1=mo_row_dist, nd_dist_2=ri_col_dist)
+         CALL dbt_create(oI_Y(ido_mo), name="(oI|Y)", dist=t_dist, map1_2d=[1], map2_2d=[2], &
+                         blk_size_1=mo_blk_size, blk_size_2=ri_blk_size)
+         CALL dbt_distribution_destroy(t_dist)
 
          !contract (pI|Y) into (oI|Y)
-         CALL dbcsr_t_contract(alpha=dbcsr_scalar(1.0_dp), tensor_1=t_work, tensor_2=t_mo_coeffs, &
-                               beta=dbcsr_scalar(0.0_dp), tensor_3=oI_Y(ido_mo), contract_1=[1], &
-                               notcontract_1=[2], contract_2=[1], notcontract_2=[2], &
-                               map_1=[2], map_2=[1]) !no bound, all MOs needed
+         CALL dbt_contract(alpha=1.0_dp, tensor_1=t_work, tensor_2=t_mo_coeffs, &
+                           beta=0.0_dp, tensor_3=oI_Y(ido_mo), contract_1=[1], &
+                           notcontract_1=[2], contract_2=[1], notcontract_2=[2], &
+                           map_1=[2], map_2=[1]) !no bound, all MOs needed
 
          !intermediate clean-up
-         CALL dbcsr_t_destroy(t_work)
-         CALL dbcsr_t_destroy(t_pI_Y)
-         CALL dbcsr_t_pgrid_destroy(t_pgrid)
+         CALL dbt_destroy(t_work)
+         CALL dbt_destroy(t_pI_Y)
+         CALL dbt_pgrid_destroy(t_pgrid)
          DEALLOCATE (ri_col_dist, ao_row_dist, mo_row_dist)
 
       END DO !ido_mo
@@ -1413,19 +1408,19 @@ CONTAINS
    SUBROUTINE calc_ss_oov_contrib(contrib, dev, ja_Ik_diff, occ_evals, virt_evals, omega, c_ss)
 
       REAL(dp), INTENT(inout)                            :: contrib, dev
-      TYPE(dbcsr_t_type), INTENT(inout)                  :: ja_Ik_diff
+      TYPE(dbt_type), INTENT(inout)                      :: ja_Ik_diff
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: occ_evals, virt_evals
       REAL(dp), INTENT(in)                               :: omega, c_ss
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_ss_oov_contrib', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: a, blk, boff(3), bsize(3), handle, idx1, &
+      INTEGER                                            :: a, boff(3), bsize(3), handle, idx1, &
                                                             idx2, idx3, ind(3), j, k, nocc
       LOGICAL                                            :: found
       REAL(dp)                                           :: denom, tmp
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: tensor_blk
-      TYPE(dbcsr_t_iterator_type)                        :: iter
+      TYPE(dbt_iterator_type)                            :: iter
 
       CALL timeset(routineN, handle)
 
@@ -1435,10 +1430,10 @@ CONTAINS
       nocc = SIZE(occ_evals, 1)
 
       !Iterate over the tensors and sum. Both tensors have same dist
-      CALL dbcsr_t_iterator_start(iter, ja_Ik_diff)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk, blk_offset=boff, blk_size=bsize)
-         CALL dbcsr_t_get_block(ja_Ik_diff, ind, tensor_blk, found)
+      CALL dbt_iterator_start(iter, ja_Ik_diff)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind, blk_offset=boff, blk_size=bsize)
+         CALL dbt_get_block(ja_Ik_diff, ind, tensor_blk, found)
 
          IF (found) THEN
 
@@ -1466,7 +1461,7 @@ CONTAINS
          END IF
          DEALLOCATE (tensor_blk)
       END DO
-      CALL dbcsr_t_iterator_stop(iter)
+      CALL dbt_iterator_stop(iter)
 
       CALL timestop(handle)
 
@@ -1490,7 +1485,7 @@ CONTAINS
    SUBROUTINE calc_os_oov_contrib(contrib, dev, ja_Ik, j_evals, a_evals, k_evals, omega, c_os, a_offset)
 
       REAL(dp), INTENT(inout)                            :: contrib, dev
-      TYPE(dbcsr_t_type), INTENT(inout)                  :: ja_Ik
+      TYPE(dbt_type), INTENT(inout)                      :: ja_Ik
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: j_evals, a_evals, k_evals
       REAL(dp), INTENT(in)                               :: omega, c_os
       INTEGER, INTENT(IN)                                :: a_offset
@@ -1498,12 +1493,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_os_oov_contrib', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: a, blk, boff(3), bsize(3), handle, idx1, &
+      INTEGER                                            :: a, boff(3), bsize(3), handle, idx1, &
                                                             idx2, idx3, ind(3), j, k
       LOGICAL                                            :: found
       REAL(dp)                                           :: denom, tmp
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: ja_Ik_blk
-      TYPE(dbcsr_t_iterator_type)                        :: iter
+      TYPE(dbt_iterator_type)                            :: iter
 
       CALL timeset(routineN, handle)
 
@@ -1514,10 +1509,10 @@ CONTAINS
       !      of the 2 terms, but with a factor 2
 
       !Iterate over the tensor and sum
-      CALL dbcsr_t_iterator_start(iter, ja_Ik)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk, blk_offset=boff, blk_size=bsize)
-         CALL dbcsr_t_get_block(ja_Ik, ind, ja_Ik_blk, found)
+      CALL dbt_iterator_start(iter, ja_Ik)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind, blk_offset=boff, blk_size=bsize)
+         CALL dbt_get_block(ja_Ik, ind, ja_Ik_blk, found)
 
          IF (found) THEN
 
@@ -1546,7 +1541,7 @@ CONTAINS
          END IF
          DEALLOCATE (ja_Ik_blk)
       END DO
-      CALL dbcsr_t_iterator_stop(iter)
+      CALL dbt_iterator_stop(iter)
 
       CALL timestop(handle)
 
@@ -1568,19 +1563,19 @@ CONTAINS
    SUBROUTINE calc_ss_ovv_contrib(contrib, dev, aj_Ib_diff, occ_evals, virt_evals, omega, c_ss)
 
       REAL(dp), INTENT(inout)                            :: contrib, dev
-      TYPE(dbcsr_t_type), INTENT(inout)                  :: aj_Ib_diff
+      TYPE(dbt_type), INTENT(inout)                      :: aj_Ib_diff
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: occ_evals, virt_evals
       REAL(dp), INTENT(in)                               :: omega, c_ss
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_ss_ovv_contrib', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: a, b, blk, boff(3), bsize(3), handle, &
-                                                            idx1, idx2, idx3, ind(3), j, nocc
+      INTEGER                                            :: a, b, boff(3), bsize(3), handle, idx1, &
+                                                            idx2, idx3, ind(3), j, nocc
       LOGICAL                                            :: found
       REAL(dp)                                           :: denom, tmp
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: tensor_blk
-      TYPE(dbcsr_t_iterator_type)                        :: iter
+      TYPE(dbt_iterator_type)                            :: iter
 
       CALL timeset(routineN, handle)
 
@@ -1590,10 +1585,10 @@ CONTAINS
       nocc = SIZE(occ_evals, 1)
 
       !tensors have matching distributions, can do that safely
-      CALL dbcsr_t_iterator_start(iter, aj_Ib_diff)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk, blk_offset=boff, blk_size=bsize)
-         CALL dbcsr_t_get_block(aj_Ib_diff, ind, tensor_blk, found)
+      CALL dbt_iterator_start(iter, aj_Ib_diff)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind, blk_offset=boff, blk_size=bsize)
+         CALL dbt_get_block(aj_Ib_diff, ind, tensor_blk, found)
 
          IF (found) THEN
 
@@ -1621,7 +1616,7 @@ CONTAINS
          END IF
          DEALLOCATE (tensor_blk)
       END DO
-      CALL dbcsr_t_iterator_stop(iter)
+      CALL dbt_iterator_stop(iter)
 
       CALL timestop(handle)
 
@@ -1647,7 +1642,7 @@ CONTAINS
                                   a_offset, b_offset)
 
       REAL(dp), INTENT(inout)                            :: contrib, dev
-      TYPE(dbcsr_t_type), INTENT(inout)                  :: aj_Ib
+      TYPE(dbt_type), INTENT(inout)                      :: aj_Ib
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: a_evals, j_evals, b_evals
       REAL(dp), INTENT(in)                               :: omega, c_os
       INTEGER, INTENT(IN)                                :: a_offset, b_offset
@@ -1655,12 +1650,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_os_ovv_contrib', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: a, b, blk, boff(3), bsize(3), handle, &
-                                                            idx1, idx2, idx3, ind(3), j
+      INTEGER                                            :: a, b, boff(3), bsize(3), handle, idx1, &
+                                                            idx2, idx3, ind(3), j
       LOGICAL                                            :: found
       REAL(dp)                                           :: denom, tmp
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: aj_Ib_blk
-      TYPE(dbcsr_t_iterator_type)                        :: iter
+      TYPE(dbt_iterator_type)                            :: iter
 
       CALL timeset(routineN, handle)
 
@@ -1669,10 +1664,10 @@ CONTAINS
       !       MOs on one center have one spin and the 2 MOs on the other center have another spin
       !       In the end, the sum is such that can take one of those with a factor 2
 
-      CALL dbcsr_t_iterator_start(iter, aj_Ib)
-      DO WHILE (dbcsr_t_iterator_blocks_left(iter))
-         CALL dbcsr_t_iterator_next_block(iter, ind, blk, blk_offset=boff, blk_size=bsize)
-         CALL dbcsr_t_get_block(aj_Ib, ind, aj_Ib_blk, found)
+      CALL dbt_iterator_start(iter, aj_Ib)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind, blk_offset=boff, blk_size=bsize)
+         CALL dbt_get_block(aj_Ib, ind, aj_Ib_blk, found)
 
          IF (found) THEN
 
@@ -1700,7 +1695,7 @@ CONTAINS
          END IF
          DEALLOCATE (aj_Ib_blk)
       END DO
-      CALL dbcsr_t_iterator_stop(iter)
+      CALL dbt_iterator_stop(iter)
 
       CALL timestop(handle)
 

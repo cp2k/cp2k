@@ -32,11 +32,10 @@ MODULE qs_tensors
                                               dbcsr_type,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
-   USE dbcsr_tensor_api,                ONLY: &
-        dbcsr_t_blk_sizes, dbcsr_t_clear, dbcsr_t_copy, dbcsr_t_create, dbcsr_t_destroy, &
-        dbcsr_t_filter, dbcsr_t_get_block, dbcsr_t_get_info, dbcsr_t_get_num_blocks, &
-        dbcsr_t_get_nze_total, dbcsr_t_get_stored_coordinates, dbcsr_t_ndims, dbcsr_t_put_block, &
-        dbcsr_t_reserve_blocks, dbcsr_t_reserved_block_indices, dbcsr_t_type
+   USE dbt_api,                         ONLY: &
+        dbt_blk_sizes, dbt_clear, dbt_copy, dbt_create, dbt_destroy, dbt_filter, dbt_get_block, &
+        dbt_get_info, dbt_get_num_blocks, dbt_get_nze_total, dbt_get_stored_coordinates, &
+        dbt_ndims, dbt_put_block, dbt_reserve_blocks, dbt_reserved_block_indices, dbt_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
@@ -613,7 +612,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE alloc_block_3c(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, potential_parameter, op_pos, &
                              do_kpoints, bounds_i, bounds_j, bounds_k)
-      TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t3c
+      TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t3c
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -799,7 +798,7 @@ CONTAINS
 
          nblk(jcell, kcell) = nblk(jcell, kcell) + 1
 
-         !Note: there may be repeated indices due to periodic images => dbcsr_t_reserve_blocks takes care of it
+         !Note: there may be repeated indices due to periodic images => dbt_reserve_blocks takes care of it
          alloc_i(jcell, kcell)%array(nblk(jcell, kcell)) = iatom
          alloc_j(jcell, kcell)%array(nblk(jcell, kcell)) = jatom
          alloc_k(jcell, kcell)%array(nblk(jcell, kcell)) = katom
@@ -811,17 +810,17 @@ CONTAINS
          DO i_img = 1, nimg
             IF (ALLOCATED(alloc_i(i_img, j_img)%array)) THEN
                DO i = 1, SIZE(alloc_i(i_img, j_img)%array)
-                  CALL dbcsr_t_get_stored_coordinates(t3c(i_img, j_img), &
-                                                      [alloc_i(i_img, j_img)%array(i), alloc_j(i_img, j_img)%array(i), &
-                                                       alloc_k(i_img, j_img)%array(i)], &
-                                                      iproc)
+                  CALL dbt_get_stored_coordinates(t3c(i_img, j_img), &
+                                                  [alloc_i(i_img, j_img)%array(i), alloc_j(i_img, j_img)%array(i), &
+                                                   alloc_k(i_img, j_img)%array(i)], &
+                                                  iproc)
                   CPASSERT(iproc .EQ. para_env%mepos)
                END DO
 
-               CALL dbcsr_t_reserve_blocks(t3c(i_img, j_img), &
-                                           alloc_i(i_img, j_img)%array, &
-                                           alloc_j(i_img, j_img)%array, &
-                                           alloc_k(i_img, j_img)%array)
+               CALL dbt_reserve_blocks(t3c(i_img, j_img), &
+                                       alloc_i(i_img, j_img)%array, &
+                                       alloc_j(i_img, j_img)%array, &
+                                       alloc_k(i_img, j_img)%array)
             END IF
          END DO
       END DO
@@ -847,7 +846,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE alloc_block_3c_old(t3c, nl_3c, basis_i, basis_j, basis_k, qs_env, potential_parameter, op_pos, &
                                  do_kpoints, bounds_i, bounds_j, bounds_k)
-      TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t3c
+      TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t3c
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_i, basis_j, basis_k
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1044,17 +1043,17 @@ CONTAINS
          DO j_img = 1, nimg
             IF (ALLOCATED(alloc_i(i_img, j_img)%array)) THEN
                DO i = 1, SIZE(alloc_i(i_img, j_img)%array)
-                  CALL dbcsr_t_get_stored_coordinates(t3c(i_img, j_img), &
-                                                      [alloc_i(i_img, j_img)%array(i), alloc_j(i_img, j_img)%array(i), &
-                                                       alloc_k(i_img, j_img)%array(i)], &
-                                                      iproc)
+                  CALL dbt_get_stored_coordinates(t3c(i_img, j_img), &
+                                                  [alloc_i(i_img, j_img)%array(i), alloc_j(i_img, j_img)%array(i), &
+                                                   alloc_k(i_img, j_img)%array(i)], &
+                                                  iproc)
                   CPASSERT(iproc .EQ. para_env%mepos)
                END DO
 
-               CALL dbcsr_t_reserve_blocks(t3c(i_img, j_img), &
-                                           alloc_i(i_img, j_img)%array, &
-                                           alloc_j(i_img, j_img)%array, &
-                                           alloc_k(i_img, j_img)%array)
+               CALL dbt_reserve_blocks(t3c(i_img, j_img), &
+                                       alloc_i(i_img, j_img)%array, &
+                                       alloc_j(i_img, j_img)%array, &
+                                       alloc_k(i_img, j_img)%array)
             END IF
          END DO
       END DO
@@ -1091,8 +1090,7 @@ CONTAINS
                                    op_pos, do_kpoints, &
                                    bounds_i, bounds_j, bounds_k)
 
-      TYPE(dbcsr_t_type), DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: t3c_der_i, t3c_der_k
+      TYPE(dbt_type), DIMENSION(:, :, :), INTENT(INOUT)  :: t3c_der_i, t3c_der_k
       REAL(KIND=dp), INTENT(IN)                          :: filter_eps
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
@@ -1140,10 +1138,9 @@ CONTAINS
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spi, spk, tspj
       TYPE(cp_libint_t)                                  :: lib
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_t_type)                                 :: t3c_tmp
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t3c_template
-      TYPE(dbcsr_t_type), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: t3c_der_j
+      TYPE(dbt_type)                                     :: t3c_tmp
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t3c_template
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :, :)    :: t3c_der_j
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1210,7 +1207,7 @@ CONTAINS
       ALLOCATE (t3c_template(nimg, nimg))
       DO j_img = 1, nimg
          DO i_img = 1, nimg
-            CALL dbcsr_t_create(t3c_der_i(i_img, j_img, 1), t3c_template(i_img, j_img))
+            CALL dbt_create(t3c_der_i(i_img, j_img, 1), t3c_template(i_img, j_img))
          END DO
       END DO
 
@@ -1220,15 +1217,15 @@ CONTAINS
       DO i_xyz = 1, 3
          DO j_img = 1, nimg
             DO i_img = 1, nimg
-               CALL dbcsr_t_copy(t3c_template(i_img, j_img), t3c_der_i(i_img, j_img, i_xyz))
-               CALL dbcsr_t_copy(t3c_template(i_img, j_img), t3c_der_k(i_img, j_img, i_xyz))
+               CALL dbt_copy(t3c_template(i_img, j_img), t3c_der_i(i_img, j_img, i_xyz))
+               CALL dbt_copy(t3c_template(i_img, j_img), t3c_der_k(i_img, j_img, i_xyz))
             END DO
          END DO
       END DO
 
       DO j_img = 1, nimg
          DO i_img = 1, nimg
-            CALL dbcsr_t_destroy(t3c_template(i_img, j_img))
+            CALL dbt_destroy(t3c_template(i_img, j_img))
          END DO
       END DO
       DEALLOCATE (t3c_template)
@@ -1238,8 +1235,8 @@ CONTAINS
          DO i_xyz = 1, 3
             DO j_img = 1, nimg
                DO i_img = 1, nimg
-                  CALL dbcsr_t_create(t3c_der_k(i_img, j_img, i_xyz), t3c_der_j(i_img, j_img, i_xyz))
-                  CALL dbcsr_t_copy(t3c_der_k(i_img, j_img, i_xyz), t3c_der_j(i_img, j_img, i_xyz))
+                  CALL dbt_create(t3c_der_k(i_img, j_img, i_xyz), t3c_der_j(i_img, j_img, i_xyz))
+                  CALL dbt_copy(t3c_der_k(i_img, j_img, i_xyz), t3c_der_j(i_img, j_img, i_xyz))
                END DO
             END DO
          END DO
@@ -1476,7 +1473,7 @@ CONTAINS
             max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
          END DO
 
-         CALL dbcsr_t_blk_sizes(t3c_der_i(jcell, kcell, 1), [iatom, jatom, katom], blk_size)
+         CALL dbt_blk_sizes(t3c_der_i(jcell, kcell, 1), [iatom, jatom, katom], blk_size)
 
          ALLOCATE (block_t_i(blk_size(2), blk_size(3), blk_size(1), 3))
          ALLOCATE (block_t_j(blk_size(2), blk_size(3), blk_size(1), 3))
@@ -1613,9 +1610,9 @@ CONTAINS
             IF ((.NOT. block_j_not_zero(i_xyz)) .AND. (.NOT. block_k_not_zero(i_xyz))) CYCLE
             block_t_i(:, :, :, i_xyz) = -(block_t_j(:, :, :, i_xyz) + block_t_k(:, :, :, i_xyz))
 
-            CALL dbcsr_t_put_block(t3c_der_i(jcell, kcell, i_xyz), [iatom, jatom, katom], sp, &
-                                   RESHAPE(block_t_i(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
-                                   summation=.TRUE.)
+            CALL dbt_put_block(t3c_der_i(jcell, kcell, i_xyz), [iatom, jatom, katom], sp, &
+                               RESHAPE(block_t_i(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
+                               summation=.TRUE.)
          END DO
 !$OMP END CRITICAL
 !$OMP CRITICAL
@@ -1626,9 +1623,9 @@ CONTAINS
 
             DO i_xyz = 1, 3
                IF (.NOT. block_j_not_zero(i_xyz)) CYCLE
-               CALL dbcsr_t_put_block(t3c_der_j(jcell, kcell, i_xyz), [iatom, jatom, katom], sp, &
-                                      RESHAPE(block_t_j(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
-                                      summation=.TRUE.)
+               CALL dbt_put_block(t3c_der_j(jcell, kcell, i_xyz), [iatom, jatom, katom], sp, &
+                                  RESHAPE(block_t_j(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
+                                  summation=.TRUE.)
             END DO
          END IF
 !$OMP END CRITICAL
@@ -1638,9 +1635,9 @@ CONTAINS
 
          DO i_xyz = 1, 3
             IF (.NOT. block_k_not_zero(i_xyz)) CYCLE
-            CALL dbcsr_t_put_block(t3c_der_k(jcell, kcell, i_xyz), [iatom, jatom, katom], sp, &
-                                   RESHAPE(block_t_k(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
-                                   summation=.TRUE.)
+            CALL dbt_put_block(t3c_der_k(jcell, kcell, i_xyz), [iatom, jatom, katom], sp, &
+                               RESHAPE(block_t_k(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
+                               summation=.TRUE.)
          END DO
 !$OMP END CRITICAL
 
@@ -1663,37 +1660,37 @@ CONTAINS
             DO kcell = 1, nimg
                DO jcell = 1, nimg
                   ! need half of filter eps because afterwards we add transposed tensor
-                  CALL dbcsr_t_filter(t3c_der_i(jcell, kcell, i_xyz), filter_eps/2)
-                  CALL dbcsr_t_filter(t3c_der_k(jcell, kcell, i_xyz), filter_eps/2)
+                  CALL dbt_filter(t3c_der_i(jcell, kcell, i_xyz), filter_eps/2)
+                  CALL dbt_filter(t3c_der_k(jcell, kcell, i_xyz), filter_eps/2)
                END DO
             END DO
          END DO
 
       ELSEIF (nl_3c%sym == symmetric_jk) THEN
          !Add the transpose of t3c_der_j to t3c_der_k to get the fully populated tensor
-         CALL dbcsr_t_create(t3c_der_k(1, 1, 1), t3c_tmp)
+         CALL dbt_create(t3c_der_k(1, 1, 1), t3c_tmp)
          DO i_xyz = 1, 3
             DO kcell = 1, nimg
                DO jcell = 1, nimg
-                  CALL dbcsr_t_copy(t3c_der_j(jcell, kcell, i_xyz), t3c_der_k(jcell, kcell, i_xyz), &
-                                    order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
-                  CALL dbcsr_t_filter(t3c_der_k(jcell, kcell, i_xyz), filter_eps)
+                  CALL dbt_copy(t3c_der_j(jcell, kcell, i_xyz), t3c_der_k(jcell, kcell, i_xyz), &
+                                order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
+                  CALL dbt_filter(t3c_der_k(jcell, kcell, i_xyz), filter_eps)
 
-                  CALL dbcsr_t_copy(t3c_der_i(jcell, kcell, i_xyz), t3c_tmp)
-                  CALL dbcsr_t_copy(t3c_tmp, t3c_der_i(jcell, kcell, i_xyz), &
-                                    order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
-                  CALL dbcsr_t_filter(t3c_der_i(jcell, kcell, i_xyz), filter_eps)
+                  CALL dbt_copy(t3c_der_i(jcell, kcell, i_xyz), t3c_tmp)
+                  CALL dbt_copy(t3c_tmp, t3c_der_i(jcell, kcell, i_xyz), &
+                                order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
+                  CALL dbt_filter(t3c_der_i(jcell, kcell, i_xyz), filter_eps)
                END DO
             END DO
          END DO
-         CALL dbcsr_t_destroy(t3c_tmp)
+         CALL dbt_destroy(t3c_tmp)
 
       ELSEIF (nl_3c%sym == symmetric_none) THEN
          DO i_xyz = 1, 3
             DO kcell = 1, nimg
                DO jcell = 1, nimg
-                  CALL dbcsr_t_filter(t3c_der_i(jcell, kcell, i_xyz), filter_eps)
-                  CALL dbcsr_t_filter(t3c_der_k(jcell, kcell, i_xyz), filter_eps)
+                  CALL dbt_filter(t3c_der_i(jcell, kcell, i_xyz), filter_eps)
+                  CALL dbt_filter(t3c_der_k(jcell, kcell, i_xyz), filter_eps)
                END DO
             END DO
          END DO
@@ -1705,7 +1702,7 @@ CONTAINS
          DO i_xyz = 1, 3
             DO j_img = 1, nimg
                DO i_img = 1, nimg
-                  CALL dbcsr_t_destroy(t3c_der_j(i_img, j_img, i_xyz))
+                  CALL dbt_destroy(t3c_der_j(i_img, j_img, i_xyz))
                END DO
             END DO
          END DO
@@ -1754,7 +1751,7 @@ CONTAINS
                                  op_pos, do_kpoints, desymmetrize, &
                                  bounds_i, bounds_j, bounds_k)
 
-      TYPE(dbcsr_t_type), DIMENSION(:, :), INTENT(INOUT) :: t3c
+      TYPE(dbt_type), DIMENSION(:, :), INTENT(INOUT)     :: t3c
       REAL(KIND=dp), INTENT(IN)                          :: filter_eps
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: nl_3c
@@ -1798,7 +1795,7 @@ CONTAINS
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: spi, spk, tspj
       TYPE(cp_libint_t)                                  :: lib
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_t_type)                                 :: t_3c_tmp
+      TYPE(dbt_type)                                     :: t_3c_tmp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -2105,7 +2102,7 @@ CONTAINS
             max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
          END DO
 
-         CALL dbcsr_t_blk_sizes(t3c(jcell, kcell), [iatom, jatom, katom], blk_size)
+         CALL dbt_blk_sizes(t3c(jcell, kcell), [iatom, jatom, katom], blk_size)
 
          ALLOCATE (block_t(blk_size(2), blk_size(3), blk_size(1)))
 
@@ -2192,16 +2189,16 @@ CONTAINS
 !$OMP CRITICAL
             CALL timeset(routineN//"_put_dbcsr", handle2)
             IF (debug) THEN
-               CALL dbcsr_t_get_block(t3c(jcell, kcell), &
-                                      [iatom, jatom, katom], dummy_block_t, found=found)
+               CALL dbt_get_block(t3c(jcell, kcell), &
+                                  [iatom, jatom, katom], dummy_block_t, found=found)
                CPASSERT(found)
             END IF
             sp = SHAPE(block_t)
 
             sp([2, 3, 1]) = sp
 
-            CALL dbcsr_t_put_block(t3c(jcell, kcell), &
-                                   [iatom, jatom, katom], sp, RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
+            CALL dbt_put_block(t3c(jcell, kcell), &
+                               [iatom, jatom, katom], sp, RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
 
             CALL timestop(handle2)
 !$OMP END CRITICAL
@@ -2220,33 +2217,33 @@ CONTAINS
          DO kcell = 1, nimg
             DO jcell = 1, nimg
                ! need half of filter eps because afterwards we add transposed tensor
-               CALL dbcsr_t_filter(t3c(jcell, kcell), filter_eps/2)
+               CALL dbt_filter(t3c(jcell, kcell), filter_eps/2)
             END DO
          END DO
 
          IF (desymmetrize_prv) THEN
             ! add transposed of overlap integrals
-            CALL dbcsr_t_create(t3c(1, 1), t_3c_tmp)
+            CALL dbt_create(t3c(1, 1), t_3c_tmp)
             DO kcell = 1, jcell
                DO jcell = 1, nimg
-                  CALL dbcsr_t_copy(t3c(jcell, kcell), t_3c_tmp)
-                  CALL dbcsr_t_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
-                  CALL dbcsr_t_filter(t3c(kcell, jcell), filter_eps)
+                  CALL dbt_copy(t3c(jcell, kcell), t_3c_tmp)
+                  CALL dbt_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.TRUE., move_data=.TRUE.)
+                  CALL dbt_filter(t3c(kcell, jcell), filter_eps)
                END DO
             END DO
             DO kcell = jcell + 1, nimg
                DO jcell = 1, nimg
-                  CALL dbcsr_t_copy(t3c(jcell, kcell), t_3c_tmp)
-                  CALL dbcsr_t_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
-                  CALL dbcsr_t_filter(t3c(kcell, jcell), filter_eps)
+                  CALL dbt_copy(t3c(jcell, kcell), t_3c_tmp)
+                  CALL dbt_copy(t_3c_tmp, t3c(kcell, jcell), order=[1, 3, 2], summation=.FALSE., move_data=.TRUE.)
+                  CALL dbt_filter(t3c(kcell, jcell), filter_eps)
                END DO
             END DO
-            CALL dbcsr_t_destroy(t_3c_tmp)
+            CALL dbt_destroy(t_3c_tmp)
          END IF
       ELSEIF (nl_3c%sym == symmetric_none) THEN
          DO kcell = 1, nimg
             DO jcell = 1, nimg
-               CALL dbcsr_t_filter(t3c(jcell, kcell), filter_eps)
+               CALL dbt_filter(t3c(jcell, kcell), filter_eps)
             END DO
          END DO
       ELSE
@@ -2745,7 +2742,7 @@ CONTAINS
 !> \param memory ...
 ! **************************************************************************************************
    SUBROUTINE compress_tensor(tensor, blk_indices, compressed, eps, memory)
-      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
+      TYPE(dbt_type), INTENT(INOUT)                      :: tensor
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: blk_indices
       TYPE(hfx_compression_type), INTENT(INOUT)          :: compressed
@@ -2781,13 +2778,13 @@ CONTAINS
       integral_caches => compressed%integral_caches(:, 1)
 
       IF (ALLOCATED(blk_indices)) DEALLOCATE (blk_indices)
-      ALLOCATE (blk_indices(dbcsr_t_get_num_blocks(tensor), 3))
-      CALL dbcsr_t_reserved_block_indices(tensor, blk_indices)
+      ALLOCATE (blk_indices(dbt_get_num_blocks(tensor), 3))
+      CALL dbt_reserved_block_indices(tensor, blk_indices)
 
       ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
       DO i = 1, SIZE(blk_indices, 1)
          ind = blk_indices(i, :)
-         CALL dbcsr_t_get_block(tensor, ind, blk_data, found)
+         CALL dbt_get_block(tensor, ind, blk_data, found)
          CPASSERT(found)
          nints = SIZE(blk_data)
          blk_data_1d(1:nints) => blk_data
@@ -2827,7 +2824,7 @@ CONTAINS
          NULLIFY (blk_data_1d); DEALLOCATE (blk_data)
       END DO
 
-      CALL dbcsr_t_clear(tensor)
+      CALL dbt_clear(tensor)
 
       storage_counter_integrals = memory_usage*cache_size
       memory = memory + REAL(storage_counter_integrals, dp)/1024/128
@@ -2858,7 +2855,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE decompress_tensor(tensor, blk_indices, compressed, eps)
 
-      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: tensor
+      TYPE(dbt_type), INTENT(INOUT)                      :: tensor
       INTEGER, DIMENSION(:, :)                           :: blk_indices
       TYPE(hfx_compression_type), INTENT(INOUT)          :: compressed
       REAL(dp), INTENT(IN)                               :: eps
@@ -2889,12 +2886,12 @@ CONTAINS
                                          memory_usage, .FALSE.)
       END DO
 
-      CALL dbcsr_t_reserve_blocks(tensor, blk_indices)
+      CALL dbt_reserve_blocks(tensor, blk_indices)
 
       ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
       DO i = 1, SIZE(blk_indices, 1)
          ind = blk_indices(i, :)
-         CALL dbcsr_t_blk_sizes(tensor, ind, blk_size)
+         CALL dbt_blk_sizes(tensor, ind, blk_size)
          nints = PRODUCT(blk_size)
          CALL hfx_get_single_cache_element( &
             estimate_to_store_int, 6, &
@@ -2923,7 +2920,7 @@ CONTAINS
          END DO
 
          blk_data_3d(1:blk_size(1), 1:blk_size(2), 1:blk_size(3)) => blk_data
-         CALL dbcsr_t_put_block(tensor, ind, blk_size, blk_data_3d)
+         CALL dbt_put_block(tensor, ind, blk_size, blk_data_3d)
          NULLIFY (blk_data_3d); DEALLOCATE (blk_data)
       END DO
 
@@ -2941,14 +2938,14 @@ CONTAINS
 !> \param occ ...
 ! **************************************************************************************************
    SUBROUTINE get_tensor_occupancy(tensor, nze, occ)
-      TYPE(dbcsr_t_type), INTENT(IN)                     :: tensor
+      TYPE(dbt_type), INTENT(IN)                         :: tensor
       INTEGER(int_8), INTENT(OUT)                        :: nze
       REAL(dp), INTENT(OUT)                              :: occ
 
-      INTEGER, DIMENSION(dbcsr_t_ndims(tensor))          :: dims
+      INTEGER, DIMENSION(dbt_ndims(tensor))              :: dims
 
-      nze = dbcsr_t_get_nze_total(tensor)
-      CALL dbcsr_t_get_info(tensor, nfull_total=dims)
+      nze = dbt_get_nze_total(tensor)
+      CALL dbt_get_info(tensor, nfull_total=dims)
       occ = REAL(nze, dp)/PRODUCT(REAL(dims, dp))
 
    END SUBROUTINE

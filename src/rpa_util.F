@@ -40,8 +40,8 @@ MODULE rpa_util
    USE dbcsr_api,                       ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
-   USE dbcsr_tensor_api,                ONLY: dbcsr_t_destroy,&
-                                              dbcsr_t_type
+   USE dbt_api,                         ONLY: dbt_destroy,&
+                                              dbt_type
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
@@ -147,7 +147,7 @@ CONTAINS
                                                             fm_mo_coeff_virt
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_P_global
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_O
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1033,8 +1033,8 @@ CONTAINS
       TYPE(dbcsr_p_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: mat_P_omega
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
-      TYPE(dbcsr_t_type)                                 :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
+      TYPE(dbt_type)                                     :: t_3c_M
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
       TYPE(block_ind_type), ALLOCATABLE, &
@@ -1106,12 +1106,12 @@ CONTAINS
 
       DO i_size = 1, SIZE(t_3c_O, 1)
          DO j_size = 1, SIZE(t_3c_O, 2)
-            CALL dbcsr_t_destroy(t_3c_O(i_size, j_size))
+            CALL dbt_destroy(t_3c_O(i_size, j_size))
          END DO
       END DO
 
       DEALLOCATE (t_3c_O)
-      CALL dbcsr_t_destroy(t_3c_M)
+      CALL dbt_destroy(t_3c_M)
 
       DEALLOCATE (has_mat_P_blocks)
 

@@ -21,6 +21,7 @@
         "arnoldi",
         "grid",
         "dbm",
+        "dbt",
     ],
     "implicit": "INIT_METADYN|META_FORCE_CALCULATION|plumed_f_installed|plumed_f_gcreate|plumed_f_gcmd",
 }

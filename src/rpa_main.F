@@ -43,7 +43,7 @@ MODULE rpa_main
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_type
-   USE dbcsr_tensor_api,                ONLY: dbcsr_t_type
+   USE dbt_api,                         ONLY: dbt_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -191,8 +191,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
-      TYPE(dbcsr_t_type)                                 :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_O
+      TYPE(dbt_type)                                     :: t_3c_M
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_O
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
       TYPE(block_ind_type), ALLOCATABLE, &
@@ -1344,8 +1344,8 @@ CONTAINS
                                                             fm_scaled_dm_virt_tau
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
-      TYPE(dbcsr_t_type), INTENT(INOUT)                  :: t_3c_M
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:, :), &
+      TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_O
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
@@ -1405,12 +1405,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
                                                             matrix_berry_re_mo_mo
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
-      TYPE(dbcsr_t_type)                                 :: t_3c_overl_int_ao_mo
-      TYPE(dbcsr_t_type), ALLOCATABLE, DIMENSION(:)      :: t_3c_overl_int_gw_AO, &
+      TYPE(dbcsr_type), POINTER                          :: mat_W, mat_work
+      TYPE(dbt_type)                                     :: t_3c_overl_int_ao_mo
+      TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_3c_overl_int_gw_AO, &
                                                             t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
-      TYPE(dbcsr_type), POINTER                          :: mat_W, mat_work
       TYPE(dgemm_counter_type)                           :: dgemm_counter
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: t_3c_O_mo_compressed
