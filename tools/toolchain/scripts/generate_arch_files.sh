@@ -116,7 +116,7 @@ LIBS="${CP_LIBS} -lstdc++"
 
 # CUDA handling
 CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
-CUDA_DFLAGS="-D__GRID_CUDA -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__OFFLOAD_PROFILING|)"
+CUDA_DFLAGS="-D__GRID_CUDA -D__DBM_CUDA -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__OFFLOAD_PROFILING|)"
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
   DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"

@@ -19,6 +19,7 @@ FLAG_EXCEPTIONS = (
     r"\$\{.*\}\$",
     r"__.*__",
     r"CUDA_VERSION",
+    r"DBM_VALIDATE_AGAINST_DBCSR",
     r"FD_DEBUG",
     r"GRID_DO_COLLOCATE",
     r"INTEL_MKL_VERSION",
@@ -97,7 +98,7 @@ BANNER_C = """\
 
 C_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
 
-BSD_DIRECTORIES = ("src/offload/", "src/grid/")
+BSD_DIRECTORIES = ("src/offload/", "src/grid/", "src/dbm/")
 
 
 @lru_cache(maxsize=None)

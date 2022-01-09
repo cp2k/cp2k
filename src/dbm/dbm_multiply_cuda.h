@@ -4,73 +4,91 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-#ifndef OFFLOAD_LIBRARY_H
-#define OFFLOAD_LIBRARY_H
+
+#ifndef DBM_MULTIPLY_CUDA_H
+#define DBM_MULTIPLY_CUDA_H
+
+#ifdef __DBM_CUDA
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if defined(__GRID_CUDA) || defined(__DBM_CUDA) || defined(__PW_CUDA)
-#define __OFFLOAD_CUDA
-#elif defined(__GRID_HIP)
-#define __OFFLOAD_HIP
-#endif
-
-#if defined(__OFFLOAD_CUDA)
-#include <cuda.h>
 #include <cuda_runtime.h>
-#elif defined(__OFFLOAD_HIP)
-#include <hip/hip_runtime_api.h>
-#endif
 
-#include "offload_operations.h"
-/*******************************************************************************
- * \brief Returns the number of available devices.
- * \author Ole Schuett
- ******************************************************************************/
-int offload_get_device_count(void);
+#include "dbm_multiply_internal.h"
+#include "dbm_shard.h"
 
 /*******************************************************************************
- * \brief Selects the device to be used.
+ * \brief Internal struct for storing per shard cuda objects.
  * \author Ole Schuett
  ******************************************************************************/
-void offload_set_device_id(int device_id);
+typedef struct {
+  double *data; // on the device
+  int data_size;
+  cudaStream_t stream;
+} dbm_shard_cuda_t;
 
 /*******************************************************************************
- * \brief Returns the device to be used.
+ * \brief Internal struct for storing the cuda backend's context.
  * \author Ole Schuett
  ******************************************************************************/
-int offload_get_device_id(void);
+typedef struct {
+  cudaStream_t main_stream;
+
+  int nshards;
+  dbm_shard_t *shards_c_host;
+  dbm_shard_cuda_t *shards_c_dev;
+
+  dbm_pack_t pack_a_dev;
+  dbm_pack_t pack_b_dev;
+
+  int max_batch_size;
+  dbm_task_t *batches_dev;
+} dbm_multiply_cuda_context_t;
 
 /*******************************************************************************
- * \brief Activates the device selected via offload_set_device_id()
+ * \brief Internal routine for intializing the cuda backend.
  * \author Ole Schuett
  ******************************************************************************/
-void offload_set_device(void);
+void dbm_multiply_cuda_start(const int max_batch_size, const int nshards,
+                             dbm_shard_t *shards_c_host,
+                             dbm_multiply_cuda_context_t *ctx);
 
 /*******************************************************************************
- * \brief Starts a timing range.
+ * \brief Internal routine for uploading newly arrived packs onto the device.
  * \author Ole Schuett
  ******************************************************************************/
-void offload_timeset(const char *message);
+void dbm_multiply_cuda_upload_packs(const dbm_pack_t *pack_a,
+                                    const dbm_pack_t *pack_b,
+                                    dbm_multiply_cuda_context_t *ctx);
 
 /*******************************************************************************
- * \brief Ends a timing range.
+ * \brief Internal routine for executing the tasks in given batch on the GPU.
  * \author Ole Schuett
  ******************************************************************************/
-void offload_timestop(void);
+void dbm_multiply_cuda_process_batch(const int ntasks, const dbm_task_t *batch,
+                                     const bool transa, const bool transb,
+                                     const double alpha, const int kshard,
+                                     dbm_multiply_cuda_context_t *ctx);
 
 /*******************************************************************************
- * \brief Gets free and total device memory.
+ * \brief Internal routine for downloading results from the device.
  * \author Ole Schuett
  ******************************************************************************/
-void offload_mem_info(size_t *free, size_t *total);
+void dbm_multiply_cuda_download_results(dbm_multiply_cuda_context_t *ctx);
+
+/*******************************************************************************
+ * \brief Internal routine for shutting down the cuda backend.
+ * \author Ole Schuett
+ ******************************************************************************/
+void dbm_multiply_cuda_stop(dbm_multiply_cuda_context_t *ctx);
 
 #ifdef __cplusplus
 }
 #endif
 
+#endif // __DBM_CUDA
 #endif
 
 // EOF

@@ -47,6 +47,8 @@ MODULE f77_interface
                                               unpack_subsys_particles
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib
+   USE dbm_api,                         ONLY: dbm_library_finalize,&
+                                              dbm_library_init
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_env_release,&
@@ -293,6 +295,8 @@ CONTAINS
          CALL pw_cuda_init()
 
          CALL grid_library_init()
+
+         CALL dbm_library_init()
       ELSE
          ierr = cp_failure_level
       END IF
@@ -326,6 +330,8 @@ CONTAINS
             CPASSERT(ierr == 0)
          END DO
          DEALLOCATE (f_envs)
+
+         CALL dbm_library_finalize()
 
          CALL grid_library_finalize()
 

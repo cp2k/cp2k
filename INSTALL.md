@@ -199,6 +199,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
   It requires to link `-lnvToolsExt`.
 - Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
 - Use the `-D__GRID_CUDA` to compile the GPU and HYBRID backends for the grid library.
+- Use the `-D__DBM_CUDA` to compile the GPU backend for the sparse tensor library.
 
 ### 2k. LIBXC (optional, wider choice of xc functionals)
 
