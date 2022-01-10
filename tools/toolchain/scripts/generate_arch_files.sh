@@ -30,8 +30,8 @@ cd ${INSTALLDIR}/arch
 
 # need to switch between FC and MPICC etc in arch file, but cannot use
 # same variable names, so use _arch suffix
-CC_arch="$CC"
-CXX_arch="$CXX"
+CC_arch="IF_MPI(${MPICC}|${CC})"
+CXX_arch="IF_MPI(${MPICXX}|${CXX})"
 FC_arch="IF_MPI(${MPIFC}|${FC})"
 LD_arch="IF_MPI(${MPIFC}|${FC})"
 
