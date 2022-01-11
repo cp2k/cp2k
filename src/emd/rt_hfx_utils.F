@@ -197,10 +197,10 @@ CONTAINS
                                  name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_p_im(ispin, image)%matrix, sab_orb)
                CALL dbcsr_set(matrix_p_im(ispin, image)%matrix, 0.0_dp)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CALL qs_rho_set(rho, rho_ao_im_kp=matrix_p_im)
-      ENDIF
+      END IF
 
       IF (my_rebuild_ks) THEN
          NULLIFY (matrix_ks_im)
@@ -224,10 +224,10 @@ CONTAINS
                                  name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_im(ispin, image)%matrix, sab_orb)
                CALL dbcsr_set(matrix_ks_im(ispin, image)%matrix, 0.0_dp)
-            ENDDO
-         ENDDO
+            END DO
+         END DO
          CALL set_ks_env(ks_env, matrix_ks_im_kp=matrix_ks_im)
-      ENDIF
+      END IF
 
       IF (my_rebuild_h) THEN
          NULLIFY (matrix_h_im)
@@ -243,9 +243,9 @@ CONTAINS
                               name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im(1, image)%matrix, sab_orb)
             CALL dbcsr_set(matrix_h_im(1, image)%matrix, 0.0_dp)
-         ENDDO
+         END DO
          CALL set_ks_env(ks_env, matrix_h_im_kp=matrix_h_im)
-      ENDIF
+      END IF
 
    END SUBROUTINE
 

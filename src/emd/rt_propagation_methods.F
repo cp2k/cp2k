@@ -132,7 +132,7 @@ CONTAINS
          ! should be called imediately after qs_energies_init and before qs_ks_update_qs_env
          IF (rtp_control%velocity_gauge) THEN
             CALL velocity_gauge_ks_matrix(qs_env, subtract_non_gt=rtp_control%nl_gauge_transform)
-         ENDIF
+         END IF
 
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          IF (.NOT. rtp_control%fixed_ions) THEN
@@ -194,7 +194,7 @@ CONTAINS
             CALL dbcsr_create(ks_mix(i)%matrix, template=matrix_ks(1)%matrix)
             CALL dbcsr_init_p(ks_mix_im(i)%matrix)
             CALL dbcsr_create(ks_mix_im(i)%matrix, template=matrix_ks(1)%matrix, matrix_type=dbcsr_type_antisymmetric)
-         ENDDO
+         END DO
          DO i = 1, SIZE(matrix_ks)
             re = 2*i - 1
             im = 2*i

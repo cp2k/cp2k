@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2022 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -167,7 +167,7 @@ CONTAINS
                CALL dbcsr_create(matrix_nl(1, image)%matrix, template=matrix_s(1, 1)%matrix)
                CALL cp_dbcsr_alloc_block_from_nbl(matrix_nl(1, image)%matrix, sab_orb)
                CALL dbcsr_set(matrix_nl(1, image)%matrix, zero)
-            ENDDO
+            END DO
 
             CALL build_core_ppnl(matrix_nl, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                                  qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
@@ -175,11 +175,11 @@ CONTAINS
 
             DO image = 1, nimages
                CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_nl(1, image)%matrix, one, -one)
-            ENDDO
+            END DO
 
             CALL dbcsr_deallocate_matrix_set(matrix_nl)
          END IF
-      ENDIF
+      END IF
 
       !get vector potential
       vec_pot(:) = 0._dp
@@ -194,13 +194,13 @@ CONTAINS
                            matrix_type=dbcsr_type_antisymmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(momentum(idir)%matrix, sab_orb)
          CALL dbcsr_set(momentum(idir)%matrix, zero)
-      ENDDO
+      END DO
       CALL build_lin_mom_matrix(qs_env, momentum)
 
       ! set imaginary part of KS matrix to zero
       DO image = 1, nimages
          CALL dbcsr_set(matrix_h_im(1, image)%matrix, zero)
-      ENDDO
+      END DO
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
       CALL section_vals_val_get(hfx_sections, "VG_COM_NL", l_val=add_nl_term)
@@ -214,8 +214,8 @@ CONTAINS
       DO image = 1, nimages
          DO idir = 1, 3
             CALL dbcsr_add(matrix_h_im(1, image)%matrix, momentum(idir)%matrix, one, -factor_lin*vec_pot(idir))
-         ENDDO
-      ENDDO
+         END DO
+      END DO
 
       CALL dbcsr_deallocate_matrix_set(momentum)
 
@@ -223,10 +223,10 @@ CONTAINS
       factor = 0._dp
       DO idir = 1, 3
          factor = factor + vec_pot(idir)**2
-      ENDDO
+      END DO
       DO image = 1, nimages
          CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_s(1, image)%matrix, one, 0.5*factor*factor_qu)
-      ENDDO
+      END DO
 
       IF (ppnl_present) THEN
          IF (add_nl_term) THEN
@@ -250,10 +250,10 @@ CONTAINS
             DO image = 1, nimages
                CALL dbcsr_add(matrix_h(1, image)%matrix, nl_term(1)%matrix, one, factor_nl_re)
                CALL dbcsr_add(matrix_h_im(1, image)%matrix, nl_term(2)%matrix, one, factor_nl_im)
-            ENDDO
+            END DO
             CALL dbcsr_deallocate_matrix_set(nl_term)
-         ENDIF
-      ENDIF
+         END IF
+      END IF
 
       CALL timestop(handle)
 
@@ -366,7 +366,7 @@ CONTAINS
             sap_int_cos(i)%nalist = 0
             NULLIFY (sap_int_sin(i)%alist, sap_int_sin(i)%asort, sap_int_sin(i)%aindex)
             sap_int_sin(i)%nalist = 0
-         ENDDO
+         END DO
 
          ! get basis set
          ALLOCATE (basis_set(nkind))
@@ -377,7 +377,7 @@ CONTAINS
             ELSE
                NULLIFY (basis_set(ikind)%gto_basis_set)
             END IF
-         ENDDO
+         END DO
 
          ! calculate exponential integrals
          CALL build_sap_exp_ints(sap_int_cos, sap_int_sin, sap_ppnl, qs_kind_set, particle_set, &
@@ -428,7 +428,7 @@ CONTAINS
             ELSE
                irow = jatom
                icol = iatom
-            ENDIF
+            END IF
 
             CALL dbcsr_get_block_p(nl_term(1)%matrix, irow, icol, real_block, found)
             CALL dbcsr_get_block_p(nl_term(2)%matrix, irow, icol, imag_block, found)
@@ -498,16 +498,16 @@ CONTAINS
                                                        MATMUL(bchint_sin(1:nb, 1:np, 1), TRANSPOSE(acint_cos(1:na, 1:np, 1))) + &
                                                        MATMUL(bchint_cos(1:nb, 1:np, 1), TRANSPOSE(acint_sin(1:na, 1:np, 1)))
 
-                           ENDIF
+                           END IF
 !$                         CALL omp_unset_lock(locks(hash))
                            EXIT
-                        ENDIF
-                     ENDDO
-                  ENDDO
-               ENDDO
-            ENDIF
+                        END IF
+                     END DO
+                  END DO
+               END DO
+            END IF
 
-         ENDDO
+         END DO
 
 !$OMP DO
 !$       DO lock_num = 1, nlock
@@ -524,7 +524,7 @@ CONTAINS
          CALL release_sap_int(sap_int_sin)
 
          DEALLOCATE (basis_set)
-      ENDIF
+      END IF
 
       CALL timestop(handle)
 
@@ -741,7 +741,7 @@ CONTAINS
             vprj_ppnl => gpotential(kkind)%gth_potential%vprj_ppnl
          ELSE
             CYCLE
-         ENDIF
+         END IF
 
          clist => sap_int_cos(iac)%alist(ilist)%clist(jneighbor)
          clist_sin => sap_int_sin(iac)%alist(ilist)%clist(jneighbor)
@@ -801,7 +801,7 @@ CONTAINS
                      MATMUL(ai_work_sin(1:na, 1:np), cprj(1:np, prjc:prjc + nb - 1))
 
                   prjc = prjc + nprjc
-               ENDDO
+               END DO
 
                ! contract gto basis set into acint
                na = nsgf_seta(iset)
@@ -818,14 +818,14 @@ CONTAINS
                clist_sin%achint(sgfa:sgfa + na - 1, 1:nb, 1) = &
                   MATMUL(clist_sin%acint(sgfa:sgfa + na - 1, 1:nb, 1), vprj_ppnl(1:nb, 1:nb))
 
-            ENDIF
+            END IF
 
-         ENDDO
+         END DO
          clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
          clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
          clist_sin%maxac = MAXVAL(ABS(clist_sin%acint(:, :, 1)))
          clist_sin%maxach = MAXVAL(ABS(clist_sin%achint(:, :, 1)))
-      ENDDO
+      END DO
 
       DEALLOCATE (work_cos, work_sin, ai_work_cos, ai_work_sin)
 

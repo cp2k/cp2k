@@ -157,7 +157,7 @@ CONTAINS
       rtp%track_imag_density = magnetic .OR. vel_reprs .OR. rtp_control%velocity_gauge
       IF (rtp_control%velocity_gauge) THEN
          rtp%do_hfx = .TRUE.
-      ENDIF
+      END IF
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
       IF (rtp%do_hfx .OR. rtp%track_imag_density) &
@@ -260,7 +260,7 @@ CONTAINS
 
       IF (rtp_control%velocity_gauge) THEN
          CALL velocity_gauge_ks_matrix(qs_env, subtract_non_gt=rtp_control%nl_gauge_transform)
-      ENDIF
+      END IF
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.)
 
    END SUBROUTINE init_propagation_run
