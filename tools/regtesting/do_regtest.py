@@ -131,9 +131,10 @@ async def main() -> None:
     if not tasks:
         print("\nNo test directories selected, check --restrictdir filter.")
         sys.exit(1)
+    print(f"Launched {len(tasks)} test directories and {cfg.num_workers} worker...\n")
+    sys.stdout.flush()
 
     # Wait for tasks to finish and print their results.
-    print(f"Launched {len(tasks)} test directories and {cfg.num_workers} worker...\n")
     all_results: List[TestResult] = []
     with open(cfg.error_summary, "wt", encoding="utf8", errors="replace") as err_fh:
         for num_done, task in enumerate(asyncio.as_completed(tasks)):
@@ -374,13 +375,14 @@ class Cp2kShell:
         data = (line + "\n").encode("utf8")
         self._child.stdin.write(data)
         try:
-            await self._child.stdin.drain()
+            await asyncio.wait_for(self._child.stdin.drain(), timeout=self.cfg.timeout)
         except ConnectionResetError:
             pass
 
     async def readline(self) -> str:
         assert self._child and self._child.stdout
-        data = await self._child.stdout.readline()
+        data_future = self._child.stdout.readline()
+        data = await asyncio.wait_for(data_future, timeout=self.cfg.timeout)
         line = data.decode("utf8", errors="replace")
         if self.cfg.debug:
             print("Received: " + line, end="")
