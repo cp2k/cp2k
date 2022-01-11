@@ -38,7 +38,7 @@ case "$with_cmake" in
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
-      /bin/sh cmake-${cmake_ver}-Linux-x86_64.sh --prefix=${pkg_install_dir} --skip-license > install.log 2>&1
+      /bin/sh cmake-${cmake_ver}-Linux-x86_64.sh --prefix=${pkg_install_dir} --skip-license > install.log 2>&1 || cat install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage0/$(basename ${SCRIPT_NAME})"
     fi
     ;;
