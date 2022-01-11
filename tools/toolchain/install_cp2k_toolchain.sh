@@ -107,6 +107,8 @@ OPTIONS:
 --libint-lmax             Maximum supported angular momentum by libint.
                           Higher values will increase build time and library size.
                           Default = 5
+--log-lines               Number of log file lines dumped in case of a non-zero exit code.
+                          Default = 200
 --generic                 Compile for a generic target system, i.e. do not optimize for
                           the actual host system.
 --dry-run                 Write only config files, but don't actually build packages.
@@ -345,6 +347,9 @@ export GPUVER=no
 # default for libint
 export LIBINT_LMAX=5
 
+# default for log file dump size
+export LOG_LINES=200
+
 # defaults for CRAY Linux Environment
 if [ "$CRAY_LD_LIBRARY_PATH" ]; then
   enable_cray=__TRUE__
@@ -467,9 +472,13 @@ while [ $# -ge 1 ]; do
           ;;
       esac
       ;;
+    --log-lines=*)
+      user_input="${1#*=}"
+      export LOG_LINES="${user_input}"
+      ;;
     --libint-lmax=*)
       user_input="${1#*=}"
-      export LIBINT_LMAX="$user_input"
+      export LIBINT_LMAX="${user_input}"
       ;;
     --generic)
       export generic="__TRUE__"

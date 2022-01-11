@@ -36,7 +36,7 @@ case "$with_gcc" in
     else
       if [ "${gcc_ver}" == "master" ]; then
         [ -d gcc-master ] && rm -rf gcc-master
-        svn checkout svn://gcc.gnu.org/svn/gcc/trunk gcc-master > svn-gcc.log 2>&1 || cat svn-gcc.log
+        svn checkout svn://gcc.gnu.org/svn/gcc/trunk gcc-master > svn-gcc.log 2>&1 || tail -n ${LOG_LINES} svn-gcc.log
       else
         if [ -f gcc-${gcc_ver}.tar.gz ]; then
           echo "gcc-${gcc_ver}.tar.gz is found"
@@ -49,7 +49,7 @@ case "$with_gcc" in
       fi
       echo "Installing GCC from scratch into ${pkg_install_dir}"
       cd gcc-${gcc_ver}
-      ./contrib/download_prerequisites > prereq.log 2>&1 || cat prereq.log
+      ./contrib/download_prerequisites > prereq.log 2>&1 || tail -n ${LOG_LINES} prereq.log
       GCCROOT=${PWD}
       mkdir obj
       cd obj
@@ -68,12 +68,12 @@ case "$with_gcc" in
         --disable-multilib --disable-bootstrap \
         --enable-lto \
         --enable-plugins \
-        > configure.log 2>&1 || cat configure.log
+        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) \
         CFLAGS="-fPIC $CFLAGS" \
         CXXFLAGS="-fPIC $CXXFLAGS" \
-        > make.log 2>&1 || tail -n 1000 make.log
-      make -j $(get_nprocs) install > install.log 2>&1 || tail -n 1000 install.log
+        > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       # thread sanitizer
       if [ $ENABLE_TSAN = "__TRUE__" ]; then
         # now the tricky bit... we need to recompile in particular
@@ -84,23 +84,23 @@ case "$with_gcc" in
         # gcc, tested with 5.1.0 based on
         # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
         cd x86_64*/libgfortran
-        make clean > clean.log 2>&1 || cat clean.log
+        make clean > clean.log 2>&1 || tail -n ${LOG_LINES} clean.log
         make -j $(get_nprocs) \
           CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
           FCFLAGS="-g -O2 -fsanitize=thread" \
           CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
           LDFLAGS="-B$(pwd)/../libsanitizer/tsan/.libs/ -Wl,-rpath,$(pwd)/../libsanitizer/tsan/.libs/ -fsanitize=thread" \
-          > make.log 2>&1 || tail -n 1000 make.log
-        make install > install.log 2>&1 || tail -n 1000 install.log
+          > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
         cd ../libgomp
-        make clean > clean.log 2>&1 || cat clean.log
+        make clean > clean.log 2>&1 || tail -n ${LOG_LINES} clean.log
         make -j $(get_nprocs) \
           CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
           FCFLAGS="-g -O2 -fsanitize=thread" \
           CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
           LDFLAGS="-B$(pwd)/../libsanitizer/tsan/.libs/ -Wl,-rpath,$(pwd)/../libsanitizer/tsan/.libs/ -fsanitize=thread" \
-          > make.log 2>&1 || tail -n 1000 make.log
-        make install > install.log 2>&1 || tail -n 1000 install.log
+          > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
         cd $GCCROOT/obj/
       fi
       cd ../..
