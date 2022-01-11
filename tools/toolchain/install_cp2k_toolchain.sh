@@ -372,6 +372,9 @@ while [ $# -ge 1 ]; do
       shift
       export NPROCS_OVERWRITE=$1
       ;;
+    -j[0-9]*)
+      export NPROCS_OVERWRITE=${1#-j}
+      ;;
     --no-check-certificate)
       export DOWNLOADER_FLAGS="-n"
       ;;
