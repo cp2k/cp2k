@@ -680,8 +680,8 @@ CONTAINS
                         CALL dbcsr_copy(ks_matrix_im(ispin, img)%matrix, matrix_h_im(1, img)%matrix, name=name)
                      END DO
                   END DO
-               ENDIF
-            ENDIF
+               END IF
+            END IF
          END IF
 
          IF (use_virial .AND. calculate_forces) THEN

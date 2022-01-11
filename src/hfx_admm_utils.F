@@ -962,7 +962,7 @@ CONTAINS
                   CALL dbcsr_add(matrix_ks_im(ispin)%matrix, matrix_h_im(1, 1)%matrix, &
                                  1.0_dp, 1.0_dp)
                END DO
-            ENDIF
+            END IF
 
          END IF
 
