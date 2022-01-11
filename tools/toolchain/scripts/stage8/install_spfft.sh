@@ -38,6 +38,11 @@ case "$with_spfft" in
           -o SpFFT-${spfft_ver}.tar.gz
 
       fi
+      if [ "${MATH_MODE}" == "mkl" ]; then
+        EXTRA_CMAKE_FLAGS="-DSPFFT_MKL=ON -DSPFFT_FFTW_LIB=MKL"
+      else
+        EXTRA_CMAKE_FLAGS=""
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d SpFFT-${spfft_ver} ] && rm -rf SpFFT-${spfft_ver}
       tar -xzf SpFFT-${spfft_ver}.tar.gz
@@ -48,13 +53,16 @@ case "$with_spfft" in
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_CXX_COMPILER="${MPICXX}" \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DSPFFT_OMP=ON \
         -DSPFFT_MPI=ON \
         -DSPFFT_STATIC=ON \
+        -DSPFFT_FORTRAN=ON \
         -DSPFFT_INSTALL=ON \
-        .. > cmake.log 2>&1
-      make -j $(get_nprocs) > make.log 2>&1
-      make -j $(get_nprocs) install > install.log 2>&1
+        -DCMAKE_BUILD_TYPE="None" \
+        ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail -n 1000 cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n 1000 make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail -n 1000 install.log
 
       cd ..
 
@@ -67,21 +75,20 @@ case "$with_spfft" in
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
+          -DCMAKE_VERBOSE_MAKEFILE=ON \
           -DSPFFT_OMP=ON \
           -DSPFFT_MPI=ON \
           -DSPFFT_STATIC=ON \
+          -DSPFFT_FORTRAN=ON \
           -DSPFFT_INSTALL=ON \
           -DSPFFT_GPU_BACKEND=CUDA \
-          .. > cmake.log 2>&1
-        make -j $(get_nprocs) > make.log 2>&1
+          -DCMAKE_BUILD_TYPE="None" \
+          ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail -n 1000 cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n 1000 make.log
         install -d ${pkg_install_dir}/lib/cuda
         [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
       fi
-
-      # workaround for https://github.com/eth-cscs/SpFFT/issues/46
-      [ -d "${pkg_install_dir}/lib/cmake/spfft/modules" ] && mv "${pkg_install_dir}/lib/cmake/spfft/modules" "${pkg_install_dir}/lib/cmake/SpFFT/modules"
-
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     SPFFT_ROOT="${pkg_install_dir}"
