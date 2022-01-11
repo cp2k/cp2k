@@ -1,5 +1,12 @@
 {
     "description": "Common infrastructure for offloading to accelerator devices",
     "requires": ["../base",],
-    "public": ["offload_api.F", "offload_buffer.h", "offload_library.h"],
+    "public": [
+        "offload_api.F",
+        "offload_buffer.h",
+        "offload_library.h",
+        "offload_operations.h",
+        "offload_cuda_internal.h",
+        "offload_hip_internal.h",
+    ],
 }

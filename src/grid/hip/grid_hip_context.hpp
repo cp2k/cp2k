@@ -22,17 +22,7 @@ extern "C" {
 #include "../common/grid_constants.h"
 }
 
-#ifndef CHECK
-/*******************************************************************************
- * \brief Checks given rocm status and upon failure abort with a nice message.
- ******************************************************************************/
-#define CHECK(status)                                                          \
-  if (status != hipSuccess) {                                                  \
-    fprintf(stderr, "ERROR: %s %s %d\n", hipGetErrorString(status), __FILE__,  \
-            __LINE__);                                                         \
-    abort();                                                                   \
-  }
-#endif
+#include "../../offload/offload_library.h"
 
 namespace rocm_backend {
 // a little helper class in the same spirit than std::vector. it must exist
@@ -60,7 +50,7 @@ public:
     }
     current_size_ = size_;
 
-    CHECK(hipMalloc((void **)&ptr, sizeof(T) * allocated_size_));
+    offloadMalloc((void **)&ptr, sizeof(T) * allocated_size_);
   }
 
   ~gpu_vector() { reset(); }
@@ -68,28 +58,25 @@ public:
   inline size_t size() { return current_size_; }
 
   inline void copy_to_gpu(const T *data__) {
-    CHECK(hipMemcpy(ptr, data__, sizeof(T) * current_size_,
-                    hipMemcpyHostToDevice));
+    offloadMemcpyHtoD(ptr, data__, sizeof(T) * current_size_);
   }
 
-  inline void copy_to_gpu(const T *data__, hipStream_t &stream) {
-    CHECK(hipMemcpyAsync(ptr, data__, sizeof(T) * current_size_,
-                         hipMemcpyHostToDevice, stream));
+  inline void copy_to_gpu(const T *data__, offloadStream_t &stream) {
+    offloadMemcpyAsyncHtoD(ptr, data__, sizeof(T) * current_size_, stream);
   }
 
-  inline void copy_from_gpu(T *data__, hipStream_t &stream) {
-    CHECK(hipMemcpyAsync(data__, ptr, sizeof(T) * current_size_,
-                         hipMemcpyDeviceToHost, stream));
+  inline void copy_from_gpu(T *data__, offloadStream_t &stream) {
+    offloadMemcpyAsyncDtoH(data__, ptr, sizeof(T) * current_size_, stream);
   }
 
-  inline void zero(hipStream_t &stream) {
+  inline void zero(offloadStream_t &stream) {
     // zero device grid buffers
-    CHECK(hipMemsetAsync(ptr, 0, sizeof(T) * current_size_, stream));
+    offloadMemsetAsync(ptr, 0, sizeof(T) * current_size_, stream);
   }
 
   inline void zero() {
     // zero device grid buffers
-    CHECK(hipMemset(ptr, 0, sizeof(T) * current_size_));
+    offloadMemset(ptr, 0, sizeof(T) * current_size_);
   }
 
   inline void copy_to_gpu(const std::vector<T> &data__) {
@@ -99,16 +86,15 @@ public:
     // - resize the gpu vector
     // - or the cpu vector and gpu vector are not representing the quantity.
 
-    CHECK(hipMemcpy(ptr, data__.data(), sizeof(T) * data__.size(),
-                    hipMemcpyHostToDevice));
+    offloadMemcpyHtoD(ptr, data__.data(), sizeof(T) * data__.size());
   }
 
   inline void resize(const size_t new_size_) {
     if (allocated_size_ < new_size_) {
       if (ptr != nullptr)
-        CHECK(hipFree(ptr));
+        offloadFree(ptr);
       allocated_size_ = (new_size_ / 16 + (new_size_ % 16 != 0)) * 16;
-      hipMalloc((void **)&ptr, sizeof(T) * allocated_size_);
+      offloadMalloc((void **)&ptr, sizeof(T) * allocated_size_);
     }
     current_size_ = new_size_;
   }
@@ -119,7 +105,7 @@ public:
   // reset the class and free memory
   inline void reset() {
     if (ptr != nullptr)
-      CHECK(hipFree(ptr));
+      offloadFree(ptr);
 
     allocated_size_ = 0;
     current_size_ = 0;
@@ -153,7 +139,7 @@ public:
 
   inline T *data() { return grid_.data(); }
 
-  inline void copy_to_gpu(const T *data, hipStream_t &stream) {
+  inline void copy_to_gpu(const T *data, offloadStream_t &stream) {
     grid_.copy_to_gpu(data, stream);
   }
 
@@ -167,7 +153,7 @@ public:
 
   inline size_t size() const { return grid_.size(); }
 
-  inline void zero(hipStream_t &stream) { grid_.zero(stream); }
+  inline void zero(offloadStream_t &stream) { grid_.zero(stream); }
   inline gpu_vector<T> &grid() { return grid_; }
   inline void set_lattice_vectors(const double *dh__, const double *dh_inv__) {
     memcpy(dh_, dh__, sizeof(double) * 9);
@@ -215,7 +201,7 @@ public:
     orthorhombic_ = orthogonal[0] * orthogonal[1] * orthogonal[2];
   }
 
-  inline void copy_to_host(double *data__, hipStream_t &stream) {
+  inline void copy_to_host(double *data__, offloadStream_t &stream) {
     grid_.copy_from_gpu(data__, stream);
   }
 
@@ -349,8 +335,8 @@ public:
   int nkinds{0};
   int nblocks{0};
   std::vector<double *> sphi;
-  std::vector<hipStream_t> level_streams;
-  hipStream_t main_stream;
+  std::vector<offloadStream_t> level_streams;
+  offloadStream_t main_stream;
   int stats[2][20]; // [has_border_mask][lp]
   // all these tables are on the gpu. we can resize them copy to them and copy
   // from them
@@ -383,7 +369,7 @@ public:
   ~context_info() { clear(); }
 
   void clear() {
-    CHECK(hipSetDevice(device_id_));
+    offloadSetDevice(device_id_);
     tasks_dev.reset();
     block_offsets_dev.reset();
     coef_dev_.reset();
@@ -394,13 +380,13 @@ public:
     virial_.reset();
     for (auto &phi : sphi)
       if (phi != nullptr)
-        CHECK(hipFree(phi));
+        offloadFree(phi);
     sphi.clear();
 
-    CHECK(hipStreamDestroy(main_stream));
+    offloadStreamDestroy(main_stream);
 
     for (int i = 0; i < nlevels; i++) {
-      CHECK(hipStreamDestroy(level_streams[i]));
+      offloadStreamDestroy(level_streams[i]);
     }
     level_streams.clear();
 
@@ -418,7 +404,7 @@ public:
     if (nkinds__ > sphi.size()) {
       for (auto &phi : sphi)
         if (phi != nullptr) {
-          CHECK(hipFree(phi));
+          offloadFree(phi);
         }
 
       sphi_dev.resize(nkinds__);
@@ -433,14 +419,13 @@ public:
     for (int i = 0; i < nkinds__; i++) {
       const auto &basis_set = basis_sets[i];
       if (sphi_size[i] < basis_set->nsgf * basis_set->maxco) {
-        CHECK(hipMalloc((void **)&sphi[i],
-                        basis_set->nsgf * basis_set->maxco * sizeof(double)));
+        offloadMalloc((void **)&sphi[i],
+                      basis_set->nsgf * basis_set->maxco * sizeof(double));
         sphi_size[i] = basis_set->nsgf * basis_set->maxco;
       }
-      CHECK(hipMemset(sphi[i], 0, sizeof(double) * sphi_size[i]));
-      CHECK(hipMemcpy(sphi[i], basis_set->sphi,
-                      basis_set->nsgf * basis_set->maxco * sizeof(double),
-                      hipMemcpyHostToDevice));
+      offloadMemset(sphi[i], 0, sizeof(double) * sphi_size[i]);
+      offloadMemcpyHtoD(sphi[i], basis_set->sphi,
+                        basis_set->nsgf * basis_set->maxco * sizeof(double));
     }
     sphi_dev.copy_to_gpu(sphi);
     // Find largest angular momentum.
@@ -454,25 +439,27 @@ public:
 
   void create_streams() {
     // allocate main hip stream
-    CHECK(hipStreamCreate(&main_stream));
+    offloadStreamCreate(&main_stream);
 
     // allocate one hip stream per grid level
     if (level_streams.size() < nlevels) {
       level_streams.resize(nlevels);
       for (auto &stream : level_streams) {
-        CHECK(hipStreamCreate(&stream));
+        offloadStreamCreate(&stream);
       }
     }
   }
 
-  void synchronize(hipStream_t &stream) { CHECK(hipStreamSynchronize(stream)); }
+  void synchronize(offloadStream_t &stream) {
+    offloadStreamSynchronize(stream);
+  }
 
   void synchornize() {
     // wait for all the streams to finish
-    CHECK(hipDeviceSynchronize());
+    offloadDeviceSynchronize();
   }
 
-  void set_device() { CHECK(hipSetDevice(device_id_)); }
+  void set_device() { offloadSetDevice(device_id_); }
 
   void collocate_one_grid_level(const int level, const enum grid_func func,
                                 int *lp_diff);

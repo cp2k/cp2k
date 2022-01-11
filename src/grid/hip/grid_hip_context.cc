@@ -19,8 +19,8 @@
 #include <hip/hip_runtime_api.h>
 #include <iostream>
 
-extern "C" {
 #include "../../offload/offload_library.h"
+extern "C" {
 #include "../common/grid_basis_set.h"
 #include "../common/grid_constants.h"
 #include "../common/grid_library.h"

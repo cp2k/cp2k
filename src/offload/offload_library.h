@@ -7,6 +7,10 @@
 #ifndef OFFLOAD_LIBRARY_H
 #define OFFLOAD_LIBRARY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(__GRID_CUDA) || defined(__PW_CUDA)
 #define __OFFLOAD_CUDA
 #elif defined(__GRID_HIP)
@@ -20,35 +24,7 @@
 #include <hip/hip_runtime_api.h>
 #endif
 
-#if defined(__OFFLOAD_CUDA)
-/*******************************************************************************
- * \brief Checks given Cuda status and upon failure abort with a nice message.
- * \author Ole Schuett
- ******************************************************************************/
-#define OFFLOAD_CHECK(status)                                                  \
-  if (status != cudaSuccess) {                                                 \
-    fprintf(stderr, "ERROR: %s %s %d\n", cudaGetErrorString(status), __FILE__, \
-            __LINE__);                                                         \
-    abort();                                                                   \
-  }
-#endif
-
-#if defined(__OFFLOAD_HIP)
-/*******************************************************************************
- * \brief Checks given rocm status and upon failure abort with a nice message.
- ******************************************************************************/
-#define OFFLOAD_CHECK(status)                                                  \
-  if (status != hipSuccess) {                                                  \
-    fprintf(stderr, "ERROR: %s %s %d\n", hipGetErrorString(status), __FILE__,  \
-            __LINE__);                                                         \
-    abort();                                                                   \
-  }
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#include "offload_operations.h"
 /*******************************************************************************
  * \brief Returns the number of available devices.
  * \author Ole Schuett
