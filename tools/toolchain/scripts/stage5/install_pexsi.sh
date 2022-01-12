@@ -84,7 +84,8 @@ case "$with_pexsi" in
       # Patch to include <limits> explicitly as required by gcc >= 11.
       sed -i '/^#include <numeric>/a #include <limits>' ./include/pexsi/utility_impl.hpp
 
-      make finstall > make.log 2>&1 # still issues with parallel make (fortran_examples target)
+      # Still issues with parallel make (fortran_examples target)
+      make finstall > make.log 2>&1 || tail -n ${LOG_LINES} make.log
 
       ln -sf "${pkg_install_dir}/lib/libpexsi_${OPENBLAS_ARCH}.a" \
         "${pkg_install_dir}/lib/libpexsi.a"
@@ -131,6 +132,11 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__LIBPEXSI|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${PEXSI_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${PEXSI_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${PEXSI_LIBS}|) \${CP_LIBS}"
+EOF
+  cat << EOF >> ${INSTALLDIR}/lsan.supp
+# leaks related to PEXSI using GNU 10.3.0 and MPICH 3.3.2 on Merlin
+leak:MPIR_Dataloop_alloc_and_copy
+leak:MPIR_Type_contiguous_impl
 EOF
 fi
 

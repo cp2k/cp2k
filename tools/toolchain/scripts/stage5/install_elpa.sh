@@ -85,26 +85,27 @@ case "$with_elpa" in
       fi
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
-      has_AVX=$(grep '\bavx\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
-      [ "${has_AVX}" == "yes" ] && AVX_flag="-mavx" || AVX_flag=""
-      has_AVX2=$(grep '\bavx2\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
-      [ "${has_AVX2}" == "yes" ] && AVX_flag="-mavx2"
-      has_AVX512=$(grep '\bavx512f\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
-      [ "${has_AVX512}" == "yes" ] && AVX512_flags="-mavx512f"
-      if [ "$OPENBLAS_ARCH" == "x86_64" ]; then
-        FMA_flag=$(grep '\bfma\b' /proc/cpuinfo 1> /dev/null && echo '-mfma' || echo '-mno-fma')
-        SSE4_flag=$(grep '\bsse4_1\b' /proc/cpuinfo 1> /dev/null && echo '-msse4' || echo '-mno-sse4')
-        grep '\bavx512dq\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512dq"
-        grep '\bavx512cd\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512cd"
-        grep '\bavx512bw\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512bw"
-        grep '\bavx512v1\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512v1"
+      AVX_flag=""
+      AVX512_flags=""
+      FMA_flag=""
+      SSE4_flag=""
+      config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
+      if [ -f /proc/cpuinfo ]; then
+        has_AVX=$(grep '\bavx\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
+        [ "${has_AVX}" == "yes" ] && AVX_flag="-mavx" || AVX_flag=""
+        has_AVX2=$(grep '\bavx2\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
+        [ "${has_AVX2}" == "yes" ] && AVX_flag="-mavx2"
+        has_AVX512=$(grep '\bavx512f\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
+        [ "${has_AVX512}" == "yes" ] && AVX512_flags="-mavx512f"
+        if [ "$OPENBLAS_ARCH" == "x86_64" ]; then
+          FMA_flag=$(grep '\bfma\b' /proc/cpuinfo 1> /dev/null && echo '-mfma' || echo '-mno-fma')
+          SSE4_flag=$(grep '\bsse4_1\b' /proc/cpuinfo 1> /dev/null && echo '-msse4' || echo '-mno-sse4')
+          grep '\bavx512dq\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512dq"
+          grep '\bavx512cd\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512cd"
+          grep '\bavx512bw\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512bw"
+          grep '\bavx512v1\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512v1"
+        fi
         config_flags="--enable-avx=${has_AVX} --enable-avx2=${has_AVX2} --enable-avx512=${has_AVX512}"
-      else
-        AVX_flag=""
-        AVX512_flags=""
-        FMA_flag=""
-        SSE4_flag=""
-        config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
       fi
       for TARGET in "cpu" "nvidia"; do
         [ "$TARGET" == "nvidia" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
@@ -131,9 +132,9 @@ case "$with_elpa" in
           CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS} ${AVX_flag} ${FMA_flag} ${SSE4_flag} ${AVX512_flags}" \
           LDFLAGS="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
           LIBS="${SCALAPACK_LIBS} $(resolve_string "${MATH_LIBS}" "MPI")" \
-          > configure.log 2>&1
-        make -j $(get_nprocs) ${ELPA_MAKEOPTS} > make.log 2>&1
-        make install > install.log 2>&1
+          > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+        make -j $(get_nprocs) ${ELPA_MAKEOPTS} > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
         cd ..
       done
       cd ..

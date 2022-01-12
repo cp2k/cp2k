@@ -62,9 +62,10 @@ case "$with_scalapack" in
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DBUILD_SHARED_LIBS=NO \
-        -DCMAKE_BUILD_TYPE=Release .. > configure.log 2>&1
-      make -j $(get_nprocs) > make.log 2>&1
-      make install >> make.log 2>&1
+        -DCMAKE_BUILD_TYPE=Release .. \
+        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make install >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
 
       popd > /dev/null
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"

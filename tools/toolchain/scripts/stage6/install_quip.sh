@@ -104,7 +104,7 @@ case "$with_quip" in
       # hit enter a few times to accept defaults
       echo -e "${MATH_LDFLAGS} $(resolve_string "${MATH_LIBS}") \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > configure.log
       # make -j does not work :-(
-      make > make.log 2>&1
+      make > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"
       ! [ -d "${pkg_install_dir}/lib" ] && mkdir -p "${pkg_install_dir}/lib"
       cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod \

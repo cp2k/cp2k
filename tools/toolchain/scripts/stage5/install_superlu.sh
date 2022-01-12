@@ -50,9 +50,9 @@ case "$with_superlu" in
       cmake -DTPL_ENABLE_PARMETISLIB=FALSE \
         -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
         -DCMAKE_INSTALL_LIBDIR=${pkg_install_dir}/lib \
-        .. > cmake.log 2>&1
-      make -j $(get_nprocs) > make.log 2>&1
-      make install > install.log 2>&1
+        .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
 
       # PEXSI needs some more headers.

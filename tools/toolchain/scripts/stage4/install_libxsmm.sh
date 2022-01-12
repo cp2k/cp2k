@@ -72,13 +72,13 @@ EOF
         CC=$CC \
         FC=$FC \
         PREFIX=${pkg_install_dir} \
-        > make.log 2>&1
+        > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) \
         CXX=$CXX \
         CC=$CC \
         FC=$FC \
         PREFIX=${pkg_install_dir} \
-        install > install.log 2>&1
+        install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage4/$(basename ${SCRIPT_NAME})"
     fi

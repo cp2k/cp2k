@@ -146,9 +146,9 @@ case "$with_sirius" in
         -DCMAKE_C_COMPILER="${MPICC}" \
         -DBUILD_SHARED_LIBS=OFF \
         -DUSE_ELPA=OFF \
-        ${COMPILATION_OPTIONS} .. > compile.log 2>&1
+        ${COMPILATION_OPTIONS} .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
 
-      make -j $(get_nprocs) -C src >> compile.log 2>&1
+      make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
 
       install -d "${pkg_install_dir}/include" >> install.log 2>&1
       install -d "${pkg_install_dir}/lib" >> install.log 2>&1
@@ -173,8 +173,9 @@ case "$with_sirius" in
           -DGPU_MODEL=P100 \
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
-          -DCMAKE_C_COMPILER="${MPICC}" ${COMPILATION_OPTIONS} .. >> compile.log 2>&1
-        make -j $(get_nprocs) -C src >> compile.log 2>&1
+          -DCMAKE_C_COMPILER="${MPICC}" ${COMPILATION_OPTIONS} .. \
+          >> cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
         install -d ${pkg_install_dir}/lib/cuda
         install -d ${pkg_install_dir}/include/cuda
         install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1

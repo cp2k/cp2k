@@ -49,12 +49,12 @@ case "$with_ptscotch" in
           -e "s|\(^CCD\).*|\1 = $MPICC|g" \
           -e "s|\(^CFLAGS\).*|\1 = $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64 ${MPI_CFLAGS}|g" \
           > Makefile.inc
-      make scotch -j $(get_nprocs) > make.log 2>&1
-      make ptscotch -j $NROCS > make.log 2>&1
+      make scotch -j $(get_nprocs) > make-scotch.log 2>&1 || tail -n ${LOG_LINES} make-scotch.log
+      make ptscotch -j $(get_nprocs) > make-ptscotch.log 2>&1 || tail -n ${LOG_LINES} make-ptscotch.log
       # PT-scotch make install is buggy in that it cannot create
       # intermediate directories
       ! [ -d "${pkg_install_dir}" ] && mkdir -p "${pkg_install_dir}"
-      make install prefix=${pkg_install_dir} > install.log 2>&1
+      make install prefix=${pkg_install_dir} > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
 
       # PEXSI also needs parmetis.h

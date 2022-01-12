@@ -43,9 +43,10 @@ case "$with_gsl" in
       ./configure --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
         --disable-shared \
-        --enable-static > configure.log 2>&1
-      make -j $(get_nprocs) > make.log 2>&1
-      make -j $(get_nprocs) install > install.log 2>&1
+        --enable-static \
+        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})"
     fi
