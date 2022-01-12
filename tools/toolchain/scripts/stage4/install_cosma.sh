@@ -69,10 +69,15 @@ case "$with_cosma" in
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCOSMA_BLAS=${cosma_blas} \
         -DCOSMA_SCALAPACK=${cosma_sl} \
+        -DBUILD_SHARED_LIBS=NO \
         -DCOSMA_WITH_TESTS=NO \
-        -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
-      make -j $(get_nprocs) > make.log 2>&1
-      make -j $(get_nprocs) install > install.log 2>&1
+        -DCOSMA_WITH_APPS=NO \
+        -DCOSMA_WITH_BENCHMARKS=NO \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DCMAKE_BUILD_TYPE=None .. \
+        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
 
       # Build CUDA version.
@@ -85,10 +90,15 @@ case "$with_cosma" in
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCOSMA_BLAS=CUDA \
           -DCOSMA_SCALAPACK=${cosma_sl} \
+          -DBUILD_SHARED_LIBS=NO \
           -DCOSMA_WITH_TESTS=NO \
-          -DCOSMA_WITH_APPS=NO .. > cmake.log 2>&1
-        make -j $(get_nprocs) > make.log 2>&1
-        make -j $(get_nprocs) install > install.log 2>&1
+          -DCOSMA_WITH_APPS=NO \
+          -DCOSMA_WITH_BENCHMARKS=NO \
+          -DCMAKE_VERBOSE_MAKEFILE=ON \
+          -DCMAKE_BUILD_TYPE=None .. \
+          > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
         cd ..
       fi
 

@@ -52,11 +52,12 @@ case "${with_libvori:=__INSTALL__}" in
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
-        -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE \
-        .. > cmake.log 2>&1
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target test > test.log 2>&1
-      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1
+        -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
+        .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . > build.log 2>&1 || tail -n ${LOG_LINES} build.log
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target test > test.log 2>&1 || tail -n ${LOG_LINES} test.log
+      CMAKE_BUILD_PARALLEL_LEVEL="$(get_nprocs)" cmake --build . --target install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
 
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename "${SCRIPT_NAME}")"
     fi

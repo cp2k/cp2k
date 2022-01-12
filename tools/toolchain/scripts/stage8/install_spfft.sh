@@ -60,9 +60,10 @@ case "$with_spfft" in
         -DSPFFT_FORTRAN=ON \
         -DSPFFT_INSTALL=ON \
         -DCMAKE_BUILD_TYPE="None" \
-        ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail -n 1000 cmake.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n 1000 make.log
-      make -j $(get_nprocs) install > install.log 2>&1 || tail -n 1000 install.log
+        ${EXTRA_CMAKE_FLAGS} .. \
+        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
 
       cd ..
 

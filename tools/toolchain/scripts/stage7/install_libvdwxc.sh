@@ -78,7 +78,7 @@ case "$with_libvdwxc" in
           --libdir="${pkg_install_dir}/lib" \
           --disable-shared \
           --without-mpi \
-          >> configure.log 2>&1
+          > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       else
         CC="${MPICC}" FC="${MPIFC}" ./configure \
           --prefix="${pkg_install_dir}" \
@@ -86,10 +86,10 @@ case "$with_libvdwxc" in
           --disable-shared \
           --with-mpi \
           FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
-          >> configure.log 2>&1
+          > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       fi
-      make -j $(get_nprocs) > compile.log 2>&1
-      make install > compile.log 2>&1
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
 

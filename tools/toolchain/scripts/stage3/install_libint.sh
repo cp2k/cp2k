@@ -78,21 +78,20 @@ case "$with_libint" in
       #        -DCXXFLAGS="$LIBINT_CXXFLAGS" > configure.log 2>&1
       #cmake --build . > cmake.log 2>&1
       #cmake --build . --target install > install.log 2>&1
-
       ./configure --prefix=${pkg_install_dir} \
         --with-cxx="$CXX $LIBINT_CXXFLAGS" \
         --with-cxx-optflags="$LIBINT_CXXFLAGS" \
         --enable-fortran \
         --libdir="${pkg_install_dir}/lib" \
-        > configure.log 2>&1
+        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
 
-      if [ ${MPI_MODE} == "intelmpi" ]; then
+      if [ "${MPI_MODE}" == "intelmpi" ]; then
         # Fix bug in makefile for Fortran module
         sed -i "s/\$(CXX) \$(CXXFLAGS)/\$(FC) \$(FCFLAGS)/g" fortran/Makefile
       fi
 
-      make -j $(get_nprocs) > make.log 2>&1
-      make install > install.log 2>&1
+      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
 
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
