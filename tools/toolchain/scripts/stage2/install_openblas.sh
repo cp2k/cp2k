@@ -63,6 +63,7 @@ case "$with_openblas" in
           NUM_THREADS=64 \
           USE_THREAD=1 \
           USE_OPENMP=1 \
+          NO_AFFINITY=1 \
           CC="${CC}" \
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
@@ -74,6 +75,7 @@ case "$with_openblas" in
             NUM_THREADS=64 \
             USE_THREAD=1 \
             USE_OPENMP=1 \
+            NO_AFFINITY=1 \
             CC="${CC}" \
             FC="${FC}" \
             PREFIX="${pkg_install_dir}" \
@@ -85,6 +87,7 @@ case "$with_openblas" in
             NUM_THREADS=64 \
             USE_THREAD=1 \
             USE_OPENMP=1 \
+            NO_AFFINITY=1 \
             CC="${CC}" \
             FC="${FC}" \
             PREFIX="${pkg_install_dir}" \
@@ -96,6 +99,7 @@ case "$with_openblas" in
         NUM_THREADS=64 \
         USE_THREAD=1 \
         USE_OPENMP=1 \
+        NO_AFFINITY=1 \
         CC="${CC}" \
         FC="${FC}" \
         PREFIX="${pkg_install_dir}" \
