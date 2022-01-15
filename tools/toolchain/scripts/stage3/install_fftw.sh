@@ -70,7 +70,7 @@ case "$with_fftw" in
     echo "==================== Finding FFTW from system paths ===================="
     check_lib -lfftw3 "FFTW"
     check_lib -lfftw3_omp "FFTW"
-    [ "$MPI_MODE" != "no" ] && check_lib -lfftw3_mpi "FFTW"
+    [ "${MPI_MODE}" != "no" ] && check_lib -lfftw3_mpi "FFTW"
     add_include_from_paths FFTW_CFLAGS "fftw3.h" $INCLUDE_PATHS
     add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" $LIB_PATHS
     pkg_install_dir="${FFTW_ROOT}"

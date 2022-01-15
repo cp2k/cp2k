@@ -39,9 +39,9 @@ esac
 
 [ -f "${BUILDDIR}/setup_libint" ] && rm "${BUILDDIR}/setup_libint"
 
-LIBINT_CFLAGS=''
-LIBINT_LDFLAGS=''
-LIBINT_LIBS=''
+LIBINT_CFLAGS=""
+LIBINT_LDFLAGS=""
+LIBINT_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -85,7 +85,7 @@ case "$with_libint" in
         --libdir="${pkg_install_dir}/lib" \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
 
-      if [ "${MPI_MODE}" == "intelmpi" ]; then
+      if [ "${MPI_MODE}" = "intelmpi" ]; then
         # Fix bug in makefile for Fortran module
         sed -i "s/\$(CXX) \$(CXXFLAGS)/\$(FC) \$(FCFLAGS)/g" fortran/Makefile
       fi

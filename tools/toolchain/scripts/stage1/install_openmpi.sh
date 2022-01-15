@@ -22,9 +22,9 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "openmpi" ] && exit 0
 [ -f "${BUILDDIR}/setup_openmpi" ] && rm "${BUILDDIR}/setup_openmpi"
 
-OPENMPI_CFLAGS=''
-OPENMPI_LDFLAGS=''
-OPENMPI_LIBS=''
+OPENMPI_CFLAGS=""
+OPENMPI_LDFLAGS=""
+OPENMPI_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 

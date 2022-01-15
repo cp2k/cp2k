@@ -26,7 +26,7 @@ TSANFLAGS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_gcc" in
+case "${with_gcc}" in
   __INSTALL__)
     echo "==================== Installing GCC ===================="
     pkg_install_dir="${INSTALLDIR}/gcc-${gcc_ver}"
@@ -34,7 +34,7 @@ case "$with_gcc" in
     if verify_checksums "${install_lock_file}"; then
       echo "gcc-${gcc_ver} is already installed, skipping it."
     else
-      if [ "${gcc_ver}" == "master" ]; then
+      if [ "${gcc_ver}" = "master" ]; then
         [ -d gcc-master ] && rm -rf gcc-master
         svn checkout svn://gcc.gnu.org/svn/gcc/trunk gcc-master > svn-gcc.log 2>&1 || tail -n ${LOG_LINES} svn-gcc.log
       else
@@ -111,17 +111,19 @@ case "$with_gcc" in
     ;;
   __SYSTEM__)
     echo "==================== Finding GCC from system paths ===================="
-    check_command gcc "gcc"
-    check_command g++ "gcc"
-    check_command gfortran "gcc"
-    add_include_from_paths -p GCC_CFLAGS "c++" $INCLUDE_PATHS
-    add_lib_from_paths GCC_LDFLAGS "libgfortran.*" $LIB_PATHS
+    check_command gcc "gcc" && CC="$(command -v gcc)" || exit 1
+    check_command g++ "gcc" && CXX="$(command -v g++)" || exit 1
+    check_command gfortran "gcc" && FC="$(command -v gfortran)" || exit 1
+    F90="${FC}"
+    F77="${FC}"
+    add_include_from_paths -p GCC_CFLAGS "c++" ${INCLUDE_PATHS}
+    add_lib_from_paths GCC_LDFLAGS "libgfortran.*" ${LIB_PATHS}
     ;;
   __DONTUSE__) ;;
 
   *)
     echo "==================== Linking GCC to user paths ===================="
-    pkg_install_dir="$with_gcc"
+    pkg_install_dir="${with_gcc}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/lib64"
@@ -135,8 +137,16 @@ if [ "$ENABLE_TSAN" = "__TRUE__" ]; then
 else
   TSANFLAGS=""
 fi
-if [ "$with_gcc" != "__DONTUSE__" ]; then
-  if [ "$with_gcc" != "__SYSTEM__" ]; then
+if [ "${with_gcc}" != "__DONTUSE__" ]; then
+  if [ "${with_gcc}" = "__SYSTEM__" ]; then
+    cat << EOF > "${BUILDDIR}/setup_gcc"
+export CC="${CC}"
+export CXX="${CXX}"
+export FC="${FC}"
+export F90="${F90}"
+export F77="${F77}"
+EOF
+  else
     cat << EOF > "${BUILDDIR}/setup_gcc"
 # needs full path for mpich/openmpi builds, triggers openblas bug
 export CC="${pkg_install_dir}/bin/gcc"
@@ -153,13 +163,13 @@ prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib64"
 prepend_path CPATH "${pkg_install_dir}/include"
 EOF
-    cat "${BUILDDIR}/setup_gcc" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_gcc"
 export GCC_CFLAGS="${GCC_CFLAGS}"
 export GCC_LDFLAGS="${GCC_LDFLAGS}"
 export TSANFLAGS="${TSANFLAGS}"
 EOF
+  cat "${BUILDDIR}/setup_gcc" >> ${SETUPFILE}
 fi
 cd "${ROOTDIR}"
 

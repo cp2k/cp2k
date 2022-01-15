@@ -36,7 +36,7 @@ FC_arch="IF_MPI(${MPIFC}|${FC})"
 LD_arch="IF_MPI(${MPIFC}|${FC})"
 
 # we always want good line information and backtraces
-if [ "${generic}" == "__TRUE__" ]; then
+if [ "${generic}" = "__TRUE__" ]; then
   BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=generic"
 else
   BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -march=native -mtune=native"

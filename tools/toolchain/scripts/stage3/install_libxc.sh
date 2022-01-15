@@ -19,9 +19,9 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libxc" ] && rm "${BUILDDIR}/setup_libxc"
 
-LIBXC_CFLAGS=''
-LIBXC_LDFLAGS=''
-LIBXC_LIBS=''
+LIBXC_CFLAGS=""
+LIBXC_LDFLAGS=""
+LIBXC_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -91,7 +91,7 @@ export CP_DFLAGS="\${CP_DFLAGS} -D__LIBXC"
 export CP_CFLAGS="\${CP_CFLAGS} ${LIBXC_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBXC_LDFLAGS}"
 export CP_LIBS="${LIBXC_LIBS} \${CP_LIBS}"
-export LIBXCROOT="$pkg_install_dir"
+export LIBXC_ROOT="$pkg_install_dir"
 EOF
 fi
 

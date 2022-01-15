@@ -21,14 +21,14 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_openblas" ] && rm "${BUILDDIR}/setup_openblas"
 
-OPENBLAS_CFLAGS=''
-OPENBLAS_LDFLAGS=''
-OPENBLAS_LIBS=''
-OPENBLASROOT=""
+OPENBLAS_CFLAGS=""
+OPENBLAS_LDFLAGS=""
+OPENBLAS_LIBS=""
+OPENBLAS_ROOT=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_openblas" in
+case "${with_openblas}" in
   __INSTALL__)
     echo "==================== Installing OpenBLAS ===================="
     pkg_install_dir="${INSTALLDIR}/openblas-${openblas_ver}"
@@ -56,7 +56,7 @@ case "$with_openblas" in
       #                     for a good compromise between memory usage and scalability
       #
       # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
-      if [ "${generic}" == "__TRUE__" ]; then
+      if [ "${generic}" = "__TRUE__" ]; then
         make -j $(get_nprocs) \
           MAKE_NB_JOBS=0 \
           TARGET=NEHALEM \
@@ -109,7 +109,7 @@ case "$with_openblas" in
     fi
     OPENBLAS_CFLAGS="-I'${pkg_install_dir}/include'"
     OPENBLAS_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
-    OPENBLASROOT='${pkg_install_dir}'
+    OPENBLAS_ROOT="${pkg_install_dir}"
     OPENBLAS_LIBS="-lopenblas"
     ;;
   __SYSTEM__)
@@ -147,12 +147,12 @@ prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
-export OPENBLASROOT=${pkg_install_dir}
+export OPENBLAS_ROOT=${pkg_install_dir}
 EOF
     cat "${BUILDDIR}/setup_openblas" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_openblas"
-export OPENBLASROOT="${pkg_install_dir}"
+export OPENBLAS_ROOT="${pkg_install_dir}"
 export OPENBLAS_CFLAGS="${OPENBLAS_CFLAGS}"
 export OPENBLAS_LDFLAGS="${OPENBLAS_LDFLAGS}"
 export OPENBLAS_LIBS="${OPENBLAS_LIBS}"

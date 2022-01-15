@@ -92,12 +92,12 @@ case "$with_elpa" in
       config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
       if [ -f /proc/cpuinfo ]; then
         has_AVX=$(grep '\bavx\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
-        [ "${has_AVX}" == "yes" ] && AVX_flag="-mavx" || AVX_flag=""
+        [ "${has_AVX}" = "yes" ] && AVX_flag="-mavx" || AVX_flag=""
         has_AVX2=$(grep '\bavx2\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
-        [ "${has_AVX2}" == "yes" ] && AVX_flag="-mavx2"
+        [ "${has_AVX2}" = "yes" ] && AVX_flag="-mavx2"
         has_AVX512=$(grep '\bavx512f\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
-        [ "${has_AVX512}" == "yes" ] && AVX512_flags="-mavx512f"
-        if [ "$OPENBLAS_ARCH" == "x86_64" ]; then
+        [ "${has_AVX512}" = "yes" ] && AVX512_flags="-mavx512f"
+        if [ "$OPENBLAS_ARCH" = "x86_64" ]; then
           FMA_flag=$(grep '\bfma\b' /proc/cpuinfo 1> /dev/null && echo '-mfma' || echo '-mno-fma')
           SSE4_flag=$(grep '\bsse4_1\b' /proc/cpuinfo 1> /dev/null && echo '-msse4' || echo '-mno-sse4')
           grep '\bavx512dq\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512dq"
@@ -108,7 +108,7 @@ case "$with_elpa" in
         config_flags="--enable-avx=${has_AVX} --enable-avx2=${has_AVX2} --enable-avx512=${has_AVX512}"
       fi
       for TARGET in "cpu" "nvidia"; do
-        [ "$TARGET" == "nvidia" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
+        [ "$TARGET" = "nvidia" ] && [ "$ENABLE_CUDA" != "__TRUE__" ] && continue
         echo "Installing from scratch into ${pkg_install_dir}/${TARGET}"
 
         mkdir -p "build_${TARGET}"
@@ -119,9 +119,9 @@ case "$with_elpa" in
           --enable-shared=no \
           --enable-static=yes \
           ${config_flags} \
-          --enable-nvidia-gpu=$([ "$TARGET" == "nvidia" ] && echo "yes" || echo "no") \
+          --enable-nvidia-gpu=$([ "$TARGET" = "nvidia" ] && echo "yes" || echo "no") \
           --with-cuda-path=${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}} \
-          --with-NVIDIA-GPU-compute-capability=$([ "$TARGET" == "nvidia" ] && echo "sm_$ARCH_NUM" || echo "sm_35") \
+          --with-NVIDIA-GPU-compute-capability=$([ "$TARGET" = "nvidia" ] && echo "sm_$ARCH_NUM" || echo "sm_35") \
           CUDA_CFLAGS="-std=c++14 -allow-unsupported-compiler" \
           OMPI_MCA_plm_rsh_agent=/bin/false \
           FC=${MPIFC} \
@@ -189,7 +189,7 @@ prepend_path PATH "$pkg_install_dir/bin"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-export ELPAROOT="$pkg_install_dir"
+export ELPA_ROOT="$pkg_install_dir"
 EOF
   fi
   cat "${BUILDDIR}/setup_elpa" >> $SETUPFILE
@@ -202,8 +202,8 @@ export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${ELPA_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${ELPA_LDFLAGS}|)"
 export CP_LIBS="IF_MPI(${ELPA_LIBS}|) \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-export ELPAROOT="$pkg_install_dir"
-export ELPAVERSION="${elpa_ver}"
+export ELPA_ROOT="$pkg_install_dir"
+export ELPA_VERSION="${elpa_ver}"
 EOF
 
   cat << EOF >> ${INSTALLDIR}/lsan.supp

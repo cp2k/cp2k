@@ -44,15 +44,22 @@ case "$with_spla" in
       cd spla-${spla_ver}
       mkdir -p build-cpu
       cd build-cpu
+      if [ "${MATH_MODE}" = "mkl" ]; then
+        EXTRA_CMAKE_FLAGS="-DSPLA_HOST_BLAS=MKL"
+      else
+        EXTRA_CMAKE_FLAGS=""
+      fi
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
-        -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DSPLA_OMP=ON \
-        -DSPLA_MPI=ON \
+        -DSPLA_FORTRAN=ON \
         -DSPLA_INSTALL=ON \
         -DSPLA_STATIC=ON \
-        .. > cmake.log 2>&1
+        ${EXTRA_CMAKE_FLAGS} .. \
+        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       cd ..
@@ -64,13 +71,15 @@ case "$with_spla" in
         cmake \
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR=lib \
-          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_VERBOSE_MAKEFILE=ON \
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
           -DSPLA_OMP=ON \
-          -DSPLA_MPI=ON \
-          -DSPLA_STATIC=ON \
+          -DSPLA_FORTRAN=ON \
           -DSPLA_INSTALL=ON \
+          -DSPLA_STATIC=ON \
           -DSPLA_GPU_BACKEND=CUDA \
-          .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+          ${EXTRA_CMAKE_FLAGS} .. \
+          > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
         make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
         install -d ${pkg_install_dir}/lib/cuda
         [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1

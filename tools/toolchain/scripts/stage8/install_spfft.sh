@@ -38,7 +38,7 @@ case "$with_spfft" in
           -o SpFFT-${spfft_ver}.tar.gz
 
       fi
-      if [ "${MATH_MODE}" == "mkl" ]; then
+      if [ "${MATH_MODE}" = "mkl" ]; then
         EXTRA_CMAKE_FLAGS="-DSPFFT_MKL=ON -DSPFFT_FFTW_LIB=MKL"
       else
         EXTRA_CMAKE_FLAGS=""
@@ -54,12 +54,12 @@ case "$with_spfft" in
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_CXX_COMPILER="${MPICXX}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DSPFFT_OMP=ON \
         -DSPFFT_MPI=ON \
         -DSPFFT_STATIC=ON \
         -DSPFFT_FORTRAN=ON \
         -DSPFFT_INSTALL=ON \
-        -DCMAKE_BUILD_TYPE="None" \
         ${EXTRA_CMAKE_FLAGS} .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
@@ -77,15 +77,15 @@ case "$with_spfft" in
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
+          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
           -DSPFFT_OMP=ON \
           -DSPFFT_MPI=ON \
           -DSPFFT_STATIC=ON \
           -DSPFFT_FORTRAN=ON \
           -DSPFFT_INSTALL=ON \
           -DSPFFT_GPU_BACKEND=CUDA \
-          -DCMAKE_BUILD_TYPE="None" \
-          ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail -n 1000 cmake.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail -n 1000 make.log
+          ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
         install -d ${pkg_install_dir}/lib/cuda
         [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
