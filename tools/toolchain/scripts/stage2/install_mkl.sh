@@ -17,14 +17,14 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_mkl" ] && rm "${BUILDDIR}/setup_mkl"
 
-MKL_CFLAGS=''
-MKL_LDFLAGS=''
-MKL_LIBS=''
+MKL_CFLAGS=""
+MKL_LDFLAGS=""
+MKL_LIBS=""
 
-MKL_FFTW='yes'
+MKL_FFTW="yes"
 if [ "$with_libvdwxc" != "__DONTUSE__" ] && [ "$MPI_MODE" != "no" ]; then
-  report_warning $LINENO "MKL FFTW3 interface is present, but FFTW library is needed (FFTW-MPI)"
-  MKL_FFTW='no'
+  report_warning ${LINENO} "MKL FFTW3 interface is present, but FFTW library is needed (FFTW-MPI)"
+  MKL_FFTW="no"
 fi
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"

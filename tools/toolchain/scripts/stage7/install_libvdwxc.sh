@@ -31,12 +31,6 @@ case "$with_libvdwxc" in
   __INSTALL__)
     require_env FFTW3_INCLUDES
     require_env FFTW3_LIBS
-    require_env FFTW_LDFLAGS
-    require_env FFTW_LIBS
-    require_env FFTW_CFLAGS
-    require_env MPI_CFLAGS
-    require_env MPI_LDFLAGS
-    require_env MPI_LIBS
 
     echo "==================== Installing libvdwxc ===================="
     pkg_install_dir="${INSTALLDIR}/libvdwxc-${libvdwxc_ver}"
@@ -70,22 +64,26 @@ case "$with_libvdwxc" in
       for patch in "${patches[@]}"; do
         patch -p1 < ../"${patch##*/}"
       done
-      unset MPICC MPICXX MPIF90 MPIFC MPIF77
-      if [ "$MPI_MODE" = "no" ]; then
+      if [ "${MPI_MODE}" = "no" ]; then
         # compile libvdwxc without mpi support since fftw (or mkl) do not have mpi support activated
         ./configure \
+          CC="${CC}" \
+          FC="${FC}" \
+          FFTW3_INCLUDES="${FFTW3_INCLUDES}" \
+          FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
           --disable-shared \
-          --without-mpi \
           > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       else
-        CC="${MPICC}" FC="${MPIFC}" ./configure \
+        ./configure \
+          CC="${MPICC}" \
+          FC="${MPIFC}" \
+          FFTW3_INCLUDES="${FFTW3_INCLUDES}" \
+          FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
           --prefix="${pkg_install_dir}" \
           --libdir="${pkg_install_dir}/lib" \
           --disable-shared \
-          --with-mpi \
-          FFTW3_LIBS="$(resolve_string "${FFTW3_LIBS}" "MPI")" \
           > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       fi
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log

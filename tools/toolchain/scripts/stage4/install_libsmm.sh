@@ -60,7 +60,7 @@ case "$with_libsmm" in
         *)
           echo "No optimised binary found ..."
           echo "Searching for a generic libsmm binary from CP2K website"
-          if [ "${OPENBLAS_ARCH}" == "x86_64" ]; then
+          if [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
             libsmm="libsmm_dnn_x86_64-latest.a"
             libsmm_sha256="dd58aee2bc5505e23b0761835bf2b9a90e5f050c6708ef68c5028373970673f8"
             echo "A generic libsmm $libsmm is available."

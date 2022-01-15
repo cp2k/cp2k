@@ -37,15 +37,4 @@ ENABLE_CRAY=${ENABLE_CRAY:-"__FALSE__"}
 MPI_MODE=${MPI_MODE:-openmpi}
 MATH_MODE=${MATH_MODE:-openblas}
 
-# compiler flags
-export CC=${CC:-gcc}
-export FC=${FC:-gfortran}
-export F77=${F77:-gfortran}
-export F90=${F90:-gfortran}
-export CXX=${CXX:-g++}
-export MPICC=${MPICC:-mpicc}
-export MPIFC=${MPIFC:-mpif90}
-export MPIF77=${MPIF77:-mpif77}
-export MPIF90=${MPIF90:-mpif90}
-export MPICXX=${MPICXX:-mpic++}
 export NVCC=${NVCC:-nvcc}

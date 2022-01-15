@@ -40,17 +40,21 @@ case "$with_sirius" in
     require_env FFTW_LDFLAGS
     require_env FFTW_LIBS
     require_env FFTW_CFLAGS
-    require_env ELPAROOT
+    require_env ELPA_ROOT
     require_env ELPA_LDFLAGS
     require_env ELPA_LIBS
     require_env ELPA_CFLAGS
+    require_env GSL_ROOT
     require_env GSL_LDFLAGS
     require_env GSL_CFLAGS
     require_env GSL_LIBS
+    require_env GSL_INCLUDE_DIR
+    require_env GSL_LIBRARY
+    require_env GSL_CBLAS_LIBRARY
     require_env MATH_LIBS
     require_env MPI_LDFLAGS
     require_env MPI_LIBS
-    require_env SCALAPACKROOT
+    require_env SCALAPACK_ROOT
     require_env SCALAPACK_LDFLAGS
     require_env SCALAPACK_CFLAGS
     require_env SCALAPACK_LIBS
@@ -66,9 +70,6 @@ case "$with_sirius" in
     require_env LIBVDWXC_CFLAGS
     require_env LIBVDWXC_LIBS
     require_env LIBVDWXC_LDFLAGS
-    require_env GSL_INCLUDE_DIR
-    require_env GSL_LIBRARY
-    require_env GSL_CBLAS_LIBRARY
     require_env SPFFT_ROOT
     require_env SPFFT_CFLAGS
     require_env SPFFT_LDFLAGS
@@ -113,40 +114,47 @@ case "$with_sirius" in
       rm -Rf build
       mkdir build
       cd build
-      COMPILATION_OPTIONS="-DHDF5_DIR=${HDF5_DIR}"
       # if [ -n "$ELPA_LIBS" ] ; then
-      #     if [ -s "$ELPAROOT" ] ; then
-      #         export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPAROOT/lib/pkgconfig:$ELPAROOT/lib64/pkgconfig
+      #     if [ -s "$ELPA_ROOT" ] ; then
+      #         export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$ELPA_ROOT/lib/pkgconfig:$ELPA_ROOT/lib64/pkgconfig
       #     fi
-      #     COMPILATION_OPTIONS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPAROOT}/include/elpa-${ELPAVERSION} $COMPILATION_OPTIONS"
+      #     EXTRA_CMAKE_FLAGS="-DUSE_ELPA=ON -DELPA_INCLUDE_DIR=${ELPA_ROOT}/include/elpa-${ELPA_VERSION} ${EXTRA_CMAKE_FLAGS}"
       # fi
 
-      if [ -n "$SCALAPACK_LIBS" ]; then
-        export SCALAPACK_LIB="$SCALAPACK_LIBS"
-        if [ -s "$SCALAPACKROOT" ]; then
-          COMPILATION_OPTIONS="-DUSE_SCALAPACK=ON -DSCALAPACK_INCLUDE_DIR=${SCALAPACKROOT}/include ${COMPILATION_OPTIONS}"
+      if [ -n "${SCALAPACK_LIBS}" ]; then
+        export SCALAPACK_LIB="${SCALAPACK_LIBS}"
+        if [ -s "${SCALAPACK_ROOT}" ]; then
+          EXTRA_CMAKE_FLAGS="-DUSE_SCALAPACK=ON -DSCALAPACK_INCLUDE_DIR=${SCALAPACK_ROOT}/include ${EXTRA_CMAKE_FLAGS}"
         else
-          COMPILATION_OPTIONS="-DUSE_SCALAPACK=ON ${COMPILATION_OPTIONS}"
+          EXTRA_CMAKE_FLAGS="-DUSE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
         fi
       fi
-      if [ -n "$HDF5_LIBS" ]; then
-        COMPILATION_OPTIONS="-DUSE_HDF5=ON $COMPILATION_OPTIONS"
+      if [ -n "${HDF5_LIBS}" ]; then
+        CMAKE_PREFIX_PATH="${HDF5_ROOT} ${CMAKE_PREFIX_PATH}"
       fi
-      if [ -n "$LIBVDWXC_LIBS" ]; then
-        COMPILATION_OPTIONS="-DUSE_VDWXC=ON $COMPILATION_OPTIONS"
+      if [ -n "${LIBVDWXC_LIBS}" ]; then
+        CMAKE_PREFIX_PATH="${LIBVDWXC_ROOT} ${CMAKE_PREFIX_PATH}"
+        EXTRA_CMAKE_FLAGS="-DUSE_VDWXC=ON ${EXTRA_CMAKE_FLAGS}"
+      else
+        EXTRA_CMAKE_FLAGS="-DUSE_VDWXC=OFF ${EXTRA_CMAKE_FLAGS}"
       fi
-      if [ -n "$MKL_LIBS" ]; then
-        COMPILATION_OPTIONS="-DUSE_MKL=ON -DUSE_SCALAPACK=ON $COMPILATION_OPTIONS"
+      if [ -n "${MKL_LIBS}" ]; then
+        EXTRA_CMAKE_FLAGS="-DUSE_MKL=ON -DMKL_DEF_LIBRARY=${MKLROOT}/lib/intel64 -DUSE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
       fi
-
-      cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+      SpFFT_DIR="${SpFFT_ROOT}/lib/cmake/SpFFT"
+      SpLA_DIR="${SpLA_ROOT}/lib/cmake/SPLA"
+      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}" cmake \
+        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
         -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
         -DCMAKE_CXX_COMPILER="${MPICXX}" \
         -DCMAKE_C_COMPILER="${MPICC}" \
+        -DCMAKE_Fortran_COMPILER="${MPIFC}" \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=OFF \
         -DUSE_ELPA=OFF \
-        ${COMPILATION_OPTIONS} .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+        ${EXTRA_CMAKE_FLAGS} .. \
+        > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
 
       make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
 
@@ -163,8 +171,8 @@ case "$with_sirius" in
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
-        CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${SPFFT_ROOT}/lib/cmake:${SPFFT_ROOT}/lib64/cmake" \
-          cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+        CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}" cmake \
+          -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
           -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
@@ -173,7 +181,9 @@ case "$with_sirius" in
           -DGPU_MODEL=P100 \
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_CXX_COMPILER="${MPICXX}" \
-          -DCMAKE_C_COMPILER="${MPICC}" ${COMPILATION_OPTIONS} .. \
+          -DCMAKE_C_COMPILER="${MPICC}" \
+          -DCMAKE_Fortran_COMPILER="${MPIFC}" \
+          ${EXTRA_CMAKE_FLAGS} .. \
           >> cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
         make -j $(get_nprocs) -C src >> make.log 2>&1 || tail -n ${LOG_LINES} make.log
         install -d ${pkg_install_dir}/lib/cuda
@@ -192,7 +202,7 @@ case "$with_sirius" in
     require_env FFTW_LDFLAGS
     require_env FFTW_LIBS
     require_env FFTW_CFLAGS
-    require_env ELPAROOT
+    require_env ELPA_ROOT
     require_env ELPA_LDFLAGS
     require_env ELPA_LIBS
     require_env ELPA_CFLAGS
@@ -202,7 +212,7 @@ case "$with_sirius" in
     require_env MATH_LIBS
     require_env MPI_LDFLAGS
     require_env MPI_LIBS
-    require_env SCALAPACKROOT
+    require_env SCALAPACK_ROOT
     require_env SCALAPACK_LDFLAGS
     require_env SCALAPACK_CFLAGS
     require_env SCALAPACK_LIBS

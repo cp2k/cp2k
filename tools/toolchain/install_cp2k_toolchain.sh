@@ -149,7 +149,9 @@ The --with-PKG options follow the rules:
   --with-PKG              The option keyword alone will be equivalent to
                           --with-PKG=install
 
-  --with-gcc              The GCC compiler to use to compile CP2K
+  --with-gcc              The GCC compiler to use to compile CP2K.
+                          Default = system
+  --with-intel            Use the Intel compiler to compile CP2K.
                           Default = system
   --with-cmake            Cmake utilities
                           Default = install
@@ -258,7 +260,7 @@ EOF
 # PACKAGE LIST: register all new dependent tools and libs here. Order
 # is important, the first in the list gets installed first
 # ------------------------------------------------------------------------
-tool_list="gcc cmake"
+tool_list="gcc intel cmake"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libsmm libxsmm cosma scalapack elpa plumed \
@@ -269,7 +271,7 @@ package_list="$tool_list $mpi_list $math_list $lib_list"
 
 # first set everything to __DONTUSE__
 for ii in $package_list; do
-  eval with_${ii}=__DONTUSE__
+  eval with_${ii}="__DONTUSE__"
 done
 
 # ------------------------------------------------------------------------
@@ -277,26 +279,26 @@ done
 # ------------------------------------------------------------------------
 
 # tools to turn on by default:
-with_gcc=__SYSTEM__
+with_gcc="__SYSTEM__"
 
 # libs to turn on by default, the math and mpi libraries are chosen by there respective modes:
-with_fftw=__INSTALL__
-with_libint=__INSTALL__
-with_libxsmm=__INSTALL__
-with_libxc=__INSTALL__
-with_scalapack=__INSTALL__
+with_fftw="__INSTALL__"
+with_libint="__INSTALL__"
+with_libxsmm="__INSTALL__"
+with_libxc="__INSTALL__"
+with_scalapack="__INSTALL__"
 # default math library settings, MATH_MODE picks the math library
 # to use, and with_* defines the default method of installation if it
 # is picked. For non-CRAY systems defaults to mkl if $MKLROOT is
 # available, otherwise defaults to openblas
 if [ "$MKLROOT" ]; then
-  export MATH_MODE=mkl
+  export MATH_MODE="mkl"
 else
-  export MATH_MODE=openblas
+  export MATH_MODE="openblas"
 fi
-with_acml=__SYSTEM__
-with_mkl=__SYSTEM__
-with_openblas=__INSTALL__
+with_acml="__SYSTEM__"
+with_mkl="__SYSTEM__"
+with_openblas="__INSTALL__"
 
 # sirius is activated by default
 with_sirius="__INSTALL__"
@@ -323,11 +325,12 @@ if (command -v mpirun >&- 2>&-); then
     export MPI_MODE=openmpi
   elif (mpirun --version 2>&1 | grep -s -q "Intel"); then
     echo "MPI is detected and it appears to be Intel MPI"
-    with_gcc=__DONTUSE__
-    export MPI_MODE=intelmpi
+    with_gcc="__DONTUSE__"
+    with_intel="__SYSTEM__"
+    export MPI_MODE="intelmpi"
   else # default to mpich
     echo "MPI is detected and defaults to MPICH"
-    export MPI_MODE=mpich
+    export MPI_MODE="mpich"
   fi
 else
   report_warning $LINENO "No MPI installation detected (ignore this message in Cray Linux Environment or when MPI installation was requested)."
@@ -337,12 +340,12 @@ fi
 # default enable options
 dry_run=__FALSE__
 export generic="__FALSE__"
-enable_tsan=__FALSE__
-enable_gcc_master=__FALSE__
-enable_libxsmm_master=__FALSE__
-enable_cuda=__FALSE__
-enable_hip=__FALSE__
-export GPUVER=no
+enable_tsan="__FALSE__"
+enable_gcc_master="__FALSE__"
+enable_libxsmm_master="__FALSE__"
+enable_cuda="__FALSE__"
+enable_hip="__FALSE__"
+export GPUVER="no"
 
 # default for libint
 export LIBINT_LMAX=5
@@ -362,6 +365,7 @@ if [ "$CRAY_LD_LIBRARY_PATH" ]; then
   export MPI_MODE=mpich
   # set default value for some installers appropriate for CLE
   with_gcc="__DONTUSE__"
+  with_intel="__DONTUSE__"
   with_fftw="__SYSTEM__"
   with_scalapack="__DONTUSE__"
 else
@@ -552,6 +556,9 @@ while [ $# -ge 1 ]; do
         export MPI_MODE=intelmpi
       fi
       ;;
+    --with-intel*)
+      with_intel=$(read_with $1)
+      ;;
     --with-libint*)
       with_libint=$(read_with $1)
       ;;
@@ -662,7 +669,7 @@ export ENABLE_CRAY=$enable_cray
 # ------------------------------------------------------------------------
 
 # mpi library conflicts
-if [ $MPI_MODE = no ]; then
+if [ "${MPI_MODE}" = "no" ]; then
   if [ "$with_scalapack" != "__DONTUSE__" ]; then
     echo "Not using MPI, so scalapack is disabled."
     with_scalapack="__DONTUSE__"
@@ -709,7 +716,7 @@ if [ $ENABLE_CUDA = __TRUE__ ] || [ $ENABLE_HIP = __TRUE__ ]; then
   fi
 fi
 
-# PESXI and its dependencies
+# PEXSI and its dependencies
 if [ "$with_pexsi" = "__DONTUSE__" ]; then
   if [ "$with_ptscotch" != "__DONTUSE__" ]; then
     echo "Not using PEXSI, so PT-Scotch is disabled."
@@ -762,6 +769,7 @@ if [ "$with_plumed" = "__INSTALL__" ]; then
   [ "$with_gsl" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
   [ "$with_fftw" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
 fi
+
 # ------------------------------------------------------------------------
 # Preliminaries
 # ------------------------------------------------------------------------
@@ -842,7 +850,8 @@ if [ "$ENABLE_CRAY" = "__TRUE__" ]; then
       ;;
     intelmpi)
       if [ "$with_intelmpi" = "__DONTUSE__" ]; then
-        with_gcc=__DONTUSE__
+        with_gcc="__DONTUSE__"
+        with_intel="__SYSTEM__"
         add_include_from_paths MPI_CFLAGS "mpi.h" $INCLUDE_PATHS
         add_include_from_paths MPI_LDFLAGS "libmpi.*" $LIB_PATHS
         export MPI_CFLAGS
@@ -921,7 +930,7 @@ done
 # ------------------------------------------------------------------------
 # Build packages unless dry-run mode is enabled.
 # ------------------------------------------------------------------------
-if [ "$dry_run" == "__TRUE__" ]; then
+if [ "$dry_run" = "__TRUE__" ]; then
   echo "Wrote only configuration files (--dry-run)."
 else
   ./scripts/stage0/install_stage0.sh

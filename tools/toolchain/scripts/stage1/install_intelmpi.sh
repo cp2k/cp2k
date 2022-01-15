@@ -18,9 +18,9 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "intelmpi" ] && exit 0
 rm -f "${BUILDDIR}/setup_intelmpi"
 
-INTELMPI_CFLAGS=''
-INTELMPI_LDFLAGS=''
-INTELMPI_LIBS=''
+INTELMPI_CFLAGS=""
+INTELMPI_LDFLAGS=""
+INTELMPI_LIBS=""
 mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
@@ -34,9 +34,9 @@ case "$with_intelmpi" in
     check_command mpirun "intelmpi" && MPIRUN="$(command -v mpirun)" || exit
     check_command mpiicc "intelmpi" && MPICC="$(command -v mpiicc)" || exit
     check_command mpiifort "intelmpi" && MPIFC="$(command -v mpiifort)" || exit
-    if [ $(command -v mpiicpc >&- 2>&-) ]; then
+    if [ $(command -v mpiicpc) ]; then
       check_command mpiicpc "intelmpi" && MPICXX="$(command -v mpiicpc)"
-    elif [ $(command -v mpic++ >&- 2>&-) ]; then
+    elif [ $(command -v mpic++) ]; then
       check_command mpic++ "intelmpi" && MPICXX="$(command -v mpic++)"
     else
       check_command mpicxx "intelmpi" && MPICXX="$(command -v mpicxx)" || exit
@@ -58,9 +58,9 @@ case "$with_intelmpi" in
     INTELMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
 esac
-if [ "$with_intelmpi" != "__DONTUSE__" ]; then
+if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
   INTELMPI_LIBS="-lmpi -lmpicxx"
-  if [ "$with_intelmpi" != "__SYSTEM__" ]; then
+  if [ "${with_intelmpi}" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_intelmpi"
 prepend_path PATH "$pkg_install_dir/bin"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -68,8 +68,8 @@ prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
-    cat "${BUILDDIR}/setup_intelmpi" >> $SETUPFILE
-    mpi_bin="$pkg_install_dir/bin/mpirun"
+    cat "${BUILDDIR}/setup_intelmpi" >> ${SETUPFILE}
+    mpi_bin="${pkg_install_dir}/bin/mpirun"
   else
     mpi_bin=mpirun
   fi
@@ -90,6 +90,7 @@ export MPICC="${MPICC}"
 export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
 EOF
+  cat "${BUILDDIR}/setup_intelmpi" >> ${SETUPFILE}
 fi
 
 load "${BUILDDIR}/setup_intelmpi"

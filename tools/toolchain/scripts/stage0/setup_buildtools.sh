@@ -24,7 +24,7 @@ done
 # ------------------------------------------------------------------------
 
 # setup compiler flags, leading to nice stack traces on crashes but still optimised
-if [ "${generic}" == "__TRUE__" ]; then
+if [ "${generic}" = "__TRUE__" ]; then
   CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -g -mtune=generic ${TSANFLAGS}"
 else
   CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -g -march=native -mtune=native ${TSANFLAGS}"

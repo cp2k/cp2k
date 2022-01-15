@@ -7,6 +7,7 @@
 # shellcheck disable=SC2235,SC2237
 
 ./scripts/stage0/install_gcc.sh
+./scripts/stage0/install_intel.sh
 ./scripts/stage0/setup_buildtools.sh
 ./scripts/stage0/install_cmake.sh
 

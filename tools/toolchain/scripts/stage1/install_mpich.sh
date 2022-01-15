@@ -22,9 +22,9 @@ source "${INSTALLDIR}"/toolchain.env
 [ ${MPI_MODE} != "mpich" ] && exit 0
 [ -f "${BUILDDIR}/setup_mpich" ] && rm "${BUILDDIR}/setup_mpich"
 
-MPICH_CFLAGS=''
-MPICH_LDFLAGS=''
-MPICH_LIBS=''
+MPICH_CFLAGS=""
+MPICH_LDFLAGS=""
+MPICH_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
