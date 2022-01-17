@@ -646,8 +646,12 @@ export ENABLE_CRAY="${enable_cray}"
 # ------------------------------------------------------------------------
 # Check and solve known conflicts before installations proceed
 # ------------------------------------------------------------------------
-
-# mpi library conflicts
+# Compiler conflicts
+if [ "${with_intel}" != "__DONTUSE__" ] && [ "${with_gcc}" = "__INSTALL__" ]; then
+  echo "You have chosen to use the Intel compiler, therefore the installation of the GCC compiler will be skipped."
+  with_gcc="__SYSTEM__"
+fi
+# MPI library conflicts
 if [ "${MPI_MODE}" = "no" ]; then
   if [ "${with_scalapack}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so scalapack is disabled."
@@ -680,9 +684,10 @@ if [ "${MPI_MODE}" = "no" ]; then
 else
   # if gcc is installed, then mpi needs to be installed too
   if [ "${with_gcc}" = "__INSTALL__" ]; then
-    echo "You have chosen to install GCC, therefore MPI libraries will have to be installed too"
+    echo "You have chosen to install the GCC compiler, therefore MPI libraries have to be installed too"
     with_openmpi="__INSTALL__"
     with_mpich="__INSTALL__"
+    echo "and the use of the Intel compiler and Intel MPI will be disabled."
     with_intel="__DONTUSE__"
     with_intelmpi="__DONTUSE__"
   fi
