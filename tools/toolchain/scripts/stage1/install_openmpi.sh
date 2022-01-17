@@ -28,7 +28,7 @@ OPENMPI_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_openmpi" in
+case "${with_openmpi}" in
   __INSTALL__)
     echo "==================== Installing OpenMPI ===================="
     pkg_install_dir="${INSTALLDIR}/openmpi-${openmpi_ver}"
@@ -64,53 +64,63 @@ case "$with_openmpi" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
     fi
+    check_dir "${pkg_install_dir}/bin"
+    check_dir "${pkg_install_dir}/lib"
+    check_dir "${pkg_install_dir}/include"
+    check_install ${pkg_install_dir}/bin/mpirun "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_install ${pkg_install_dir}/bin/mpicc "openmpi" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
+    check_install ${pkg_install_dir}/bin/mpicxx "openmpi" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
+    check_install ${pkg_install_dir}/bin/mpif90 "openmpi" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
+    MPIF90="${MPIFC}"
+    MPIF77="${MPIFC}"
     OPENMPI_CFLAGS="-I'${pkg_install_dir}/include'"
     OPENMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding OpenMPI from system paths ===================="
-    check_command mpirun "openmpi"
-    check_command mpicc "openmpi"
-    check_command mpif90 "openmpi"
-    check_command mpic++ "openmpi"
+    check_command mpirun "openmpi" && MPIRUN="$(command -v mpirun)" || exit 1
+    check_command mpicc "openmpi" && MPICC="$(command -v mpicc)" || exit 1
+    check_command mpic++ "openmpi" && MPICXX="$(command -v mpic++)" || exit 1
+    check_command mpif90 "openmpi" && MPIFC="$(command -v mpif90)" || exit 1
+    MPIF90="${MPIFC}"
+    MPIF77="${MPIFC}"
     # Fortran code in CP2K is built via the mpifort wrapper, but we may need additional
     # libraries and linker flags for C/C++-based MPI codepaths, pull them in at this point.
     OPENMPI_CFLAGS="$(mpicxx --showme:compile)"
     OPENMPI_LDFLAGS="$(mpicxx --showme:link)"
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking OpenMPI to user paths ===================="
-    pkg_install_dir="$with_openmpi"
+    pkg_install_dir="${with_openmpi}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
+    check_command ${pkg_install_dir}/bin/mpirun "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_command ${pkg_install_dir}/bin/mpicc "openmpi" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
+    check_command ${pkg_install_dir}/bin/mpic++ "openmpi" && MPICXX="${pkg_install_dir}/bin/mpic++" || exit 1
+    check_command ${pkg_install_dir}/bin/mpif90 "openmpi" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
+    MPIF90="${MPIFC}"
+    MPIF77="${MPIFC}"
     OPENMPI_CFLAGS="-I'${pkg_install_dir}/include'"
     OPENMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
 esac
-if [ "$with_openmpi" != "__DONTUSE__" ]; then
-  if [ "$with_openmpi" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_openmpi"
-prepend_path PATH "$pkg_install_dir/bin"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
-EOF
-    cat "${BUILDDIR}/setup_openmpi" >> $SETUPFILE
-    mpi_bin="$pkg_install_dir/bin/mpirun"
-    mpicxx_bin="$pkg_install_dir/bin/mpicxx"
+if [ "${with_openmpi}" != "__DONTUSE__" ]; then
+  if [ "${with_openmpi}" != "__SYSTEM__" ]; then
+    mpi_bin="${pkg_install_dir}/bin/mpirun"
+    mpicxx_bin="${pkg_install_dir}/bin/mpicxx"
   else
-    mpi_bin=mpirun
-    mpicxx_bin=mpicxx
+    mpi_bin="mpirun"
+    mpicxx_bin="mpicxx"
   fi
   # check openmpi version as reported by mpirun
-  raw_version=$($mpi_bin --version 2>&1 |
+  raw_version=$(${mpi_bin} --version 2>&1 |
     grep "(Open MPI)" | awk '{print $4}')
-  major_version=$(echo $raw_version | cut -d '.' -f 1)
-  minor_version=$(echo $raw_version | cut -d '.' -f 2)
+  major_version=$(echo ${raw_version} | cut -d '.' -f 1)
+  minor_version=$(echo ${raw_version} | cut -d '.' -f 2)
   OPENMPI_LIBS=""
   # grab additional runtime libs (for C/C++) from the mpicxx wrapper,
   # and remove them from the LDFLAGS if present
@@ -120,12 +130,19 @@ EOF
   done
   # old versions didn't support MPI 3, so adjust __MPI_VERSION accordingly (needed e.g. for pexsi)
   if [[ "$major_version" =~ ^[0-9]+$ ]] && ([ $major_version -lt 1 ] ||
-    [ $major_version -eq 1 -a $minor_version -lt 7 ]); then
+    [ $major_version -eq 1 -a ${minor_version} -lt 7 ]); then
     mpi2_dflags="-D__MPI_VERSION=2"
   else
     mpi2_dflags=''
   fi
-  cat << EOF >> "${BUILDDIR}/setup_openmpi"
+  cat << EOF > "${BUILDDIR}/setup_openmpi"
+export MPI_MODE="${MPI_MODE}"
+export MPIRUN="${MPIRUN}"
+export MPICC="${MPICC}"
+export MPICXX="${MPICXX}"
+export MPIFC="${MPIFC}"
+export MPIF90="${MPIF90}"
+export MPIF77="${MPIF77}"
 export OPENMPI_CFLAGS="${OPENMPI_CFLAGS}"
 export OPENMPI_LDFLAGS="${OPENMPI_LDFLAGS}"
 export OPENMPI_LIBS="${OPENMPI_LIBS}"
@@ -137,8 +154,17 @@ export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${OPENMPI_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${OPENMPI_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${OPENMPI_LIBS}|)"
 EOF
+  if [ "${with_openmpi}" != "__SYSTEM__" ]; then
+    cat << EOF >> "${BUILDDIR}/setup_openmpi"
+prepend_path PATH "${pkg_install_dir}/bin"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path CPATH "${pkg_install_dir}/include"
+EOF
+  fi
+  cat "${BUILDDIR}/setup_mpich" >> ${SETUPFILE}
 fi
-cd "${ROOTDIR}"
 
 # ----------------------------------------------------------------------
 # Suppress reporting of known leaks
@@ -203,4 +229,5 @@ EOF
 load "${BUILDDIR}/setup_openmpi"
 write_toolchain_env "${INSTALLDIR}"
 
+cd "${ROOTDIR}"
 report_timing "openmpi"

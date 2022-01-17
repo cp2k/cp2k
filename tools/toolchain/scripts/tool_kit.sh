@@ -334,16 +334,16 @@ resolve_string() {
 
 # check if a command is available
 check_command() {
-  local __command=$1
+  local __command=${1}
   if [ $# -eq 1 ]; then
-    local __package=$1
+    local __package=${1}
   elif [ $# -gt 1 ]; then
-    local __package=$2
+    local __package=${2}
   fi
-  if $(command -v $__command >&- 2>&-); then
-    echo "path to $__command is " $(command -v $__command)
+  if $(command -v ${__command} >&- 2>&-); then
+    echo "path to ${__command} is " $(command -v ${__command})
   else
-    report_error "cannot find $__command, please check if $__package is installed or in system search path"
+    report_error "Cannot find ${__command}, please check if the package ${__package} is installed or in system search path"
     return 1
   fi
 }
@@ -355,6 +355,22 @@ check_dir() {
     echo "Found directory $__dir"
   else
     report_error "Cannot find $__dir"
+    return 1
+  fi
+}
+
+# check if a command has been installed correctly
+check_install() {
+  local __command=${1}
+  if [ $# -eq 1 ]; then
+    local __package=${1}
+  elif [ $# -gt 1 ]; then
+    local __package=${2}
+  fi
+  if $(command -v ${__command} >&- 2>&-); then
+    echo "$(basename ${__command}) is installed as $(command -v ${__command})"
+  else
+    report_error "cannot find ${__command}, please check if the package ${__package} has been installed correctly"
     return 1
   fi
 }

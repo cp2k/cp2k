@@ -101,9 +101,10 @@ OPTIONS:
                           --with-acml, --with-mkl or --with-openblas options will
                           switch --math-mode to the respective modes.
 --gpu-ver                 Selects the GPU architecture for which to compile. Available
-                          options are: K20X, K40, K80, P100, V100, Mi50, Mi100, no. Default: no.
+                          options are: K20X, K40, K80, P100, V100, Mi50, Mi100, no.
                           The script will determine the correct corresponding value for
                           nvcc's '-arch' flag.
+                          Default = no.
 --libint-lmax             Maximum supported angular momentum by libint.
                           Higher values will increase build time and library size.
                           Default = 5
@@ -266,11 +267,11 @@ math_list="mkl acml openblas"
 lib_list="fftw libint libxc libsmm libxsmm cosma scalapack elpa plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
           libvori"
-package_list="$tool_list $mpi_list $math_list $lib_list"
+package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
 # first set everything to __DONTUSE__
-for ii in $package_list; do
+for ii in ${package_list}; do
   eval with_${ii}="__DONTUSE__"
 done
 
@@ -291,7 +292,7 @@ with_scalapack="__INSTALL__"
 # to use, and with_* defines the default method of installation if it
 # is picked. For non-CRAY systems defaults to mkl if $MKLROOT is
 # available, otherwise defaults to openblas
-if [ "$MKLROOT" ]; then
+if [ "${MKLROOT}" ]; then
   export MATH_MODE="mkl"
 else
   export MATH_MODE="openblas"
@@ -319,10 +320,10 @@ if (command -v mpirun >&- 2>&-); then
   # check if we are dealing with openmpi, mpich or intelmpi
   if (mpirun --version 2>&1 | grep -s -q "HYDRA"); then
     echo "MPI is detected and it appears to be MPICH"
-    export MPI_MODE=mpich
+    export MPI_MODE="mpich"
   elif (mpirun --version 2>&1 | grep -s -q "Open MPI"); then
     echo "MPI is detected and it appears to be OpenMPI"
-    export MPI_MODE=openmpi
+    export MPI_MODE="openmpi"
   elif (mpirun --version 2>&1 | grep -s -q "Intel"); then
     echo "MPI is detected and it appears to be Intel MPI"
     with_gcc="__DONTUSE__"
@@ -334,11 +335,11 @@ if (command -v mpirun >&- 2>&-); then
   fi
 else
   report_warning $LINENO "No MPI installation detected (ignore this message in Cray Linux Environment or when MPI installation was requested)."
-  export MPI_MODE=no
+  export MPI_MODE="no"
 fi
 
 # default enable options
-dry_run=__FALSE__
+dry_run="__FALSE__"
 export generic="__FALSE__"
 enable_tsan="__FALSE__"
 enable_gcc_master="__FALSE__"
@@ -348,49 +349,49 @@ enable_hip="__FALSE__"
 export GPUVER="no"
 
 # default for libint
-export LIBINT_LMAX=5
+export LIBINT_LMAX="5"
 
 # default for log file dump size
-export LOG_LINES=200
+export LOG_LINES="200"
 
 # defaults for CRAY Linux Environment
-if [ "$CRAY_LD_LIBRARY_PATH" ]; then
-  enable_cray=__TRUE__
-  export MATH_MODE=cray
+if [ "${CRAY_LD_LIBRARY_PATH}" ]; then
+  enable_cray="__TRUE__"
+  export MATH_MODE="cray"
   # Default MPI used by CLE is assumed to be MPICH, in any case
-  # don't use the installers for the MPI libraries
+  # do not use the installers for the MPI libraries
   with_mpich="__DONTUSE__"
   with_openmpi="__DONTUSE__"
   with_intelmpi="__DONTUSE__"
-  export MPI_MODE=mpich
+  export MPI_MODE="mpich"
   # set default value for some installers appropriate for CLE
   with_gcc="__DONTUSE__"
   with_intel="__DONTUSE__"
   with_fftw="__SYSTEM__"
   with_scalapack="__DONTUSE__"
 else
-  enable_cray=__FALSE__
+  enable_cray="__FALSE__"
 fi
 
 # ------------------------------------------------------------------------
 # parse user options
 # ------------------------------------------------------------------------
 while [ $# -ge 1 ]; do
-  case $1 in
+  case ${1} in
     -j)
       shift
-      export NPROCS_OVERWRITE=$1
+      export NPROCS_OVERWRITE="${1}"
       ;;
     -j[0-9]*)
-      export NPROCS_OVERWRITE=${1#-j}
+      export NPROCS_OVERWRITE="${1#-j}"
       ;;
     --no-check-certificate)
       export DOWNLOADER_FLAGS="-n"
       ;;
     --install-all)
       # set all package to __INSTALL__ status
-      for ii in $package_list; do
-        eval with_${ii}=__INSTALL__
+      for ii in ${package_list}; do
+        [ "${ii}" != "intel" ] && eval with_${ii}="__INSTALL__"
       done
       # default mpi-mode to MPICH
       export MPI_MODE=mpich
@@ -492,21 +493,21 @@ while [ $# -ge 1 ]; do
       ;;
     --enable-tsan*)
       enable_tsan=$(read_enable $1)
-      if [ $enable_tsan = "__INVALID__" ]; then
+      if [ "${enable_tsan}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-tsan, please use yes or no"
         exit 1
       fi
       ;;
     --enable-gcc-master*)
       enable_gcc_master=$(read_enable $1)
-      if [ $enable_gcc_master = "__INVALID__" ]; then
+      if [ "${enable_gcc_master}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-gcc-master, please use yes or no"
         exit 1
       fi
       ;;
     --enable-libxsmm-master*)
       enable_libxsmm_master=$(read_enable $1)
-      if [ $enable_libxsmm_master = "__INVALID__" ]; then
+      if [ "${enable_libxsmm_master}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-libxsmm-master, please use yes or no"
         exit 1
       fi
@@ -520,14 +521,14 @@ while [ $# -ge 1 ]; do
       ;;
     --enable-hip*)
       enable_hip=$(read_enable $1)
-      if [ $enable_hip = "__INVALID__" ]; then
+      if [ "${enable_hip}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-hip, please use yes or no"
         exit 1
       fi
       ;;
     --enable-cray*)
       enable_cray=$(read_enable $1)
-      if [ $enable_cray = "__INVALID__" ]; then
+      if [ "${enable_cray}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-cray, please use yes or no"
         exit 1
       fi
@@ -540,19 +541,19 @@ while [ $# -ge 1 ]; do
       ;;
     --with-mpich*)
       with_mpich=$(read_with $1)
-      if [ $with_mpich != __DONTUSE__ ]; then
+      if [ $with_mpich != "__DONTUSE__" ]; then
         export MPI_MODE=mpich
       fi
       ;;
     --with-openmpi*)
       with_openmpi=$(read_with $1)
-      if [ $with_openmpi != __DONTUSE__ ]; then
+      if [ "${with_openmpi}" != "__DONTUSE__" ]; then
         export MPI_MODE=openmpi
       fi
       ;;
     --with-intelmpi*)
       with_intelmpi=$(read_with $1)
-      if [ $with_intelmpi != __DONTUSE__ ]; then
+      if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
         export MPI_MODE=intelmpi
       fi
       ;;
@@ -570,20 +571,20 @@ while [ $# -ge 1 ]; do
       ;;
     --with-mkl*)
       with_mkl=$(read_with $1)
-      if [ $with_mkl != __DONTUSE__ ]; then
-        export MATH_MODE=mkl
+      if [ $with_mkl != "__DONTUSE__" ]; then
+        export MATH_MODE="mkl"
       fi
       ;;
     --with-acml*)
       with_acml=$(read_with $1)
       if [ $with_acml != __DONTUSE__ ]; then
-        export MATH_MODE=acml
+        export MATH_MODE="acml"
       fi
       ;;
     --with-openblas*)
       with_openblas=$(read_with $1)
-      if [ $with_openblas != __DONTUSE__ ]; then
-        export MATH_MODE=openblas
+      if [ "${with_openblas}" != __DONTUSE__ ]; then
+        export MATH_MODE="openblas"
       fi
       ;;
     --with-scalapack*)
@@ -657,12 +658,12 @@ while [ $# -ge 1 ]; do
 done
 
 # consolidate settings after user input
-export ENABLE_TSAN=$enable_tsan
-export ENABLE_CUDA=$enable_cuda
-export ENABLE_HIP=$enable_hip
-export ENABLE_CRAY=$enable_cray
-[ "$enable_gcc_master" = "__TRUE__" ] && export gcc_ver=master
-[ "$enable_libxsmm_master" = "__TRUE__" ] && export libxsmm_ver=master
+export ENABLE_TSAN="${enable_tsan}"
+export ENABLE_CUDA="${enable_cuda}"
+export ENABLE_HIP="${enable_hip}"
+export ENABLE_CRAY="${enable_cray}"
+[ "${enable_gcc_master}" = "__TRUE__" ] && export gcc_ver="master"
+[ "${enable_libxsmm_master}" = "__TRUE__" ] && export libxsmm_ver="master"
 
 # ------------------------------------------------------------------------
 # Check and solve known conflicts before installations proceed
@@ -670,111 +671,112 @@ export ENABLE_CRAY=$enable_cray
 
 # mpi library conflicts
 if [ "${MPI_MODE}" = "no" ]; then
-  if [ "$with_scalapack" != "__DONTUSE__" ]; then
+  if [ "${with_scalapack}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so scalapack is disabled."
     with_scalapack="__DONTUSE__"
   fi
-  if [ "$with_elpa" != "__DONTUSE__" ]; then
+  if [ "${with_elpa}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so ELPA is disabled."
     with_elpa="__DONTUSE__"
   fi
-  if [ "$with_pexi" != "__DONTUSE__" ]; then
+  if [ "${with_pexsi}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so PEXSI is disabled."
     with_pexsi="__DONTUSE__"
   fi
-  if [ "$with_sirius" != "__DONTUSE__" ]; then
+  if [ "${with_sirius}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so sirius is disabled"
     with_sirius="__DONTUSE__"
   fi
-  if [ "$with_spfft" != "__DONTUSE__" ]; then
+  if [ "${with_spfft}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so spfft is disabled"
     with_spfft="__DONTUSE__"
   fi
-  if [ "$with_spla" != "__DONTUSE__" ]; then
+  if [ "${with_spla}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so spla is disabled"
     with_spla="__DONTUSE__"
   fi
-  if [ "$with_cosma" != "__DONTUSE__" ]; then
+  if [ "${with_cosma}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so cosma is disabled"
     with_cosma="__DONTUSE__"
   fi
 else
   # if gcc is installed, then mpi needs to be installed too
-  if [ "$with_gcc" = "__INSTALL__" ]; then
+  if [ "${with_gcc}" = "__INSTALL__" ]; then
     echo "You have chosen to install GCC, therefore MPI libraries will have to be installed too"
     with_openmpi="__INSTALL__"
     with_mpich="__INSTALL__"
+    with_intel="__DONTUSE__"
     with_intelmpi="__DONTUSE__"
   fi
 fi
 
 # If CUDA or HIP are enabled, make sure the GPU version has been defined.
-if [ $ENABLE_CUDA = __TRUE__ ] || [ $ENABLE_HIP = __TRUE__ ]; then
-  if [ "$GPUVER" = no ]; then
+if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
+  if [ "${GPUVER}" = "no" ]; then
     report_error "Please choose GPU architecture to compile for with --gpu-ver"
     exit 1
   fi
 fi
 
 # PEXSI and its dependencies
-if [ "$with_pexsi" = "__DONTUSE__" ]; then
-  if [ "$with_ptscotch" != "__DONTUSE__" ]; then
+if [ "${with_pexsi}" = "__DONTUSE__" ]; then
+  if [ "${with_ptscotch}" != "__DONTUSE__" ]; then
     echo "Not using PEXSI, so PT-Scotch is disabled."
     with_ptscotch="__DONTUSE__"
   fi
-  if [ "$with_superlu" != "__DONTUSE__" ]; then
+  if [ "${with_superlu}" != "__DONTUSE__" ]; then
     echo "Not using PEXSI, so SuperLU-DIST is disabled."
     with_superlu="__DONTUSE__"
   fi
-elif [ "$with_pexsi" = "__INSTALL__" ]; then
-  [ "$with_ptscotch" = "__DONTUSE__" ] && with_ptscotch="__INSTALL__"
-  [ "$with_superlu" = "__DONTUSE__" ] && with_superlu="__INSTALL__"
+elif [ "${with_pexsi}" = "__INSTALL__" ]; then
+  [ "${with_ptscotch}" = "__DONTUSE__" ] && with_ptscotch="__INSTALL__"
+  [ "${with_superlu}" = "__DONTUSE__" ] && with_superlu="__INSTALL__"
 else
-  if [ "$with_ptscotch" = "__DONTUSE__" ]; then
+  if [ "${with_ptscotch}" = "__DONTUSE__" ]; then
     report_error "For PEXSI to work you need a working PT-Scotch library use --with-ptscotch option to specify if you wish to install the library or specify its location."
     exit 1
   fi
-  if [ "$with_superlu" = "__DONTUSE__" ]; then
+  if [ "${with_superlu}" = "__DONTUSE__" ]; then
     report_error "For PEXSI to work you need a working SuperLU-DIST library use --with-superlu option to specify if you wish to install the library or specify its location."
     exit 1
   fi
 fi
 
 # several packages require cmake.
-if [ "$with_spglib" = "__INSTALL__" ] ||
-  [ "$with_libvori" = "__INSTALL__" ] ||
-  [ "$with_scalapack" = "__INSTALL__" ] ||
-  [ "$with_superlu" = "__INSTALL__" ] ||
-  [ "$with_sirius" = "__INSTALL__" ] ||
-  [ "$with_cosma" = "__INSTALL__" ] ||
-  [ "$with_spfft" = "__INSTALL__" ] ||
-  [ "$with_spla" = "__INSTALL__" ]; then
-  [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
+if [ "${with_spglib}" = "__INSTALL__" ] ||
+  [ "${with_libvori}" = "__INSTALL__" ] ||
+  [ "${with_scalapack}" = "__INSTALL__" ] ||
+  [ "${with_superlu}" = "__INSTALL__" ] ||
+  [ "${with_sirius}" = "__INSTALL__" ] ||
+  [ "${with_cosma}" = "__INSTALL__" ] ||
+  [ "${with_spfft}" = "__INSTALL__" ] ||
+  [ "${with_spla}" = "__INSTALL__" ]; then
+  [ "${with_cmake}" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
 # SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
-if [ "$with_sirius" = "__INSTALL__" ]; then
-  [ "$with_spfft" = "__DONTUSE__" ] && with_spfft="__INSTALL__"
-  [ "$with_spla" = "__DONTUSE__" ] && with_spla="__INSTALL__"
-  [ "$with_gsl" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
-  [ "$with_libxc" = "__DONTUSE__" ] && with_libxc="__INSTALL__"
-  [ "$with_fftw" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
-  [ "$with_spglib" = "__DONTUSE__" ] && with_spglib="__INSTALL__"
-  [ "$with_hdf5" = "__DONTUSE__" ] && with_hdf5="__INSTALL__"
-#  [ "$with_libvdwxc" = "__DONTUSE__" ] && with_libvdwxc="__INSTALL__"
-#  [ "$with_cosma" = "__DONTUSE__" ] && with_cosma="__INSTALL__"
+if [ "${with_sirius}" = "__INSTALL__" ]; then
+  [ "${with_spfft}" = "__DONTUSE__" ] && with_spfft="__INSTALL__"
+  [ "${with_spla}" = "__DONTUSE__" ] && with_spla="__INSTALL__"
+  [ "${with_gsl}" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
+  [ "${with_libxc}" = "__DONTUSE__" ] && with_libxc="__INSTALL__"
+  [ "${with_fftw}" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
+  [ "${with_spglib}" = "__DONTUSE__" ] && with_spglib="__INSTALL__"
+  [ "${with_hdf5}" = "__DONTUSE__" ] && with_hdf5="__INSTALL__"
+#  [ "${with_libvdwxc}" = "__DONTUSE__" ] && with_libvdwxc="__INSTALL__"
+#  [ "${with_cosma}" = "__DONTUSE__" ] && with_cosma="__INSTALL__"
 fi
 
-if [ "$with_plumed" = "__INSTALL__" ]; then
-  [ "$with_gsl" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
-  [ "$with_fftw" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
+if [ "${with_plumed}" = "__INSTALL__" ]; then
+  [ "${with_gsl}" = "__DONTUSE__" ] && with_gsl="__INSTALL__"
+  [ "${with_fftw}" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
 fi
 
 # ------------------------------------------------------------------------
 # Preliminaries
 # ------------------------------------------------------------------------
 
-mkdir -p "$INSTALLDIR"
+mkdir -p ${INSTALLDIR}
 
 # variables used for generating cp2k ARCH file
 export CP_DFLAGS=""
@@ -793,8 +795,10 @@ EOF
 
 # ------------------------------------------------------------------------
 # Special settings for CRAY Linux Environment (CLE)
+# TODO: CLE should be handle like gcc or Intel using a with_cray flag and
+#       this section should be moved to a separate file install_cray.
 # ------------------------------------------------------------------------
-if [ "$ENABLE_CRAY" = "__TRUE__" ]; then
+if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
   echo "------------------------------------------------------------------------"
   echo "CRAY Linux Environment (CLE) is detected"
   echo "------------------------------------------------------------------------"
@@ -880,13 +884,13 @@ echo "Compiling with $(get_nprocs) processes."
 # and libraries it depends on
 export CFLAGS=${CFLAGS:-"-O2 -g -Wno-error"}
 export FFLAGS=${FFLAGS:-"-O2 -g -Wno-error"}
-export FCLAGS=${FCLAGS:-"-O2 -g -Wno-error"}
+export FCFLAGS=${FCFLAGS:-"-O2 -g -Wno-error"}
 export F90FLAGS=${F90FLAGS:-"-O2 -g -Wno-error"}
 export F77FLAGS=${F77FLAGS:-"-O2 -g -Wno-error"}
 export CXXFLAGS=${CXXFLAGS:-"-O2 -g -Wno-error"}
 
 # Select the correct compute number based on the GPU architecture
-case $GPUVER in
+case ${GPUVER} in
   K20X)
     export ARCH_NUM=35
     ;;
@@ -905,10 +909,12 @@ case $GPUVER in
   A100)
     export ARCH_NUM=80
     ;;
-  Mi50) ;;
-
-  Mi100) ;;
-
+  Mi50)
+    # TODO: export ARCH_NUM=
+    ;;
+  Mi100)
+    # TODO: export ARCH_NUM=
+    ;;
   no)
     export ARCH_NUM=no
     ;;
@@ -918,19 +924,19 @@ case $GPUVER in
     ;;
 esac
 
-write_toolchain_env "${INSTALLDIR}"
+write_toolchain_env ${INSTALLDIR}
 
 # write toolchain config
-echo "tool_list=\"${tool_list}\"" > "${INSTALLDIR}"/toolchain.conf
-for ii in $package_list; do
+echo "tool_list=\"${tool_list}\"" > ${INSTALLDIR}/toolchain.conf
+for ii in ${package_list}; do
   install_mode="$(eval echo \${with_${ii}})"
-  echo "with_${ii}=\"${install_mode}\"" >> "${INSTALLDIR}"/toolchain.conf
+  echo "with_${ii}=\"${install_mode}\"" >> ${INSTALLDIR}/toolchain.conf
 done
 
 # ------------------------------------------------------------------------
 # Build packages unless dry-run mode is enabled.
 # ------------------------------------------------------------------------
-if [ "$dry_run" = "__TRUE__" ]; then
+if [ "${dry_run}" = "__TRUE__" ]; then
   echo "Wrote only configuration files (--dry-run)."
 else
   ./scripts/stage0/install_stage0.sh

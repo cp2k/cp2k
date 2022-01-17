@@ -28,7 +28,7 @@ MPICH_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_mpich" in
+case "${with_mpich}" in
   __INSTALL__)
     echo "==================== Installing MPICH ===================="
     pkg_install_dir="${INSTALLDIR}/mpich-${mpich_ver}"
@@ -69,65 +69,79 @@ case "$with_mpich" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
     fi
+    check_dir "${pkg_install_dir}/bin"
+    check_dir "${pkg_install_dir}/lib"
+    check_dir "${pkg_install_dir}/include"
+    check_install ${pkg_install_dir}/bin/mpirun "mpich" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_install ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
+    check_install ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
+    check_install ${pkg_install_dir}/bin/mpif90 "mpich" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
+    MPIF90="${MPIFC}"
+    MPIF77="${MPIFC}"
     MPICH_CFLAGS="-I'${pkg_install_dir}/include'"
     MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding MPICH from system paths ===================="
-    check_command mpirun "mpich"
-    check_command mpicc "mpich"
-    check_command mpif90 "mpich"
+    check_command mpirun "mpich" && MPIRUN="$(command -v mpirun)" || exit 1
+    check_command mpicc "mpich" && MPICC="$(command -v mpicc)" || exit 1
     if [ $(command -v mpic++ >&- 2>&-) ]; then
-      check_command mpic++ "mpich"
+      check_command mpic++ "mpich" && MPICXX="$(command -v mpic++)" || exit 1
     else
-      check_command mpicxx "mpich"
-      export MPICXX=mpicxx
+      check_command mpicxx "mpich" && MPICXX="$(command -v mpicxx)" || exit 1
     fi
+    check_command mpif90 "mpich" && MPIFC="$(command -v mpif90)" || exit 1
+    MPIF90="${MPIFC}"
+    MPIF77="${MPIFC}"
     check_lib -lmpifort "mpich"
     check_lib -lmpicxx "mpich"
     check_lib -lmpi "mpich"
-    add_include_from_paths MPICH_CFLAGS "mpi.h" $INCLUDE_PATHS
-    add_lib_from_paths MPICH_LDFLAGS "libmpi.*" $LIB_PATHS
+    add_include_from_paths MPICH_CFLAGS "mpi.h" ${INCLUDE_PATHS}
+    add_lib_from_paths MPICH_LDFLAGS "libmpi.*" ${LIB_PATHS}
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking MPICH to user paths ===================="
-    pkg_install_dir="$with_mpich"
+    pkg_install_dir="${with_mpich}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
+    check_command ${pkg_install_dir}/bin/mpirun "mpich" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_command ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
+    check_command ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
+    check_command ${pkg_install_dir}/bin/mpif90 "mpich" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
+    MPIF90="${MPIFC}"
+    MPIF77="${MPIFC}"
     MPICH_CFLAGS="-I'${pkg_install_dir}/include'"
     MPICH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
 esac
-if [ "$with_mpich" != "__DONTUSE__" ]; then
-  MPICH_LIBS="-lmpifort -lmpicxx -lmpi"
-  if [ "$with_mpich" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_mpich"
-prepend_path PATH "$pkg_install_dir/bin"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
-EOF
-    cat "${BUILDDIR}/setup_mpich" >> $SETUPFILE
-    mpi_bin="$pkg_install_dir/bin/mpirun"
+if [ "${with_mpich}" != "__DONTUSE__" ]; then
+  if [ "${with_mpich}" != "__SYSTEM__" ]; then
+    mpi_bin="${pkg_install_dir}/bin/mpirun"
   else
-    mpi_bin=mpirun
+    mpi_bin="mpirun"
   fi
   # check MPICH version, versions less than 3.0 will get -D__MPI_VERSION=2 flag
-  raw_version=$($mpi_bin --version |
-    grep "Version:" | awk '{print $2}')
+  raw_version=$(${mpi_bin} --version | grep "Version:" | awk '{print $2}')
   major_version=$(echo $raw_version | cut -d '.' -f 1)
   minor_version=$(echo $raw_version | cut -d '.' -f 2)
-  if [ $major_version -lt 3 ]; then
+  if [ ${major_version} -lt 3 ]; then
     mpi2_dflags="-D__MPI_VERSION=2"
   else
-    mpi2_dflags=''
+    mpi2_dflags=""
   fi
-  cat << EOF >> "${BUILDDIR}/setup_mpich"
+  MPICH_LIBS="-lmpifort -lmpicxx -lmpi"
+  cat << EOF > "${BUILDDIR}/setup_mpich"
 export MPI_MODE="${MPI_MODE}"
+export MPIRUN="${MPIRUN}"
+export MPICC="${MPICC}"
+export MPICXX="${MPICXX}"
+export MPIFC="${MPIFC}"
+export MPIF90="${MPIF90}"
+export MPIF77="${MPIF77}"
 export MPICH_CFLAGS="${MPICH_CFLAGS}"
 export MPICH_LDFLAGS="${MPICH_LDFLAGS}"
 export MPICH_LIBS="${MPICH_LIBS}"
@@ -138,8 +152,17 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel ${mpi2_dflags}|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${MPICH_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${MPICH_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${MPICH_LIBS}|)"
-export MPICXX="${MPICXX}"
 EOF
+  if [ "${with_mpich}" != "__SYSTEM__" ]; then
+    cat << EOF >> "${BUILDDIR}/setup_mpich"
+prepend_path PATH "${pkg_install_dir}/bin"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path CPATH "${pkg_install_dir}/include"
+EOF
+  fi
+  cat "${BUILDDIR}/setup_mpich" >> ${SETUPFILE}
 fi
 
 load "${BUILDDIR}/setup_mpich"
