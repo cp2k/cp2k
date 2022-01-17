@@ -46,8 +46,9 @@ case "${with_cmake}" in
     echo "==================== Finding CMake from system paths ===================="
     check_command cmake "cmake"
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking CMake to user paths ===================="
     pkg_install_dir="$with_cmake"

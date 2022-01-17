@@ -31,50 +31,52 @@ case "$with_intelmpi" in
     ;;
   __SYSTEM__)
     echo "==================== Finding Intel MPI from system paths ===================="
-    check_command mpirun "intelmpi" && MPIRUN="$(command -v mpirun)" || exit
-    check_command mpiicc "intelmpi" && MPICC="$(command -v mpiicc)" || exit
-    check_command mpiifort "intelmpi" && MPIFC="$(command -v mpiifort)" || exit
+    check_command mpirun "intelmpi" && MPIRUN="$(command -v mpirun)" || exit 1
+    check_command mpiicc "intelmpi" && MPICC="$(command -v mpiicc)" || exit 1
     if [ $(command -v mpiicpc) ]; then
       check_command mpiicpc "intelmpi" && MPICXX="$(command -v mpiicpc)"
     elif [ $(command -v mpic++) ]; then
       check_command mpic++ "intelmpi" && MPICXX="$(command -v mpic++)"
     else
-      check_command mpicxx "intelmpi" && MPICXX="$(command -v mpicxx)" || exit
+      check_command mpicxx "intelmpi" && MPICXX="$(command -v mpicxx)" || exit 1
     fi
+    check_command mpiifort "intelmpi" && MPIFC="$(command -v mpiifort)" || exit 1
+    MPIF90="${MPIFC}"
+    MPIF77="${MPIFC}"
     add_include_from_paths INTELMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
     add_lib_from_paths INTELMPI_LDFLAGS "libmpi.*" $LIB_PATHS
     check_lib -lmpi "intelmpi"
     check_lib -lmpicxx "intelmpi"
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking INTELMPI to user paths ===================="
-    pkg_install_dir="$with_intelmpi"
+    pkg_install_dir="${with_intelmpi}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
+    check_command ${pkg_install_dir}/bin/mpirun "intel" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiicc "intel" && MPICC="${pkg_install_dir}/bin/mpiicc" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiicpc "intel" && MPICXX="${pkg_install_dir}/bin/mpiicpc" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiifort "intel" && MPIFC="${pkg_install_dir}/bin/mpiifort" || exit 1
+    MPIF90="${MPIFC}"
+    MPIF77="${MPIFC}"
     INTELMPI_CFLAGS="-I'${pkg_install_dir}/include'"
     INTELMPI_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
 esac
 if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
   INTELMPI_LIBS="-lmpi -lmpicxx"
-  if [ "${with_intelmpi}" != "__SYSTEM__" ]; then
-    cat << EOF > "${BUILDDIR}/setup_intelmpi"
-prepend_path PATH "$pkg_install_dir/bin"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path CPATH "$pkg_install_dir/include"
-EOF
-    cat "${BUILDDIR}/setup_intelmpi" >> ${SETUPFILE}
-    mpi_bin="${pkg_install_dir}/bin/mpirun"
-  else
-    mpi_bin=mpirun
-  fi
-  cat << EOF >> "${BUILDDIR}/setup_intelmpi"
+  cat << EOF > "${BUILDDIR}/setup_intelmpi"
 export MPI_MODE="${MPI_MODE}"
+export MPIRUN="${MPIRUN}"
+export MPICC="${MPICC}"
+export MPICXX="${MPICXX}"
+export MPIFC="${MPIFC}"
+export MPIF90="${MPIF90}"
+export MPIF77="${MPIF77}"
 export INTELMPI_CFLAGS="${INTELMPI_CFLAGS}"
 export INTELMPI_LDFLAGS="${INTELMPI_LDFLAGS}"
 export INTELMPI_LIBS="${INTELMPI_LIBS}"
@@ -85,11 +87,16 @@ export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel ${mpi2_dflags}|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${INTELMPI_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${INTELMPI_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${INTELMPI_LIBS}|)"
-export MPIRUN="${MPIRUN}"
-export MPICC="${MPICC}"
-export MPICXX="${MPICXX}"
-export MPIFC="${MPIFC}"
 EOF
+  if [ "${with_intelmpi}" != "__SYSTEM__" ]; then
+    cat << EOF >> "${BUILDDIR}/setup_intelmpi"
+prepend_path PATH "${pkg_install_dir}/bin"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
+prepend_path CPATH "${pkg_install_dir}/include"
+EOF
+  fi
   cat "${BUILDDIR}/setup_intelmpi" >> ${SETUPFILE}
 fi
 

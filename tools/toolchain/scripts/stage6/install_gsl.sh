@@ -60,8 +60,9 @@ case "$with_gsl" in
     add_include_from_paths GSL_CFLAGS "gsl.h" $INCLUDE_PATHS
     add_lib_from_paths GSL_LDFLAGS "libgsl.*" $LIB_PATHS
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking gsl to user paths ===================="
     pkg_install_dir="$with_gsl"

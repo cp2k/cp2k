@@ -19,13 +19,13 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_ptscotch" ] && rm "${BUILDDIR}/setup_ptscotch"
 
-SCOTCH_CFLAGS=''
-SCOTCH_LDFLAGS=''
-SCOTCH_LIBS=''
+SCOTCH_CFLAGS=""
+SCOTCH_LDFLAGS=""
+SCOTCH_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_ptscotch" in
+case "${with_ptscotch}" in
   __INSTALL__)
     echo "==================== Installing PT-Scotch ===================="
     pkg_install_dir="${INSTALLDIR}/scotch-${scotch_ver}"
@@ -44,10 +44,10 @@ case "$with_ptscotch" in
       tar -xzf scotch_${scotch_ver}.tar.gz
       cd scotch_${scotch_ver}/src
       cat Make.inc/Makefile.inc.x86-64_pc_linux2 |
-        sed -e "s|\(^CCS\).*|\1 = $MPICC|g" \
-          -e "s|\(^CCP\).*|\1 = $MPICC|g" \
-          -e "s|\(^CCD\).*|\1 = $MPICC|g" \
-          -e "s|\(^CFLAGS\).*|\1 = $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64 ${MPI_CFLAGS}|g" \
+        sed -e "s|\(^CCS\).*|\1 = ${MPICC}|g" \
+          -e "s|\(^CCP\).*|\1 = ${MPICC}|g" \
+          -e "s|\(^CCD\).*|\1 = ${MPICC}|g" \
+          -e "s|\(^CFLAGS\).*|\1 = ${CFLAGS} -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64 ${MPI_CFLAGS}|g" \
           > Makefile.inc
       make scotch -j $(get_nprocs) > make-scotch.log 2>&1 || tail -n ${LOG_LINES} make-scotch.log
       make ptscotch -j $(get_nprocs) > make-ptscotch.log 2>&1 || tail -n ${LOG_LINES} make-ptscotch.log

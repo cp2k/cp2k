@@ -36,19 +36,24 @@ case "${with_intel}" in
     F90="${FC}"
     F77="${FC}"
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking Intel compiler to user paths ===================="
     pkg_install_dir="${with_intel}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
+    check_command ${pkg_install_dir}/bin/icc "intel" && CC="${pkg_install_dir}/bin/icc" || exit 1
+    check_command ${pkg_install_dir}/bin/icpc "intel" && CXX="${pkg_install_dir}/bin/icpc" || exit 1
+    check_command ${pkg_install_dir}/bin/ifort "intel" && FC="${pkg_install_dir}/bin/ifort" || exit 1
+    F90="${FC}"
+    F77="${FC}"
     INTEL_CFLAGS="-I'${pkg_install_dir}/include'"
     INTEL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
 esac
-
 if [ "${with_intel}" != "__DONTUSE__" ]; then
   cat << EOF > "${BUILDDIR}/setup_intel"
 export CC="${CC}"
