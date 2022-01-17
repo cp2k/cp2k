@@ -313,25 +313,26 @@ with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
 # for MPI, we try to detect system MPI variant
-with_openmpi="__SYSTEM__"
-with_mpich="__SYSTEM__"
-with_intelmpi="__SYSTEM__"
 if (command -v mpirun >&- 2>&-); then
   # check if we are dealing with openmpi, mpich or intelmpi
   if (mpirun --version 2>&1 | grep -s -q "HYDRA"); then
     echo "MPI is detected and it appears to be MPICH"
     export MPI_MODE="mpich"
+    with_mpich="__SYSTEM__"
   elif (mpirun --version 2>&1 | grep -s -q "Open MPI"); then
     echo "MPI is detected and it appears to be OpenMPI"
     export MPI_MODE="openmpi"
+    with_openmpi="__SYSTEM__"
   elif (mpirun --version 2>&1 | grep -s -q "Intel"); then
     echo "MPI is detected and it appears to be Intel MPI"
     with_gcc="__DONTUSE__"
     with_intel="__SYSTEM__"
+    with_intelmpi="__SYSTEM__"
     export MPI_MODE="intelmpi"
   else # default to mpich
     echo "MPI is detected and defaults to MPICH"
     export MPI_MODE="mpich"
+    with_mpich="__SYSTEM__"
   fi
 else
   report_warning $LINENO "No MPI installation detected (ignore this message in Cray Linux Environment or when MPI installation was requested)."
