@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <omp.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -160,7 +161,7 @@ int main(int argc, char *argv[]) {
   reserve_all_blocks(matrix_b);
   set_all_blocks(matrix_a);
   set_all_blocks(matrix_b);
-  long flop;
+  int64_t flop;
   clock_gettime(CLOCK_REALTIME, &time_start);
   dbm_multiply(false, false, 1.0, matrix_a, matrix_b, 1.0, matrix_c, false,
                1e-8, &flop);

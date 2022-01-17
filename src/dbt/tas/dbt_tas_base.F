@@ -612,8 +612,8 @@ CONTAINS
       CALL mp_environ(numnodes, pdims, pcoord, info%mp_comm)
 
       name = dbm_get_name(matrix_dbm)
-      row_blk_size = dbm_get_row_block_sizes(matrix_dbm)
-      col_blk_size = dbm_get_col_block_sizes(matrix_dbm)
+      row_blk_size => dbm_get_row_block_sizes(matrix_dbm)
+      col_blk_size => dbm_get_col_block_sizes(matrix_dbm)
 
       nbrows = SIZE(row_blk_size)
       nbcols = SIZE(col_blk_size)
