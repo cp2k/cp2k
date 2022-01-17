@@ -21,20 +21,28 @@ source "${INSTALLDIR}"/toolchain.env
 [ -f "${BUILDDIR}/setup_quip" ] && rm "${BUILDDIR}/setup_quip"
 
 if [ "${ENABLE_TSAN}" = "__TRUE__" ]; then
-  report_warning "QUIP is not combatiable with thread sanitizer, not installing..."
-  cat << EOF > setup_quip
-with_quip=__DONTUSE__
+  report_warning "QUIP is not compatible with the thread sanitizer. The QUIP package will not be installed."
+  cat << EOF > ${BUILDDIR}/setup_quip
+with_quip="__DONTUSE__"
 EOF
   exit 0
 fi
 
-QUIP_CFLAGS=''
-QUIP_LDFLAGS=''
-QUIP_LIBS=''
+if [ "${with_intel}" != "__DONTUSE__" ]; then
+  report_warning "A QUIP installation using the Intel compiler is currently not supported. The QUIP package will not be installed."
+  cat << EOF > ${BUILDDIR}/setup_quip
+with_quip="__DONTUSE__"
+EOF
+  exit 0
+fi
+
+QUIP_CFLAGS=""
+QUIP_LDFLAGS=""
+QUIP_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_quip" in
+case "${with_quip}" in
   __INSTALL__)
     echo "==================== Installing QUIP ===================="
     require_env MATH_LIBS
@@ -56,25 +64,25 @@ case "$with_quip" in
       # translate OPENBLAS_ARCH
       case $OPENBLAS_ARCH in
         x86_64)
-          quip_arch=x86_64
+          quip_arch="x86_64"
           ;;
         i386)
-          quip_arch=x86_32
+          quip_arch="x86_32"
           ;;
         arm*)
-          quip_arch=x86_64
+          quip_arch="x86_64"
           ;;
         *)
-          report_error $LINENO "arch $OPENBLAS_ARCH is currently unsupported"
+          report_error ${LINENO} "arch $OPENBLAS_ARCH is currently not supported."
           exit 1
           ;;
       esac
-      # The ARCHER cd has a very annoying habbit of printing out
+      # The ARCHER cd has a very annoying habit of printing out
       # dir names to stdout for any target directories that are
       # more than one level deep, and one cannot seem to disable
       # it. This unfortunately messes up the installation script
       # for QUIP. So this hack will help to resolve the issue
-      if [ "$ENABLE_CRAY" = "__TRUE__" ]; then
+      if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
         sed -i \
           -e "s|\(cd build/.*\)|\1 >&- 2>&-|g" \
           bin/find_sizeof_fortran_t
@@ -141,16 +149,15 @@ case "$with_quip" in
     QUIP_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
 esac
-if [ "$with_quip" != "__DONTUSE__" ]; then
+if [ "${with_quip}" != "__DONTUSE__" ]; then
   QUIP_LIBS="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys"
-  if [ "$with_quip" != "__SYSTEM__" ]; then
+  if [ "${with_quip}" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_quip"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
 prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
-    cat "${BUILDDIR}/setup_quip" >> $SETUPFILE
   fi
   cat << EOF >> "${BUILDDIR}/setup_quip"
 export QUIP_CFLAGS="${QUIP_CFLAGS}"
@@ -161,6 +168,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${QUIP_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${QUIP_LDFLAGS}"
 export CP_LIBS="${QUIP_LIBS} \${CP_LIBS}"
 EOF
+  cat "${BUILDDIR}/setup_quip" >> ${SETUPFILE}
 fi
 
 load "${BUILDDIR}/setup_quip"
