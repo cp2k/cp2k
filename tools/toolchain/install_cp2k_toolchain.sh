@@ -22,6 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 #>           libraries CP2K depends on and generate a set of ARCH files which
 #>           can be used to compile CP2K
 #> \history  Created on Friday, 2016/02/05
+#            Update for Intel (17.01.2022, MK)
 #> \author   Lianheng Tong (ltong) lianheng.tong@kcl.ac.uk
 # *****************************************************************************
 
@@ -156,8 +157,7 @@ The --with-PKG options follow the rules:
                           Default = system
   --with-cmake            Cmake utilities
                           Default = install
-  --with-openmpi          OpenMPI, important if you want parallel version
-                          of CP2K.
+  --with-openmpi          OpenMPI, important if you want parallel version of CP2K.
                           Default = system
   --with-mpich            MPICH, MPI library like OpenMPI. one should
                           use only one of OpenMPI, MPICH or Intel MPI.
@@ -294,11 +294,11 @@ with_scalapack="__INSTALL__"
 # available, otherwise defaults to openblas
 if [ "${MKLROOT}" ]; then
   export MATH_MODE="mkl"
+  with_mkl="__SYSTEM__"
 else
   export MATH_MODE="openblas"
 fi
 with_acml="__SYSTEM__"
-with_mkl="__SYSTEM__"
 with_openblas="__INSTALL__"
 
 # sirius is activated by default
@@ -392,9 +392,7 @@ while [ $# -ge 1 ]; do
     --install-all)
       # set all package to the default installation status
       for ii in ${package_list}; do
-        if [ "${ii}" = "intel" ]; then
-          eval with_${ii}="__SYSTEM__"
-        else
+        if [ "${ii}" != "intel" ] && [ "${ii}" != "intelmpi" ]; then
           eval with_${ii}="__INSTALL__"
         fi
       done
@@ -427,16 +425,16 @@ while [ $# -ge 1 ]; do
       user_input="${1#*=}"
       case "$user_input" in
         cray)
-          export MATH_MODE=cray
+          export MATH_MODE="cray"
           ;;
         mkl)
-          export MATH_MODE=mkl
+          export MATH_MODE="mkl"
           ;;
         acml)
-          export MATH_MODE=acml
+          export MATH_MODE="acml"
           ;;
         openblas)
-          export MATH_MODE=openblas
+          export MATH_MODE="openblas"
           ;;
         *)
           report_error ${LINENO} \
@@ -872,22 +870,22 @@ export CXXFLAGS=${CXXFLAGS:-"-O2 -g -Wno-error"}
 # Select the correct compute number based on the GPU architecture
 case ${GPUVER} in
   K20X)
-    export ARCH_NUM=35
+    export ARCH_NUM="35"
     ;;
   K40)
-    export ARCH_NUM=35
+    export ARCH_NUM="35"
     ;;
   K80)
-    export ARCH_NUM=37
+    export ARCH_NUM="37"
     ;;
   P100)
-    export ARCH_NUM=60
+    export ARCH_NUM="60"
     ;;
   V100)
-    export ARCH_NUM=70
+    export ARCH_NUM="70"
     ;;
   A100)
-    export ARCH_NUM=80
+    export ARCH_NUM="80"
     ;;
   Mi50)
     # TODO: export ARCH_NUM=
@@ -896,11 +894,12 @@ case ${GPUVER} in
     # TODO: export ARCH_NUM=
     ;;
   no)
-    export ARCH_NUM=no
+    export ARCH_NUM="no"
     ;;
   *)
     report_error ${LINENO} \
-      "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100 as options"
+      "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100 and no as options"
+    exit 1
     ;;
 esac
 
