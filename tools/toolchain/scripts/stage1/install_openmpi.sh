@@ -57,7 +57,11 @@ case "${with_openmpi}" in
         [ $glibc_major_ver -eq 2 -a $glibc_minor_ver -lt 12 ]; then
         CFLAGS="${CFLAGS} -fgnu89-inline"
       fi
-      ./configure --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-mpi1-compatibility CFLAGS="${CFLAGS}" \
+      ./configure CFLAGS="${CFLAGS}" \
+        --prefix=${pkg_install_dir} \
+        --libdir="${pkg_install_dir}/lib" \
+        --enable-mpi1-compatibility \
+        --with-pmi \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
@@ -133,7 +137,7 @@ if [ "${with_openmpi}" != "__DONTUSE__" ]; then
     [ $major_version -eq 1 -a ${minor_version} -lt 7 ]); then
     mpi2_dflags="-D__MPI_VERSION=2"
   else
-    mpi2_dflags=''
+    mpi2_dflags=""
   fi
   cat << EOF > "${BUILDDIR}/setup_openmpi"
 export MPI_MODE="${MPI_MODE}"
