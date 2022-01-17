@@ -580,18 +580,22 @@ read_enable() {
 read_with() {
   local __input_var="${1#--with*=}"
   case $__input_var in
-    "$1")
+    "${1}")
       # if there is no "=" then treat as "install"
-      echo '__INSTALL__'
+      if [ ${#} -gt 1 ]; then
+        echo "${2}"
+      else
+        echo "__INSTALL__"
+      fi
       ;;
     install)
-      echo '__INSTALL__'
+      echo "__INSTALL__"
       ;;
     system)
-      echo '__SYSTEM__'
+      echo "__SYSTEM__"
       ;;
     no)
-      echo '__DONTUSE__'
+      echo "__DONTUSE__"
       ;;
     *)
       echo "${__input_var//\~/$HOME}"

@@ -22,15 +22,15 @@ MKL_LDFLAGS=""
 MKL_LIBS=""
 
 MKL_FFTW="yes"
-if [ "$with_libvdwxc" != "__DONTUSE__" ] && [ "$MPI_MODE" != "no" ]; then
-  report_warning ${LINENO} "MKL FFTW3 interface is present, but FFTW library is needed (FFTW-MPI)"
+if [ "${with_libvdwxc}" != "__DONTUSE__" ] && [ "${MPI_MODE}" != "no" ]; then
+  report_warning ${LINENO} "MKL FFTW3 interface is present, but FFTW library is needed for FFTW-MPI wrappers."
   MKL_FFTW="no"
 fi
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_mkl" in
+case "${with_mkl}" in
   __INSTALL__)
     echo "==================== Installing MKL ===================="
     report_error ${LINENO} "To install MKL, please contact your system administrator."
@@ -47,22 +47,23 @@ case "$with_mkl" in
     check_lib -lm
     check_lib -ldl
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking MKL to user paths ===================="
-    check_dir "$with_mkl"
-    MKLROOT="$with_mkl"
+    check_dir "${with_mkl}"
+    MKLROOT="${with_mkl}"
     ;;
 esac
-if [ "$with_mkl" != "__DONTUSE__" ]; then
-  case $OPENBLAS_ARCH in
+if [ "${with_mkl}" != "__DONTUSE__" ]; then
+  case ${OPENBLAS_ARCH} in
     x86_64)
-      mkl_arch_dir=intel64
+      mkl_arch_dir="intel64"
       MKL_CFLAGS="-m64"
       ;;
     i386)
-      mkl_arch_dir=ia32
+      mkl_arch_dir="ia32"
       MKL_CFLAGS="-m32"
       ;;
     *)
@@ -80,7 +81,7 @@ if [ "$with_mkl" != "__DONTUSE__" ]; then
     fi
   done
 
-  case $MPI_MODE in
+  case ${MPI_MODE} in
     intelmpi | mpich)
       mkl_scalapack_lib="IF_MPI(-lmkl_scalapack_lp64|)"
       mkl_blacs_lib="IF_MPI(-lmkl_blacs_intelmpi_lp64|)"
@@ -109,9 +110,6 @@ if [ "$with_mkl" != "__DONTUSE__" ]; then
   # write setup files
   cat << EOF > "${BUILDDIR}/setup_mkl"
 export MKLROOT="${MKLROOT}"
-EOF
-  cat "${BUILDDIR}/setup_mkl" >> ${SETUPFILE}
-  cat << EOF >> "${BUILDDIR}/setup_mkl"
 export MKL_CFLAGS="${MKL_CFLAGS}"
 export MKL_LIBS="${MKL_LIBS}"
 export MATH_CFLAGS="\${MATH_CFLAGS} ${MKL_CFLAGS}"
@@ -134,6 +132,7 @@ export FFTW_LDFLAGS="${MKL_LDFLAGS}"
 export FFTW_LIBS="${MKL_LIBS}"
 EOF
   fi
+  cat "${BUILDDIR}/setup_mkl" >> ${SETUPFILE}
 fi
 
 load "${BUILDDIR}/setup_mkl"

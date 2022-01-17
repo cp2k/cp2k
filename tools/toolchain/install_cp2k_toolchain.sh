@@ -389,9 +389,13 @@ while [ $# -ge 1 ]; do
       export DOWNLOADER_FLAGS="-n"
       ;;
     --install-all)
-      # set all package to __INSTALL__ status
+      # set all package to the default installation status
       for ii in ${package_list}; do
-        [ "${ii}" != "intel" ] && eval with_${ii}="__INSTALL__"
+        if [ "${ii}" = "intel" ]; then
+          eval with_${ii}="__SYSTEM__"
+        else
+          eval with_${ii}="__INSTALL__"
+        fi
       done
       # default mpi-mode to MPICH
       export MPI_MODE=mpich
@@ -400,16 +404,16 @@ while [ $# -ge 1 ]; do
       user_input="${1#*=}"
       case "$user_input" in
         mpich)
-          export MPI_MODE=mpich
+          export MPI_MODE="mpich"
           ;;
         openmpi)
-          export MPI_MODE=openmpi
+          export MPI_MODE="openmpi"
           ;;
         intelmpi)
-          export MPI_MODE=intelmpi
+          export MPI_MODE="intelmpi"
           ;;
         no)
-          export MPI_MODE=no
+          export MPI_MODE="no"
           ;;
         *)
           report_error ${LINENO} \
@@ -441,36 +445,11 @@ while [ $# -ge 1 ]; do
       ;;
     --gpu-ver=*)
       user_input="${1#*=}"
-      case "$user_input" in
-        K20X)
-          export GPUVER=K20X
-          ;;
-        K40)
-          export GPUVER=K40
-          ;;
-        K80)
-          export GPUVER=K80
-          ;;
-        P100)
-          export GPUVER=P100
-          ;;
-        V100)
-          export GPUVER=V100
-          ;;
-        A100)
-          export GPUVER=A100
-          ;;
-        Mi50)
-          export GPUVER=Mi50
-          ;;
-        Mi100)
-          export GPUVER=Mi100
-          ;;
-        no)
-          export GPUVER=no
+      case "${user_input}" in
+        K20X | K40 | K80 | P100 | V100 | A100 | Mi50 | Mi100 | no)
+          export GPUVER="${user_input}"
           ;;
         *)
-          export GPUVER=no
           report_error ${LINENO} \
             "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100 and no as options"
           exit 1
@@ -534,112 +513,112 @@ while [ $# -ge 1 ]; do
       fi
       ;;
     --with-gcc*)
-      with_gcc=$(read_with $1)
+      with_gcc=$(read_with "${1}")
       ;;
     --with-cmake*)
-      with_cmake=$(read_with $1)
+      with_cmake=$(read_with "${1}")
       ;;
     --with-mpich*)
-      with_mpich=$(read_with $1)
-      if [ $with_mpich != "__DONTUSE__" ]; then
+      with_mpich=$(read_with "${1}")
+      if [ "${with_mpich}" != "__DONTUSE__" ]; then
         export MPI_MODE=mpich
       fi
       ;;
     --with-openmpi*)
-      with_openmpi=$(read_with $1)
+      with_openmpi=$(read_with "${1}")
       if [ "${with_openmpi}" != "__DONTUSE__" ]; then
         export MPI_MODE=openmpi
       fi
       ;;
     --with-intelmpi*)
-      with_intelmpi=$(read_with $1)
+      with_intelmpi=$(read_with "${1}" "__SYSTEM__")
       if [ "${with_intelmpi}" != "__DONTUSE__" ]; then
         export MPI_MODE=intelmpi
       fi
       ;;
     --with-intel*)
-      with_intel=$(read_with $1)
+      with_intel=$(read_with "${1}" "__SYSTEM__")
       ;;
     --with-libint*)
-      with_libint=$(read_with $1)
+      with_libint=$(read_with "${1}")
       ;;
     --with-libxc*)
-      with_libxc=$(read_with $1)
+      with_libxc=$(read_with "${1}")
       ;;
     --with-fftw*)
-      with_fftw=$(read_with $1)
+      with_fftw=$(read_with "${1}")
       ;;
     --with-mkl*)
-      with_mkl=$(read_with $1)
-      if [ $with_mkl != "__DONTUSE__" ]; then
+      with_mkl=$(read_with "${1}" "__SYSTEM__")
+      if [ "${with_mkl}" != "__DONTUSE__" ]; then
         export MATH_MODE="mkl"
       fi
       ;;
     --with-acml*)
-      with_acml=$(read_with $1)
-      if [ $with_acml != __DONTUSE__ ]; then
+      with_acml=$(read_with "${1}")
+      if [ "${with_acml}" != "__DONTUSE__" ]; then
         export MATH_MODE="acml"
       fi
       ;;
     --with-openblas*)
-      with_openblas=$(read_with $1)
-      if [ "${with_openblas}" != __DONTUSE__ ]; then
+      with_openblas=$(read_with "${1}")
+      if [ "${with_openblas}" != "__DONTUSE__" ]; then
         export MATH_MODE="openblas"
       fi
       ;;
     --with-scalapack*)
-      with_scalapack=$(read_with $1)
+      with_scalapack=$(read_with "${1}")
       ;;
     --with-libsmm*)
-      with_libsmm=$(read_with $1)
+      with_libsmm=$(read_with "${1}")
       ;;
     --with-libxsmm*)
-      with_libxsmm=$(read_with $1)
+      with_libxsmm=$(read_with "${1}")
       ;;
     --with-elpa*)
-      with_elpa=$(read_with $1)
+      with_elpa=$(read_with "${1}")
       ;;
     --with-ptscotch*)
-      with_ptscotch=$(read_with $1)
+      with_ptscotch=$(read_with "${1}")
       ;;
     --with-superlu*)
-      with_superlu=$(read_with $1)
+      with_superlu=$(read_with "${1}")
       ;;
     --with-pexsi*)
-      with_pexsi=$(read_with $1)
+      with_pexsi=$(read_with "${1}")
       ;;
     --with-quip*)
-      with_quip=$(read_with $1)
+      with_quip=$(read_with "${1}")
       ;;
     --with-plumed*)
-      with_plumed=$(read_with $1)
+      with_plumed=$(read_with "${1}")
       ;;
     --with-sirius*)
-      with_sirius=$(read_with $1)
+      with_sirius=$(read_with "${1}")
       ;;
     --with-gsl*)
-      with_gsl=$(read_with $1)
+      with_gsl=$(read_with "${1}")
       ;;
     --with-spglib*)
-      with_spglib=$(read_with $1)
+      with_spglib=$(read_with "${1}")
       ;;
     --with-hdf5*)
-      with_hdf5=$(read_with $1)
+      with_hdf5=$(read_with "${1}")
       ;;
     --with-libvdwxc*)
-      with_libvdwxc=$(read_with $1)
+      with_libvdwxc=$(read_with "${1}")
       ;;
     --with-spfft*)
-      with_spfft=$(read_with $1)
+      with_spfft=$(read_with "${1}")
       ;;
     --with-cosma*)
-      with_cosma=$(read_with $1)
+      with_cosma=$(read_with "${1}")
       ;;
     --with-libvori*)
-      with_libvori=$(read_with $1)
+      with_libvori=$(read_with "${1}")
       ;;
     --with-spla*)
-      with_spla=$(read_with $1)
+      with_spla=$(read_with "${1}")
       ;;
     --help*)
       show_help
