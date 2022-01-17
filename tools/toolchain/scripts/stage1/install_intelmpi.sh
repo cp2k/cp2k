@@ -24,8 +24,9 @@ INTELMPI_LIBS=""
 mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_intelmpi" in
+case "${with_intelmpi}" in
   __INSTALL__)
+    echo "==================== Installing Intel MPI ===================="
     echo '__INSTALL__ is not supported; please manually install Intel MPI'
     exit 1
     ;;
