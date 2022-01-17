@@ -9,6 +9,7 @@
 #define DBM_MPI_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #if defined(__parallel)
 #include <mpi.h>
@@ -120,10 +121,11 @@ void dbm_mpi_max_double(double *values, const int count,
 void dbm_mpi_sum_int(int *values, const int count, const dbm_mpi_comm_t comm);
 
 /*******************************************************************************
- * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_LONG.
+ * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_INT64_T.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_sum_long(long *values, const int count, const dbm_mpi_comm_t comm);
+void dbm_mpi_sum_int64(int64_t *values, const int count,
+                       const dbm_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_DOUBLE.

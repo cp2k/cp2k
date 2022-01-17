@@ -9,6 +9,7 @@
 #define DBM_MULTIPLY_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "dbm_matrix.h"
 
@@ -30,7 +31,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
                   dbm_matrix_t *matrix_a, dbm_matrix_t *matrix_b,
                   const double beta, dbm_matrix_t *matrix_c,
                   const bool retain_sparsity, const double filter_eps,
-                  long *flop);
+                  int64_t *flop);
 
 #endif
 

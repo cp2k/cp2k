@@ -620,8 +620,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_contract'
       CHARACTER(LEN=1), DIMENSION(:), ALLOCATABLE    :: indchar1, indchar2, indchar3, indchar1_mod, &
                                                         indchar2_mod, indchar3_mod
-      CHARACTER(LEN=1), DIMENSION(15) :: alph = &
-                                         ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o']
+      CHARACTER(LEN=1), DIMENSION(15), SAVE :: alph = &
+                                               ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o']
       INTEGER, DIMENSION(2, ndims_tensor(tensor_1)) :: bounds_t1
       INTEGER, DIMENSION(2, ndims_tensor(tensor_2)) :: bounds_t2
       LOGICAL                                        :: do_crop_1, do_crop_2, do_write_3, nodata_3, do_batched, pgrid_changed, &

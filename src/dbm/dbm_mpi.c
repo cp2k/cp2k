@@ -269,15 +269,15 @@ void dbm_mpi_sum_int(int *values, const int count, const dbm_mpi_comm_t comm) {
 }
 
 /*******************************************************************************
- * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_LONG.
+ * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_INT64_T.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_sum_long(long *values, const int count,
-                      const dbm_mpi_comm_t comm) {
+void dbm_mpi_sum_int64(int64_t *values, const int count,
+                       const dbm_mpi_comm_t comm) {
 #if defined(__parallel)
-  long *recvbuf = malloc(count * sizeof(long));
-  CHECK(MPI_Allreduce(values, recvbuf, count, MPI_LONG, MPI_SUM, comm));
-  memcpy(values, recvbuf, count * sizeof(long));
+  int64_t *recvbuf = malloc(count * sizeof(int64_t));
+  CHECK(MPI_Allreduce(values, recvbuf, count, MPI_INT64_T, MPI_SUM, comm));
+  memcpy(values, recvbuf, count * sizeof(int64_t));
   free(recvbuf);
 #else
   (void)comm; // mark used

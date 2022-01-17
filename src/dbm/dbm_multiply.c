@@ -152,12 +152,12 @@ static void multiply_packs(const bool transa, const bool transb,
                            const dbm_pack_t *pack_b,
                            const dbm_matrix_t *matrix_a,
                            const dbm_matrix_t *matrix_b, dbm_matrix_t *matrix_c,
-                           const float *rows_left_max_eps, long *flop,
+                           const float *rows_left_max_eps, int64_t *flop,
                            backend_context_t *ctx) {
 
   const float alpha2 = alpha * alpha;
 
-  long flop_sum = 0;
+  int64_t flop_sum = 0;
 #pragma omp parallel for schedule(dynamic) reduction(+ : flop_sum)
   for (int kshard = 0; kshard < matrix_c->nshards; kshard++) {
     dbm_shard_t *shard_c = &matrix_c->shards[kshard];
@@ -250,7 +250,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
                   dbm_matrix_t *matrix_a, dbm_matrix_t *matrix_b,
                   const double beta, dbm_matrix_t *matrix_c,
                   const bool retain_sparsity, const double filter_eps,
-                  long *flop) {
+                  int64_t *flop) {
 
   assert(omp_get_num_threads() == 1);
   assert(retain_sparsity == false); // TODO implement
@@ -309,7 +309,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
   backend_stop(ctx);
 
   // Compute average flops per rank.
-  dbm_mpi_sum_long(flop, 1, matrix_c->dist->comm);
+  dbm_mpi_sum_int64(flop, 1, matrix_c->dist->comm);
   *flop = (*flop + matrix_c->dist->nranks - 1) / matrix_c->dist->nranks;
 
   // Final filter pass.

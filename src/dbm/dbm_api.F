@@ -7,7 +7,7 @@
 
 MODULE dbm_api
    USE ISO_C_BINDING, ONLY: &
-      C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_F_POINTER, C_INT, C_LONG, C_NULL_CHAR, C_NULL_PTR, C_PTR
+      C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_F_POINTER, C_INT, C_INT64_T, C_NULL_CHAR, C_NULL_PTR, C_PTR
    USE kinds, ONLY: default_string_length, &
                     dp, &
                     int_8
@@ -747,7 +747,7 @@ CONTAINS
                                    beta, matrix_c, &
                                    retain_sparsity, filter_eps, flop) &
             BIND(C, name="dbm_multiply")
-            IMPORT :: C_PTR, C_DOUBLE, C_BOOL, C_LONG
+            IMPORT :: C_PTR, C_DOUBLE, C_BOOL, C_INT64_T
             LOGICAL(kind=C_BOOL), VALUE                      :: transa
             LOGICAL(kind=C_BOOL), VALUE                      :: transb
             REAL(kind=C_DOUBLE), VALUE                       :: alpha
@@ -757,7 +757,7 @@ CONTAINS
             TYPE(C_PTR), VALUE                               :: matrix_c
             LOGICAL(kind=C_BOOL), VALUE                      :: retain_sparsity
             REAL(kind=C_DOUBLE), VALUE                       :: filter_eps
-            INTEGER(kind=C_LONG)                             :: flop
+            INTEGER(kind=C_INT64_T)                          :: flop
          END SUBROUTINE dbm_multiply_c
       END INTERFACE
 
@@ -1031,7 +1031,7 @@ CONTAINS
          PURE FUNCTION dbm_get_nze_c(matrix) &
             BIND(C, name="dbm_get_nze")
             IMPORT :: C_PTR, C_INT
-            TYPE(C_PTR), VALUE                        :: matrix
+            TYPE(C_PTR), VALUE, INTENT(IN)            :: matrix
             INTEGER(C_INT)                            :: dbm_get_nze_c
          END FUNCTION dbm_get_nze_c
       END INTERFACE
@@ -1054,7 +1054,7 @@ CONTAINS
          PURE FUNCTION dbm_get_num_blocks_c(matrix) &
             BIND(C, name="dbm_get_num_blocks")
             IMPORT :: C_PTR, C_INT
-            TYPE(C_PTR), VALUE                        :: matrix
+            TYPE(C_PTR), VALUE, INTENT(IN)            :: matrix
             INTEGER(C_INT)                            :: dbm_get_num_blocks_c
          END FUNCTION dbm_get_num_blocks_c
       END INTERFACE
@@ -1209,9 +1209,9 @@ CONTAINS
          PURE FUNCTION dbm_get_stored_coordinates_c(matrix, row, col) &
             BIND(C, name="dbm_get_stored_coordinates")
             IMPORT :: C_PTR, C_INT
-            TYPE(C_PTR), VALUE                        :: matrix
-            INTEGER(C_INT), VALUE                     :: row
-            INTEGER(C_INT), VALUE                     :: col
+            TYPE(C_PTR), VALUE, INTENT(IN)            :: matrix
+            INTEGER(C_INT), VALUE, INTENT(IN)         :: row
+            INTEGER(C_INT), VALUE, INTENT(IN)         :: col
             INTEGER(C_INT)                            :: dbm_get_stored_coordinates_c
          END FUNCTION dbm_get_stored_coordinates_c
       END INTERFACE
