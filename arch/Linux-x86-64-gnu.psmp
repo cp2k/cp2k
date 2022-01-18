@@ -1,17 +1,19 @@
 #!/bin/bash
 #
-# CP2K (GNU) arch file for the Merlin cluster (PSI)
+# CP2K (GNU) arch file for Linux clusters
 #
-# Tested with: GNU 10.3.0, MPICH 3.3.2, ScaLAPACK 2.1.0, OpenBLAS 0.3.19,
-#              FFTW 3.3.10, LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.11.001,
-#              PLUMED 2.7.3, SPGLIB 1.16.2, LIBVORI 210412, GSL 2.7,
-#              COSMA 2.5.1, SIRIUS 7.3.0
+# Tested with: GNU 10.3.0 (and 11.2.0), MPICH 3.3.2 (and OpenMPI 4.1.1),
+#              ScaLAPACK 2.1.0, OpenBLAS 0.3.19, FFTW 3.3.10, LIBINT 2.6.0,
+#              LIBXC 5.1.7, ELPA 2021.11.001, PLUMED 2.7.3, SPGLIB 1.16.2,
+#              LIBVORI 210412, GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.0
+# on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
-#        The compiler version can be specified as argument.
-#        Otherwise a toolchain installation is expected as default.
+#        A full toolchain installation is performed as default.
+#        Optionally, GNU compiler and MPICH version can be specified as arguments.
+#        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
+# Author: Matthias Krack (18.01.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -20,18 +22,18 @@
       exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
+   cd tools/toolchain; \
    if [[ -n "${1}" ]]; then \
       module add gcc/${1}; \
-      module add mpich/3.3.2; \
-      echo "Expected setup:"; \
-      echo "   gcc/${1}"; \
-      echo "   mpich/3.3.2"; \
+      [[ -n "${2}" ]] && module add mpich/${2}; \
       module list; \
+      ./install_cp2k_toolchain.sh --install-all --with-gcc=system --with-mpich=system; \
    else \
-      printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
-      source ${PWD}/tools/toolchain/install/setup; \
-      printf "done\n"; \
+      ./install_cp2k_toolchain.sh --install-all --with-gcc --with-mpich; \
    fi; \
+   source ./install/setup; \
+   cd ../..; \
+   echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
    echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
@@ -50,11 +52,13 @@ USE_COSMA      := 2.5.1
 USE_ELPA       := 2021.11.001
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
+USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 210412
 USE_LIBXC      := 5.1.7
 USE_LIBXSMM    := 1.17
 USE_OPENBLAS   := 0.3.19
 USE_PLUMED     := 2.7.3
+USE_QUIP       := b4336484fb65b0e73211a8f920ae4361c7c353fd
 USE_SCALAPACK  := 2.1.0
 USE_SIRIUS     := 7.3.0
 USE_SPGLIB     := 1.16.2
@@ -63,6 +67,9 @@ LIBVDWXC_VER   := 0.4.0
 SPFFT_VER      := 1.0.5
 SPLA_VER       := 1.5.2
 HDF5_VER       := 1.12.0
+# Only needed for LIBPEXSI
+SCOTCH_VER     := 6.0.0
+SUPERLU_VER    := 6.1.0
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -142,6 +149,41 @@ ifneq ($(USE_ELPA),)
    else
       LIBS           += $(ELPA_LIB)/libelpa_openmp.a
    endif
+endif
+
+ifneq ($(USE_QUIP),)
+   USE_QUIP       := $(strip $(USE_QUIP))
+   QUIP_INC       := $(INSTALL_PATH)/quip-$(USE_QUIP)/include
+   QUIP_LIB       := $(INSTALL_PATH)/quip-$(USE_QUIP)/lib
+   CFLAGS         += -I$(QUIP_INC)
+   DFLAGS         += -D__QUIP
+   LIBS           += $(QUIP_LIB)/libquip_core.a
+   LIBS           += $(QUIP_LIB)/libatoms.a
+   LIBS           += $(QUIP_LIB)/libFoX_sax.a
+   LIBS           += $(QUIP_LIB)/libFoX_common.a
+   LIBS           += $(QUIP_LIB)/libFoX_utils.a
+   LIBS           += $(QUIP_LIB)/libFoX_fsys.a
+endif
+
+ifneq ($(USE_LIBPEXSI),)
+   USE_LIBPEXSI   := $(strip $(USE_LIBPEXSI))
+   SCOTCH_VER     := $(strip $(SCOTCH_VER))
+   SUPERLU_VER    := $(strip $(SUPERLU_VER))
+   LIBPEXSI_INC   := $(INSTALL_PATH)/pexsi-$(USE_LIBPEXSI)/include
+   LIBPEXSI_LIB   := $(INSTALL_PATH)/pexsi-$(USE_LIBPEXSI)/lib
+   SCOTCH_INC     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/include
+   SCOTCH_LIB     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/lib
+   SUPERLU_INC    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/include
+   SUPERLU_LIB    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/lib
+   CFLAGS         += -I$(LIBPEXSI_INC) -I$(SCOTCH_INC) -I$(SUPERLU_INC)
+   DFLAGS         += -D__LIBPEXSI
+   LIBS           += $(LIBPEXSI_LIB)/libpexsi.a
+   LIBS           += $(SUPERLU_LIB)/libsuperlu_dist.a
+   LIBS           += $(SCOTCH_LIB)/libptscotchparmetis.a
+   LIBS           += $(SCOTCH_LIB)/libptscotch.a
+   LIBS           += $(SCOTCH_LIB)/libptscotcherr.a
+   LIBS           += $(SCOTCH_LIB)/libscotchmetis.a
+   LIBS           += $(SCOTCH_LIB)/libscotch.a
 endif
 
 ifneq ($(USE_LIBVORI),)
@@ -287,9 +329,10 @@ ifneq ($(USE_GSL),)
    CFLAGS         += -I$(GSL_INC)
    DFLAGS         += -D__GSL
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl
+      LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl -lgslcblas
    else
       LIBS           += $(GSL_LIB)/libgsl.a
+      LIBS           += $(GSL_LIB)/libgslcblas.a
    endif
 endif
 
