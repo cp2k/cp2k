@@ -41,10 +41,10 @@ void dgemm_simplified(dgemm_params *const m) {
   if (m == NULL)
     abort();
 
-#if defined(__LIBXSMM) &&                                                      \
-    LIBXSMM_VERSION4(1, 17, 0, 2079) >                                         \
-        LIBXSMM_VERSION4(LIBXSMM_VERSION_MAJOR, LIBXSMM_VERSION_MINOR,         \
-                         LIBXSMM_VERSION_UPDATE, LIBXSMM_VERSION_PATCH)
+#if defined(__LIBXSMM)
+#if LIBXSMM_VERSION4(1, 17, 0, 2079) >                                         \
+    LIBXSMM_VERSION4(LIBXSMM_VERSION_MAJOR, LIBXSMM_VERSION_MINOR,             \
+                     LIBXSMM_VERSION_UPDATE, LIBXSMM_VERSION_PATCH)
   if (m->use_libxsmm && m->op2 == 'N') {
     /* we are in row major but xsmm is in column major */
     m->prefetch = LIBXSMM_PREFETCH_AUTO;
@@ -64,6 +64,7 @@ void dgemm_simplified(dgemm_params *const m) {
       return;
     }
   }
+#endif
 #endif
 
 #if defined(__MKL)
@@ -109,10 +110,10 @@ void batched_dgemm_simplified(dgemm_params *const m, const int batch_size) {
   assert(m != NULL);
   assert(batch_size > 0);
 
-#if defined(__LIBXSMM) &&                                                      \
-    LIBXSMM_VERSION4(1, 17, 0, 2079) >                                         \
-        LIBXSMM_VERSION4(LIBXSMM_VERSION_MAJOR, LIBXSMM_VERSION_MINOR,         \
-                         LIBXSMM_VERSION_UPDATE, LIBXSMM_VERSION_PATCH)
+#if defined(__LIBXSMM)
+#if LIBXSMM_VERSION4(1, 17, 0, 2079) >                                         \
+    LIBXSMM_VERSION4(LIBXSMM_VERSION_MAJOR, LIBXSMM_VERSION_MINOR,             \
+                     LIBXSMM_VERSION_UPDATE, LIBXSMM_VERSION_PATCH)
   if (m->use_libxsmm && m->op2 == 'N') {
     /* we are in row major but xsmm is in column major */
     m->prefetch = LIBXSMM_PREFETCH_AUTO;
@@ -136,6 +137,7 @@ void batched_dgemm_simplified(dgemm_params *const m, const int batch_size) {
       return;
     }
   }
+#endif
 #endif
 
 #if defined(__MKL)
