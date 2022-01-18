@@ -923,6 +923,7 @@ done
 if [ "${dry_run}" = "__TRUE__" ]; then
   echo "Wrote only configuration files (--dry-run)."
 else
+  echo "# Leak suppressions" > ${INSTALLDIR}/lsan.supp
   ./scripts/stage0/install_stage0.sh
   ./scripts/stage1/install_stage1.sh
   ./scripts/stage2/install_stage2.sh
