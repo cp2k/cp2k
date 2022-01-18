@@ -58,6 +58,9 @@ FLAG_EXCEPTIONS = (
     r"__T_C_G0",
     r"__YUKAWA",
     r"__cplusplus",
+    r"LIBXSMM_VERSION_MAJOR",
+    r"LIBXSMM_VERSION_MINOR",
+    r"LIBXSMM_VERSION_PATCH",
 )
 
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))
