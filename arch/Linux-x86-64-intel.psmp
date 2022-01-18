@@ -1,38 +1,36 @@
 #!/bin/bash
 #
-# CP2K (Intel/MKL) arch file for the Merlin cluster (PSI)
+# CP2K (Intel/MKL) arch file for Linux clusters
 #
-# Tested with: Intel 21.4, Intel MPI, Intel MKL, GSL 2.7,
+# Tested with: Intel 20.4/21.4/22.1 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 5.1.7, ELPA 2021.11.001,
 #              PLUMED 2.7.3, SPGLIB 1.16.2, LIBVORI 210412,
-#              COSMA 2.5.1, SIRIUS 7.3.0
+#              GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.0
+# on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
-#        The compiler version can be specified as argument.
-#        Otherwise a CP2K toolchain installation is expected as default,
-#        which can be created by running in advance
-#        > cd tools/toolchain
-#        > ./install_cp2k_toolchain.sh --with-intelmpi=system --with-mkl=system --with-plumed
+#        A full toolchain installation is performed as default.
+#        Optionally, the Intel compiler version can be specified as argument.
+#        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
+# Author: Matthias Krack (18.01.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
-   echo "ERROR: Script ${0##*/} must be sourced"; \
-   echo "Usage: source ${0##*/}"; \
-   exit 1; \
+      echo "ERROR: Script ${0##*/} must be sourced"; \
+      echo "Usage: source ${0##*/}"; \
+      exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
+   cd tools/toolchain; \
    if [[ -n "${1}" ]]; then \
       module add intel/${1}; \
-      echo "Expected setup:"; \
-      echo "   intel/${1}"; \
       module list; \
-   else \
-      printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
-      source ${PWD}/tools/toolchain/install/setup; \
-      printf "done\n"; \
    fi; \
+   ./install_cp2k_toolchain.sh --install-all --with-intelmpi --with-mkl; \
+   source ./install/setup; \
+   cd ../..; \
+   echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
    echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
@@ -50,6 +48,7 @@ SHARED         := no
 USE_COSMA      := 2.5.1
 USE_ELPA       := 2021.11.001
 USE_LIBINT     := 2.6.0
+USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 210412
 USE_LIBXC      := 5.1.7
 USE_LIBXSMM    := 1.17
@@ -57,9 +56,13 @@ USE_PLUMED     := 2.7.3
 USE_SIRIUS     := 7.3.0
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
+LIBVDWXC_VER   := 0.4.0
 SPFFT_VER      := 1.0.5
 SPLA_VER       := 1.5.2
 HDF5_VER       := 1.12.0
+# Only needed for LIBPEXSI
+SCOTCH_VER     := 6.0.0
+SUPERLU_VER    := 6.1.0
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -121,6 +124,27 @@ ifneq ($(USE_ELPA),)
    else
       LIBS           += $(ELPA_LIB)/libelpa_openmp.a
    endif
+endif
+
+ifneq ($(USE_LIBPEXSI),)
+   USE_LIBPEXSI   := $(strip $(USE_LIBPEXSI))
+   SCOTCH_VER     := $(strip $(SCOTCH_VER))
+   SUPERLU_VER    := $(strip $(SUPERLU_VER))
+   LIBPEXSI_INC   := $(INSTALL_PATH)/pexsi-$(USE_LIBPEXSI)/include
+   LIBPEXSI_LIB   := $(INSTALL_PATH)/pexsi-$(USE_LIBPEXSI)/lib
+   SCOTCH_INC     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/include
+   SCOTCH_LIB     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/lib
+   SUPERLU_INC    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/include
+   SUPERLU_LIB    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/lib
+   CFLAGS         += -I$(LIBPEXSI_INC) -I$(SCOTCH_INC) -I$(SUPERLU_INC)
+   DFLAGS         += -D__LIBPEXSI
+   LIBS           += $(LIBPEXSI_LIB)/libpexsi.a
+   LIBS           += $(SUPERLU_LIB)/libsuperlu_dist.a
+   LIBS           += $(SCOTCH_LIB)/libptscotchparmetis.a
+   LIBS           += $(SCOTCH_LIB)/libptscotch.a
+   LIBS           += $(SCOTCH_LIB)/libptscotcherr.a
+   LIBS           += $(SCOTCH_LIB)/libscotchmetis.a
+   LIBS           += $(SCOTCH_LIB)/libscotch.a
 endif
 
 ifneq ($(USE_LIBVORI),)
@@ -192,23 +216,33 @@ endif
 
 ifneq ($(USE_SIRIUS),)
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
+   LIBVDWXC_VER   := $(strip $(LIBVDWXC_VER))
+   SPFFT_VER      := $(strip $(SPFFT_VER))
+   SPLA_VER       := $(strip $(SPLA_VER))
+   HDF5_VER       := $(strip $(HDF5_VER))
    SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
+   LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib
+   LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
    SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
    SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
    HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(HDF5_VER)/lib
    CFLAGS         += -I$(SIRIUS_INC)
+   CFLAGS         += -I$(LIBVDWXC_INC)
+   DFLAGS         += -D__SIRIUS
+   DFLAGS         += -D__LIBVDWXC
    DFLAGS         += -D__SPFFT
    DFLAGS         += -D__SPLA
    DFLAGS         += -D__HDF5
-   DFLAGS         += -D__SIRIUS
    ifeq ($(SHARED), yes)
       LIBS           += -Wl,-rpath=$(SIRIUS_LIB) -L$(SIRIUS_LIB) -lsirius
+      LIBS           += -Wl,-rpath=$(LIBVDWXC_LIB) -L$(LIBVDWXC_LIB) -lvdwxc
       LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
       LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
       LIBS           += -Wl,-rpath=$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5
    else
       LIBS           += $(SIRIUS_LIB)/libsirius.a
+      LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
       LIBS           += $(SPFFT_LIB)/libspfft.a
       LIBS           += $(SPLA_LIB)/libspla.a
       LIBS           += $(HDF5_LIB)/libhdf5.a
@@ -256,9 +290,10 @@ ifneq ($(USE_GSL),)
    CFLAGS         += -I$(GSL_INC)
    DFLAGS         += -D__GSL
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl
+      LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl -lgslcblas
    else
       LIBS           += $(GSL_LIB)/libgsl.a
+      LIBS           += $(GSL_LIB)/libgslcblas.a
    endif
 endif
 
