@@ -57,11 +57,17 @@ case "${with_openmpi}" in
         [ $glibc_major_ver -eq 2 -a $glibc_minor_ver -lt 12 ]; then
         CFLAGS="${CFLAGS} -fgnu89-inline"
       fi
+      if [ $(command -v srun) ]; then
+        echo "Slurm installation found. OpenMPI will be configured with --with-pmi."
+        EXTRA_CONFIGURE_FLAGS="--with-pmi"
+      else
+        EXTRA_CONFIGURE_FLAGS=""
+      fi
       ./configure CFLAGS="${CFLAGS}" \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \
         --enable-mpi1-compatibility \
-        --with-pmi \
+        ${EXTRA_CONFIGURE_FLAGS} \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
