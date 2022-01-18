@@ -264,11 +264,17 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(dbm_type), INTENT(IN)                         :: template
 
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_block_sizes, row_block_sizes
+
+      ! Store pointers in intermediate variables to workaround a CCE error.
+      row_block_sizes => dbm_get_row_block_sizes(template)
+      col_block_sizes => dbm_get_col_block_sizes(template)
+
       CALL dbm_create(matrix, &
                       name=name, &
                       dist=dbm_get_distribution(template), &
-                      row_block_sizes=dbm_get_row_block_sizes(template), &
-                      col_block_sizes=dbm_get_col_block_sizes(template))
+                      row_block_sizes=row_block_sizes, &
+                      col_block_sizes=col_block_sizes)
 
    END SUBROUTINE dbm_create_from_template
 
