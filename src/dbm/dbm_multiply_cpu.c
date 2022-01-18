@@ -126,8 +126,8 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
       const int lda = (transa) ? task.k : task.m;
       const int ldb = (transb) ? task.n : task.k;
       const int ldc = task.m;
-      dbm_dgemm(transa, transb, task.m, task.n, task.k, alpha, data_a, lda, data_b,
-                ldb, 1.0, data_c, ldc);
+      dbm_dgemm(transa, transb, task.m, task.n, task.k, alpha, data_a, lda,
+                data_b, ldb, 1.0, data_c, ldc);
     }
   }
 
@@ -142,8 +142,8 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
     const double *data_a = &pack_a->data[task.offset_a];
     const double *data_b = &pack_b->data[task.offset_b];
     double *data_c = &shard_c->data[task.offset_c];
-    dbm_dgemm(transa, transb, task.m, task.n, task.k, alpha, data_a, lda, data_b,
-              ldb, 1.0, data_c, ldc);
+    dbm_dgemm(transa, transb, task.m, task.n, task.k, alpha, data_a, lda,
+              data_b, ldb, 1.0, data_c, ldc);
   }
 
 #endif
