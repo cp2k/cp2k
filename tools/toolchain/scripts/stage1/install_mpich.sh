@@ -165,6 +165,13 @@ EOF
   cat "${BUILDDIR}/setup_mpich" >> ${SETUPFILE}
 fi
 
+# Update leak suppression file
+cat << EOF >> ${INSTALLDIR}/lsan.supp
+# MPICH 3.3.2 with GCC 10.3.0
+leak:MPIR_Find_local_and_external
+leak:MPIU_Find_local_and_external
+EOF
+
 load "${BUILDDIR}/setup_mpich"
 write_toolchain_env "${INSTALLDIR}"
 
