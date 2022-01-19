@@ -148,7 +148,6 @@ QS/regtest-dft-vdw-corr-2                                   libxc libint
 QS/regtest-epr-1
 QS/regtest-lrigpw
 Fist/regtest-5
-xTB/regtest-3
 Fist/regtest-6
 QS/regtest-hybrid-4                                         libint libxc
 QS/regtest-mom-2                                            libint

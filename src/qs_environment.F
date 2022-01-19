@@ -640,6 +640,9 @@ CONTAINS
                                            "PRINT%PROGRAM_BANNER")
       END IF
 
+      ! set periodicity flag
+      dft_control%qs_control%periodicity = SUM(cell%perd)
+
       !   *** Read the input section with the Quickstep control parameters ***
       CALL read_qs_section(dft_control%qs_control, qs_section)
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)

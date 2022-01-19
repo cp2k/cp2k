@@ -22,6 +22,7 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
+      PERIODIC NONE
     &END CELL
     &COORD
     O   0.000000    0.000000   -0.065587

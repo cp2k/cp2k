@@ -1056,8 +1056,13 @@ CONTAINS
                                    l_val=qs_control%dftb_control%hb_sr_damp)
          CALL section_vals_val_get(dftb_section, "EPS_DISP", &
                                    r_val=qs_control%dftb_control%eps_disp)
-         CALL section_vals_val_get(dftb_section, "DO_EWALD", &
-                                   l_val=qs_control%dftb_control%do_ewald)
+         CALL section_vals_val_get(dftb_section, "DO_EWALD", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(dftb_section, "DO_EWALD", &
+                                      l_val=qs_control%dftb_control%do_ewald)
+         ELSE
+            qs_control%dftb_control%do_ewald = (qs_control%periodicity /= 0)
+         END IF
          CALL section_vals_val_get(dftb_parameter, "PARAM_FILE_PATH", &
                                    c_val=qs_control%dftb_control%sk_file_path)
          CALL section_vals_val_get(dftb_parameter, "PARAM_FILE_NAME", &
@@ -1095,8 +1100,13 @@ CONTAINS
 
       ! xTB code
       IF (qs_control%xtb) THEN
-         CALL section_vals_val_get(xtb_section, "DO_EWALD", &
-                                   l_val=qs_control%xtb_control%do_ewald)
+         CALL section_vals_val_get(xtb_section, "DO_EWALD", explicit=explicit)
+         IF (explicit) THEN
+            CALL section_vals_val_get(xtb_section, "DO_EWALD", &
+                                      l_val=qs_control%xtb_control%do_ewald)
+         ELSE
+            qs_control%xtb_control%do_ewald = (qs_control%periodicity /= 0)
+         END IF
          CALL section_vals_val_get(xtb_section, "STO_NG", i_val=ngauss)
          qs_control%xtb_control%sto_ng = ngauss
          CALL section_vals_val_get(xtb_section, "HYDROGEN_STO_NG", i_val=ngauss)
@@ -1405,7 +1415,19 @@ CONTAINS
          t_control%stda_control%hfx_fraction = 0.0_dp
          t_control%stda_control%do_exchange = .TRUE.
          t_control%stda_control%eps_td_filter = 1.e-10_dp
-         t_control%stda_control%do_ewald = .FALSE.
+         ! set default for Ewald method (on/off) dependent on periodicity
+         SELECT CASE (qs_control%periodicity)
+         CASE (0)
+            t_control%stda_control%do_ewald = .FALSE.
+         CASE (1)
+            t_control%stda_control%do_ewald = .TRUE.
+         CASE (2)
+            t_control%stda_control%do_ewald = .TRUE.
+         CASE (3)
+            t_control%stda_control%do_ewald = .TRUE.
+         CASE DEFAULT
+            CPABORT("Illegal value for periodiciy")
+         END SELECT
       END IF
       CALL section_vals_get(stda_section, explicit=explicit)
       IF (explicit) THEN

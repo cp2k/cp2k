@@ -7,7 +7,7 @@ h2o_LRraman.inp                                       60      1e-04             
 h2o_LRraman_loc.inp                                   60      1e-04                 0.009153812508
 h2o_LRraman_noort.inp                                 60      2e-05                 0.023303680948
 H2O_md_polar.inp                                      60      6e-04                 0.614320139535
-xTB_LRraman.inp                                       60      2e-05                 0.804852847403
-xTB_LRraman_loc.inp                                   60      2e-05                 0.804852847403
+xTB_LRraman.inp                                       60      2e-05                 0.807352993847
+xTB_LRraman_loc.inp                                   60      2e-05                 0.807352993847
 h2o_LRraman_LRI.inp                                   60      4e-04                 0.004262309795
 #EOF

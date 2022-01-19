@@ -4,18 +4,18 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
-H2O-field-gopt.inp                                     1      3e-11              -5.76900010512329
+H2O-field-gopt.inp                                     1      3e-11              -5.76960964769063
 H2O-field-gopt-lsd.inp                                 1      4e-12              -5.76960970095199
 H2O-field.inp                                          0      4e-13
 H2O-field-lsd.inp                                      1      4e-14              -5.76948986131183
 HF-field.inp                                           1      1e-12              -5.62817044142137
-HF-field-gopt.inp                                      1      5e-09              -5.66007154383399
+HF-field-gopt.inp                                      1      5e-09              -5.66333179696722
 HF-field-debug.inp                                     0      1e-12
 HF-dfilter-debug.inp                                   0      1e-12
 HF-dfield-gopt.inp                                     1      1e-09              -5.66113975858277
 HF-dfield.inp                                          1      1e-12              -5.66099020966660
 HF-dfield-debug.inp                                    0      1e-12
 HF-loc-field.inp                                       1      1e-12              -5.65286303322644
-HF-loc-field-gopt.inp                                  1      5e-09              -5.66976248371100
+HF-loc-field-gopt.inp                                  1      5e-09              -5.67065466488875
 HF-loc-field-debug.inp                                 0      1e-12
 #EOF
