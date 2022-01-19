@@ -9,8 +9,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.3.0"
-sirius_sha256="69b5cf356adbe181be6c919032859c4e0160901ff42a885d7e7ea0f38cc772e2"
+sirius_ver="7.3.1"
+sirius_sha256="8bf9848b8ebf0b43797fd359adf8c84f00822de4eb677e3049f22baa72735e98"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -107,9 +107,6 @@ case "$with_sirius" in
       [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
-
-      # fix the CUDA include path
-      patch -p1 < "${SCRIPT_DIR}/stage8/sirius-7.3.0-cudatoolkit.patch"
 
       rm -Rf build
       mkdir build
