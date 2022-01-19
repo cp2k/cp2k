@@ -310,7 +310,7 @@ CONTAINS
                          "User requested to restart the wavefunction from the file named: "// &
                          TRIM(file_name)//". This file does not exist. Please check the existence of"// &
                          " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME."// &
-                         " Calculation continues using ATOMIC GUESS. ")
+                         " Calculation continues using ATOMIC GUESS. HELLO ANTONIS ")
             density_guess = safe_density_guess
          END IF
       ELSE IF (density_guess == history_guess) THEN
