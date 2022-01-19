@@ -142,7 +142,9 @@ CONTAINS
       ELSE
          shell_model = .TRUE.
       END IF
-
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        write(*,*) "HELLO ANTONIS"
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       IF (shell_model) THEN
          shell_set => shell_particles%els
          core_set => core_particles%els
