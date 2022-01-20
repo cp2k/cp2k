@@ -183,6 +183,8 @@ CONTAINS
       tddfpt_control => dft_control%tddfpt2_control
       tddfpt_control%do_hfx = do_hfx
       tddfpt_control%do_admm = do_admm
+      tddfpt_control%do_hfxlr = do_hfxlr
+      tddfpt_control%do_exck = do_exck
 
       CALL cite_reference(Iannuzzi2005)
       IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN

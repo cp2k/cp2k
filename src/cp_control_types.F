@@ -447,6 +447,9 @@ MODULE cp_control_types
       !> for full kernel, do we have HFX/ADMM
       LOGICAL                              :: do_hfx
       LOGICAL                              :: do_admm
+      !> for full kernel, do we have long-range HFX and/or Kxc potential
+      LOGICAL                              :: do_hfxlr
+      LOGICAL                              :: do_exck
       !> options used in sTDA calculation (Kernel)
       TYPE(stda_control_type)              :: stda_control
       !> algorithm to correct orbital energies
