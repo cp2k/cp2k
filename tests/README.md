@@ -31,7 +31,7 @@ These files will be run in order.
 
 Some regression testing directories contain:
 
-- `untested_inputs`: list of input files, which have a more meaningfull setup
+- `untested_inputs`: list of input files, which have a more meaningful setup
   compared to the regtests, but that are not checked at every single commit.
 
 ### How to Run Regression Tests

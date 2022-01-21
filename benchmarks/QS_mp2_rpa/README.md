@@ -15,5 +15,5 @@ Libint library has to be compiled such that higher angular momentum can be compu
 (see: [libint-cp2k/README](https://github.com/cp2k/libint-cp2k), use,
 for example, `--with-libint-max-am=6 --with-libderiv-max-am1=5`.
 
-It is advantageouss to have a OMP/MPI hybrid code (cp2k.psmp). In particular the
+It is advantageous to have a OMP/MPI hybrid code (cp2k.psmp). In particular the
 RI-MP2 and RI-dRPA inputs are suitable for being used with 2 threads per task.
