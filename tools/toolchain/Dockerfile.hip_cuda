@@ -8,40 +8,90 @@ FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
 # Setup CUDA environment.
 ENV CUDA_PATH /usr/local/cuda
 ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+ENV HIP_PLATFORM nvidia
+ENV ROCM_VER 4.5.2
+ENV HIP_DIR /opt/HIP-rocm-4.5.2
+ENV HIPAMD_DIR /opt/hipamd-rocm-4.5.2
 
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
     && apt-get update -qq && apt-get install -qq --no-install-recommends \
     ca-certificates \
     build-essential \
     cmake \
+    git \
     gfortran \
     mpich \
     libmpich-dev \
     wget \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install HIP from source because the hip-nvcc package drags in 10GB of unnecessary dependencies.
-WORKDIR /opt/
-RUN wget -q https://github.com/ROCm-Developer-Tools/HIP/archive/refs/tags/rocm-4.2.0.tar.gz \
-    && echo "ecb929e0fc2eaaf7bbd16a1446a876a15baf72419c723734f456ee62e70b4c24 rocm-4.2.0.tar.gz" |  sha256sum --check \
-    && tar -xzf rocm-*.tar.gz \
-    && cd HIP-rocm-* \
-    && mkdir build \
-    && cd build \
-    && cmake .. >/dev/null 2>&1 \
-    && make -j >/dev/null 2>&1 \
-    && make install >/dev/null 2>&1 \
-    && cd ../../ \
-    && rm -rf rocm-*.tar.gz HIP-rocm-*
+WORKDIR /opt
+
+RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.20.6/cmake-3.20.6-Linux-x86_64.sh \
+    && echo "4772100c2578927eed5aa9e1a80694c0d64410448c0fda73d31b0eae18645784  cmake-3.20.6-Linux-x86_64.sh" | sha256sum --check \
+    && sh cmake-3.20.6-Linux-x86_64.sh --prefix=/usr/local --skip-license \
+    && rm -f cmake-3.20.6-Linux-x86_64.sh
+
+#RUN rm -Rf cmake*.gz \
+#    && wget -q https://github.com/Kitware/CMake/archive/refs/tags/v3.20.6.tar.gz -O cmake-3.20.6.tar.gz \
+#    &&  echo "997278dd849979e2391854a5e4c1e0be3a61961fe1af849dbc68f953579ffc5f  cmake-3.20.6.tar.gz" | sha256sum --check \
+#    && tar -xzf cmake-3.20.6.tar.gz \
+#    && cd CMake-3.20.6 \
+#    && ./bootstrap \
+#    && make -j \
+#    && make install \
+#    && cd .. \
+#    && rm -Rf cmake-*
+
+RUN cmake --version
+
+RUN rm -Rf *rocm*
+
+RUN wget -q https://github.com/ROCm-Developer-Tools/HIP/archive/refs/tags/rocm-${ROCM_VER}.tar.gz -O HIP-rocm-${ROCM_VER}.tar.gz\
+    && echo "c2113dc3c421b8084cd507d91b6fbc0170765a464b71fb0d96bb875df368f160  HIP-rocm-${ROCM_VER}.tar.gz" |  sha256sum --check \
+    && tar -xzf HIP-rocm-*.tar.gz \
+    && wget -q https://github.com/ROCm-Developer-Tools/hipamd/archive/refs/tags/rocm-${ROCM_VER}.tar.gz -O hipamd-rocm-${ROCM_VER}.tar.gz \
+    && echo "b6f35b1a1d0c466b5af28e26baf646ae63267eccc4852204db1e0c7222a39ce2  hipamd-rocm-${ROCM_VER}.tar.gz" | sha256sum --check \
+    && tar -xzf hipamd-rocm-*.tar.gz \
+    && wget -q https://github.com/ROCmSoftwarePlatform/hipBLAS/archive/refs/tags/rocm-${ROCM_VER}.tar.gz -O hipBLAS-rocm-${ROCM_VER}.tar.gz \
+    && echo "82dd82a41bbadbb2a91a2a44a5d8e0d2e4f36d3078286ed4db3549b1fb6d6978  hipBLAS-rocm-${ROCM_VER}.tar.gz" | sha256sum --check \
+    && tar -xzf hipBLAS-rocm-*.tar.gz \
+    && wget -q https://github.com/ROCmSoftwarePlatform/hipFFT/archive/refs/tags/rocm-${ROCM_VER}.tar.gz -O hipFFT-rocm-${ROCM_VER}.tar.gz \
+    && echo "32ba6a5f50cfede3777a43794371ffb1363302131d8a0382d96df90ed7bc911a  hipFFT-rocm-${ROCM_VER}.tar.gz" | sha256sum --check \
+    && tar -xzf hipFFT-rocm-*.tar.gz
+
+RUN cd ${HIPAMD_DIR} \
+    && mkdir -p build \
+    && cd  build \
+    && mkdir /opt/rocm-${ROCM_VER} \
+    && cmake -DHIP_COMMON_DIR=${HIP_DIR} -DHIP_PLATFORM=nvidia -DCMAKE_INSTALL_PREFIX=/opt/rocm-${ROCM_VER}/hip .. > /dev/null 2>&1 \
+    && make -j > /dev/null 2>&1 \
+    && make install > /dev/null 2>&1 \
+    && cd ../..
+
+RUN ls /opt/rocm-${ROCM_VER}
 
 # Install hipBLAS from source.
-RUN wget -q https://github.com/ROCmSoftwarePlatform/hipBLAS/archive/refs/tags/rocm-4.2.0.tar.gz \
-    && echo "c7ce7f69c7596b5a54e666fb1373ef41d1f896dd29260a691e2eadfa863e2b1a  rocm-4.2.0.tar.gz" | sha256sum --check \
-    && tar -xzf rocm-*.tar.gz \
-    && cd hipBLAS-rocm-* \
-    && ./install.sh --cuda --install >/dev/null 2>&1 \
+RUN cd hipBLAS-rocm-* \
+    && mkdir build \
+    && cd build \
+    && cmake -DCMAKE_INSTALL_PREFIX=/opt/rocm-${ROCM_VER} -DUSE_CUDA=YES -DCMAKE_MODULE_PATH=/opt/rocm-${ROCM_VER} -DCMAKE_MODULE_PATH=/opt/rocm-${ROCM_VER}/hip/cmake .. > /dev/null 2>&1 \
+    && make -j > /dev/null 2>&1 \
+    && make install > /dev/null 2>&1 \
     && cd .. \
-    && rm -rf rocm-*.tar.gz hipBLAS-rocm-*
+    && rm -rf hipBLAS-rocm-*
+
+ENV CPATH ${CPATH}:/opt/rocm-${ROCM_VER}/hip/include
+# Install hipFFT from source.
+RUN cd hipFFT-rocm-* \
+    && mkdir build \
+    && cd build \
+    && cmake -DCMAKE_INSTALL_PREFIX=/opt/rocm-${ROCM_VER} -DBUILD_WITH_LIB=CUDA .. > /dev/null 2>&1 \
+    && make -j > /dev/null 2>&1 \
+    && make install > /dev/null 2>&1 \
+    && rm -rf hipFFT*
 
 # This is the alternative installation path via Ubuntu packages.
 ## https://rocmdocs.amd.com/en/latest/Installation_Guide/Installation-Guide.html#ubuntu
@@ -54,9 +104,9 @@ RUN wget -q https://github.com/ROCmSoftwarePlatform/hipBLAS/archive/refs/tags/ro
 #    && rm -rf /var/lib/apt/lists/*
 
 # Setup HIP environment.
-ENV ROCM_PATH /opt/rocm
+ENV ROCM_PATH /opt/rocm-${ROCM_VER}
 ENV PATH ${PATH}:${ROCM_PATH}/hip/bin
-ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ROCM_PATH}/hip/lib:${ROCM_PATH}/hipblas/lib
+ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ROCM_PATH}/hip/lib:${ROCM_PATH}/hipblas/lib:${ROCM_PATH}/hipfft/lib:${ROCM_PATH}/hipfft/lib64:${ROCM_PATH}/hipblas/lib64
 ENV HIP_PLATFORM nvidia
 RUN hipconfig
 

@@ -11,7 +11,7 @@
 
 #include "offload_buffer.h"
 #include "offload_library.h"
-
+#include "offload_operations.h"
 /*******************************************************************************
  * \brief Allocates a buffer of given length, ie. number of elements.
  * \author Ole Schuett

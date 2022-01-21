@@ -32,6 +32,7 @@ MODULE offload_api
    PUBLIC :: offload_set_device_id, offload_get_device_id, offload_set_device
    PUBLIC :: offload_timeset, offload_timestop, offload_mem_info
    PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer
+   PUBLIC :: offload_malloc_pinned_mem, offload_free_pinned_mem
 
    TYPE offload_buffer_type
       REAL(KIND=dp), DIMENSION(:), POINTER :: host_buffer => Null()
@@ -39,6 +40,51 @@ MODULE offload_api
    END TYPE offload_buffer_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief allocate pinned memory.
+!> \param buffer address of the buffer
+!> \param length length of the buffer
+!> \return 0
+! **************************************************************************************************
+   FUNCTION offload_malloc_pinned_mem(buffer, length) RESULT(res)
+      TYPE(C_PTR)                                        :: buffer
+      INTEGER(C_SIZE_T), VALUE                           :: length
+      INTEGER                                            :: res
+
+      INTERFACE
+         FUNCTION offload_malloc_pinned_mem_c(buffer, length) &
+            BIND(C, name="offload_host_malloc")
+            IMPORT C_SIZE_T, C_PTR, C_INT
+            TYPE(C_PTR)              :: buffer
+            INTEGER(C_SIZE_T), VALUE :: length
+            INTEGER(KIND=C_INT)                :: offload_malloc_pinned_mem_c
+         END FUNCTION offload_malloc_pinned_mem_c
+      END INTERFACE
+
+      res = offload_malloc_pinned_mem_c(buffer, length)
+   END FUNCTION offload_malloc_pinned_mem
+
+! **************************************************************************************************
+!> \brief free pinned memory
+!> \param buffer address of the buffer
+!> \return 0
+! **************************************************************************************************
+   FUNCTION offload_free_pinned_mem(buffer) RESULT(res)
+      TYPE(C_PTR), VALUE                                 :: buffer
+      INTEGER                                            :: res
+
+      INTERFACE
+         FUNCTION offload_free_pinned_mem_c(buffer) &
+            BIND(C, name="offload_host_free")
+            IMPORT C_PTR, C_INT
+            INTEGER(KIND=C_INT)                :: offload_free_pinned_mem_c
+            TYPE(C_PTR), VALUE            :: buffer
+         END FUNCTION offload_free_pinned_mem_c
+      END INTERFACE
+
+      res = offload_free_pinned_mem_c(buffer)
+   END FUNCTION offload_free_pinned_mem
 
 ! **************************************************************************************************
 !> \brief Returns the number of available devices.
@@ -266,5 +312,4 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE offload_free_buffer
-
 END MODULE offload_api

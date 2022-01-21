@@ -143,17 +143,25 @@ CONTAINS
       flags = TRIM(flags)//" quip"
 #endif
 
+#if defined(__PW_GPU)
+      flags = TRIM(flags)//" pw_gpu"
+#if defined(__PW_HIP)
+      flags = TRIM(flags)//" pw_hip"
+#endif
 #if defined(__PW_CUDA)
       flags = TRIM(flags)//" pw_cuda"
 #endif
+#endif
+
+#if defined(__HAS_PATCHED_CUFFT_70)
+      flags = TRIM(flags)//" patched_cufft_70"
+#endif
+
 #if defined(__PW_FPGA)
       flags = TRIM(flags)//" pw_fpga"
 #endif
 #if defined(__PW_FPGA_SP)
       flags = TRIM(flags)//" pw_fpga_sp"
-#endif
-#if defined(__HAS_PATCHED_CUFFT_70)
-      flags = TRIM(flags)//" patched_cufft_70"
 #endif
 
 #if defined(__HAS_smm_vec)

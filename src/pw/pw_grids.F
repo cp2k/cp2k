@@ -35,7 +35,6 @@
 ! **************************************************************************************************
 MODULE pw_grids
    USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
-                                              C_INT,&
                                               C_LOC,&
                                               C_PTR,&
                                               C_SIZE_T
@@ -48,7 +47,9 @@ MODULE pw_grids
    USE message_passing,                 ONLY: &
         mp_allgather, mp_cart_coords, mp_cart_create, mp_cart_rank, mp_comm_compare, mp_comm_dup, &
         mp_comm_free, mp_comm_self, mp_dims_create, mp_environ, mp_max, mp_min, mp_sum
-   USE offload_api,                     ONLY: offload_set_device
+   USE offload_api,                     ONLY: offload_free_pinned_mem,&
+                                              offload_malloc_pinned_mem,&
+                                              offload_set_device
    USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                               pw_grid_bounds_from_n,&
                                               pw_grid_init_setup
@@ -72,27 +73,6 @@ MODULE pw_grids
 
    INTEGER :: grid_tag = 0
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
-
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-   INTERFACE
-      INTEGER(C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) &
-         BIND(C, name="cudaHostAlloc")
-         IMPORT
-         IMPLICIT NONE
-         TYPE(C_PTR)              :: buffer
-         INTEGER(C_SIZE_T), VALUE :: length
-         INTEGER(C_INT), VALUE    :: flag
-      END FUNCTION cudaHostAlloc
-   END INTERFACE
-
-   INTERFACE
-      INTEGER(C_INT) FUNCTION cudaFreeHost(buffer) BIND(C, name="cudaFreeHost")
-         IMPORT
-         IMPLICIT NONE
-         TYPE(C_PTR), VALUE :: buffer
-      END FUNCTION cudaFreeHost
-   END INTERFACE
-#endif
 
    ! Distribution in g-space can be
    INTEGER, PARAMETER, PUBLIC               :: do_pw_grid_blocked_false = 0, &
@@ -422,7 +402,7 @@ CONTAINS
       CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local=bounds_local, &
                                   blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, iounit=iounit)
 
-#if defined ( __PW_CUDA )
+#if defined ( __PW_GPU)
       CALL pw_grid_create_ghatmap(pw_grid)
 #endif
 
@@ -430,8 +410,8 @@ CONTAINS
 
    END SUBROUTINE pw_grid_setup
 
-#if defined ( __PW_CUDA )
-! **************************************************************************************************
+#if defined ( __PW_GPU)
+   ! **************************************************************************************************
 !> \brief sets up a combined index for CUDA gather and scatter
 !> \param pw_grid ...
 !> \author Gloess Andreas (xx-Dec-2012)
@@ -1716,10 +1696,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate'
 
       INTEGER                                    :: nmaps
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
       INTEGER(KIND=C_SIZE_T)                     :: length
       TYPE(C_PTR)                                :: cptr_g_hatmap
-      INTEGER(C_INT), PARAMETER                  :: cudaHostAllocDefault = 0
       INTEGER                                    :: stat
 #endif
 
@@ -1733,14 +1712,13 @@ CONTAINS
 
       nmaps = 1
       IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU )
       CALL offload_set_device()
+
       length = INT(int_size*MAX(ng, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
-      stat = cudaHostAlloc(cptr_g_hatmap, length, cudaHostAllocDefault)
+      stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)
       CPASSERT(stat == 0)
       CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/MAX(ng, 1), MAX(nmaps, 1)/))
-#elif defined ( __PW_CUDA ) && defined ( __PW_CUDA_NO_HOSTALLOC )
-      ALLOCATE (pw_grid%g_hatmap(ng, nmaps))
 #else
       ALLOCATE (pw_grid%g_hatmap(1, 1))
 #endif
@@ -2192,7 +2170,7 @@ CONTAINS
 
       TYPE(pw_grid_type), POINTER              :: pw_grid
 
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
       INTEGER, POINTER :: dummy_ptr
       INTEGER          :: stat
 #endif
@@ -2214,9 +2192,9 @@ CONTAINS
                DEALLOCATE (pw_grid%g_hat)
             END IF
             IF (ASSOCIATED(pw_grid%g_hatmap)) THEN
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
                dummy_ptr => pw_grid%g_hatmap(1, 1)
-               stat = cudaFreeHost(c_loc(dummy_ptr))
+               stat = offload_free_pinned_mem(c_loc(dummy_ptr))
                CPASSERT(stat == 0)
 #else
                DEALLOCATE (pw_grid%g_hatmap)
@@ -2274,4 +2252,3 @@ CONTAINS
    END SUBROUTINE pw_grid_release
 
 END MODULE pw_grids
-

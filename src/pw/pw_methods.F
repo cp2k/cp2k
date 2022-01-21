@@ -23,40 +23,42 @@
 !> \author apsi
 ! **************************************************************************************************
 MODULE pw_methods
-   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
-                                              cp_to_string
-   USE fast,                            ONLY: copy_cr,&
-                                              copy_rc,&
-                                              zero_c
-   USE fft_tools,                       ONLY: BWFFT,&
-                                              FWFFT,&
-                                              fft3d
-   USE kahan_sum,                       ONLY: accurate_sum
-   USE kinds,                           ONLY: dp
-   USE machine,                         ONLY: m_memory
-   USE message_passing,                 ONLY: mp_sum
-   USE pw_copy_all,                     ONLY: pw_copy_match
-   USE pw_cuda,                         ONLY: pw_cuda_c1dr3d_3d,&
-                                              pw_cuda_c1dr3d_3d_ps,&
-                                              pw_cuda_r3dc1d_3d,&
-                                              pw_cuda_r3dc1d_3d_ps
-   USE pw_fpga,                         ONLY: pw_fpga_c1dr3d_3d_dp,&
-                                              pw_fpga_c1dr3d_3d_sp,&
-                                              pw_fpga_init_bitstream,&
-                                              pw_fpga_r3dc1d_3d_dp,&
-                                              pw_fpga_r3dc1d_3d_sp
-   USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                              PW_MODE_DISTRIBUTED,&
-                                              PW_MODE_LOCAL,&
-                                              pw_grid_type
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
-                                              NOSPACE,&
-                                              REALDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_type
+   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit, &
+                              cp_to_string
+   USE fast, ONLY: copy_cr, &
+                   copy_rc, &
+                   zero_c
+   USE fft_tools, ONLY: BWFFT, &
+                        FWFFT, &
+                        fft3d
+   USE kahan_sum, ONLY: accurate_sum
+   USE kinds, ONLY: dp
+   USE machine, ONLY: m_memory
+   USE message_passing, ONLY: mp_sum
+   USE pw_copy_all, ONLY: pw_copy_match
+   USE pw_fpga, ONLY: pw_fpga_c1dr3d_3d_dp, &
+                      pw_fpga_c1dr3d_3d_sp, &
+                      pw_fpga_init_bitstream, &
+                      pw_fpga_r3dc1d_3d_dp, &
+                      pw_fpga_r3dc1d_3d_sp
+#ifdef __PW_GPU
+   USE pw_gpu, ONLY: pw_gpu_c1dr3d_3d, &
+                     pw_gpu_c1dr3d_3d_ps, &
+                     pw_gpu_r3dc1d_3d, &
+                     pw_gpu_r3dc1d_3d_ps
+#endif
+   USE pw_grid_types, ONLY: HALFSPACE, &
+                            PW_MODE_DISTRIBUTED, &
+                            PW_MODE_LOCAL, &
+                            pw_grid_type
+   USE pw_types, ONLY: COMPLEXDATA1D, &
+                       COMPLEXDATA3D, &
+                       NOSPACE, &
+                       REALDATA1D, &
+                       REALDATA3D, &
+                       REALSPACE, &
+                       RECIPROCALSPACE, &
+                       pw_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1657,7 +1659,10 @@ CONTAINS
                                                             out_space, out_unit
       INTEGER, DIMENSION(3)                              :: nloc
       INTEGER, DIMENSION(:), POINTER                     :: n
-      LOGICAL                                            :: test, use_pw_cuda
+      LOGICAL                                            :: test
+#if defined(__PW_GPU)
+      LOGICAL                                            :: use_pw_gpu
+#endif
       REAL(KIND=dp)                                      :: norm
 
       CALL timeset(routineN, handle2)
@@ -1745,8 +1750,8 @@ CONTAINS
             CALL pw_gather(pw2, c_out)
             DEALLOCATE (c_out)
          CASE ("FW_R3DC1D")
-#if defined (__PW_CUDA)
-            CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale=norm)
+#if defined (__PW_GPU)
+            CALL pw_gpu_r3dc1d_3d(pw1, pw2, scale=norm)
 #elif defined (__PW_FPGA)
             ALLOCATE (c_out(n(1), n(2), n(3)))
             ! check if bitstream for the fft size is present
@@ -1791,8 +1796,8 @@ CONTAINS
             CALL pw_scatter(pw1, c_out)
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
          CASE ("BW_C1DR3D")
-#if defined (__PW_CUDA)
-            CALL pw_cuda_c1dr3d_3d(pw1, pw2, scale=norm)
+#if defined (__PW_GPU)
+            CALL pw_gpu_c1dr3d_3d(pw1, pw2, scale=norm)
 #elif defined (__PW_FPGA)
             ALLOCATE (c_out(n(1), n(2), n(3)))
             ! check if bitstream for the fft size is present
@@ -1884,16 +1889,14 @@ CONTAINS
                WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
             CALL pw_gather(pw2, grays)
          CASE ("FW_R3DC1D")
-#if defined (__PW_CUDA)
+#if defined (__PW_GPU)
             ! (no ray dist. is not efficient in CUDA)
-            use_pw_cuda = pw1%pw_grid%para%ray_distribution
-#else
-            use_pw_cuda = .FALSE.
-#endif
-            IF (use_pw_cuda) THEN
-               CALL pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale=norm)
+            use_pw_gpu = pw1%pw_grid%para%ray_distribution
+            IF (use_pw_gpu) THEN
+               CALL pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale=norm)
             ELSE
-               !..prepare input
+#endif
+!..   prepare input
                nloc = pw1%pw_grid%npts_local
                ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
                CALL copy_rc(pw1%cr3d, c_in)
@@ -1913,7 +1916,10 @@ CONTAINS
                   WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
                CALL pw_gather(pw2, grays)
                DEALLOCATE (c_in)
+
+#if defined (__PW_GPU)
             END IF
+#endif
          CASE ("BW_C1DC3D")
             !..prepare input
             IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
@@ -1933,16 +1939,14 @@ CONTAINS
             END IF
             !..prepare output (nothing to do)
          CASE ("BW_C1DR3D")
-#if defined (__PW_CUDA)
+#if defined (__PW_GPU)
             ! (no ray dist. is not efficient in CUDA)
-            use_pw_cuda = pw1%pw_grid%para%ray_distribution
-#else
-            use_pw_cuda = .FALSE.
-#endif
-            IF (use_pw_cuda) THEN
-               CALL pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale=norm)
+            use_pw_gpu = pw1%pw_grid%para%ray_distribution
+            IF (use_pw_gpu) THEN
+               CALL pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale=norm)
             ELSE
-               !..prepare input
+#endif
+!..   prepare input
                IF (test .AND. pw1%pw_grid%para%group_head .AND. out_unit > 0) &
                   WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
                CALL zero_c(grays)
@@ -1964,7 +1968,9 @@ CONTAINS
                   WRITE (out_unit, '(A)') "  Real part "
                CALL copy_cr(c_in, pw2%cr3d)
                DEALLOCATE (c_in)
+#if defined (__PW_GPU)
             END IF
+#endif
          END SELECT
 
       END IF
@@ -2461,4 +2467,3 @@ CONTAINS
    END SUBROUTINE pw_set
 
 END MODULE pw_methods
-

@@ -12,11 +12,15 @@
 #include <string.h>
 
 #include "offload_library.h"
+#include "offload_operations.h"
 
 #if defined(__OFFLOAD_PROFILING)
 #if defined(__OFFLOAD_CUDA)
+#include <cuda.h>
+#include <cuda_runtime.h>
 #include <nvToolsExt.h>
 #elif defined(__OFFLOAD_HIP) && defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_runtime_api.h>
 #include <roctracer/roctx.h>
 #endif
 #endif
@@ -133,6 +137,26 @@ void offload_mem_info(size_t *free, size_t *total) {
   *free = 0;
   *total = 0;
 #endif
+}
+
+int offload_host_malloc(void **ptr__, const size_t size__) {
+#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
+  /* API checks are included in the overloading of the function */
+  offloadMallocHost(ptr__, size__);
+#else
+  *ptr__ = malloc(size__);
+  return 0;
+#endif
+  return 0;
+}
+
+int offload_host_free(void *ptr__) {
+#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
+  offloadFreeHost(ptr__);
+#else
+  free(ptr__);
+#endif
+  return 0;
 }
 
 // EOF

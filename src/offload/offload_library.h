@@ -7,24 +7,15 @@
 #ifndef OFFLOAD_LIBRARY_H
 #define OFFLOAD_LIBRARY_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #if defined(__GRID_CUDA) || defined(__DBM_CUDA) || defined(__PW_CUDA)
 #define __OFFLOAD_CUDA
-#elif defined(__GRID_HIP)
+#elif defined(__GRID_HIP) || defined(__PW_HIP)
 #define __OFFLOAD_HIP
 #endif
 
-#if defined(__OFFLOAD_CUDA)
-#include <cuda.h>
-#include <cuda_runtime.h>
-#elif defined(__OFFLOAD_HIP)
-#include <hip/hip_runtime_api.h>
+#ifdef __cplusplus
+extern "C" {
 #endif
-
-#include "offload_operations.h"
 /*******************************************************************************
  * \brief Returns the number of available devices.
  * \author Ole Schuett
@@ -66,6 +57,16 @@ void offload_timestop(void);
  * \author Ole Schuett
  ******************************************************************************/
 void offload_mem_info(size_t *free, size_t *total);
+
+/*******************************************************************************
+ * \brief Allocate pinned memory (or simple malloc when there is no gpu)
+ ******************************************************************************/
+int offload_host_malloc(void **ptr__, const size_t size__);
+
+/*******************************************************************************
+ * \brief free pinned memory (or simple free when there is no gpu)
+ ******************************************************************************/
+int offload_host_free(void *ptr__);
 
 #ifdef __cplusplus
 }

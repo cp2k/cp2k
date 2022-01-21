@@ -4,7 +4,7 @@
         "fpga",
         "fft",
         "../common",
-        "cuda",
+        "gpu",
         "../base",
         "../mpiwrap",
         "../offload",

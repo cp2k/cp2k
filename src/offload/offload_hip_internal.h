@@ -8,6 +8,8 @@
 #ifndef OFFLOAD_HIP_INTERNAL_H
 #define OFFLOAD_HIP_INTERNAL_H
 #include <hip/hip_runtime_api.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,33 +29,37 @@ typedef hipEvent_t offloadEvent_t;
     abort();                                                                   \
   }
 
-static inline void offloadMemsetAsync(void *ptr__, int val__, size_t size__,
-                                      offloadStream_t stream__) {
-  OFFLOAD_CHECK(hipMemsetAsync(ptr__, val__, size__, stream__));
+static inline void offloadMemsetAsync(void *ptr_device__, int val__,
+                                      size_t size__, offloadStream_t stream__) {
+  OFFLOAD_CHECK(hipMemsetAsync(ptr_device__, val__, size__, stream__));
 }
 
-static inline void offloadMemcpyAsyncHtoD(void *ptr1__, const void *ptr2__,
+static inline void offloadMemcpyAsyncHtoD(void *ptr_device__,
+                                          const void *ptr_host__,
                                           const size_t size__,
                                           offloadStream_t stream__) {
-  OFFLOAD_CHECK(
-      hipMemcpyAsync(ptr1__, ptr2__, size__, hipMemcpyHostToDevice, stream__));
+  OFFLOAD_CHECK(hipMemcpyAsync(ptr_device__, ptr_host__, size__,
+                               hipMemcpyHostToDevice, stream__));
 }
 
-static inline void offloadMemcpyAsyncDtoH(void *ptr1__, const void *ptr2__,
+static inline void offloadMemcpyAsyncDtoH(void *ptr_host__,
+                                          const void *ptr_device__,
                                           const size_t size__,
                                           offloadStream_t stream__) {
+  OFFLOAD_CHECK(hipMemcpyAsync(ptr_host__, ptr_device__, size__,
+                               hipMemcpyDeviceToHost, stream__));
+}
+
+static inline void offloadMemcpyHtoD(void *ptr_device__, const void *ptr_host__,
+                                     const size_t size__) {
   OFFLOAD_CHECK(
-      hipMemcpyAsync(ptr1__, ptr2__, size__, hipMemcpyDeviceToHost, stream__));
+      hipMemcpy(ptr_device__, ptr_host__, size__, hipMemcpyHostToDevice));
 }
 
-static inline void offloadMemcpyHtoD(void *ptr1__, const void *ptr2__,
+static inline void offloadMemcpyDtoH(void *ptr_host__, const void *ptr_device__,
                                      const size_t size__) {
-  OFFLOAD_CHECK(hipMemcpy(ptr1__, ptr2__, size__, hipMemcpyHostToDevice));
-}
-
-static inline void offloadMemcpyDtoH(void *ptr1__, const void *ptr2__,
-                                     const size_t size__) {
-  OFFLOAD_CHECK(hipMemcpy(ptr1__, ptr2__, size__, hipMemcpyDeviceToHost));
+  OFFLOAD_CHECK(
+      hipMemcpy(ptr_host__, ptr_device__, size__, hipMemcpyDeviceToHost));
 }
 
 static inline void offloadEventCreate(offloadEvent_t *event__) {
@@ -85,8 +91,8 @@ static inline void offloadEventRecord(offloadEvent_t event__,
   OFFLOAD_CHECK(hipEventRecord(event__, stream__));
 }
 
-static inline void offloadMalloc(void *ptr__, size_t size__) {
-  OFFLOAD_CHECK(hipMalloc((void **)ptr__, size__));
+static inline void offloadMalloc(void **ptr__, size_t size__) {
+  OFFLOAD_CHECK(hipMalloc(ptr__, size__));
 }
 
 static inline void offloadFree(void *ptr__) { OFFLOAD_CHECK(hipFree(ptr__)); }
@@ -97,10 +103,6 @@ static inline void offloadStreamWaitEvent(offloadStream_t stream__,
   OFFLOAD_CHECK(hipStreamWaitEvent(stream__, event__, val__));
 }
 
-static inline void offloadSetDevice(const int dev_id__) {
-  OFFLOAD_CHECK(hipSetDevice(dev_id__));
-}
-
 static inline void offloadDeviceSynchronize() {
   OFFLOAD_CHECK(hipDeviceSynchronize());
 }
@@ -108,6 +110,14 @@ static inline void offloadDeviceSynchronize() {
 static inline void offloadMemset(void *ptr__, const int val__, size_t size__) {
   OFFLOAD_CHECK(hipMemset(ptr__, val__, size__));
 }
+
+static inline void offloadMallocHost(void **ptr__, size_t size__) {
+  OFFLOAD_CHECK(hipMallocHost(ptr__, size__));
+}
+static inline void offloadFreeHost(void *ptr__) {
+  OFFLOAD_CHECK(hipFreeHost(ptr__));
+}
+
 #ifdef __cplusplus
 }
 #endif

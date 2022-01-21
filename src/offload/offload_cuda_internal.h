@@ -8,6 +8,8 @@
 #ifndef OFFLOAD_CUDA_INTERNAL_H
 #define OFFLOAD_CUDA_INTERNAL_H
 #include <cuda_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,21 +28,24 @@ typedef cudaEvent_t offloadEvent_t;
     abort();                                                                   \
   }
 
-static inline void offloadMemsetAsync(void *ptr__, int val__, size_t size__,
+static inline void offloadMemsetAsync(void *const ptr__, const int val__,
+                                      const size_t size__,
                                       offloadStream_t stream__) {
   OFFLOAD_CHECK(cudaMemsetAsync(ptr__, val__, size__, stream__));
 }
 
-static inline void offloadMemcpyAsyncHtoD(void *ptr1__, void *ptr2__,
-                                          size_t size__,
+static inline void offloadMemcpyAsyncHtoD(void *const ptr1__,
+                                          const void *ptr2__,
+                                          const size_t size__,
                                           offloadStream_t stream__) {
   OFFLOAD_CHECK(cudaMemcpyAsync(ptr1__, ptr2__, size__, cudaMemcpyHostToDevice,
                                 stream__));
 }
 
-static inline void offloadMemcpyAsyncDtoH(void *ptr1__, void *ptr2__,
-                                          size_t size__,
-                                          offloadStream_t stream__) {
+static inline void offloadMemcpyAsyncDtoH(void *const ptr1__,
+                                          const void *ptr2__,
+                                          const size_t size__,
+                                          const offloadStream_t stream__) {
   OFFLOAD_CHECK(cudaMemcpyAsync(ptr1__, ptr2__, size__, cudaMemcpyDeviceToHost,
                                 stream__));
 }
@@ -74,11 +79,19 @@ static inline void offloadEventRecord(offloadEvent_t event__,
   OFFLOAD_CHECK(cudaEventRecord(event__, stream__));
 }
 
-static inline void offloadMalloc(void *ptr__, size_t size__) {
-  OFFLOAD_CHECK(cudaMalloc((void **)ptr__, size__));
+static inline void offloadMallocHost(void **ptr__, size_t size__) {
+  OFFLOAD_CHECK(cudaMallocHost(ptr__, size__));
+}
+
+static inline void offloadMalloc(void **ptr__, size_t size__) {
+  OFFLOAD_CHECK(cudaMalloc(ptr__, size__));
 }
 
 static inline void offloadFree(void *ptr__) { OFFLOAD_CHECK(cudaFree(ptr__)); }
+
+static inline void offloadFreeHost(void *ptr__) {
+  OFFLOAD_CHECK(cudaFreeHost(ptr__));
+}
 
 static inline void offloadStreamWaitEvent(offloadStream_t stream__,
                                           offloadEvent_t event__,

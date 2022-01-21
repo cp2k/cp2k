@@ -7,8 +7,8 @@
 
 ! **************************************************************************************************
 !> \note
-!> This module contains routines necessary to operate on plane waves on NVIDIA
-!> GPUs using CUDA. It depends at execution time on NVIDIA's CUFFT library.
+!> This module contains routines necessary to operate on plane waves on GPUs
+!     >  independently of the GPU platform.
 !> \par History
 !>      BGL (06-Mar-2008)  : Created
 !>      AG  (18-May-2012)  : Refacturing:
@@ -17,9 +17,14 @@
 !>      AG  (11-Sept-2012) : Modifications:
 !>                          - use pointers if precision mapping is not required
 !>                          - use OMP for mapping
+!>      MT  (Jan 2022)     : Modifications
+!>                          - use a generic interface for fft calls to GPUs
+!>                          - Support both Nvidia and AMD GPUs. Other GPUs manufacturers
+!>                            can be added easily.
 !> \author Benjamin G. Levine
 ! **************************************************************************************************
-MODULE pw_cuda
+#if defined (__PW_GPU)
+MODULE pw_gpu
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_INT,&
                                               C_LOC,&
@@ -42,15 +47,15 @@ MODULE pw_cuda
 
    PRIVATE
 
-   PUBLIC :: pw_cuda_r3dc1d_3d
-   PUBLIC :: pw_cuda_c1dr3d_3d
-   PUBLIC :: pw_cuda_r3dc1d_3d_ps
-   PUBLIC :: pw_cuda_c1dr3d_3d_ps
-   PUBLIC :: pw_cuda_init, pw_cuda_finalize
+   PUBLIC :: pw_gpu_r3dc1d_3d
+   PUBLIC :: pw_gpu_c1dr3d_3d
+   PUBLIC :: pw_gpu_r3dc1d_3d_ps
+   PUBLIC :: pw_gpu_c1dr3d_3d_ps
+   PUBLIC :: pw_gpu_init, pw_gpu_finalize
 
    ! Explicit interfaces to double precision complex transformation
-   ! routines (C+CUDA). For more details, see: ../cuda_tools!
-   INTERFACE pw_cuda_cfffg_cu
+   ! routines (C+GPU). For more details, see: gpu
+   INTERFACE pw_gpu_cfffg_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param din ...
@@ -60,8 +65,8 @@ MODULE pw_cuda
 !> \param ngpts ...
 !> \param scale ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_cfffg_z(din, zout, ghatmap, npts, ngpts, scale) &
-         BIND(C, name="pw_cuda_cfffg_z_")
+      SUBROUTINE pw_gpu_cfffg_z(din, zout, ghatmap, npts, ngpts, scale) &
+         BIND(C, name="pw_gpu_cfffg_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: din
          TYPE(C_PTR), VALUE                       :: zout
@@ -71,10 +76,10 @@ MODULE pw_cuda
          INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: ngpts
          REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
 
-      END SUBROUTINE pw_cuda_cfffg_z
+      END SUBROUTINE pw_gpu_cfffg_z
    END INTERFACE
 
-   INTERFACE pw_cuda_sfffc_cu
+   INTERFACE pw_gpu_sfffc_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param zin ...
@@ -85,8 +90,8 @@ MODULE pw_cuda
 !> \param nmaps ...
 !> \param scale ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_sfffc_z(zin, dout, ghatmap, npts, ngpts, nmaps, scale) &
-         BIND(C, name="pw_cuda_sfffc_z_")
+      SUBROUTINE pw_gpu_sfffc_z(zin, dout, ghatmap, npts, ngpts, nmaps, scale) &
+         BIND(C, name="pw_gpu_sfffc_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: zin
          TYPE(C_PTR), VALUE                       :: dout
@@ -96,82 +101,82 @@ MODULE pw_cuda
          INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: ngpts, nmaps
          REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
 
-      END SUBROUTINE pw_cuda_sfffc_z
+      END SUBROUTINE pw_gpu_sfffc_z
    END INTERFACE
 
-   INTERFACE pw_cuda_cff_cu
+   INTERFACE pw_gpu_cff_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param din ...
 !> \param zout ...
 !> \param npts ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_cff_z(din, zout, npts) &
-         BIND(C, name="pw_cuda_cff_z_")
+      SUBROUTINE pw_gpu_cff_z(din, zout, npts) &
+         BIND(C, name="pw_gpu_cff_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: din
          TYPE(C_PTR), VALUE                       :: zout
          INTEGER(KIND=C_INT), DIMENSION(*), &
             INTENT(IN)                             :: npts
 
-      END SUBROUTINE pw_cuda_cff_z
+      END SUBROUTINE pw_gpu_cff_z
    END INTERFACE
 
-   INTERFACE pw_cuda_ffc_cu
+   INTERFACE pw_gpu_ffc_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param zin ...
 !> \param dout ...
 !> \param npts ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_ffc_z(zin, dout, npts) &
-         BIND(C, name="pw_cuda_ffc_z_")
+      SUBROUTINE pw_gpu_ffc_z(zin, dout, npts) &
+         BIND(C, name="pw_gpu_ffc_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: zin
          TYPE(C_PTR), VALUE                       :: dout
          INTEGER(KIND=C_INT), DIMENSION(*), &
             INTENT(IN)                             :: npts
 
-      END SUBROUTINE pw_cuda_ffc_z
+      END SUBROUTINE pw_gpu_ffc_z
    END INTERFACE
 
-   INTERFACE pw_cuda_cf_cu
+   INTERFACE pw_gpu_cf_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param din ...
 !> \param zout ...
 !> \param npts ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_cf_z(din, zout, npts) &
-         BIND(C, name="pw_cuda_cf_z_")
+      SUBROUTINE pw_gpu_cf_z(din, zout, npts) &
+         BIND(C, name="pw_gpu_cf_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: din
          TYPE(C_PTR), VALUE                       :: zout
          INTEGER(KIND=C_INT), DIMENSION(*), &
             INTENT(IN)                             :: npts
 
-      END SUBROUTINE pw_cuda_cf_z
+      END SUBROUTINE pw_gpu_cf_z
    END INTERFACE
 
-   INTERFACE pw_cuda_fc_cu
+   INTERFACE pw_gpu_fc_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param zin ...
 !> \param dout ...
 !> \param npts ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_fc_z(zin, dout, npts) &
-         BIND(C, name="pw_cuda_fc_z_")
+      SUBROUTINE pw_gpu_fc_z(zin, dout, npts) &
+         BIND(C, name="pw_gpu_fc_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: zin
          TYPE(C_PTR), VALUE                       :: dout
          INTEGER(KIND=C_INT), DIMENSION(*), &
             INTENT(IN)                             :: npts
 
-      END SUBROUTINE pw_cuda_fc_z
+      END SUBROUTINE pw_gpu_fc_z
    END INTERFACE
 
-   INTERFACE pw_cuda_f_cu
+   INTERFACE pw_gpu_f_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param zin ...
@@ -180,17 +185,17 @@ MODULE pw_cuda
 !> \param n ...
 !> \param m ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_f_z(zin, zout, dir, n, m) &
-         BIND(C, name="pw_cuda_f_z_")
+      SUBROUTINE pw_gpu_f_z(zin, zout, dir, n, m) &
+         BIND(C, name="pw_gpu_f_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: zin
          TYPE(C_PTR), VALUE                       :: zout
          INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: dir, n, m
 
-      END SUBROUTINE pw_cuda_f_z
+      END SUBROUTINE pw_gpu_f_z
    END INTERFACE
 
-   INTERFACE pw_cuda_fg_cu
+   INTERFACE pw_gpu_fg_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param zin ...
@@ -201,8 +206,8 @@ MODULE pw_cuda
 !> \param ngpts ...
 !> \param scale ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_fg_z(zin, zout, ghatmap, npts, mmax, ngpts, scale) &
-         BIND(C, name="pw_cuda_fg_z_")
+      SUBROUTINE pw_gpu_fg_z(zin, zout, ghatmap, npts, mmax, ngpts, scale) &
+         BIND(C, name="pw_gpu_fg_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: zin
          TYPE(C_PTR), VALUE                       :: zout
@@ -212,10 +217,10 @@ MODULE pw_cuda
          INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: mmax, ngpts
          REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
 
-      END SUBROUTINE pw_cuda_fg_z
+      END SUBROUTINE pw_gpu_fg_z
    END INTERFACE
 
-   INTERFACE pw_cuda_sf_cu
+   INTERFACE pw_gpu_sf_cu
 ! **************************************************************************************************
 !> \brief ...
 !> \param zin ...
@@ -227,8 +232,8 @@ MODULE pw_cuda
 !> \param nmaps ...
 !> \param scale ...
 ! **************************************************************************************************
-      SUBROUTINE pw_cuda_sf_z(zin, zout, ghatmap, npts, mmax, ngpts, nmaps, scale) &
-         BIND(C, name="pw_cuda_sf_z_")
+      SUBROUTINE pw_gpu_sf_z(zin, zout, ghatmap, npts, mmax, ngpts, nmaps, scale) &
+         BIND(C, name="pw_gpu_sf_z_")
          IMPORT
          TYPE(C_PTR), INTENT(IN), VALUE           :: zin
          TYPE(C_PTR), VALUE                       :: zout
@@ -238,45 +243,42 @@ MODULE pw_cuda
          INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: mmax, ngpts, nmaps
          REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
 
-      END SUBROUTINE pw_cuda_sf_z
+      END SUBROUTINE pw_gpu_sf_z
    END INTERFACE
 
    INTERFACE
-      FUNCTION pw_cuda_init_cu() RESULT(istat) BIND(C, name="pw_cuda_init")
+      FUNCTION pw_gpu_init_cu() RESULT(istat) BIND(C, name="pw_gpu_init")
          IMPORT
          INTEGER(KIND=C_INT)                    :: istat
-      END FUNCTION pw_cuda_init_cu
-      SUBROUTINE pw_cuda_finalize_cu() BIND(C, name="pw_cuda_finalize")
-      END SUBROUTINE pw_cuda_finalize_cu
+      END FUNCTION pw_gpu_init_cu
+      SUBROUTINE pw_gpu_finalize_cu() BIND(C, name="pw_gpu_finalize")
+      END SUBROUTINE pw_gpu_finalize_cu
    END INTERFACE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods_cuda'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods_gpu'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Allocates resources on the cuda device for cuda fft acceleration
+!> \brief Allocates resources on the gpu device for gpu fft acceleration
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_init()
-#if defined (__PW_CUDA)
-      INTEGER :: istat
-      istat = pw_cuda_init_cu()
+   SUBROUTINE pw_gpu_init()
+      INTEGER                                            :: istat
+
+      istat = pw_gpu_init_cu()
       IF (istat /= 0) &
-         CPABORT("pw_cuda_init: failed")
-#endif
-   END SUBROUTINE pw_cuda_init
+         CPABORT("pw_gpu_init: failed")
+   END SUBROUTINE pw_gpu_init
 
 ! **************************************************************************************************
-!> \brief Releases resources on the cuda device for cuda fft acceleration
+!> \brief Releases resources on the gpu device for gpu fft acceleration
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_finalize()
-#if defined (__PW_CUDA)
-      CALL pw_cuda_finalize_cu()
-#endif
-   END SUBROUTINE pw_cuda_finalize
+   SUBROUTINE pw_gpu_finalize()
+      CALL pw_gpu_finalize_cu()
+   END SUBROUTINE pw_gpu_finalize
 
 ! **************************************************************************************************
 !> \brief perform an fft followed by a gather on the gpu
@@ -285,25 +287,18 @@ CONTAINS
 !> \param scale ...
 !> \author Benjamin G Levine
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_r3dc1d_3d(pw1, pw2, scale)
-      TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
-      TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
-      REAL(KIND=dp)                            :: scale
+   SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2, scale)
+      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      REAL(KIND=dp)                                      :: scale
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pw1)
-      MARK_USED(pw2)
-      MARK_USED(scale)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_r3dc1d_3d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_r3dc1d_3d'
 
-      INTEGER                                  :: handle, ngpts
-      INTEGER                                  :: l1, l2, l3
-      INTEGER, DIMENSION(:), POINTER           :: npts
-
-      REAL(KIND=dp), POINTER                   :: ptr_pwin
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwout
-      INTEGER, POINTER                         :: ptr_ghatmap
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwout
+      INTEGER                                            :: handle, l1, l2, l3, ngpts
+      INTEGER, DIMENSION(:), POINTER                     :: npts
+      INTEGER, POINTER                                   :: ptr_ghatmap
+      REAL(KIND=dp), POINTER                             :: ptr_pwin
 
       CALL timeset(routineN, handle)
 
@@ -321,13 +316,12 @@ CONTAINS
       ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
 
       ! invoke the combined transformation
-      CALL pw_cuda_cfffg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
+      CALL pw_gpu_cfffg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
 
       pw2%in_space = RECIPROCALSPACE
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_r3dc1d_3d
+   END SUBROUTINE pw_gpu_r3dc1d_3d
 
 ! **************************************************************************************************
 !> \brief perform an scatter followed by a fft on the gpu
@@ -336,25 +330,18 @@ CONTAINS
 !> \param scale ...
 !> \author Benjamin G Levine
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_c1dr3d_3d(pw1, pw2, scale)
-      TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
-      TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
-      REAL(KIND=dp)                            :: scale
+   SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2, scale)
+      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      REAL(KIND=dp)                                      :: scale
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pw1)
-      MARK_USED(pw2)
-      MARK_USED(scale)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_c1dr3d_3d'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_c1dr3d_3d'
 
-      INTEGER                                  :: handle, ngpts, nmaps
-      INTEGER                                  :: l1, l2, l3
-      INTEGER, DIMENSION(:), POINTER           :: npts
-
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwin
-      REAL(KIND=dp), POINTER                   :: ptr_pwout
-      INTEGER, POINTER                         :: ptr_ghatmap
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwin
+      INTEGER                                            :: handle, l1, l2, l3, ngpts, nmaps
+      INTEGER, DIMENSION(:), POINTER                     :: npts
+      INTEGER, POINTER                                   :: ptr_ghatmap
+      REAL(KIND=dp), POINTER                             :: ptr_pwout
 
       CALL timeset(routineN, handle)
 
@@ -373,13 +360,12 @@ CONTAINS
       ptr_ghatmap => pw1%pw_grid%g_hatmap(1, 1)
 
       ! invoke the combined transformation
-      CALL pw_cuda_sfffc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
+      CALL pw_gpu_sfffc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
 
       pw2%in_space = REALSPACE
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_c1dr3d_3d
+   END SUBROUTINE pw_gpu_c1dr3d_3d
 
 ! **************************************************************************************************
 !> \brief perform an parallel fft followed by a gather on the gpu
@@ -388,37 +374,30 @@ CONTAINS
 !> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_r3dc1d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
-      TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
-      REAL(KIND=dp)                            :: scale
+   SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale)
+      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      REAL(KIND=dp)                                      :: scale
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pw1)
-      MARK_USED(pw2)
-      MARK_USED(scale)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_r3dc1d_3d_ps'
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
 
-      INTEGER                                  :: handle
-      INTEGER                                  :: ngpts, iout
-      INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
-      INTEGER                                  :: g_pos, numtask, numtask_r, numtask_g
-      INTEGER, DIMENSION(2)                    :: r_pos, r_dim
-      INTEGER                                  :: gs_group, rs_group
-      INTEGER, DIMENSION(:), POINTER           :: n, nloc
-      INTEGER, DIMENSION(:), POINTER           :: nyzray !nyzray(0:)
-      INTEGER, DIMENSION(:, :, :), POINTER       :: yzp !yzp(:,:,0:)
-      INTEGER, DIMENSION(:, :, :, :), POINTER     :: bo !bo(:,:,0:,:)
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: grays
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         POINTER                                :: tbuf
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: pbuf, rbuf, sbuf, qbuf
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
-      TYPE(fft_scratch_sizes)                  :: fft_scratch_size
-      TYPE(fft_scratch_type), POINTER          :: fft_scratch
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
+      INTEGER                                            :: g_pos, gs_group, handle, iout, lg, lmax, &
+                                                            mg, mmax, mx2, mz2, n1, n2, ngpts, &
+                                                            nmax, numtask, numtask_g, numtask_r, &
+                                                            rp, rs_group
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
+      INTEGER, DIMENSION(2)                              :: r_dim, r_pos
+      INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
+      INTEGER, DIMENSION(:, :, :), POINTER               :: yzp
+      INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
+      TYPE(fft_scratch_sizes)                            :: fft_scratch_size
+      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+
+!nyzray(0:)
+!yzp(:,:,0:)
+!bo(:,:,0:,:)
 
       CALL timeset(routineN, handle)
 
@@ -507,7 +486,7 @@ CONTAINS
             sbuf => fft_scratch%p5buf
 
             ! FFT along z
-            CALL pw_cuda_cf(pw1, qbuf)
+            CALL pw_gpu_cf(pw1, qbuf)
 
             ! Exchange data ( transpose of matrix )
             CALL cube_transpose_2(qbuf, bo(:, :, :, 1), bo(:, :, :, 2), rbuf, fft_scratch)
@@ -516,14 +495,14 @@ CONTAINS
             ! use the inbuild fft-lib
             ! CALL fft_1dm(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
-            CALL pw_cuda_f(rbuf, pbuf, +1, n(2), mx2*mz2)
+            CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix ) and sort
             CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, yzp, nyzray, &
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
-            CALL pw_cuda_fg(sbuf, pw2, scale)
+            CALL pw_gpu_fg(sbuf, pw2, scale)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -541,14 +520,14 @@ CONTAINS
             sbuf => fft_scratch%r1buf
 
             ! FFT along y and z
-            CALL pw_cuda_cff(pw1, tbuf)
+            CALL pw_gpu_cff(pw1, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
             CALL yz_to_x(tbuf, gs_group, g_pos, p2p, yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
-            CALL pw_cuda_fg(sbuf, pw2, scale)
+            CALL pw_gpu_fg(sbuf, pw2, scale)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -558,7 +537,7 @@ CONTAINS
 
 !--------------------------------------------------------------------------
       ELSE
-         CPABORT("Not implemented (no ray_distr.) in: pw_cuda_r3dc1d_3d_ps.")
+         CPABORT("Not implemented (no ray_distr.) in: pw_gpu_r3dc1d_3d_ps.")
          !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
          !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
@@ -566,8 +545,7 @@ CONTAINS
       pw2%in_space = RECIPROCALSPACE
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_r3dc1d_3d_ps
+   END SUBROUTINE pw_gpu_r3dc1d_3d_ps
 
 ! **************************************************************************************************
 !> \brief perform an parallel scatter followed by a fft on the gpu
@@ -576,37 +554,30 @@ CONTAINS
 !> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_c1dr3d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
-      TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
-      REAL(KIND=dp)                            :: scale
+   SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale)
+      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      REAL(KIND=dp)                                      :: scale
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pw1)
-      MARK_USED(pw2)
-      MARK_USED(scale)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_c1dr3d_3d_ps'
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
 
-      INTEGER                                  :: handle
-      INTEGER                                  :: ngpts, iout
-      INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
-      INTEGER                                  :: g_pos, numtask, numtask_r, numtask_g
-      INTEGER, DIMENSION(2)                    :: r_pos, r_dim
-      INTEGER                                  :: gs_group, rs_group
-      INTEGER, DIMENSION(:), POINTER           :: n, nloc
-      INTEGER, DIMENSION(:), POINTER           :: nyzray !nyzray(0:)
-      INTEGER, DIMENSION(:, :, :), POINTER       :: yzp !yzp(:,:,0:)
-      INTEGER, DIMENSION(:, :, :, :), POINTER     :: bo !bo(:,:,0:,:)
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: grays
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         POINTER                                :: tbuf
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: pbuf, rbuf, sbuf, qbuf
-      INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
-      TYPE(fft_scratch_sizes)                  :: fft_scratch_size
-      TYPE(fft_scratch_type), POINTER          :: fft_scratch
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
+      INTEGER                                            :: g_pos, gs_group, handle, iout, lg, lmax, &
+                                                            mg, mmax, mx2, mz2, n1, n2, ngpts, &
+                                                            nmax, numtask, numtask_g, numtask_r, &
+                                                            rp, rs_group
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
+      INTEGER, DIMENSION(2)                              :: r_dim, r_pos
+      INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
+      INTEGER, DIMENSION(:, :, :), POINTER               :: yzp
+      INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
+      TYPE(fft_scratch_sizes)                            :: fft_scratch_size
+      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+
+!nyzray(0:)
+!yzp(:,:,0:)
+!bo(:,:,0:,:)
 
       CALL timeset(routineN, handle)
 
@@ -695,7 +666,7 @@ CONTAINS
             sbuf => fft_scratch%p2buf
 
             ! FFT along x
-            CALL pw_cuda_sf(pw1, pbuf, scale)
+            CALL pw_gpu_sf(pw1, pbuf, scale)
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(qbuf)
@@ -706,7 +677,7 @@ CONTAINS
             ! use the inbuild fft-lib
             ! CALL fft_1dm(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
-            CALL pw_cuda_f(qbuf, rbuf, -1, n(2), mx2*mz2)
+            CALL pw_gpu_f(qbuf, rbuf, -1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix )
             IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(sbuf)
@@ -714,7 +685,7 @@ CONTAINS
             CALL cube_transpose_1(rbuf, bo(:, :, :, 2), bo(:, :, :, 1), sbuf, fft_scratch)
 
             ! FFT along z
-            CALL pw_cuda_fc(sbuf, pw2)
+            CALL pw_gpu_fc(sbuf, pw2)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -732,7 +703,7 @@ CONTAINS
             tbuf => fft_scratch%tbuf
 
             ! FFT along x
-            CALL pw_cuda_sf(pw1, sbuf, scale)
+            CALL pw_gpu_sf(pw1, sbuf, scale)
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(tbuf)
@@ -740,7 +711,7 @@ CONTAINS
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z
-            CALL pw_cuda_ffc(tbuf, pw2)
+            CALL pw_gpu_ffc(tbuf, pw2)
 
             CALL release_fft_scratch(fft_scratch)
 
@@ -750,7 +721,7 @@ CONTAINS
 
 !--------------------------------------------------------------------------
       ELSE
-         CPABORT("Not implemented (no ray_distr.) in: pw_cuda_c1dr3d_3d_ps.")
+         CPABORT("Not implemented (no ray_distr.) in: pw_gpu_c1dr3d_3d_ps.")
          !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
          !     pw1%pw_grid%para%bo, scale = scale, debug=test )
       END IF
@@ -758,8 +729,7 @@ CONTAINS
       pw2%in_space = REALSPACE
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_c1dr3d_3d_ps
+   END SUBROUTINE pw_gpu_c1dr3d_3d_ps
 
 ! **************************************************************************************************
 !> \brief perform a parallel real_to_complex copy followed by a 2D-FFT on the gpu
@@ -767,21 +737,17 @@ CONTAINS
 !> \param pwbuf ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_cff(pw1, pwbuf)
-      TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
+   SUBROUTINE pw_gpu_cff(pw1, pwbuf)
+      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         POINTER, INTENT(INOUT)                 :: pwbuf
+         INTENT(INOUT), POINTER                          :: pwbuf
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pw1)
-      MARK_USED(pwbuf)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_cff'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_cff'
 
-      INTEGER                                  :: l1, l2, l3, handle
-      INTEGER, DIMENSION(:), POINTER           :: npts
-      REAL(KIND=dp), POINTER                   :: ptr_pwin
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwout
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwout
+      INTEGER                                            :: handle, l1, l2, l3
+      INTEGER, DIMENSION(:), POINTER                     :: npts
+      REAL(KIND=dp), POINTER                             :: ptr_pwin
 
       CALL timeset(routineN, handle)
 
@@ -796,11 +762,10 @@ CONTAINS
       ptr_pwout => pwbuf(1, 1, 1)
 
       ! invoke the combined transformation
-      CALL pw_cuda_cff_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+      CALL pw_gpu_cff_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_cff
+   END SUBROUTINE pw_gpu_cff
 
 ! **************************************************************************************************
 !> \brief perform a parallel 2D-FFT followed by a complex_to_real copy on the gpu
@@ -808,21 +773,17 @@ CONTAINS
 !> \param pw2 ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_ffc(pwbuf, pw2)
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         POINTER, INTENT(IN)                    :: pwbuf
-      TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
+   SUBROUTINE pw_gpu_ffc(pwbuf, pw2)
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         POINTER                                         :: pwbuf
+      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pwbuf)
-      MARK_USED(pw2)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_ffc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_ffc'
 
-      INTEGER                                  :: l1, l2, l3, handle
-      INTEGER, DIMENSION(:), POINTER           :: npts
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwin
-      REAL(KIND=dp), POINTER                   :: ptr_pwout
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwin
+      INTEGER                                            :: handle, l1, l2, l3
+      INTEGER, DIMENSION(:), POINTER                     :: npts
+      REAL(KIND=dp), POINTER                             :: ptr_pwout
 
       CALL timeset(routineN, handle)
 
@@ -837,11 +798,10 @@ CONTAINS
       ptr_pwout => pw2%cr3d(l1, l2, l3)
 
       ! invoke the combined transformation
-      CALL pw_cuda_ffc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+      CALL pw_gpu_ffc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_ffc
+   END SUBROUTINE pw_gpu_ffc
 
 ! **************************************************************************************************
 !> \brief perform a parallel real_to_complex copy followed by a 1D-FFT on the gpu
@@ -849,21 +809,17 @@ CONTAINS
 !> \param pwbuf ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_cf(pw1, pwbuf)
-      TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER, INTENT(INOUT)                 :: pwbuf
+   SUBROUTINE pw_gpu_cf(pw1, pwbuf)
+      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
+         POINTER                                         :: pwbuf
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pw1)
-      MARK_USED(pwbuf)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_cf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_cf'
 
-      INTEGER                                  :: l1, l2, l3, handle
-      INTEGER, DIMENSION(:), POINTER           :: npts
-      REAL(KIND=dp), POINTER                   :: ptr_pwin
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwout
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwout
+      INTEGER                                            :: handle, l1, l2, l3
+      INTEGER, DIMENSION(:), POINTER                     :: npts
+      REAL(KIND=dp), POINTER                             :: ptr_pwin
 
       CALL timeset(routineN, handle)
 
@@ -878,11 +834,10 @@ CONTAINS
       ptr_pwout => pwbuf(1, 1)
 
       ! invoke the combined transformation
-      CALL pw_cuda_cf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+      CALL pw_gpu_cf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_cf
+   END SUBROUTINE pw_gpu_cf
 
 ! **************************************************************************************************
 !> \brief perform a parallel 1D-FFT followed by a complex_to_real copy on the gpu
@@ -890,21 +845,17 @@ CONTAINS
 !> \param pw2 ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_fc(pwbuf, pw2)
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER, INTENT(IN)                    :: pwbuf
-      TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
+   SUBROUTINE pw_gpu_fc(pwbuf, pw2)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         POINTER                                         :: pwbuf
+      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pwbuf)
-      MARK_USED(pw2)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_fc'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fc'
 
-      INTEGER                                  :: l1, l2, l3, handle
-      INTEGER, DIMENSION(:), POINTER           :: npts
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwin
-      REAL(KIND=dp), POINTER                   :: ptr_pwout
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwin
+      INTEGER                                            :: handle, l1, l2, l3
+      INTEGER, DIMENSION(:), POINTER                     :: npts
+      REAL(KIND=dp), POINTER                             :: ptr_pwout
 
       CALL timeset(routineN, handle)
 
@@ -918,11 +869,10 @@ CONTAINS
       ptr_pwout => pw2%cr3d(l1, l2, l3)
 
       ! invoke the combined transformation
-      CALL pw_cuda_fc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+      CALL pw_gpu_fc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_fc
+   END SUBROUTINE pw_gpu_fc
 
 ! **************************************************************************************************
 !> \brief perform a parallel 1D-FFT on the gpu
@@ -933,27 +883,17 @@ CONTAINS
 !> \param m ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_f(pwbuf1, pwbuf2, dir, n, m)
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER, INTENT(IN)                    :: pwbuf1
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER, INTENT(INOUT)                 :: pwbuf2
-      INTEGER, INTENT(IN)                      :: dir
-      INTEGER, INTENT(IN)                      :: n
-      INTEGER, INTENT(IN)                      :: m
+   SUBROUTINE pw_gpu_f(pwbuf1, pwbuf2, dir, n, m)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         POINTER                                         :: pwbuf1
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
+         POINTER                                         :: pwbuf2
+      INTEGER, INTENT(IN)                                :: dir, n, m
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pwbuf1)
-      MARK_USED(pwbuf2)
-      MARK_USED(dir)
-      MARK_USED(n)
-      MARK_USED(m)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_f'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_f'
 
-      INTEGER                                  :: handle
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwin
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwout
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
@@ -963,12 +903,11 @@ CONTAINS
          ptr_pwout => pwbuf2(1, 1)
 
          ! invoke the combined transformation
-         CALL pw_cuda_f_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+         CALL pw_gpu_f_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
       END IF
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_f
+   END SUBROUTINE pw_gpu_f
 ! **************************************************************************************************
 !> \brief perform a parallel 1D-FFT followed by a gather on the gpu
 !> \param pwbuf ...
@@ -976,24 +915,18 @@ CONTAINS
 !> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_fg(pwbuf, pw2, scale)
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER, INTENT(IN)                    :: pwbuf
-      TYPE(pw_type), TARGET, INTENT(INOUT)     :: pw2
-      REAL(KIND=dp), INTENT(IN)                :: scale
+   SUBROUTINE pw_gpu_fg(pwbuf, pw2, scale)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         POINTER                                         :: pwbuf
+      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      REAL(KIND=dp), INTENT(IN)                          :: scale
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pwbuf)
-      MARK_USED(pw2)
-      MARK_USED(scale)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_fg'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fg'
 
-      INTEGER                                  :: mmax, mg, handle, ngpts
-      INTEGER, DIMENSION(:), POINTER           :: npts
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwin
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwout
-      INTEGER, POINTER                         :: ptr_ghatmap
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
+      INTEGER                                            :: handle, mg, mmax, ngpts
+      INTEGER, DIMENSION(:), POINTER                     :: npts
+      INTEGER, POINTER                                   :: ptr_ghatmap
 
       CALL timeset(routineN, handle)
 
@@ -1012,12 +945,11 @@ CONTAINS
          ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
 
          ! invoke the combined transformation
-         CALL pw_cuda_fg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
+         CALL pw_gpu_fg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
       END IF
 
       CALL timestop(handle)
-#endif
-   END SUBROUTINE pw_cuda_fg
+   END SUBROUTINE pw_gpu_fg
 
 ! **************************************************************************************************
 !> \brief perform a parallel scatter followed by a 1D-FFT on the gpu
@@ -1026,25 +958,18 @@ CONTAINS
 !> \param scale ...
 !> \author Andreas Gloess
 ! **************************************************************************************************
-   SUBROUTINE pw_cuda_sf(pw1, pwbuf, scale)
-      TYPE(pw_type), TARGET, INTENT(IN)        :: pw1
-      COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER, INTENT(INOUT)                 :: pwbuf
-      REAL(KIND=dp), INTENT(IN)                :: scale
+   SUBROUTINE pw_gpu_sf(pw1, pwbuf, scale)
+      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
+         POINTER                                         :: pwbuf
+      REAL(KIND=dp), INTENT(IN)                          :: scale
 
-#if ! defined (__PW_CUDA)
-      MARK_USED(pw1)
-      MARK_USED(pwbuf)
-      MARK_USED(scale)
-#else
-      CHARACTER(len=*), PARAMETER              :: routineN = 'pw_cuda_sf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_sf'
 
-      INTEGER                                  :: mmax, mg, ngpts, handle, nmaps
-      INTEGER, DIMENSION(:), POINTER           :: npts
-
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwin
-      COMPLEX(KIND=dp), POINTER                :: ptr_pwout
-      INTEGER, POINTER                         :: ptr_ghatmap
+      COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
+      INTEGER                                            :: handle, mg, mmax, ngpts, nmaps
+      INTEGER, DIMENSION(:), POINTER                     :: npts
+      INTEGER, POINTER                                   :: ptr_ghatmap
 
       CALL timeset(routineN, handle)
 
@@ -1064,10 +989,11 @@ CONTAINS
          ptr_ghatmap => pw1%pw_grid%g_hatmap(1, 1)
 
          ! invoke the combined transformation
-         CALL pw_cuda_sf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
+         CALL pw_gpu_sf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
       END IF
 
       CALL timestop(handle)
+   END SUBROUTINE pw_gpu_sf
+END MODULE pw_gpu
+
 #endif
-   END SUBROUTINE pw_cuda_sf
-END MODULE pw_cuda
