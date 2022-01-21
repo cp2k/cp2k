@@ -336,7 +336,7 @@ The code for the HIP based grid backend was developed and tested on Mi100 but
 should work out of the box on Nvidia hardware as well.
 
 - USE `-D__GRID_HIP` to enable AMD GPU support for collocate and integrate
-  rountines.
+  routines.
 - Add `GPUVER=Mi50, Mi60, Mi100`
 - Add `OFFLOAD_CC = hipcc`
 - Add  `-lamdhip64` to the `LIBS` variable
@@ -371,7 +371,7 @@ CP2K's grid backend does not yet support OpenCL devices.
   (if no `opencl-headers` are installed, CPATH can be needed to point into the CUDA
   installation similarly to `LIBRARY_PATH` to find `libOpenCL.so` at link-time).
 - There is no special offload compiler needed hence regular `CC` and `CFLAGS` are
-  suffient to build the OpenCL backend as well as the OpenCL based LIBSMM library.
+  sufficient to build the OpenCL backend as well as the OpenCL based LIBSMM library.
 - To enable the OpenCL backend for DBCSR set `OFFLOAD_TARGET = opencl` and add
   `-D__DBCSR_ACC` and `-D__OPENCL` to `CFLAGS`, i.e., `OFFLOAD_CC` and
   `OFFLOAD_FLAGS` are set accordingly (can be used to deviate if desired).
@@ -419,7 +419,7 @@ Conventionally, there are six versions:
 | Acronym |             Meaning              |
 |---------|----------------------------------|
 | sdbg    | OpenMP + debug settings          |
-| popt    | OpenMP + OMP_NUM_THREADS=1       |
+| sopt    | OpenMP + OMP_NUM_THREADS=1       |
 | ssmp    | OpenMP                           |
 | pdbg    | MPI + OpenMP + debug settings    |
 | popt    | MPI + OpenMP + OMP_NUM_THREADS=1 |

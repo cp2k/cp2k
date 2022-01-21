@@ -14,8 +14,8 @@ Currently, this package offers the following main features:
 In order to support diverse hardware architectures different backends are available.
 Currently, the following backends exist:
 
-- [ref](./ref/): A reference implemenentations for documenation and validation purposes.
-- [cpu](./cpu/): A performance optimized implementatin for x86 CPUs.
+- [ref](./ref/): A reference implementations for documentation and validation purposes.
+- [cpu](./cpu/): A performance optimized implementation for x86 CPUs.
 
 ## The .task files
 
