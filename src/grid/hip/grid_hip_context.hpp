@@ -23,7 +23,7 @@ extern "C" {
 }
 
 #include "../../offload/offload_library.h"
-
+#include "../../offload/offload_operations.h"
 namespace rocm_backend {
 // a little helper class in the same spirit than std::vector. it must exist
 // somewhere. Maybe possible to get the same thing with std::vector and
@@ -369,7 +369,7 @@ public:
   ~context_info() { clear(); }
 
   void clear() {
-    offloadSetDevice(device_id_);
+    hipSetDevice(device_id_);
     tasks_dev.reset();
     block_offsets_dev.reset();
     coef_dev_.reset();
@@ -459,7 +459,7 @@ public:
     offloadDeviceSynchronize();
   }
 
-  void set_device() { offloadSetDevice(device_id_); }
+  void set_device() { hipSetDevice(device_id_); }
 
   void collocate_one_grid_level(const int level, const enum grid_func func,
                                 int *lp_diff);

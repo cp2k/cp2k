@@ -44,6 +44,8 @@ MODULE fft_tools
    USE message_passing,                 ONLY: &
         mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, mp_comm_compare, mp_comm_free, &
         mp_comm_null, mp_environ, mp_irecv, mp_isend, mp_rank_compare, mp_sum, mp_sync, mp_waitall
+   USE offload_api,                     ONLY: offload_free_pinned_mem,&
+                                              offload_malloc_pinned_mem
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -147,7 +149,7 @@ MODULE fft_tools
    LOGICAL, SAVE :: use_fftsg_sizes = .TRUE.
    INTEGER, SAVE :: fft_plan_style = 1
 
-   ! these are only needed for pw_methods_cuda (-D__PW_CUDA)
+   ! these are only needed for pw_methods_cuda (-D__PW_GPU)
    PUBLIC :: get_fft_scratch, release_fft_scratch
    PUBLIC :: cube_transpose_1, cube_transpose_2
    PUBLIC :: yz_to_x, x_to_yz, xz_to_yz, yz_to_xz
@@ -157,26 +159,6 @@ MODULE fft_tools
    INTERFACE fft3d
       MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
    END INTERFACE
-
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-   INTERFACE
-      INTEGER(KIND=C_INT) FUNCTION cudaFreeHost(buffer) BIND(C, name="cudaFreeHost")
-         IMPORT
-         IMPLICIT NONE
-         TYPE(C_PTR), VALUE :: buffer
-      END FUNCTION cudaFreeHost
-   END INTERFACE
-
-   INTERFACE
-      INTEGER(KIND=C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) BIND(C, name="cudaHostAlloc")
-         IMPORT
-         IMPLICIT NONE
-         TYPE(C_PTR)                   :: buffer
-         INTEGER(KIND=C_SIZE_T), VALUE :: length
-         INTEGER(KIND=C_INT), VALUE    :: flag
-      END FUNCTION cudaHostAlloc
-   END INTERFACE
-#endif
 
 ! **************************************************************************************************
 
@@ -2609,7 +2591,7 @@ CONTAINS
    SUBROUTINE deallocate_fft_scratch_type(fft_scratch)
       TYPE(fft_scratch_type), INTENT(INOUT)    :: fft_scratch
 
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU )
       INTEGER                   :: ierr
       COMPLEX(KIND=dp), POINTER :: dummy_ptr_z
 #endif
@@ -2625,33 +2607,33 @@ CONTAINS
          DEALLOCATE (fft_scratch%p1buf)
       END IF
       IF (ASSOCIATED(fft_scratch%p2buf)) THEN
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU )
          dummy_ptr_z => fft_scratch%p2buf(1, 1)
-         ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+         ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
          DEALLOCATE (fft_scratch%p2buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p3buf)) THEN
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
          dummy_ptr_z => fft_scratch%p3buf(1, 1)
-         ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+         ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
          DEALLOCATE (fft_scratch%p3buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p4buf)) THEN
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
          dummy_ptr_z => fft_scratch%p4buf(1, 1)
-         ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+         ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
          DEALLOCATE (fft_scratch%p4buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p5buf)) THEN
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
          dummy_ptr_z => fft_scratch%p5buf(1, 1)
-         ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+         ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
          DEALLOCATE (fft_scratch%p5buf)
 #endif
@@ -2660,17 +2642,17 @@ CONTAINS
          DEALLOCATE (fft_scratch%p6buf)
       END IF
       IF (ASSOCIATED(fft_scratch%p7buf)) THEN
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
          dummy_ptr_z => fft_scratch%p7buf(1, 1)
-         ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+         ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
          DEALLOCATE (fft_scratch%p7buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%r1buf)) THEN
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
          dummy_ptr_z => fft_scratch%r1buf(1, 1)
-         ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+         ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
          DEALLOCATE (fft_scratch%r1buf)
 #endif
@@ -2679,9 +2661,9 @@ CONTAINS
          DEALLOCATE (fft_scratch%r2buf)
       END IF
       IF (ASSOCIATED(fft_scratch%tbuf)) THEN
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
          dummy_ptr_z => fft_scratch%tbuf(1, 1, 1)
-         ierr = cudaFreeHost(c_loc(dummy_ptr_z))
+         ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
          DEALLOCATE (fft_scratch%tbuf)
 #endif
@@ -2900,7 +2882,7 @@ CONTAINS
       TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                   fft_scratch_last, &
                                                   fft_scratch_new
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
       INTEGER                   :: ierr
       INTEGER(KIND=C_SIZE_T)    :: length
       TYPE(C_PTR)               :: cptr_r1buf, cptr_tbuf, &
@@ -3113,13 +3095,13 @@ CONTAINS
                np = fft_sizes%numtask
                nmray = fft_sizes%nmray
                nyzray = fft_sizes%nyzray
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU)
                length = INT(2*dp_size*MAX(mmax, 1)*MAX(lmax, 1), KIND=C_SIZE_T)
-               ierr = cudaHostAlloc(cptr_r1buf, length, cudaHostAllocDefault)
+               ierr = offload_malloc_pinned_mem(cptr_r1buf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_r1buf, fft_scratch_new%fft_scratch%r1buf, (/MAX(mmax, 1), MAX(lmax, 1)/))
                length = INT(2*dp_size*MAX(ny, 1)*MAX(nz, 1)*MAX(nx, 1), KIND=C_SIZE_T)
-               ierr = cudaHostAlloc(cptr_tbuf, length, cudaHostAllocDefault)
+               ierr = offload_malloc_pinned_mem(cptr_tbuf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, (/MAX(ny, 1), MAX(nz, 1), MAX(nx, 1)/))
 #else
@@ -3167,25 +3149,25 @@ CONTAINS
                nbz = fft_sizes%nbz
                ALLOCATE (fft_scratch_new%fft_scratch%p1buf(mx1*my1, n(3)))
                ALLOCATE (fft_scratch_new%fft_scratch%p6buf(lg, mg))
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+#if defined ( __PW_GPU )
                length = INT(2*dp_size*MAX(n(3), 1)*MAX(mx1*my1, 1), KIND=C_SIZE_T)
-               ierr = cudaHostAlloc(cptr_p2buf, length, cudaHostAllocDefault)
+               ierr = offload_malloc_pinned_mem(cptr_p2buf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_p2buf, fft_scratch_new%fft_scratch%p2buf, (/MAX(n(3), 1), MAX(mx1*my1, 1)/))
                length = INT(2*dp_size*MAX(mx2*mz2, 1)*MAX(n(2), 1), KIND=C_SIZE_T)
-               ierr = cudaHostAlloc(cptr_p3buf, length, cudaHostAllocDefault)
+               ierr = offload_malloc_pinned_mem(cptr_p3buf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_p3buf, fft_scratch_new%fft_scratch%p3buf, (/MAX(mx2*mz2, 1), MAX(n(2), 1)/))
                length = INT(2*dp_size*MAX(n(2), 1)*MAX(mx2*mz2, 1), KIND=C_SIZE_T)
-               ierr = cudaHostAlloc(cptr_p4buf, length, cudaHostAllocDefault)
+               ierr = offload_malloc_pinned_mem(cptr_p4buf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_p4buf, fft_scratch_new%fft_scratch%p4buf, (/MAX(n(2), 1), MAX(mx2*mz2, 1)/))
                length = INT(2*dp_size*MAX(nyzray, 1)*MAX(n(1), 1), KIND=C_SIZE_T)
-               ierr = cudaHostAlloc(cptr_p5buf, length, cudaHostAllocDefault)
+               ierr = offload_malloc_pinned_mem(cptr_p5buf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_p5buf, fft_scratch_new%fft_scratch%p5buf, (/MAX(nyzray, 1), MAX(n(1), 1)/))
                length = INT(2*dp_size*MAX(mg, 1)*MAX(lg, 1), KIND=C_SIZE_T)
-               ierr = cudaHostAlloc(cptr_p7buf, length, cudaHostAllocDefault)
+               ierr = offload_malloc_pinned_mem(cptr_p7buf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_p7buf, fft_scratch_new%fft_scratch%p7buf, (/MAX(mg, 1), MAX(lg, 1)/))
 #else
@@ -3438,4 +3420,3 @@ CONTAINS
    END SUBROUTINE is_equal
 
 END MODULE fft_tools
-

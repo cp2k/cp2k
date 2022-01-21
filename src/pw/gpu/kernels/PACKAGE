@@ -1,0 +1,4 @@
+{
+    "description": "kernels for fft on gpu",
+    "requires": [],
+}

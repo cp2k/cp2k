@@ -102,7 +102,7 @@ FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
 
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
 # https://gcc.gnu.org/bugzilla//show_bug.cgi?id=101289
-CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter \$(DFLAGS)"
+CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 
 # Linker flags
 # About --whole-archive see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52590
@@ -114,14 +114,14 @@ LDFLAGS="IF_STATIC(${STATIC_FLAGS}|) \$(FCFLAGS) ${CP_LDFLAGS}"
 # add standard libs
 LIBS="${CP_LIBS} -lstdc++"
 
+CXXFLAGS+=" --std=c++11 \$(DFLAGS) -Wno-deprecated-declarations"
 # CUDA handling
 CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
-CUDA_DFLAGS="-D__GRID_CUDA -D__DBM_CUDA -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__OFFLOAD_PROFILING|)"
+CUDA_DFLAGS="-D__GRID_CUDA -D__DBM_CUDA -D__PW_GPU -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__OFFLOAD_PROFILING|)"
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
   DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
   NVFLAGS="-g -arch sm_${ARCH_NUM} -O3 -allow-unsupported-compiler -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
-  CXXFLAGS+=" --std=c++11"
   check_command nvcc "cuda"
   check_lib -lcudart "cuda"
   check_lib -lnvrtc "cuda"
@@ -157,6 +157,9 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   check_command hipcc "hip"
   check_lib -lhipblas "hip"
   add_lib_from_paths HIP_LDFLAGS "libhipblas.*" $LIB_PATHS
+  check_lib -lhipfft "hip"
+  add_lib_from_paths HIP_LDFLAGS "libhipfft.*" $LIB_PATHS
+
   PLATFORM_FLAGS=''
   HIP_INCLUDES="-I${ROCM_PATH}/hip/include -I${ROCM_PATH}/hipblas/include -I${ROCM_PATH}/include"
   case "${GPUVER}" in
@@ -170,8 +173,8 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lhipblas -lamdhip64 IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__'
-      DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__ IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
-      CXXFLAGS+=" \$(DFLAGS) -fopenmp -std=c++11"
+      DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__ -D__PW_HIP -D__PW_GPU IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
+      CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     Mi100)
       check_lib -lamdhip64 "hip"
@@ -181,10 +184,10 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       check_lib -lroctracer64 "hip"
       add_lib_from_paths HIP_LDFLAGS "libroctracer64.*" $LIB_PATHS
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
-      LIBS+=" IF_HIP(-lhipblas -lamdhip64 IF_DEBUG(-lroctx64 -lroctracer64|)|)"
+      LIBS+=" IF_HIP( -lhipblas -lamdhip64 IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
-      DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__ IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
-      CXXFLAGS+=" \$(DFLAGS) -fopenmp -std=c++11"
+      DFLAGS+=' IF_HIP(-D__GRID_HIP -D__HIP_PLATFORM_AMD__ -D__PW_HIP -D__PW_GPU IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
+      CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     *)
       check_command nvcc "cuda"
@@ -193,7 +196,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       check_lib -lcuda "cuda"
       check_lib -lcufft "cuda"
       check_lib -lcublas "cuda"
-      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__GRID_HIP|)" # -D__DBCSR_ACC
+      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__GRID_HIP -D__PW_HIP -D__PW_GPU |)" # -D__DBCSR_ACC
       HIP_FLAGS=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
       add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
       HIP_INCLUDES+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
@@ -201,7 +204,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       CFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
       CXXFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
       # Set LD-flags
-      LIBS+=' -lnvrtc -lcudart -lcufft -lcublas -lcuda'
+      LIBS+=' -lhipfft -lhipblas -lhipfft -lnvrtc -lcudart -lcufft -lcublas -lcuda'
       add_lib_from_paths HIP_LDFLAGS "libcudart.*" $LIB_PATHS
       add_lib_from_paths HIP_LDFLAGS "libnvrtc.*" $LIB_PATHS
       add_lib_from_paths HIP_LDFLAGS "libcuda.*" $LIB_PATHS

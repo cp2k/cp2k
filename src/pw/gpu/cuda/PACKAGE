@@ -1,5 +1,5 @@
 {
     "description": "CUDA FFT acceleration",
-    "requires": ["../../offload"],
+    "requires": ["../../../offload", "../kernels"],
     "archive": "libcp2kpwcuda",
 }

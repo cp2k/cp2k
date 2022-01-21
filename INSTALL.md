@@ -478,7 +478,11 @@ partially depending on installed libraries (see 2.)
 - `-D__LIBXC` use LIBXC
 - `-D__ELPA` use ELPA in place of SYEVD  to solve the eigenvalue problem
 - `-D__FFTW3` FFTW version 3 is recommended
-- `-D__PW_CUDA` CUDA FFT and associated gather/scatter on the GPU
+- `-D__PW_GPU` CUDA or hip FFT and associated gather/scatter on the GPU
+- `-D__PW_CUDA` CUDA FFT and associated gather/scatter on the GPU. `__PW_GPU`
+  needs to be set
+- `-D__PW_HIP` HIP FFT and associated gather/scatter on the GPU. `__PW_GPU`
+  needs to be set
 - `-D__MKL` link the MKL library for linear algebra and/or FFT
 - `-D__GRID_CORE=X` (with X=1..6) specific optimized core routines can be
   selected.  Reasonable defaults are [provided](./src/grid/collocate_fast.f90)

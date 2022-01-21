@@ -61,39 +61,42 @@ ifeq ($(OFFLOAD_CC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
 ifneq ($(LD_SHARED),)
- ARCHIVE_EXT := .so
+	ARCHIVE_EXT := .so
 else
- ARCHIVE_EXT := .a
+	ARCHIVE_EXT := .a
 endif
 include $(EXTSHOME)/Makefile.inc
 endif
 
 # Declare PHONY targets =====================================================
 .PHONY : $(VERSION) $(EXE_NAMES) \
-				 dirs makedep default_target all \
-				 toolversions exts extversions extclean \
-				 libcp2k cp2k_shell pkgconfig python-bindings \
-				 pre-commit pre-commit-clean \
-				 pretty precommit precommitclean doxygenclean doxygen \
-				 fpretty fprettyclean \
-				 doxify doxifyclean \
-				 install clean realclean distclean mrproper help \
-				 test testbg testclean testrealclean \
-				 data \
-	 $(EXTSPACKAGES)
+					dirs makedep default_target all \
+					toolversions exts extversions extclean \
+					libcp2k cp2k_shell pkgconfig python-bindings \
+					pre-commit pre-commit-clean \
+					pretty precommit precommitclean doxygenclean doxygen \
+					fpretty fprettyclean \
+					doxify doxifyclean \
+					install clean realclean distclean mrproper help \
+					test testbg testclean testrealclean \
+					data \
+		$(EXTSPACKAGES)
 
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify | awk '{printf("%s:",$$1)}')
 ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
-OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.F")
+OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.F" ! -name "pw_gpu.F")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path "*/python*" -name "*.c")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cpp")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cxx")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -path "./grid/hip" -prune -type f -name "*.cc")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path "./grid/hip"  ! -path "./pw/gpu" -prune -type f -name "pw_gpu.F" -prune -type f -name "*.cc")
 
 ifneq (,$(findstring hipcc,$(OFFLOAD_CC)))
+OBJ_SRC_FILES += ./pw/gpu/hip/pw_hip_z.cc
+OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cc
+OBJ_SRC_FILES += ./pw/pw_gpu.F
 OBJ_SRC_FILES += ./grid/hip/grid_hip_integrate.cc
 OBJ_SRC_FILES += ./grid/hip/grid_hip_collocate.cc
 OBJ_SRC_FILES += ./grid/hip/grid_hip_context.cc
@@ -104,6 +107,8 @@ endif
 # if we compile for cuda by directly calling nvcc then include all cuda files.
 ifneq (,$(findstring nvcc,$(OFFLOAD_CC)))
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cu")
+OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cc
+OBJ_SRC_FILES += ./pw/pw_gpu.F
 endif
 
 
@@ -463,9 +468,9 @@ MAKEDEPMODE = "normal"
 ifeq ($(HACKDEP),yes)
 MAKEDEPMODE = "hackdep"
 else
- ifneq ($(MC),)
- MAKEDEPMODE = "mod_compiler"
- endif
+	ifneq ($(MC),)
+	MAKEDEPMODE = "mod_compiler"
+	endif
 endif
 
 # this happens on stage 3
@@ -516,10 +521,10 @@ cp2k_info.o: $(GIT_REF)
 
 # Add some practical metadata about the build.
 FCFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
-					 -D__COMPILE_DATE="\"$(shell date)\""\
-					 -D__COMPILE_HOST="\"$(shell hostname 2>/dev/null || hostnamectl --transient)\""\
-					 -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
-					 -D__DATA_DIR="\"$(DATA_DIR)\""
+						-D__COMPILE_DATE="\"$(shell date)\""\
+						-D__COMPILE_HOST="\"$(shell hostname 2>/dev/null || hostnamectl --transient)\""\
+						-D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
+						-D__DATA_DIR="\"$(DATA_DIR)\""
 
 # $(FCLOGPIPE) can be used to store compiler output, e.g. warnings, for each F-file separately.
 # This is used e.g. by the convention checker.
@@ -558,6 +563,8 @@ ifneq (,$(findstring hipcc,$(OFFLOAD_CC)))
 
 #define specific rules for the hip backend since they need to be propcessed by hipcc
 
+pw_hip_z.o: pw_hip_z.cc
+	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
 grid_hip_collocate.o: grid_hip_collocate.cc
 	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
 grid_hip_integrate.o: grid_hip_integrate.cc
