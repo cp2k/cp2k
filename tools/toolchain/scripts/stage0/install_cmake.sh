@@ -9,13 +9,24 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cmake_ver="3.22.1"
-cmake_sha256="808a712bcb039fd71f6960dca82a9befb977d8bdb074718218cf7646fd08bb7a"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
 source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
+
+cmake_ver="3.22.1"
+if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
+  cmake_arch="Linux-aarch64"
+  cmake_sha256="ff886c6c16be867229a6c1fe4bc963ff77ae24187d5a8d64ef72a06f84c1a25c"
+elif [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
+  cmake_arch="Linux-x86_64"
+  cmake_sha256="808a712bcb039fd71f6960dca82a9befb977d8bdb074718218cf7646fd08bb7a"
+else
+  report_error ${LINENO} \
+    "cmake installation for ARCH=${ARCH} is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
+  exit 1
+fi
 
 [ -f "${BUILDDIR}/setup_cmake" ] && rm "${BUILDDIR}/setup_cmake"
 
@@ -30,11 +41,11 @@ case "${with_cmake}" in
     if verify_checksums "${install_lock_file}"; then
       echo "cmake-${cmake_ver} is already installed, skipping it."
     else
-      if [ -f cmake-${cmake_ver}-Linux-x86_64.sh ]; then
-        echo "cmake-${cmake_ver}-Linux-x86_64.sh is found"
+      if [ -f cmake-${cmake_ver}-${cmake_arch}.sh ]; then
+        echo "cmake-${cmake_ver}-${cmake_arch}.sh is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${cmake_sha256} \
-          https://github.com/Kitware/CMake/releases/download/v${cmake_ver}/cmake-${cmake_ver}-Linux-x86_64.sh
+          https://github.com/Kitware/CMake/releases/download/v${cmake_ver}/cmake-${cmake_ver}-${cmake_arch}.sh
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
