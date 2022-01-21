@@ -1,4 +1,4 @@
-FROM rocm/dev-ubuntu-20.04:4.3
+FROM rocm/dev-ubuntu-20.04:4.5.2-complete
 
 # author: Ole Schuett
 
