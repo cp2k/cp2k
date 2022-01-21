@@ -57,7 +57,7 @@ MODULE motion_utils
              get_output_format, rot_ana
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'motion_utils'
-   REAL(KIND=dp), PARAMETER, PUBLIC     :: thrs_motion = 1.0E4_dp*EPSILON(0.0_dp)
+   REAL(KIND=dp), PARAMETER, PUBLIC     :: thrs_motion = 5.0E-10_dp
 
 CONTAINS
 
@@ -211,7 +211,7 @@ CONTAINS
          lrot = 1
          DO i = 1, 3
             norm = SQRT(DOT_PRODUCT(Rot(:, i), Rot(:, i)))
-            IF (norm <= thrs_motion) THEN
+            IF (norm <= SQRT(thrs_motion)) THEN
                lrot(i) = 0
                CYCLE
             END IF

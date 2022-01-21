@@ -727,7 +727,9 @@ CONTAINS
          D(:, i) = mat(:, i)
          DO j = i + 1, dof
             norm = DOT_PRODUCT(mat(:, i), mat(:, j))
-            CPASSERT(ABS(norm) < thrs_motion)
+            IF (ABS(norm) > thrs_motion) THEN
+               CPWARN("Orthogonality error in transformation matrix")
+            END IF
          END DO
       END DO
       ! Generate the nvib orthogonal vectors
