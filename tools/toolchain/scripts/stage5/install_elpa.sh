@@ -90,21 +90,19 @@ case "$with_elpa" in
       FMA_flag=""
       SSE4_flag=""
       config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
-      if [ -f /proc/cpuinfo ]; then
+      if [ -f /proc/cpuinfo ] && [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
         has_AVX=$(grep '\bavx\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
         [ "${has_AVX}" = "yes" ] && AVX_flag="-mavx" || AVX_flag=""
         has_AVX2=$(grep '\bavx2\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
         [ "${has_AVX2}" = "yes" ] && AVX_flag="-mavx2"
         has_AVX512=$(grep '\bavx512f\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
         [ "${has_AVX512}" = "yes" ] && AVX512_flags="-mavx512f"
-        if [ "$OPENBLAS_ARCH" = "x86_64" ]; then
-          FMA_flag=$(grep '\bfma\b' /proc/cpuinfo 1> /dev/null && echo '-mfma' || echo '-mno-fma')
-          SSE4_flag=$(grep '\bsse4_1\b' /proc/cpuinfo 1> /dev/null && echo '-msse4' || echo '-mno-sse4')
-          grep '\bavx512dq\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512dq"
-          grep '\bavx512cd\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512cd"
-          grep '\bavx512bw\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512bw"
-          grep '\bavx512v1\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512v1"
-        fi
+        FMA_flag=$(grep '\bfma\b' /proc/cpuinfo 1> /dev/null && echo '-mfma' || echo '-mno-fma')
+        SSE4_flag=$(grep '\bsse4_1\b' /proc/cpuinfo 1> /dev/null && echo '-msse4' || echo '-mno-sse4')
+        grep '\bavx512dq\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512dq"
+        grep '\bavx512cd\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512cd"
+        grep '\bavx512bw\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512bw"
+        grep '\bavx512v1\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512v1"
         config_flags="--enable-avx=${has_AVX} --enable-avx2=${has_AVX2} --enable-avx512=${has_AVX512}"
       fi
       for TARGET in "cpu" "nvidia"; do
