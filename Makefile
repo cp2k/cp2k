@@ -83,45 +83,35 @@ endif
         $(EXTSPACKAGES)
 
 # Discover files and directories ============================================
-ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify | awk '{printf("%s:",$$1)}')
-ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
+#
+# File type is derived from name. Only the following extensions are supported:
+#   .F    ->  Fortran
+#   .c    ->  C
+#   .cu   ->  CUDA
+#   .cc   ->  HIP
+#   .h    ->  C header
+#   .hpp  ->  CUDA or HIP header
 
-ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
-OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.F" ! -name "pw_gpu.F")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path "*/python*" -name "*.c")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cpp")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cxx")
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path "./grid/hip"  ! -path "./pw/gpu" -prune -type f -name "pw_gpu.F" -prune -type f -name "*.cc")
+ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d | awk '{printf("%s:",$$1)}')
+ALL_PKG_FILES  = $(shell find $(SRCDIR) -name "PACKAGE")
+OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . -name "*.F")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.c")
+
+ifneq (,$(findstring nvcc,$(OFFLOAD_CC)))
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cu")
+endif
 
 ifneq (,$(findstring hipcc,$(OFFLOAD_CC)))
-OBJ_SRC_FILES += ./pw/gpu/hip/pw_hip_z.cc
-OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cc
-OBJ_SRC_FILES += ./pw/pw_gpu.F
-OBJ_SRC_FILES += ./grid/hip/grid_hip_integrate.cc
-OBJ_SRC_FILES += ./grid/hip/grid_hip_collocate.cc
-OBJ_SRC_FILES += ./grid/hip/grid_hip_context.cc
-#exclude the src/grid/gpu directory from the list to avoid poluting the C namespace with empty functions.
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -path "./grid/gpu" -prune -type f -name "*.cu")
+OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cc")
 endif
 
-# if we compile for cuda by directly calling nvcc then include all cuda files.
-ifneq (,$(findstring nvcc,$(OFFLOAD_CC)))
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cu")
-OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cc
-OBJ_SRC_FILES += ./pw/pw_gpu.F
-endif
-
-
-# Included files used by Fypp preprocessor and standard includes
-INCLUDED_SRC_FILES = $(filter-out base_uses.f90, $(notdir $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.f90")))
+# Included files used by Fypp preprocessor
+INCLUDED_SRC_FILES = $(notdir $(shell find $(SRCDIR) -name "*.fypp"))
 
 # Include also source files which won't compile into an object file
 ALL_SRC_FILES  = $(strip $(subst $(NULL) .,$(NULL) $(SRCDIR),$(NULL) $(OBJ_SRC_FILES)))
-ALL_SRC_FILES += $(filter-out base_uses.f90, $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.f90"))
-ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.h")
-ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hpp")
-ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hxx")
-ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hcc")
+ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.h")
+ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.hpp")
 
 ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
@@ -367,7 +357,7 @@ fpretty: $(addprefix $(PRETTYOBJDIR)/, $(ALL_OBJECTS:.o=.pretty)) $(addprefix $(
 TOOL_HELP += "fpretty : Reformat all Fortran source files in a pretty way."
 
 fprettyclean:
-	-rm -rf $(PRETTYOBJDIR) $(ALL_PREPRETTY_DIRS)
+	-rm -rf $(PRETTYOBJDIR)
 TOOL_HELP += "fprettyclean : Remove prettify marker files and preprettify directories"
 
 $(PRETTYOBJDIR)/%.pretty: %.F $(DOXIFYOBJDIR)/%.doxified
@@ -538,8 +528,11 @@ FYPPFLAGS ?= -n
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-%.o: %.cpp
-	$(CXX) -c $(CXXFLAGS) $<
+%.o: %.cu
+	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
+
+%.o: %.cc
+	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
 
 ifneq ($(LIBDIR),)
 $(LIBDIR)/%:
@@ -553,27 +546,6 @@ endif
 ifneq ($(RANLIB),)
 	@$(RANLIB) $@
 endif
-endif
-
-%.o: %.cu
-	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
-
-
-ifneq (,$(findstring hipcc,$(OFFLOAD_CC)))
-
-#define specific rules for the hip backend since they need to be propcessed by hipcc
-
-pw_hip_z.o: pw_hip_z.cc
-	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
-grid_hip_collocate.o: grid_hip_collocate.cc
-	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
-grid_hip_integrate.o: grid_hip_integrate.cc
-	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
-grid_hip_context.o: grid_hip_context.cc
-	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
-
-#%.o: %.cc
-#	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
 endif
 
 # module compiler magic =====================================================
