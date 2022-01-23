@@ -1,20 +1,21 @@
 # arch file for CP2K on Fugaku with the Fujitsu compiler, with minimal dependencies.
 # RIKEN uses Spack to provide libraries.
 
-FFTW_DIR   := $(shell spack location -i fj-fftw)
+# XXX: you may have to append a hash, e.g., /3q6zoxs
+FFTW_DIR   := $(shell spack location -i fujitsu-fftw)
 
 CC          = mpifccpx
 CXX         = mpiFCCpx
 AR          = ar -r
 FC          = mpifrtpx
-LD          = mpifrtpx
+LD          = mpiFCCpx
 DFLAGS      = -D__parallel -D__MPI_VERSION=3 -D__SCALAPACK
 DFLAGS     += -D__FFTW3
 FCFLAGS     = -Free -X08 -Kopenmp,SVE $(DFLAGS)
 FCFLAGS    += -I$(FFTW_DIR)/include
 CFLAGS      = -Kopenmp,SVE $(DFLAGS)
 CXXFLAGS    = -Kopenmp,SVE $(DFLAGS)
-LDFLAGS     = -SCALAPACK -SSL2 $(FCFLAGS)
+LDFLAGS     = -SCALAPACK -SSL2 $(CXXFLAGS) --linkfortran
 
 # The libfftw.so provided by fj-fftw is missing the RPATH/RUNPATH to the compilers libfjcrt.so.1, add it explicitly to avoid a warning.
 LIBS       += -L$(FFTW_DIR)/lib -lfftw3 -lfftw3_omp -lfjcrt
@@ -23,36 +24,3 @@ LIBS       += -L$(FFTW_DIR)/lib -lfftw3 -lfftw3_omp -lfjcrt
 mp2_eri.o: mp2_eri.F
 	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
 	$(FC) -c $(FCFLAGS) -O0 -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
-
-# Note: the Fujitsu compiler still has a problem with some INTENT specifications in DBCSR and you may have to apply the following patch:
-#   diff --git a/exts/dbcsr/src/dist/dbcsr_dist_methods.F b/exts/dbcsr/src/dist/dbcsr_dist_methods.F
-#   index 38a5724e3..a3f242da4 100644
-#   --- a/exts/dbcsr/src/dist/dbcsr_dist_methods.F
-#   +++ b/exts/dbcsr/src/dist/dbcsr_dist_methods.F
-#   @@ -77,7 +77,7 @@ CONTAINS
-#             OPTIONAL                                        :: template
-#          INTEGER, INTENT(IN), OPTIONAL                      :: group
-#          INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
-#   -      INTEGER, DIMENSION(:), INTENT(IN), POINTER, CONTIGUOUS :: row_dist, col_dist
-#   +      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS             :: row_dist, col_dist
-#          LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays
-#
-#          TYPE(dbcsr_mp_obj)                                 :: mp_env
-#   @@ -116,7 +116,7 @@ CONTAINS
-#             !! distribution
-#          TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
-#             !! multiprocessing environment
-#   -      TYPE(array_i1d_obj), INTENT(IN)                    :: row_dist_block, col_dist_block
-#   +      TYPE(array_i1d_obj)                                :: row_dist_block, col_dist_block
-#          TYPE(array_i1d_obj), INTENT(IN), OPTIONAL          :: local_rows, local_cols
-#
-#          INTEGER, DIMENSION(:), POINTER, CONTIGUOUS         :: cont_row_dist, cont_col_dist, &
-#   @@ -145,7 +145,7 @@ CONTAINS
-#             !! distribution
-#          TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
-#             !! multiprocessing environment
-#   -      INTEGER, DIMENSION(:), INTENT(IN), POINTER, CONTIGUOUS :: row_dist_block, col_dist_block
-#   +      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS             :: row_dist_block, col_dist_block
-#          INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL, &
-#             POINTER, CONTIGUOUS                             :: local_rows, local_cols
-#          LOGICAL, OPTIONAL
