@@ -586,7 +586,8 @@ CONTAINS
                                    p, lower_B, max_dev, &
                                    deriv)
       REAL(KIND=dp), INTENT(IN)                          :: Emp2
-      REAL(KIND=dp), INTENT(OUT)                         :: Emp2_AA, Emp2_BB, Emp2_AB, DI_ref
+      REAL(KIND=dp), INTENT(OUT)                         :: Emp2_AA, Emp2_BB, Emp2_AB
+      REAL(KIND=dp), INTENT(IN)                          :: DI_ref
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: Integ_MP2, Integ_MP2_AA, Integ_MP2_BB, &
                                                             Integ_MP2_AB
       REAL(KIND=dp), INTENT(IN)                          :: eps
