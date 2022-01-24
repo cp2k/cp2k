@@ -685,7 +685,7 @@ CONTAINS
          ncol_local, nrow_local, transf_type_in
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: converged
-      REAL(KIND=dp)                                      :: eps_conv, t1, t2
+      REAL(KIND=dp)                                      :: eps_conv, scale_cphf, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: conv, proj_bi_xj, temp_vals, x_norm, xi_b
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_small, b_small, xi_Axi
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: b_i, precond, residual
@@ -771,6 +771,8 @@ CONTAINS
       xi_b = 0.0_dp
       xi_Axi = 0.0_dp
 
+      scale_cphf = mp2_env%ri_grad%scale_x0
+
       cycle_counter = 0
       DO iiter = 1, max_num_iter
          cycle_counter = cycle_counter + 1
@@ -800,7 +802,7 @@ CONTAINS
 
          ! update actual x_i
          DO ispin = 1, nspins
-            xn(ispin, iiter)%matrix%local_data(:, :) = b_i(ispin)%matrix%local_data(:, :)
+            xn(ispin, iiter)%matrix%local_data(:, :) = scale_cphf*b_i(ispin)%matrix%local_data(:, :)
             DO iiB = 1, iiter - 1
                xn(ispin, iiter)%matrix%local_data(:, :) = xn(ispin, iiter)%matrix%local_data(:, :) - &
                                                           xn(ispin, iiB)%matrix%local_data(:, :)*proj_bi_xj(iiB)
@@ -900,6 +902,8 @@ CONTAINS
                                                  + precond(ispin)%matrix%local_data(:, :) &
                                                  *Ax(ispin, iiter)%matrix%local_data(:, :)
          END DO
+
+         scale_cphf = 1.0_dp
 
       END DO
 

@@ -1423,6 +1423,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_X0", &
+                          description="Scale the initial guess of the iteration.", &
+                          usage="SCALE_X0 1.0", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_cphf
 
 ! **************************************************************************************************
