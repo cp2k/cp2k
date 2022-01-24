@@ -228,7 +228,7 @@ CXXFLAGS       := $(CFLAGS) -std=c++11
 OFFLOAD_FLAGS  := $(DFLAGS) -O3 -Xcompiler="-fopenmp" -arch sm_60 --std=c++11
 
 FCFLAGS        := $(CFLAGS)
-ifeq ($(shell (( $(shell gcc -dumpversion | cut -d. -f1) > 9 )) && echo yes), yes)
+ifeq ($(shell [ $(shell gcc -dumpversion | cut -d. -f1) -gt 9 ] && echo yes), yes)
    FCFLAGS        += -fallow-argument-mismatch
 endif
 FCFLAGS        += -fbacktrace
