@@ -159,18 +159,21 @@ CONTAINS
       TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
       INTEGER                                            :: length
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_get_reference_length'
       INTEGER, PARAMETER                                 :: maxlen = 67
 
       CHARACTER(LEN=128)                                 :: descr_string
       CHARACTER(LEN=1024)                                :: doi_string, ref_string
-      INTEGER                                            :: i, i_ref, idx, n_params
+      INTEGER                                            :: i, i_ref, i_ref_old, n_params, handle
       TYPE(xc_f03_func_reference_t)                      :: xc_ref
+
+      CALL timeset(routineN, handle)
 
       ! We are counting the number of necessary lines by carrying out a dry run of xc_libxc_wrap_info_refs
       i_ref = 0
-      idx = 1
+      i_ref_old = -1
       length = 0
-      DO WHILE (i_ref >= 0)
+      DO WHILE (i_ref >= 0 .AND. i_ref /= i_ref_old)
          ! information about functional references
          xc_ref = xc_f03_func_info_get_references(xc_info, i_ref)
          ref_string = xc_f03_func_reference_get_ref(xc_ref)
@@ -187,10 +190,12 @@ CONTAINS
             length = length + LEN_TRIM(descr_string) + 3
             IF (MOD(length, maxlen) /= 0) length = length + maxlen - MOD(length, maxlen)
          END DO
-         idx = idx + 1
+         i_ref_old = i_ref
       END DO
       ! two additional lines for spin polarization, scaling factor and buffer
       length = length + 2*maxlen
+
+      CALL timestop(handle)
 
    END FUNCTION xc_libxc_get_reference_length
 
@@ -216,16 +221,17 @@ CONTAINS
       CHARACTER(LEN=1028)                                :: doi_string, ref_string
       ! conservative estimate of the necessary length: 2*1028+11=2067
       CHARACTER(LEN=2067)                                :: tmp_string
-      INTEGER                                            :: empty, first, handle, i, i_ref, idx, &
+      INTEGER                                            :: empty, first, handle, i, i_ref, i_ref_old, idx, &
                                                             last, n_params
       TYPE(xc_f03_func_reference_t)                      :: xc_ref
 
       CALL timeset(routineN, handle)
 
       i_ref = 0
+      i_ref_old = -1
       idx = 1
       first = 1
-      DO WHILE (i_ref >= 0)
+      DO WHILE (i_ref >= 0 .AND. i_ref /= i_ref_old)
          ! information about functional references
          xc_ref = xc_f03_func_info_get_references(xc_info, i_ref)
          ref_string = xc_f03_func_reference_get_ref(xc_ref)
@@ -261,6 +267,7 @@ CONTAINS
             END IF
          END DO
          idx = idx + 1
+         i_ref_old = i_ref
       END DO
       SELECT CASE (polarized)
       CASE (XC_UNPOLARIZED)
