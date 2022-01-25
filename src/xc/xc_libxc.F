@@ -158,10 +158,14 @@ CONTAINS
       INTEGER                                  :: length
 
 #if defined (__LIBXC)
+      CHARACTER(len=*), PARAMETER :: routineN = 'libxc_get_reference_length'
+
       CHARACTER(LEN=default_string_length)     :: func_name
-      INTEGER                                  :: func_id
+      INTEGER                                  :: func_id, handle
       TYPE(xc_f03_func_t)                      :: xc_func
       TYPE(xc_f03_func_info_t)                 :: xc_info
+
+      CALL timeset(routineN, handle)
 
       func_name = libxc_params%section%name
       IF (func_name == "LIBXC" .OR. func_name == "KE_LIBXC") THEN
@@ -182,6 +186,8 @@ CONTAINS
       length = xc_libxc_get_reference_length(xc_info)
 
       CALL xc_f03_func_end(xc_func)
+
+      CALL timestop(handle)
 #else
       MARK_USED(libxc_params)
       MARK_USED(lsd)

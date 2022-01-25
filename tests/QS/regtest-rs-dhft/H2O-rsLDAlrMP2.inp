@@ -33,11 +33,10 @@
     &END SCF
     &XC
       &XC_FUNCTIONAL
-        &LDA_X
-        &END LDA_X
+        # LDA_X_ERF is the short-range part of the functional
         &LDA_X_ERF
           _OMEGA ${MY_OMEGA}
-          SCALE -1.0
+          SCALE 1.0
         &END
         &LDA_C_PMGB06
           SCALE -1.0
