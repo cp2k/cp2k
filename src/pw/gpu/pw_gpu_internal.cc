@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-#if defined (__PW_GPU)
+#if defined(__PW_GPU)
 
 #include <array>
 #include <cstdio>
