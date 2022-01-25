@@ -5,6 +5,8 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
+#if defined (__PW_GPU)
+
 #include <array>
 #include <cstdio>
 #include <map>
@@ -580,3 +582,5 @@ extern "C" void pw_gpu_sf_z_(const double *zin, double *zout,
   offloadFree(ptr_2);
   offloadFree(ghatmap_dev);
 }
+
+#endif // __PW_GPU
