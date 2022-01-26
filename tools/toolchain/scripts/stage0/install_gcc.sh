@@ -62,6 +62,10 @@ case "${with_gcc}" in
       #
       # TODO: Unfortunately, we can not simply use --disable-shared, because
       # it would break OpenBLAS build and probably others too.
+      COMMON_FLAGS="-O2 -fPIC -fno-omit-frame-pointer -fopenmp -g"
+      CFLAGS="${COMMON_FLAGS} -std=gnu99"
+      CXXFLAGS="${CFLAGS}"
+      FCFLAGS="${COMMON_FLAGS} -fbacktrace"
       ${GCCROOT}/configure --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
         --enable-languages=c,c++,fortran \
@@ -70,8 +74,9 @@ case "${with_gcc}" in
         --enable-plugins \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) \
-        CFLAGS="-fPIC ${CFLAGS}" \
-        CXXFLAGS="-fPIC ${CXXFLAGS}" \
+        CFLAGS="${CFLAGS}" \
+        CXXFLAGS="${CXXFLAGS}" \
+        FCFLAGS="${FCFLAGS}" \
         > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       # thread sanitizer
@@ -85,19 +90,22 @@ case "${with_gcc}" in
         # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
         cd x86_64*/libgfortran
         make clean > clean.log 2>&1 || tail -n ${LOG_LINES} clean.log
+        CFLAGS="${CFLAGS} -fsanitize=thread"
+        CXXFLAGS="${CXXFLAGS} -fsanitize=thread"
+        FCFLAGS="${FCFLAGS} -fsanitize=thread"
         make -j $(get_nprocs) \
-          CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
-          FCFLAGS="-g -O2 -fsanitize=thread" \
-          CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
+          CFLAGS="${CFLAGS}" \
+          CXXFLAGS="${CXXFLAGS}" \
+          FCFLAGS="${FCFLAGS}" \
           LDFLAGS="-B$(pwd)/../libsanitizer/tsan/.libs/ -Wl,-rpath,$(pwd)/../libsanitizer/tsan/.libs/ -fsanitize=thread" \
           > make.log 2>&1 || tail -n ${LOG_LINES} make.log
         make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
         cd ../libgomp
         make clean > clean.log 2>&1 || tail -n ${LOG_LINES} clean.log
         make -j $(get_nprocs) \
-          CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
-          FCFLAGS="-g -O2 -fsanitize=thread" \
-          CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " \
+          CFLAGS="${CFLAGS}" \
+          CXXFLAGS="${CXXFLAGS}" \
+          FCFLAGS="${FCFLAGS}" \
           LDFLAGS="-B$(pwd)/../libsanitizer/tsan/.libs/ -Wl,-rpath,$(pwd)/../libsanitizer/tsan/.libs/ -fsanitize=thread" \
           > make.log 2>&1 || tail -n ${LOG_LINES} make.log
         make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
