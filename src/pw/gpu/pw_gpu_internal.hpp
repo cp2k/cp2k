@@ -8,11 +8,13 @@
 #ifndef PW_GPU_INTERNAL_HPP
 #define PW_GPU_INTERNAL_HPP
 
+#include "../../offload/offload_library.h"
+
 class fft_plan {
 private:
-#if defined(__PW_HIP)
+#if defined(__OFFLOAD_HIP)
   hipfftHandle plan_;
-#elif defined(__PW_CUDA)
+#elif defined(__OFFLOAD_CUDA)
   cufftHandle plan_;
 #endif
   int size_[3] = {0, 0, 0};
@@ -98,22 +100,22 @@ public:
     }
 
     if (dim_ == 3) {
-#if defined(__PW_HIP)
+#if defined(__OFFLOAD_HIP)
       fft_error_check(
           hipfftPlan3d(&plan_, size_[2], size_[1], size_[0], HIPFFT_Z2Z),
           __LINE__, __FILE__);
-#elif defined(__PW_CUDA)
+#elif defined(__OFFLOAD_CUDA)
       fft_error_check(
                       cufftPlan3d(&plan_, size_[2], size_[1], size_[0], CUFFT_Z2Z),
                       __LINE__, __FILE__);
 #endif
     } else {
-#if defined(__PW_HIP)
+#if defined(__OFFLOAD_HIP)
       fft_error_check(hipfftPlanMany(&plan_, dim_, &size_[0], inembed, istride,
                                      idist, onembed, ostride, odist, HIPFFT_Z2Z,
                                      batch_size_),
                       __LINE__, __FILE__);
-#elif defined(__PW_CUDA)
+#elif defined(__OFFLOAD_CUDA)
       fft_error_check(cufftPlanMany(&plan_, dim_, &size_[0], inembed, istride,
                                      idist, onembed, ostride, odist, CUFFT_Z2Z,
                                      batch_size_),
@@ -121,7 +123,7 @@ public:
 #endif
     }
 
-#ifdef __PW_HIP
+#ifdef __OFFLOAD_HIP
     fft_error_check(hipfftSetAutoAllocation(plan_, 1), __LINE__, __FILE__);
 #endif
     is_initialized_ = true;
@@ -191,9 +193,9 @@ public:
 
   void set_stream(const offloadStream_t &hip_stream) {
     stream_ = hip_stream;
-#if defined(__PW_HIP)
+#if defined(__OFFLOAD_HIP)
     fft_error_check(hipfftSetStream(plan_, stream_), __LINE__, __FILE__);
-#elif defined(__PW_CUDA)
+#elif defined(__OFFLOAD_CUDA)
     fft_error_check(cufftSetStream(plan_, stream_), __LINE__, __FILE__);
 #endif
   }
@@ -214,7 +216,7 @@ public:
   }
 
   void destroy() {
-#if defined(__PW_HIP)
+#if defined(__OFFLOAD_HIP)
     fft_error_check(hipfftDestroy(plan_), __LINE__, __FILE__);
 #else
     fft_error_check(cufftDestroy(plan_), __LINE__, __FILE__);
@@ -241,10 +243,10 @@ public:
   /// run the fft on the data inplace
   void execute_fft(const enum fft_direction direction__,
                    pw_complex_type *data__) {
-#if defined(__PW_HIP)
+#if defined(__OFFLOAD_HIP)
     fft_error_check(hipfftExecZ2Z(plan_, data__, data__, direction__), __LINE__,
                     __FILE__);
-#elif defined(__PW_CUDA)
+#elif defined(__OFFLOAD_CUDA)
     fft_error_check(cufftExecZ2Z(plan_, data__, data__, direction__), __LINE__,
                     __FILE__);
 #endif
@@ -254,10 +256,10 @@ public:
   void execute_fft(const enum fft_direction direction__,
                    pw_complex_type *dataIn__,
                    pw_complex_type *dataOut__) {
-#if defined(__PW_HIP)
+#if defined(__OFFLOAD_HIP)
     fft_error_check(hipfftExecZ2Z(plan_, dataIn__, dataOut__, direction__),
                     __LINE__, __FILE__);
-#elif defined(__PW_CUDA)
+#elif defined(__OFFLOAD_CUDA)
     fft_error_check(cufftExecZ2Z(plan_, dataIn__, dataOut__, direction__),
                     __LINE__, __FILE__);
 #endif

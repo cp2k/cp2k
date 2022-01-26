@@ -12,10 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __GRID_CUDA
-#include <cublas_v2.h>
-#include <cuda.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,82 +19,6 @@ extern "C" {
 
 #include "../cpu/tensor_local.h"
 #include "cpu_private_header.h"
-#ifdef __GRID_CUDA
-typedef struct pgf_list_gpu_ {
-  /* number of devices */
-  int number_of_devices;
-
-  /* device_id */
-  int device_id;
-  /* */
-  int lmax;
-
-  /* maximum size of the batch */
-  int batch_size;
-
-  /* size of the batch */
-  int list_length;
-
-  /* number of elements occupied in the buffer */
-  size_t coef_dynamic_alloc_size_gpu_;
-
-  /*  total size of the buffer */
-  size_t coef_alloc_size_gpu_;
-
-  /* size of the previously allocated coefficent table */
-  size_t coef_previous_alloc_size_;
-
-  /* size of the previously allocated grid */
-  size_t data_gpu_old_size_;
-
-  double *coef_cpu_;
-  double *coef_gpu_;
-
-  /* Info about the cubes */
-  int *coef_offset_cpu_;
-  double3 *rp_cpu_;
-  double *radius_cpu_, *radius_gpu_;
-
-  int *coef_offset_gpu_;
-  double3 *rp_gpu_;
-
-  /* angular momentum */
-  int *lmax_cpu_;
-  int *lmax_gpu_;
-
-  double *zeta_cpu_;
-  double *zeta_gpu_;
-
-  double *data_gpu_;
-
-  cudaStream_t stream;
-  cudaEvent_t event;
-  bool job_finished;
-
-  cublasHandle_t blas_handle;
-
-  int3 grid_size, grid_lower_corner_position, grid_full_size, window_shift,
-      window_size;
-
-  int cmax;
-  bool zeroing_grid;
-
-  /* size of the halo when the grid is split over multiple mpi ranks */
-  int *border_mask_cpu_;
-  int *border_mask_gpu_;
-
-  _task *task_list_cpu_;
-  _task *task_list_gpu_;
-  int3 border_width;
-
-  struct pgf_list_gpu_ *next;
-  /* if true, the grid on the gpu should be reallocated */
-  bool durty;
-  /* true if the buffers are used for computing already */
-  bool running;
-  bool apply_cutoff;
-} pgf_list_gpu;
-#endif
 
 typedef struct collocation_integration_ {
   /* number of compute device */
@@ -162,12 +82,6 @@ typedef struct collocation_integration_ {
   int lmax_diff[2];
 
   int cmax;
-
-#ifdef __GRID_CUDA
-  pgf_list_gpu *worker_list;
-  int worker_list_size;
-#endif
-
 } collocation_integration;
 
 extern struct collocation_integration_ *collocate_create_handle(void);
