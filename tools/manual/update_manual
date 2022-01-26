@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 cwd=${PWD}
 if [[ -z $1 ]]; then
    arch=local
