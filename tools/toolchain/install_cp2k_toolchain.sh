@@ -814,16 +814,16 @@ if [ "${ENABLE_CRAY}" = "__TRUE__" ]; then
   check_command cc
   check_command ftn
   check_command CC
-  export CC=cc
-  export FC=ftn
-  export F77=ftn
-  export F90=ftn
-  export CXX=CC
-  export MPICC=cc
-  export MPIFC=ftn
-  export MPIF77=ftn
-  export MPIF90=ftn
-  export MPICXX=CC
+  export CC="cc"
+  export CXX="CC"
+  export FC="ftn"
+  export F90="${FC}"
+  export F77="${FC}"
+  export MPICC="${CC}"
+  export MPICXX="${CXX}"
+  export MPIFC="${FC}"
+  export MPIF90="${MPIFC}"
+  export MPIF77="${MPIFC}"
   # CRAY libsci should contains core math libraries, scalapack
   # doesn't need LDFLAGS or CFLAGS, nor do the one need to
   # explicitly link the math and scalapack libraries, as all is
@@ -885,15 +885,6 @@ fi
 # ------------------------------------------------------------------------
 
 echo "Compiling with $(get_nprocs) processes."
-
-# set environment for compiling compilers and tools required for CP2K
-# and libraries it depends on
-export CFLAGS=${CFLAGS:-"-O2 -g -Wno-error"}
-export FFLAGS=${FFLAGS:-"-O2 -g -Wno-error"}
-export FCFLAGS=${FCFLAGS:-"-O2 -g -Wno-error"}
-export F90FLAGS=${F90FLAGS:-"-O2 -g -Wno-error"}
-export F77FLAGS=${F77FLAGS:-"-O2 -g -Wno-error"}
-export CXXFLAGS=${CXXFLAGS:-"-O2 -g -Wno-error"}
 
 # Select the correct compute number based on the GPU architecture
 case ${GPUVER} in
