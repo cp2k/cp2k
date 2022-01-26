@@ -79,12 +79,9 @@ extern "C" void pw_gpu_finalize() {
   }
 }
 
-void search_for_plan(const std::vector<int> &fft_size__,
-                     const int dim__,
+void search_for_plan(const std::vector<int> &fft_size__, const int dim__,
                      const int batch_size__,
-                     const enum fft_direction direction__,
-                     fft_plan &plan_)
-{
+                     const enum fft_direction direction__, fft_plan &plan_) {
   for (auto &plan__ : fft_plans_) {
     if (plan__.is_it_valid(fft_size__, dim__, batch_size__, direction__))
       plan_ = std::move(plan__);
@@ -104,11 +101,9 @@ template <typename T> void offloadMalloc(T **ptr__, size_t size__) {
   offloadMalloc((void **)ptr__, size__ * sizeof(T));
 }
 
-
 inline void retrieve_3d_plan(const offloadStream_t &stream,
-                             const enum fft_direction fsign,
-                             const int *n, fft_plan &plan)
-{
+                             const enum fft_direction fsign, const int *n,
+                             fft_plan &plan) {
   std::vector<int> size(3);
   size[0] = n[0];
   size[1] = n[1];
@@ -118,8 +113,8 @@ inline void retrieve_3d_plan(const offloadStream_t &stream,
 }
 
 inline void retrieve_2d_plan(const offloadStream_t &stream,
-                             const enum fft_direction fsign,
-                             const int *n, fft_plan &plan) {
+                             const enum fft_direction fsign, const int *n,
+                             fft_plan &plan) {
   std::vector<int> size(2);
   size[0] = n[1];
   size[1] = n[2];
@@ -129,13 +124,11 @@ inline void retrieve_2d_plan(const offloadStream_t &stream,
 }
 
 inline void retrieve_1d_plan(const offloadStream_t &stream,
-                             const enum fft_direction fsign,
-                             const int n, const int m,
-                             fft_plan &plan) {
+                             const enum fft_direction fsign, const int n,
+                             const int m, fft_plan &plan) {
   search_for_plan({n}, 1, m, fsign, plan);
   plan.set_stream(stream);
 }
-
 
 // Double precision complex procedures
 inline void fft_gpu_run_3d_z_(const offloadStream_t &stream,
@@ -215,7 +208,8 @@ extern "C" void pw_gpu_cfffg_z_(const double *din, double *zout,
 
   offloadMemcpyAsyncHtoD(ptr_1, din, sizeof(double) * nrpts, streams_[0]);
   // copy gather map array from host to the device
-  offloadMemcpyAsyncHtoD(ghatmap_dev, ghatmap, sizeof(int) * ngpts, streams_[1]);
+  offloadMemcpyAsyncHtoD(ghatmap_dev, ghatmap, sizeof(int) * ngpts,
+                         streams_[1]);
 
   // get device memory pointers
   offloadMemsetAsync(ptr_2, 0, nrpts * sizeof(pw_complex_type), streams_[0]);
@@ -224,8 +218,7 @@ extern "C" void pw_gpu_cfffg_z_(const double *din, double *zout,
 
   // fft on the GPU
 
-  plan.execute_fft(fft_direction::FFT_FORWARD,
-                   (pw_complex_type *)ptr_2,
+  plan.execute_fft(fft_direction::FFT_FORWARD, (pw_complex_type *)ptr_2,
                    (pw_complex_type *)ptr_1);
 
   offloadStreamSynchronize(streams_[1]);
@@ -275,20 +268,19 @@ extern "C" void pw_gpu_sfffc_z_(const double *zin, double *dout,
                          streams_[2]);
 
   // get device memory pointers
-  offloadMemsetAsync(ptr_2, 0, sizeof(pw_complex_type) * nrpts,
-                     streams_[0]); // we need to do this only if spherical cut-off is used!
+  offloadMemsetAsync(
+      ptr_2, 0, sizeof(pw_complex_type) * nrpts,
+      streams_[0]); // we need to do this only if spherical cut-off is used!
 
-
-  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * ngpts, streams_[0]);
-
+  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * ngpts,
+                         streams_[0]);
 
   offloadStreamSynchronize(streams_[2]);
   gpu_scatter(streams_[0], scale, ngpts, nmaps, ghatmap_dev, ptr_1, ptr_2);
 
   // fft on the GPU (streams_[0][1])
 
-  plan.execute_fft(fft_direction::FFT_BACKWARD,
-                   (pw_complex_type *)ptr_2,
+  plan.execute_fft(fft_direction::FFT_BACKWARD, (pw_complex_type *)ptr_2,
                    (pw_complex_type *)ptr_1);
 
   // convert the complex (device) pointer 'ptr_2' into a real (host)
@@ -384,7 +376,8 @@ extern "C" void pw_gpu_ffc_z_(const double *zin, double *dout,
   double *ptr_2 = plan1.ptr_2();
 
   // copy input data from host to the device
-  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * nrpts, streams_[0]);
+  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * nrpts,
+                         streams_[0]);
   plan1.execute_fft(fft_direction::FFT_BACKWARD, (pw_complex_type *)ptr_1,
                     (pw_complex_type *)ptr_2);
   plan2.execute_fft(fft_direction::FFT_BACKWARD, (pw_complex_type *)ptr_2,
@@ -471,7 +464,8 @@ extern "C" void pw_gpu_fc_z_(const double *zin, double *dout, const int *npts) {
 
   // get device memory pointers for:
   // copy input data from host to the device
-  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * nrpts, streams_[0]);
+  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * nrpts,
+                         streams_[0]);
 
   plan.execute_fft(fft_direction::FFT_BACKWARD, (pw_complex_type *)ptr_1,
                    (pw_complex_type *)ptr_2);
@@ -515,7 +509,8 @@ extern "C" void pw_gpu_f_z_(const double *zin, double *zout, const int dir,
 
   // get device memory pointers for:
   // copy input data from host to the device
-  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * nrpts, streams_[0]);
+  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * nrpts,
+                         streams_[0]);
 
   plan.execute_fft(direction, (pw_complex_type *)ptr_1,
                    (pw_complex_type *)ptr_2);
@@ -540,7 +535,6 @@ extern "C" void pw_gpu_fg_z_(const double *zin, double *zout,
     abort();
   }
 
-
   // dimensions of double and complex arrays
   const int nrpts = npts[0] * mmax;
   if (nrpts == 0 || ngpts == 0)
@@ -549,7 +543,8 @@ extern "C" void pw_gpu_fg_z_(const double *zin, double *zout,
   // get streams and events
   offload_set_device();
   fft_plan plan;
-  retrieve_1d_plan(streams_[0], fft_direction::FFT_FORWARD, npts[0], mmax, plan);
+  retrieve_1d_plan(streams_[0], fft_direction::FFT_FORWARD, npts[0], mmax,
+                   plan);
   // get device memory pointers for:
   double *ptr_1 = plan.ptr_1();
   double *ptr_2 = plan.ptr_2();
@@ -558,11 +553,14 @@ extern "C" void pw_gpu_fg_z_(const double *zin, double *zout,
 
   // get device memory pointers
   // transfer input data from host to device
-  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * nrpts, streams_[0]);
+  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * nrpts,
+                         streams_[0]);
   // transfer gather data from host to device
-  offloadMemcpyAsyncHtoD(ghatmap_dev, ghatmap, sizeof(int) * ngpts, streams_[1]);
+  offloadMemcpyAsyncHtoD(ghatmap_dev, ghatmap, sizeof(int) * ngpts,
+                         streams_[1]);
 
-  plan.execute_fft(fft_direction::FFT_FORWARD, (pw_complex_type *)ptr_1, (pw_complex_type *)ptr_2);
+  plan.execute_fft(fft_direction::FFT_FORWARD, (pw_complex_type *)ptr_1,
+                   (pw_complex_type *)ptr_2);
 
   // gather on the GPU
   offloadStreamSynchronize(streams_[1]);
@@ -598,20 +596,22 @@ extern "C" void pw_gpu_sf_z_(const double *zin, double *zout,
   // get streams and events
   offload_set_device();
   fft_plan plan;
-  retrieve_1d_plan(streams_[0], fft_direction::FFT_BACKWARD, npts[0], mmax, plan);
+  retrieve_1d_plan(streams_[0], fft_direction::FFT_BACKWARD, npts[0], mmax,
+                   plan);
   // get device memory pointers for:
   double *ptr_1 = plan.ptr_1();
   double *ptr_2 = plan.ptr_2();
   plan.allocate_gmap(ngpts * nmaps);
   int *ghatmap_dev = plan.ghatmap();
   // transfer input data from host to the device
-  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * ngpts, streams_[0]);
+  offloadMemcpyAsyncHtoD(ptr_1, zin, sizeof(pw_complex_type) * ngpts,
+                         streams_[0]);
   // transfer scatter data from host to device
   offloadMemcpyAsyncHtoD(ghatmap_dev, ghatmap, sizeof(int) * nmaps * ngpts,
                          streams_[1]);
-  offloadMemsetAsync(ptr_2, 0, sizeof(pw_complex_type) * nrpts,
-                     streams_[2]); // we need to do this only if spherical cut-off is used!
-
+  offloadMemsetAsync(
+      ptr_2, 0, sizeof(pw_complex_type) * nrpts,
+      streams_[2]); // we need to do this only if spherical cut-off is used!
 
   offloadStreamSynchronize(streams_[1]);
   offloadStreamSynchronize(streams_[2]);
@@ -619,7 +619,8 @@ extern "C" void pw_gpu_sf_z_(const double *zin, double *zout,
   gpu_scatter(streams_[0], scale, ngpts, nmaps, ghatmap_dev, ptr_1, ptr_2);
   // fft on the GPU
 
-  plan.execute_fft(fft_direction::FFT_BACKWARD, (pw_complex_type *)ptr_2, (pw_complex_type *)ptr_1);
+  plan.execute_fft(fft_direction::FFT_BACKWARD, (pw_complex_type *)ptr_2,
+                   (pw_complex_type *)ptr_1);
   offloadMemcpyAsyncDtoH(zout, ptr_1, sizeof(pw_complex_type) * nrpts,
                          streams_[0]);
   // synchronize with respect to host

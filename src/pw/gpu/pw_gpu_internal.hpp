@@ -31,6 +31,7 @@ private:
   double *ptr_1_{nullptr};
   double *ptr_2_{nullptr};
   size_t gmap_allocated_size_{0};
+
 public:
   fft_plan() {}
 
@@ -106,8 +107,8 @@ public:
           __LINE__, __FILE__);
 #elif defined(__OFFLOAD_CUDA)
       fft_error_check(
-                      cufftPlan3d(&plan_, size_[2], size_[1], size_[0], CUFFT_Z2Z),
-                      __LINE__, __FILE__);
+          cufftPlan3d(&plan_, size_[2], size_[1], size_[0], CUFFT_Z2Z),
+          __LINE__, __FILE__);
 #endif
     } else {
 #if defined(__OFFLOAD_HIP)
@@ -117,8 +118,8 @@ public:
                       __LINE__, __FILE__);
 #elif defined(__OFFLOAD_CUDA)
       fft_error_check(cufftPlanMany(&plan_, dim_, &size_[0], inembed, istride,
-                                     idist, onembed, ostride, odist, CUFFT_Z2Z,
-                                     batch_size_),
+                                    idist, onembed, ostride, odist, CUFFT_Z2Z,
+                                    batch_size_),
                       __LINE__, __FILE__);
 #endif
     }
@@ -205,9 +206,7 @@ public:
       destroy();
   }
 
-  void should_destroy(const bool val__) {
-    should_destroy_ = val__;
-  }
+  void should_destroy(const bool val__) { should_destroy_ = val__; }
 
   void should_destroy() {
     if (should_destroy_) {
@@ -228,17 +227,11 @@ public:
     is_initialized_ = false;
   }
 
-  double* ptr_1() {
-    return ptr_1_;
-  }
+  double *ptr_1() { return ptr_1_; }
 
-  double* ptr_2() {
-    return ptr_2_;
-  }
+  double *ptr_2() { return ptr_2_; }
 
-  int *ghatmap() {
-    return gmap_;
-  }
+  int *ghatmap() { return gmap_; }
 
   /// run the fft on the data inplace
   void execute_fft(const enum fft_direction direction__,
@@ -254,8 +247,7 @@ public:
 
   /// run the fft on the data out of place
   void execute_fft(const enum fft_direction direction__,
-                   pw_complex_type *dataIn__,
-                   pw_complex_type *dataOut__) {
+                   pw_complex_type *dataIn__, pw_complex_type *dataOut__) {
 #if defined(__OFFLOAD_HIP)
     fft_error_check(hipfftExecZ2Z(plan_, dataIn__, dataOut__, direction__),
                     __LINE__, __FILE__);
@@ -278,7 +270,8 @@ public:
               (size_[2] == size__[2]));
       break;
     case 2:
-      return ((size_[0] != size__[0]) || (size_[1] != size__[1]) || (batch__ != batch_size_));
+      return ((size_[0] != size__[0]) || (size_[1] != size__[1]) ||
+              (batch__ != batch_size_));
       break;
     case 1:
       return ((size_[0] != size__[0]) || (batch__ != batch_size_));
@@ -299,6 +292,8 @@ public:
   bool is_initialized() const { return is_initialized_; }
 };
 
-void real_to_complex(offloadStream_t &stream__, const int length__, const double *src__, double *const dst__);
-void complex_to_real(offloadStream_t &stream__, const int length__, const double *src__, double *const dst__);
+void real_to_complex(offloadStream_t &stream__, const int length__,
+                     const double *src__, double *const dst__);
+void complex_to_real(offloadStream_t &stream__, const int length__,
+                     const double *src__, double *const dst__);
 #endif

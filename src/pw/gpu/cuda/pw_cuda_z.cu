@@ -39,16 +39,20 @@ void gpu_gather(cudaStream_t &stream__, const double scale__, int num_points__,
       scale__, num_points__, map_index__, dataIn__, dataOut__);
 }
 
-void real_to_complex(cudaStream_t &stream__, const int length__, const double *src__, double *const dst__) {
+void real_to_complex(cudaStream_t &stream__, const int length__,
+                     const double *src__, double *const dst__) {
   dim3 blocksPerGrid, threadsPerBlock;
   blocksPerGrid.x = length__ / 512 + ((length__ % 512) != 0);
   threadsPerBlock.x = 512;
-  real_to_complex_gpu<double><<<blocksPerGrid, threadsPerBlock, 0, stream__>>>(length__, src__, dst__);
+  real_to_complex_gpu<double>
+      <<<blocksPerGrid, threadsPerBlock, 0, stream__>>>(length__, src__, dst__);
 }
 
-void complex_to_real(cudaStream_t &stream__, const int length__, const double *src__, double *const dst__) {
+void complex_to_real(cudaStream_t &stream__, const int length__,
+                     const double *src__, double *const dst__) {
   dim3 blocksPerGrid, threadsPerBlock;
   blocksPerGrid.x = length__ / 512 + ((length__ % 512) != 0);
   threadsPerBlock.x = 512;
-  complex_to_real_gpu<double><<<blocksPerGrid, threadsPerBlock, 0, stream__>>>(length__, src__, dst__);
+  complex_to_real_gpu<double>
+      <<<blocksPerGrid, threadsPerBlock, 0, stream__>>>(length__, src__, dst__);
 }

@@ -51,10 +51,12 @@ __global__ void pw_scatter_z(const T scale, const int nmaps, const int ngpts,
   }
 }
 
-/* I really do not think this kernel will be faster than memset and a "blas" dcopy */
+/* I really do not think this kernel will be faster than memset and a "blas"
+ * dcopy */
 template <typename T>
-__global__ void real_to_complex_gpu(const int length__, const T*__restrict__ src__, T *const __restrict__ dst__)
-{
+__global__ void real_to_complex_gpu(const int length__,
+                                    const T *__restrict__ src__,
+                                    T *const __restrict__ dst__) {
   const int ind = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (ind >= length__)
@@ -64,10 +66,12 @@ __global__ void real_to_complex_gpu(const int length__, const T*__restrict__ src
   dst__[2 * ind + 1] = 0.0;
 }
 
-/* I really do not think this kernel will be faster than memset and a "blas" dcopy */
+/* I really do not think this kernel will be faster than memset and a "blas"
+ * dcopy */
 template <typename T>
-__global__ void complex_to_real_gpu(const int length__, const T*__restrict__ src__, T *const __restrict__ dst__)
-{
+__global__ void complex_to_real_gpu(const int length__,
+                                    const T *__restrict__ src__,
+                                    T *const __restrict__ dst__) {
   const int ind = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (ind >= length__)
