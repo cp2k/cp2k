@@ -71,12 +71,15 @@ case "$with_fftw" in
     check_lib -lfftw3 "FFTW"
     check_lib -lfftw3_omp "FFTW"
     [ "${MPI_MODE}" != "no" ] && check_lib -lfftw3_mpi "FFTW"
-    add_include_from_paths FFTW_CFLAGS "fftw3.h" $INCLUDE_PATHS
-    add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" $LIB_PATHS
+    #add_include_from_paths FFTW_CFLAGS "fftw3.h" ${INCLUDE_PATHS}
+    add_lib_from_paths FFTW_LDFLAGS "libfftw3.*" ${LIB_PATHS}
     pkg_install_dir="${FFTW_ROOT}"
+    FFTW_CFLAGS+="-I'${pkg_install_dir}/include'"
+    FFTW_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib' ${FFTW_LDFLAGS}"
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking FFTW to user paths ===================="
     pkg_install_dir="$with_fftw"
@@ -109,7 +112,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${FFTW_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${FFTW_LDFLAGS}"
 export CP_LIBS="${FFTW_LIBS} \${CP_LIBS}"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-export FFTW_ROOT="$pkg_install_dir"
+export FFTW_ROOT="${pkg_install_dir}"
 EOF
   cat "${BUILDDIR}/setup_fftw" >> $SETUPFILE
 fi
