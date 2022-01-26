@@ -90,7 +90,6 @@ case "$with_libvdwxc" in
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename ${SCRIPT_NAME})"
     fi
-
     LIBVDWXC_CFLAGS="-I${pkg_install_dir}/include"
     LIBVDWXC_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     ;;
@@ -100,8 +99,9 @@ case "$with_libvdwxc" in
     add_include_from_paths LIBVDWXC_CFLAGS "vdwxc.h" $INCLUDE_PATHS
     add_lib_from_paths LIBVDWXC_LDFLAGS "libvdwxc*" $LIB_PATHS
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking libvdwxc to user paths ===================="
     pkg_install_dir="$with_libvdwxc"
