@@ -70,8 +70,8 @@ MODULE vibrational_analysis
    USE particle_methods,                ONLY: write_particle_matrix
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: &
-        a_bohr, boltzmann, e_mass, h_bar, hertz, kelvin, kjmol, massunit, n_avogadro, pascal, &
-        vibfac, wavenumbers
+        a_bohr, bohr, boltzmann, debye, e_mass, h_bar, hertz, kelvin, kjmol, massunit, n_avogadro, &
+        pascal, vibfac, wavenumbers
    USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
@@ -656,7 +656,9 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: from, iatom, icol, j, jatom, katom, &
                                                             natom, to
+      REAL(KIND=dp)                                      :: fint
 
+      fint = 42.255_dp*massunit*debye**2*bohr**2
       natom = SIZE(D, 1)
       WRITE (UNIT=iw, FMT="(/,T2,'VIB|',T30,'NORMAL MODES - CARTESIAN DISPLACEMENTS')")
       WRITE (UNIT=iw, FMT="(T2,'VIB|')")
@@ -668,8 +670,8 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(T2,'VIB|Frequency (cm^-1)',3(1X,F12.6,8X))") &
             (freq(icol), icol=from, to)
          IF (ASSOCIATED(intensities)) THEN
-            WRITE (UNIT=iw, FMT="(T2,'VIB|Intensities      ',3(1X,F12.6,8X))") &
-               (intensities(icol), icol=from, to)
+            WRITE (UNIT=iw, FMT="(T2,'VIB|IR int (KM/Mole) ',3(1X,F12.6,8X))") &
+               (fint*intensities(icol)**2, icol=from, to)
          END IF
          WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,F12.6,8X))") &
             (m(icol), icol=from, to)
