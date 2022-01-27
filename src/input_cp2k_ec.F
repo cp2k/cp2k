@@ -14,11 +14,7 @@
 MODULE input_cp2k_ec
    USE bibliography,                    ONLY: Niklasson2003,&
                                               VandeVondele2012,&
-                                              brehm2018,&
-                                              brehm2020,&
-                                              brehm2021,&
-                                              rycroft2009,&
-                                              thomas2015
+                                              brehm2018
    USE cp_output_handling,              ONLY: cp_print_key_section_create,&
                                               debug_print_level,&
                                               high_print_level
@@ -30,9 +26,9 @@ MODULE input_cp2k_ec
         ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
         ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, ls_scf_sign_ns, &
         ls_scf_sign_proot, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, precond_mlp, &
-        voro_radii_cov, voro_radii_unity, voro_radii_user, voro_radii_vdw
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, precond_mlp
    USE input_cp2k_mm,                   ONLY: create_dipoles_section
+   USE input_cp2k_voronoi,              ONLY: create_print_voronoi_section
    USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -43,8 +39,7 @@ MODULE input_cp2k_ec
                                               section_release,&
                                               section_type
    USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
-                                              real_t
+                                              integer_t
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
@@ -595,86 +590,8 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Voronoi Integration via LibVori
-      CALL cp_print_key_section_create(print_key, __LOCATION__, name="VORONOI", &
-                                       description="Controls the Voronoi integration of the total electron density"// &
-                                       " for the computation of electromagnetic moments, see [Thomas2015],"// &
-                                       " [Brehm2020], and [Brehm2021] (via LibVori,"// &
-                                       " see <a href=""https://brehm-research.de/voronoi"" target=""_blank"">"// &
-                                       " https://brehm-research.de/voronoi</a> ).", &
-                                       print_level=debug_print_level + 1, filename="", &
-                                       citations=(/Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Brehm2021/))
-
-      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="Appends frames to already existing .voronoi file.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SANITY_CHECK", &
-                          description="Performs a sanity check before each Voronoi integration, i.e.,"// &
-                          " checks if every grid point is located in exactly one Voronoi cell.", &
-                          usage="SANITY_CHECK T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OVERWRITE", &
-                          description="Specify this keyword to overwrite any existing ""properties.emp"" file if"// &
-                          " it already exists. By default, the data is appended to an existing .emp file.", &
-                          usage="OVERWRITE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SKIP_FIRST", &
-                          description="Skips the first step of a MD run (avoids duplicate step if restarted).", &
-                          usage="SKIP_FIRST T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VERBOSE", &
-                          description="Switches on verbose screen output of the Voronoi integration.", &
-                          usage="VERBOSE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_EMP", &
-                          description="Writes the resulting electromagnetic moments to a binary file ""properties.emp""."// &
-                          " The file name cannot be changed.", &
-                          usage="OUTPUT_EMP T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_TEXT", &
-                          description="Writes the resulting electromagnetic moments to text files (*.voronoi)."// &
-                          " The file name is specified via FILENAME.", &
-                          usage="OUTPUT_TEXT T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="REFINEMENT_FACTOR", &
-                          description="Sets the refinement factor for the Voronoi integration.", &
-                          usage="REFINEMENT 2", n_var=1, default_i_val=1, type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VORONOI_RADII", &
-                          description="Which atomic radii to use for the radical Voronoi tessellation.", &
-                          usage="VORONOI_RADII {UNITY,VDW,COVALENT,USER}", repeats=.FALSE., n_var=1, &
-                          default_i_val=voro_radii_vdw, &
-                          enum_c_vals=s2a("UNITY", "VDW", "COVALENT", "USER"), &
-                          enum_desc=s2a("Use unity radii (non-radical Voronoi tessellation)", "Use VdW atom radii", &
-                                        "Use covalent atom radii", "Use user-specified atom radii"), &
-                          enum_i_vals=(/voro_radii_unity, voro_radii_vdw, voro_radii_cov, voro_radii_user/))
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="USER_RADII", &
-                          description="Defines user atom radii for the radical Voronoi tessellation (one per atom).", &
-                          usage="USER_RADII {real} {real} {real}", repeats=.FALSE., &
-                          unit_str="angstrom", &
-                          type_of_var=real_t, n_var=-1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
+      NULLIFY (print_key)
+      CALL create_print_voronoi_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

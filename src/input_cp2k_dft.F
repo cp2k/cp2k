@@ -16,14 +16,13 @@ MODULE input_cp2k_dft
                                               basis_sort_zet
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
-        Blochl1995, Brehm2018, Brehm2020, Brehm2021, Brelaz1979, Dewar1977, Dewar1985, &
-        Dudarev1997, Dudarev1998, Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
-        Heinzmann1976, Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
-        Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, &
-        Perdew1981, Repasky2002, Rocha2006, Rycroft2009, Schenter2008, Schiffmann2015, &
-        Shigeta2001, Stewart1982, Stewart1989, Stewart2007, Thiel1992, Thomas2015, VanVoorhis2015, &
-        VandeVondele2003, VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
-        Yin2017
+        Blochl1995, Brehm2018, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, &
+        Ehrhardt1985, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, Heinzmann1976, &
+        Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, &
+        Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, Lippert1999, Lu2004, Perdew1981, &
+        Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Shigeta2001, Stewart1982, &
+        Stewart1989, Stewart2007, Thiel1992, VanVoorhis2015, VandeVondele2003, VandeVondele2005a, &
+        VandeVondele2005b, VandeVondele2006, Weber2008, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               debug_print_level,&
@@ -92,15 +91,14 @@ MODULE input_cp2k_dft
         slater, smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess, tddfpt_davidson, &
         tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, tddfpt_spin_cons, tddfpt_spin_flip, &
         tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
-        use_restart_wfn, use_rt_restart, use_scf_wfn, voro_radii_cov, voro_radii_unity, &
-        voro_radii_user, voro_radii_vdw, wannier_projection, weight_type_mass, weight_type_unit, &
-        wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
-        wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, &
-        xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
-        xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
-        xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
-        xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, weight_type_mass, &
+        weight_type_unit, wfi_aspc_nr, wfi_frozen_method_nr, wfi_linear_p_method_nr, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+        wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
+        wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, &
+        xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, &
+        xas_dip_vel, xas_dscf, xas_none, xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, &
+        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -122,6 +120,7 @@ MODULE input_cp2k_dft
    USE input_cp2k_tb,                   ONLY: create_dftb_control_section,&
                                               create_xtb_control_section
    USE input_cp2k_transport,            ONLY: create_transport_section
+   USE input_cp2k_voronoi,              ONLY: create_print_voronoi_section
    USE input_cp2k_xc,                   ONLY: create_xc_fun_section,&
                                               create_xc_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -1311,95 +1310,16 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Voronoi Integration via LibVori
-      CALL cp_print_key_section_create(print_key, __LOCATION__, name="VORONOI", &
-                                       description="Controls the Voronoi integration of the total electron density"// &
-                                       " for the computation of electromagnetic moments, see [Thomas2015],"// &
-                                       " [Brehm2020], and [Brehm2021] (via LibVori,"// &
-                                       " see <a href=""https://brehm-research.de/voronoi"" target=""_blank"">"// &
-                                       " https://brehm-research.de/voronoi</a> ).", &
-                                       print_level=debug_print_level + 1, filename="", &
-                                       citations=(/Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Brehm2021/))
-
-      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="Appends frames to already existing .voronoi file.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SANITY_CHECK", &
-                          description="Performs a sanity check before each Voronoi integration, i.e.,"// &
-                          " checks if every grid point is located in exactly one Voronoi cell.", &
-                          usage="SANITY_CHECK T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OVERWRITE", &
-                          description="Specify this keyword to overwrite any existing ""properties.emp"" file if"// &
-                          " it already exists. By default, the data is appended to an existing .emp file.", &
-                          usage="OVERWRITE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SKIP_FIRST", &
-                          description="Skips the first step of a MD run (avoids duplicate step if restarted).", &
-                          usage="SKIP_FIRST T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VERBOSE", &
-                          description="Switches on verbose screen output of the Voronoi integration.", &
-                          usage="VERBOSE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_EMP", &
-                          description="Writes the resulting electromagnetic moments to a binary file ""properties.emp""."// &
-                          " The file name cannot be changed.", &
-                          usage="OUTPUT_EMP T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OUTPUT_TEXT", &
-                          description="Writes the resulting electromagnetic moments to text files (*.voronoi)."// &
-                          " The file name is specified via FILENAME.", &
-                          usage="OUTPUT_TEXT T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="REFINEMENT_FACTOR", &
-                          description="Sets the refinement factor for the Voronoi integration.", &
-                          usage="REFINEMENT 2", n_var=1, default_i_val=1, type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="VORONOI_RADII", &
-                          description="Which atomic radii to use for the radical Voronoi tessellation.", &
-                          usage="VORONOI_RADII {UNITY,VDW,COVALENT,USER}", repeats=.FALSE., n_var=1, &
-                          default_i_val=voro_radii_vdw, &
-                          enum_c_vals=s2a("UNITY", "VDW", "COVALENT", "USER"), &
-                          enum_desc=s2a("Use unity radii (non-radical Voronoi tessellation)", "Use VdW atom radii", &
-                                        "Use covalent atom radii", "Use user-specified atom radii"), &
-                          enum_i_vals=(/voro_radii_unity, voro_radii_vdw, voro_radii_cov, voro_radii_user/))
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="USER_RADII", &
-                          description="Defines user atom radii for the radical Voronoi tessellation (one per atom).", &
-                          usage="USER_RADII {real} {real} {real}", repeats=.FALSE., &
-                          unit_str="angstrom", &
-                          type_of_var=real_t, n_var=-1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
+      CALL create_print_voronoi_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-! cube files for data generated by the implicit (generalized) Poisson solver
+      ! cube files for data generated by the implicit (generalized) Poisson solver
       CALL create_implicit_psolver_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-! ZMP adding the print section for  the v_xc cube
+      ! ZMP adding the print section for  the v_xc cube
       CALL cp_print_key_section_create(print_key, __LOCATION__, "v_xc_cube", &
                                        description="Controls the printing of a cube file with xc "// &
                                        " potential generated by the ZMP method (for the moment). It is "// &
