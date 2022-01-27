@@ -1661,11 +1661,11 @@ CONTAINS
       TYPE(dbt_pgrid_type)                               :: pgrid_1, pgrid_2
       TYPE(dbt_type) :: t_2c_RI, t_2c_RI_inv, t_2c_RI_met, t_2c_RI_PQ, t_2c_tmp, t_3c_0, t_3c_1, &
          t_3c_2, t_3c_3, t_3c_4, t_3c_5, t_3c_6, t_3c_ao_ri_ao, t_3c_ao_ri_mo, t_3c_desymm, &
-         t_3c_mo_ri_ao, t_3c_mo_ri_mo, t_3c_ri_ao_ao, t_3c_ri_mo_mo, t_3c_ri_mo_mo_fit, t_3c_work, &
-         t_mo_coeff, t_mo_cpy
+         t_3c_mo_ri_ao, t_3c_mo_ri_mo, t_3c_ri_ao_ao, t_3c_RI_ctr, t_3c_ri_mo_mo, &
+         t_3c_ri_mo_mo_fit, t_3c_work, t_mo_coeff, t_mo_cpy
       TYPE(dbt_type), DIMENSION(3) :: t_2c_der_metric, t_2c_der_RI, t_2c_MO_AO, t_2c_MO_AO_ctr, &
-         t_2c_RI_ctr, t_3c_der_AO, t_3c_der_AO_ctr_1, t_3c_der_RI, t_3c_der_RI_ctr_1, &
-         t_3c_der_RI_ctr_2, t_3c_tmp_AO, t_3c_tmp_RI
+         t_3c_der_AO, t_3c_der_AO_ctr_1, t_3c_der_RI, t_3c_der_RI_ctr_1, t_3c_der_RI_ctr_2, &
+         t_3c_tmp_RI
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
@@ -1708,17 +1708,12 @@ CONTAINS
       DEALLOCATE (dist1, dist2, dist3)
 
       ! 1) Precompute the derivatives
-      CALL precalc_derivatives(t_3c_tmp_RI, t_3c_tmp_AO, t_2c_der_RI, t_2c_der_metric, &
+      CALL precalc_derivatives(t_3c_tmp_RI, t_3c_der_AO, t_2c_der_RI, t_2c_der_metric, &
                                t_3c_ri_ao_ao, t_3c_ao_ri_ao, ri_data, qs_env)
       DO i_xyz = 1, 3
          CALL dbt_create(t_3c_ao_ri_ao, t_3c_der_RI(i_xyz))
          CALL dbt_copy(t_3c_tmp_RI(i_xyz), t_3c_der_RI(i_xyz), order=[2, 1, 3], move_data=.TRUE.)
          CALL dbt_destroy(t_3c_tmp_RI(i_xyz))
-
-         CALL dbt_create(t_3c_ao_ri_ao, t_3c_der_AO(i_xyz))
-         !want deriv as first center
-         CALL dbt_copy(t_3c_tmp_AO(i_xyz), t_3c_der_AO(i_xyz), order=[3, 2, 1], move_data=.TRUE.)
-         CALL dbt_destroy(t_3c_tmp_AO(i_xyz))
       END DO
 
       ! Get the 3c integrals (desymmetrized)
@@ -1751,9 +1746,6 @@ CONTAINS
       CALL create_2c_tensor(t_2c_RI_PQ, dist1, dist2, ri_data%pgrid_2d, &
                             ri_data%bsizes_RI_fit, ri_data%bsizes_RI_fit, name="(RI | RI)")
       DEALLOCATE (dist1, dist2)
-      DO i_xyz = 1, 3
-         CALL dbt_create(t_2c_RI_PQ, t_2c_RI_ctr(i_xyz))
-      END DO
 
       IF (.NOT. ri_data%same_op) THEN
          !precompute the (P|Q)*S^-1 product
@@ -1855,6 +1847,10 @@ CONTAINS
 
          CALL dbt_create(t_3c_ri_mo_mo, t_3c_2)
          CALL dbt_create(t_3c_ri_mo_mo, t_3c_3)
+         CALL dbt_create(t_3c_ri_mo_mo, t_3c_RI_ctr)
+         DO i_xyz = 1, 3
+            CALL dbt_create(t_3c_ri_mo_mo, t_3c_der_RI_ctr_2(i_xyz))
+         END DO
 
          !Very large RI_fit blocks => new pgrid to make sure distribution is ideal
          pdims(:) = 0
@@ -1865,9 +1861,6 @@ CONTAINS
          CALL dbt_create(t_3c_ri_mo_mo_fit, t_3c_4)
          CALL dbt_create(t_3c_ri_mo_mo_fit, t_3c_5)
          CALL dbt_create(t_3c_ri_mo_mo_fit, t_3c_6)
-         DO i_xyz = 1, 3
-            CALL dbt_create(t_3c_ri_mo_mo_fit, t_3c_der_RI_ctr_2(i_xyz))
-         END DO
 
          CALL dbt_batched_contract_init(t_3c_desymm, batch_range_2=batch_ranges_RI)
          CALL dbt_batched_contract_init(t_3c_0, batch_range_2=batch_ranges_RI, batch_range_3=batch_ranges)
@@ -1958,8 +1951,6 @@ CONTAINS
             DO i_xyz = 1, 3
                CALL dbt_batched_contract_init(t_3c_der_RI_ctr_1(i_xyz), batch_range_1=batch_ranges, &
                                               batch_range_2=batch_ranges_RI)
-               CALL dbt_batched_contract_init(t_3c_der_RI_ctr_2(i_xyz), batch_range_2=batch_ranges, &
-                                              batch_range_3=batch_ranges)
                CALL dbt_batched_contract_init(t_3c_der_AO_ctr_1(i_xyz), batch_range_1=batch_ranges, &
                                               batch_range_2=batch_ranges_RI)
 
@@ -2126,29 +2117,19 @@ CONTAINS
 
                ! (ab|P')
                CALL timeset(routineN//"_3c_RI", handle)
-               DO i_xyz = 1, 3
-
-                  !Contract into t_2c_RI_ctr, calculate the force later
-                  DO k_mem = 1, n_mem_RI_fit
-                     bounds_ctr_1d(1, 1) = batch_start_RI_fit(k_mem)
-                     bounds_ctr_1d(2, 1) = batch_end_RI_fit(k_mem)
-
-                     CALL dbt_batched_contract_init(t_2c_RI_ctr(i_xyz))
-                     CALL dbt_contract(1.0_dp, t_3c_der_RI_ctr_2(i_xyz), t_3c_4, &
-                                       1.0_dp, t_2c_RI_ctr(i_xyz), &
-                                       contract_1=[2, 3], notcontract_1=[1], &
-                                       contract_2=[2, 3], notcontract_2=[1], &
-                                       map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                                       bounds_1=bounds_ctr_2d, &
-                                       bounds_3=bounds_ctr_1d, &
-                                       unit_nr=unit_nr_dbcsr, flop=nflop)
-                     ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                     CALL dbt_batched_contract_finalize(t_2c_RI_ctr(i_xyz))
-                  END DO
-               END DO
+               pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
+               CALL dbt_copy(t_3c_4, t_3c_RI_ctr, move_data=.TRUE.)
+               IF (use_virial_prv) THEN
+                  CALL get_force_from_3c_trace(force, t_3c_RI_ctr, t_3c_der_RI_ctr_2, atom_of_kind, kind_of, &
+                                               idx_to_at_RI, pref, work_virial, cell, particle_set)
+               ELSE
+                  CALL get_force_from_3c_trace(force, t_3c_RI_ctr, t_3c_der_RI_ctr_2, atom_of_kind, kind_of, &
+                                               idx_to_at_RI, pref)
+               END IF
                CALL timestop(handle)
 
-               ! (a'b|P) Note that derivative remains in AO rep until the actual force evaluation
+               ! (a'b|P) Note that derivative remains in AO rep until the actual force evaluation,
+               ! which also prevents doing a direct 3-center trace
                bounds_ctr_2d(1, 1) = batch_start(i_mem)
                bounds_ctr_2d(2, 1) = batch_end(i_mem)
 
@@ -2156,7 +2137,7 @@ CONTAINS
                bounds_ctr_1d(2, 1) = batch_end(j_mem)
 
                CALL timeset(routineN//"_3c_AO", handle)
-               CALL dbt_copy(t_3c_4, t_3c_work, order=[2, 1, 3], move_data=.TRUE.)
+               CALL dbt_copy(t_3c_RI_ctr, t_3c_work, order=[2, 1, 3], move_data=.TRUE.)
                DO i_xyz = 1, 3
 
                   CALL dbt_batched_contract_init(t_2c_MO_AO_ctr(i_xyz))
@@ -2188,7 +2169,6 @@ CONTAINS
 
             DO i_xyz = 1, 3
                CALL dbt_batched_contract_finalize(t_3c_der_RI_ctr_1(i_xyz))
-               CALL dbt_batched_contract_finalize(t_3c_der_RI_ctr_2(i_xyz))
                CALL dbt_batched_contract_finalize(t_3c_der_AO_ctr_1(i_xyz))
             END DO
 
@@ -2203,18 +2183,6 @@ CONTAINS
          DO i_xyz = 1, 3
             CALL dbt_batched_contract_finalize(t_3c_der_AO(i_xyz))
             CALL dbt_batched_contract_finalize(t_3c_der_RI(i_xyz))
-         END DO
-
-         !Force contribution due to 3-center RI derivatives (ab|P')
-         pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
-         DO i_xyz = 1, 3
-            CALL dbt_copy(t_2c_RI_ctr(i_xyz), t_2c_RI, move_data=.TRUE.)
-            IF (use_virial_prv) THEN
-               CALL get_force_from_trace(force, t_2c_RI, atom_of_kind, kind_of, idx_to_at_RI, pref, &
-                                         i_xyz, work_virial, cell, particle_set)
-            ELSE
-               CALL get_force_from_trace(force, t_2c_RI, atom_of_kind, kind_of, idx_to_at_RI, pref, i_xyz)
-            END IF
          END DO
 
          !Force contribution due to 3-center AO derivatives (a'b|P)
@@ -2269,6 +2237,7 @@ CONTAINS
          CALL dbt_destroy(t_3c_5)
          CALL dbt_destroy(t_3c_6)
          CALL dbt_destroy(t_3c_work)
+         CALL dbt_destroy(t_3c_RI_ctr)
          CALL dbt_destroy(t_3c_mo_ri_ao)
          CALL dbt_destroy(t_3c_mo_ri_mo)
          CALL dbt_destroy(t_3c_ri_mo_mo)
@@ -2300,7 +2269,6 @@ CONTAINS
          CALL dbt_destroy(t_3c_der_RI(i_xyz))
          CALL dbt_destroy(t_2c_der_RI(i_xyz))
          IF (.NOT. ri_data%same_op) CALL dbt_destroy(t_2c_der_metric(i_xyz))
-         CALL dbt_destroy(t_2c_RI_ctr(i_xyz))
       END DO
       CALL dbt_copy(ri_data%t_3c_int_ctr_2(1, 1), ri_data%t_3c_int_ctr_1(1, 1))
 
@@ -2363,9 +2331,8 @@ CONTAINS
          t_3c_AO_ctr_resp, t_3c_ao_ri_ao, t_3c_ao_ri_ao_fit, t_3c_cpy_1, t_3c_cpy_2, t_3c_cpy_3, &
          t_3c_cpy_4, t_3c_int_1, t_3c_int_2, t_3c_int_3, t_3c_int_4, t_3c_ri_ao_ao, &
          t_3c_ri_ao_ao_fit, t_3c_RI_ctr
-      TYPE(dbt_type), DIMENSION(3)                       :: t_2c_AO_ctr, t_2c_der_metric, &
-                                                            t_2c_der_RI, t_2c_RI_ctr, t_3c_der_AO, &
-                                                            t_3c_der_RI
+      TYPE(dbt_type), DIMENSION(3)                       :: t_2c_der_metric, t_2c_der_RI, &
+                                                            t_3c_der_AO, t_3c_der_RI
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: store_3c
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -2491,10 +2458,6 @@ CONTAINS
                             ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, name="(RI | RI)")
       DEALLOCATE (dist1, dist2)
 
-      DO i_xyz = 1, 3
-         CALL dbt_create(t_2c_RI, t_2c_RI_ctr(i_xyz))
-      END DO
-
       CALL create_2c_tensor(t_2c_RI_PQ, dist1, dist2, ri_data%pgrid_2d, &
                             bsizes_RI_fit, bsizes_RI_fit, name="(RI | RI)")
       DEALLOCATE (dist1, dist2)
@@ -2507,9 +2470,6 @@ CONTAINS
       DEALLOCATE (dist1, dist2)
 
       CALL dbt_create(rho_ao_1, rho_ao_2)
-      DO i_xyz = 1, 3
-         CALL dbt_create(rho_ao_1, t_2c_AO_ctr(i_xyz))
-      END DO
 
       !Some utilities
       spin_fac = 0.5_dp
@@ -2676,19 +2636,6 @@ CONTAINS
             CALL dbt_batched_contract_init(t_3c_cpy_4, batch_range_1=batch_ranges_RI_fit, &
                                            batch_range_2=batch_ranges, batch_range_3=batch_ranges)
 
-            DO i_xyz = 1, 3
-               CALL dbt_batched_contract_init(t_3c_der_RI(i_xyz), batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-
-               CALL dbt_batched_contract_init(t_3c_der_AO(i_xyz), batch_range_1=batch_ranges, &
-                                              batch_range_2=batch_ranges_RI, batch_range_3=batch_ranges)
-            END DO
-            CALL dbt_batched_contract_init(t_3c_AO_ctr, batch_range_1=batch_ranges, batch_range_2=batch_ranges_RI, &
-                                           batch_range_3=batch_ranges)
-            CALL dbt_batched_contract_init(t_3c_RI_ctr, batch_range_1=batch_ranges_RI, &
-                                           batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-            IF (do_resp) CALL dbt_batched_contract_init(t_3c_AO_ctr_resp, batch_range_1=batch_ranges, &
-                                                        batch_range_2=batch_ranges_RI, batch_range_3=batch_ranges)
-
             IF (.NOT. ri_data%same_op) THEN
                CALL dbt_batched_contract_init(t_3c_5, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
             END IF
@@ -2825,97 +2772,42 @@ CONTAINS
                CALL dbt_copy(t_3c_ri_ao_ao_fit, t_3c_int_4)
 
                ! 7) Do the force contribution due to 3c integrals (a'b|P) and (ab|P')
+               !    We directly calculate the force from the trace of the 3-center tensors
 
                ! (ab|P')
-               bounds_ctr_2d(1, 1) = batch_start(i_mem)
-               bounds_ctr_2d(2, 1) = batch_end(i_mem)
-               bounds_ctr_2d(1, 2) = batch_start(j_mem)
-               bounds_ctr_2d(2, 2) = batch_end(j_mem)
-
-               CALL timeset(routineN//"_3c_RI", handle)
+               pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
                CALL dbt_copy(t_3c_4, t_3c_RI_ctr, move_data=.TRUE.)
-               DO i_xyz = 1, 3
-
-                  !Contract into t_2c_RI_ctr, calculate the force later
-                  DO k_mem = 1, n_mem_RI
-                     bounds_ctr_1d(1, 1) = batch_start_RI(k_mem)
-                     bounds_ctr_1d(2, 1) = batch_end_RI(k_mem)
-
-                     CALL dbt_batched_contract_init(t_2c_RI_ctr(i_xyz))
-                     CALL dbt_contract(1.0_dp, t_3c_der_RI(i_xyz), t_3c_RI_ctr, &
-                                       1.0_dp, t_2c_RI_ctr(i_xyz), &
-                                       contract_1=[2, 3], notcontract_1=[1], &
-                                       contract_2=[2, 3], notcontract_2=[1], &
-                                       map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                                       bounds_1=bounds_ctr_2d, &
-                                       bounds_3=bounds_ctr_1d, &
-                                       unit_nr=unit_nr_dbcsr, flop=nflop)
-                     ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                     CALL dbt_batched_contract_finalize(t_2c_RI_ctr(i_xyz))
-                  END DO
-               END DO
-               CALL timestop(handle)
+               IF (use_virial_prv) THEN
+                  CALL get_force_from_3c_trace(force, t_3c_RI_ctr, t_3c_der_RI, atom_of_kind, kind_of, &
+                                               idx_to_at_RI, pref, work_virial, cell, particle_set)
+               ELSE
+                  CALL get_force_from_3c_trace(force, t_3c_RI_ctr, t_3c_der_RI, atom_of_kind, kind_of, &
+                                               idx_to_at_RI, pref)
+               END IF
 
                ! (a'b|P)
-               bounds_ctr_2d(1, 1) = batch_start(i_mem)
-               bounds_ctr_2d(2, 1) = batch_end(i_mem)
+               pref = -0.5_dp*4.0_dp*hf_fraction*spin_fac
+               IF (do_resp) pref = 0.5_dp*pref
 
-               bounds_ctr_1d(1, 1) = batch_start(j_mem)
-               bounds_ctr_1d(2, 1) = batch_end(j_mem)
-
-               CALL timeset(routineN//"_3c_AO", handle)
                CALL dbt_copy(t_3c_RI_ctr, t_3c_AO_ctr, order=[2, 1, 3], move_data=.TRUE.)
-               DO i_xyz = 1, 3
-
-                  !Contract into t_2c_AO_ctr, calculate the force later
-                  CALL dbt_batched_contract_init(t_2c_AO_ctr(i_xyz))
-                  DO k_mem = 1, n_mem_RI
-                     bounds_ctr_2d(1, 2) = batch_start_RI(k_mem)
-                     bounds_ctr_2d(2, 2) = batch_end_RI(k_mem)
-
-                     CALL dbt_contract(1.0_dp, t_3c_der_AO(i_xyz), t_3c_AO_ctr, &
-                                       1.0_dp, t_2c_AO_ctr(i_xyz), &
-                                       contract_1=[1, 2], notcontract_1=[3], &
-                                       contract_2=[1, 2], notcontract_2=[3], &
-                                       map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                                       bounds_1=bounds_ctr_2d, &
-                                       bounds_2=bounds_ctr_1d, bounds_3=bounds_ctr_1d, &
-                                       unit_nr=unit_nr_dbcsr, flop=nflop)
-                     ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                  END DO
-                  CALL dbt_batched_contract_finalize(t_2c_AO_ctr(i_xyz))
-               END DO
-               CALL timestop(handle)
+               IF (use_virial_prv) THEN
+                  CALL get_force_from_3c_trace(force, t_3c_AO_ctr, t_3c_der_AO, atom_of_kind, kind_of, &
+                                               idx_to_at_AO, pref, work_virial, cell, particle_set)
+               ELSE
+                  CALL get_force_from_3c_trace(force, t_3c_AO_ctr, t_3c_der_AO, atom_of_kind, kind_of, &
+                                               idx_to_at_AO, pref)
+               END IF
 
                !If response matrix, need to consider force contribution from both Pmat
                IF (do_resp) THEN
-                  CALL timeset(routineN//"_3c_AO_resp", handle)
-                  bounds_ctr_2d(1, 1) = batch_start(j_mem)
-                  bounds_ctr_2d(2, 1) = batch_end(j_mem)
-
-                  bounds_ctr_1d(1, 1) = batch_start(i_mem)
-                  bounds_ctr_1d(2, 1) = batch_end(i_mem)
                   CALL dbt_copy(t_3c_AO_ctr, t_3c_AO_ctr_resp, order=[3, 2, 1], move_data=.TRUE.)
-                  DO i_xyz = 1, 3
-
-                     CALL dbt_batched_contract_init(t_2c_AO_ctr(i_xyz))
-                     DO k_mem = 1, n_mem_RI
-                        bounds_ctr_2d(1, 2) = batch_start_RI(k_mem)
-                        bounds_ctr_2d(2, 2) = batch_end_RI(k_mem)
-
-                        CALL dbt_contract(1.0_dp, t_3c_der_AO(i_xyz), t_3c_AO_ctr_resp, &
-                                          1.0_dp, t_2c_AO_ctr(i_xyz), &
-                                          contract_1=[1, 2], notcontract_1=[3], &
-                                          contract_2=[1, 2], notcontract_2=[3], &
-                                          map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                                          bounds_1=bounds_ctr_2d, &
-                                          bounds_2=bounds_ctr_1d, bounds_3=bounds_ctr_1d, &
-                                          unit_nr=unit_nr_dbcsr, flop=nflop)
-                        ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                     END DO
-                     CALL dbt_batched_contract_finalize(t_2c_AO_ctr(i_xyz))
-                  END DO
-                  CALL timestop(handle)
+                  IF (use_virial_prv) THEN
+                     CALL get_force_from_3c_trace(force, t_3c_AO_ctr_resp, t_3c_der_AO, atom_of_kind, kind_of, &
+                                                  idx_to_at_AO, pref, work_virial, cell, particle_set)
+                  ELSE
+                     CALL get_force_from_3c_trace(force, t_3c_AO_ctr_resp, t_3c_der_AO, atom_of_kind, kind_of, &
+                                                  idx_to_at_AO, pref)
+                  END IF
                END IF
 
             END DO !j_mem
@@ -2929,15 +2821,6 @@ CONTAINS
             CALL dbt_batched_contract_finalize(t_3c_4)
             CALL dbt_batched_contract_finalize(t_3c_cpy_4)
             CALL dbt_batched_contract_finalize(t_3c_int_4)
-
-            DO i_xyz = 1, 3
-               CALL dbt_batched_contract_finalize(t_3c_der_RI(i_xyz))
-
-               CALL dbt_batched_contract_finalize(t_3c_der_AO(i_xyz))
-            END DO
-            CALL dbt_batched_contract_finalize(t_3c_RI_ctr)
-            CALL dbt_batched_contract_finalize(t_3c_AO_ctr)
-            IF (do_resp) CALL dbt_batched_contract_finalize(t_3c_AO_ctr_resp)
 
             IF (.NOT. ri_data%same_op) THEN
                CALL dbt_batched_contract_finalize(t_3c_5)
@@ -2954,31 +2837,6 @@ CONTAINS
 
          CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_2(1, 1))
          CALL dbt_batched_contract_finalize(t_3c_cpy_1)
-
-         !Force contribution due to 3-center RI derivatives (ab|P')
-         pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
-         DO i_xyz = 1, 3
-            CALL dbt_copy(t_2c_RI_ctr(i_xyz), t_2c_RI, move_data=.TRUE.)
-            IF (use_virial_prv) THEN
-               CALL get_force_from_trace(force, t_2c_RI, atom_of_kind, kind_of, idx_to_at_RI, pref, &
-                                         i_xyz, work_virial, cell, particle_set)
-            ELSE
-               CALL get_force_from_trace(force, t_2c_RI, atom_of_kind, kind_of, idx_to_at_RI, pref, i_xyz)
-            END IF
-         END DO
-
-         !Force contribution due to 3-center AO derivatives (a'b|P)
-         pref = -0.5_dp*4.0_dp*hf_fraction*spin_fac
-         IF (do_resp) pref = 0.5_dp*pref
-         DO i_xyz = 1, 3
-            IF (use_virial_prv) THEN
-               CALL get_force_from_trace(force, t_2c_AO_ctr(i_xyz), atom_of_kind, kind_of, idx_to_at_AO, pref, &
-                                         i_xyz, work_virial, cell, particle_set)
-            ELSE
-               CALL get_force_from_trace(force, t_2c_AO_ctr(i_xyz), atom_of_kind, kind_of, idx_to_at_AO, pref, i_xyz)
-            END IF
-            CALL dbt_clear(t_2c_AO_ctr(i_xyz))
-         END DO
 
          !Force contribution of d/dx (P|Q)
          pref = 0.5_dp*hf_fraction*spin_fac
@@ -3055,8 +2913,6 @@ CONTAINS
          CALL dbt_destroy(t_3c_der_RI(i_xyz))
          CALL dbt_destroy(t_2c_der_RI(i_xyz))
          IF (.NOT. ri_data%same_op) CALL dbt_destroy(t_2c_der_metric(i_xyz))
-         CALL dbt_destroy(t_2c_RI_ctr(i_xyz))
-         CALL dbt_destroy(t_2c_AO_ctr(i_xyz))
       END DO
       IF (.NOT. ri_data%same_op) THEN
          CALL dbt_destroy(t_2c_RI_inv)
@@ -3300,11 +3156,13 @@ CONTAINS
                           move_data=.TRUE., summation=.TRUE.)
             CALL dbt_filter(t_3c_der_RI(i_xyz), ri_data%filter_eps)
 
-            CALL dbt_copy(t_3c_der_AO_prv(1, 1, i_xyz), t_3c_der_AO(i_xyz), order=[2, 1, 3], &
-                          move_data=.TRUE., summation=.TRUE.)
+            !put AO derivative as first index (intermediat step needed)
+            CALL dbt_copy(t_3c_der_AO_prv(1, 1, i_xyz), ao_ri_ao_template, order=[2, 1, 3], move_data=.TRUE.)
+            CALL dbt_copy(ao_ri_ao_template, t_3c_der_AO(i_xyz), order=[3, 2, 1], move_data=.TRUE., summation=.TRUE.)
             CALL dbt_filter(t_3c_der_AO(i_xyz), ri_data%filter_eps)
          END DO
       END DO
+      CALL dbt_clear(ao_ri_ao_template)
 
       CALL neighbor_list_3c_destroy(nl_3c)
 
@@ -3399,38 +3257,42 @@ CONTAINS
    END SUBROUTINE precalc_derivatives
 
 ! **************************************************************************************************
-!> \brief This routines takes a 2D tensor, which trace (sum_ii a_ii) contributes to the forces
+!> \brief This routines calculates the force contribution from a trace over 3D tensors, i.e.
+!>        force = sum_ijk A_ijk B_ijk. An iteration over the blocks is made, which index determin
+!>        the atom on which the force acts
 !> \param force ...
-!> \param t_2c ...
+!> \param t_3c_contr ...
+!> \param t_3c_der ...
 !> \param atom_of_kind ...
 !> \param kind_of ...
 !> \param idx_to_at ...
 !> \param pref ...
-!> \param i_xyz ...
 !> \param work_virial ...
 !> \param cell ...
 !> \param particle_set ...
+!> \note It is assumed that the center for which t_3c_der is a derivative is the first
 ! **************************************************************************************************
-   SUBROUTINE get_force_from_trace(force, t_2c, atom_of_kind, kind_of, idx_to_at, pref, i_xyz, &
-                                   work_virial, cell, particle_set)
+   SUBROUTINE get_force_from_3c_trace(force, t_3c_contr, t_3c_der, atom_of_kind, kind_of, idx_to_at, &
+                                      pref, work_virial, cell, particle_set)
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(dbt_type), INTENT(INOUT)                      :: t_2c
+      TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_contr
+      TYPE(dbt_type), DIMENSION(3), INTENT(INOUT)        :: t_3c_der
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_of_kind, kind_of, idx_to_at
       REAL(dp), INTENT(IN)                               :: pref
-      INTEGER, INTENT(IN)                                :: i_xyz
       REAL(dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: work_virial
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_force_from_trace'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_force_from_3c_trace'
 
-      INTEGER                                            :: handle, i, iat, iat_of_kind, ikind, j_xyz
-      INTEGER, DIMENSION(2)                              :: ind
+      INTEGER                                            :: handle, i_xyz, iat, iat_of_kind, ikind, &
+                                                            j_xyz
+      INTEGER, DIMENSION(3)                              :: ind
       LOGICAL                                            :: found, use_virial
       REAL(dp)                                           :: new_force
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: blk_data
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: contr_blk, der_blk
       REAL(dp), DIMENSION(3)                             :: scoord
       TYPE(dbt_iterator_type)                            :: iter
 
@@ -3439,43 +3301,44 @@ CONTAINS
       use_virial = .FALSE.
       IF (PRESENT(work_virial) .AND. PRESENT(cell) .AND. PRESENT(particle_set)) use_virial = .TRUE.
 
-      !Loop over the blocks, calculate the trace and update the corresponding force
-      CALL dbt_iterator_start(iter, t_2c)
-      DO WHILE (dbt_iterator_blocks_left(iter))
-         CALL dbt_iterator_next_block(iter, ind)
-         CALL dbt_get_block(t_2c, ind, blk_data, found)
-         CPASSERT(found)
+      DO i_xyz = 1, 3
+         CALL dbt_iterator_start(iter, t_3c_der(i_xyz))
+         DO WHILE (dbt_iterator_blocks_left(iter))
+            CALL dbt_iterator_next_block(iter, ind)
 
-         IF (.NOT. ind(1) == ind(2)) CYCLE
+            CALL dbt_get_block(t_3c_der(i_xyz), ind, der_blk, found)
+            CPASSERT(found)
+            CALL dbt_get_block(t_3c_contr, ind, contr_blk, found)
 
-         new_force = 0.0_dp
-         DO i = 1, SIZE(blk_data, 1)
-            new_force = new_force + blk_data(i, i)
-         END DO
+            IF (found) THEN
 
-         iat = idx_to_at(ind(1))
-         iat_of_kind = atom_of_kind(iat)
-         ikind = kind_of(iat)
+               !take the trace of the blocks
+               new_force = pref*SUM(der_blk(:, :, :)*contr_blk(:, :, :))
 
-         force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
-                                                    + pref*new_force
+               !the first index of the derivative tensor defines the atom
+               iat = idx_to_at(ind(1))
+               iat_of_kind = atom_of_kind(iat)
+               ikind = kind_of(iat)
 
-         IF (use_virial) THEN
+               force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
+                                                          + new_force
 
-            CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
+               IF (use_virial) THEN
+                  CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
 
-            DO j_xyz = 1, 3
-               work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + pref*new_force*scoord(j_xyz)
-            END DO
-         END IF
-
-         DEALLOCATE (blk_data)
+                  DO j_xyz = 1, 3
+                     work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + new_force*scoord(j_xyz)
+                  END DO
+               END IF
+               DEALLOCATE (contr_blk)
+            END IF
+            DEALLOCATE (der_blk)
+         END DO !iter
+         CALL dbt_iterator_stop(iter)
       END DO
-      CALL dbt_iterator_stop(iter)
-
       CALL timestop(handle)
 
-   END SUBROUTINE get_force_from_trace
+   END SUBROUTINE get_force_from_3c_trace
 
 ! **************************************************************************************************
 !> \brief Get the force from a contraction of type SUM_a,beta (a|beta') C_a,beta, where beta is an AO
