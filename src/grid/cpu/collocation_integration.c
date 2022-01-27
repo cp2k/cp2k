@@ -11,11 +11,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef __GRID_CUDA
-#include <cublas_v2.h>
-#include <cuda.h>
-#endif
-
 #include "../common/grid_common.h"
 #include "collocation_integration.h"
 #include "non_orthorombic_corrections.h"
