@@ -72,8 +72,9 @@ extern "C" void pw_gpu_finalize() {
     blasDestroy(handle_);
     is_configured = false;
 
-    for (auto &plan : fft_plans_)
+    for (auto &plan : fft_plans_) {
       plan.should_destroy(true);
+    }
 
     fft_plans_.clear();
   }
@@ -83,8 +84,10 @@ void search_for_plan(const std::vector<int> &fft_size__, const int dim__,
                      const int batch_size__,
                      const enum fft_direction direction__, fft_plan &plan_) {
   for (auto &plan__ : fft_plans_) {
-    if (plan__.is_it_valid(fft_size__, dim__, batch_size__, direction__))
+    if (plan__.is_it_valid(fft_size__, dim__, batch_size__, direction__)) {
       plan_ = std::move(plan__);
+      return;
+    }
   }
 
   // we must create the plan
@@ -229,6 +232,7 @@ extern "C" void pw_gpu_cfffg_z_(const double *din, double *zout,
 
   // synchronize with respect to host
   offloadStreamSynchronize(streams_[0]);
+  plan.should_destroy();
 }
 
 /*******************************************************************************
@@ -291,6 +295,7 @@ extern "C" void pw_gpu_sfffc_z_(const double *zin, double *dout,
   offloadMemcpyAsyncDtoH(dout, ptr_2, sizeof(double) * nrpts, streams_[0]);
   // synchronize with respect to host
   offloadStreamSynchronize(streams_[0]);
+  plan.should_destroy();
 }
 
 /*******************************************************************************

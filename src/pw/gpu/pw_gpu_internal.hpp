@@ -134,51 +134,6 @@ public:
     offloadMalloc((void **)&ptr_2_, sizeof(double) * 2 * num_points_);
   }
 
-  // fft_plan(fft_plan &&src__) {
-  //   plan_ = src__.plan_;
-  //   size_[0] = src__.size_[0];
-  //   size_[1] = src__.size_[1];
-  //   size_[2] = src__.size_[2];
-  //   sign_ = src__.sign_;
-  //   dim_ = src__.dim_;
-  //   direction_ = src__.direction_;
-  //   batch_size_ = src__.batch_size_;
-  //   stream_ = src__.stream_;
-  //   is_initialized_ = src__.is_initialized_;
-  //   num_points_ = src__.num_points_;
-  //   gmap_ = src__.gmap_;
-  //   gmap_size_ = src__.gmap_size_;
-  //   should_destroy_ = src__.should_destroy_;
-  //   ptr_1_ = src__.ptr_1_;
-  //   ptr_2_  = src__.ptr_2_;
-  //   gmap_allocated_size_ = src__.gmap_allocated_size_;
-
-  //   // prevents from releasing memory for src__
-  //   src__.is_initialized_ = false;
-  // };
-
-  // fft_plan(const fft_plan &src__) {
-  //   plan_ = src__.plan_;
-  //   size_[0] = src__.size_[0];
-  //   size_[1] = src__.size_[1];
-  //   size_[2] = src__.size_[2];
-  //   sign_ = src__.sign_;
-  //   dim_ = src__.dim_;
-  //   direction_ = src__.direction_;
-  //   batch_size_ = src__.batch_size_;
-  //   stream_ = src__.stream_;
-  //   is_initialized_ = src__.is_initialized_;
-  //   num_points_ = src__.num_points_;
-  //   gmap_ = src__.gmap_;
-  //   gmap_size_ = src__.gmap_size_;
-  //   should_destroy_ = src__.should_destroy_;
-  //   ptr_1_ = src__.ptr_1_;
-  //   ptr_2_  = src__.ptr_2_;
-  //   gmap_allocated_size_ = src__.gmap_allocated_size_;
-
-  //   // prevents from releasing memory for src__
-  // };
-
   void allocate_gmap(int num_elems__) {
     if ((gmap_allocated_size_ < num_elems__) && (gmap_ != nullptr)) {
       offloadFree(gmap_);
@@ -222,6 +177,7 @@ public:
 #endif
     offloadFree(ptr_1_);
     offloadFree(ptr_2_);
+
     if (gmap_ != nullptr)
       offloadFree(gmap_);
     is_initialized_ = false;
@@ -257,35 +213,35 @@ public:
 #endif
   }
 
-  /// check if this plane can be used to execute the fft
+  /// check if this plane can be used to execute the fft. Return true if it is
+  /// the case
   bool is_it_valid(std::vector<int> size__, const int dim__, const int batch__,
                    const enum fft_direction direction__) const {
     if (dim_ != dim__)
       return false;
+
     if (batch__ != batch_size_)
       return false;
+
+    // check for the direction
+    if (direction__ != direction_) {
+      return false;
+    }
+
     switch (dim__) {
     case 3:
-      return ((size_[0] != size__[0]) || (size_[1] != size__[1]) ||
+      return ((size_[0] == size__[0]) && (size_[1] == size__[1]) &&
               (size_[2] == size__[2]));
       break;
     case 2:
-      return ((size_[0] != size__[0]) || (size_[1] != size__[1]) ||
-              (batch__ != batch_size_));
+      return ((size_[0] != size__[1]) && (size_[1] == size__[0]));
       break;
     case 1:
-      return ((size_[0] != size__[0]) || (batch__ != batch_size_));
+      return (size_[0] == size__[0]);
       break;
     default:
       return false;
       break;
-    }
-
-    // check for the direction
-    if ((direction__ != direction_) && (dim_ != 3)) {
-      return false;
-    } else {
-      return true;
     }
   }
 
