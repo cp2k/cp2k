@@ -65,7 +65,7 @@ use(\s+|(?P<intrinsic>\s*,\s*Intrinsic\s+::\s*))
     flags=re.IGNORECASE | re.VERBOSE,
 )
 
-COMMON_USES_RE = re.compile('^#include\s*"([^"]*(cp_common_uses.f90|base_uses.f90))"')
+COMMON_USES_RE = re.compile(r'^#include\s*"([^"]*(cp_common_uses.f90|base_uses.f90))"')
 LOCAL_NAME_RE = re.compile(
     rf"\s*(?P<localName>{VALID_NAME})(?:\s*=>\s*{VALID_NAME})?\s*$", re.VERBOSE
 )
