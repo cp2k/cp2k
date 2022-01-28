@@ -215,10 +215,9 @@ void grid_fill_pol_dgemm(const bool transpose, const double dr,
     }
 
     for (int icoef = 3; icoef <= lp; icoef++) {
-      const double *__restrict__ poly = &idx2(pol, 1, 0);
-      const double *__restrict__ src1 = &idx2(pol, icoef - 1, 0);
+      double *__restrict__ poly = &idx2(pol, 1, 0);
+      double *__restrict__ src1 = &idx2(pol, icoef - 1, 0);
       double *__restrict__ dst = &idx2(pol, icoef, 0);
-      //#pragma omp simd linear(dst, src1, poly) simdlen(8)
       GRID_PRAGMA_SIMD((dst, src1, poly), 8)
       for (int ig = 0; ig < (xmax - xmin + 1 + pol_offset); ig++) {
         dst[ig] = src1[ig] * poly[ig];
@@ -227,9 +226,10 @@ void grid_fill_pol_dgemm(const bool transpose, const double dr,
 
     //
     if (lp > 0) {
+      // I can not declare src__ variable constant because it breaks openmp
+      // standard.
       double *__restrict__ dst = &idx2(pol, 1, 0);
-      const double *__restrict__ src = &idx2(pol, 0, 0);
-      //#pragma omp simd linear(dst, src) simdlen(8)
+      double *__restrict__ src = &idx2(pol, 0, 0);
       GRID_PRAGMA_SIMD((dst, src), 8)
       for (int ig = 0; ig < (xmax - xmin + 1 + pol_offset); ig++) {
         dst[ig] *= src[ig];
@@ -307,7 +307,6 @@ void apply_sphere_cutoff_ortho(struct collocation_integration_ *const handler,
                                            position1[1], position1[2]);
 
               const int sizex = upper_corner[2] - lower_corner[2];
-              //#pragma omp simd linear(dst, src) simdlen(8)
               GRID_PRAGMA_SIMD((dst, src), 8)
               for (int x = 0; x < sizex; x++) {
                 dst[x] += src[x];
@@ -429,7 +428,6 @@ void apply_spherical_cutoff_generic(
               &idx3(handler->cube, position1[0], position1[1], position1[2]);
 
           const int sizex = upper_corner[2] - lower_corner[2];
-          //#pragma omp simd linear(dst, src) simdlen(8)
           GRID_PRAGMA_SIMD((dst, src), 8)
           for (int x = 0; x < sizex; x++) {
             dst[x] += src[x];
