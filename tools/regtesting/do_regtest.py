@@ -21,7 +21,7 @@ try:
     from typing import Literal  # not available before Python 3.8
 
     TestStatus = Literal["OK", "WRONG RESULT", "RUNTIME FAIL", "TIMED OUT"]
-except:
+except ImportError:
     TestStatus = str  # type: ignore
 
 # Some tests do not work with --keepalive (which is generally considered a bug).
@@ -255,7 +255,7 @@ class TestType:
             self.pattern = self.pattern.replace(c, f"\\{c}")  # escape special chars
         try:
             self.regex = re.compile(self.pattern)
-        except:
+        except Exception:
             print("Bad regex: " + self.pattern)
             raise
         self.column = int(parts[1])

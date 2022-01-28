@@ -306,7 +306,7 @@ def parse_report(report_url):
             try:
                 float(parts[1])  # try parsing float...
                 values[test_name] = parts[1]  # ... but pass on the original string
-            except:
+            except TypeError:
                 pass  # ignore values which can not be parsed
         else:
             pass  # ignore line

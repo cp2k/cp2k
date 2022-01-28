@@ -320,7 +320,7 @@ def parseRoutine(inFile, logger):
                         break
                     routine["strippedCore"].append(subjline)
                 subF.close()
-            except:
+            except Exception:
                 import traceback
 
                 logger.debug(
@@ -484,7 +484,7 @@ def parseRoutine(inFile, logger):
                         break
                     routine["strippedCore"].append(subjline)
                 subF.close()
-            except:
+            except Exception:
                 import traceback
 
                 logger.debug(
@@ -921,7 +921,7 @@ def cleanDeclarations(routine, logger):
         if wrote:
             newDecl.write("\n")
         routine["declarations"] = [newDecl.getvalue()]
-    except:
+    except Exception:
         if "name" in routine.keys():
             logger.critical("exception cleaning routine " + routine["name"])
         logger.critical("parsedDeclartions={}".format(routine["parsedDeclarations"]))
@@ -1294,7 +1294,7 @@ def rewriteFortranFile(
                 with open(inc_absfn, "r", encoding="utf8") as fhandle:
                     implicitUsesRaw = parseUse(fhandle)
                 implicitUses = prepareImplicitUses(implicitUsesRaw["modules"])
-            except:
+            except Exception:
                 logger.critical(
                     "failed to parse use statements contained in common uses precompiler file {}".format(
                         inc_absfn

@@ -219,7 +219,7 @@ def process_file(fn, allow_modifications):
             orig_lines = orig_content.decode("utf8").split("\n")
             new_lines = new_content.decode("utf8").split("\n")
             diff = unified_diff(orig_lines, new_lines, "before", "after", lineterm="")
-        except:
+        except Exception:
             diff = []  #
         raise Exception(f"File modified:\n" + "\n".join(diff))
 

@@ -29,7 +29,7 @@ from typing import Any, List, Dict, cast, Optional, ValuesView, NewType
 
 try:
     from typing import Literal
-except:
+except ImportError:
     from typing_extensions import Literal  # type: ignore
 
 import matplotlib as mpl  # type: ignore
@@ -687,7 +687,7 @@ def retrieve_report(url: str) -> Optional[str]:
             etag_file.write_text(r.headers["ETag"])
         return report_text
 
-    except:
+    except Exception:
         traceback.print_exc()
         return None
 
@@ -722,7 +722,7 @@ def parse_report(report_txt: Optional[str], log: GitLog) -> Report:
             return Report("FAILED", "Unknown CommitSHA.")
 
         return Report(status, summary, sha=sha, plots=plots, plot_points=points)
-    except:
+    except Exception:
         traceback.print_exc()
         return Report("UNKNOWN", "Error while parsing report.")
 
