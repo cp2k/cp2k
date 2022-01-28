@@ -7,7 +7,7 @@
 # optional output postfix, useful to separate results of different benchmark runs
 postfix=""
 # used ranks, can be any value, by default the number of physical cores on the node
-ranks=`lscpu | awk '/^Core\(s\) per socket:/ {cores=$NF}; /^Socket\(s\):/ {sockets=$NF}; END{print cores*sockets}'`
+ranks=$(lscpu | awk '/^Core\(s\) per socket:/ {cores=$NF}; /^Socket\(s\):/ {sockets=$NF}; END{print cores*sockets}')
 # adjust command for testing as needed
 command="mpirun -np $ranks ../../../exe/local/cp2k.popt"
 # iterations used for testing (best value retained for benchmark result)
@@ -17,7 +17,7 @@ maxiter=3
 benchs="bench_dftb dbcsr H2O-gga H2O-hyb"
 
 # run benchmark iteration loop
-for iter in `seq 1 $maxiter`
+for iter in $(seq 1 $maxiter)
 do
   echo "========= iter = $iter ========"
  
@@ -32,7 +32,7 @@ do
     # analyze results
     grep " CP2K   " ${outfile} | awk '{print $NF}' | sort -n | awk '{printf("%12.3f ",$1)}'
     printf "\n"
-    bestbench=`grep " CP2K   " ${outfile} | awk '{print $NF}' | sort -nr | tail -n1`
+    bestbench=$(grep " CP2K   " ${outfile} | awk '{print $NF}' | sort -nr | tail -n1)
     best="$best $bestbench"
   done
 

@@ -98,19 +98,19 @@ echo "    REAL(dp), DIMENSION(ncoa*ncob*ncoc*ncod)  :: buffer1, buffer2" >> sele
 echo " " >> select.dat
 echo "#if defined(__LIBINT)" >> select.dat
 echo "    SELECT CASE(n_a)"  >> select.dat
-for a in `seq 0 $lmax` 
+for a in $(seq 0 $lmax)
 do
   echo "    CASE("${number[$a]}")"  >> select.dat
   echo "     SELECT CASE(n_b)"  >> select.dat
-  for b in `seq 0 $lmax`
+  for b in $(seq 0 $lmax)
   do
     echo "     CASE("${number[$b]}")"  >> select.dat
     echo "      SELECT CASE(n_c)"  >> select.dat
-    for c in `seq 0 $lmax`
+    for c in $(seq 0 $lmax)
     do
       echo "      CASE("${number[$c]}")"  >> select.dat
       echo "       SELECT CASE(n_d)"  >> select.dat
-      for d in `seq 0 $lmax`
+      for d in $(seq 0 $lmax)
       do
         echo "       CASE("${number[$d]}")"  >> select.dat
         max=$a
@@ -192,19 +192,19 @@ echo "#endif" >> select.dat
 echo "  END SUBROUTINE  contract" >> select.dat
 
 lmax=$lmax_specific
-for a in `seq 0 $lmax`
+for a in $(seq 0 $lmax)
 do
   ncoa=${nco[$a]}
   nsoa=${nso[$a]}
-  for b in `seq 0 $lmax`
+  for b in $(seq 0 $lmax)
   do
     ncob=${nco[$b]}
     nsob=${nso[$b]}
-    for c in `seq 0 $lmax`
+    for c in $(seq 0 $lmax)
     do
       ncoc=${nco[$c]}
       nsoc=${nso[$c]}
-      for d in `seq 0 $lmax`
+      for d in $(seq 0 $lmax)
        do
          ncod=${nco[$d]}
          nsod=${nso[$d]}
@@ -254,7 +254,7 @@ lmax=$lmax_generic
 
 echo "#include \"templates/part1\"" > tmp
 echo "  SELECT CASE(kmax)" >> tmp
-for a in `seq 0 $lmax`
+for a in $(seq 0 $lmax)
 do
   ncoa=${nco[$a]}
   nsoa=${nso[$a]}
@@ -268,7 +268,7 @@ echo "#include \"templates/part1_default\"" >> tmp
 echo "  END SELECT" >> tmp
 echo "#include \"templates/part2\"" >> tmp
 echo "  SELECT CASE(kmax)" >> tmp
-for a in `seq 0 $lmax`
+for a in $(seq 0 $lmax)
 do
   ncoa=${nco[$a]}
   nsoa=${nso[$a]}
@@ -282,7 +282,7 @@ echo "#include \"templates/part2_default\"" >> tmp
 echo "  END SELECT" >> tmp
 echo "#include \"templates/part3\"" >> tmp
 echo "  SELECT CASE(kmax)" >> tmp
-for a in `seq 0 $lmax`
+for a in $(seq 0 $lmax)
 do
   ncoa=${nco[$a]}
   nsoa=${nso[$a]}
@@ -296,7 +296,7 @@ echo "#include \"templates/part3_default\"" >> tmp
 echo "  END SELECT" >> tmp
 echo "#include \"templates/part4\"" >> tmp
 echo "  SELECT CASE(kmax)" >> tmp
-for a in `seq 0 $lmax`
+for a in $(seq 0 $lmax)
 do
   ncoa=${nco[$a]}
   nsoa=${nso[$a]}
