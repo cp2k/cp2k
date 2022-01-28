@@ -296,7 +296,8 @@ MODULE input_constants
 
    ! pint propagator mode
    INTEGER, PARAMETER, PUBLIC               :: propagator_pimd = 1, &
-                                               propagator_rpmd = 2
+                                               propagator_rpmd = 2, &
+                                               propagator_cmd = 3
    ! pint propagator mode
    INTEGER, PARAMETER, PUBLIC               :: integrate_numeric = 1, &
                                                integrate_exact = 2
