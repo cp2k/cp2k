@@ -141,7 +141,7 @@ def parse_file(parsed_files, fn):
     content_lower = content.lower()
 
     mods = re_module.findall(content_lower)
-    prog = re_program.search(content_lower) != None
+    prog = re_program.search(content_lower) is not None
     uses = re_use.findall(content_lower)
     incl1_iter = re_incl1.finditer(content_lower)  # fortran includes
     incls = [content[m.start(1) : m.end(1)] for m in incl1_iter]
@@ -248,7 +248,7 @@ def find_cycles(parsed_files, mod2fn, fn, S=None):
     if "visited" in pf:
         return
 
-    if S == None:
+    if S is None:
         S = []
 
     for m in pf["module"]:
@@ -269,7 +269,7 @@ def find_cycles(parsed_files, mod2fn, fn, S=None):
 
 # =============================================================================
 def find_pkg_cycles(packages, p, S=None):
-    if S == None:
+    if S is None:
         S = []
 
     if p in S:

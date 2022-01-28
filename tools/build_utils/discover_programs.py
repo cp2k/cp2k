@@ -47,7 +47,7 @@ def is_fortran_program(fn):
     tail = f.read()
     f.close()
     m = re_program.search(tail.lower())
-    return m != None
+    return m is not None
 
 
 # ============================================================================
@@ -56,7 +56,7 @@ def has_main_function(fn):
     content = f.read()
     f.close()
     m = re_main.search(content)
-    return m != None
+    return m is not None
 
 
 # ===============================================================================
