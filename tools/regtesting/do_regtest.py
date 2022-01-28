@@ -458,7 +458,7 @@ async def run_unittests(batch: Batch, cfg: Config) -> List[TestResult]:
 
 # ======================================================================================
 async def run_regtests(batch: Batch, cfg: Config) -> List[TestResult]:
-    if cfg.keepalive and not batch.name in KEEPALIVE_SKIP_DIRS:
+    if cfg.keepalive and batch.name not in KEEPALIVE_SKIP_DIRS:
         return await run_regtests_keepalive(batch, cfg)
     else:
         return await run_regtests_classic(batch, cfg)
