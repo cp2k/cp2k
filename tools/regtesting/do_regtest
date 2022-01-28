@@ -16,8 +16,8 @@ export LC_ALL=C
 
 # init
 dir_base=$PWD
-full_time_t1=`date +%s`
-date_stamp=`date '+%F_%H-%M-%S'`
+full_time_t1=$(date +%s)
+date_stamp=$(date '+%F_%H-%M-%S')
 ndirstoskip=0
 skip_dirs[1]=""
 ndirstorestrict=0
@@ -196,7 +196,7 @@ farming=${farming:-"no"}
 # guessing the number of tasks / threads / ranks
 #
 # by default we use all available processors, obeys e.g. docker --cpuset-cpus
-maxtasksdefault=`nproc`
+maxtasksdefault=$(nproc)
 maxtasks=${maxtasks:-${maxtasksdefault}}
 maxbuildtasks=${maxbuildtasks:-${maxtasks}}
 
@@ -216,7 +216,7 @@ fi
 
 mem_limit=unlimited
 
-if [[ $numprocs > 1 ]] ; then
+if [[ $numprocs -gt 1 ]] ; then
     if [[ "$farming" == "yes" ]]; then
        cp2k_run_prefix=${cp2k_run_prefix:-"${mpiexec} -np $(($maxtasks + 1)) ${valgrindstring}"}
     else
@@ -297,12 +297,12 @@ function do_test_grep(){
    e1=$ref_value
    label="ref"
  else
-   e1=`grep -a "${grep_string}" ${output_old} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+   e1=$(grep -a "${grep_string}" ${output_old} | tail -1 | ${awk} -v f=${grep_field} '{print $f}')
    label="old"
  fi
 
- e2=`grep -a "${grep_string}" ${output_new} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
- big=`echo "${e1} ${e2} ${error_tolerance}" | ${awk} '{if($2==0){v=sqrt(($1-$2)^2)}else{v=sqrt((($1-$2)/$2)^2)}; if (v>$3) printf("%16.8e",v); else printf("0") ;}'`
+ e2=$(grep -a "${grep_string}" ${output_new} | tail -1 | ${awk} -v f=${grep_field} '{print $f}')
+ big=$(echo "${e1} ${e2} ${error_tolerance}" | ${awk} '{if($2==0){v=sqrt(($1-$2)^2)}else{v=sqrt((($1-$2)/$2)^2)}; if (v>$3) printf("%16.8e",v); else printf("0") ;}')
 
  case ${big} in
  0)
@@ -364,19 +364,19 @@ function run_regtest_dir() {
   #
   echo "Starting regression tests in ${dir_test}/tests/${dir} (${idir} of ${ndir})"
   echo ">>> ${dir_test}/tests/${dir}" > ${dir_test}/status/REGTEST_TASK_TESTS-$task
-  ntest=`grep '^\s*\w' TEST_FILES | wc -l`
-  t1=`date +%s`
+  ntest=$(grep '^\s*\w' TEST_FILES | wc -l)
+  t1=$(date +%s)
   for ((itest=1;itest<=ntest;itest++));
   do
      touch ${lockfile}
      n_tests=$((n_tests+1))
      this_test=""
-     input_file=`grep '^\s*\w' TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
-     test_type=`grep '^\s*\w' TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+     input_file=$(grep '^\s*\w' TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}')
+     test_type=$(grep '^\s*\w' TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}')
      # third field allows numerical tolerances to be read from the TEST_FILES
      # if value does not exist set to the default of 1.0E-14
-     test_tolerance=`grep '^\s*\w' TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF >= 3) { print $3 } else { print def_err_tol } }'`
-     test_ref_value=`grep '^\s*\w' TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) if (NF == 4) { print $4 } }'`
+     test_tolerance=$(grep '^\s*\w' TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF >= 3) { print $3 } else { print def_err_tol } }')
+     test_ref_value=$(grep '^\s*\w' TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) if (NF == 4) { print $4 } }')
 
      output_file=${dir_test}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
@@ -464,7 +464,7 @@ function run_regtest_dir() {
      # Keep the output up-to-date
      timing=0
      if [[ ${this_test} == "OK" ]]; then
-        timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
+        timing=$(grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}')
         this_test="${this_test} (${timing} sec)"
      fi
      leak_marker=""
@@ -478,7 +478,7 @@ function run_regtest_dir() {
            case ${FORT_C_NAME} in
               gfortran*) leak_error_string="SUMMARY: LeakSanitizer:";;
            esac
-           dum=`grep -l "${leak_error_string}" ${output_file}`
+           dum=$(grep -l "${leak_error_string}" ${output_file})
         fi
         if [[ ${dum} != "" ]]; then
            leak_marker="!"
@@ -493,7 +493,7 @@ function run_regtest_dir() {
        grep_string="${test_grep[test_type]}"
        grep_field="${test_col[test_type]}"
        if [ -f ${output_file} ]; then
-          test_value=`grep -a "${grep_string}" ${output_file} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+          test_value=$(grep -a "${grep_string}" ${output_file} | tail -1 | ${awk} -v f=${grep_field} '{print $f}')
        fi
      fi
 
@@ -501,7 +501,7 @@ function run_regtest_dir() {
      printf "%7.2f  %s\n" "${timing}" "${dir}/${input_file}" >> "${timings}"
   done
 
-  t2=`date +%s`
+  t2=$(date +%s)
   timing_all=$((1+t2-t1))
   printf "%s %0.2f %s\n" "<<< ${dir_test}/tests/${dir} (${idir} of ${ndir}) done in" ${timing_all} "sec"  >> ${dir_test}/status/REGTEST_TASK_TESTS-$task
   echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_tests}" > ${dir_test}/status/REGTEST_TASK_RESULT-$task
@@ -529,7 +529,7 @@ function run_unittest() {
   echo "Starting unit test in ${dir_test}/test/${dir} (${idir} of ${ndir})"
   echo ">>> ${dir_test}/${dir}" > ${dir_test}/status/REGTEST_TASK_TESTS-$task
 
-  t1=`date +%s`
+  t1=$(date +%s)
   output_file=${dir_test}/${dir}.out
   unittest=${dir##*/}
   if [[ "${cp2k_version}" == "sopt" ]]; then
@@ -542,7 +542,7 @@ function run_unittest() {
   testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${ext} ${dir_base}/${cp2k_dir}"
   ( ulimit -t ${job_max_time} -v ${mem_limit} ; ${testcmd} &> ${output_file} ) >& /dev/null
   (( cp2k_exit_status = $? ))
-  t2=`date +%s`
+  t2=$(date +%s)
   timing=$((1+t2-t1))
 
   # check if this was a valgrinded run, and adjust exit status as needed
@@ -556,7 +556,7 @@ function run_unittest() {
   fi
 
   if (( cp2k_exit_status == 0)); then
-     this_test=`printf "OK (%7.2f sec)" ${timing}`
+     this_test=$(printf "OK (%7.2f sec)" ${timing})
      n_correct=$((n_correct+1))
   else
      # CP2K failed obviously
@@ -590,7 +590,7 @@ function run_unittest() {
         case ${FORT_C_NAME} in
            gfortran*) leak_error_string="SUMMARY: LeakSanitizer:";;
         esac
-        dum=`grep -l "${leak_error_string}" ${output_file}`
+        dum=$(grep -l "${leak_error_string}" ${output_file})
      fi
      if [[ ${dum} != "" ]]; then
         leak_marker="!"
@@ -616,9 +616,9 @@ lockfile=${dir_last}/LOCKFILE
 
 # install a trap handler for ctrl-C and other ways to die, doing IO is no good in case of SIGPIPE
 # kills all processes that have a PID of ppid (good for running jobs), removes the lockfile, and exits with code 8
-pgid=`ps -o "%r" $$ | grep "[0-9]"`
+pgid=$(ps -o "%r" $$ | grep "[0-9]")
 trapcommand="rm -f ${lockfile} ; kill -- -$pgid  >& out.kill ; exit 8"
-trap "$trapcommand" SIGINT SIGTERM SIGKILL SIGPIPE SIGHUP SIGQUIT
+trap "$trapcommand" SIGINT SIGTERM SIGPIPE SIGHUP SIGQUIT
 
 if [[ -f ${lockfile} ]]; then
    # the lockfile is touched before the start of any new regtest. If it hasn't been touched
@@ -669,7 +669,7 @@ echo " regtesting location last dir: $dir_last"
 
 # Start testing
 echo "*************************** testing started ******************************"
-echo " started on " `date`
+echo " started on " $(date)
 echo " configuration: ${dir_triplet}-${cp2k_version} "
 file_info
 #
@@ -804,7 +804,7 @@ if [[ ${nobuild} != "nobuild" ]]; then
    cd ${dir_base}/${cp2k_dir}
    ${make} extversions ${ARCH_SPEC} VERSION=${cp2k_version}
    echo "---------------------------- Modules -------------------------------------"
-   if [ "`type -t module`" = 'function' ]; then
+   if [ "$(type -t module)" = 'function' ]; then
       module list 2>&1
    else
       echo "Module system not installed."
@@ -824,7 +824,7 @@ if [[ ${nobuild} != "nobuild" ]]; then
       rm ${lockfile}
       exit 4
    else
-      compile_warnings=`grep -i "Warning" ${make_out} | wc -l`
+      compile_warnings=$(grep -i "Warning" ${make_out} | wc -l)
       echo "${make} -j $((maxbuildtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
    fi
 else
@@ -851,13 +851,13 @@ if [[ ${skiptest} != "skiptest" ]]; then
    # followed by comment lines
    #
    ###################################################################################
-   Ntest_types=`awk -v l=1 -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l) print $c}' ${test_types_file}`
+   Ntest_types=$(awk -v l=1 -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l) print $c}' ${test_types_file})
    test_grep[0]=""
    test_col[0]=1
    t=1
    while [ $t -le ${Ntest_types} ]; do
-   test_grep[t]=`${awk} -v l=$t -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
-   test_col[t]=`${awk} -v l=$t -v c=2 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
+   test_grep[t]=$(${awk} -v l=$t -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file})
+   test_col[t]=$(${awk} -v l=$t -v c=2 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file})
    let t=t+1
    done
 
@@ -916,7 +916,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
    last_test_dir=""
    retest_dirs=""
    if [[ $doretest == "yes" ]]; then
-     last_test_dir=`ls ${dir_out} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1`
+     last_test_dir=$(ls ${dir_out} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1)
      if [[ "${testdir}" == "${last_test_dir}" ]]; then
        echo "No TEST directory with latest test results found. Nothing to test!"
        rm ${lockfile}
@@ -928,7 +928,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
        rm -rf ${dir_test}
        exit 6
      else
-       retest_dirs=`grep .inp.out ${dir_out}/${last_test_dir}/error_summary | awk -F/ '{ test = 0; for (i = 1; i < NF; i++) { if (test == 1) { printf "%s/", $i } if ($i ~ /TEST/) test = 1; } printf "\n" }' | sort | sed 's/\/$//' | awk '!x[$0]++'`
+       retest_dirs=$(grep .inp.out ${dir_out}/${last_test_dir}/error_summary | awk -F/ '{ test = 0; for (i = 1; i < NF; i++) { if (test == 1) { printf "%s/", $i } if ($i ~ /TEST/) test = 1; } printf "\n" }' | sort | sed 's/\/$//' | awk '!x[$0]++')
        for t in ${retest_dirs}; do
          let ndirstorestrict=ndirstorestrict+1;
          restrict_dirs[ndirstorestrict]=$t;
@@ -945,11 +945,11 @@ if [[ ${skiptest} != "skiptest" ]]; then
    #
    # get the cp2k flags for supported features
    #
-   cp2kflags=`${cp2k_prefix} --version ${cp2k_postfix} < /dev/null 2>&1 | grep cp2kflags `
+   cp2kflags=$(${cp2k_prefix} --version ${cp2k_postfix} < /dev/null 2>&1 | grep cp2kflags )
    echo "CP2K supports: $cp2kflags"
 
    # get a list of regtest directories
-   dirs=`cat ${dir_test}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
+   dirs=$(cat ${dir_test}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}')
 
    # prepend list of unit-tests to dirs, use a special "UNIT/" prefix
    if [[ "$do_unit_test" == "yes" ]]; then
@@ -1008,7 +1008,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
 
      # does this dir require features we do not have ?
      featurematch="yes"
-     features_required=`cat ${dir_test}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}'`
+     features_required=$(cat ${dir_test}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}')
      for fr in $features_required
      do
         # allow a specification on the mpiranks needed e.g. fr="mpiranks>2&&mpiranks<6"
@@ -1017,7 +1017,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
           echo $cp2kflags | grep $fr >& /dev/null
           res=$?
         else
-          res=`echo "" | awk -v mpiranks=$numprocs "{print !($fr)}"`
+          res=$(echo "" | awk -v mpiranks=$numprocs "{print !($fr)}")
         fi
         if [[ "$res" == "1" ]]; then
            featurematch="no"
@@ -1064,10 +1064,10 @@ EOF
        # generate the equivalent farming input
        #
        idir=$((idir+1))
-       ntest=`grep '^\s*\w' ${dir_test}/tests/${dir}/TEST_FILES | ${awk} '{c=c+1}END{print c}'`
+       ntest=$(grep '^\s*\w' ${dir_test}/tests/${dir}/TEST_FILES | ${awk} '{c=c+1}END{print c}')
        for ((itest=1;itest<=ntest;itest++));
        do
-         input_file=`grep '^\s*\w' ${dir_test}/tests/${dir}/TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
+         input_file=$(grep '^\s*\w' ${dir_test}/tests/${dir}/TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}')
          output_file=${dir_test}/${dir}/${input_file}.out
          jobid=$((idir*100000+itest))
          if [[ $itest != 1 ]]; then
@@ -1116,7 +1116,7 @@ EOF
     runningtasks=10000
     while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) )); do
        sleep 0.1
-       runningtasks=`ls -1 ${dir_test}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
+       runningtasks=$(ls -1 ${dir_test}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l)
     done
 
    done
@@ -1134,13 +1134,13 @@ EOF
    do
      task=${dir//\//-}
      file=${dir_test}/status/REGTEST_TASK_RESULT-$task
-     tmp=`awk '{print $1}' $file`
+     tmp=$(awk '{print $1}' $file)
      n_runtime_error=$((n_runtime_error+tmp))
-     tmp=`awk '{print $2}' $file`
+     tmp=$(awk '{print $2}' $file)
      n_wrong_results=$((n_wrong_results+tmp))
-     tmp=`awk '{print $3}' $file`
+     tmp=$(awk '{print $3}' $file)
      n_correct=$((n_correct+tmp))
-     tmp=`awk '{print $4}' $file`
+     tmp=$(awk '{print $4}' $file)
      n_tests=$((n_tests+tmp))
      rm -f $file
    done
@@ -1166,8 +1166,8 @@ EOF
       echo "--------------------------------------------------------------------------" | tee -a ${summary}
       case ${FORT_C_NAME} in
          gfortran*)
-          n_leaking_tests=`grep "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
-          n_leaks=`grep "SUMMARY" ${memory_description_file} | ${awk} 'BEGIN{n=0}{n=n+$7}END{print n}'`
+          n_leaking_tests=$(grep "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}')
+          n_leaks=$(grep "SUMMARY" ${memory_description_file} | ${awk} 'BEGIN{n=0}{n=n+$7}END{print n}')
           printf "Number of LEAKING tests %d\n" ${n_leaking_tests} | tee -a ${summary}
           ;;
       esac
@@ -1185,7 +1185,7 @@ EOF
       echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} 0 ${n_tests} X"
    fi
 
-   full_time_t2=`date +%s`
+   full_time_t2=$(date +%s)
    full_timing_all=$((1+full_time_t2-full_time_t1))
 
    REPORT_SUMMARY=$(printf "correct: %d / %d" ${n_correct} ${n_tests})
