@@ -231,7 +231,7 @@ void calculate_non_orthorombic_corrections_tensor_blocked(
           for (int y2 = 0; y2 < block_size[d1]; y2++) {
             double *restrict dst = &idx2(exp_blocked, y2, 0);
             const double scal = x1[y_1 + y2] * c_exp_const;
-            const double *restrict src = &x2[x_1];
+            double *restrict src = &x2[x_1];
             //#pragma omp simd linear(dst, src) simdlen(8)
             GRID_PRAGMA_SIMD((dst, src), 8)
             for (int x3 = 0; x3 < block_size[d2]; x3++) {
@@ -265,10 +265,8 @@ void apply_non_orthorombic_corrections(const bool plane[restrict 3],
   if (plane[0] && plane[1]) {
     for (int z = 0; z < cube->size[0]; z++) {
       for (int y = 0; y < cube->size[1]; y++) {
-        const double *restrict yx = &idx3(Exp[0], 2, y, 0);
+        double *restrict yx = &idx3(Exp[0], 2, y, 0);
         double *restrict dst = &idx3(cube[0], z, y, 0);
-
-        //#pragma omp simd linear(dst, yx) simdlen(8)
         GRID_PRAGMA_SIMD((dst, yx), 8)
         for (int x = 0; x < cube->size[2]; x++) {
           dst[x] *= yx[x];
@@ -316,7 +314,7 @@ void apply_non_orthorombic_corrections(const bool plane[restrict 3],
     for (int z = 0; z < cube->size[0]; z++) {
       for (int y = 0; y < cube->size[1]; y++) {
         const double zy = idx3(Exp[0], 1, z, y);
-        const double *restrict yx = &idx3(Exp[0], 2, y, 0);
+        double *restrict yx = &idx3(Exp[0], 2, y, 0);
         double *restrict dst = &idx3(cube[0], z, y, 0);
 
         //#pragma omp simd linear(dst, yx) simdlen(8)
@@ -334,7 +332,7 @@ void apply_non_orthorombic_corrections(const bool plane[restrict 3],
     for (int z = 0; z < cube->size[0]; z++) {
       double *restrict zx = &idx3(Exp[0], 0, z, 0);
       for (int y = 0; y < cube->size[1]; y++) {
-        const double *restrict yx = &idx3(Exp[0], 2, y, 0);
+        double *restrict yx = &idx3(Exp[0], 2, y, 0);
         double *restrict dst = &idx3(cube[0], z, y, 0);
         //#pragma omp simd linear(dst, yx) simdlen(8)
         GRID_PRAGMA_SIMD((dst, yx), 8)
@@ -388,7 +386,7 @@ void apply_non_orthorombic_corrections_xy_blocked(
   for (int gamma = 0; gamma < m->size[0]; gamma++) {
     for (int y1 = 0; y1 < m->size[1]; y1++) {
       double *restrict dst = &idx3(m[0], gamma, y1, 0);
-      const double *restrict src = &idx2(Exp[0], y1, 0);
+      double *restrict src = &idx2(Exp[0], y1, 0);
 
       //#pragma omp simd linear(dst, src) simdlen(8)
       GRID_PRAGMA_SIMD((dst, src), 8)
@@ -402,7 +400,7 @@ void apply_non_orthorombic_corrections_xy_blocked(
 void apply_non_orthorombic_corrections_xz_blocked(
     const struct tensor_ *const Exp, struct tensor_ *const m) {
   for (int z1 = 0; z1 < m->size[0]; z1++) {
-    const double *restrict src = &idx2(Exp[0], z1, 0);
+    double *restrict src = &idx2(Exp[0], z1, 0);
     for (int y1 = 0; y1 < m->size[1]; y1++) {
       double *restrict dst = &idx3(m[0], z1, y1, 0);
       //#pragma omp simd linear(dst, src) simdlen(8)

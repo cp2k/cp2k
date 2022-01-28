@@ -101,8 +101,6 @@ void extract_cube_within_spherical_cutoff_ortho(
                                            lower_corner[1], lower_corner[2]);
 
               const int sizex = upper_corner[2] - lower_corner[2];
-
-              //#pragma omp simd linear(dst, src) simdlen(8)
               GRID_PRAGMA_SIMD((dst, src), 8)
               for (int x = 0; x < sizex; x++) {
                 dst[x] = src[x];
