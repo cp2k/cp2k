@@ -1,0 +1,61 @@
+FROM ubuntu:20.04
+USER root
+
+# author: Ole Schuett
+
+# Installs lean toolchain without MPI and relying mostly on Ubuntu packages.
+
+# Install Ubuntu packages.
+COPY ./tools/toolchain/install_requirements_ubuntu.sh .
+RUN ./install_requirements_ubuntu.sh
+
+# Install some more Ubuntu packages.
+RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
+    cmake \
+    gcc-10 \
+    g++-10 \
+    gfortran-10 \
+    fftw3-dev \
+    libopenblas-dev \
+    libgsl-dev \
+    libhdf5-dev \
+   && rm -rf /var/lib/apt/lists/*
+
+# Create links.
+RUN ln -sf gcc-10      /usr/bin/gcc  && \
+    ln -sf g++-10      /usr/bin/g++  && \
+    ln -sf gfortran-10 /usr/bin/gfortran
+
+# Build toolchain.
+WORKDIR /opt/cp2k-toolchain
+COPY ./tools/toolchain/scripts ./scripts
+COPY ./tools/toolchain/install_cp2k_toolchain.sh .
+RUN ./install_cp2k_toolchain.sh \
+    --mpi-mode=no \
+    --with-gcc=system \
+    --with-cmake=system \
+    --with-fftw=system \
+    --with-openblas=system \
+    --with-gsl=system \
+    --with-hdf5=system \
+    --with-libxc=install \
+    --with-libxsmm=install \
+    --with-libint=install \
+     --with-libxc=install \
+    --with-libxsmm=install \
+    --with-libint=install \
+    --libint-lmax=4 \
+    && rm -rf ./build
+WORKDIR /workspace
+
+COPY ./tools/docker/scripts/install_basics.sh .
+RUN ./install_basics.sh
+
+COPY ./tools/docker/scripts/install_regtest.sh .
+RUN ./install_regtest.sh local ssmp
+
+COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_regtest.sh ./
+CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local", "ssmp"]
+
+#EOF
