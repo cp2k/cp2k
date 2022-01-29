@@ -188,13 +188,17 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: io_unit
 
       INTEGER                                            :: comm_dbm, handle1, handle2, mp_comm
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: cd_a, cd_b, cd_c, col_blk_size, rd_a, &
-                                                            rd_b, rd_c, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: cd_a, cd_b, cd_c, col_block_sizes_a, &
+         col_block_sizes_b, col_block_sizes_c, rd_a, rd_b, rd_c, row_block_sizes_a, &
+         row_block_sizes_b, row_block_sizes_c
       INTEGER, DIMENSION(2)                              :: myploc, npdims
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
       TYPE(dbm_type)                                     :: dbm_a, dbm_a_mm, dbm_b, dbm_b_mm, dbm_c, &
                                                             dbm_c_mm
 
+!
+! TODO: Dedup with code in dbt_tas_test_mm.
+!
       IF (PRESENT(io_unit)) THEN
       IF (io_unit > 0) THEN
          WRITE (io_unit, "(A)") "starting tall-and-skinny benchmark"
@@ -245,24 +249,22 @@ CONTAINS
          CALL dbm_distribution_new(dist_c, comm_dbm, rd_c, cd_c)
          DEALLOCATE (rd_a, rd_b, rd_c, cd_a, cd_b, cd_c)
 
-         row_blk_size => dbm_get_row_block_sizes(dbm_a)
-         col_blk_size => dbm_get_col_block_sizes(dbm_a)
-         CALL dbm_create(matrix=dbm_a_mm, &
-                         name=dbm_get_name(dbm_a), &
-                         dist=dist_a, &
-                         row_block_sizes=row_blk_size, col_block_sizes=col_blk_size)
-         row_blk_size => dbm_get_row_block_sizes(dbm_b)
-         col_blk_size => dbm_get_col_block_sizes(dbm_b)
-         CALL dbm_create(matrix=dbm_b_mm, &
-                         name=dbm_get_name(dbm_b), &
-                         dist=dist_b, &
-                         row_block_sizes=row_blk_size, col_block_sizes=col_blk_size)
-         row_blk_size => dbm_get_row_block_sizes(dbm_c)
-         col_blk_size => dbm_get_col_block_sizes(dbm_c)
-         CALL dbm_create(matrix=dbm_c_mm, &
-                         name=dbm_get_name(dbm_c), &
-                         dist=dist_c, &
-                         row_block_sizes=row_blk_size, col_block_sizes=col_blk_size)
+         ! Store pointers in intermediate variables to workaround a CCE error.
+         row_block_sizes_a => dbm_get_row_block_sizes(dbm_a)
+         col_block_sizes_a => dbm_get_col_block_sizes(dbm_a)
+         row_block_sizes_b => dbm_get_row_block_sizes(dbm_b)
+         col_block_sizes_b => dbm_get_col_block_sizes(dbm_b)
+         row_block_sizes_c => dbm_get_row_block_sizes(dbm_c)
+         col_block_sizes_c => dbm_get_col_block_sizes(dbm_c)
+
+         CALL dbm_create(matrix=dbm_a_mm, name=dbm_get_name(dbm_a), dist=dist_a, &
+                         row_block_sizes=row_block_sizes_a, col_block_sizes=col_block_sizes_a)
+
+         CALL dbm_create(matrix=dbm_b_mm, name=dbm_get_name(dbm_b), dist=dist_b, &
+                         row_block_sizes=row_block_sizes_b, col_block_sizes=col_block_sizes_b)
+
+         CALL dbm_create(matrix=dbm_c_mm, name=dbm_get_name(dbm_c), dist=dist_c, &
+                         row_block_sizes=row_block_sizes_c, col_block_sizes=col_block_sizes_c)
 
          CALL dbm_finalize(dbm_a_mm)
          CALL dbm_finalize(dbm_b_mm)
@@ -324,7 +326,9 @@ CONTAINS
 
       INTEGER                                            :: comm_dbm, io_unit, mp_comm, mynode, &
                                                             numnodes
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: cd_a, cd_b, cd_c, rd_a, rd_b, rd_c
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: cd_a, cd_b, cd_c, col_block_sizes_a, &
+         col_block_sizes_b, col_block_sizes_c, rd_a, rd_b, rd_c, row_block_sizes_a, &
+         row_block_sizes_b, row_block_sizes_c
       INTEGER, DIMENSION(2)                              :: myploc, npdims
       LOGICAL                                            :: transa_prv, transb_prv
       REAL(KIND=dp)                                      :: norm, rc_cs, sq_cs
@@ -377,22 +381,25 @@ CONTAINS
       CALL dbm_distribution_new(dist_c, comm_dbm, rd_c, cd_c)
       DEALLOCATE (rd_a, rd_b, rd_c, cd_a, cd_b, cd_c)
 
+      ! Store pointers in intermediate variables to workaround a CCE error.
+      row_block_sizes_a => dbm_get_row_block_sizes(dbm_a)
+      col_block_sizes_a => dbm_get_col_block_sizes(dbm_a)
+      row_block_sizes_b => dbm_get_row_block_sizes(dbm_b)
+      col_block_sizes_b => dbm_get_col_block_sizes(dbm_b)
+      row_block_sizes_c => dbm_get_row_block_sizes(dbm_c)
+      col_block_sizes_c => dbm_get_col_block_sizes(dbm_c)
+
       CALL dbm_create(matrix=dbm_a_mm, name="matrix a", dist=dist_a, &
-                      row_block_sizes=dbm_get_row_block_sizes(dbm_a), &
-                      col_block_sizes=dbm_get_col_block_sizes(dbm_a))
+                      row_block_sizes=row_block_sizes_a, col_block_sizes=col_block_sizes_a)
 
       CALL dbm_create(matrix=dbm_b_mm, name="matrix b", dist=dist_b, &
-                      row_block_sizes=dbm_get_row_block_sizes(dbm_b), &
-                      col_block_sizes=dbm_get_col_block_sizes(dbm_b))
+                      row_block_sizes=row_block_sizes_b, col_block_sizes=col_block_sizes_b)
 
       CALL dbm_create(matrix=dbm_c_mm, name="matrix c", dist=dist_c, &
-                      row_block_sizes=dbm_get_row_block_sizes(dbm_c), &
-                      col_block_sizes=dbm_get_col_block_sizes(dbm_c))
+                      row_block_sizes=row_block_sizes_c, col_block_sizes=col_block_sizes_c)
 
-      CALL dbm_create(matrix=dbm_c_mm_check, name="matrix c check", &
-                      dist=dist_c, &
-                      row_block_sizes=dbm_get_row_block_sizes(dbm_c), &
-                      col_block_sizes=dbm_get_col_block_sizes(dbm_c))
+      CALL dbm_create(matrix=dbm_c_mm_check, name="matrix c check", dist=dist_c, &
+                      row_block_sizes=row_block_sizes_c, col_block_sizes=col_block_sizes_c)
 
       CALL dbm_finalize(dbm_a_mm)
       CALL dbm_finalize(dbm_b_mm)
