@@ -1,0 +1,164 @@
+#
+# This file was created by generate_dockerfiles.py.
+# Usage: docker build -f ./Dockerfile.test_hip_cuda_V100 ../../
+#
+
+FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
+
+# Setup CUDA environment.
+ENV CUDA_PATH /usr/local/cuda
+ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
+ENV HIP_PLATFORM nvidia
+ENV ROCM_VER 4.5.2
+ENV HIP_DIR /opt/HIP-rocm-4.5.2
+ENV HIPAMD_DIR /opt/hipamd-rocm-4.5.2
+
+RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
+    && apt-get update -qq && apt-get install -qq --no-install-recommends \
+    ca-certificates \
+    build-essential \
+    cmake \
+    git \
+    gfortran \
+    mpich \
+    libmpich-dev \
+    wget \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install HIP from source because the hip-nvcc package drags in 10GB of unnecessary dependencies.
+WORKDIR /opt
+
+RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.20.6/cmake-3.20.6-Linux-x86_64.sh \
+    && echo "4772100c2578927eed5aa9e1a80694c0d64410448c0fda73d31b0eae18645784  cmake-3.20.6-Linux-x86_64.sh" | sha256sum --check \
+    && sh cmake-3.20.6-Linux-x86_64.sh --prefix=/usr/local --skip-license \
+    && rm -f cmake-3.20.6-Linux-x86_64.sh \
+    && cmake --version
+
+RUN wget -q https://github.com/ROCm-Developer-Tools/HIP/archive/refs/tags/rocm-${ROCM_VER}.tar.gz -O HIP-rocm-${ROCM_VER}.tar.gz\
+    && echo "c2113dc3c421b8084cd507d91b6fbc0170765a464b71fb0d96bb875df368f160  HIP-rocm-${ROCM_VER}.tar.gz" |  sha256sum --check \
+    && tar -xzf HIP-rocm-*.tar.gz \
+    && wget -q https://github.com/ROCm-Developer-Tools/hipamd/archive/refs/tags/rocm-${ROCM_VER}.tar.gz -O hipamd-rocm-${ROCM_VER}.tar.gz \
+    && echo "b6f35b1a1d0c466b5af28e26baf646ae63267eccc4852204db1e0c7222a39ce2  hipamd-rocm-${ROCM_VER}.tar.gz" | sha256sum --check \
+    && tar -xzf hipamd-rocm-*.tar.gz \
+    && wget -q https://github.com/ROCmSoftwarePlatform/hipBLAS/archive/refs/tags/rocm-${ROCM_VER}.tar.gz -O hipBLAS-rocm-${ROCM_VER}.tar.gz \
+    && echo "82dd82a41bbadbb2a91a2a44a5d8e0d2e4f36d3078286ed4db3549b1fb6d6978  hipBLAS-rocm-${ROCM_VER}.tar.gz" | sha256sum --check \
+    && tar -xzf hipBLAS-rocm-*.tar.gz \
+    && wget -q https://github.com/ROCmSoftwarePlatform/hipFFT/archive/refs/tags/rocm-${ROCM_VER}.tar.gz -O hipFFT-rocm-${ROCM_VER}.tar.gz \
+    && echo "32ba6a5f50cfede3777a43794371ffb1363302131d8a0382d96df90ed7bc911a  hipFFT-rocm-${ROCM_VER}.tar.gz" | sha256sum --check \
+    && tar -xzf hipFFT-rocm-*.tar.gz
+
+RUN cd ${HIPAMD_DIR} \
+    && mkdir -p build \
+    && cd  build \
+    && mkdir /opt/rocm-${ROCM_VER} \
+    && cmake -DHIP_COMMON_DIR=${HIP_DIR} -DHIP_PLATFORM=nvidia -DCMAKE_INSTALL_PREFIX=/opt/rocm-${ROCM_VER}/hip .. > /dev/null 2>&1 \
+    && make -j > /dev/null 2>&1 \
+    && make install > /dev/null 2>&1 \
+    && cd ../..
+
+# Install hipBLAS from source.
+RUN cd hipBLAS-rocm-* \
+    && mkdir build \
+    && cd build \
+    && cmake -DCMAKE_INSTALL_PREFIX=/opt/rocm-${ROCM_VER} -DUSE_CUDA=YES -DCMAKE_MODULE_PATH=/opt/rocm-${ROCM_VER} -DCMAKE_MODULE_PATH=/opt/rocm-${ROCM_VER}/hip/cmake .. > /dev/null 2>&1 \
+    && make -j > /dev/null 2>&1 \
+    && make install > /dev/null 2>&1 \
+    && cd .. \
+    && rm -rf hipBLAS-rocm-*
+
+ENV CPATH ${CPATH}:/opt/rocm-${ROCM_VER}/hip/include
+# Install hipFFT from source.
+RUN cd hipFFT-rocm-* \
+    && mkdir build \
+    && cd build \
+    && cmake -DCMAKE_INSTALL_PREFIX=/opt/rocm-${ROCM_VER} -DBUILD_WITH_LIB=CUDA .. > /dev/null 2>&1 \
+    && make -j > /dev/null 2>&1 \
+    && make install > /dev/null 2>&1 \
+    && rm -rf hipFFT*
+
+# This is the alternative installation path via Ubuntu packages.
+## https://rocmdocs.amd.com/en/latest/Installation_Guide/Installation-Guide.html#ubuntu
+## https://rocmdocs.amd.com/en/latest/Installation_Guide/HIP-Installation.html#nvidia-platform
+#RUN apt-key adv --fetch-keys https://repo.radeon.com/rocm/rocm.gpg.key
+#RUN echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/debian/ ubuntu main' > /etc/apt/sources.list.d/rocm.list
+#RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
+#    && apt-get update -qq \
+#    && apt-get install --yes --no-install-recommends hip-nvcc hipblas \
+#    && rm -rf /var/lib/apt/lists/*
+
+# Setup HIP environment.
+ENV ROCM_PATH /opt/rocm-${ROCM_VER}
+ENV PATH ${PATH}:${ROCM_PATH}/hip/bin
+ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ROCM_PATH}/hip/lib:${ROCM_PATH}/hipblas/lib:${ROCM_PATH}/hipfft/lib:${ROCM_PATH}/hipfft/lib64:${ROCM_PATH}/hipblas/lib64
+ENV HIP_PLATFORM nvidia
+RUN hipconfig
+
+# Install requirements for the toolchain.
+WORKDIR /opt/cp2k-toolchain
+COPY ./tools/toolchain/install_requirements_ubuntu.sh .
+RUN ./install_requirements_ubuntu.sh
+
+# Install the toolchain.
+RUN mkdir scripts
+COPY ./tools/toolchain/scripts/VERSION \
+     ./tools/toolchain/scripts/parse_if.py \
+     ./tools/toolchain/scripts/tool_kit.sh \
+     ./tools/toolchain/scripts/common_vars.sh \
+     ./tools/toolchain/scripts/signal_trap.sh \
+     ./tools/toolchain/scripts/get_openblas_arch.sh \
+     ./scripts/
+COPY ./tools/toolchain/install_cp2k_toolchain.sh .
+RUN ./install_cp2k_toolchain.sh \
+    --mpi-mode=mpich \
+    --enable-hip=yes \
+    --gpu-ver=V100 \
+    --dry-run
+
+# Dry-run leaves behind config files for the followup install scripts.
+# This breaks up the lengthy installation into smaller docker build steps.
+COPY ./tools/toolchain/scripts/stage0/ ./scripts/stage0/
+RUN  ./scripts/stage0/install_stage0.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage1/ ./scripts/stage1/
+RUN  ./scripts/stage1/install_stage1.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage2/ ./scripts/stage2/
+RUN  ./scripts/stage2/install_stage2.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage3/ ./scripts/stage3/
+RUN  ./scripts/stage3/install_stage3.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage4/ ./scripts/stage4/
+RUN  ./scripts/stage4/install_stage4.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage5/ ./scripts/stage5/
+RUN  ./scripts/stage5/install_stage5.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage6/ ./scripts/stage6/
+RUN  ./scripts/stage6/install_stage6.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage7/ ./scripts/stage7/
+RUN  ./scripts/stage7/install_stage7.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage8/ ./scripts/stage8/
+RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/arch_base.tmpl \
+     ./tools/toolchain/scripts/generate_arch_files.sh \
+     ./scripts/
+RUN ./scripts/generate_arch_files.sh && rm -rf ./build
+
+# Install regression test for psmp.
+WORKDIR /workspace
+
+COPY ./tools/docker/scripts/install_basics.sh .
+RUN ./install_basics.sh
+
+COPY ./tools/docker/scripts/install_regtest.sh .
+RUN ./install_regtest.sh local psmp
+
+COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_regtest.sh ./
+CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local", "psmp"]
+
+#EOF
