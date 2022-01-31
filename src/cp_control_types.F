@@ -328,6 +328,7 @@ MODULE cp_control_types
       INTEGER                              :: do_ppl_method
       INTEGER                              :: wf_interpolation_method_nr
       INTEGER                              :: wf_extrapolation_order
+      INTEGER                              :: periodicity
       REAL(KIND=dp)                        :: cutoff
       REAL(KIND=dp), DIMENSION(:), POINTER :: e_cutoff
       TYPE(mulliken_restraint_type), &
@@ -443,9 +444,12 @@ MODULE cp_control_types
       INTEGER                              :: nprocs
       !> type of kernel function/approximation to use
       INTEGER                              :: kernel
-      !> fro full kernel, do we have HFX/ADMM
+      !> for full kernel, do we have HFX/ADMM
       LOGICAL                              :: do_hfx
       LOGICAL                              :: do_admm
+      !> for full kernel, do we have long-range HFX and/or Kxc potential
+      LOGICAL                              :: do_hfxlr
+      LOGICAL                              :: do_exck
       !> options used in sTDA calculation (Kernel)
       TYPE(stda_control_type)              :: stda_control
       !> algorithm to correct orbital energies

@@ -26,6 +26,7 @@
   &SUBSYS
     &CELL
       ABC [bohr] 10. 10. 10.
+      PERIODIC NONE
     &END CELL
     &COORD
       UNIT bohr

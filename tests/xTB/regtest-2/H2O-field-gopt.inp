@@ -13,6 +13,9 @@
     &QS
       METHOD xTB
       EPS_DEFAULT 1.0E-12
+      &xTB
+        DO_EWALD T
+      &END xTB
     &END QS
     &KPOINTS
        SCHEME GAMMA

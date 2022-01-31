@@ -20,16 +20,21 @@ MODULE voronoi_interface
    USE bibliography, ONLY: Rycroft2009, Thomas2015, Brehm2018, Brehm2020, &
                            Brehm2021, cite_reference
    USE kinds, ONLY: dp, default_path_length
-   USE cell_types, ONLY: cell_type
+   USE cell_types, ONLY: cell_type, pbc
    USE pw_types, ONLY: pw_p_type, pw_type
+   USE physcon, ONLY: bohr, debye
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
+   USE molecule_kind_types, ONLY: molecule_kind_type, &
+                                  write_molecule_kind_set
+   USE molecule_types, ONLY: molecule_type
    USE qs_rho_types, ONLY: qs_rho_get, &
                            qs_rho_type
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind
    USE particle_list_types, ONLY: particle_list_type
    USE particle_types, ONLY: particle_type
+   USE cp_files, ONLY: file_exists, close_file, open_file
    USE qs_kind_types, ONLY: get_qs_kind, &
                             qs_kind_type
    USE cp_para_types, ONLY: cp_para_env_type
@@ -302,7 +307,7 @@ CONTAINS
                                                             bqb_history
       LOGICAL                                            :: outemp, bqb_skip_first, voro_skip_first, &
                                                             bqb_store_step, bqb_check, voro_sanity, &
-                                                            bqb_overwrite, vori_overwrite
+                                                            bqb_overwrite, vori_overwrite, ionode, molprop
       REAL(KIND=dp)                                      :: zeff
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -331,7 +336,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: voro_wrapped_pos
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: voro_charge_center
       REAL(KIND=dp), DIMENSION(:), POINTER               :: user_radii
-      CHARACTER(len=default_path_length)                 :: bqb_file_name
+      CHARACTER(len=default_path_length)                 :: bqb_file_name, mp_file_name
       CHARACTER(len=128)                                 :: bqb_parm_string
 #if defined(__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                              :: halt
@@ -347,6 +352,7 @@ CONTAINS
                       nkind=nkind, natom=natom, subsys=subsys, dft_control=dft_control, &
                       cell=cell)
 
+      ionode = para_env%ionode
       my_rank = para_env%mepos
       num_pe = para_env%num_pe
       gid = para_env%group
@@ -373,6 +379,9 @@ CONTAINS
          CALL cite_reference(Brehm2018)
          CALL cite_reference(Brehm2020)
          CALL cite_reference(Brehm2021)
+         !
+         CALL section_vals_val_get(input_voro, "MOLECULAR_PROPERTIES", l_val=molprop)
+         CALL section_vals_val_get(input_voro, "MOLPROP_FILE_NAME", c_val=mp_file_name)
       END IF
 
       IF (do_bqb /= 0) THEN
@@ -410,7 +419,7 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
 
-      IF (my_rank == 0) THEN
+      IF (ionode) THEN
 
          IF (iounit > 0) THEN
             WRITE (iounit, *) ""
@@ -567,7 +576,7 @@ CONTAINS
 
       DEALLOCATE (buf)
 
-      IF (my_rank == 0) THEN
+      IF (ionode) THEN
 
          IF (do_voro /= 0) THEN
 
@@ -672,6 +681,12 @@ CONTAINS
                END DO
             END IF
 
+            IF (molprop) THEN
+               CALL molecular_properties(subsys, cell, sim_step, sim_time, iounit, &
+                                         particles_r, particles_c, &
+                                         voro_charge, voro_charge_center, mp_file_name)
+            END IF
+
             DEALLOCATE (voro_radii)
             DEALLOCATE (voro_charge)
             DEALLOCATE (voro_volume)
@@ -709,7 +724,7 @@ CONTAINS
 
       END IF
 
-      IF (my_rank == 0) THEN
+      IF (ionode) THEN
          DEALLOCATE (particles_z)
          DEALLOCATE (particles_c)
          DEALLOCATE (particles_r)
@@ -749,6 +764,98 @@ CONTAINS
       ret = libvori_finalize()
 #endif
    END SUBROUTINE
-END MODULE voronoi_interface
 
+! **************************************************************************************************
+!> \brief ...
+!> \param subsys ...
+!> \param cell ...
+!> \param sim_step ...
+!> \param sim_time ...
+!> \param iounit ...
+!> \param particles_r ...
+!> \param particles_c ...
+!> \param voro_charge ...
+!> \param voro_charge_center ...
+!> \param mp_file_name ...
+! **************************************************************************************************
+   SUBROUTINE molecular_properties(subsys, cell, sim_step, sim_time, iounit, &
+                                   particles_r, particles_c, voro_charge, &
+                                   voro_charge_center, mp_file_name)
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, INTENT(IN)                                :: sim_step
+      REAL(KIND=dp), INTENT(IN)                          :: sim_time
+      INTEGER, INTENT(IN)                                :: iounit
+      REAL(KIND=dp), DIMENSION(:, :)                     :: particles_r
+      REAL(KIND=dp), DIMENSION(:)                        :: particles_c, voro_charge
+      REAL(KIND=dp), DIMENSION(:, :)                     :: voro_charge_center
+      CHARACTER(len=default_path_length)                 :: mp_file_name
+
+      CHARACTER(len=3)                                   :: fstatus
+      CHARACTER(len=default_path_length)                 :: fname
+      INTEGER                                            :: ia, imol, mk, mpunit, na, na1, na2, &
+                                                            nmolecule
+      REAL(KIND=dp)                                      :: cm, ddip
+      REAL(KIND=dp), DIMENSION(3)                        :: dipm, posa, posc, ref
+      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+
+      IF (iounit > 0) THEN
+         WRITE (iounit, *) "VORONOI| Start Calculation of Molecular Properties from Voronoi Integration"
+      END IF
+      CALL qs_subsys_get(subsys, molecule_set=molecule_set)
+
+      IF (INDEX(mp_file_name, "__STD_OUT__") /= 0) THEN
+         mpunit = iounit
+      ELSE
+         fname = ADJUSTL(mp_file_name)
+         IF (fname(1:2) /= "./") THEN
+            fname = TRIM(fname)//".molprop"
+         END IF
+         IF (file_exists(fname)) THEN
+            fstatus = "old"
+         ELSE
+            fstatus = "new"
+         END IF
+         CALL open_file(file_name=fname, file_status=fstatus, file_action="write", &
+                        file_position="append", unit_number=mpunit)
+      END IF
+      nmolecule = SIZE(molecule_set)
+      WRITE (mpunit, FMT="(T2,I0)") nmolecule
+      WRITE (mpunit, FMT="(A,I8,A,F12.4,A)") " # Step ", sim_step, ",  Time ", &
+         sim_time*femtoseconds, " fs"
+      WRITE (mpunit, FMT="(A,T25,A)") " #   Mol  Type    Charge", &
+         "               Dipole[Debye]         Total Dipole[Debye]"
+      DO imol = 1, nmolecule
+         molecule_kind => molecule_set(imol)%molecule_kind
+         mk = molecule_kind%kind_number
+         na1 = molecule_set(imol)%first_atom
+         na2 = molecule_set(imol)%last_atom
+         na = na2 - na1 + 1
+         ref(1:3) = 0.0_dp
+         DO ia = na1, na2
+            ref(1:3) = ref(1:3) + particles_r(1:3, ia)
+         END DO
+         ref(1:3) = ref(1:3)/REAL(na, KIND=dp)
+         dipm = 0.0_dp
+         DO ia = na1, na2
+            posa(1:3) = particles_r(1:3, ia) - ref(1:3)
+            posa(1:3) = pbc(posa, cell)
+            posc(1:3) = posa(1:3) + bohr*voro_charge_center(ia, 1:3)/100.0_dp
+            posc(1:3) = pbc(posc, cell)
+            cm = -particles_c(ia) + voro_charge(ia)
+            dipm(1:3) = dipm(1:3) + posa(1:3)*particles_c(ia) + posc(1:3)*cm
+         END DO
+         dipm(1:3) = dipm(1:3)*debye
+         ddip = SQRT(SUM(dipm**2))
+         cm = SUM(voro_charge(na1:na2))
+         WRITE (mpunit, FMT="(I8,I6,F12.4,T25,3F12.4,8X,F12.4)") imol, mk, cm, dipm(1:3), ddip
+      END DO
+      IF (mpunit /= iounit) THEN
+         CALL close_file(mpunit)
+      END IF
+
+   END SUBROUTINE molecular_properties
+
+END MODULE voronoi_interface
 

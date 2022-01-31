@@ -9,6 +9,7 @@ MODULE qs_tddfpt2_fhxc
    USE cp_control_types,                ONLY: stda_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                              cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
@@ -142,18 +143,15 @@ CONTAINS
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
             IF (ASSOCIATED(work_matrices%evects_sub(1, ivect)%matrix)) THEN
                DO ispin = 1, nspins
-                  ! Can this be done using cp_dbcsr_plus_fm_fm_t ?
-                  CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), &
-                               0.5_dp, sub_env%mos_occ(ispin)%matrix, &
-                               work_matrices%evects_sub(ispin, ivect)%matrix, &
-                               0.0_dp, work_matrices%rho_ao_orb_fm_sub)
-                  CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), &
-                               0.5_dp, work_matrices%evects_sub(ispin, ivect)%matrix, &
-                               sub_env%mos_occ(ispin)%matrix, &
-                               1.0_dp, work_matrices%rho_ao_orb_fm_sub)
-
-                  CALL copy_fm_to_dbcsr(work_matrices%rho_ao_orb_fm_sub, &
-                                        rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
+                  CALL dbcsr_set(rho_ia_ao(ispin)%matrix, 0.0_dp)
+                  CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
+                                             matrix_v=sub_env%mos_occ(ispin)%matrix, &
+                                             matrix_g=work_matrices%evects_sub(ispin, ivect)%matrix, &
+                                             ncol=nactive(ispin), alpha=0.5_dp)
+                  CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
+                                             matrix_v=work_matrices%evects_sub(ispin, ivect)%matrix, &
+                                             matrix_g=sub_env%mos_occ(ispin)%matrix, &
+                                             ncol=nactive(ispin), alpha=0.5_dp)
                END DO
             ELSE
                ! skip trial vectors which are assigned to different parallel groups
@@ -161,14 +159,15 @@ CONTAINS
             END IF
          ELSE
             DO ispin = 1, nspins
-               ! Can this be done using cp_dbcsr_plus_fm_fm_t ?
-               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, sub_env%mos_occ(ispin)%matrix, &
-                            evects(ispin, ivect)%matrix, 0.0_dp, work_matrices%rho_ao_orb_fm_sub)
-               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
-                            sub_env%mos_occ(ispin)%matrix, 1.0_dp, work_matrices%rho_ao_orb_fm_sub)
-
-               CALL copy_fm_to_dbcsr(work_matrices%rho_ao_orb_fm_sub, &
-                                     rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
+               CALL dbcsr_set(rho_ia_ao(ispin)%matrix, 0.0_dp)
+               CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
+                                          matrix_v=sub_env%mos_occ(ispin)%matrix, &
+                                          matrix_g=evects(ispin, ivect)%matrix, &
+                                          ncol=nactive(ispin), alpha=0.5_dp)
+               CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
+                                          matrix_v=evects(ispin, ivect)%matrix, &
+                                          matrix_g=sub_env%mos_occ(ispin)%matrix, &
+                                          ncol=nactive(ispin), alpha=0.5_dp)
             END DO
          END IF
 

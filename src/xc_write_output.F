@@ -12,8 +12,7 @@ MODULE xc_write_output
 
    USE input_constants,                 ONLY: xc_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
-   USE input_section_types,             ONLY: section_get_keyword_index,&
-                                              section_vals_duplicate,&
+   USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -39,12 +38,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param output_unit ...
+!> \param iounit ...
 !> \param xc_section ...
 !> \param lsd ...
 ! **************************************************************************************************
-   SUBROUTINE xc_write(output_unit, xc_section, lsd)
-      INTEGER, INTENT(IN)                                :: output_unit
+   SUBROUTINE xc_write(iounit, xc_section, lsd)
+      INTEGER, INTENT(IN)                                :: iounit
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(IN)                                :: lsd
 
@@ -54,7 +53,7 @@ CONTAINS
       INTEGER                                            :: i_rep, ifun, il, myfun, n_rep
       TYPE(section_vals_type), POINTER                   :: libxc_fun, xc_fun, xc_fun_section
 
-      IF (output_unit > 0) THEN
+      IF (iounit > 0) THEN
 
          xc_fun_section => section_vals_get_subs_vals(xc_section, &
                                                       "XC_FUNCTIONAL")
@@ -62,12 +61,12 @@ CONTAINS
          IF (myfun /= xc_none) THEN
 
             !check if FUNCTIONAL_ROUTINE keyword present
-            IF (section_get_keyword_index(xc_section%section, "FUNCTIONAL_ROUTINE") .NE. -2) THEN
-               CALL section_vals_val_get(xc_section, "FUNCTIONAL_ROUTINE", &
-                                         c_val=tmpStr)
-               WRITE (output_unit, fmt="(' FUNCTIONAL| ROUTINE=',a)") &
-                  TRIM(tmpStr)
-            END IF
+            !IF (section_get_keyword_index(xc_section%section, "FUNCTIONAL_ROUTINE") .NE. -2) THEN
+            !   CALL section_vals_val_get(xc_section, "FUNCTIONAL_ROUTINE", &
+            !                             c_val=tmpStr)
+            !   WRITE (iounit, fmt="(' FUNCTIONAL| ROUTINE=',a)") &
+            !      TRIM(tmpStr)
+            !END IF
 
             CALL xc_functionals_expand(xc_fun_section, xc_section)
             ifun = 0
@@ -82,10 +81,10 @@ CONTAINS
                      ALLOCATE (CHARACTER(LEN=20*default_string_length) :: reference)
                   END IF
                   CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, shortform=shortform)
-                  WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") &
+                  WRITE (iounit, fmt="(' FUNCTIONAL| ',a,':')") &
                      TRIM(xc_fun%section%name)
                   DO il = 1, LEN_TRIM(reference), 67
-                     WRITE (output_unit, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
+                     WRITE (iounit, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
                   END DO
                   DEALLOCATE (reference)
                ELSE
@@ -100,18 +99,18 @@ CONTAINS
                      CALL xc_functional_get_info(libxc_fun, lsd=lsd, reference=reference, shortform=shortform, print_warn=.TRUE.)
                      CALL section_vals_release(libxc_fun)
                      CALL libxc_version_info(tmpStr)
-                     WRITE (output_unit, fmt="(A,A,A)") ' FUNCTIONAL| LIBXC Vers. ', TRIM(tmpStr(1:5)), &
+                     WRITE (iounit, fmt="(A,A,A)") ' FUNCTIONAL| LIBXC Vers. ', TRIM(tmpStr(1:5)), &
                         ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
-                     WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
+                     WRITE (iounit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                      DO il = 1, LEN_TRIM(reference), 67
-                        WRITE (output_unit, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
+                        WRITE (iounit, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
                      END DO
                      DEALLOCATE (reference)
                   END DO
                END IF
             END DO
          ELSE
-            WRITE (output_unit, fmt="(' FUNCTIONAL| NO EXCHANGE-CORRELATION FUNCTIONAL USED.')")
+            WRITE (iounit, fmt="(' FUNCTIONAL| NO EXCHANGE-CORRELATION FUNCTIONAL USED.')")
          END IF
       END IF
 

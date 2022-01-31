@@ -72,4 +72,6 @@ hf.inp                                                 1    1.0E-10             
 He_PBE.inp                                             1    1.0E-13              -1.14398524502663
 #
 h2q.inp                                                1    1.0E-10              -0.76162210587786
+# Mol Dipole Voronoi
+moldip_voronoi.inp                                     1    1.0E-10             -41.88176215391840
 #EOF

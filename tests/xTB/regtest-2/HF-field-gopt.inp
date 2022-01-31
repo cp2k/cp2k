@@ -12,6 +12,9 @@
     &END
     &QS
       METHOD xTB
+      &xTB
+        DO_EWALD T
+      &END xTB
     &END QS
     &SCF
       EPS_SCF 1.0E-8

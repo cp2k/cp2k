@@ -33,6 +33,7 @@ MODULE molden_utils
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: get_ptable_info
+   USE physcon,                         ONLY: massunit
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
@@ -410,6 +411,7 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: handle, i, iw, j, k, l, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_list
+      REAL(KIND=dp)                                      :: fint
 
       CALL timeset(routineN, handle)
 
@@ -472,9 +474,11 @@ CONTAINS
             END IF
          END DO
          IF (calc_intens) THEN
+            fint = massunit
+            ! intensity units are a.u./amu
             WRITE (iw, '(T2,A)') "[INT]"
             DO i = 1, SIZE(intensities)
-               IF ((.NOT. dump_only_positive) .OR. (freq(i) >= 0._dp)) WRITE (iw, '(3X,F18.6)') intensities(i)
+               IF ((.NOT. dump_only_positive) .OR. (freq(i) >= 0._dp)) WRITE (iw, '(3X,F18.6)') fint*intensities(i)**2
             END DO
          END IF
          DEALLOCATE (my_list)
