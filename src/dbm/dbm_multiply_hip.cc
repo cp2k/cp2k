@@ -6,8 +6,9 @@
 /*----------------------------------------------------------------------------*/
 
 #include <assert.h>
-#include <cuda_runtime.h>
 #include <stdio.h>
+
+#include <hip/hip_runtime.h>
 
 #include "../offload/offload_library.h"
 #include "dbm_mempool.h"
@@ -31,11 +32,9 @@
 __device__ static void atomicAddDouble(double *address, double val) {
   if (val == 0.0)
     return;
-
 #if __CUDA_ARCH__ >= 600
   atomicAdd(address, val); // part of cuda library
 #else
-  // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#atomic-functions
   unsigned long long int *address_as_ull = (unsigned long long int *)address;
   unsigned long long int old = *address_as_ull, assumed;
 
@@ -46,13 +45,11 @@ __device__ static void atomicAddDouble(double *address, double val) {
 
     // Uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
   } while (assumed != old);
-
 #endif
 }
 
 /*******************************************************************************
- * \brief A very naive - but generic - matrix multiplication kernel.
- * \author Ole Schuett
+ * \brief generic matrix multiplication kernel.
  ******************************************************************************/
 __global__ static void
 process_batch_kernel(const bool transa, const bool transb, const double alpha,
@@ -69,25 +66,26 @@ process_batch_kernel(const bool transa, const bool transb, const double alpha,
 
   for (int i = threadIdx.z; i < task.m; i += blockDim.z) {
     for (int j = threadIdx.y; j < task.n; j += blockDim.y) {
+      const int idx_c = j * ldc + i;
+      double accumulator = 0.0;
       for (int l = threadIdx.x; l < task.k; l += blockDim.x) {
         const int idx_a = (transa) ? i * lda + l : l * lda + i;
         const int idx_b = (transb) ? l * ldb + j : j * ldb + l;
-        const int idx_c = j * ldc + i;
-        const double val = alpha * data_a[idx_a] * data_b[idx_b];
-        atomicAddDouble(&data_c[idx_c], val);
+        accumulator += alpha * data_a[idx_a] * data_b[idx_b];
       }
+      atomicAddDouble(&data_c[idx_c], accumulator);
     }
   }
 }
 
 /*******************************************************************************
  * \brief Internal routine for executing the tasks in given batch on the GPU.
- * \author Ole Schuett
  ******************************************************************************/
-void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
-                                    const bool transa, const bool transb,
-                                    const double alpha, const int kshard,
-                                    dbm_multiply_gpu_context_t *ctx) {
+extern "C" void
+dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
+                               const bool transa, const bool transb,
+                               const double alpha, const int kshard,
+                               dbm_multiply_gpu_context_t *ctx) {
   if (ntasks == 0) {
     return; // Nothing to do.
   }
@@ -101,11 +99,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
   // Upload new batch.
   dbm_task_t *batch_dev = &ctx->batches_dev[kshard * ctx->max_batch_size];
   const size_t size = ntasks * sizeof(dbm_task_t);
-  CHECK(cudaMemcpyAsync(batch_dev, batch, size, cudaMemcpyHostToDevice,
-                        shard_c_dev->stream));
-  cudaEvent_t batch_uploaded;
-  CHECK(cudaEventCreate(&batch_uploaded));
-  CHECK(cudaEventRecord(batch_uploaded, shard_c_dev->stream));
+  offloadMemcpyAsyncHtoD(batch_dev, batch, size, shard_c_dev->stream);
 
   // Grow shard_c_dev->data if nessecary.
   if (shard_c_dev->data_size != shard_c_host->data_promised) {
@@ -115,12 +109,11 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
     shard_c_dev->data_size = shard_c_host->data_promised;
     const size_t new_size = shard_c_dev->data_size * sizeof(double);
     shard_c_dev->data = (double *)dbm_mempool_device_malloc(new_size);
-    CHECK(cudaMemsetAsync(shard_c_dev->data, 0, new_size,
-                          shard_c_dev->stream)); // TODO: zero only tail
-    CHECK(cudaMemcpyAsync(shard_c_dev->data, old_data_dev, old_size,
-                          cudaMemcpyDeviceToDevice, shard_c_dev->stream));
+    offloadMemsetAsync(shard_c_dev->data, 0, new_size, shard_c_dev->stream);
+    offloadMemcpyAsyncDtoH(shard_c_dev->data, old_data_dev, old_size,
+                           shard_c_dev->stream);
     // Wait for copy to complete before freeing old buffer.
-    CHECK(cudaStreamSynchronize(shard_c_dev->stream));
+    offloadStreamSynchronize(shard_c_dev->stream);
     dbm_mempool_free(old_data_dev);
   }
 
@@ -132,9 +125,6 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
                          shard_c_dev->stream>>>(
       transa, transb, alpha, batch_dev, ctx->pack_a_dev.data,
       ctx->pack_b_dev.data, shard_c_dev->data);
-  CHECK(cudaGetLastError());
-
-  // Wait for batch to be uploaded before refilling it.
-  CHECK(cudaEventSynchronize(batch_uploaded));
-  CHECK(cudaEventDestroy(batch_uploaded));
+  offloadGetLastError();
+  offloadStreamSynchronize(shard_c_dev->stream);
 }

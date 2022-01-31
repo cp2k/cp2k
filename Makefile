@@ -95,11 +95,12 @@ OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path 
 
 ifneq (,$(findstring hipcc,$(OFFLOAD_CC)))
 OBJ_SRC_FILES += ./pw/gpu/hip/pw_hip_z.cc
-OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cpp
 OBJ_SRC_FILES += ./pw/pw_gpu.F
 OBJ_SRC_FILES += ./grid/hip/grid_hip_integrate.cc
 OBJ_SRC_FILES += ./grid/hip/grid_hip_collocate.cc
 OBJ_SRC_FILES += ./grid/hip/grid_hip_context.cc
+OBJ_SRC_FILES += ./dbm/dbm_multiply_hip.cc
+
 #exclude the src/grid/gpu directory from the list to avoid poluting the C namespace with empty functions.
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -path "./grid/gpu" -prune -type f -name "*.cu")
 endif
@@ -107,7 +108,6 @@ endif
 # if we compile for cuda by directly calling nvcc then include all cuda files.
 ifneq (,$(findstring nvcc,$(OFFLOAD_CC)))
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cu")
-OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cpp
 OBJ_SRC_FILES += ./pw/pw_gpu.F
 endif
 
@@ -570,6 +570,8 @@ grid_hip_collocate.o: grid_hip_collocate.cc
 grid_hip_integrate.o: grid_hip_integrate.cc
 	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
 grid_hip_context.o: grid_hip_context.cc
+	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
+dbm_multiply_hip.o: dbm_multiply_hip.cc
 	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
 
 #%.o: %.cc

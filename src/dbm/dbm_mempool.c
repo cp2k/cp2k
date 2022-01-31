@@ -11,10 +11,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(__DBM_CUDA)
-#include <cuda_runtime.h>
+#if !defined(__NO_OFFLOAD_DBM)
+#include "../offload/offload_operations.h"
 #endif
-
 #include "../offload/offload_library.h"
 #include "dbm_mempool.h"
 
@@ -36,11 +35,11 @@
 static void *actual_malloc(const size_t size, const bool on_device) {
   (void)on_device; // mark used
 
-#if defined(__DBM_CUDA)
+#ifndef __NO_OFFLOAD_DBM
   if (on_device) {
     void *memory;
     offload_set_device();
-    CHECK(cudaMalloc(&memory, size));
+    offloadMalloc(&memory, size);
     assert(memory != NULL);
     return memory;
   }
@@ -62,10 +61,10 @@ static void actual_free(void *memory, const bool on_device) {
     return;
   }
 
-#if defined(__DBM_CUDA)
+#ifndef __NO_OFFLOAD_DBM
   if (on_device) {
     offload_set_device();
-    CHECK(cudaFree(memory));
+    offloadFree(memory);
     return;
   }
 #else
@@ -208,7 +207,7 @@ void dbm_mempool_clear(void) {
   //  free(chunk);
   //}
 
-  // Free chunks in mempool_avavailable.
+  // Free chunks in mempool_available.
   while (mempool_available_head != NULL) {
     dbm_memchunk_t *chunk = mempool_available_head;
     mempool_available_head = chunk->next;
