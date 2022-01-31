@@ -95,7 +95,7 @@ OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" ! -path 
 
 ifneq (,$(findstring hipcc,$(OFFLOAD_CC)))
 OBJ_SRC_FILES += ./pw/gpu/hip/pw_hip_z.cc
-OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cc
+OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cpp
 OBJ_SRC_FILES += ./pw/pw_gpu.F
 OBJ_SRC_FILES += ./grid/hip/grid_hip_integrate.cc
 OBJ_SRC_FILES += ./grid/hip/grid_hip_collocate.cc
@@ -107,7 +107,7 @@ endif
 # if we compile for cuda by directly calling nvcc then include all cuda files.
 ifneq (,$(findstring nvcc,$(OFFLOAD_CC)))
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . ! -path "*/preprettify/*" -name "*.cu")
-OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cc
+OBJ_SRC_FILES += ./pw/gpu/pw_gpu_internal.cpp
 OBJ_SRC_FILES += ./pw/pw_gpu.F
 endif
 
