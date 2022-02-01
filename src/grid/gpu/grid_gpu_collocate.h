@@ -7,8 +7,6 @@
 #ifndef GRID_GPU_COLLOCATE_H
 #define GRID_GPU_COLLOCATE_H
 
-#ifdef __GRID_CUDA
-
 #include "grid_gpu_task_list.h"
 #include <cuda_runtime.h>
 
@@ -29,7 +27,5 @@ void grid_gpu_collocate_one_grid_level(
 #ifdef __cplusplus
 }
 #endif
-
-#endif // __GRID_CUDA
 #endif
 // EOF

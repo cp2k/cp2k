@@ -49,6 +49,7 @@ DFLAGS     += -D__MPI_VERSION=3
 DFLAGS     += -D__PLUMED2
 DFLAGS     += -D__parallel
 DFLAGS     += -D__SCALAPACK
+
 #DFLAGS     += -D__CHECK_DIAG
 
 FCFLAGS     = $(CFLAGS) $(DFLAGS)

@@ -11,8 +11,6 @@
  - Advanced Micro Devices, Inc.
 */
 
-#ifdef __GRID_HIP
-
 #include <algorithm>
 #include <assert.h>
 #include <climits>
@@ -441,4 +439,3 @@ void context_info::collocate_one_grid_level(const int level,
   }
 }
 } // namespace rocm_backend
-#endif // __GRID_ROCM

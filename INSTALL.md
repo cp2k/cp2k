@@ -182,11 +182,24 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
   and `LIBS += -L${LIBXSMM_DIR}/lib -lxsmmf -lxsmm -ldl`
 - LIBSMM is not used if LIBXSMM is enabled.
 
-### 2j. CUDA (optional, improved performance on GPU systems)
+### 2j. GPU support (optional, improved performance on GPU systems)
 
-- Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and
-  OFFLOAD_FLAGS (e.g. `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables.
-  Remember to include the support for the C++11 standard.
+By default CUDA or HIP support are enabled, imply that all cp2k code that
+include gpu support is enabled by default. The three following variables can be
+added to the `DFLAGS` variable to disable the different parts of the code when
+needed.
+
+- `__NO_OFFLOAD_GRID` if gpu support for collocate/integrate is not needed
+- `__NO_OFFLOAD_DBM` if dbm gpu support is not needed
+- `__NO_OFFLOAD_PW` if fft gpu support is not needed
+
+these three parameters are common to all GPU vendors.
+
+#### parameters specific to CUDA
+
+- Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and OFFLOAD_FLAGS (e.g.
+  `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables. Remember to include the
+  support for the C++11 standard.
 - Use the `-D__DBCSR_ACC` and `OFFLOAD_TARGET = cuda` to enable
   accelerator support for matrix multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
@@ -203,6 +216,38 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 - Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
 - Use the `-D__GRID_CUDA` to compile the GPU and HYBRID backends for the grid library.
 - Use the `-D__DBM_CUDA` to compile the GPU backend for the sparse tensor library.
+
+#### parameters specific to HIP / ROCM
+
+:warning: **Experimental**, please report any problem.
+
+the hip backend can work on both nvidia and AMD gpus. It offers a more generic
+interface at the prize of hand written kernels being optimized (for
+collocate/integrate) for AMD GPUs. Tests of the same code on both Mi100 and A100
+give the same performance with little hardware specific optimization.
+
+HIP also offers a mean to develop and test code on NVIDIA hardware if access to
+AMD GPUs is not possible.
+
+- Add `__OFFLOAD_HIP` to the `DFLAGS` variable
+- Add `GPUVER=Mi50, Mi60, Mi100` or the correspinding CUDA values
+- Add `OFFLOAD_CC = hipcc`
+- Add  `-lhipfft -lhipblas -lamdhip64` to the `LIBS` variable
+- Add `OFFLOAD_FLAGS = '-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
+  --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'` where `ROCM_PATH` is the path
+  where the rocm sdk resides. Architectures Mi100 (gfx908), Mi50 (gfx906)
+- the hip backend for the grid library supports nvidia hardware as well. It uses
+  the same code and can be used to validate the backend in case of access to
+  Nvidia hardware only. To get the compilation working, follow the steps above
+  and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section
+  of this document). The environment variable `HIP_PLATFORM` should be set to
+  `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
+- Specify the C++ compiler (e.g. `CXX = g++`). Remember to set the
+  CXXFLAGS flags to support C++11 standard and OpenMP.
+- When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add
+  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and set `OFFLOAD_TARGET = hip`.
+- Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
+  It requires to link `-lroctx64 -lroctracer64`.
 
 ### 2k. LIBXC (optional, wider choice of xc functionals)
 
@@ -331,35 +376,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
   please see <https://brehm-research.de/bqb> for more information as well as
   the `bqbtool` to inspect BQB files.
 
-### 2u. ROCM/HIP (Support for AMD GPU)
-
-:warning: **Experimental**, please report any problem.
-
-The code for the HIP based grid backend was developed and tested on Mi100 but
-should work out of the box on Nvidia hardware as well.
-
-- USE `-D__GRID_HIP` to enable AMD GPU support for collocate and integrate
-  routines.
-- Add `GPUVER=Mi50, Mi60, Mi100`
-- Add `OFFLOAD_CC = hipcc`
-- Add  `-lamdhip64` to the `LIBS` variable
-- Add `OFFLOAD_FLAGS = '-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
-  --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'` where `ROCM_PATH` is the path
-  where the rocm sdk resides. Architectures Mi100 (gfx908), Mi50 (gfx906)
-- the hip backend for the grid library supports nvidia hardware as well. It uses
-  the same code and can be used to validate the backend in case of access to
-  Nvidia hardware only. To get the compilation working, follow the steps above
-  and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section
-  of this document). The environment variable `HIP_PLATFORM` should be set to
-  `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
-- Specify the C++ compiler (e.g. `CXX = g++`). Remember to set the
-  CXXFLAGS flags to support C++11 standard and OpenMP.
-- When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add
-  `-D__HIP_PLATFORM_AMD__` to `CXXFLAGS` and set `OFFLOAD_TARGET = hip`.
-- Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
-  It requires to link `-lroctx64 -lroctracer64`.
-
-### 2v. OpenCL Devices
+### 2u. OpenCL Devices
 
 :warning: **Experimental**, please report any problem.
 
@@ -481,11 +498,10 @@ partially depending on installed libraries (see 2.)
 - `-D__LIBXC` use LIBXC
 - `-D__ELPA` use ELPA in place of SYEVD  to solve the eigenvalue problem
 - `-D__FFTW3` FFTW version 3 is recommended
-- `-D__PW_GPU` CUDA or hip FFT and associated gather/scatter on the GPU
-- `-D__PW_CUDA` CUDA FFT and associated gather/scatter on the GPU. `__PW_GPU`
-  needs to be set
-- `-D__PW_HIP` HIP FFT and associated gather/scatter on the GPU. `__PW_GPU`
-  needs to be set
+- `-D__NO_OFFLOAD_PW` to disable CUDA or hip FFT and associated gather/scatter
+on the GPU
+- `-D__NO_OFFLOAD_GRID` to disable CUDA / HIP collocate integrate functions
+- `-D__NU_OFFLOAD_DBM` to disable gpu dbm support
 - `-D__MKL` link the MKL library for linear algebra and/or FFT
 - `-D__GRID_CORE=X` (with X=1..6) specific optimized core routines can be
   selected.  Reasonable defaults are [provided](./src/grid/collocate_fast.f90)

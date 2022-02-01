@@ -7,10 +7,16 @@
 #ifndef OFFLOAD_LIBRARY_H
 #define OFFLOAD_LIBRARY_H
 
-#if defined(__GRID_CUDA) || defined(__DBM_CUDA) || defined(__PW_CUDA)
-#define __OFFLOAD_CUDA
-#elif defined(__GRID_HIP) || defined(__PW_HIP)
-#define __OFFLOAD_HIP
+#if !defined(__NO_OFFLOAD_GRID) || !defined(__NO_OFFLOAD_PW) ||                \
+    !defined(__NO_OFFLOAD_DBM)
+
+/* Check that __OFFLOAD_CUDA or __OFFLOAD_HIP are given. breaks the compilation
+ * if not */
+
+#if !defined(__OFFLOAD_CUDA) && !defined(__OFFLOAD_HIP)
+#error                                                                         \
+    "GPU support is activated by default for modules supporting it. To continue compilation please add -D__OFFLOAD_CUDA or -D__OFFLOAD_HIP to DFLAGS"
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -71,7 +77,5 @@ int offload_host_free(void *ptr__);
 #ifdef __cplusplus
 }
 #endif
-
 #endif
-
 // EOF

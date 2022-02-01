@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifdef __GRID_CUDA
+#ifdef __OFFLOAD_CUDA
 
 #include <cuda_runtime.h>
 
@@ -569,5 +569,5 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
   }
 }
 
-#endif // __GRID_CUDA
+#endif // __OFFLOAD_CUDA
 // EOF

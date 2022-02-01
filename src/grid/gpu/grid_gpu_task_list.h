@@ -7,8 +7,6 @@
 #ifndef GRID_GPU_TASK_LIST_H
 #define GRID_GPU_TASK_LIST_H
 
-#ifdef __GRID_CUDA
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -171,8 +169,6 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
 #ifdef __cplusplus
 }
 #endif
-
-#endif // __GRID_CUDA
 #endif
 
 // EOF

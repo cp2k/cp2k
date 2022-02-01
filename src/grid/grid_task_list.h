@@ -13,9 +13,15 @@
 #include "common/grid_basis_set.h"
 #include "common/grid_constants.h"
 #include "cpu/grid_cpu_task_list.h"
-#include "gpu/grid_gpu_task_list.h"
-#include "hip/grid_hip_task_list.h"
 #include "ref/grid_ref_task_list.h"
+
+#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_CUDA)
+#include "gpu/grid_gpu_task_list.h"
+#elif defined(__OFFLOAD_HIP)
+#include "hip/grid_hip_task_list.h"
+#endif
+#endif
 
 /*******************************************************************************
  * \brief Internal representation of a task list, abstracting various backends.
@@ -27,9 +33,7 @@ typedef struct {
   int (*npts_local)[3];
   grid_ref_task_list *ref;
   grid_cpu_task_list *cpu;
-#ifdef __GRID_CUDA
-  grid_gpu_task_list *gpu;
-#elif defined(__GRID_HIP)
+#ifndef __NO_OFFLOAD_GRID
   grid_gpu_task_list *gpu;
 #endif
   // more backends to be added here

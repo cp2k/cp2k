@@ -7,8 +7,6 @@
 #ifndef GRID_GPU_INTEGRATE_H
 #define GRID_GPU_INTEGRATE_H
 
-#ifdef __GRID_CUDA
-
 #include "grid_gpu_task_list.h"
 #include <cuda_runtime.h>
 
@@ -30,7 +28,5 @@ void grid_gpu_integrate_one_grid_level(
 #ifdef __cplusplus
 }
 #endif
-
-#endif // __GRID_CUDA
 #endif
 // EOF

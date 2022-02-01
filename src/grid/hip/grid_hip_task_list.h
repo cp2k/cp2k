@@ -7,8 +7,6 @@
 #ifndef GRID_HIP_TASK_LIST_H
 #define GRID_HIP_TASK_LIST_H
 
-#ifdef __GRID_HIP
-
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -61,7 +59,5 @@ void grid_hip_integrate_task_list(const void *ptr, const bool compute_tau,
                                   double *virial);
 #ifdef __cplusplus
 }
-#endif
-
 #endif
 #endif

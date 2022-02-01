@@ -10,3 +10,6 @@ CFLAGS      = -fopenmp
 FCFLAGS     = -fopenmp -ffree-form
 LDFLAGS     = -fopenmp
 LIBS        = -lopenblas
+DFLAGS     += -D__NO_OFFLOAD_GRID
+DFLAGS     += -D__NO_OFFLOAD_PW
+DFLAGS     += -D__NO_OFFLOAD_DBM

@@ -6,6 +6,9 @@ AR          = ar -r
 FC          = mpifrt
 LD          = mpifrt
 DFLAGS      = -D__parallel -D__MPI_VERSION=3 -D__SCALAPACK
+DFLAGS     += -D__NO_OFFLOAD_GRID
+DFLAGS     += -D__NO_OFFLOAD_PW
+DFLAGS     += -D__NO_OFFLOAD_DBM
 #DFLAGS     += -D__FFTW3
 FCFLAGS     = -Free -X08 -Kopenmp,SVE $(DFLAGS)
 CFLAGS      = -Kopenmp,SVE $(DFLAGS)
@@ -15,8 +18,8 @@ LDFLAGS     = -SCALAPACK -SSL2 $(FCFLAGS)
 
 # the compiler runs out of memory when optimizing the following:
 mp2_eri.o: mp2_eri.F
-	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
-	$(FC) -c $(FCFLAGS) -O0 -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
+ $(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
+ $(FC) -c $(FCFLAGS) -O0 -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
 
 # Note: the Fujitsu compiler still has a problem with some INTENT specifications in DBCSR and you may have to apply the following patch:
 #   diff --git a/exts/dbcsr/src/dist/dbcsr_dist_methods.F b/exts/dbcsr/src/dist/dbcsr_dist_methods.F

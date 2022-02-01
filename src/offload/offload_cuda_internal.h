@@ -98,6 +98,7 @@ static inline void offloadStreamWaitEvent(offloadStream_t stream__,
                                           const int val__) {
   cudaStreamWaitEvent(stream__, event__, val__);
 }
+static inline void offloadGetLastError() { OFFLOAD_CHECK(cudaGetLastError()); }
 
 #ifdef __cplusplus
 }

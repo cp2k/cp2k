@@ -117,6 +117,7 @@ static inline void offloadMallocHost(void **ptr__, size_t size__) {
 static inline void offloadFreeHost(void *ptr__) {
   OFFLOAD_CHECK(hipHostFree(ptr__));
 }
+static inline void offloadGetLastError() { OFFLOAD_CHECK(hipGetLastError()); }
 
 #ifdef __cplusplus
 }

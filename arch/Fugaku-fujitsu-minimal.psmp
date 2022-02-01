@@ -11,6 +11,9 @@ FC          = mpifrtpx
 LD          = mpiFCCpx
 DFLAGS      = -D__parallel -D__MPI_VERSION=3 -D__SCALAPACK
 DFLAGS     += -D__FFTW3
+DFLAGS     += -D__NO_OFFLOAD_GRID
+DFLAGS     += -D__NO_OFFLOAD_PW
+DFLAGS     += -D__NO_OFFLOAD_DBM
 FCFLAGS     = -Free -X08 -Kopenmp,SVE $(DFLAGS)
 FCFLAGS    += -I$(FFTW_DIR)/include
 CFLAGS      = -Kopenmp,SVE $(DFLAGS)
@@ -22,5 +25,5 @@ LIBS       += -L$(FFTW_DIR)/lib -lfftw3 -lfftw3_omp -lfjcrt
 
 # the compiler runs out of memory when optimizing the following:
 mp2_eri.o: mp2_eri.F
-	$(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
-	$(FC) -c $(FCFLAGS) -O0 -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)
+ $(TOOLSRC)/build_utils/fypp $(FYPPFLAGS) $< $*.F90
+ $(FC) -c $(FCFLAGS) -O0 -D__SHORT_FILE__="\"$(subst $(SRCDIR)/,,$<)\"" -I'$(dir $<)' $(OBJEXTSINCL) $*.F90 $(FCLOGPIPE)

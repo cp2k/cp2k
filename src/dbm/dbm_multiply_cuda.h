@@ -8,8 +8,6 @@
 #ifndef DBM_MULTIPLY_CUDA_H
 #define DBM_MULTIPLY_CUDA_H
 
-#ifdef __DBM_CUDA
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -87,8 +85,6 @@ void dbm_multiply_cuda_stop(dbm_multiply_cuda_context_t *ctx);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // __DBM_CUDA
 #endif
 
 // EOF

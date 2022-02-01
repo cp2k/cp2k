@@ -13,21 +13,21 @@
 # Author: Matthias Krack (matthias.krack@psi.ch, PSI, December 2021)
 #
 # \
-	if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
+ if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
       echo "ERROR: Script ${0##*/} must be sourced"; \
       echo "Usage: source ${0##*/}"; \
       exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
-	if [[ -f "${PWD}/tools/toolchain/install/setup" ]]; then \
+ if [[ -f "${PWD}/tools/toolchain/install/setup" ]]; then \
       printf "Sourcing ${PWD}/tools/toolchain/install/setup ... "; \
-	   source ${PWD}/tools/toolchain/install/setup; \
-	   printf "done\n"; \
-	fi; \
-	echo "Check the output above for error messages and consistency!"; \
-	echo "If everything is OK, you can build a CP2K production binary with"; \
-	echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
-	return
+    source ${PWD}/tools/toolchain/install/setup; \
+    printf "done\n"; \
+ fi; \
+ echo "Check the output above for error messages and consistency!"; \
+ echo "If everything is OK, you can build a CP2K production binary with"; \
+ echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+ return
 
 # Set options
 DO_CHECKS      := no
@@ -50,6 +50,9 @@ AR             := ar -r
 CFLAGS         := -O3 -fopenmp -funroll-loops -g -march=native -mtune=native
 
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
+DFLAGS         += -D__NO_OFFLOAD_GRID
+DFLAGS         += -D__NO_OFFLOAD_PW
+DFLAGS         += -D__NO_OFFLOAD_DBM
 
 INSTALL_PATH   := $(PWD)/tools/toolchain/install
 

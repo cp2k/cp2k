@@ -86,6 +86,9 @@ DFLAGS         += -D__SCALAPACK
 DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MPI_VERSION=3
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
+DFLAGS         += -D__NO_OFFLOAD_GRID
+DFLAGS         += -D__NO_OFFLOAD_PW
+DFLAGS         += -D__NO_OFFLOAD_DBM
 
 INSTALL_PATH   := $(PWD)/tools/toolchain/install
 

@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifdef __GRID_CUDA
+#ifndef __NO_OFFLOAD_GRID
 
 #include <algorithm>
 #include <assert.h>
@@ -375,5 +375,5 @@ void grid_gpu_collocate_one_grid_level(
   }
 }
 
-#endif // __GRID_CUDA
+#endif // __NO_OFFLOAD_GRID
 // EOF

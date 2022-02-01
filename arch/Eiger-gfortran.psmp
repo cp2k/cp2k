@@ -51,7 +51,10 @@ CHECKS=0
 DFLAGS   = -D__parallel -D__SCALAPACK \
            -D__FFTW3 \
            -D__LIBXSMM \
-           -D__LIBXC
+           -D__LIBXC \
+           -D__NO_OFFLOAD_GRID \
+           -D__NO_OFFLOAD_PW \
+           -D__NO_OFFLOAD_DBM
 
 # === LIBRARIES and MODULES ===
 

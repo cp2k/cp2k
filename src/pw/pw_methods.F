@@ -41,7 +41,7 @@ MODULE pw_methods
                       pw_fpga_init_bitstream, &
                       pw_fpga_r3dc1d_3d_dp, &
                       pw_fpga_r3dc1d_3d_sp
-#ifdef __PW_GPU
+#ifndef __NO_OFFLOAD_PW
    USE pw_gpu, ONLY: pw_gpu_c1dr3d_3d, &
                      pw_gpu_c1dr3d_3d_ps, &
                      pw_gpu_r3dc1d_3d, &
@@ -1660,7 +1660,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nloc
       INTEGER, DIMENSION(:), POINTER                     :: n
       LOGICAL                                            :: test
-#if defined(__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
       LOGICAL                                            :: use_pw_gpu
 #endif
       REAL(KIND=dp)                                      :: norm
@@ -1750,7 +1750,7 @@ CONTAINS
             CALL pw_gather(pw2, c_out)
             DEALLOCATE (c_out)
          CASE ("FW_R3DC1D")
-#if defined (__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
             CALL pw_gpu_r3dc1d_3d(pw1, pw2, scale=norm)
 #elif defined (__PW_FPGA)
             ALLOCATE (c_out(n(1), n(2), n(3)))
@@ -1796,7 +1796,7 @@ CONTAINS
             CALL pw_scatter(pw1, c_out)
             CALL fft3d(dir, n, c_out, scale=norm, debug=test)
          CASE ("BW_C1DR3D")
-#if defined (__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
             CALL pw_gpu_c1dr3d_3d(pw1, pw2, scale=norm)
 #elif defined (__PW_FPGA)
             ALLOCATE (c_out(n(1), n(2), n(3)))
@@ -1889,7 +1889,7 @@ CONTAINS
                WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
             CALL pw_gather(pw2, grays)
          CASE ("FW_R3DC1D")
-#if defined (__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
             ! (no ray dist. is not efficient in CUDA)
             use_pw_gpu = pw1%pw_grid%para%ray_distribution
             IF (use_pw_gpu) THEN
@@ -1917,7 +1917,7 @@ CONTAINS
                CALL pw_gather(pw2, grays)
                DEALLOCATE (c_in)
 
-#if defined (__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
             END IF
 #endif
          CASE ("BW_C1DC3D")
@@ -1939,7 +1939,7 @@ CONTAINS
             END IF
             !..prepare output (nothing to do)
          CASE ("BW_C1DR3D")
-#if defined (__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
             ! (no ray dist. is not efficient in CUDA)
             use_pw_gpu = pw1%pw_grid%para%ray_distribution
             IF (use_pw_gpu) THEN
@@ -1968,7 +1968,7 @@ CONTAINS
                   WRITE (out_unit, '(A)') "  Real part "
                CALL copy_cr(c_in, pw2%cr3d)
                DEALLOCATE (c_in)
-#if defined (__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
             END IF
 #endif
          END SELECT

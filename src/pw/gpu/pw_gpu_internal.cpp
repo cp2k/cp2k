@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-#if defined(__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
 
 #include <array>
 #include <cstdio>
@@ -50,10 +50,10 @@ extern "C" int pw_gpu_init() {
     streams_.resize(4);
     /* stream allocation  */
 
-#ifdef __PW_CUDA
+#ifdef __OFFLOAD_CUDA
     for (auto &stream_ : streams_)
       OFFLOAD_CHECK(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
-#else
+#elif defined(__OFFLOAD_HIP)
     for (auto &stream_ : streams_)
       OFFLOAD_CHECK(hipStreamCreateWithFlags(&stream_, hipStreamNonBlocking));
 #endif
@@ -605,4 +605,4 @@ extern "C" void pw_gpu_sf_z_(const double *zin, double *zout,
   plan.should_destroy();
 }
 
-#endif // __PW_GPU
+#endif // __NO_OFFLOAD_PW

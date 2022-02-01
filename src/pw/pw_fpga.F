@@ -112,9 +112,9 @@ CONTAINS
 #if defined (__PW_FPGA)
       INTEGER :: stat
 
-#if defined (__PW_CUDA)
+#if defined (__OFFLOAD_HIP) || defined(__OFFLOAD_CUDA)
 #error "CUDA and FPGA cannot be configured concurrently!"
-      CPABORT("CUDA and FPGA cannot be configured concurrently!")
+      CPABORT("CUDA / HIP and FPGA cannot be configured concurrently!")
 #endif
       stat = pw_fpga_initialize()
       IF (stat /= 0) &
@@ -279,4 +279,3 @@ CONTAINS
    END FUNCTION
 
 END MODULE pw_fpga
-

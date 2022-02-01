@@ -229,6 +229,12 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-libvori          Enable libvori for the Voronoi integration (and the BQB compressed trajectory format)
                           Default = install
+  --enable-grid-offload   Enable grid offloading on GPU (only valid when CUDA or HIP are enabled)
+                          Default = true
+  --enable-dbm-offload    Enable dbm offloading on GPU  (only valid when CUDA or HIP are enabled)
+                          Default = true
+  --enable-pw-offload     Enable fft offloading on GPU (only valid when CUDA or HIP are enabled)
+                          Default = true
 
 FURTHER INSTRUCTIONS
 
@@ -347,6 +353,10 @@ enable_gcc_master="__FALSE__"
 enable_libxsmm_master="__FALSE__"
 enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
+enable_grid_offloading="__TRUE__"
+enable_pw_offloading="__TRUE__"
+enable_dbm_offloading="__TRUE__"
+
 export GPUVER="no"
 
 # default for libint
@@ -511,6 +521,27 @@ while [ $# -ge 1 ]; do
         exit 1
       fi
       ;;
+    --enable-dbm-offloading*)
+      enable_dbm_offloading=$(read_enable $1)
+      if [ ${enable_dbm_offloading} = "__INVALID__" ]; then
+        report_error "invalid value for --enable-dbm_offloading, please use yes or no"
+        exit 1
+      fi
+      ;;
+    --enable-pw-offloading*)
+      enable_pw_offloading$(read_enable $1)
+      if [ ${enable_pw_offloading} = "__INVALID__" ]; then
+        report_error "invalid value for --enable-pw-offloading, please use yes or no"
+        exit 1
+      fi
+      ;;
+    --enable-grid-offloading*)
+      enable_grid_offloading$(read_enable $1)
+      if [ ${enable_grid_offloading} = "__INVALID__" ]; then
+        report_error "invalid value for --enable-grid-offloading, please use yes or no"
+        exit 1
+      fi
+      ;;
     --with-gcc*)
       with_gcc=$(read_with "${1}")
       ;;
@@ -640,6 +671,7 @@ export ENABLE_TSAN="${enable_tsan}"
 export ENABLE_CUDA="${enable_cuda}"
 export ENABLE_HIP="${enable_hip}"
 export ENABLE_CRAY="${enable_cray}"
+
 [ "${enable_gcc_master}" = "__TRUE__" ] && export gcc_ver="master"
 [ "${enable_libxsmm_master}" = "__TRUE__" ] && export libxsmm_ver="master"
 
@@ -723,6 +755,18 @@ if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
     exit 1
   fi
 fi
+
+# if cuda or hip are not explicitly given disable all offloading code to gpu
+
+if [ "${ENABLE_CUDA}" = "__FALSE__" ] && [ "${ENABLE_HIP}" = "__FALSE__" ]; then
+  enable_dbm_offloading="__FALSE__"
+  enable_pw_offloading="__FALSE__"
+  enable_grid_offloading="__FALSE__"
+fi
+
+export ENABLE_GRID_OFFLOADING="${enable_grid_offloading}"
+export ENABLE_PW_OFFLOADING="${enable_pw_offloading}"
+export ENABLE_DBM_OFFLOADING="${enable_dbm_offloading}"
 
 # PEXSI and its dependencies
 if [ "${with_pexsi}" = "__DONTUSE__" ]; then

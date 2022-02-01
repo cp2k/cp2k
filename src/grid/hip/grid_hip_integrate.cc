@@ -12,8 +12,6 @@
  - Advanced Micro Devices, Inc.
 */
 
-#ifdef __GRID_HIP
-
 #include <algorithm>
 #include <assert.h>
 #include <hip/hip_runtime.h>
@@ -747,5 +745,4 @@ void context_info::compute_hab_coefficients() {
            this->main_stream>>>(params, this->ntasks);
   }
 }
-};     // namespace rocm_backend
-#endif // __GRID_ROCM
+}; // namespace rocm_backend

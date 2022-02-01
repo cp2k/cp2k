@@ -23,7 +23,7 @@
 !>                            can be added easily.
 !> \author Benjamin G. Levine
 ! **************************************************************************************************
-#if defined (__PW_GPU)
+#ifndef __NO_OFFLOAD_PW
 MODULE pw_gpu
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_INT,&
