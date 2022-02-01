@@ -85,7 +85,7 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install regression test for ssmp.
+# Install regression test for local.ssmp.
 WORKDIR /workspace
 
 COPY ./tools/docker/scripts/install_basics.sh .
