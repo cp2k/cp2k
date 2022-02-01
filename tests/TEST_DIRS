@@ -115,7 +115,7 @@ QS/regtest-kp-2                                             libint
 QS/regtest-gapw-1
 QS/regtest-hfx-wfn-fitting                                  libint libxc
 QS/regtest-lvlshift
-QS/regtest-gapw
+QS/regtest-gapw                                             libvori
 QMMM/SE/regtest
 QS/regtest-hfx-periodic                                     libint
 QS/regtest-tddfpt-stda                                      libint

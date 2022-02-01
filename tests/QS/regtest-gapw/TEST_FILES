@@ -40,4 +40,7 @@ H2S-gapw-gop-ot.inp                                    1      3e-13             
 xrd.inp                                                0
 # TEST GAPW meta functional (was buggy, now corrected. Edit: was wrongly corrected, now OK)
 HF_gapw_TPSS.inp                                       1      1e-10            -100.48684877581044
+# GAPW Voronoi integration
+HF_voronoi.inp                                         1      1e-10             -24.76685070840898
+HF_all_voronoi.inp                                     1      1e-10             -99.81892929878380
 #EOF

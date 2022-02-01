@@ -11,7 +11,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 40.0 40.0 40.0
+      ABC 10.0 10.0 10.0
     &END CELL
     &COORD
      UNIT bohr
