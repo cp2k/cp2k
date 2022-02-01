@@ -163,7 +163,7 @@ MODULE response_solver
    LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
-             ks_ref_potential, admm_projection_derivative
+             ks_ref_potential, admm_projection_derivative, response_equation_new
 
 ! **************************************************************************************************
 
@@ -797,7 +797,7 @@ CONTAINS
                              matrix_hz, matrix_pz, matrix_pz_admm, matrix_wz, &
                              zehartree, zexc, rhopz_r, p_env, ex_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), POINTER                           :: vh_rspace
+      TYPE(pw_p_type)                                    :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace, vadmm_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz, matrix_pz, matrix_pz_admm, &
                                                             matrix_wz
@@ -1567,9 +1567,7 @@ CONTAINS
                                        hmat=mhx(ispin, 1), pmat=mpz(ispin, 1), &
                                        qs_env=qs_env, calculate_forces=.TRUE., &
                                        basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
             END DO
-            DEALLOCATE (vadmm_rspace)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
@@ -1598,7 +1596,7 @@ CONTAINS
             NULLIFY (v_xc)
             deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
             IF (deriv2_analytic) THEN
-               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
+               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, Null(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
             ELSE
                CPABORT("NYA 00005")
                NULLIFY (rhoz_aux)

@@ -51,9 +51,10 @@ MODULE mp2_ri_2c
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_p_type, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, dbcsr_release, &
+        dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
@@ -88,7 +89,8 @@ MODULE mp2_ri_2c
    USE qs_interactions,                 ONLY: init_interaction_radii
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: set_ks_env
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              set_ks_env
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
    USE qs_tensors,                      ONLY: build_2c_integrals,&
@@ -150,7 +152,8 @@ CONTAINS
                                gd_array, calc_PQ_cond_num, cond_num, do_svd, &
                                num_small_eigen, potential, ri_metric, &
                                fm_matrix_L_RI_metric, &
-                               do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub, calc_forces)
+                               do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub, &
+                               calc_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
@@ -246,7 +249,7 @@ CONTAINS
                                                             dimen_RI, kpoints)
 
          ELSE
-            IF (calc_forces) THEN
+            IF (calc_forces .AND. (.NOT. do_im_time)) THEN
                ! For the gradients, we make a copy of the inverse root of L
                NULLIFY (fm_matrix_V)
                CALL cp_fm_create(fm_matrix_V, fm_matrix_L%matrix_struct)
@@ -505,7 +508,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (sab_RI, matrix_s_RI_aux_transl)
+      NULLIFY (sab_RI, matrix_s_RI_aux_transl, dist_2d)
 
       CALL get_qs_env(qs_env=qs_env, &
                       para_env=para_env, &
@@ -540,7 +543,8 @@ CONTAINS
 
       ALLOCATE (mat_2c(nimg))
       CALL dbcsr_create(mat_2c(1), "(RI|RI)", dbcsr_dist, dbcsr_type_symmetric, &
-                        row_bsize, col_bsize, reuse_arrays=.TRUE.)
+                        row_bsize, col_bsize)
+      DEALLOCATE (row_bsize, col_bsize)
 
       DO img = 2, nimg
          CALL dbcsr_create(mat_2c(img), template=mat_2c(1))
@@ -552,10 +556,13 @@ CONTAINS
       CALL dbcsr_distribution_release(dbcsr_dist)
       DEALLOCATE (basis_set_RI)
 
+      CALL get_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
+      IF (ASSOCIATED(matrix_s_RI_aux_transl)) CALL dbcsr_deallocate_matrix_set(matrix_s_RI_aux_transl)
       CALL dbcsr_allocate_matrix_set(matrix_s_RI_aux_transl, 1, nimg)
       DO img = 1, nimg
          ALLOCATE (matrix_s_RI_aux_transl(1, img)%matrix)
-         matrix_s_RI_aux_transl(1, img)%matrix = mat_2c(img)
+         CALL dbcsr_copy(matrix_s_RI_aux_transl(1, img)%matrix, mat_2c(img))
+         CALL dbcsr_release(mat_2c(img))
       END DO
 
       CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)

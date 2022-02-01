@@ -151,10 +151,10 @@ MODULE mp2_types
 
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
-      LOGICAL                  :: memory_info, make_chi_pos_definite
+      LOGICAL                  :: memory_info, make_chi_pos_definite, keep_quad
       REAL(KIND=dp)            :: eps_filter, &
                                   eps_filter_factor, eps_compress, exp_tailored_weights, regularization_RI
-      REAL(KIND=dp), DIMENSION(:), POINTER :: rel_cutoffs_chi_W
+      REAL(KIND=dp), DIMENSION(:), POINTER :: rel_cutoffs_chi_W, tau_tj, tau_wj
       REAL(KIND=dp), DIMENSION(2) :: abs_cutoffs_chi_W
       INTEGER                  :: group_size_P, group_size_3c, kpoint_weights_W_method, k_mesh_g_factor
       INTEGER, DIMENSION(:), POINTER     :: kp_grid
@@ -305,6 +305,8 @@ CONTAINS
 
       IF (mp2_env%eri_method .EQ. do_eri_mme) CALL cp_eri_mme_finalize(mp2_env%eri_mme_param)
       IF (ASSOCIATED(mp2_env%eri_mme_param)) DEALLOCATE (mp2_env%eri_mme_param)
+      IF (ASSOCIATED(mp2_env%ri_rpa_im_time%tau_tj)) DEALLOCATE (mp2_env%ri_rpa_im_time%tau_tj)
+      IF (ASSOCIATED(mp2_env%ri_rpa_im_time%tau_wj)) DEALLOCATE (mp2_env%ri_rpa_im_time%tau_wj)
 
       CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
 

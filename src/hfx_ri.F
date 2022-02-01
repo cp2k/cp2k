@@ -3020,13 +3020,6 @@ CONTAINS
 
       END IF
 
-      DO ibasis = 1, SIZE(basis_set_AO)
-         orb_basis => basis_set_AO(ibasis)%gto_basis_set
-         CALL init_interaction_radii_orb_basis(orb_basis, dft_control%qs_control%eps_pgf_orb)
-         ri_basis => basis_set_rI(ibasis)%gto_basis_set
-         CALL init_interaction_radii_orb_basis(ri_basis, dft_control%qs_control%eps_pgf_orb)
-      END DO
-
       CALL dbt_destroy(t_2c_template)
       CALL dbcsr_distribution_release(dbcsr_dist)
       DEALLOCATE (row_bsize, col_bsize)
@@ -3057,8 +3050,7 @@ CONTAINS
 !> \param cell ...
 !> \param particle_set ...
 !> \param do_mp2 ...
-!> \param deriv_dim ...
-!> \note It is assumed that the center for which t_3c_der is a derivative is the first
+!> \param deriv_dim the dimension of the tensor corresponding to the derivative (by default 1)
 ! **************************************************************************************************
    SUBROUTINE get_force_from_3c_trace(force, t_3c_contr, t_3c_der, atom_of_kind, kind_of, idx_to_at, &
                                       pref, work_virial, cell, particle_set, do_mp2, deriv_dim)

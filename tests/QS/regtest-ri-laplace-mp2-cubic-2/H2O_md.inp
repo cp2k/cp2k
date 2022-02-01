@@ -1,0 +1,88 @@
+&GLOBAL
+  PROJECT  H2O_md
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE MD
+  &TIMINGS
+     THRESHOLD 0.01
+  &END
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS  1
+  &END
+&END MOTION
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    SORT_BASIS EXP
+    POTENTIAL_FILE_NAME  POTENTIAL
+    &MGRID
+      CUTOFF  100
+      REL_CUTOFF  20
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      SCF_GUESS RESTART
+      EPS_SCF 1.0E-7
+      MAX_SCF 100
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 1.0000000
+        &SCREENING
+          EPS_SCHWARZ 1.0E-8
+          SCREEN_ON_INITIAL_P FALSE
+        &END SCREENING
+      &END HF
+      &WF_CORRELATION
+        SCALE_S 1.3
+        &RI_SOS_MP2
+          QUADRATURE_POINTS  3
+        &END
+        &LOW_SCALING
+          MEMORY_CUT 2
+        &END
+        &INTEGRALS
+          ERI_METHOD OS
+        &END INTEGRALS
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
+        &END RI
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  6.000   6.000  6.000
+      PERIODIC NONE
+    &END CELL
+    &KIND H
+      BASIS_SET  DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-HF-q1
+    &END KIND
+    &KIND O
+      BASIS_SET  DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-HF-q6
+    &END KIND
+    &TOPOLOGY
+      COORD_FILE_NAME  H2O_gas.xyz
+      COORD_FILE_FORMAT xyz
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

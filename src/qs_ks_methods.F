@@ -196,8 +196,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_p_mp2_admm, matrix_vxc, &
-                                                            mo_derivs, rho_ao_aux
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_s, my_rho, &
                                                             rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -513,14 +512,6 @@ CONTAINS
                CALL rtp_admm_calc_rho_aux(qs_env)
             ELSE
                CALL admm_mo_calc_rho_aux(qs_env)
-            END IF
-            ! If we do not used the ADMM DM method, we have to add the mp2 ADMM matrix manually
-            IF (calculate_forces .AND. ASSOCIATED(qs_env%mp2_env)) THEN
-               CALL get_qs_env(qs_env, rho_aux_fit=rho_struct, matrix_p_mp2_admm=matrix_p_mp2_admm)
-               CALL qs_rho_get(rho_struct, rho_ao=rho_ao_aux)
-               DO ispin = 1, nspins
-                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
-               END DO
             END IF
          ELSEIF (dft_control%do_admm_dm) THEN
             CALL admm_dm_calc_rho_aux(ks_env)

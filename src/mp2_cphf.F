@@ -497,10 +497,6 @@ CONTAINS
       mp2_env%not_last_hfx = .FALSE.
       mp2_env%p_screen = restore_p_screen
 
-      DO ispin = 1, nspins
-         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
-      END DO
-
       CALL timestop(handle)
 
    END SUBROUTINE solve_z_vector_eq

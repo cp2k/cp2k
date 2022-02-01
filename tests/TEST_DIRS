@@ -210,6 +210,7 @@ QS/regtest-cdft-3                                           parallel mpiranks%2=
 Fist/regtest-4
 Fist/regtest-1-2
 QS/regtest-ri-laplace-mp2-cubic                             libint
+QS/regtest-ri-laplace-mp2-cubic-2                           libint
 QMMM/QS/regtest-image
 QS/regtest-gpw-6-4
 QS/regtest-mp2-4                                            libint

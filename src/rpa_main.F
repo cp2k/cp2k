@@ -67,6 +67,12 @@ MODULE rpa_main
    USE mp2_grids,                       ONLY: get_clenshaw_grid,&
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
+   USE mp2_laplace_force_methods,       ONLY: calc_laplace_loop_forces,&
+                                              calc_laplace_post_loop_forces,&
+                                              init_mp2_laplace_forces,&
+                                              keep_initial_quad
+   USE mp2_laplace_force_types,         ONLY: mp2_laplace_force_release,&
+                                              mp2_laplace_force_type
    USE mp2_ri_grad_util,                ONLY: array2fm
    USE mp2_types,                       ONLY: dgemm_counter_init,&
                                               dgemm_counter_type,&
@@ -153,6 +159,7 @@ CONTAINS
 !> \param ends_array_mc ...
 !> \param starts_array_mc_block ...
 !> \param ends_array_mc_block ...
+!> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE rpa_ri_compute_en(qs_env, Erpa, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
                                 para_env, para_env_sub, color_sub, &
@@ -163,7 +170,7 @@ CONTAINS
                                 mat_munu, mat_P_global, &
                                 t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
-                                starts_array_mc_block, ends_array_mc_block)
+                                starts_array_mc_block, ends_array_mc_block, calc_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
@@ -201,6 +208,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
+      LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_ri_compute_en'
 
@@ -651,7 +659,7 @@ CONTAINS
                        starts_array_mc, ends_array_mc, &
                        starts_array_mc_block, ends_array_mc_block, &
                        matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
-                       do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2)
+                       do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2, calc_forces=calc_forces)
 
       DEALLOCATE (sub_proc_map)
 
@@ -1302,6 +1310,7 @@ CONTAINS
 !> \param gd_array ...
 !> \param color_sub ...
 !> \param do_ri_sos_laplace_mp2 ...
+!> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
@@ -1317,7 +1326,7 @@ CONTAINS
                           starts_array_mc, ends_array_mc, &
                           starts_array_mc_block, ends_array_mc_block, &
                           matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
-                          do_ri_sos_laplace_mp2)
+                          do_ri_sos_laplace_mp2, calc_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
@@ -1360,7 +1369,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
-      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
+      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, calc_forces
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_num_int'
 
@@ -1369,7 +1378,7 @@ CONTAINS
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
          ispin, iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, nkp, &
          nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, num_Z_vectors, &
-         size_P
+         Pspin, Qspin, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
@@ -1377,12 +1386,13 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
-         do_periodic, do_ri_Sigma_x, exit_ev_gw, first_cycle, first_cycle_periodic_correction, &
-         my_open_shell, print_ic_values
+         do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
+         first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
-         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
+         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, spin_fac, tau, &
+         tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_V, wkp_W
@@ -1415,6 +1425,7 @@ CONTAINS
       TYPE(dgemm_counter_type)                           :: dgemm_counter
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: t_3c_O_mo_compressed
+      TYPE(mp2_laplace_force_type)                       :: force_data
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
       CALL timeset(routineN, handle)
@@ -1484,6 +1495,10 @@ CONTAINS
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, mat_work)
 
+         IF (do_ri_sos_laplace_mp2 .AND. calc_forces) THEN
+            CALL init_mp2_laplace_forces(force_data, t_3c_M, mp2_env, qs_env)
+         END IF
+
          IF (my_do_gw) THEN
 
             CALL dbcsr_get_info(mat_P_global%matrix, &
@@ -1522,10 +1537,16 @@ CONTAINS
 
       ALLOCATE (e_fermi(nspins))
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
+         do_print = .NOT. do_ic_model .AND. .NOT. (do_ri_sos_laplace_mp2 .AND. qs_env%mp2_env%ri_rpa_im_time%keep_quad)
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
-                               do_ri_sos_laplace_mp2,.NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
+                               do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
+
+         !For sos_laplace_mp2, potentially need to store the initial weights
+         IF (do_ri_sos_laplace_mp2 .AND. qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
+            CALL keep_initial_quad(tau_tj, tau_wj, num_integ_points, unit_nr, qs_env)
+         END IF
       ELSE
          CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
@@ -1807,6 +1828,47 @@ CONTAINS
             mp2_env%ri_rpa%ener_axk = E_axk
          END IF
 
+         IF (calc_forces .AND. do_ri_sos_laplace_mp2) THEN
+            IF (my_open_shell) THEN
+               spin_fac = -1.0_dp
+               Pspin = 1
+               Qspin = 2
+               CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
+                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), fm_scaled_dm_occ_tau, &
+                                             fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                             fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                             starts_array_mc, ends_array_mc, starts_array_mc_block, &
+                                             ends_array_mc_block, num_integ_points, nmo, Eigenval, &
+                                             tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
+                                             unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
+               Pspin = 2
+               Qspin = 1
+               CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
+                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), fm_scaled_dm_occ_tau, &
+                                             fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                             fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                             starts_array_mc, ends_array_mc, starts_array_mc_block, &
+                                             ends_array_mc_block, num_integ_points, nmo, Eigenval, &
+                                             tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
+                                             unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
+
+            ELSE
+               spin_fac = -2.0_dp
+               Pspin = 1
+               Qspin = 1
+               CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
+                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), fm_scaled_dm_occ_tau, &
+                                             fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                             fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                             starts_array_mc, ends_array_mc, starts_array_mc_block, &
+                                             ends_array_mc_block, num_integ_points, nmo, Eigenval, &
+                                             tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
+                                             unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
+            END IF
+
+            CALL calc_laplace_post_loop_forces(force_data, qs_env)
+         END IF
+
          IF (do_im_time) THEN
 
             my_flop_rate = REAL(dbcsr_nflop, dp)/(1.0E09_dp*dbcsr_time)
@@ -1962,6 +2024,10 @@ CONTAINS
       IF (do_im_time .OR. do_ri_sos_laplace_mp2) THEN
          DEALLOCATE (tau_tj)
          DEALLOCATE (tau_wj)
+      END IF
+
+      IF (do_ri_sos_laplace_mp2 .AND. calc_forces) THEN
+         CALL mp2_laplace_force_release(force_data)
       END IF
 
       CALL timestop(handle)

@@ -374,6 +374,8 @@ CONTAINS
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
+      IF (use_virial .AND. calculate_forces) virial%pv_fock_4c = 0.0_dp
+
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
       CALL section_vals_val_get(hfx_sections, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core, &
@@ -452,15 +454,7 @@ CONTAINS
             IF (dft_control%do_admm) THEN
                CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE.)
             END IF
-            IF (ASSOCIATED(qs_env%mp2_env)) THEN
-               IF (dft_control%do_admm) THEN
-                  CALL get_qs_env(qs_env, matrix_p_mp2_admm=rho_ao_resp)
-               ELSE
-                  CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_resp)
-               END IF
-            ELSE
-               NULLIFY (rho_ao_resp)
-            END IF
+            NULLIFY (rho_ao_resp)
 
             IF (x_data(irep, 1)%do_hfx_ri) THEN
 

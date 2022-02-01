@@ -39,10 +39,12 @@ CONTAINS
 !> \brief computes properties for a given hamilonian using the current wfn
 !> \param qs_env ...
 !> \param wf_type ...
+!> \param do_mp2 ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_compute_properties(qs_env, wf_type)
+   SUBROUTINE qs_scf_compute_properties(qs_env, wf_type, do_mp2)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(6), OPTIONAL                             :: wf_type
+      LOGICAL, OPTIONAL                                  :: do_mp2
 
       LOGICAL                                            :: explicit
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -67,7 +69,11 @@ CONTAINS
          CALL optimize_lri_basis(qs_env)
       ELSE
          IF (PRESENT(wf_type)) THEN
-            CALL scf_post_calculation_gpw(qs_env, wf_type=wf_type)
+            IF (PRESENT(do_mp2)) THEN
+               CALL scf_post_calculation_gpw(qs_env, wf_type=wf_type, do_mp2=do_mp2)
+            ELSE
+               CALL scf_post_calculation_gpw(qs_env, wf_type=wf_type)
+            END IF
          ELSE
             CALL scf_post_calculation_gpw(qs_env)
          END IF

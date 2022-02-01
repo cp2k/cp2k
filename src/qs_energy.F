@@ -17,6 +17,7 @@ MODULE qs_energy
    USE dm_ls_scf,                       ONLY: ls_scf
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
+   USE input_constants,                 ONLY: ri_mp2_laplace
    USE lri_environment_methods,         ONLY: lri_print_stat
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -103,6 +104,8 @@ CONTAINS
 
             IF (.NOT. ASSOCIATED(qs_env%mp2_env)) THEN
                ! if calculate forces, time to compute the w matrix
+               CALL qs_energies_compute_matrix_w(qs_env, my_calc_forces)
+            ELSE IF (qs_env%mp2_env%method == ri_mp2_laplace) THEN
                CALL qs_energies_compute_matrix_w(qs_env, my_calc_forces)
             END IF
 
