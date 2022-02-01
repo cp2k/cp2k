@@ -168,9 +168,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       func_name = libxc_params%section%name
-      IF (func_name == "LIBXC" .OR. func_name == "KE_LIBXC") THEN
-         CALL section_vals_val_get(libxc_params, "functional", c_val=func_name)
-      END IF
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
 !$OMP CRITICAL(libxc_init)
@@ -322,9 +319,6 @@ CONTAINS
       TYPE(xc_f03_func_info_t)                 :: xc_info
 
       func_name = libxc_params%section%name
-      IF (func_name == "LIBXC" .OR. func_name == "KE_LIBXC") THEN
-         CALL section_vals_val_get(libxc_params, "functional", c_val=func_name)
-      END IF
       CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
 
       CALL cite_reference(Marques2012)
@@ -433,9 +427,6 @@ CONTAINS
       TYPE(xc_f03_func_info_t)                 :: xc_info
 
       func_name = libxc_params%section%name
-      IF (func_name == "LIBXC" .OR. func_name == "KE_LIBXC") THEN
-         CALL section_vals_val_get(libxc_params, "functional", c_val=func_name)
-      END IF
       CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
 
       CALL cite_reference(Marques2012)
@@ -581,9 +572,6 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
 
       func_name = libxc_params%section%name
-      IF (func_name == "LIBXC" .OR. func_name == "KE_LIBXC") THEN
-         CALL section_vals_val_get(libxc_params, "functional", c_val=func_name)
-      END IF
       CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
 
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
@@ -840,9 +828,6 @@ CONTAINS
       CPASSERT(deriv_set%ref_count > 0)
 
       func_name = libxc_params%section%name
-      IF (func_name == "LIBXC" .OR. func_name == "KE_LIBXC") THEN
-         CALL section_vals_val_get(libxc_params, "functional", c_val=func_name)
-      END IF
       CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
 
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp

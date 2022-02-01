@@ -12,18 +12,14 @@ MODULE xc_write_output
 
    USE input_constants,                 ONLY: xc_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
-   USE input_section_types,             ONLY: section_vals_duplicate,&
-                                              section_vals_get,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
-                                              section_vals_release,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length
    USE xc_derivatives,                  ONLY: xc_functional_get_info
    USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc,&
-                                              libxc_get_reference_length,&
-                                              libxc_version_info
+                                              libxc_get_reference_length
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -48,10 +44,9 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: lsd
 
       CHARACTER(LEN=2*default_string_length)             :: shortform
-      CHARACTER(LEN=20)                                  :: tmpStr
       CHARACTER(LEN=:), ALLOCATABLE                      :: reference
-      INTEGER                                            :: i_rep, ifun, il, myfun, n_rep
-      TYPE(section_vals_type), POINTER                   :: libxc_fun, xc_fun, xc_fun_section
+      INTEGER                                            :: ifun, il, myfun
+      TYPE(section_vals_type), POINTER                   :: xc_fun, xc_fun_section
 
       IF (iounit > 0) THEN
 
@@ -74,40 +69,18 @@ CONTAINS
                ifun = ifun + 1
                xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
                IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-               IF (TRIM(xc_fun%section%name) /= "LIBXC") THEN
-                  IF (libxc_check_existence_in_libxc(xc_fun)) THEN
-                     ALLOCATE (CHARACTER(LEN=libxc_get_reference_length(xc_fun, lsd)) :: reference)
-                  ELSE
-                     ALLOCATE (CHARACTER(LEN=20*default_string_length) :: reference)
-                  END IF
-                  CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, shortform=shortform)
-                  WRITE (iounit, fmt="(' FUNCTIONAL| ',a,':')") &
-                     TRIM(xc_fun%section%name)
-                  DO il = 1, LEN_TRIM(reference), 67
-                     WRITE (iounit, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
-                  END DO
-                  DEALLOCATE (reference)
+               IF (libxc_check_existence_in_libxc(xc_fun)) THEN
+                  ALLOCATE (CHARACTER(LEN=libxc_get_reference_length(xc_fun, lsd)) :: reference)
                ELSE
-                  ! LIBXC is the only repeatable functional section - for each we need
-                  ! NOT the single values, but the whole section_vals_type independently
-                  CALL section_vals_get(xc_fun, n_repetition=n_rep)
-                  DO i_rep = 1, n_rep
-                     NULLIFY (libxc_fun)
-                     CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=i_rep, i_rep_end=i_rep)
-                     IF (.NOT. ASSOCIATED(libxc_fun)) EXIT
-                     ALLOCATE (CHARACTER(LEN=libxc_get_reference_length(libxc_fun, lsd)) :: reference)
-                     CALL xc_functional_get_info(libxc_fun, lsd=lsd, reference=reference, shortform=shortform, print_warn=.TRUE.)
-                     CALL section_vals_release(libxc_fun)
-                     CALL libxc_version_info(tmpStr)
-                     WRITE (iounit, fmt="(A,A,A)") ' FUNCTIONAL| LIBXC Vers. ', TRIM(tmpStr(1:5)), &
-                        ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
-                     WRITE (iounit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
-                     DO il = 1, LEN_TRIM(reference), 67
-                        WRITE (iounit, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
-                     END DO
-                     DEALLOCATE (reference)
-                  END DO
+                  ALLOCATE (CHARACTER(LEN=20*default_string_length) :: reference)
                END IF
+               CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, shortform=shortform)
+               WRITE (iounit, fmt="(' FUNCTIONAL| ',a,':')") &
+                  TRIM(xc_fun%section%name)
+               DO il = 1, LEN_TRIM(reference), 67
+                  WRITE (iounit, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
+               END DO
+               DEALLOCATE (reference)
             END DO
          ELSE
             WRITE (iounit, fmt="(' FUNCTIONAL| NO EXCHANGE-CORRELATION FUNCTIONAL USED.')")

@@ -29,8 +29,7 @@
         &END SCF
         &XC
             &XC_FUNCTIONAL
-               &LIBXC
-                  FUNCTIONAL HYB_GGA_XC_B3LYP
+               &HYB_GGA_XC_B3LYP
                &END
             &END XC_FUNCTIONAL
             &HF
