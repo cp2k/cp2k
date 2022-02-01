@@ -112,10 +112,10 @@ static inline void offloadMemset(void *ptr__, const int val__, size_t size__) {
 }
 
 static inline void offloadMallocHost(void **ptr__, size_t size__) {
-  OFFLOAD_CHECK(hipMallocHost(ptr__, size__));
+  OFFLOAD_CHECK(hipHostMalloc(ptr__, size__, hipHostMallocDefault));
 }
 static inline void offloadFreeHost(void *ptr__) {
-  OFFLOAD_CHECK(hipFreeHost(ptr__));
+  OFFLOAD_CHECK(hipHostFree(ptr__));
 }
 
 #ifdef __cplusplus
