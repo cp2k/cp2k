@@ -27,8 +27,7 @@ MODULE qs_force
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
+   USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE dft_plus_u,                      ONLY: plus_u
@@ -36,7 +35,8 @@ MODULE qs_force
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
-   USE input_constants,                 ONLY: do_admm_purify_none
+   USE input_constants,                 ONLY: do_admm_purify_none,&
+                                              ri_mp2_laplace
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -64,13 +64,11 @@ MODULE qs_force
                                               replicate_qs_force,&
                                               zero_qs_force
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
-                                              qs_ks_env_type,&
+   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
                                               mo_set_type
-   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_post_scf,                 ONLY: qs_scf_compute_properties
@@ -145,8 +143,8 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, matrix_p_mp2, &
-                                                            matrix_s, matrix_s_aux_fit, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, matrix_s, &
+                                                            matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb, matrix_w, &
                                                             rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_kp
@@ -321,30 +319,21 @@ CONTAINS
       END IF
 
       ! MP2 Code
+      ! TODO: unify all this such that a single call can be done
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
-         ! We will determine the gradients later
-         NULLIFY (matrix_p_mp2, rho, ks_env, energy)
-         CALL get_qs_env(qs_env, &
-                         matrix_p_mp2=matrix_p_mp2, &
-                         ks_env=ks_env, &
-                         rho=rho, &
-                         energy=energy)
-         NULLIFY (rho_ao)
-         CALL qs_rho_get(rho, rho_ao=rho_ao)
-
-         ! Calculate MP2 properties
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
-         CALL qs_scf_compute_properties(qs_env, wf_type='MP2   ')
-
-         ! Return to the correct density and calculate the energy
-         DO ispin = 1, dft_control%nspins
-            CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
-         END DO
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
-
-         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
-         CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.)
-         energy%total = energy%total + energy%mp2
+         IF (.NOT. qs_env%mp2_env%method == ri_mp2_laplace) THEN
+            NULLIFY (energy)
+            CALL get_qs_env(qs_env, energy=energy)
+            CALL qs_scf_compute_properties(qs_env, wf_type='MP2   ', do_mp2=.TRUE.)
+            CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.) !TODO: necessary at all to recompute energy ?
+            energy%total = energy%total + energy%mp2
+         ELSE
+            NULLIFY (energy)
+            CALL get_qs_env(qs_env, energy=energy)
+            CALL qs_scf_compute_properties(qs_env, wf_type='MP2   ', do_mp2=.TRUE.)
+            CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
+            energy%total = energy%total + energy%mp2
+         END IF
       ELSEIF (.NOT. perform_ec) THEN
          ! Compute grid-based forces
          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
@@ -378,7 +367,9 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
-         CALL update_mp2_forces(qs_env)
+         IF (.NOT. qs_env%mp2_env%method == ri_mp2_laplace) THEN
+            CALL update_mp2_forces(qs_env)
+         END IF
       END IF
 
       IF (perform_ec) THEN

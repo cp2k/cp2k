@@ -415,7 +415,7 @@ CONTAINS
          CALL cp_para_env_release(para_env_L)
       END IF
 
-      IF (calc_forces) THEN
+      IF (calc_forces .AND. .NOT. do_im_time) THEN
          ! we need (P|Q)^(-1/2) for future use, just save it
          ! in a fully (home made) distributed way
          itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)

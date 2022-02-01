@@ -55,7 +55,7 @@ MODULE iterate_matrix
    END INTERFACE
 
    PUBLIC :: invert_Hotelling, matrix_sign_Newton_Schulz, matrix_sqrt_Newton_Schulz, &
-             matrix_sqrt_proot, matrix_sign_proot, matrix_sign_submatrix, &
+             matrix_sqrt_proot, matrix_sign_proot, matrix_sign_submatrix, matrix_exponential, &
              matrix_sign_submatrix_mu_adjust, purify_mcweeny, invert_Taylor, determinant
 
 CONTAINS
@@ -2213,6 +2213,12 @@ CONTAINS
       ! scale matrix_exp by omega, matrix_exp=omega*B_square
       CALL dbcsr_scale(matrix_exp, alpha_scalar=omega)
       ! write(*,*) alpha,omega
+
+      CALL dbcsr_release(B)
+      CALL dbcsr_release(C)
+      CALL dbcsr_release(D)
+      CALL dbcsr_release(D_product)
+      CALL dbcsr_release(B_square)
 
       CALL timestop(handle)
 

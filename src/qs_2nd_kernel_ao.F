@@ -134,7 +134,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_2nd_order_kernel'
 
       INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: do_hfx, my_calc_forces, &
+      LOGICAL                                            :: do_hfx, my_calc_forces, my_calc_virial, &
                                                             my_recalc_hfx_integrals
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -148,6 +148,9 @@ CONTAINS
 
       my_calc_forces = .FALSE.
       IF (PRESENT(calc_forces)) my_calc_forces = calc_forces
+
+      my_calc_virial = .FALSE.
+      IF (PRESENT(calc_virial)) my_calc_virial = calc_virial
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
@@ -169,7 +172,7 @@ CONTAINS
 
       CALL calc_kpp1(p_env%rho1_xc, p_env%rho1, xc_section, .FALSE., &
                      .FALSE., dft_control%qs_control%lrigpw, .TRUE., linres_control%lr_triplet, &
-                     qs_env, p_env, calc_forces=calc_forces, calc_virial=calc_virial, virial=virial)
+                     qs_env, p_env, calc_forces=my_calc_forces, calc_virial=my_calc_virial, virial=virial)
 
       ! hfx section
       NULLIFY (hfx_sections)
@@ -179,7 +182,7 @@ CONTAINS
          CALL apply_hfx_ao(qs_env, p_env, my_recalc_hfx_integrals)
 
          IF (dft_control%do_admm) THEN
-            CALL apply_xc_admm_ao(qs_env, p_env, calc_forces, calc_virial, virial)
+            CALL apply_xc_admm_ao(qs_env, p_env, my_calc_forces, my_calc_virial, virial)
             CALL p_env_finish_kpp1(qs_env, p_env)
          END IF
       END IF

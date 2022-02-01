@@ -458,7 +458,7 @@ CONTAINS
       ! large hybrid dgemm/pdgemm's coming later will need the space.
       CALL dbcsr_clear_mempools()
 
-      IF (calc_forces) THEN
+      IF (calc_forces .AND. .NOT. do_im_time) THEN
          ! make a copy of mo_coeff_o and mo_coeff_v
          ALLOCATE (mp2_env%ri_grad%mo_coeff_o(nspins), mp2_env%ri_grad%mo_coeff_v(nspins))
          DO ispin = 1, nspins
@@ -538,7 +538,7 @@ CONTAINS
                                 mat_munu, mat_P_global, &
                                 t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                 starts_array_mc, ends_array_mc, &
-                                starts_array_mc_block, ends_array_mc_block)
+                                starts_array_mc_block, ends_array_mc_block, calc_forces)
 
          IF (mp2_env%ri_rpa%do_rse) &
             CALL rse_energy(qs_env, mp2_env, para_env, dft_control, mo_coeff, nmo, homo, Eigenval)
@@ -551,7 +551,7 @@ CONTAINS
          END IF
 
          ! Release some memory for AXK
-         IF (mp2_env%ri_rpa%do_ri_axk) THEN
+         IF (mp2_env%ri_rpa%do_ri_axk .OR. calc_forces) THEN
 
             CALL dbcsr_release(mat_munu%matrix)
             DEALLOCATE (mat_munu%matrix)
@@ -624,7 +624,7 @@ CONTAINS
       CALL cp_para_env_release(para_env_sub)
 
       ! finally solve the z-vector equation if forces are required
-      IF (calc_forces) THEN
+      IF (calc_forces .AND. (.NOT. do_im_time)) THEN
          CALL solve_z_vector_eq(qs_env, mp2_env, para_env, dft_control, &
                                 mo_coeff, nmo, homo, Eigenval, unit_nr)
       END IF

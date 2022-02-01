@@ -1477,7 +1477,8 @@ CONTAINS
                                     CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
                                                        T2, tmp_virial, coord, i, &
-                                                       pbd_buf_resp, pbc_buf_resp, pad_buf_resp, pac_buf_resp)
+                                                       pbd_buf_resp, pbc_buf_resp, pad_buf_resp, &
+                                                       pac_buf_resp, my_resp_only)
                                  ELSE
                                     CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &
@@ -1489,7 +1490,8 @@ CONTAINS
                                                           pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
                                                           fac, T2, tmp_virial, coord, i, &
                                                           pbd_buf_resp_beta, pbc_buf_resp_beta, &
-                                                          pad_buf_resp_beta, pac_buf_resp_beta)
+                                                          pad_buf_resp_beta, pac_buf_resp_beta, &
+                                                          my_resp_only)
                                     ELSE
                                        CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                           pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
@@ -2301,7 +2303,7 @@ CONTAINS
    SUBROUTINE update_virial(ma_max, mb_max, mc_max, md_max, &
                             pbd, pbc, pad, pac, fac, &
                             prim, tmp_virial, coord, l, &
-                            pbd_resp, pbc_resp, pad_resp, pac_resp)
+                            pbd_resp, pbc_resp, pad_resp, pac_resp, resp_only)
 
       INTEGER, INTENT(IN)                                :: ma_max, mb_max, mc_max, md_max
       REAL(dp), DIMENSION(*), INTENT(IN)                 :: pbd, pbc, pad, pac
@@ -2311,9 +2313,10 @@ CONTAINS
       REAL(dp)                                           :: tmp_virial(3, 3)
       INTEGER, INTENT(IN)                                :: coord, l
       REAL(dp), DIMENSION(*), INTENT(IN), OPTIONAL       :: pbd_resp, pbc_resp, pad_resp, pac_resp
+      LOGICAL, INTENT(IN), OPTIONAL                      :: resp_only
 
       INTEGER                                            :: i, j, ma, mb, mc, md, p_index
-      LOGICAL                                            :: with_resp_density
+      LOGICAL                                            :: with_resp_density, full_force
       REAL(dp)                                           :: temp1, temp1_resp, temp3, temp3_resp, &
                                                             temp4, teresp
 
@@ -2324,6 +2327,8 @@ CONTAINS
           PRESENT(pac_resp)) with_resp_density = .TRUE.
 
       IF (with_resp_density) THEN
+         full_force = .TRUE.
+         IF (PRESENT(resp_only)) full_force = .NOT. resp_only
          p_index = 0
          temp4 = 0.0_dp
          DO md = 1, md_max
@@ -2336,8 +2341,12 @@ CONTAINS
                   DO ma = 1, ma_max
                      p_index = p_index + 1
                      ! HF-SCF
-                     teresp = temp1*pad((md - 1)*ma_max + ma) + &
-                              temp3*pac((mc - 1)*ma_max + ma)
+                     IF (full_force) THEN
+                        teresp = temp1*pad((md - 1)*ma_max + ma) + &
+                                 temp3*pac((mc - 1)*ma_max + ma)
+                     ELSE
+                        teresp = 0.0_dp
+                     END IF
                      ! RESP+HF
                      teresp = teresp + &
                               pac((mc - 1)*ma_max + ma)*temp3_resp + &

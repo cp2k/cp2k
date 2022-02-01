@@ -70,7 +70,8 @@ MODULE rpa_im_time
    PUBLIC :: compute_mat_P_omega, &
              compute_transl_dm, &
              init_cell_index_rpa, &
-             zero_mat_P_omega
+             zero_mat_P_omega, &
+             compute_mat_dm_global
 
 CONTAINS
 
@@ -382,7 +383,7 @@ CONTAINS
                                                 beta=1.0_dp, &
                                                 tensor_3=t_3c_M_occ_tmp, &
                                                 contract_1=[3], notcontract_1=[1, 2], &
-                                                contract_2=[2], notcontract_2=[1], &
+                                                contract_2=[1], notcontract_2=[2], &
                                                 map_1=[1, 2], map_2=[3], &
                                                 bounds_2=jbounds_1, bounds_3=ibounds_2, &
                                                 filter_eps=eps_filter, unit_nr=unit_nr_dbcsr, &
@@ -432,7 +433,7 @@ CONTAINS
                                                 beta=1.0_dp, &
                                                 tensor_3=t_3c_M_virt_tmp, &
                                                 contract_1=[3], notcontract_1=[1, 2], &
-                                                contract_2=[2], notcontract_2=[1], &
+                                                contract_2=[1], notcontract_2=[2], &
                                                 map_1=[1, 2], map_2=[3], &
                                                 bounds_2=ibounds_1, bounds_3=jbounds_2, &
                                                 filter_eps=eps_filter, unit_nr=unit_nr_dbcsr, &

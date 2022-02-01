@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT  RI_laplace_MP2_H2O
+  PROJECT  H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -18,7 +18,7 @@
     &END MGRID
     &POISSON
       PERIODIC NONE
-      POISSON_SOLVER WAVELET
+      POISSON_SOLVER MT
     &END POISSON
     &QS
       METHOD GPW
@@ -29,7 +29,6 @@
       SCF_GUESS RESTART
       EPS_SCF 1.0E-7
       MAX_SCF 100
-      ! ADDED_MOS 15000 15000
     &END SCF
     &XC
       &XC_FUNCTIONAL NONE
@@ -42,26 +41,21 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
+        SCALE_S 1.3
         &RI_SOS_MP2
           QUADRATURE_POINTS  5
         &END
         &LOW_SCALING
-          MEMORY_CUT 1
+          MEMORY_CUT 2
         &END
         &INTEGRALS
-          ERI_METHOD GPW
-          &WFC_GPW
-            CUTOFF  100
-            REL_CUTOFF 20
-          &END WFC_GPW
+          ERI_METHOD OS
         &END INTEGRALS
         &RI
           &RI_METRIC
             POTENTIAL_TYPE IDENTITY
           &END
         &END RI
-        MEMORY  200.
-        NUMBER_PROC  1
       &END
     &END XC
   &END DFT

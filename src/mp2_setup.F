@@ -242,6 +242,11 @@ CONTAINS
       CALL section_vals_val_get(low_scaling_section, "K_MESH_G_FACTOR", &
                                 i_val=mp2_env%ri_rpa_im_time%k_mesh_g_factor)
 
+      CALL section_vals_val_get(low_scaling_section, "KEEP_QUADRATURE", &
+                                l_val=mp2_env%ri_rpa_im_time%keep_quad)
+      NULLIFY (mp2_env%ri_rpa_im_time%tau_tj)
+      NULLIFY (mp2_env%ri_rpa_im_time%tau_wj)
+
       CALL section_vals_val_get(low_scaling_section, "MIN_BLOCK_SIZE", &
                                 i_val=mp2_env%ri_rpa_im_time%min_bsize)
 

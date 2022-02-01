@@ -226,6 +226,7 @@ CONTAINS
 !> \brief collects possible post - scf calculations and prints info / computes properties.
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param wf_type ...
+!> \param do_mp2 ...
 !> \par History
 !>      02.2003 created [fawzi]
 !>      10.2004 moved here from qs_scf [Joost VandeVondele]
@@ -239,10 +240,11 @@ CONTAINS
 !>      change afterwards slightly the forces (hence small numerical differences between MD
 !>      with and without the debug print level). Ideally this should not happen...
 ! **************************************************************************************************
-   SUBROUTINE scf_post_calculation_gpw(qs_env, wf_type)
+   SUBROUTINE scf_post_calculation_gpw(qs_env, wf_type, do_mp2)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       CHARACTER(6), OPTIONAL                             :: wf_type
+      LOGICAL, OPTIONAL                                  :: do_mp2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw'
 
@@ -250,9 +252,9 @@ CONTAINS
                                                             nhomo, nlumo, nlumo_stm, nlumo_tddft, &
                                                             nlumos, nmo, output_unit, unit_nr
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
-      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mo_cubes, do_mp2, do_stm, &
-         do_wannier_cubes, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_localized_wfn, &
-         p_loc, p_loc_homo, p_loc_lumo
+      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mo_cubes, do_stm, &
+         do_wannier_cubes, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_do_mp2, &
+         my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo
       REAL(dp)                                           :: e_kin
       REAL(KIND=dp)                                      :: gap, homo_lumo(2, 2)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -292,7 +294,8 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit(logger)
 
       ! Print out the type of wavefunction to distinguish between SCF and post-SCF
-      do_mp2 = .FALSE.
+      my_do_mp2 = .FALSE.
+      IF (PRESENT(do_mp2)) my_do_mp2 = do_mp2
       IF (PRESENT(wf_type)) THEN
          IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT='(/,(T1,A))') REPEAT("-", 40)
@@ -339,7 +342,7 @@ CONTAINS
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
 
-      IF (do_mp2) THEN
+      IF (my_do_mp2) THEN
          ! Get the HF+MP2 density
          CALL get_qs_env(qs_env, matrix_p_mp2=matrix_p_mp2)
          DO ispin = 1, dft_control%nspins
@@ -746,7 +749,7 @@ CONTAINS
       ! Do active space calculation
       CALL active_space_main(input, logger, qs_env)
 
-      IF (do_mp2) THEN
+      IF (my_do_mp2) THEN
          ! Get everything back
          DO ispin = 1, dft_control%nspins
             CALL dbcsr_add(rho_ao(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
