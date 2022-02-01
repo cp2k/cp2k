@@ -3,7 +3,7 @@
 # author: Ole Schuett
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 import argparse
 import io
 
@@ -22,40 +22,40 @@ def main() -> None:
 
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
-            f.write(toolchain_cuda(gpu_ver=gpu_ver) + regtest("psmp"))
+            f.write(toolchain_cuda(gpu_ver=gpu_ver) + regtest("psmp", "local_cuda"))
 
         with OutputFile(f"Dockerfile.test_hip_cuda_{gpu_ver}", args.check) as f:
-            f.write(toolchain_hip_cuda(gpu_ver=gpu_ver) + regtest("psmp"))
+            f.write(toolchain_hip_cuda(gpu_ver=gpu_ver) + regtest("psmp", "local_hip"))
 
         with OutputFile(f"Dockerfile.test_performance_cuda_{gpu_ver}", args.check) as f:
             f.write(toolchain_cuda(gpu_ver=gpu_ver) + performance("local_cuda"))
 
     for gpu_ver in ["Mi50", "Mi100"]:
         with OutputFile(f"Dockerfile.test_hip_rocm_{gpu_ver}", args.check) as f:
-            f.write(toolchain_hip_rocm(gpu_ver=gpu_ver) + regtest("psmp"))
+            f.write(toolchain_hip_rocm(gpu_ver=gpu_ver) + regtest("psmp", "local_hip"))
 
 
 # ======================================================================================
-def regtest(version: Literal["ssmp", "psmp"]) -> str:
+def regtest(version: str, arch: str = "local") -> str:
     return fr"""
-# Install regression test for {version}.
+# Install regression test for {arch}.{version}.
 WORKDIR /workspace
 
 COPY ./tools/docker/scripts/install_basics.sh .
 RUN ./install_basics.sh
 
 COPY ./tools/docker/scripts/install_regtest.sh .
-RUN ./install_regtest.sh local {version}
+RUN ./install_regtest.sh {arch} {version}
 
 COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_regtest.sh ./
-CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local", "{version}"]
+CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "{arch}", "{version}"]
 
 #EOF
 """
 
 
 # ======================================================================================
-def performance(arch: Literal["local", "local_cuda"]) -> str:
+def performance(arch: str) -> str:
     return fr"""
 # Install performance test for {arch}
 WORKDIR /workspace

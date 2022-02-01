@@ -71,16 +71,16 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install regression test for psmp.
+# Install regression test for local_cuda.psmp.
 WORKDIR /workspace
 
 COPY ./tools/docker/scripts/install_basics.sh .
 RUN ./install_basics.sh
 
 COPY ./tools/docker/scripts/install_regtest.sh .
-RUN ./install_regtest.sh local psmp
+RUN ./install_regtest.sh local_cuda psmp
 
 COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_regtest.sh ./
-CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local", "psmp"]
+CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local_cuda", "psmp"]
 
 #EOF
