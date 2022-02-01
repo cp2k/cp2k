@@ -17,13 +17,13 @@
       EPS_SCF 1.e-10
       &MIXING
           METHOD DIRECT_P_MIXING
-          ALPHA   0.40
+          ALPHA   0.75
       &END
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
-      ABC 40.0 40.0 40.0
+      ABC 10.0 10.0 10.0
     &END CELL
     &COORD
      UNIT bohr

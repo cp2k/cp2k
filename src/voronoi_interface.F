@@ -23,6 +23,8 @@ MODULE voronoi_interface
    USE cell_types, ONLY: cell_type, pbc
    USE pw_types, ONLY: pw_p_type, pw_type
    USE physcon, ONLY: bohr, debye
+   USE mathconstants, ONLY: fourpi
+   USE orbital_pointers, ONLY: indco
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    USE molecule_kind_types, ONLY: molecule_kind_type, &
@@ -50,8 +52,11 @@ MODULE voronoi_interface
       mp_file_write_at, mp_maxloc, mp_recv, mp_send, mp_sum, mp_sync, mpi_character_size
    USE input_constants, ONLY: &
       voro_radii_unity, voro_radii_vdw, voro_radii_cov, voro_radii_user, &
-      bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive
+      bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive, do_method_gapw
+   USE qs_rho0_types, ONLY: rho0_atom_type, &
+                            rho0_mpole_type
    USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE, C_CHAR
+
 #if defined(__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
                               ieee_set_halting_mode, &
@@ -304,11 +309,11 @@ CONTAINS
                                                             U3, ret, i, my_rank, num_pe, gid, tag, &
                                                             nkind, natom, ikind, iat, ord, source, dest, &
                                                             ip, i1, i2, reffac, radius_type, bqb_optimize, &
-                                                            bqb_history
+                                                            bqb_history, nspins
       LOGICAL                                            :: outemp, bqb_skip_first, voro_skip_first, &
                                                             bqb_store_step, bqb_check, voro_sanity, &
-                                                            bqb_overwrite, vori_overwrite, ionode, molprop
-      REAL(KIND=dp)                                      :: zeff
+                                                            bqb_overwrite, vori_overwrite, ionode, molprop, gapw
+      REAL(KIND=dp)                                      :: zeff, qa, fn0, fn1
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_logger_type), POINTER                      :: logger
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
@@ -338,6 +343,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: user_radii
       CHARACTER(len=default_path_length)                 :: bqb_file_name, mp_file_name
       CHARACTER(len=128)                                 :: bqb_parm_string
+      TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
 #if defined(__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                              :: halt
 #endif
@@ -578,6 +584,9 @@ CONTAINS
 
       IF (ionode) THEN
 
+         gapw = .FALSE.
+         IF (dft_control%qs_control%method_id == do_method_gapw) gapw = .TRUE.
+
          IF (do_voro /= 0) THEN
 
             IF (radius_type == voro_radii_unity) THEN
@@ -650,6 +659,28 @@ CONTAINS
                ret = libvori_get_charge_center(i1, natom, voro_buffer)
                voro_charge_center(:, i1) = voro_buffer(:)
             END DO
+
+            IF (gapw) THEN
+               CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
+               nspins = dft_control%nspins
+               DO i1 = 1, natom
+                  voro_charge(i1) = voro_charge(i1) - SUM(rho0_mpole%mp_rho(i1)%Q0(1:nspins))
+                  fn0 = rho0_mpole%norm_g0l_h(1)/bohr*100._dp
+                  voro_dipole(i1, 1:3) = voro_dipole(i1, 1:3) + rho0_mpole%mp_rho(i1)%Qlm_car(2:4)/fn0
+                  qa = voro_charge(i1) - particles_c(i1)
+                  voro_charge_center(i1, 1:3) = voro_dipole(i1, 1:3)/qa
+                  fn1 = rho0_mpole%norm_g0l_h(2)/bohr/bohr*10000._dp
+                  voro_quadrupole(i1, 1) = voro_quadrupole(i1, 1) + rho0_mpole%mp_rho(i1)%Qlm_car(5)/fn1
+                  voro_quadrupole(i1, 2) = voro_quadrupole(i1, 2) + rho0_mpole%mp_rho(i1)%Qlm_car(6)/fn1
+                  voro_quadrupole(i1, 3) = voro_quadrupole(i1, 3) + rho0_mpole%mp_rho(i1)%Qlm_car(7)/fn1
+                  voro_quadrupole(i1, 4) = voro_quadrupole(i1, 4) + rho0_mpole%mp_rho(i1)%Qlm_car(6)/fn1
+                  voro_quadrupole(i1, 5) = voro_quadrupole(i1, 5) + rho0_mpole%mp_rho(i1)%Qlm_car(8)/fn1
+                  voro_quadrupole(i1, 6) = voro_quadrupole(i1, 6) + rho0_mpole%mp_rho(i1)%Qlm_car(9)/fn1
+                  voro_quadrupole(i1, 7) = voro_quadrupole(i1, 7) + rho0_mpole%mp_rho(i1)%Qlm_car(7)/fn1
+                  voro_quadrupole(i1, 8) = voro_quadrupole(i1, 8) + rho0_mpole%mp_rho(i1)%Qlm_car(9)/fn1
+                  voro_quadrupole(i1, 9) = voro_quadrupole(i1, 9) + rho0_mpole%mp_rho(i1)%Qlm_car(10)/fn1
+               END DO
+            END IF
 
             IF (unit_voro > 0) THEN
                WRITE (unit_voro, FMT="(T2,I0)") natom
@@ -834,7 +865,7 @@ CONTAINS
          na = na2 - na1 + 1
          ref(1:3) = 0.0_dp
          DO ia = na1, na2
-            ref(1:3) = ref(1:3) + particles_r(1:3, ia)
+            ref(1:3) = ref(1:3) + pbc(particles_r(1:3, ia), cell)
          END DO
          ref(1:3) = ref(1:3)/REAL(na, KIND=dp)
          dipm = 0.0_dp
