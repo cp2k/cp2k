@@ -2,7 +2,8 @@
 
 # author: Ole Schuett
 
-import re, sys
+import re
+import sys
 from os import path
 from os.path import dirname, basename, normpath
 import os

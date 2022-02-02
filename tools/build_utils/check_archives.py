@@ -2,7 +2,8 @@
 
 # author: Ole Schuett
 
-import sys, os
+import os
+import sys
 from subprocess import check_output
 from os import path
 from glob import glob

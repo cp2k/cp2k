@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-import re, sys, os
+import os
+import re
+import sys
 from os import path
 
 # pre-compiled regular expressions

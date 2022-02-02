@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import sys, re
+import re
+import sys
 
 FYPP_SYMBOLS = r"(#|\$|@)"
 FYPP_LINE = r"^\s*" + FYPP_SYMBOLS + r":"

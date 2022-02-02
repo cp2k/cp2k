@@ -4,7 +4,9 @@
 
 # A tool to help planning CP2K packages, listing currently violated dependencies if any
 
-import re, sys, os
+import os
+import re
+import sys
 from os import path
 from os.path import dirname, basename, normpath, abspath
 
