@@ -679,17 +679,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
 
-      INTEGER :: cycle_counter, handle, i_global, iiB, iiter, ispin, j_global, jjB, max_num_iter, &
-         ncol_local, nrow_local, transf_type_in
+      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
+                                                            jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: converged
-      REAL(KIND=dp)                                      :: eps_conv, scale_cphf, t1, t2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: conv, proj_bi_xj, temp_vals, x_norm, xi_b
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_small, b_small, xi_Axi
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: b_i, precond, residual
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Ax, xn
-      TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: fm_struct_tmp
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: precond
 
       CALL timeset(routineN, handle)
 
@@ -720,6 +713,70 @@ CONTAINS
             END DO
          END DO
       END DO
+
+      CALL solve_z_vector_pople(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, nspins, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+
+      DO ispin = 1, nspins
+         CALL cp_fm_release(precond(ispin)%matrix)
+      END DO
+      DEALLOCATE (precond)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_z_vector_eq_low
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen ...
+!> \param unit_nr ...
+!> \param nspins ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param Eigenval ...
+!> \param p_env ...
+!> \param L_jb ...
+!> \param fm_G_mu_nu ...
+!> \param fm_back ...
+!> \param P_ia ...
+!> \param precond ...
+! **************************************************************************************************
+   SUBROUTINE solve_z_vector_pople(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, nspins, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                   L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
+      INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
+      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
+      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
+      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: precond
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_pople'
+
+      INTEGER                                            :: cycle_counter, handle, iiB, iiter, &
+                                                            ispin, max_num_iter, transf_type_in
+      LOGICAL                                            :: converged
+      REAL(KIND=dp)                                      :: eps_conv, scale_cphf, t1, t2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: conv, proj_bi_xj, temp_vals, x_norm, xi_b
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_small, b_small, xi_Axi
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: b_i, residual
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Ax, xn
+      TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: fm_struct_tmp
+
+      CALL timeset(routineN, handle)
 
       max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
       eps_conv = mp2_env%ri_grad%cphf_eps_conv
@@ -934,16 +991,11 @@ CONTAINS
             CALL cp_fm_release(xn(ispin, iiter)%matrix)
          END DO
       END DO
-      DEALLOCATE (b_i, residual, Ax, xn)
-
-      DO ispin = 1, nspins
-         CALL cp_fm_release(precond(ispin)%matrix)
-      END DO
-      DEALLOCATE (precond, fm_struct_tmp)
+      DEALLOCATE (b_i, residual, Ax, xn, fm_struct_tmp)
 
       CALL timestop(handle)
 
-   END SUBROUTINE solve_z_vector_eq_low
+   END SUBROUTINE solve_z_vector_pople
 
 ! **************************************************************************************************
 !> \brief ...
