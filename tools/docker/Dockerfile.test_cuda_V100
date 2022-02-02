@@ -18,8 +18,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
-COPY ./tools/toolchain/install_requirements_ubuntu.sh .
-RUN ./install_requirements_ubuntu.sh
+COPY ./tools/toolchain/install_requirements*.sh ./
+RUN ./install_requirements.sh ubuntu
 
 # Install the toolchain.
 RUN mkdir scripts

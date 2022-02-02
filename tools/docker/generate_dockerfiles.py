@@ -3,7 +3,7 @@
 # author: Ole Schuett
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 import argparse
 import io
 
@@ -13,12 +13,32 @@ def main() -> None:
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
 
+    for version in "sdbg", "ssmp", "pdbg", "psmp":
+        with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
+            f.write(toolchain_full() + regtest(version))
+
+    with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
+        f.write(toolchain_full(mpi_mode="openmpi") + regtest("psmp"))
+
+    with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
+        f.write(toolchain_full(base_image="fedora:33") + regtest("psmp"))
+
+    with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
+        f.write(toolchain_full() + regtest("sdbg", "minimal"))
+
+    for version in "sdbg", "pdbg":
+        with OutputFile(f"Dockerfile.test_coverage-{version}", args.check) as f:
+            f.write(toolchain_full() + coverage(version))
+
     for gcc_version in 7, 8, 9, 10:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version) + regtest("ssmp"))
 
     with OutputFile("Dockerfile.test_i386", args.check) as f:
         f.write(toolchain_ubuntu_nompi(base_image="i386/debian:11") + regtest("ssmp"))
+
+    with OutputFile(f"Dockerfile.test_performance", args.check) as f:
+        f.write(toolchain_full() + performance())
 
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
@@ -30,9 +50,40 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_performance_cuda_{gpu_ver}", args.check) as f:
             f.write(toolchain_cuda(gpu_ver=gpu_ver) + performance("local_cuda"))
 
-    for gpu_ver in ["Mi50", "Mi100"]:
+    for gpu_ver in "Mi50", "Mi100":
         with OutputFile(f"Dockerfile.test_hip_rocm_{gpu_ver}", args.check) as f:
             f.write(toolchain_hip_rocm(gpu_ver=gpu_ver) + regtest("psmp", "local_hip"))
+
+    for name in "aiida", "ase", "conventions", "gromacs", "i-pi", "manual":
+        with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
+            f.write(toolchain_full() + generic_test(name))
+
+    for name in "doxygen", "python":
+        with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
+            f.write("\nFROM ubuntu:20.04\n" + generic_test(name))
+
+
+# ======================================================================================
+def generic_test(name: str) -> str:
+    return fr"""
+# Install test for {name}.
+WORKDIR /workspace
+
+COPY ./tools/docker/scripts/install_basics.sh .
+RUN ./install_basics.sh
+
+# Some buggy Python packages open utf8 files in text mode.
+# As workaround we set locale.getpreferredencoding() to utf8.
+ENV LANG="en_US.UTF-8" LANGUAGE="en_US:en" LC_ALL="en_US.UTF-8"
+
+COPY ./tools/docker/scripts/install_{name}.sh .
+RUN ./install_{name}.sh
+
+COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_{name}.sh ./
+CMD ["./ci_entrypoint.sh", "./test_{name}.sh"]
+
+#EOF
+"""
 
 
 # ======================================================================================
@@ -55,9 +106,9 @@ CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "{arch}", "{version}"]
 
 
 # ======================================================================================
-def performance(arch: str) -> str:
+def performance(arch: str = "local") -> str:
     return fr"""
-# Install performance test for {arch}
+# Install performance test for {arch}.
 WORKDIR /workspace
 
 COPY ./tools/docker/scripts/install_basics.sh .
@@ -75,6 +126,35 @@ CMD ["./ci_entrypoint.sh", "./test_performance.sh", "{arch}"]
 
 #EOF
 """
+
+
+# ======================================================================================
+def coverage(version: str) -> str:
+    return fr"""
+# Install coverage test for {version}.
+WORKDIR /workspace
+
+COPY ./tools/docker/scripts/install_basics.sh .
+RUN ./install_basics.sh
+
+COPY ./tools/docker/scripts/install_coverage.sh .
+RUN ./install_coverage.sh
+
+COPY ./tools/docker/scripts/install_regtest.sh .
+RUN ./install_regtest.sh local_coverage {version}
+
+COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_coverage.sh ./
+CMD ["./ci_entrypoint.sh", "./test_coverage.sh", "{version}"]
+
+#EOF
+"""
+
+
+# ======================================================================================
+def toolchain_full(base_image: str = "ubuntu:20.04", mpi_mode: str = "mpich") -> str:
+    return f"\nFROM {base_image}\n\n" + install_toolchain(
+        base_image=base_image, install_all=None, mpi_mode=mpi_mode
+    )
 
 
 # ======================================================================================
@@ -103,6 +183,7 @@ RUN ln -sf gcc-{gcc_version}      /usr/bin/gcc  && \
     ln -sf gfortran-{gcc_version} /usr/bin/gfortran
 
 """ + install_toolchain(
+        base_image="ubuntu",
         mpi_mode="no",
         with_gcc="system",
         with_cmake="system",
@@ -133,7 +214,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
    && rm -rf /var/lib/apt/lists/*
 
 """ + install_toolchain(
-        mpi_mode="mpich", enable_cuda="yes", gpu_ver=gpu_ver
+        base_image="ubuntu", mpi_mode="mpich", enable_cuda="yes", gpu_ver=gpu_ver
     )
 
 
@@ -232,7 +313,7 @@ ENV HIP_PLATFORM nvidia
 RUN hipconfig
 
 """ + install_toolchain(
-        mpi_mode="mpich", enable_hip="yes", gpu_ver=gpu_ver
+        base_image="ubuntu", mpi_mode="mpich", enable_hip="yes", gpu_ver=gpu_ver
     )
 
 
@@ -257,19 +338,26 @@ ENV HIP_PLATFORM amd
 RUN hipconfig
 
 """ + install_toolchain(
-        mpi_mode="mpich", enable_hip="yes", gpu_ver=gpu_ver
+        base_image="ubuntu", mpi_mode="mpich", enable_hip="yes", gpu_ver=gpu_ver
     )
 
 
 # ======================================================================================
-def install_toolchain(**kwargs: str) -> str:
-    kwargs_underscore = {k.replace("_", "-"): v for k, v in kwargs.items()}
-    install_args = "\n".join(f"    --{k}={v} \\" for k, v in kwargs_underscore.items())
+def install_toolchain(base_image: str, **kwargs: Optional[str]) -> str:
+    install_args = []
+    for k, v in kwargs.items():
+        k = k.replace("_", "-")
+        if v is not None:
+            install_args.append(f"    --{k}={v} \\")
+        else:
+            install_args.append(f"    --{k} \\")
+    install_args_str = "\n".join(install_args)
+
     return fr"""
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
-COPY ./tools/toolchain/install_requirements_ubuntu.sh .
-RUN ./install_requirements_ubuntu.sh
+COPY ./tools/toolchain/install_requirements*.sh ./
+RUN ./install_requirements.sh {base_image}
 
 # Install the toolchain.
 RUN mkdir scripts
@@ -282,7 +370,7 @@ COPY ./tools/toolchain/scripts/VERSION \
      ./scripts/
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
-{install_args}
+{install_args_str}
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
