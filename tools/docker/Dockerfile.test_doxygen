@@ -1,16 +1,24 @@
+#
+# This file was created by generate_dockerfiles.py.
+# Usage: docker build -f ./Dockerfile.test_doxygen ../../
+#
+
 FROM ubuntu:20.04
 
-# author: Ole Schuett
-
+# Install test for doxygen.
 WORKDIR /workspace
 
-COPY ./scripts/install_basics.sh .
+COPY ./tools/docker/scripts/install_basics.sh .
 RUN ./install_basics.sh
 
-COPY ./scripts/install_doxygen.sh .
+# Some buggy Python packages open utf8 files in text mode.
+# As workaround we set locale.getpreferredencoding() to utf8.
+ENV LANG="en_US.UTF-8" LANGUAGE="en_US:en" LC_ALL="en_US.UTF-8"
+
+COPY ./tools/docker/scripts/install_doxygen.sh .
 RUN ./install_doxygen.sh
 
-COPY ./scripts/ci_entrypoint.sh ./scripts/test_doxygen.sh ./
+COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_doxygen.sh ./
 CMD ["./ci_entrypoint.sh", "./test_doxygen.sh"]
 
 #EOF
