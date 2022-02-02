@@ -373,7 +373,7 @@ CONTAINS
       END DO
 
       CALL solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, nspins, &
-                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
+                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                  L_jb, fm_G_mu_nu, fm_back, P_ia)
 
       ! release fm stuff
@@ -656,7 +656,6 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param p_env ...
-!> \param blacs_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
 !> \param fm_back ...
@@ -664,7 +663,7 @@ CONTAINS
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, nspins, &
-                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
+                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                     L_jb, fm_G_mu_nu, fm_back, P_ia)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -673,8 +672,7 @@ CONTAINS
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
       TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_blacs_env_type), INTENT(IN), POINTER       :: blacs_env
+      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
@@ -695,6 +693,34 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! Pople method
+      ! change sign to L_jb
+      DO ispin = 1, nspins
+         L_jb(ispin)%matrix%local_data(:, :) = -L_jb(ispin)%matrix%local_data(:, :)
+      END DO
+
+      ! create fm structure
+      ALLOCATE (precond(nspins))
+      DO ispin = 1, nspins
+         ! create preconditioner (for now only orbital energy differences)
+         NULLIFY (precond(ispin)%matrix)
+         CALL cp_fm_create(precond(ispin)%matrix, P_ia(ispin)%matrix%matrix_struct, name="precond")
+         CALL cp_fm_set_all(precond(ispin)%matrix, 1.0_dp)
+         CALL cp_fm_get_info(matrix=precond(ispin)%matrix, &
+                             nrow_local=nrow_local, &
+                             ncol_local=ncol_local, &
+                             row_indices=row_indices, &
+                             col_indices=col_indices)
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               precond(ispin)%matrix%local_data(iiB, jjB) = precond(ispin)%matrix%local_data(iiB, jjB)/ &
+                                                            (Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin))
+            END DO
+         END DO
+      END DO
+
       max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
       eps_conv = mp2_env%ri_grad%cphf_eps_conv
 
@@ -714,40 +740,9 @@ CONTAINS
       ! set convergence flag
       converged = .FALSE.
 
-      ! Pople method
-      ! change sign to L_jb
+      ALLOCATE (fm_struct_tmp(nspins), b_i(nspins), residual(nspins))
       DO ispin = 1, nspins
-         L_jb(ispin)%matrix%local_data(:, :) = -L_jb(ispin)%matrix%local_data(:, :)
-      END DO
-
-      ! allocate stuff
-      ALLOCATE (xn(nspins, max_num_iter))
-      ALLOCATE (Ax(nspins, max_num_iter))
-
-      ! create fm structure
-      ALLOCATE (fm_struct_tmp(nspins), precond(nspins), b_i(nspins), residual(ispin))
-      DO ispin = 1, nspins
-         NULLIFY (fm_struct_tmp(ispin)%struct)
-         CALL cp_fm_struct_create(fm_struct_tmp(ispin)%struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=homo(ispin), ncol_global=virtual(ispin))
-
-         ! create preconditioner (for now only orbital energy differences)
-         NULLIFY (precond(ispin)%matrix)
-         CALL cp_fm_create(precond(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="precond")
-         CALL cp_fm_set_all(precond(ispin)%matrix, 1.0_dp)
-         CALL cp_fm_get_info(matrix=precond(ispin)%matrix, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               precond(ispin)%matrix%local_data(iiB, jjB) = precond(ispin)%matrix%local_data(iiB, jjB)/ &
-                                                            (Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin))
-            END DO
-         END DO
+         fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
 
          NULLIFY (b_i(ispin)%matrix)
          CALL cp_fm_create(b_i(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="b_i")
@@ -763,7 +758,8 @@ CONTAINS
 
       ALLOCATE (conv(nspins))
 
-      ! allocate array containing the various scalar products
+      ALLOCATE (xn(nspins, max_num_iter))
+      ALLOCATE (Ax(nspins, max_num_iter))
       ALLOCATE (x_norm(max_num_iter))
       ALLOCATE (xi_b(max_num_iter))
       ALLOCATE (xi_Axi(max_num_iter, 0:max_num_iter))
@@ -907,6 +903,15 @@ CONTAINS
 
       END DO
 
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+         IF (converged) THEN
+            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', cycle_counter, ' steps'
+         ELSE
+            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', cycle_counter, ' steps'
+         END IF
+      END IF
+
       ! store solution into P_ia
       DO iiter = 1, cycle_counter
          DO ispin = 1, nspins
@@ -921,26 +926,20 @@ CONTAINS
       DEALLOCATE (xi_Axi)
 
       DO ispin = 1, nspins
-         CALL cp_fm_release(precond(ispin)%matrix)
          CALL cp_fm_release(b_i(ispin)%matrix)
          CALL cp_fm_release(residual(ispin)%matrix)
-         CALL cp_fm_struct_release(fm_struct_tmp(ispin)%struct)
 
          DO iiter = 1, cycle_counter
             CALL cp_fm_release(Ax(ispin, iiter)%matrix)
             CALL cp_fm_release(xn(ispin, iiter)%matrix)
          END DO
       END DO
-      DEALLOCATE (precond, b_i, residual, fm_struct_tmp, Ax, xn)
+      DEALLOCATE (b_i, residual, Ax, xn)
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-         IF (converged) THEN
-            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', cycle_counter, ' steps'
-         ELSE
-            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', cycle_counter, ' steps'
-         END IF
-      END IF
+      DO ispin = 1, nspins
+         CALL cp_fm_release(precond(ispin)%matrix)
+      END DO
+      DEALLOCATE (precond, fm_struct_tmp)
 
       CALL timestop(handle)
 
