@@ -230,7 +230,7 @@ MODULE mp2_types
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_o, mo_coeff_v
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:) :: P_mo, W_mo, L_jb
       REAL(KIND=dp) :: cphf_eps_conv, scale_x0
-      INTEGER :: cphf_max_num_iter
+      INTEGER :: cphf_max_num_iter, z_solver_method
       TYPE(qs_p_env_type), POINTER :: p_env => NULL()
       TYPE(qs_force_type), DIMENSION(:), POINTER :: mp2_force
       REAL(KIND=dp), DIMENSION(3, 3) :: mp2_virial

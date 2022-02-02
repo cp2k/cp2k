@@ -34,7 +34,7 @@ MODULE input_cp2k_mp2
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
         ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
-        wfc_mm_style_syrk
+        wfc_mm_style_syrk, z_solver_cg, z_solver_pople
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -1411,6 +1411,17 @@ CONTAINS
                           description="Maximum number of iterations allowed for the solution of the Z-vector equations.", &
                           usage="MAX_ITER  50", &
                           default_i_val=30)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOLVER_METHOD", &
+                          description="Chose solver of the z-vector equations.", &
+                          usage="SOLVER_METHOD POPLE", enum_c_vals= &
+                          s2a("POPLE", "CG"), &
+                          enum_desc=s2a("Pople's method (Default).", &
+                                        "Conjugated gradient method."), &
+                          enum_i_vals=(/z_solver_pople, z_solver_cg/), &
+                          default_i_val=z_solver_pople)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
