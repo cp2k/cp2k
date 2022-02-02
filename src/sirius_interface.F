@@ -72,7 +72,6 @@ MODULE sirius_interface
         sirius_option_get_info, sirius_option_get_section_length, sirius_option_set, &
         sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, &
         sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, sirius_update_ground_state
-   USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -176,28 +175,14 @@ CONTAINS
       ! manually is prone to errors
 
       IF (ASSOCIATED(xc_section)) THEN
-         !     LIBXC is the only repeatable functional section - for each we need
-         !     NOT the single values, but the whole section_vals_type independently
          ifun = 0
          DO
             ifun = ifun + 1
             xc_fun => section_vals_get_subs_vals2(xc_section, i_section=ifun)
             IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-            IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
-               CALL section_vals_get(xc_fun, n_repetition=n)
-               DO i = 1, n
-                  CALL section_vals_val_get(xc_fun, "FUNCTIONAL", i_rep_section=i, c_val=section_name)
-                  IF (section_name(1:3) == "XC_") THEN
-                     CALL sirius_add_xc_functional(sctx, section_name)
-                  ELSE
-                     CALL sirius_add_xc_functional(sctx, "XC_"//section_name)
-                  END IF
-               END DO
-            ELSE IF (libxc_check_existence_in_libxc(xc_fun)) THEN
-               ! Here, we do not have to check whether the functional name starts with XC_
-               ! because we only allow the shorter form w/o XC_
-               CALL sirius_add_xc_functional(sctx, "XC_"//TRIM(xc_fun%section%name))
-            END IF
+            ! Here, we do not have to check whether the functional name starts with XC_
+            ! because we only allow the shorter form w/o XC_
+            CALL sirius_add_xc_functional(sctx, "XC_"//TRIM(xc_fun%section%name))
          END DO
       END IF
 

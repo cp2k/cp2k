@@ -460,42 +460,22 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_functional_set_params'
 
-      INTEGER                                            :: handle, i, i_params, n_params
+      INTEGER                                            :: handle, i, n_params
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: params
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: params_pointer
       CHARACTER(LEN=128)                                 :: param_name
 
       CALL timeset(routineN, handle)
 
       n_params = xc_f03_func_info_get_n_ext_params(xc_info)
       IF (n_params > 0) THEN
-         IF (libxc_params%section%name == "LIBXC" .OR. libxc_params%section%name == "KE_LIBXC") THEN
-            NULLIFY (params_pointer)
-            CALL section_vals_val_get(libxc_params, "parameters", r_vals=params_pointer)
-            CPASSERT(ASSOCIATED(params_pointer))
+         ALLOCATE (params(n_params))
+         DO i = 1, n_params
+            param_name = xc_f03_func_info_get_ext_params_name(xc_info, i - 1)
 
-            i_params = SIZE(params_pointer)
+            CALL section_vals_val_get(libxc_params, TRIM(param_name), r_val=params(i))
+         END DO
 
-            IF ((n_params > 0) .AND. (i_params > 0) .AND. (params_pointer(1) < HUGE(0.0_dp))) THEN
-               IF (i_params == n_params) THEN
-                  WRITE (*, *) "parameters ", params_pointer
-                  CALL xc_f03_func_set_ext_params(xc_func, params_pointer)
-               ELSE
-                  CALL cp_abort(__LOCATION__, &
-                     "LIBXC: Inconsistent number of optional external parameters. (required: "&
-                     &//cp_to_string(n_params)//", given: "//cp_to_string(i_params)//")")
-               END IF
-            END IF
-         ELSE
-            ALLOCATE (params(n_params))
-            DO i = 1, n_params
-               param_name = xc_f03_func_info_get_ext_params_name(xc_info, i - 1)
-
-               CALL section_vals_val_get(libxc_params, TRIM(param_name), r_val=params(i))
-            END DO
-
-            CALL xc_f03_func_set_ext_params(xc_func, params)
-         END IF
+         CALL xc_f03_func_set_ext_params(xc_func, params)
       END IF
 
       IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_HAVE_EXC) == XC_FLAGS_HAVE_EXC) THEN

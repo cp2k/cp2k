@@ -23,11 +23,8 @@ MODULE atom_output
         do_rhf_atom, do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_uhf_atom, do_uks_atom, &
         do_zoramp_atom, poly_conf, xc_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
-   USE input_section_types,             ONLY: section_vals_duplicate,&
-                                              section_vals_get,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
-                                              section_vals_release,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
@@ -38,8 +35,7 @@ MODULE atom_output
    USE physcon,                         ONLY: evolt
    USE xc_derivatives,                  ONLY: xc_functional_get_info
    USE xc_libxc,                        ONLY: libxc_check_existence_in_libxc,&
-                                              libxc_get_reference_length,&
-                                              libxc_version_info
+                                              libxc_get_reference_length
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -508,13 +504,11 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=160)                                 :: shortform
-      CHARACTER(len=20)                                  :: tmpStr
+      CHARACTER(LEN=20)                                  :: tmpStr
       CHARACTER(len=:), ALLOCATABLE                      :: reference
-      INTEGER                                            :: i_rep, ifun, il, meth, myfun, n_rep, &
-                                                            reltyp
+      INTEGER                                            :: ifun, il, meth, myfun, reltyp
       LOGICAL                                            :: lsd
-      TYPE(section_vals_type), POINTER                   :: libxc_fun, xc_fun, xc_fun_section, &
-                                                            xc_section
+      TYPE(section_vals_type), POINTER                   :: xc_fun, xc_fun_section, xc_section
 
       NULLIFY (xc_fun, xc_fun_section, xc_section)
 
@@ -609,40 +603,18 @@ CONTAINS
                ifun = ifun + 1
                xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
                IF (.NOT. ASSOCIATED(xc_fun)) EXIT
-               IF (TRIM(xc_fun%section%name) /= "LIBXC") THEN
-                  IF (libxc_check_existence_in_libxc(xc_fun)) THEN
-                     ALLOCATE (CHARACTER(LEN=libxc_get_reference_length(xc_fun, lsd)) :: reference)
-                  ELSE
-                     ALLOCATE (CHARACTER(LEN=20*default_string_length) :: reference)
-                  END IF
-                  CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, shortform=shortform)
-                  WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") &
-                     TRIM(xc_fun%section%name)
-                  DO il = 1, LEN_TRIM(reference), 67
-                     WRITE (iw, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
-                  END DO
-                  DEALLOCATE (reference)
+               IF (libxc_check_existence_in_libxc(xc_fun)) THEN
+                  ALLOCATE (CHARACTER(LEN=libxc_get_reference_length(xc_fun, lsd)) :: reference)
                ELSE
-                  ! LIBXC is the only repeatable functional section - for each we need
-                  ! NOT the single values, but the whole section_vals_type independently
-                  CALL section_vals_get(xc_fun, n_repetition=n_rep)
-                  DO i_rep = 1, n_rep
-                     NULLIFY (libxc_fun)
-                     CALL section_vals_duplicate(xc_fun, libxc_fun, i_rep_start=i_rep, i_rep_end=i_rep)
-                     IF (.NOT. ASSOCIATED(libxc_fun)) EXIT
-                     ALLOCATE (CHARACTER(LEN=libxc_get_reference_length(libxc_fun, lsd)) :: reference)
-                     CALL xc_functional_get_info(libxc_fun, lsd=lsd, reference=reference, shortform=shortform)
-                     CALL section_vals_release(libxc_fun)
-                     CALL libxc_version_info(tmpStr)
-                     WRITE (iw, fmt="(A,A,A)") ' FUNCTIONAL| LIBXC Vers. ', TRIM(tmpStr(1:5)), &
-                        ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
-                     WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
-                     DO il = 1, LEN_TRIM(reference), 67
-                        WRITE (iw, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
-                     END DO
-                     DEALLOCATE (reference)
-                  END DO
+                  ALLOCATE (CHARACTER(LEN=20*default_string_length) :: reference)
                END IF
+               CALL xc_functional_get_info(xc_fun, lsd=lsd, reference=reference, shortform=shortform)
+               WRITE (iw, fmt="(' FUNCTIONAL| ',a,':')") &
+                  TRIM(xc_fun%section%name)
+               DO il = 1, LEN_TRIM(reference), 67
+                  WRITE (iw, fmt="(' FUNCTIONAL| ',a67)") reference(il:)
+               END DO
+               DEALLOCATE (reference)
             END DO
          END IF
       ELSE
