@@ -124,7 +124,6 @@ CONTAINS
 #if defined(__SIRIUS)
 
       CHARACTER(len=2)                                   :: element_symbol
-      CHARACTER(len=64)                                  :: section_name
       CHARACTER(len=default_string_length)               :: label
       INTEGER                                            :: i, iatom, ibeta, ifun, ikind, iwf, j, l, &
                                                             n, natom, nbeta, nkind, nmesh, &
