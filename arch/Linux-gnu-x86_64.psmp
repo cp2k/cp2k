@@ -4,7 +4,7 @@
 #
 # Tested with: GNU 10.3.0 (and 11.2.0), MPICH 3.3.2 (and OpenMPI 4.1.1),
 #              ScaLAPACK 2.1.0, OpenBLAS 0.3.19, FFTW 3.3.10, LIBINT 2.6.0,
-#              LIBXC 5.2.0, ELPA 2021.11.001, PLUMED 2.7.3, SPGLIB 1.16.2,
+#              LIBXC 5.2.2, ELPA 2021.11.001, PLUMED 2.7.3, SPGLIB 1.16.2,
 #              LIBVORI 210412, GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.1
 # on the Merlin cluster (PSI)
 #
@@ -13,7 +13,7 @@
 #        Optionally, GNU compiler and MPICH version can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (24.01.2022)
+# Author: Matthias Krack (03.02.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -54,7 +54,7 @@ USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 210412
-USE_LIBXC      := 5.2.0
+USE_LIBXC      := 5.2.2
 USE_LIBXSMM    := 1.17
 USE_OPENBLAS   := 0.3.19
 USE_PLUMED     := 2.7.3
