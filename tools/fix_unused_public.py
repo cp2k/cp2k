@@ -2,7 +2,8 @@
 
 # author: Ole Schuett
 
-import re, sys
+import re
+import sys
 from os import path
 from os.path import dirname, basename, normpath
 import os
@@ -118,7 +119,7 @@ def parse_file(fn):
     # re.IGNORECASE is horribly expensive. Converting to lower-case upfront
     content = content.lower()
     content = re.sub("!.*\n", "\n", content)
-    content = re.sub("&\s*\n", "", content)
+    content = re.sub("&\\s*\n", "", content)
     content = re.sub("&", " ", content)
 
     mods = re_module.findall(content)

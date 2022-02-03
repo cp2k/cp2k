@@ -482,7 +482,7 @@ def main(argv):
                 print(f"prettified {filename}")
                 total_prettified += 1
 
-        except:
+        except Exception:
             logger.exception("processing file failed", extra={"ffilename": filename})
             failure += 1
 

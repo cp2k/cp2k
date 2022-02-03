@@ -79,7 +79,7 @@ def parse_data_set(input_path: Path) -> List[Approximation]:
                 if err == 0.0 or k >= 58:
                     continue
                 # slight change of notation e.g. 6E09 --> 6_9
-                Rc_filename = re.sub("E0?(?=\d)", "_", Rc_str.strip())
+                Rc_filename = re.sub(r"E0?(?=\d)", "_", Rc_str.strip())
                 filename = input_path / f"1_xk{k:02d}.{Rc_filename}"
                 assert filename.exists()
 

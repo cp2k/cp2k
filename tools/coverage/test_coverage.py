@@ -49,7 +49,7 @@ def main():
     for fn in coverage.keys():
         cov_rate, nlines = coverage[fn]
         uncov_lines = nlines * (100.0 - cov_rate) / 100.0
-        if ref_coverage.has_key(fn):
+        if fn in ref_coverage:
             cov_rate0, nlines0 = ref_coverage[fn]
             uncov_lines0 = nlines0 * (100.0 - cov_rate0) / 100.0
             tol = max(nlines, nlines0) * 0.001  # uncov_lines has limited precision
