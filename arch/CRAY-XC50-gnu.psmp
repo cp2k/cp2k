@@ -4,14 +4,14 @@
 #
 # Tested with: GNU 8.3.0, Cray-MPICH 7.7.16, Cray-libsci 20.09.1, Cray-FFTW 3.3.8,
 #              COSMA 2.5.1, ELPA 2021.11.001, LIBINT 2.6.0, LIBPEXSI 1.2.0,
-#              LIBXC 5.2.0, LIBVORI 210412, LIBXSMM 1.17, PLUMED 2.7.2,
+#              LIBXC 5.2.2, LIBVORI 210412, LIBXSMM 1.17, PLUMED 2.7.2,
 #              SIRIUS 7.3.1, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (26.01.2022)
+# Author: Matthias Krack (03.02.2022)
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -69,7 +69,7 @@ USE_ELPA       := 2021.11.001
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 210412
-USE_LIBXC      := 5.2.0
+USE_LIBXC      := 5.2.2
 USE_LIBXSMM    := 1.17
 USE_PLUMED     := 2.7.3
 #USE_QUIP       := b4336484fb65b0e73211a8f920ae4361c7c353fd
