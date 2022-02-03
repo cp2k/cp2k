@@ -58,7 +58,8 @@ MODULE mp2_cphf
                                               ot_precond_full_all,&
                                               z_solver_cg,&
                                               z_solver_pople,&
-                                              z_solver_richardson
+                                              z_solver_richardson,&
+                                              z_solver_sd
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -720,7 +721,7 @@ CONTAINS
          CALL solve_z_vector_pople(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-      CASE (z_solver_cg, z_solver_richardson)
+      CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
          CALL solve_z_vector_cg(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
@@ -1027,7 +1028,7 @@ CONTAINS
                                                             z_solver_method
       LOGICAL                                            :: converged
       REAL(KIND=dp) :: eps_conv, norm_residual, residual_dot_diff_search_vec_new, &
-         residual_dot_diff_search_vec_old, scale_result, scale_search, &
+         residual_dot_diff_search_vec_old, residual_dot_search_vec, scale_result, scale_search, &
          search_vec_dot_A_search_vec, t1, t2
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: A_dot_search_vector, diff_search_vector, &
                                                             residual, search_vector
@@ -1048,6 +1049,8 @@ CONTAINS
             WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG with Fletcher-Reeves step)'
          CASE (z_solver_richardson)
             WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (Richardson method)'
+         CASE (z_solver_sd)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (Steepest Descent method)'
          CASE DEFAULT
             CPABORT("Unknown solver")
          END SELECT
@@ -1086,6 +1089,7 @@ CONTAINS
 
       ! Calculate the norm of the residual at least once to initialize the old value for the first iteration
       residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
+      norm_residual = accurate_dot_product_spin(residual, residual)
 
       converged = .FALSE.
       cycles_passed = max_num_iter
@@ -1103,7 +1107,12 @@ CONTAINS
          IF (z_solver_method /= z_solver_richardson) THEN
             search_vec_dot_A_search_vec = accurate_dot_product_spin(search_vector, A_dot_search_vector)
 
-            scale_result = residual_dot_diff_search_vec_old/search_vec_dot_A_search_vec
+            IF (z_solver_method == z_solver_cg) THEN
+               scale_result = residual_dot_diff_search_vec_old/search_vec_dot_A_search_vec
+            ELSE
+               residual_dot_search_vec = accurate_dot_product_spin(residual, search_vector)
+               scale_result = residual_dot_search_vec/search_vec_dot_A_search_vec
+            END IF
 
             DO ispin = 1, nspins
                P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
@@ -1145,6 +1154,11 @@ CONTAINS
             DO ispin = 1, nspins
                search_vector(ispin)%matrix%local_data(:, :) = mp2_env%ri_grad%scale_richardson* &
                                                       precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE IF (z_solver_method == z_solver_sd) THEN
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = &
+                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
             END DO
          ELSE
             DO ispin = 1, nspins
