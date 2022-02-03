@@ -1414,6 +1414,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_EVERY", &
+                          description="Restart iteration every given number of steps Z-vector equations.", &
+                          usage="RESTART_EVERY", &
+                          default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SOLVER_METHOD", &
                           description="Chose solver of the z-vector equations.", &
                           usage="SOLVER_METHOD POPLE", enum_c_vals= &
