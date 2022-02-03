@@ -290,6 +290,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%EPS_CONV", r_val=mp2_env%ri_grad%cphf_eps_conv)
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SCALE_X0", r_val=mp2_env%ri_grad%scale_x0)
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SOLVER_METHOD", i_val=mp2_env%ri_grad%z_solver_method)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SCALE_RICHARDSON", r_val=mp2_env%ri_grad%scale_richardson)
 
       CALL section_vals_val_get(mp2_section, "RI%ROW_BLOCK", i_val=mp2_env%block_size_row)
       CALL section_vals_val_get(mp2_section, "RI%COL_BLOCK", i_val=mp2_env%block_size_col)

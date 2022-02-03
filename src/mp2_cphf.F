@@ -58,7 +58,7 @@ MODULE mp2_cphf
                                               ot_precond_full_all,&
                                               z_solver_cg,&
                                               z_solver_pople,&
-                                              z_solver_pr
+                                              z_solver_richardson
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -720,10 +720,12 @@ CONTAINS
          CALL solve_z_vector_pople(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-      CASE (z_solver_cg, z_solver_pr)
+      CASE (z_solver_cg, z_solver_richardson)
          CALL solve_z_vector_cg(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      CASE DEFAULT
+         CPABORT("Unknown solver")
       END SELECT
 
       DO ispin = 1, nspins
@@ -1021,13 +1023,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cg'
 
       INTEGER                                            :: cycles_passed, handle, iiter, ispin, &
-                                                            max_num_iter, transf_type_in, z_solver_method
+                                                            max_num_iter, transf_type_in, &
+                                                            z_solver_method
       LOGICAL                                            :: converged
       REAL(KIND=dp) :: eps_conv, norm_residual, residual_dot_diff_search_vec_new, &
-         residual_dot_diff_search_vec_old, residual_new_dot_diff_search_old, scale_result, &
-         scale_search, search_vec_dot_A_search_vec, t1, t2
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:) :: A_dot_search_vector, &
-         diff_search_vector, residual, search_vector
+         residual_dot_diff_search_vec_old, scale_result, scale_search, &
+         search_vec_dot_A_search_vec, t1, t2
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: A_dot_search_vector, diff_search_vector, &
+                                                            residual, search_vector
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: fm_struct_tmp
 
@@ -1043,8 +1046,8 @@ CONTAINS
          SELECT CASE (z_solver_method)
          CASE (z_solver_cg)
             WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG with Fletcher-Reeves step)'
-         CASE (z_solver_pr)
-            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG with Polak-Ribiere step)'
+         CASE (z_solver_richardson)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (Richardson method)'
          CASE DEFAULT
             CPABORT("Unknown solver")
          END SELECT
@@ -1097,17 +1100,27 @@ CONTAINS
                                search_vector, fm_G_mu_nu, fm_back, transf_type_in, &
                                A_dot_search_vector)
 
-         search_vec_dot_A_search_vec = accurate_dot_product_spin(search_vector, A_dot_search_vector)
+         IF (z_solver_method /= z_solver_richardson) THEN
+            search_vec_dot_A_search_vec = accurate_dot_product_spin(search_vector, A_dot_search_vector)
 
-         scale_result = residual_dot_diff_search_vec_old/search_vec_dot_A_search_vec
+            scale_result = residual_dot_diff_search_vec_old/search_vec_dot_A_search_vec
 
-         DO ispin = 1, nspins
-            P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
-                                                          + scale_result*search_vector(ispin)%matrix%local_data(:, :)
+            DO ispin = 1, nspins
+               P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
+                                                     + scale_result*search_vector(ispin)%matrix%local_data(:, :)
 
-            residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
-                                                          - scale_result*A_dot_search_vector(ispin)%matrix%local_data(:, :)
-         END DO
+               residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
+                                                         - scale_result*A_dot_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
+                                                     + search_vector(ispin)%matrix%local_data(:, :)
+
+               residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
+                                                         - A_dot_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+         END IF
 
          norm_residual = SQRT(accurate_dot_product_spin(residual, residual))
 
@@ -1128,33 +1141,29 @@ CONTAINS
 
          t1 = m_walltime()
 
-         IF (mp2_env%ri_grad%z_solver_method == z_solver_pr) THEN
-            residual_new_dot_diff_search_old = accurate_dot_product_spin(residual, diff_search_vector)
-         END IF
+         IF (z_solver_method == z_solver_richardson) THEN
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = mp2_env%ri_grad%scale_richardson* &
+                                                      precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               diff_search_vector(ispin)%matrix%local_data(:, :) = &
+                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
 
-         DO ispin = 1, nspins
-            diff_search_vector(ispin)%matrix%local_data(:, :) = &
-               precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
-         END DO
+            residual_dot_diff_search_vec_new = accurate_dot_product_spin(residual, diff_search_vector)
 
-         residual_dot_diff_search_vec_new = accurate_dot_product_spin(residual, diff_search_vector)
-
-         SELECT CASE (mp2_env%ri_grad%z_solver_method)
-         CASE (z_solver_cg)
             scale_search = residual_dot_diff_search_vec_new/residual_dot_diff_search_vec_old
-         CASE (z_solver_pr)
-            scale_search = (residual_dot_diff_search_vec_new - residual_new_dot_diff_search_old)/residual_dot_diff_search_vec_old
-         CASE DEFAULT
-            CPABORT("Unsupported CG-type solver")
-         END SELECT
 
-         DO ispin = 1, nspins
-            search_vector(ispin)%matrix%local_data(:, :) = scale_search*search_vector(ispin)%matrix%local_data(:, :) &
-                                                           + diff_search_vector(ispin)%matrix%local_data(:, :)
-         END DO
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = scale_search*search_vector(ispin)%matrix%local_data(:, :) &
+                                                              + diff_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
 
-         ! Make new to old
-         residual_dot_diff_search_vec_old = residual_dot_diff_search_vec_new
+            ! Make new to old
+            residual_dot_diff_search_vec_old = residual_dot_diff_search_vec_new
+         END IF
 
       END DO
 

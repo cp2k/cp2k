@@ -1015,7 +1015,8 @@ MODULE input_constants
 
    ! solvers of the z-vector equations
    INTEGER, PARAMETER, PUBLIC               :: z_solver_pople = 1, &
-                                               z_solver_cg = 2, z_solver_pr = 3
+                                               z_solver_cg = 2, &
+                                               z_solver_richardson = 3
 
    ! GW parameter
    INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_z_shot = 1, &
