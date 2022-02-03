@@ -1021,13 +1021,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cg'
 
       INTEGER                                            :: cycles_passed, handle, iiter, ispin, &
-                                                            max_num_iter, transf_type_in
+                                                            max_num_iter, transf_type_in, z_solver_method
       LOGICAL                                            :: converged
       REAL(KIND=dp) :: eps_conv, norm_residual, residual_dot_diff_search_vec_new, &
          residual_dot_diff_search_vec_old, residual_new_dot_diff_search_old, scale_result, &
          scale_search, search_vec_dot_A_search_vec, t1, t2
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:) :: A_dot_search_vector, &
-         diff_search_vector_new, diff_search_vector_old, residual, search_vector
+         diff_search_vector, residual, search_vector
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: fm_struct_tmp
 
@@ -1035,11 +1035,19 @@ CONTAINS
 
       max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
       eps_conv = mp2_env%ri_grad%cphf_eps_conv
+      z_solver_method = mp2_env%ri_grad%z_solver_method
       transf_type_in = 3
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
-         WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG method)'
+         SELECT CASE (z_solver_method)
+         CASE (z_solver_cg)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG with Fletcher-Reeves step)'
+         CASE (z_solver_pr)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG with Polak-Ribiere step)'
+         CASE DEFAULT
+            CPABORT("Unknown solver")
+         END SELECT
          WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
          WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
          WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
@@ -1047,8 +1055,7 @@ CONTAINS
          WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
       END IF
 
-      ALLOCATE (fm_struct_tmp(nspins), residual(nspins), &
-                diff_search_vector_old(nspins), diff_search_vector_new(nspins), &
+      ALLOCATE (fm_struct_tmp(nspins), residual(nspins), diff_search_vector(nspins), &
                 search_vector(nspins), A_dot_search_vector(nspins))
       DO ispin = 1, nspins
          fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
@@ -1058,20 +1065,16 @@ CONTAINS
          CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
          residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :)
 
-         NULLIFY (diff_search_vector_old(ispin)%matrix)
-         CALL cp_fm_create(diff_search_vector_old(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="difference search vector old")
-         CALL cp_fm_set_all(diff_search_vector_old(ispin)%matrix, 0.0_dp)
-         diff_search_vector_old(ispin)%matrix%local_data(:, :) = &
+         NULLIFY (diff_search_vector(ispin)%matrix)
+         CALL cp_fm_create(diff_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="difference search vector")
+         CALL cp_fm_set_all(diff_search_vector(ispin)%matrix, 0.0_dp)
+         diff_search_vector(ispin)%matrix%local_data(:, :) = &
             precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
-
-         NULLIFY (diff_search_vector_new(ispin)%matrix)
-         CALL cp_fm_create(diff_search_vector_new(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="difference search vector new")
-         CALL cp_fm_set_all(diff_search_vector_new(ispin)%matrix, 0.0_dp)
 
          NULLIFY (search_vector(ispin)%matrix)
          CALL cp_fm_create(search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="search vector")
          CALL cp_fm_set_all(search_vector(ispin)%matrix, 0.0_dp)
-         search_vector(ispin)%matrix%local_data(:, :) = diff_search_vector_old(ispin)%matrix%local_data(:, :)
+         search_vector(ispin)%matrix%local_data(:, :) = diff_search_vector(ispin)%matrix%local_data(:, :)
 
          NULLIFY (A_dot_search_vector(ispin)%matrix)
          CALL cp_fm_create(A_dot_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="A times search vector")
@@ -1079,7 +1082,7 @@ CONTAINS
       END DO
 
       ! Calculate the norm of the residual at least once to initialize the old value for the first iteration
-      residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector_old)
+      residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
 
       converged = .FALSE.
       cycles_passed = max_num_iter
@@ -1125,18 +1128,21 @@ CONTAINS
 
          t1 = m_walltime()
 
+         IF (mp2_env%ri_grad%z_solver_method == z_solver_pr) THEN
+            residual_new_dot_diff_search_old = accurate_dot_product_spin(residual, diff_search_vector)
+         END IF
+
          DO ispin = 1, nspins
-            diff_search_vector_new(ispin)%matrix%local_data(:, :) = &
+            diff_search_vector(ispin)%matrix%local_data(:, :) = &
                precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
          END DO
 
-         residual_dot_diff_search_vec_new = accurate_dot_product_spin(residual, diff_search_vector_new)
+         residual_dot_diff_search_vec_new = accurate_dot_product_spin(residual, diff_search_vector)
 
          SELECT CASE (mp2_env%ri_grad%z_solver_method)
          CASE (z_solver_cg)
             scale_search = residual_dot_diff_search_vec_new/residual_dot_diff_search_vec_old
          CASE (z_solver_pr)
-            residual_new_dot_diff_search_old = accurate_dot_product_spin(residual, diff_search_vector_old)
             scale_search = (residual_dot_diff_search_vec_new - residual_new_dot_diff_search_old)/residual_dot_diff_search_vec_old
          CASE DEFAULT
             CPABORT("Unsupported CG-type solver")
@@ -1144,13 +1150,10 @@ CONTAINS
 
          DO ispin = 1, nspins
             search_vector(ispin)%matrix%local_data(:, :) = scale_search*search_vector(ispin)%matrix%local_data(:, :) &
-                                                           + diff_search_vector_new(ispin)%matrix%local_data(:, :)
+                                                           + diff_search_vector(ispin)%matrix%local_data(:, :)
          END DO
 
          ! Make new to old
-         DO ispin = 1, nspins
-            diff_search_vector_old(ispin)%matrix%local_data(:, :) = diff_search_vector_new(ispin)%matrix%local_data(:, :)
-         END DO
          residual_dot_diff_search_vec_old = residual_dot_diff_search_vec_new
 
       END DO
@@ -1166,13 +1169,11 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL cp_fm_release(residual(ispin)%matrix)
-         CALL cp_fm_release(diff_search_vector_old(ispin)%matrix)
-         CALL cp_fm_release(diff_search_vector_new(ispin)%matrix)
+         CALL cp_fm_release(diff_search_vector(ispin)%matrix)
          CALL cp_fm_release(search_vector(ispin)%matrix)
          CALL cp_fm_release(A_dot_search_vector(ispin)%matrix)
       END DO
-      DEALLOCATE (residual, diff_search_vector_old, diff_search_vector_new, &
-                  search_vector, A_dot_search_vector, fm_struct_tmp)
+      DEALLOCATE (residual, diff_search_vector, search_vector, A_dot_search_vector, fm_struct_tmp)
 
       CALL timestop(handle)
 
