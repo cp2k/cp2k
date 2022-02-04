@@ -17,6 +17,10 @@ apt-get install -qq --no-install-recommends \
   ssh
 rm -rf /var/lib/apt/lists/*
 
+# Some buggy Python packages open utf8 files in text mode.
+# As a workaround we set locale.getpreferredencoding() to utf8.
+export LANG="en_US.UTF-8" LANGUAGE="en_US:en" LC_ALL="en_US.UTF-8"
+
 # install dependencies of aiida-cp2k
 cd /opt/
 git clone --quiet https://github.com/aiidateam/aiida-cp2k.git
