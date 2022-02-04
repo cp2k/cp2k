@@ -18,6 +18,10 @@ else
   exit 0
 fi
 
+# Some buggy Python packages open utf8 files in text mode.
+# As a workaround we set locale.getpreferredencoding() to utf8.
+export LANG="en_US.UTF-8" LANGUAGE="en_US:en" LC_ALL="en_US.UTF-8"
+
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 cd /opt/aiida-cp2k/
 git pull

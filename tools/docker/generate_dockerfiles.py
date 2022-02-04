@@ -72,10 +72,6 @@ WORKDIR /workspace
 COPY ./tools/docker/scripts/install_basics.sh .
 RUN ./install_basics.sh
 
-# Some buggy Python packages open utf8 files in text mode.
-# As workaround we set locale.getpreferredencoding() to utf8.
-ENV LANG="en_US.UTF-8" LANGUAGE="en_US:en" LC_ALL="en_US.UTF-8"
-
 COPY ./tools/docker/scripts/install_{name}.sh .
 RUN ./install_{name}.sh
 
