@@ -75,7 +75,7 @@ recurse.x: recurse.o $(RECURSEOBJ)
 # evalf is a quick hack
 #
 evalf.x: evalf.o mpfr_cutoff_gamma.o mpfr.o
-	 $(FC) -o drvrec_mpfr.x evalf.o mpfr_cutoff_gamma.o mpfr.o $(LIBS)
+	$(FC) -o drvrec_mpfr.x evalf.o mpfr_cutoff_gamma.o mpfr.o $(LIBS)
 
 # generated files need special dependencies
 t_c_g0.f90: recurse.x drvrec_mpfr.x
