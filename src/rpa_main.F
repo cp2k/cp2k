@@ -61,7 +61,8 @@ MODULE rpa_main
                                               z_zero
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sendrecv,&
-                                              mp_sum
+                                              mp_sum,&
+                                              mp_sync
    USE minimax_exp,                     ONLY: check_exp_minimax_range
    USE mp2_grids,                       ONLY: get_clenshaw_grid,&
                                               get_minimax_grid
@@ -1579,7 +1580,7 @@ CONTAINS
       IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
       first_cycle = .TRUE.
       omega_old = 0.0_dp
-      CALL dgemm_counter_init(dgemm_counter)
+      CALL dgemm_counter_init(dgemm_counter, unit_nr)
 
       DO count_ev_sc_GW = 1, iter_evGW
 
@@ -1787,6 +1788,9 @@ CONTAINS
                                          kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
             END IF
 
+            IF (unit_nr > 0) CALL m_flush(unit_nr)
+            CALL mp_sync(para_env%group) ! sync to see output
+
          END DO ! jquad
 
          CALL mp_sum(Erpa, para_env%group)
@@ -1815,7 +1819,7 @@ CONTAINS
 
          ELSE
 
-            CALL dgemm_counter_write(dgemm_counter, para_env, unit_nr)
+            CALL dgemm_counter_write(dgemm_counter, para_env)
 
          END IF
 

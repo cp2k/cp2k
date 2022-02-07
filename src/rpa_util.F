@@ -773,7 +773,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("")
       END SELECT
-      CALL dgemm_counter_stop(dgemm_counter, dimen_ia, dimen_ia, dimen_RI)
+      CALL dgemm_counter_stop(dgemm_counter, dimen_RI, dimen_RI, dimen_ia)
 
       ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
       CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)

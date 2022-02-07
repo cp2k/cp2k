@@ -139,7 +139,7 @@ CONTAINS
 
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
-      CALL dgemm_counter_init(dgemm_counter)
+      CALL dgemm_counter_init(dgemm_counter, unit_nr)
 
       ! We cannot fix the tag because of the recv routine
       tag = 42
@@ -742,7 +742,7 @@ CONTAINS
       IF (calc_forces .AND. .NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) &
          DEALLOCATE (mp2_env%ri_grad%operator_half)
 
-      CALL dgemm_counter_write(dgemm_counter, para_env, unit_nr)
+      CALL dgemm_counter_write(dgemm_counter, para_env)
 
       CALL timestop(handle)
 
