@@ -796,7 +796,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(OUT)    :: trace_Qomega
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'RPA_postprocessing_start'
 
@@ -846,7 +846,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(IN)     :: trace_Qomega
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       REAL(KIND=dp), INTENT(IN)                          :: wjquad
 

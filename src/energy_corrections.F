@@ -1078,7 +1078,6 @@ CONTAINS
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
                                     rho=tauout_r(ispin), &
                                     rho_gspace=tauout_g(ispin), &
-                                    total_rho=total_rhoout, &
                                     compute_tau=.TRUE., &
                                     basis_type="HARRIS", &
                                     task_list_external=ec_env%task_list)

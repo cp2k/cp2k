@@ -135,6 +135,7 @@ CONTAINS
 
       NULLIFY (kernel_env%xc_rho_set, kernel_env%xc_rho1_set, kernel_env%xc_deriv_set)
 
+      ALLOCATE (kernel_env%xc_deriv_set)
       IF (is_rks_triplets) THEN
          ! we are about to compute triplet states using spin-restricted reference MOs;
          ! we still need the beta-spin density component in order to compute the TDDFT kernel

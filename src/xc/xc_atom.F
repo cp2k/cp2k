@@ -71,7 +71,7 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: deriv_order
       TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
       REAL(dp), DIMENSION(:, :), POINTER                 :: w

@@ -72,7 +72,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eigensolver(p_env, qs_env, t_env)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_env_type), INTENT(INOUT)               :: t_env
 
@@ -169,7 +169,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:)                        :: in_evals
       TYPE(tddfpt_env_type), INTENT(INOUT)               :: t_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(kind=dp), DIMENSION(:), OPTIONAL              :: out_evals
       LOGICAL                                            :: res
@@ -540,7 +540,7 @@ CONTAINS
    SUBROUTINE apply_op(X, R, p_env, qs_env, do_kernel)
 
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: X, R
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_kernel
 

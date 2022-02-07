@@ -172,13 +172,13 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: functional
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ke_gga_lda_eval'
 
       INTEGER                                            :: handle, m, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff, rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fs
@@ -188,15 +188,13 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo, rho, rho13, e_0, e_rho, e_ndrho, &
+      NULLIFY (rho, rho13, e_0, e_rho, e_ndrho, &
                e_rho_rho, e_rho_ndrho, e_ndrho_ndrho, &
                e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho)
       m = ABS(order)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
 
       CALL xc_rho_set_get(rho_set, rho_1_3=rho13, rho=rho, &
                           norm_drho=grho, local_bounds=bo, rho_cutoff=rho_cutoff, &
@@ -312,7 +310,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: functional
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ke_gga_lsd_eval'
@@ -321,7 +319,7 @@ CONTAINS
       CHARACTER(len=6), DIMENSION(2), PARAMETER :: rho_spin_name = (/"(rhoa)", "(rhob)"/)
 
       INTEGER                                            :: handle, ispin, m, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fs
@@ -340,8 +338,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
 
       CALL xc_rho_set_get(rho_set, rhoa_1_3=rho_1_3(1)%array, &
                           rhob_1_3=rho_1_3(2)%array, rhoa=rho(1)%array, &

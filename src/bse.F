@@ -64,7 +64,7 @@ CONTAINS
       INTEGER                                            :: homo, virtual, num_Z_vectors, max_iter
       REAL(KIND=dp)                                      :: threshold_min_trans
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'do_subspace_iterations'
 
@@ -139,7 +139,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :)                     :: M_ji_tmp, RI_vector
       INTEGER                                            :: homo, virtual, num_Z_vectors, &
                                                             local_RI_size
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: i_Z_vector, LLL
 
@@ -193,7 +193,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
       INTEGER                                            :: homo, virtual, num_Z_vectors, &
                                                             local_RI_size
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_AZ'
 
@@ -256,9 +256,9 @@ CONTAINS
    SUBROUTINE compute_v_ia_jb_part(AZ, Z_vectors, B_iaQ_bse_local, RI_vector, local_RI_size, &
                                    num_Z_vectors, homo, virtual)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: AZ, Z_vectors, B_iaQ_bse_local
-      REAL(KIND=dp), DIMENSION(:, :)                     :: RI_vector
-      INTEGER                                            :: local_RI_size, num_Z_vectors, homo, &
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: AZ, Z_vectors, B_iaQ_bse_local
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: RI_vector
+      INTEGER, INTENT(IN)                                :: local_RI_size, num_Z_vectors, homo, &
                                                             virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_v_ia_jb_part'
@@ -313,9 +313,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE initial_guess_Z_vectors(Z_vectors, Eigenval, num_Z_vectors, homo, virtual)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Z_vectors
-      REAL(KIND=dp), DIMENSION(:)                        :: Eigenval
-      INTEGER                                            :: num_Z_vectors, homo, virtual
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Z_vectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: num_Z_vectors, homo, virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initial_guess_Z_vectors'
 
@@ -374,15 +374,16 @@ CONTAINS
                                                      B_iaQ_bse_local, dimen_RI, homo, virtual, dimen_ia, &
                                                      gd_array, color_sub, para_env)
 
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                                             fm_mat_S, fm_mat_Q_static_bse, &
                                                             fm_mat_Q_static_bse_gemm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_bar_ijQ_bse_local, B_abQ_bse_local, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: B_bar_ijQ_bse_local, B_abQ_bse_local, &
                                                             B_bar_iaQ_bse_local, B_iaQ_bse_local
-      INTEGER                                            :: dimen_RI, homo, virtual, dimen_ia
-      TYPE(group_dist_d1_type)                           :: gd_array
-      INTEGER                                            :: color_sub
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual, dimen_ia
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
+      INTEGER, INTENT(IN)                                :: color_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mult_B_with_W_and_fill_local_3c_arrays'
 
@@ -475,11 +476,12 @@ CONTAINS
    SUBROUTINE allocate_and_fill_local_array(B_local, fm_mat_S, gd_array, &
                                             color_sub, small_size, big_size, dimen_RI, para_env)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_local
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
-      TYPE(group_dist_d1_type)                           :: gd_array
-      INTEGER                                            :: color_sub, small_size, big_size, dimen_RI
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: B_local
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_S
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
+      INTEGER, INTENT(IN)                                :: color_sub, small_size, big_size, dimen_RI
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_and_fill_local_array'
 

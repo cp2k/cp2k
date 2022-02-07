@@ -104,7 +104,7 @@ CONTAINS
                             Lai)
       INTEGER                                            :: dimen, RI_dimen, occupied, natom
       TYPE(mp2_biel_type)                                :: mp2_biel
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C
       INTEGER, DIMENSION(:)                              :: kind_of
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: RI_basis_parameter
@@ -408,7 +408,7 @@ CONTAINS
                               RI_basis_parameter, RI_basis_info, RI_index_table, RI_dimen, basis_S0, &
                               Lai)
 
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_biel_type)                                :: mp2_biel
@@ -997,8 +997,8 @@ CONTAINS
 
       TYPE(cell_type), POINTER                           :: cell
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(hfx_potential_type), INTENT(OUT)              :: mp2_potential_parameter
       TYPE(hfx_type), POINTER                            :: actual_x_data
       LOGICAL, INTENT(OUT)                               :: do_periodic
@@ -1192,9 +1192,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_potential_parameters(mp2_env, l_max, para_env, mp2_potential_parameter)
 
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       INTEGER, INTENT(IN)                                :: l_max
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(hfx_potential_type), INTENT(OUT)              :: mp2_potential_parameter
 
       INTEGER                                            :: unit_id

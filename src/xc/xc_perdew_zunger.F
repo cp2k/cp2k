@@ -134,28 +134,26 @@ CONTAINS
 
       INTEGER, INTENT(in)                                :: method
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: pz_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pz_lda_eval'
 
       INTEGER                                            :: npoints, timer_handle
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: rho_cutoff, sc
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_rho, e_rho_rho, &
                                                             e_rho_rho_rho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, timer_handle)
-      NULLIFY (bo, rho, e_0, e_rho, e_rho_rho, e_rho_rho_rho, dummy)
+      NULLIFY (rho, e_0, e_rho, e_rho_rho, e_rho_rho_rho, dummy)
 
       CALL section_vals_val_get(pz_params, "scale_c", r_val=sc)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           local_bounds=bo, rho_cutoff=rho_cutoff)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -268,28 +266,26 @@ CONTAINS
    SUBROUTINE pz_lsd_eval(method, rho_set, deriv_set, order, pz_params)
       INTEGER, INTENT(in)                                :: method
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
       TYPE(section_vals_type), POINTER                   :: pz_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pz_lsd_eval'
 
       INTEGER                                            :: npoints, timer_handle
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: rho_cutoff, sc
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: a, b, dummy, e_0, ea, eaa, eaaa, eaab, &
                                                             eab, eabb, ebb, ebbb
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, timer_handle)
-      NULLIFY (bo, a, b, e_0, ea, eaa, eab, ebb, eaaa, eaab, eabb, ebbb)
+      NULLIFY (a, b, e_0, ea, eaa, eab, ebb, eaaa, eaab, eabb, ebbb)
 
       CALL section_vals_val_get(pz_params, "scale_c", r_val=sc)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=a, rhob=b, &
                           local_bounds=bo, rho_cutoff=rho_cutoff)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)

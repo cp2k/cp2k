@@ -83,7 +83,7 @@ CONTAINS
    SUBROUTINE ex_properties(qs_env, matrix_pe, p_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pe
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ex_properties', routineP = moduleN//':'//routineN
 

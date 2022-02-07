@@ -102,18 +102,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE optx_lda_eval(rho_set, deriv_set, grad_deriv, optx_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: optx_params
 
       INTEGER                                            :: npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: a1, a2, epsilon_drho, epsilon_rho, gam, &
                                                             sx
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_ndrho, e_rho, norm_drho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
-      NULLIFY (bo, e_0, e_ndrho, e_rho, norm_drho, rho)
+      NULLIFY (e_0, e_ndrho, e_rho, norm_drho, rho)
 
       CALL section_vals_val_get(optx_params, "scale_x", r_val=sx)
       CALL section_vals_val_get(optx_params, "a1", r_val=a1)
@@ -122,8 +122,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho, &
                           drho_cutoff=epsilon_drho)
@@ -164,19 +162,19 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE optx_lsd_eval(rho_set, deriv_set, grad_deriv, optx_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: optx_params
 
       INTEGER                                            :: ispin, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: a1, a2, epsilon_drho, epsilon_rho, gam, &
                                                             sx
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: e_0
       TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: e_ndrho, e_rho, ndrho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
-      NULLIFY (bo, e_0)
+      NULLIFY (e_0)
       DO ispin = 1, 2
          NULLIFY (e_rho(ispin)%array)
          NULLIFY (e_ndrho(ispin)%array)
@@ -191,8 +189,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=rho(1)%array, rhob=rho(2)%array, &
                           norm_drhoa=ndrho(1)%array, &
                           norm_drhob=ndrho(2)%array, rho_cutoff=epsilon_rho, &

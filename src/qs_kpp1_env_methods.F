@@ -116,15 +116,10 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE kpp1_create(kpp1_env)
-      TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
+      TYPE(qs_kpp1_env_type)                             :: kpp1_env
 
-      ALLOCATE (kpp1_env)
-      NULLIFY (kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r, &
-               kpp1_env%rho_set, kpp1_env%deriv_set, &
+      NULLIFY (kpp1_env%v_ao, kpp1_env%rho_set, kpp1_env%deriv_set, &
                kpp1_env%rho_set_admm, kpp1_env%deriv_set_admm)
-      kpp1_env%ref_count = 1
-      last_kpp1_id_nr = last_kpp1_id_nr + 1
-      kpp1_env%id_nr = last_kpp1_id_nr
    END SUBROUTINE kpp1_create
 
 ! **************************************************************************************************
@@ -137,7 +132,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE kpp1_calc_k_p_p1(p_env, qs_env, rho1, rho1_xc)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho1
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho1_xc
@@ -209,7 +204,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_tddft, lsd_singlets, lrigpw, &
                                                             do_excitations, do_triplet
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_forces, calc_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial
@@ -247,7 +242,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(p_env%kpp1))
       CPASSERT(ASSOCIATED(p_env%kpp1_env))
-      CPASSERT(p_env%kpp1_env%ref_count > 0)
       CPASSERT(ASSOCIATED(rho1))
 
       nspins = SIZE(p_env%kpp1)
@@ -277,7 +271,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(rho1_xc))
       END IF
 
-      CALL kpp1_check_i_alloc(p_env%kpp1_env, qs_env, do_excitations, lsd_singlets, do_triplet, xc_section)
+      CALL kpp1_check_i_alloc(p_env%kpp1_env, qs_env, do_excitations, lsd_singlets, do_triplet)
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       CALL qs_rho_get(rho1, rho_g=rho1_g)
@@ -666,17 +660,15 @@ CONTAINS
 !> \param do_excitations ...
 !> \param lsd_singlets ...
 !> \param do_triplet ...
-!> \param xc_section ...
 !> \author Fawzi Mohamed
 !> \note
 !>      private routine
 ! **************************************************************************************************
-   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, do_excitations, lsd_singlets, do_triplet, xc_section)
+   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, do_excitations, lsd_singlets, do_triplet)
 
-      TYPE(qs_kpp1_env_type), INTENT(IN), POINTER        :: kpp1_env
+      TYPE(qs_kpp1_env_type)                             :: kpp1_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       LOGICAL, INTENT(IN)                                :: do_excitations, lsd_singlets, do_triplet
-      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_check_i_alloc', &
          routineP = moduleN//':'//routineN
@@ -689,32 +681,20 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_rho_r, my_tau_r, rho_r, tau_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: admm_xc_section
+      TYPE(section_vals_type), POINTER                   :: admm_xc_section, input, xc_section
 
 ! ------------------------------------------------------------------
 
       NULLIFY (pw_env, auxbas_pw_pool, matrix_s, rho, rho_r, admm_env, dft_control, my_rho_r, my_tau_r)
 
-      CPASSERT(ASSOCIATED(kpp1_env))
-      CPASSERT(kpp1_env%ref_count > 0)
-
       CALL get_qs_env(qs_env, pw_env=pw_env, &
-                      matrix_s=matrix_s, rho=rho, &
+                      matrix_s=matrix_s, rho=rho, input=input, &
                       admm_env=admm_env, dft_control=dft_control)
 
       CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
       nspins = SIZE(rho_r)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-
-      IF (.NOT. ASSOCIATED(kpp1_env%v_rspace)) THEN
-         ALLOCATE (kpp1_env%v_rspace(nspins))
-         DO ispin = 1, nspins
-            CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   kpp1_env%v_rspace(ispin)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-         END DO
-      END IF
 
       IF (.NOT. ASSOCIATED(kpp1_env%v_ao)) THEN
          CALL dbcsr_allocate_matrix_set(kpp1_env%v_ao, nspins)
@@ -758,6 +738,13 @@ CONTAINS
             END IF
          END IF
 
+         IF (dft_control%do_admm) THEN
+            xc_section => admm_env%xc_section_primary
+         ELSE
+            xc_section => section_vals_get_subs_vals(input, "DFT%XC")
+         END IF
+
+         ALLOCATE (kpp1_env%deriv_set)
          CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                                 my_rho_r, auxbas_pw_pool, &
                                 xc_section=xc_section, tau_r=my_tau_r)
@@ -782,6 +769,7 @@ CONTAINS
                admm_xc_section => admm_env%xc_section_aux
                CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho)
                CALL qs_rho_get(rho, rho_r=rho_r)
+               ALLOCATE (kpp1_env%deriv_set_admm)
                CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
                                       rho_r, auxbas_pw_pool, &
                                       xc_section=admm_xc_section)
@@ -792,58 +780,22 @@ CONTAINS
    END SUBROUTINE kpp1_check_i_alloc
 
 ! **************************************************************************************************
-!> \brief function to advise of changes either in the grids or in the the
-!>      matrix structure (to update kpp1_env internal cache)
+!> \brief function to advise of changes either in the grids
 !> \param kpp1_env the kpp1_env
-!> \param s_struct_changed true if the structure of the s matrix has changed
-!> \param grid_changed true if the grids have changed and have to be rebuilt
-!> \param psi0_changed true if the value of psi0 (qs_env%rho) has changed
 !> \par History
 !>      11.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE kpp1_did_change(kpp1_env, s_struct_changed, grid_changed, &
-                              psi0_changed)
-      TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
-      LOGICAL, INTENT(in), OPTIONAL                      :: s_struct_changed, grid_changed, &
-                                                            psi0_changed
+   SUBROUTINE kpp1_did_change(kpp1_env)
+      TYPE(qs_kpp1_env_type)                             :: kpp1_env
 
-      INTEGER                                            :: i
-      LOGICAL                                            :: my_psi0_changed, my_s_struct_changed
-
-      my_s_struct_changed = .FALSE.
-      my_psi0_changed = .FALSE.
-
-      IF (PRESENT(s_struct_changed)) my_s_struct_changed = s_struct_changed
-      IF (PRESENT(psi0_changed)) my_psi0_changed = psi0_changed
-
-      CPASSERT(ASSOCIATED(kpp1_env))
-      CPASSERT(kpp1_env%ref_count > 0)
-      IF (my_s_struct_changed) THEN
-         IF (ASSOCIATED(kpp1_env%v_ao)) THEN
-            CALL dbcsr_deallocate_matrix_set(kpp1_env%v_ao)
-         END IF
+      IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
+         CALL xc_dset_release(kpp1_env%deriv_set)
+         DEALLOCATE (kpp1_env%deriv_set)
+         NULLIFY (kpp1_env%deriv_set)
       END IF
-      IF (my_s_struct_changed .OR. my_psi0_changed) THEN
-         IF (ASSOCIATED(kpp1_env%drho_r)) THEN
-            DEALLOCATE (kpp1_env%drho_r)
-         END IF
-         IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
-            CALL xc_dset_release(kpp1_env%deriv_set)
-            NULLIFY (kpp1_env%deriv_set)
-         END IF
-         CALL xc_rho_set_release(kpp1_env%rho_set) ! it would be better to pass a pw pool
-      END IF
-      IF (PRESENT(grid_changed)) THEN
-         IF (grid_changed) THEN
-            IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
-               DO i = 1, SIZE(kpp1_env%v_rspace)
-                  CALL pw_release(kpp1_env%v_rspace(i)%pw)
-               END DO
-               DEALLOCATE (kpp1_env%v_rspace)
-            END IF
-         END IF
-      END IF
+      CALL xc_rho_set_release(kpp1_env%rho_set)
+
    END SUBROUTINE kpp1_did_change
 
 ! **************************************************************************************************

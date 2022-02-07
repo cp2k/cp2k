@@ -102,7 +102,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: fac
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho0_g, rho0_r, rho1_g, tau0_r
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho0_set
 
@@ -118,7 +118,7 @@ CONTAINS
       fac = 0._dp
       IF (is_triplet .AND. nspins == 1) fac = -1.0_dp
 
-      NULLIFY (deriv_set, rho0_set)
+      NULLIFY (rho0_set)
       NULLIFY (rho1_g)
       bo = rho1_r(1)%pw%pw_grid%bounds_local
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")

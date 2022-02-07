@@ -136,28 +136,25 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE vwn_lda_eval(rho_set, deriv_set, order, vwn_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: vwn_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vwn_lda_eval'
 
       INTEGER                                            :: handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho, sc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo)
 
       CALL section_vals_val_get(vwn_params, "scale_c", r_val=sc)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -498,14 +495,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE vwn_lsd_eval(rho_set, deriv_set, order, vwn_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: vwn_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vwn_lsd_eval'
 
       INTEGER                                            :: handle, npoints, TYPE
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho, sc
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_a, e_aa, e_aaa, e_aab, &
                                                             e_ab, e_abb, e_b, e_bb, e_bbb, rhoa, &
@@ -513,14 +510,11 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo)
 
       CALL section_vals_val_get(vwn_params, "scale_c", r_val=sc)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)

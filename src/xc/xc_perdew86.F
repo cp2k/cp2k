@@ -117,14 +117,14 @@ CONTAINS
    SUBROUTINE p86_lda_eval(rho_set, deriv_set, order, p86_params)
 
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: p86_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p86_lda_eval'
 
       INTEGER                                            :: handle, m, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff, rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rs
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
@@ -133,13 +133,11 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo, rho, e_0, e_rho, e_ndrho, &
+      NULLIFY (rho, e_0, e_rho, e_ndrho, &
                e_rho_rho, e_rho_ndrho, e_ndrho_ndrho, &
                e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho)
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
 
       ! calculate the perdew_zunger correlation
       CALL pz_lda_eval(pz_orig, rho_set, deriv_set, order, p86_params)

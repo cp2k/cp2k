@@ -167,7 +167,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
-      TYPE(mp2_type), INTENT(INOUT), POINTER             :: mp2_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(three_dim_real_array), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C, BIb_C_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
@@ -702,9 +702,9 @@ CONTAINS
 !> \param virtual ...
 ! **************************************************************************************************
    SUBROUTINE get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: virtual
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(kpoint_type), INTENT(IN)                      :: kpoints
+      INTEGER, INTENT(IN)                                :: virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_bandstruc_and_k_dependent_MOs'
 
@@ -792,7 +792,7 @@ CONTAINS
 !> \param kpgeneral ...
 ! **************************************************************************************************
    SUBROUTINE get_kpgeneral_for_Sigma_kpoints(qs_env, kpgeneral)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: kpgeneral
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpgeneral_for_Sigma_kpoints'
@@ -856,7 +856,7 @@ CONTAINS
          INTENT(OUT)                                     :: BIb_C_2D
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: BIb_C
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, INTENT(IN)                                :: dimen_ia, homo, virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_virtual
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
@@ -979,7 +979,7 @@ CONTAINS
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: BIb_C_2D
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       INTEGER, INTENT(IN) :: color_sub, ngroup, integ_group_size, dimen_RI, dimen_ia, &
          dimen_ia_for_block_size, color_rpa_group, ext_row_block_size, ext_col_block_size, &
          unit_nr, my_ia_size, my_ia_start, my_ia_end, my_group_L_size, my_group_L_start, &
@@ -1321,7 +1321,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(OUT)                         :: Erpa
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA, para_env_sub
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
@@ -1524,7 +1524,7 @@ CONTAINS
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2,.NOT. do_ic_model, tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                               do_kpoints_cubic_RPA, a_scaling, e_fermi(1), tj, wj, mp2_env, &
+                               do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
       ELSE
          CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &

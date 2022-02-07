@@ -125,7 +125,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dcdr_linres(qs_env, p_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dcdr_linres', routineP = moduleN//':'//routineN
 
@@ -225,7 +225,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(section_vals_type), POINTER                   :: lr_section, prop_section
 
       CALL timeset(routineN, handle)
@@ -237,7 +237,7 @@ CONTAINS
       polar_present = .FALSE.
       dcdr_present = .FALSE.
 
-      NULLIFY (dft_control, p_env, linres_control, logger, prop_section, lr_section)
+      NULLIFY (dft_control, linres_control, logger, prop_section, lr_section)
       logger => cp_get_default_logger()
 
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
@@ -320,7 +320,7 @@ CONTAINS
    SUBROUTINE linres_init(lr_section, p_env, qs_env)
 
       TYPE(section_vals_type), POINTER                   :: lr_section
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type), INTENT(OUT)                   :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: iounit, ispin
@@ -338,8 +338,6 @@ CONTAINS
       iounit = cp_print_key_unit_nr(logger, lr_section, "PRINT%PROGRAM_RUN_INFO", &
                                     extension=".linresLog")
       NULLIFY (dft_control, linres_control, loc_section, rho, mos, matrix_ks, rho_ao)
-
-      CPASSERT(.NOT. ASSOCIATED(p_env))
 
       CALL linres_control_create(linres_control)
       CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)
@@ -456,7 +454,7 @@ CONTAINS
 
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       LOGICAL                                            :: nmr_present, epr_present
       INTEGER                                            :: iounit
@@ -565,7 +563,7 @@ CONTAINS
 
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       INTEGER                                            :: iatom
@@ -618,7 +616,7 @@ CONTAINS
    SUBROUTINE polar_linres(qs_env, p_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
 
       CALL polar_env_init(qs_env)
       CALL polar_operators(qs_env)

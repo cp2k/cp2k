@@ -31,7 +31,6 @@ MODULE mp2_grids
    USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
                                               get_rpa_minimax_coeff_larger_grid
-   USE mp2_types,                       ONLY: mp2_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -63,21 +62,19 @@ CONTAINS
 !> \param qs_env ...
 !> \param do_gw_im_time ...
 !> \param do_kpoints_cubic_RPA ...
-!> \param a_scaling ...
 !> \param e_fermi ...
 !> \param tj ...
 !> \param wj ...
-!> \param mp2_env ...
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_cos_tf_w_to_t ...
 !> \param weights_sin_tf_t_to_w ...
 ! **************************************************************************************************
    SUBROUTINE get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, &
                                do_im_time, do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                               do_kpoints_cubic_RPA, a_scaling, e_fermi, tj, wj, mp2_env, weights_cos_tf_t_to_w, &
+                               do_kpoints_cubic_RPA, e_fermi, tj, wj, weights_cos_tf_t_to_w, &
                                weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -86,15 +83,13 @@ CONTAINS
                                                             do_print
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: tau_tj, tau_wj
-      TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_gw_im_time, do_kpoints_cubic_RPA
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: a_scaling
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: e_fermi
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_kpoints_cubic_RPA
+      REAL(KIND=dp), INTENT(OUT)                         :: e_fermi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT), OPTIONAL                         :: tj, wj
-      TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
+         INTENT(INOUT)                                   :: tj, wj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT), OPTIONAL                           :: weights_cos_tf_t_to_w, &
+         INTENT(OUT)                                     :: weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
 
@@ -116,11 +111,6 @@ CONTAINS
       ! Test whether all necessary variables are available
       my_do_kpoints = .FALSE.
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
-         IF (.NOT. (PRESENT(do_gw_im_time) .AND. PRESENT(do_kpoints_cubic_RPA) .AND. PRESENT(a_scaling) &
-                    .AND. PRESENT(e_fermi) .AND. PRESENT(tj) .AND. PRESENT(wj) .AND. PRESENT(weights_cos_tf_t_to_w) .AND. &
-                    PRESENT(weights_cos_tf_w_to_t) .AND. PRESENT(weights_sin_tf_t_to_w) .AND. PRESENT(mp2_env))) THEN
-            CPABORT("Need more parameters without SOS-MP2")
-         END IF
          my_do_kpoints = do_kpoints_cubic_RPA
       END IF
 
@@ -299,7 +289,7 @@ CONTAINS
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
                                 ext_scaling, a_scaling, tj, wj)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -372,7 +362,7 @@ CONTAINS
                                   num_integ_points, num_integ_group, color_rpa_group, &
                                   tj_ext, wj_ext, fm_mat_S)
       REAL(KIND=dp), INTENT(INOUT)                       :: a_scaling_ext
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
@@ -512,7 +502,7 @@ CONTAINS
    SUBROUTINE calc_ia_ia_integrals(para_env_RPA, homo, virtual, nrow_local, right_term_ref, Eigenval, &
                                    D_ia, iaia_RI, M_ia, fm_mat_S, para_env_row)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       INTEGER, INTENT(IN)                                :: homo, virtual
       INTEGER, INTENT(OUT)                               :: nrow_local
       REAL(KIND=dp), INTENT(OUT)                         :: right_term_ref
@@ -656,7 +646,8 @@ CONTAINS
                                                             M_ia_beta
       INTEGER, INTENT(IN)                                :: nrow_local, nrow_local_beta, &
                                                             num_integ_group, color_rpa_group
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_row, para_env_row_beta
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_row
+      TYPE(cp_para_env_type), POINTER                    :: para_env_row_beta
 
       INTEGER                                            :: iiB, jquad
       REAL(KIND=dp)                                      :: first_deriv_beta, left_term_beta, omega
@@ -1436,7 +1427,7 @@ CONTAINS
    SUBROUTINE gap_and_max_eig_diff_kpoints(qs_env, para_env, gap, max_eig_diff, e_fermi)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: gap, max_eig_diff, e_fermi
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'gap_and_max_eig_diff_kpoints'

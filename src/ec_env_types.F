@@ -163,6 +163,7 @@ CONTAINS
 
          IF (ASSOCIATED(ec_env%p_env)) THEN
             CALL p_env_release(ec_env%p_env)
+            DEALLOCATE (ec_env%p_env)
          END IF
          ! potential
          IF (ASSOCIATED(ec_env%vh_rspace)) THEN

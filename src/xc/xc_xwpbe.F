@@ -143,14 +143,14 @@ CONTAINS
    SUBROUTINE xwpbe_lda_eval(rho_set, deriv_set, order, xwpbe_params)
 
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: xwpbe_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xwpbe_lda_eval'
 
       INTEGER                                            :: handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_norm_drho, epsilon_rho, omega, &
                                                             sx, sx0
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_ndrho, e_ndrho_ndrho, &
@@ -160,7 +160,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (bo)
       CALL cite_reference(Heyd2004)
 
       CALL section_vals_val_get(xwpbe_params, "SCALE_X", r_val=sx)
@@ -169,8 +168,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
 
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho, &
@@ -5253,14 +5250,14 @@ CONTAINS
    SUBROUTINE xwpbe_lsd_eval(rho_set, deriv_set, order, xwpbe_params)
 
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: xwpbe_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xwpbe_lsd_eval'
 
       INTEGER                                            :: handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_norm_drho, epsilon_rho, omega, &
                                                             sx, sx0
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrhoa, e_ndrhoa_ndrhoa, &
@@ -5270,8 +5267,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (bo)
-
       CALL cite_reference(Heyd2004)
 
       CALL section_vals_val_get(xwpbe_params, "SCALE_X", r_val=sx)
@@ -5280,8 +5275,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
 
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
                           norm_drhob=norm_drhob, local_bounds=bo, rho_cutoff=epsilon_rho, &

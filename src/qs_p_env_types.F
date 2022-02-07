@@ -18,7 +18,6 @@ MODULE qs_p_env_types
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE hartree_local_types,             ONLY: hartree_local_release,&
                                               hartree_local_type
-   USE kinds,                           ONLY: dp
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               preconditioner_type
    USE qs_kpp1_env_types,               ONLY: kpp1_release,&
@@ -61,64 +60,30 @@ MODULE qs_p_env_types
    TYPE qs_p_env_type
 
       LOGICAL :: orthogonal_orbitals
-      INTEGER :: id_nr, ref_count, iter
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1, kpp1_admm, p1, w1
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1 => NULL(), kpp1_admm => NULL(), p1 => NULL(), w1 => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p1_admm => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_epsilon, &
-                                                   psi0d, S_psi0, Smo_inv
-      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-      TYPE(qs_rho_type), POINTER :: rho1
-      TYPE(qs_rho_type), POINTER :: rho1_xc
-      TYPE(qs_rho_type), POINTER :: rho1_admm
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_epsilon => NULL(), &
+                                                   psi0d => NULL(), S_psi0 => NULL(), Smo_inv => NULL()
+      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env => NULL()
+      TYPE(qs_rho_type), POINTER :: rho1 => NULL()
+      TYPE(qs_rho_type), POINTER :: rho1_xc => NULL()
+      TYPE(qs_rho_type), POINTER :: rho1_admm => NULL()
       INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
                                n_ao ! no of basis functions
       ! GAPW stuff
-      TYPE(hartree_local_type), POINTER                 :: hartree_local
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(hartree_local_type), POINTER                 :: hartree_local => NULL()
+      TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
 
       ! Linear Response Modules
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0 => NULL()
 
       ! preconditioner matrix should be symmetric and positive definite
-      TYPE(preconditioner_type), DIMENSION(:), POINTER :: preconditioner
+      TYPE(preconditioner_type), DIMENSION(:), POINTER :: preconditioner => NULL()
       LOGICAL :: new_preconditioner
-
-      !factors
-      REAL(KIND=dp)  :: delta, gnorm, gnorm_cross, gnorm_old, etotal, gradient
-      !line search
-      INTEGER :: ls_count
-      REAL(KIND=dp)  :: ls_pos(53), ls_energy(53), ls_grad(53)
-      LOGICAL :: only_energy, os_valid
 
    END TYPE qs_p_env_type
 
-! **************************************************************************************************
-!> \brief to have arrays of pointers
-!> \param p_env the pointer to the p_env
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   TYPE qs_p_env_p_type
-      TYPE(qs_p_env_type), POINTER :: p_env
-   END TYPE qs_p_env_p_type
-
 CONTAINS
-
-! **************************************************************************************************
-!> \brief retains the given p_env (see doc/ReferenceCounting.html)
-!> \param p_env the p_env to retain
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE p_env_retain(p_env)
-      TYPE(qs_p_env_type), POINTER                       :: p_env
-
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
-      p_env%ref_count = p_env%ref_count + 1
-   END SUBROUTINE p_env_retain
 
 ! **************************************************************************************************
 !> \brief relases the given p_env (see doc/ReferenceCounting.html)
@@ -129,48 +94,44 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE p_env_release(p_env)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
 
       INTEGER                                            :: ip
 
-      IF (ASSOCIATED(p_env)) THEN
-         CPASSERT(p_env%ref_count > 0)
-         p_env%ref_count = p_env%ref_count - 1
-         IF (p_env%ref_count < 1) THEN
-            CALL kpp1_release(p_env%kpp1_env)
-            CALL cp_fm_vect_dealloc(p_env%S_psi0)
-            CALL cp_fm_vect_dealloc(p_env%m_epsilon)
-            CALL cp_fm_vect_dealloc(p_env%psi0d)
-            CALL cp_fm_vect_dealloc(p_env%Smo_inv)
-            IF (ASSOCIATED(p_env%rho1_xc)) THEN
-               CALL qs_rho_release(p_env%rho1_xc)
-            END IF
-            CALL qs_rho_release(p_env%rho1)
-            IF (ASSOCIATED(p_env%rho1_admm)) CALL qs_rho_release(p_env%rho1_admm)
-            IF (ASSOCIATED(p_env%kpp1)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1)
-            IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1_admm)
-            IF (ASSOCIATED(p_env%p1)) CALL dbcsr_deallocate_matrix_set(p_env%p1)
-            IF (ASSOCIATED(p_env%w1)) CALL dbcsr_deallocate_matrix_set(p_env%w1)
-            IF (ASSOCIATED(p_env%p1_admm)) CALL dbcsr_deallocate_matrix_set(p_env%p1_admm)
-            IF (ASSOCIATED(p_env%local_rho_set)) THEN
-               CALL local_rho_set_release(p_env%local_rho_set)
-            END IF
-            IF (ASSOCIATED(p_env%hartree_local)) THEN
-               CALL hartree_local_release(p_env%hartree_local)
-            END IF
-            IF (ASSOCIATED(p_env%PS_psi0)) THEN
-               CALL cp_fm_vect_dealloc(p_env%PS_psi0)
-            END IF
-            IF (ASSOCIATED(p_env%preconditioner)) THEN
-               DO ip = 1, SIZE(p_env%preconditioner, 1)
-                  CALL destroy_preconditioner(p_env%preconditioner(ip))
-               END DO
-               DEALLOCATE (p_env%preconditioner)
-            END IF
-         END IF
-         DEALLOCATE (p_env)
+      IF (ASSOCIATED(p_env%kpp1_env)) THEN
+         CALL kpp1_release(p_env%kpp1_env)
+         DEALLOCATE (p_env%kpp1_env)
+         NULLIFY (p_env%kpp1_env)
       END IF
-      NULLIFY (p_env)
+      CALL cp_fm_vect_dealloc(p_env%S_psi0)
+      CALL cp_fm_vect_dealloc(p_env%m_epsilon)
+      CALL cp_fm_vect_dealloc(p_env%psi0d)
+      CALL cp_fm_vect_dealloc(p_env%Smo_inv)
+      IF (ASSOCIATED(p_env%rho1_xc)) THEN
+         CALL qs_rho_release(p_env%rho1_xc)
+      END IF
+      CALL qs_rho_release(p_env%rho1)
+      IF (ASSOCIATED(p_env%rho1_admm)) CALL qs_rho_release(p_env%rho1_admm)
+      IF (ASSOCIATED(p_env%kpp1)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1)
+      IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_deallocate_matrix_set(p_env%kpp1_admm)
+      IF (ASSOCIATED(p_env%p1)) CALL dbcsr_deallocate_matrix_set(p_env%p1)
+      IF (ASSOCIATED(p_env%w1)) CALL dbcsr_deallocate_matrix_set(p_env%w1)
+      IF (ASSOCIATED(p_env%p1_admm)) CALL dbcsr_deallocate_matrix_set(p_env%p1_admm)
+      IF (ASSOCIATED(p_env%local_rho_set)) THEN
+         CALL local_rho_set_release(p_env%local_rho_set)
+      END IF
+      IF (ASSOCIATED(p_env%hartree_local)) THEN
+         CALL hartree_local_release(p_env%hartree_local)
+      END IF
+      IF (ASSOCIATED(p_env%PS_psi0)) THEN
+         CALL cp_fm_vect_dealloc(p_env%PS_psi0)
+      END IF
+      IF (ASSOCIATED(p_env%preconditioner)) THEN
+         DO ip = 1, SIZE(p_env%preconditioner, 1)
+            CALL destroy_preconditioner(p_env%preconditioner(ip))
+         END DO
+         DEALLOCATE (p_env%preconditioner)
+      END IF
    END SUBROUTINE p_env_release
 
 END MODULE qs_p_env_types

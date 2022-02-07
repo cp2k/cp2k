@@ -252,6 +252,7 @@ CONTAINS
 
             ! create a place where to put the derivatives
             NULLIFY (deriv_set)
+            ALLOCATE (deriv_set)
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -364,6 +365,7 @@ CONTAINS
 
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
+            DEALLOCATE (deriv_set)
             CALL xc_rho_set_release(rho_set)
 
          END IF !xc_none
@@ -466,6 +468,7 @@ CONTAINS
 
             ! create a place where to put the derivatives
             NULLIFY (deriv_set)
+            ALLOCATE (deriv_set)
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -599,6 +602,7 @@ CONTAINS
 
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
+            DEALLOCATE (deriv_set)
             CALL xc_rho_set_release(rho_set)
 
          END IF !xc_none
@@ -701,6 +705,7 @@ CONTAINS
 
          ! create a place where to put the derivatives
          NULLIFY (deriv_set)
+         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -779,6 +784,7 @@ CONTAINS
 
          ! Release the xc structure used to store the xc derivatives
          CALL xc_dset_release(deriv_set)
+         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set)
 
       END IF !xc_none
@@ -855,6 +861,7 @@ CONTAINS
 
          ! create a place where to put the derivatives
          NULLIFY (deriv_set)
+         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -961,6 +968,7 @@ CONTAINS
 
          ! Release the xc structure used to store the xc derivatives
          CALL xc_dset_release(deriv_set)
+         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set)
 
       END IF !xc_none

@@ -539,7 +539,7 @@ CONTAINS
    SUBROUTINE libxc_lda_eval(rho_set, deriv_set, grad_deriv, libxc_params)
 
       TYPE(xc_rho_set_type), POINTER           :: rho_set
-      TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)    :: deriv_set
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
 
@@ -548,7 +548,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)     :: func_name
       INTEGER                                  :: func_id, handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER        :: bo
+      INTEGER, DIMENSION(2, 3)                 :: bo
       LOGICAL                                  :: has_laplace, no_exc
       REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, func_scale
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rho, &
@@ -563,13 +563,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       has_laplace = .FALSE.
-      NULLIFY (bo, dummy)
+      NULLIFY (dummy)
       NULLIFY (rho, norm_drho, laplace_rho, tau)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
 
       func_name = libxc_params%section%name
       CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
@@ -779,7 +777,7 @@ CONTAINS
    SUBROUTINE libxc_lsd_eval(rho_set, deriv_set, grad_deriv, libxc_params)
 
       TYPE(xc_rho_set_type), POINTER           :: rho_set
-      TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN) :: deriv_set
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
 
@@ -788,7 +786,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)     :: func_name
       INTEGER                                  :: func_id, handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER        :: bo
+      INTEGER, DIMENSION(2, 3)                 :: bo
       LOGICAL                                  :: has_laplace, no_exc
       REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, func_scale
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &
@@ -817,14 +815,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       has_laplace = .FALSE.
-      NULLIFY (bo, dummy)
+      NULLIFY (dummy)
       NULLIFY (rhoa, rhob, norm_drho, norm_drhoa, norm_drhob, laplace_rhoa, &
                laplace_rhob, tau_a, tau_b)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
 
       func_name = libxc_params%section%name
       CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)

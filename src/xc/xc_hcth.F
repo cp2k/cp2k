@@ -115,21 +115,19 @@ CONTAINS
    SUBROUTINE hcth_lda_eval(iparset, rho_set, deriv_set, grad_deriv)
       INTEGER, INTENT(in)                                :: iparset
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
 
       INTEGER                                            :: npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_ndrho, e_rho, norm_drho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
-      NULLIFY (bo, e_0, e_ndrho, e_rho, norm_drho, rho)
+      NULLIFY (e_0, e_ndrho, e_rho, norm_drho, rho)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)

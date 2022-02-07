@@ -112,7 +112,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, nkp, &
                                                             count_ev_sc_GW
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       REAL(KIND=dp), DIMENSION(0:num_integ_points), &
          INTENT(IN)                                      :: tau_tj
@@ -463,7 +464,7 @@ CONTAINS
    SUBROUTINE cholesky_decomp_Q(cfm_mat_Q, para_env_RPA, trace_Qomega, dimen_RI)
 
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
 
@@ -535,7 +536,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), INTENT(IN)                          :: freq_weight, kp_weight
