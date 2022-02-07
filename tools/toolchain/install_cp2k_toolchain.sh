@@ -353,9 +353,9 @@ enable_gcc_master="__FALSE__"
 enable_libxsmm_master="__FALSE__"
 enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
-enable_grid_offloading="__TRUE__"
-enable_pw_offloading="__TRUE__"
-enable_dbm_offloading="__TRUE__"
+enable_grid_offloading="__FALSE__"
+enable_pw_offloading="__FALSE__"
+enable_dbm_offloading="__FALSE__"
 
 export GPUVER="no"
 
@@ -754,6 +754,9 @@ if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
     report_error "Please choose GPU architecture to compile for with --gpu-ver"
     exit 1
   fi
+  enable_dbm_offloading="__TRUE__"
+  enable_pw_offloading="__TRUE__"
+  enable_grid_offloading="__TRUE__"
 fi
 
 # if cuda or hip are not explicitly given disable all offloading code to gpu
