@@ -272,6 +272,7 @@ MODULE mp2_types
       PRIVATE
       REAL(KIND=dp) :: flop_rate, t_start
       INTEGER :: num_dgemm_call
+      INTEGER :: unit_nr
    END TYPE
 
 CONTAINS
@@ -331,12 +332,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialize a dgemm_counter
 !> \param dgemm_counter ...
+!> \param unit_nr ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE dgemm_counter_init(dgemm_counter)
+   ELEMENTAL SUBROUTINE dgemm_counter_init(dgemm_counter, unit_nr)
       TYPE(dgemm_counter_type), INTENT(OUT)              :: dgemm_counter
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       dgemm_counter%num_dgemm_call = 0
       dgemm_counter%flop_rate = 0.0
+      dgemm_counter%unit_nr = unit_nr
 
    END SUBROUTINE dgemm_counter_init
 
@@ -366,8 +370,16 @@ CONTAINS
 
       t_end = m_walltime()
       flop_rate = 2.0_dp*REAL(size1, dp)*REAL(size2, dp)*REAL(size3, dp)/MAX(0.001_dp, t_end - dgemm_counter%t_start)
-      dgemm_counter%flop_rate = dgemm_counter%flop_rate + flop_rate
       dgemm_counter%num_dgemm_call = dgemm_counter%num_dgemm_call + 1
+      IF (dgemm_counter%unit_nr > 0) THEN
+         WRITE (UNIT=dgemm_counter%unit_nr, FMT="(T3,A,I10)") &
+            "PERFORMANCE| DGEMM call #", dgemm_counter%num_dgemm_call
+         WRITE (UNIT=dgemm_counter%unit_nr, FMT="(T3,A,I12,A,I12,A,I12)") &
+            "PERFORMANCE| DGEMM size (M x N x K) = ", size1, " x ", size2, " x ", size3
+         WRITE (UNIT=dgemm_counter%unit_nr, FMT="(T3,A,F15.5)") &
+            "PERFORMANCE| DGEMM time (s) = ", t_end - dgemm_counter%t_start
+      END IF
+      dgemm_counter%flop_rate = dgemm_counter%flop_rate + flop_rate
 
    END SUBROUTINE dgemm_counter_stop
 
@@ -375,18 +387,17 @@ CONTAINS
 !> \brief calculate and print flop rates
 !> \param dgemm_counter ...
 !> \param para_env ...
-!> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE dgemm_counter_write(dgemm_counter, para_env, unit_nr)
+   SUBROUTINE dgemm_counter_write(dgemm_counter, para_env)
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
-      INTEGER, INTENT(IN)                                :: unit_nr
 
       dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(MAX(dgemm_counter%num_dgemm_call, 1), dp)/1.0E9_dp
+      ! Average over all ranks
       CALL mp_sum(dgemm_counter%flop_rate, para_env%group)
-      dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(para_env%num_pe, dp)
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.2)") &
-         "PERFORMANCE| DGEMM flop rate (Gflops / MPI rank):", dgemm_counter%flop_rate
+      dgemm_counter%flop_rate = dgemm_counter%flop_rate/(REAL(para_env%num_pe, dp)*REAL(para_env%num_pe, dp))
+      IF (dgemm_counter%unit_nr > 0) WRITE (UNIT=dgemm_counter%unit_nr, FMT="(T3,A,T66,F15.2)") &
+         "PERFORMANCE| Average DGEMM flop rate (Gflops / MPI rank):", dgemm_counter%flop_rate
 
    END SUBROUTINE dgemm_counter_write
 
