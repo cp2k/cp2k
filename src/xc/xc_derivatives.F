@@ -342,7 +342,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: functional
       LOGICAL, INTENT(in)                                :: lsd
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: deriv_order
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval'
@@ -564,7 +564,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: functionals
       LOGICAL, INTENT(in)                                :: lsd
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: deriv_order
 
       INTEGER                                            :: ifun

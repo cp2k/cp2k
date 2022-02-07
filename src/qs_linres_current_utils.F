@@ -135,7 +135,7 @@ CONTAINS
    SUBROUTINE current_response(current_env, p_env, qs_env)
       !
       TYPE(current_env_type)                             :: current_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'current_response'

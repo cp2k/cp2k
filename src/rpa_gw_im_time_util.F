@@ -121,7 +121,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                                             nmo
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       LOGICAL, INTENT(IN)                                :: do_ic_model
       TYPE(dbt_type)                                     :: t_3c_overl_nnP_ic, &
                                                             t_3c_overl_nnP_ic_reflected
@@ -447,7 +447,7 @@ CONTAINS
    SUBROUTINE reflect_mat_row(mat_reflected, mat_orig, para_env, qs_env, unit_nr, do_beta)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_reflected
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_orig
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: do_beta

@@ -139,7 +139,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
 
       ! Build the perturbed density matrix correction depending on the overlap derivative
@@ -228,7 +228,7 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Allocate deriv_set and rho_set
-      NULLIFY (deriv_set, rho_set)
+      NULLIFY (rho_set)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
       CALL xc_prep_2nd_deriv(deriv_set, rho_set, &
@@ -503,7 +503,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
-      TYPE(xc_derivative_set_type), POINTER              :: my_deriv_set
+      TYPE(xc_derivative_set_type)                       :: my_deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: my_rho_set
 
       CALL timeset(routineN, handle)
@@ -534,7 +534,7 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(1)%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       DO idir = 1, 3
-         NULLIFY (my_deriv_set, my_rho_set)
+         NULLIFY (my_rho_set)
 
          CALL pw_zero(v_hartree_gspace%pw)
          CALL pw_zero(v_hartree_rspace%pw)
@@ -589,8 +589,6 @@ CONTAINS
 
       DEALLOCATE (drho_g)
       DEALLOCATE (drho_r)
-
-      NULLIFY (my_deriv_set)
 
       CALL timestop(handle)
 

@@ -142,13 +142,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cs1_lda_eval(rho_set, deriv_set, order)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lda_eval'
 
       INTEGER                                            :: handle, m, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
          e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, &
@@ -156,15 +156,13 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo, rho, rho13, grho, e_0, e_rho, e_ndrho, &
+      NULLIFY (rho, rho13, grho, e_0, e_rho, e_ndrho, &
                e_rho_rho, e_rho_ndrho, e_ndrho_ndrho, &
                e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, &
                e_ndrho_ndrho_ndrho)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=rho13, rho=rho, &
                           norm_drho=grho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -235,13 +233,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cs1_lsd_eval(rho_set, deriv_set, order)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cs1_lsd_eval'
 
       INTEGER                                            :: handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, &
                                                             norm_drhoa, norm_drhob, rhoa, &
@@ -249,12 +247,9 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, &
                           rhoa_1_3=rhoa_1_3, rhob_1_3=rhob_1_3, &
                           norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, &

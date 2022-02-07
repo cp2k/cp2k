@@ -328,7 +328,7 @@ CONTAINS
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: fm_mat_S_gw_work
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(OUT)                               :: nkp, nkp_self_energy
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA, &
@@ -820,7 +820,7 @@ CONTAINS
                                                             matrix_berry_re_mo_mo
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA, &
                                                             do_kpoints_from_Gamma
 
@@ -1201,7 +1201,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mat_W
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nkp_self_energy
       LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
@@ -2493,7 +2493,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, DIMENSION(:), POINTER                     :: kp_grid
       INTEGER, INTENT(IN)                                :: num_kp_grids
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_inv
       INTEGER, INTENT(IN)                                :: nmo
       LOGICAL, INTENT(IN)                                :: do_mo_coeff_Gamma_only, do_extra_kpoints

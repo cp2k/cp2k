@@ -125,7 +125,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_2nd_order_kernel(qs_env, p_env, recalc_hfx_integrals, calc_forces, calc_virial, virial)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals, calc_forces, &
                                                             calc_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
@@ -277,7 +277,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_xc_admm_ao(qs_env, p_env, calc_forces, calc_virial, virial)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_forces, calc_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial

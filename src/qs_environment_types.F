@@ -306,7 +306,7 @@ MODULE qs_environment_types
       TYPE(efield_berry_type), POINTER                      :: efield
       ! a history for the broyden ot
       REAL(KIND=dp)                                         :: broyden_adaptive_sigma
-      TYPE(mp2_type), POINTER                               :: mp2_env
+      TYPE(mp2_type), POINTER                               :: mp2_env => NULL()
       TYPE(kg_environment_type), POINTER                    :: kg_env
       TYPE(wannier_centres_type), POINTER, DIMENSION(:)     :: WannierCentres => NULL()
       TYPE(molecular_scf_guess_env_type)                    :: molecular_scf_guess_env
@@ -1578,6 +1578,8 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_env%mp2_env)) THEN
                CALL mp2_env_release(qs_env%mp2_env)
+               DEALLOCATE (qs_env%mp2_env)
+               NULLIFY (qs_env%mp2_env)
             END IF
             IF (ASSOCIATED(qs_env%kg_env)) THEN
                CALL kg_env_release(qs_env%kg_env)

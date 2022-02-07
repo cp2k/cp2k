@@ -104,14 +104,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tpss_lda_eval(rho_set, deriv_set, grad_deriv, tpss_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: tpss_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tpss_lda_eval'
 
       INTEGER                                            :: handle, non_coer, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, epsilon_tau, scale_ec, &
                                                             scale_ex
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_ndrho, e_rho, e_tau, &
@@ -120,14 +120,11 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo)
 
       CALL cite_reference(tao2003)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho, &
                           tau=tau, tau_cutoff=epsilon_tau)

@@ -56,7 +56,7 @@ MODULE mp2_types
              ri_mp2_laplace, &
              init_TShPSC_lmax
 
-   PUBLIC :: mp2_env_create, mp2_env_release, mp2_biel_type, &
+   PUBLIC :: mp2_env_release, mp2_biel_type, &
              pair_list_type_mp2, &
              one_dim_int_array, &
              two_dim_int_array, &
@@ -128,7 +128,7 @@ MODULE mp2_types
       INTEGER                  :: rpa_integ_group_size
       INTEGER                  :: mm_style
       TYPE(hfx_type), DIMENSION(:, :), POINTER &
-         :: x_data
+         :: x_data => NULL()
       LOGICAL                  :: minimax_quad
       LOGICAL                  :: do_ri_g0w0
       LOGICAL                  :: do_admm
@@ -282,15 +282,13 @@ CONTAINS
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE mp2_env_release(mp2_env)
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_env_release'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(mp2_env))
 
       ! release the HFX section for the EXX calculation
       IF (ASSOCIATED(mp2_env%ri_rpa%x_data)) THEN
@@ -300,34 +298,9 @@ CONTAINS
       IF (mp2_env%eri_method .EQ. do_eri_mme) CALL cp_eri_mme_finalize(mp2_env%eri_mme_param)
       IF (ASSOCIATED(mp2_env%eri_mme_param)) DEALLOCATE (mp2_env%eri_mme_param)
 
-      DEALLOCATE (mp2_env)
-
       CALL timestop(handle)
 
    END SUBROUTINE mp2_env_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mp2_env ...
-! **************************************************************************************************
-   SUBROUTINE mp2_env_create(mp2_env)
-      TYPE(mp2_type), POINTER                            :: mp2_env
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_env_create'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(.NOT. ASSOCIATED(mp2_env))
-
-      ALLOCATE (mp2_env)
-
-      NULLIFY (mp2_env%ri_rpa%x_data)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE mp2_env_create
 
 ! **************************************************************************************************
 !> \brief Initialize a dgemm_counter
@@ -390,7 +363,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dgemm_counter_write(dgemm_counter, para_env)
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(MAX(dgemm_counter%num_dgemm_call, 1), dp)/1.0E9_dp
       ! Average over all ranks

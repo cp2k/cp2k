@@ -113,7 +113,7 @@ CONTAINS
                                  my_group_L_start, my_group_L_end, my_group_L_size, sab_orb_sub, mat_munu, &
                                  blacs_env_sub)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -659,7 +659,7 @@ CONTAINS
    SUBROUTINE create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, dimen, para_env, para_env_sub, &
                          Eigenval, L1_mu_i, L2_nu_a, factor, kspin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub

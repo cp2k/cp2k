@@ -90,7 +90,8 @@ CONTAINS
 !> \param color all processes with same color will belong to the same sub communicator
 ! **************************************************************************************************
    SUBROUTINE cp_para_env_split(para_env, para_env_template, color)
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_template
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_template
       INTEGER, INTENT(IN)                                :: color
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_split', &
@@ -98,7 +99,7 @@ CONTAINS
 
       INTEGER                                            :: comm
 
-      CPASSERT(ASSOCIATED(para_env_template))
+      CPASSERT(para_env_template%ref_count > 0)
       CALL mp_comm_split_direct(para_env_template%group, comm, color)
       NULLIFY (para_env)
       CALL cp_para_env_create(para_env, comm)

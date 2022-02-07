@@ -99,7 +99,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(INOUT)                       :: e_axk_corr

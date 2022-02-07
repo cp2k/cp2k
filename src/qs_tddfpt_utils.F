@@ -77,7 +77,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_init(p_env, t_env, qs_env)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type), INTENT(INOUT)                 :: p_env
       TYPE(tddfpt_env_type), INTENT(out)                 :: t_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -132,7 +132,7 @@ CONTAINS
    SUBROUTINE tddfpt_cleanup(t_env, p_env)
 
       TYPE(tddfpt_env_type), INTENT(inout)               :: t_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type), INTENT(INOUT)                 :: p_env
 
       CALL tddfpt_env_deallocate(t_env)
       CALL p_env_release(p_env)

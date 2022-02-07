@@ -73,7 +73,7 @@ CONTAINS
       INTEGER                                            :: handle, iw
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(section_vals_type), POINTER                   :: dft_section, input
       TYPE(tddfpt_env_type)                              :: t_env
 
@@ -91,8 +91,6 @@ CONTAINS
       IF (section_get_ival(dft_section, "TDDFPT%OE_CORR") /= oe_none) THEN
          CALL orbital_eigenvalue_correction(qs_env)
       END IF
-
-      NULLIFY (p_env)
 
       iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%PROGRAM_BANNER", &
                                 extension=".Log")

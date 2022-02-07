@@ -1948,6 +1948,7 @@ CONTAINS
          CALL xc_rho_set_create(rho_set=rho_set, local_bounds=bounds, &
                                 rho_cutoff=dft_control%qs_control%eps_rho_rspace, &
                                 drho_cutoff=dft_control%qs_control%eps_rho_rspace)
+         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
 
          ! allocate internals of the rho_set
@@ -2005,6 +2006,7 @@ CONTAINS
 
 !     Clean-up
          CALL xc_dset_release(deriv_set)
+         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set)
       END DO !iex
 

@@ -99,12 +99,12 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, tau_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auxbas_pw_pool, deriv_set, pw_env, rho_r, rho_set, vxc, vxc_tau)
+      NULLIFY (auxbas_pw_pool, pw_env, rho_r, rho_set, vxc, vxc_tau)
 
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)

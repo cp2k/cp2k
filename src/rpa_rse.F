@@ -92,7 +92,7 @@ CONTAINS
    SUBROUTINE rse_energy(qs_env, mp2_env, para_env, dft_control, &
                          mo_coeff, nmo, homo, Eigenval)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff

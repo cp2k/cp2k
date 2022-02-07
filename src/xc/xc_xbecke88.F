@@ -116,14 +116,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xb88_lda_eval(rho_set, deriv_set, grad_deriv, xb88_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: xb88_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xb88_lda_eval'
 
       INTEGER                                            :: handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, sx
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, e_ndrho_ndrho, &
          e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, e_rho_rho, &
@@ -131,7 +131,6 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo)
 
       CALL section_vals_val_get(xb88_params, "scale_x", r_val=sx)
 
@@ -139,8 +138,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=rho_1_3, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -634,14 +631,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xb88_lsd_eval(rho_set, deriv_set, grad_deriv, xb88_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: xb88_params
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xb88_lsd_eval'
 
       INTEGER                                            :: handle, i, ispin, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, sx
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0
       TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, e_ndrho_ndrho_ndrho, &
@@ -653,7 +650,7 @@ CONTAINS
 
       CALL cite_reference(Becke1988)
 
-      NULLIFY (deriv, bo)
+      NULLIFY (deriv)
       DO i = 1, 2
          NULLIFY (norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
       END DO
@@ -661,8 +658,6 @@ CONTAINS
       CALL section_vals_val_get(xb88_params, "scale_x", r_val=sx)
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa_1_3=rho_1_3(1)%array, &
                           rhob_1_3=rho_1_3(2)%array, rhoa=rho(1)%array, &
                           rhob=rho(2)%array, norm_drhoa=norm_drho(1)%array, &

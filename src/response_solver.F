@@ -309,7 +309,12 @@ CONTAINS
          END IF
 
          ! initialized p_env
-         CALL p_env_release(ec_env%p_env)
+         IF (ASSOCIATED(ec_env%p_env)) THEN
+            CALL p_env_release(ec_env%p_env)
+            DEALLOCATE (ec_env%p_env)
+            NULLIFY (ec_env%p_env)
+         END IF
+         ALLOCATE (ec_env%p_env)
          CALL p_env_create(ec_env%p_env, qs_env, orthogonal_orbitals=.TRUE., &
                            linres_control=linres_control)
          CALL set_qs_env(qs_env, linres_control=linres_control)
@@ -525,7 +530,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE response_equation_new(qs_env, p_env, cpmos, iounit)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
 
@@ -623,7 +628,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE response_equation(qs_env, p_env, cpmos, iounit, p1_mat, lr_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos
       INTEGER, INTENT(IN)                                :: iounit
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
@@ -672,12 +677,10 @@ CONTAINS
       END IF
 
       ! initialized p_env
-      CALL p_env_release(p_env)
       CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE., &
                         linres_control=linres_control)
       CALL set_qs_env(qs_env, linres_control=linres_control)
       CALL p_env_psi0_changed(p_env, qs_env)
-      p_env%os_valid = .FALSE.
       p_env%new_preconditioner = .TRUE.
 
       CALL get_qs_env(qs_env, dft_control=dft_control, mos=mos)
@@ -1229,7 +1232,7 @@ CONTAINS
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
                                     rho=tauz_r(ispin), rho_gspace=work_g, &
-                                    compute_tau=.TRUE., total_rho=total_rhoz)
+                                    compute_tau=.TRUE.)
          END DO
          CALL pw_pool_give_back_pw(auxbas_pw_pool, work_g%pw)
       END IF
@@ -1915,7 +1918,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE response_force_xtb(qs_env, p_env, matrix_hz, ex_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
       TYPE(excited_energy_type), OPTIONAL, POINTER       :: ex_env
 

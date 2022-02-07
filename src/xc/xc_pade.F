@@ -135,7 +135,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pade_lda_pw_eval(deriv_set, rho_set, order)
 
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
@@ -197,7 +197,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pade_lsd_pw_eval(deriv_set, rho_set, order)
 
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 

@@ -82,7 +82,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
       TYPE(three_dim_real_array), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
@@ -775,8 +775,8 @@ CONTAINS
                                       my_new_group_L_size, new_sizes_array, ranges_info_array)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: BIb_C
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub, &
-                                                            para_env_exchange, para_env_rep
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
+      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_rep
       INTEGER, INTENT(IN)                                :: homo
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: proc_map_rep
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
@@ -920,7 +920,7 @@ CONTAINS
                               local_ba)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: local_ab, t_ab
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       INTEGER, INTENT(IN)                                :: homo(2), virtual(2), dimen_RI, &
                                                             my_B_size(2), block_size, &
                                                             my_group_L_size
@@ -1141,7 +1141,7 @@ CONTAINS
                                   sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: BIb_C
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: homo, color_sub
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: sizes_array
       LOGICAL, INTENT(IN)                                :: calc_forces
@@ -1254,8 +1254,8 @@ CONTAINS
                                pos_integ_group, virtual, my_alpha_beta_case, &
                                my_open_shell_SS, mem_for_aK, mem_for_comm, &
                                mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(mp2_type)                                     :: mp2_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
       INTEGER, INTENT(IN)                                :: homo, dimen_RI, unit_nr, color_sub
       INTEGER, INTENT(OUT) :: best_block_size, best_integ_group_size, block_size, &
@@ -1398,8 +1398,8 @@ CONTAINS
                                  my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, sub_proc_map, local_ab, &
                                  t_ab, my_local_i_aL, my_local_j_aL, open_ss, Y_i_aP, Y_j_aP, &
                                  local_ba, ispin, jspin, dgemm_counter)
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(mp2_type)                                     :: mp2_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
@@ -1719,7 +1719,7 @@ CONTAINS
                                      ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                                      sizes_array, ispin, jspin)
 
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       INTEGER, INTENT(IN)                                :: ij_index, my_B_size(2), my_block_size, &
                                                             my_group_L_size, my_i, my_ij_pairs, &
                                                             my_j, ngroup, num_integ_group
@@ -1730,7 +1730,7 @@ CONTAINS
          INTENT(IN)                                      :: ranges_info_array
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: Y_i_aP, Y_j_aP
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
       INTEGER, INTENT(IN)                                :: ispin, jspin
 
@@ -1939,7 +1939,7 @@ CONTAINS
                                     color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                                     my_B_virtual_start, my_B_virtual_end, sizes_array, gd_B_virtual, &
                                     sub_proc_map, integ_group_pos2color_sub, dgemm_counter)
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       LOGICAL, INTENT(IN)                                :: open_shell, beta_beta
@@ -1951,7 +1951,7 @@ CONTAINS
                                                             my_group_L_size, color_sub
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange, para_env_sub
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: my_B_virtual_start, my_B_virtual_end
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
@@ -2386,12 +2386,12 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: my_ijk
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       TYPE(two_dim_int_array), ALLOCATABLE, &
          DIMENSION(:), INTENT(OUT)                       :: ijk_map
       INTEGER, INTENT(IN)                                :: unit_nr, ngroup
       LOGICAL, INTENT(IN)                                :: beta_beta
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: num_ijk
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: max_ijk
       INTEGER, INTENT(IN)                                :: color_sub
