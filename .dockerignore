@@ -5,3 +5,5 @@ regtesting
 tools/toolchain/install
 tools/toolchain/build
 .git*
+*~
+\#*\#
