@@ -9,6 +9,7 @@
 " - XSLT dump and improved syntax highlighting (10.12.2013, Matthias Krack)
 " - Folding and automatic indentation added (13.12.2013, Matthias Krack)
 " - Remove folding since it overrides user's defaults (18.11.2016, Patrick Seewald)
+" - Catch NAME entries with zero string length (10.02.2022, Matthias Krack)
 " CP2K-Version: <xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (<xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)
 
 if exists("b:current_syntax")
@@ -63,8 +64,18 @@ syn match cp2kComment "!.*$" contains=cp2kTodo
 " CP2K predefined constants
 "----------------------------------------------------------------/
 <xsl:for-each-group select="//ITEM" group-by="NAME">
-<xsl:sort select="NAME"/>
+ <xsl:sort select="NAME"/>
+ <xsl:choose>
+  <xsl:when test="NAME = ''">
+   <xsl:message terminate="yes">
+ERROR: NAME entry with zero string length found
+       Check the CP2K source code at <xsl:value-of select="../../../LOCATION"/>
+   </xsl:message>
+  </xsl:when>
+  <xsl:otherwise>
 syn keyword cp2kConstant <xsl:value-of select="NAME"/>
+  </xsl:otherwise>
+ </xsl:choose>
 </xsl:for-each-group>
 
 "----------------------------------------------------------------/
