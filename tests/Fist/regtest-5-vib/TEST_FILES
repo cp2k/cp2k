@@ -6,7 +6,7 @@ wat_mode_sel.inp                                       0
 wat_mode_sel_range.inp                                 0
 # MD inititalization with velocities from vibrational analysis
 wat_md_vib_init.inp                                   70    1.0E-1                         165.644
-ethene-vib-mode-sel-int.inp                           21    1.0E-14                       0.005710
+ethene-vib-mode-sel-int.inp                           21    1.0E-14                      57.938395
 # new mode_selective tests for several restart types
 N3dye_geoopt.inp                                       7    1.0E-14                   0.5616272352
 N3dye_vib_bfgs.inp                                    18      1e-03             1503.8296069999999
