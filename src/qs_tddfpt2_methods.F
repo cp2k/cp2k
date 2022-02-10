@@ -40,7 +40,6 @@ MODULE qs_tddfpt2_methods
    USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header
    USE input_constants,                 ONLY: tddfpt_dipole_velocity,&
-                                              tddfpt_kernel_flex,&
                                               tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
@@ -204,8 +203,8 @@ CONTAINS
       ! obtain corrected KS-matrix
       CALL tddfpt_oecorr(qs_env, gs_mos, matrix_ks_oep)
 
-      IF ((tddfpt_control%do_lrigpw) .AND. (tddfpt_control%kernel /= tddfpt_kernel_flex)) THEN
-         CALL cp_abort(__LOCATION__, "LRI only implemented for flex kernel")
+      IF ((tddfpt_control%do_lrigpw) .AND. (tddfpt_control%kernel /= tddfpt_kernel_full)) THEN
+         CALL cp_abort(__LOCATION__, "LRI only implemented for full kernel")
       END IF
 
       NULLIFY (admm_env)
@@ -238,7 +237,7 @@ CONTAINS
       CALL tddfpt_sub_env_init(sub_env, qs_env, mos_occ=evects(:, 1), kernel=tddfpt_control%kernel)
       DEALLOCATE (evects)
 
-      IF ((tddfpt_control%kernel == tddfpt_kernel_full) .OR. (tddfpt_control%kernel == tddfpt_kernel_flex)) THEN
+      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          ! create environment for Full Kernel
          IF (dft_control%qs_control%xtb) THEN
             CPABORT("TDDFPT: xTB only works with sTDA Kernel")
@@ -309,20 +308,6 @@ CONTAINS
          ! allocate pools and work matrices
          nstates = tddfpt_control%nstates
          CALL stda_create_work_matrices(work_matrices, gs_mos, nstates, qs_env, sub_env)
-         NULLIFY (kernel_env%full_kernel)
-         NULLIFY (kernel_env%admm_kernel)
-         NULLIFY (kernel_env%stda_kernel)
-      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_flex) THEN
-         nactive = 0
-         CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
-         DO ispin = 1, SIZE(gs_mos)
-            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nactive(ispin))
-         END DO
-         CALL create_kernel_env(kernel_env=full_kernel_env, &
-                                rho_struct_sub=work_matrices%rho_orb_struct_sub, &
-                                xc_section=xc_section, &
-                                is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
-         kernel_env%flex_kernel => full_kernel_env
          NULLIFY (kernel_env%full_kernel)
          NULLIFY (kernel_env%admm_kernel)
          NULLIFY (kernel_env%stda_kernel)
@@ -458,7 +443,7 @@ CONTAINS
                                      tddfpt_print_section)
 
       IF (tddfpt_control%do_lrigpw) THEN
-         CALL lri_print_stat(qs_env, ltddfpt=.TRUE., tddfpt_lri_env=kernel_env%flex_kernel%lri_env)
+         CALL lri_print_stat(qs_env, ltddfpt=.TRUE., tddfpt_lri_env=kernel_env%full_kernel%lri_env)
       END IF
 
       ! excited state potential energy surface
@@ -576,17 +561,15 @@ CONTAINS
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          IF (do_admm) CALL release_kernel_env(kernel_env%admm_kernel)
+         IF (tddfpt_control%do_lrigpw) THEN
+            CALL lri_env_release(kernel_env%full_kernel%lri_env)
+            CALL lri_density_release(kernel_env%full_kernel%lri_density)
+         END IF
          CALL release_kernel_env(kernel_env%full_kernel)
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          CALL deallocate_stda_env(stda_kernel)
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_none) THEN
          !
-      ELSE IF (tddfpt_control%kernel == tddfpt_kernel_flex) THEN
-         IF (tddfpt_control%do_lrigpw) THEN
-            CALL lri_env_release(kernel_env%flex_kernel%lri_env)
-            CALL lri_density_release(kernel_env%flex_kernel%lri_density)
-         END IF
-         CALL release_kernel_env(kernel_env%flex_kernel)
       ELSE
          CPABORT('Unknown kernel type')
       END IF
@@ -659,7 +642,7 @@ CONTAINS
       tddfpt_section => section_vals_get_subs_vals(input, "PROPERTIES%TDDFPT")
       tddfpt_print_section => section_vals_get_subs_vals(tddfpt_section, "PRINT")
 
-      IF ((tddfpt_control%kernel == tddfpt_kernel_full) .OR. (tddfpt_control%kernel == tddfpt_kernel_flex)) THEN
+      IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          NULLIFY (xc_root)
          xc_root => section_vals_get_subs_vals(tddfpt_section, "XC")
          CALL section_vals_get(xc_root, explicit=explicit_root)
