@@ -310,7 +310,7 @@ CONTAINS
                                        hmat=work_matrices%A_ia_munu_sub(ispin), &
                                        qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
                                        pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
-            ELSE ! for flex kernel using lri
+            ELSE ! for full kernel using lri
                CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin)%pw, &
                              work_matrices%A_ia_rspace_sub(ispin)%pw%pw_grid%dvol)
                lri_v_int => kernel_env%lri_density%lri_coefs(ispin)%lri_kinds
@@ -333,7 +333,7 @@ CONTAINS
                !          IF (lri_env%ppl_ri) THEN
                !             CALL v_int_ppl_update(qs_env, lri_v_int, calculate_forces)
                !          END IF
-            END IF ! for flex kernel using lri
+            END IF ! for full kernel using lri
          END DO
 
          ! calculate Coulomb contribution to response vector for lrigpw !
