@@ -32,6 +32,9 @@ KEEPALIVE_SKIP_DIRS = [
     "LIBTEST/libvori",
     "LIBTEST/libbqb",
     "QS/regtest-ec",
+    "QS/regtest-gapw",
+    "QS/regtest-gpw-1",
+    "QS/regtest-mp2-grad",
 ]
 
 # ======================================================================================

@@ -72,7 +72,7 @@ MODULE cp2k_shell
    PRIVATE
 
    ! Queried by ASE. Increase version after bug-fixing or behavior changes.
-   CHARACTER(LEN=*), PARAMETER                           :: CP2K_SHELL_VERSION = "4.0"
+   CHARACTER(LEN=*), PARAMETER                           :: CP2K_SHELL_VERSION = "5.0"
 
    TYPE cp2k_shell_type
       REAL(dp)                                           :: pos_fact = 1.0_dp

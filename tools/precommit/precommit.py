@@ -207,6 +207,9 @@ def process_file(fn, allow_modifications):
     if re.match(r"./data/.*POTENTIALS?$", fn):
         check_data_files()
 
+    if re.match(r".*/Makefile", fn):
+        run_local_tool("./tools/precommit/format_makefile.py", fn)
+
     run_check_file_properties(fn)
 
     new_content = Path(fn).read_bytes()

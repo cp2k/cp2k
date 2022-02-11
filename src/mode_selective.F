@@ -45,7 +45,9 @@ MODULE mode_selective
    USE message_passing,                 ONLY: mp_bcast
    USE molden_utils,                    ONLY: write_vibrations_molden
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: massunit,&
+   USE physcon,                         ONLY: bohr,&
+                                              debye,&
+                                              massunit,&
                                               vibfac
    USE replica_methods,                 ONLY: rep_env_calc_e_f
    USE replica_types,                   ONLY: replica_env_type
@@ -1139,12 +1141,14 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       INTEGER                                            :: i, j, msunit, stat
-      REAL(KIND=dp)                                      :: crit_a, crit_b
+      REAL(KIND=dp)                                      :: crit_a, crit_b, fint, gintval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: residuum
       TYPE(section_vals_type), POINTER                   :: ms_vib_section
 
       ms_vib_section => section_vals_get_subs_vals(input, &
                                                    "VIBRATIONAL_ANALYSIS%MODE_SELECTIVE")
+
+      fint = 42.255_dp*massunit*debye**2*bohr**2
 
       IF (converged) THEN
          IF (iw .GT. 0) THEN
@@ -1156,7 +1160,7 @@ CONTAINS
             WRITE (iw, '( /, 1X, 79("-") )')
             WRITE (iw, '( 25X, A)') 'FREQUENCY AND CONVERGENCE LIST'
             IF (PRESENT(intensities)) THEN
-               WRITE (iw, '(3X,5(4X, A))') 'FREQUENCY', 'INTENSITY', 'MAXVAL CRITERIA', 'NORM CRITERIA', 'CONVERGENCE'
+               WRITE (iw, '(3X,5(4X, A))') 'FREQUENCY', 'INT[KM/Mole]', 'MAXVAL CRITERIA', 'NORM CRITERIA', 'CONVERGENCE'
             ELSE
                WRITE (iw, '(3X,5(4X, A))') 'FREQUENCY', 'MAXVAL CRITERIA', 'NORM CRITERIA', 'CONVERGENCE'
             END IF
@@ -1171,12 +1175,13 @@ CONTAINS
                crit_a = MAXVAL(residuum(:))
                crit_b = SQRT(DOT_PRODUCT(residuum, residuum))
                IF (PRESENT(intensities)) THEN
+                  gintval = fint*intensities(i)**2
                   IF (crit_a .LE. ms_vib%eps(1) .AND. crit_b .LE. ms_vib%eps(2)) THEN
                      IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
-                        'VIB|', eigenval(i), intensities(i), crit_a, crit_b, 'YES'
+                        'VIB|', eigenval(i), gintval, crit_a, crit_b, 'YES'
                   ELSE
                      IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
-                        'VIB|', eigenval(i), intensities(i), crit_a, crit_b, 'NO'
+                        'VIB|', eigenval(i), gintval, crit_a, crit_b, 'NO'
                   END IF
                ELSE
                   IF (crit_a .LE. ms_vib%eps(1) .AND. crit_b .LE. ms_vib%eps(2)) THEN

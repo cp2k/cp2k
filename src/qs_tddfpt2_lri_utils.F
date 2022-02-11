@@ -114,19 +114,19 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control)
       tddfpt2_control => dft_control%tddfpt2_control
 
-      NULLIFY (kernel_env%flex_kernel%lri_env)
-! initialize lri_env
-      CALL lri_env_init(kernel_env%flex_kernel%lri_env, lri_section)
+      NULLIFY (kernel_env%full_kernel%lri_env)
+      ! initialize lri_env
+      CALL lri_env_init(kernel_env%full_kernel%lri_env, lri_section)
       NULLIFY (lri_env)
-      lri_env => kernel_env%flex_kernel%lri_env
+      lri_env => kernel_env%full_kernel%lri_env
       redefine_interaction_radii = .FALSE.
 
-      !     exact_1c_terms not implemented
+      ! exact_1c_terms not implemented
       IF (lri_env%exact_1c_terms) THEN
          CPABORT("TDDFT with LRI and exact one-center terms not implemented")
       END IF
 
-!       ! check if LRI_AUX basis is available
+      ! check if LRI_AUX basis is available
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
       nkind = SIZE(qs_kind_set)
       DO ikind = 1, nkind
@@ -134,7 +134,7 @@ CONTAINS
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind, basis_set=p_lri_aux_basis, basis_type="P_LRI_AUX")
          IF (.NOT. (ASSOCIATED(p_lri_aux_basis))) THEN
-!            ! Generate a default basis
+            ! Generate a default basis
             redefine_interaction_radii = .TRUE.
             CALL cp_warn(__LOCATION__, "Automatic Generation of P_LRI_AUX basis. "// &
                          "This is experimental code.")
@@ -219,8 +219,8 @@ CONTAINS
       CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
       CALL build_neighbor_lists(soo_list, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, molecular=molecule_only, subcells=subcells, nlname="soo_list")
-!
-     !!! make this a TDDFT neighborlist
+
+      ! make this a TDDFT neighborlist
       neighbor_list_section => section_vals_get_subs_vals(qs_env%input, "DFT%PRINT%NEIGHBOR_LISTS")
       CALL write_neighbor_lists(soo_list, particle_set, cell, para_env, neighbor_list_section, &
                                 "/SOO_LIST", "soo_list", "ORBITAL ORBITAL (RI)")
@@ -229,12 +229,12 @@ CONTAINS
       CALL atom2d_cleanup(atom2d)
       DEALLOCATE (orb_present, orb_radius, pair_radius)
 
-! calculate LRI integrals
+      ! calculate LRI integrals
       lri_env%ppl_ri = .FALSE. ! make sure that option is not available for ES
       CALL build_lri_matrices(lri_env, qs_env)
-      kernel_env%flex_kernel%lri_env => lri_env
+      kernel_env%full_kernel%lri_env => lri_env
 
-!   CALL get_condition_number_of_overlap(lri_env)
+!     CALL get_condition_number_of_overlap(lri_env)
 
       CALL timestop(handle)
 
@@ -248,7 +248,6 @@ CONTAINS
 !> \param A_ia_munu_sub ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt2_lri_Amat(qs_env, sub_env, lri_env, lri_v_int, A_ia_munu_sub)
-!
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(IN)         :: sub_env
       TYPE(lri_environment_type), INTENT(IN), POINTER    :: lri_env
@@ -262,14 +261,10 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dummymat, matrix_s
 
-!
-
       CALL timeset(routineN, handle)
-!
       NULLIFY (atomic_kind_set)
       NULLIFY (matrix_s)
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, matrix_s=matrix_s)
-!
       nspins = SIZE(A_ia_munu_sub)
       DO ispin = 1, nspins!
          !no kpoints for excited states => using dummy matrix with no cell index
@@ -287,7 +282,6 @@ CONTAINS
          CALL dbcsr_deallocate_matrix(dummymat(1)%matrix)
          DEALLOCATE (dummymat)
       END DO
-
       CALL timestop(handle)
 
    END SUBROUTINE tddfpt2_lri_Amat

@@ -69,18 +69,18 @@ include $(EXTSHOME)/Makefile.inc
 endif
 
 # Declare PHONY targets =====================================================
-.PHONY : $(VERSION) $(EXE_NAMES) \
-					dirs makedep default_target all \
-					toolversions exts extversions extclean \
-					libcp2k cp2k_shell pkgconfig python-bindings \
-					pre-commit pre-commit-clean \
-					pretty precommit precommitclean doxygenclean doxygen \
-					fpretty fprettyclean \
-					doxify doxifyclean \
-					install clean realclean distclean mrproper help \
-					test testbg testclean testrealclean \
-					data \
-		$(EXTSPACKAGES)
+.PHONY: $(VERSION) $(EXE_NAMES) \
+        dirs makedep default_target all \
+        toolversions exts extversions extclean \
+        libcp2k cp2k_shell pkgconfig python-bindings \
+        pre-commit pre-commit-clean \
+        pretty precommit precommitclean doxygenclean doxygen \
+        fpretty fprettyclean \
+        doxify doxifyclean \
+        install clean realclean distclean mrproper help \
+        test testbg testclean testrealclean \
+        data \
+        $(EXTSPACKAGES)
 
 # Discover files and directories ============================================
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d ! -name preprettify | awk '{printf("%s:",$$1)}')
@@ -175,12 +175,12 @@ libcp2k: pkgconfig makedep | dirs exts
 
 python-bindings: libcp2k
 	@cd $(SRCDIR)/start/python ; \
-		env CC='$(CC)' LDSHARED='$(LD) -shared' CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LDFLAGS_C) $(LIBS)' \
-			$(PYTHON) setup.py build_ext \
-				--build-temp="$(OBJDIR)/python" \
-				--build-lib="$(LIBDIR)/python" \
-				--library-dirs="$(LIBDIR)" \
-				--libraries="$(patsubst -l%,%,$(filter -l%,$(LIBS)))"
+        env CC='$(CC)' LDSHARED='$(LD) -shared' CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS) $(LDFLAGS_C) $(LIBS)' \
+        $(PYTHON) setup.py build_ext \
+        --build-temp="$(OBJDIR)/python" \
+        --build-lib="$(LIBDIR)/python" \
+        --library-dirs="$(LIBDIR)" \
+        --libraries="$(patsubst -l%,%,$(filter -l%,$(LIBS)))"
 
 exts: $(EXTSPACKAGES)
 
@@ -291,9 +291,9 @@ help:
 	@echo "=================== Binaries ===================="
 	@echo "all                         Builds all executables (default target)"
 	@for i in $(ALL_EXE_FILES); do \
-	basename  $$i | sed 's/^\(.*\)\..*/\1/' | awk '{printf "%-28s", $$1}'; \
-	grep "brief" $$i | head -n 1 | sed 's/^.*\\brief\s*//'; \
-	done
+        basename  $$i | sed 's/^\(.*\)\..*/\1/' | awk '{printf "%-28s", $$1}'; \
+        grep "brief" $$i | head -n 1 | sed 's/^.*\\brief\s*//'; \
+        done
 	@echo "libcp2k                     Builds CP2K as a single library archive"
 	@echo "cp2k_shell                  Creates symlink for backward compatibility"
 	@echo ""
@@ -521,10 +521,10 @@ cp2k_info.o: $(GIT_REF)
 
 # Add some practical metadata about the build.
 FCFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
-						-D__COMPILE_DATE="\"$(shell date)\""\
-						-D__COMPILE_HOST="\"$(shell hostname 2>/dev/null || hostnamectl --transient)\""\
-						-D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
-						-D__DATA_DIR="\"$(DATA_DIR)\""
+        -D__COMPILE_DATE="\"$(shell date)\""\
+        -D__COMPILE_HOST="\"$(shell hostname 2>/dev/null || hostnamectl --transient)\""\
+        -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
+        -D__DATA_DIR="\"$(DATA_DIR)\""
 
 # $(FCLOGPIPE) can be used to store compiler output, e.g. warnings, for each F-file separately.
 # This is used e.g. by the convention checker.

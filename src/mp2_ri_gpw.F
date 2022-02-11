@@ -434,9 +434,10 @@ CONTAINS
 
                         END DO
                         IF (my_alpha_beta_case .AND. calc_forces) THEN
-                           CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(ispin) + my_B_size(jspin), dimen_RI)
+                           ! Is just an approximation, but the call does not allow it, it ought to be (virtual_i*B_size_j+virtual_j*B_size_i)*dimen_RI
+                           CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(ispin) + my_B_size(jspin), dimen_RI)
                         ELSE
-                           CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(jspin), dimen_RI)
+                           CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(jspin), dimen_RI)
                         END IF
                         CALL timestop(handle3)
 
@@ -1478,7 +1479,6 @@ CONTAINS
          CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(jspin), mp2_env%scale_S, &
                     local_ba, virtual(jspin), local_ba, virtual(jspin), 1.0_dp, &
                     mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin))
-         CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), my_B_size(ispin), virtual(jspin))
          mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
          CALL dgemm('T', 'N', my_B_size(jspin), my_B_size(jspin), virtual(ispin), mp2_env%scale_S, &
@@ -1495,7 +1495,6 @@ CONTAINS
                     t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
                     local_ab, virtual(ispin), &
                     1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array, my_B_size(ispin))
-         CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), rec_B_size, virtual(ispin))
          mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
       END IF
@@ -1564,13 +1563,13 @@ CONTAINS
 
       END DO
       IF (.NOT. alpha_beta) THEN
-      IF (my_i /= my_j) THEN
-         CALL dgemm_counter_stop(dgemm_counter, 2*my_B_size(ispin), virtual(ispin), virtual(ispin))
+         IF (my_i /= my_j) THEN
+            CALL dgemm_counter_stop(dgemm_counter, 2*my_B_size(ispin), virtual(ispin), virtual(ispin))
+         ELSE
+            CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), virtual(ispin), virtual(ispin))
+         END IF
       ELSE
-         CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), virtual(ispin), virtual(ispin))
-      END IF
-      ELSE
-      CALL dgemm_counter_stop(dgemm_counter, SUM(my_B_size), virtual(ispin), virtual(jspin))
+         CALL dgemm_counter_stop(dgemm_counter, SUM(my_B_size), virtual(ispin), virtual(jspin))
       END IF
       CALL timestop(handle)
 

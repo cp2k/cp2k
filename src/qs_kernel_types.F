@@ -59,7 +59,7 @@ MODULE qs_kernel_types
       !> flags for finite differences/analytic XC kernels
       LOGICAL                                            :: deriv2_analytic
       LOGICAL                                            :: deriv3_analytic
-      ! Local resolution of the identity for Coulomb (at the moment only for flex kernel)
+      ! Local resolution of the identity for Coulomb
       TYPE(lri_environment_type), POINTER                :: lri_env => Null()
       TYPE(lri_density_type), POINTER                    :: lri_density => Null()
    END TYPE full_kernel_env_type
@@ -71,7 +71,6 @@ MODULE qs_kernel_types
    TYPE kernel_env_type
       TYPE(full_kernel_env_type), POINTER                :: full_kernel => Null()
       TYPE(full_kernel_env_type), POINTER                :: admm_kernel => Null()
-      TYPE(full_kernel_env_type), POINTER                :: flex_kernel => Null()
       TYPE(stda_env_type), POINTER                       :: stda_kernel => Null()
    END TYPE kernel_env_type
 

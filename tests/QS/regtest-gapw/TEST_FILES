@@ -26,7 +26,7 @@ H2O-gapw-gth-pvh.inp                                   1      3e-14             
 # localization with non orthorhombic cell
 H2O-gapw-all_noortho.inp                               1    1.0E-14             -75.88145710711736
 H2O-gapw-all_localize_noortho.inp                     23      2e-09                   7.0317611595
-H2O-gapw-all_localize_crazy_noortho.inp               23    1.0E-14                   7.0317611684
+H2O-gapw-all_localize_crazy_noortho.inp               23      2e-09                   7.0317611684
 # TPSS functional
 Be_GAPW.inp                                            1      7e-13             -14.78558413889751
 # Single atom isolated function

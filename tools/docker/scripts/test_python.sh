@@ -31,6 +31,7 @@ run_test mypy --strict ./tools/dashboard/generate_dashboard.py
 run_test mypy --strict ./tools/regtesting/do_regtest.py
 run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py
 run_test mypy --strict ./tools/precommit/check_file_properties.py
+run_test mypy --strict ./tools/precommit/format_makefile.py
 run_test mypy --strict ./tools/docker/generate_dockerfiles.py
 
 # Test generate_dashboard.py. Running it twice to also execute its caching.
