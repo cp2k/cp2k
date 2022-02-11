@@ -200,7 +200,8 @@ CONTAINS
          CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
                               rho_ia_struct=work_matrices%rho_orb_struct_sub, &
                               is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                              work_v_xc=work_matrices%wpw_rspace_sub)
+                              work_v_xc=work_matrices%wpw_rspace_sub, &
+                              work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
 
          ! ADMM correction
          IF (do_admm) THEN
@@ -237,7 +238,8 @@ CONTAINS
                                     kernel_env=kernel_env_admm_aux, &
                                     rho_ia_struct=work_matrices%rho_aux_fit_struct_sub, &
                                     is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                                    work_v_xc=work_matrices%wpw_rspace_sub)
+                                    work_v_xc=work_matrices%wpw_rspace_sub, &
+                                    work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
                DO ispin = 1, nspins
                   CALL pw_scale(V_rspace_sub(ispin)%pw, V_rspace_sub(ispin)%pw%pw_grid%dvol)
                   CALL integrate_v_rspace(v_rspace=V_rspace_sub(ispin), &
@@ -281,7 +283,8 @@ CONTAINS
                                     kernel_env=kernel_env_admm_aux, &
                                     rho_ia_struct=work_matrices%rho_aux_fit_struct_sub, &
                                     is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                                    work_v_xc=work_matrices%wpw_rspace_sub)
+                                    work_v_xc=work_matrices%wpw_rspace_sub, &
+                                    work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
             END IF
          END IF
 

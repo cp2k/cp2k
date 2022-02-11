@@ -1332,6 +1332,11 @@ CONTAINS
       CALL apply_2nd_order_kernel(qs_env, p_env, .FALSE., .TRUE., use_virial, h_stress)
       IF (use_virial) THEN
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_virial)
+         IF (debug_forces) THEN
+            e_dummy = third_tr(virial%pv_virial - pv_virial)
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Kh       ", e_dummy
+         END IF
          virial%pv_exc = virial%pv_exc + h_stress
          virial%pv_virial = virial%pv_virial + h_stress
          IF (debug_forces) THEN
@@ -1575,7 +1580,7 @@ CONTAINS
          virial%pv_mp2 = qs_env%mp2_env%ri_grad%mp2_virial
          virial%pv_virial = virial%pv_virial + qs_env%mp2_env%ri_grad%mp2_virial
          IF (debug_forces) THEN
-            e_dummy = third_tr(virial%pv_virial)
+            e_dummy = third_tr(virial%pv_mp2)
             CALL mp_sum(e_dummy, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: MP2nonsep  ", e_dummy
          END IF

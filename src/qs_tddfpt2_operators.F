@@ -197,23 +197,24 @@ CONTAINS
 !> \param pw_env           plain wave environment
 !> \param work_v_xc        work real-space grid to store the gradient of the exchange-correlation
 !>                         potential with respect to the response density (modified on exit)
+!> \param work_v_xc_tau ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc)
+   SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc, work_v_xc_tau
 
       INTEGER                                            :: ispin
 
       IF (kernel_env%deriv2_analytic) THEN
          CALL tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
-                                       pw_env, work_v_xc)
+                                       pw_env, work_v_xc, work_v_xc_tau)
       ELSE
          CALL tddfpt_apply_xc_fd(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, &
-                                 pw_env, work_v_xc)
+                                 pw_env, work_v_xc, work_v_xc_tau)
       END IF
 
       DO ispin = 1, SIZE(work_v_xc)
@@ -234,6 +235,7 @@ CONTAINS
 !> \param pw_env           plain wave environment
 !> \param work_v_xc        work real-space grid to store the gradient of the exchange-correlation
 !>                         potential with respect to the response density (modified on exit)
+!> \param work_v_xc_tau ...
 !> \par History
 !>    * 05.2016 compute all kernel terms in one go [Sergey Chulkov]
 !>    * 03.2017 proceed excited states sequentially; minimise the number of conversions between
@@ -243,13 +245,13 @@ CONTAINS
 !> \note Based on the subroutine kpp1_calc_k_p_p1() which was originally created by
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc)
+   SUBROUTINE tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc, work_v_xc_tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_analytic'
 
@@ -303,13 +305,15 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL pw_zero(work_v_xc(ispin)%pw)
+         IF (ASSOCIATED(work_v_xc_tau)) CALL pw_zero(work_v_xc_tau(ispin)%pw)
       END DO
 
       CALL xc_rho_set_update(rho_set=kernel_env%xc_rho1_set, rho_r=rho_ia_r2, rho_g=rho_ia_g2, tau=tau_ia_r2, &
                              needs=kernel_env%xc_rho1_cflags, xc_deriv_method_id=kernel_env%deriv_method_id, &
                              xc_rho_smooth_id=kernel_env%rho_smooth_id, pw_pool=auxbas_pw_pool)
 
-      CALL xc_calc_2nd_deriv_analytical(v_xc=work_v_xc, deriv_set=kernel_env%xc_deriv_set, rho_set=kernel_env%xc_rho_set, &
+      CALL xc_calc_2nd_deriv_analytical(v_xc=work_v_xc, v_xc_tau=work_v_xc_tau, deriv_set=kernel_env%xc_deriv_set, &
+                                        rho_set=kernel_env%xc_rho_set, &
                                         rho1_set=kernel_env%xc_rho1_set, pw_pool=auxbas_pw_pool, &
                                         xc_section=kernel_env%xc_section, gapw=.FALSE., tddfpt_fac=kernel_env%beta)
 
@@ -330,27 +334,28 @@ CONTAINS
 !> \param pw_env           plain wave environment
 !> \param work_v_xc        work real-space grid to store the gradient of the exchange-correlation
 !>                         potential with respect to the response density (modified on exit)
+!> \param work_v_xc_tau ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_xc_fd(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc)
+   SUBROUTINE tddfpt_apply_xc_fd(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: work_v_xc, work_v_xc_tau
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_xc_fd'
 
       INTEGER                                            :: handle, ispin, nspins
       LOGICAL                                            :: lsd, singlet, triplet
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau1_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(A_ia_rspace)
-      CALL qs_rho_get(rho_ia_struct, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau)
+      CALL qs_rho_get(rho_ia_struct, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       DO ispin = 1, nspins
          CALL pw_zero(work_v_xc(ispin)%pw)
@@ -370,11 +375,13 @@ CONTAINS
          CPABORT("illegal options")
       END IF
 
-      IF (ASSOCIATED(tau)) THEN
-         CPABORT("Tau (meta) functionals not possible")
+      IF (ASSOCIATED(tau1_r)) THEN
+      DO ispin = 1, nspins
+         CALL pw_zero(work_v_xc_tau(ispin)%pw)
+      END DO
       END IF
 
-      CALL xc_calc_2nd_deriv_numerical(work_v_xc, rho_set, rho1_r, rho1_g, &
+      CALL xc_calc_2nd_deriv_numerical(work_v_xc, work_v_xc_tau, rho_set, rho1_r, rho1_g, tau1_r, &
                                        auxbas_pw_pool, kernel_env%xc_section, &
                                        is_rks_triplets)
 

@@ -62,9 +62,9 @@ MODULE cp_control_utils
    USE qs_cdft_utils,                   ONLY: read_cdft_control_section
    USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: sort
-   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc,                              ONLY: xc_uses_kinetic_energy_density,&
+                                              xc_uses_norm_drho
    USE xc_input_constants,              ONLY: xc_deriv_collocate
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_write_output,                 ONLY: xc_write
 #include "./base/base_uses.f90"
 
@@ -106,7 +106,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: maxwell_section, sccs_section, &
                                                             scf_section, tmp_section, &
                                                             xc_fun_section, xc_section
-      TYPE(xc_rho_cflags_type)                           :: needs
 
       was_present = .FALSE.
 
@@ -168,13 +167,11 @@ CONTAINS
       END IF
 
       dft_control%lsd = (dft_control%nspins > 1)
-      needs = xc_functionals_get_needs(xc_fun_section, &
-                                       lsd=dft_control%lsd, &
-                                       add_basic_components=.TRUE.)
-      dft_control%use_kinetic_energy_density = (needs%tau_spin .OR. needs%tau)
+      dft_control%use_kinetic_energy_density = xc_uses_kinetic_energy_density(xc_fun_section, dft_control%lsd)
 
       xc_deriv_method_id = section_get_ival(xc_section, "XC_GRID%XC_DERIV")
-      dft_control%drho_by_collocation = (needs%norm_drho .AND. (xc_deriv_method_id == xc_deriv_collocate))
+      dft_control%drho_by_collocation = (xc_uses_norm_drho(xc_fun_section, dft_control%lsd) &
+                                         .AND. (xc_deriv_method_id == xc_deriv_collocate))
       IF (dft_control%drho_by_collocation) THEN
          CPABORT("derivatives by collocation not implemented")
       END IF

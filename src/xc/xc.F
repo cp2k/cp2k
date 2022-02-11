@@ -41,7 +41,7 @@ MODULE xc
                          pw_derive, &
                          pw_scale, &
                          pw_transfer, &
-                         pw_zero
+                         pw_zero, pw_laplace
    USE pw_pool_types, ONLY: pw_pool_create_pw, &
                             pw_pool_give_back_cr3d, &
                             pw_pool_give_back_pw, &
@@ -87,12 +87,41 @@ MODULE xc
    PRIVATE
    PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, &
              xc_exc_calc, xc_calc_2nd_deriv_analytical, xc_calc_2nd_deriv_numerical, &
-             xc_calc_2nd_deriv, xc_prep_2nd_deriv, divide_by_norm_drho, smooth_cutoff
+             xc_calc_2nd_deriv, xc_prep_2nd_deriv, divide_by_norm_drho, smooth_cutoff, &
+             xc_uses_kinetic_energy_density, xc_uses_norm_drho
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'
 
 CONTAINS
+
+   FUNCTION xc_uses_kinetic_energy_density(xc_fun_section, lsd) RESULT(res)
+      TYPE(section_vals_type), POINTER, INTENT(IN) :: xc_fun_section
+      LOGICAL, INTENT(IN) :: lsd
+      LOGICAL :: res
+
+      TYPE(xc_rho_cflags_type)                           :: needs
+
+      needs = xc_functionals_get_needs(xc_fun_section, &
+                                       lsd=lsd, &
+                                       add_basic_components=.TRUE.)
+      res = (needs%tau_spin .OR. needs%tau)
+
+   END FUNCTION
+
+   FUNCTION xc_uses_norm_drho(xc_fun_section, lsd) RESULT(res)
+      TYPE(section_vals_type), POINTER, INTENT(IN) :: xc_fun_section
+      LOGICAL, INTENT(IN) :: lsd
+      LOGICAL :: res
+
+      TYPE(xc_rho_cflags_type)                           :: needs
+
+      needs = xc_functionals_get_needs(xc_fun_section, &
+                                       lsd=lsd, &
+                                       add_basic_components=.TRUE.)
+      res = (needs%norm_drho .OR. needs%norm_drho_spin)
+
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief Exchange and Correlation functional calculations.
@@ -1843,15 +1872,15 @@ CONTAINS
 !> \param compute_virial ...
 !> \param virial_xc virial terms will be collected here
 ! **************************************************************************************************
-   SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_r, rho1_g, &
+   SUBROUTINE xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, rho1_r, rho1_g, tau1_r, &
                                 pw_pool, xc_section, gapw, vxg, &
                                 lsd_singlets, do_excitations, do_triplet, do_tddft, &
                                 compute_virial, virial_xc)
 
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(xc_derivative_set_type), INTENT(IN), POINTER  :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho1_g
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho1_g, tau1_r
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: gapw
@@ -1871,7 +1900,6 @@ CONTAINS
                                                             my_do_excitations, my_do_tddft, &
                                                             my_do_triplet, my_lsd_singlets
       REAL(KIND=dp)                                      :: fac
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: tau_pw
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho1_set
@@ -1900,6 +1928,7 @@ CONTAINS
          lsd = .TRUE.
       END IF
 
+      NULLIFY (v_xc, v_xc_tau)
       ALLOCATE (v_xc(nspins))
       DO ispin = 1, nspins
          NULLIFY (v_xc(ispin)%pw)
@@ -1909,23 +1938,36 @@ CONTAINS
          CALL pw_zero(v_xc(ispin)%pw)
       END DO
 
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
+
+      IF (needs%tau .OR. needs%tau_spin) THEN
+         IF (.NOT. ASSOCIATED(tau1_r)) &
+            CPABORT("Tau-dependent functionals requires allocated kinetic energy density grid")
+         ALLOCATE (v_xc_tau(nspins))
+         DO ispin = 1, nspins
+            NULLIFY (v_xc_tau(ispin)%pw)
+            CALL pw_pool_create_pw(pw_pool, v_xc_tau(ispin)%pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_zero(v_xc_tau(ispin)%pw)
+         END DO
+      END IF
+
       IF (section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL") .AND. .NOT. my_do_tddft) THEN
          !------!
          ! rho1 !
          !------!
          bo = rho1_r(1)%pw%pw_grid%bounds_local
-         NULLIFY (tau_pw, rho1_set)
+         NULLIFY (rho1_set)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho1_set, bo, &
                                 rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
                                 drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
                                 tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
 
-         xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-         needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
-
          ! calculate the arguments needed by the functionals
-         CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau_pw, needs, &
+         CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau1_r, needs, &
                                 section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
                                 section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                                 pw_pool)
@@ -1936,7 +1978,7 @@ CONTAINS
             IF (my_do_triplet) fac = -1.0_dp
          END IF
 
-         CALL xc_calc_2nd_deriv_analytical(v_xc, deriv_set, rho_set, &
+         CALL xc_calc_2nd_deriv_analytical(v_xc, v_xc_tau, deriv_set, rho_set, &
                                            rho1_set, pw_pool, xc_section, gapw, vxg=vxg, &
                                            tddfpt_fac=fac, compute_virial=compute_virial, virial_xc=virial_xc)
 
@@ -1945,7 +1987,7 @@ CONTAINS
       ELSE
          IF (gapw) CPABORT("Numerical 2nd derivatives not implemented with GAPW")
 
-         CALL xc_calc_2nd_deriv_numerical(v_xc, rho_set, rho1_r, rho1_g, &
+         CALL xc_calc_2nd_deriv_numerical(v_xc, v_xc_tau, rho_set, rho1_r, rho1_g, tau1_r, &
                                           pw_pool, xc_section, &
                                           my_do_excitations .AND. my_do_triplet, &
                                           compute_virial, virial_xc, deriv_set)
@@ -1958,9 +2000,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief calculates 2nd derivative numerically
 !> \param v_xc potential to be calculated (has to be allocated already)
+!> \param v_tau tau-part of the potential to be calculated (has to be allocated already)
 !> \param rho_set KS density from xc_prep_2nd_deriv
 !> \param rho1_r first-order density in r-space
 !> \param rho1_g first-order density in g-space
+!> \param tau1_r first-order kinetic-energy density in r-space
 !> \param pw_pool pw pool for new grids
 !> \param xc_section XC section to calculate the derivatives from
 !> \param do_triplet ...
@@ -1968,13 +2012,13 @@ CONTAINS
 !> \param virial_xc collects stress tensor components (no metaGGAs!)
 !> \param deriv_set deriv set from xc_prep_2nd_deriv (only for virials)
 ! **************************************************************************************************
-   SUBROUTINE xc_calc_2nd_deriv_numerical(v_xc, rho_set, rho1_r, rho1_g, &
+   SUBROUTINE xc_calc_2nd_deriv_numerical(v_xc, v_tau, rho_set, rho1_r, rho1_g, tau1_r, &
                                           pw_pool, xc_section, &
                                           do_triplet, calc_virial, virial_xc, deriv_set)
 
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: v_xc
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc, v_tau
       TYPE(xc_rho_set_type), INTENT(IN), POINTER         :: rho_set
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g, tau1_r
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: do_triplet
@@ -1989,17 +2033,18 @@ CONTAINS
 
       INTEGER                                            :: handle, idir, ispin, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: gradient_f, lsd, my_calc_virial
+      LOGICAL                                            :: gradient_f, lsd, my_calc_virial, tau_f
       REAL(KIND=dp)                                      :: exc, gradient_cut, h
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_dummy
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: norm_drho, norm_drho2, norm_drho2a, &
                                                             norm_drho2b, norm_drhoa, norm_drhob, &
-                                                            rho, rho1, rho1a, rho1b, rhoa, rhob
+                                                          rho, rho1, rho1a, rho1b, rhoa, rhob, tau_a, tau_b, tau, tau1, tau1a, tau1b
       TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type)                                    :: v_drho, v_drhoa, v_drhob
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau, tau_pw, vxc_rho_1, &
-                                                            vxc_rho_2, vxc_rho_3, vxc_rho_4
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc_rho_1, &
+                                                            vxc_rho_2, vxc_rho_3, vxc_rho_4, tau_r, &
+                                                            vxc_tau_1, vxc_tau_2, vxc_tau_3, vxc_tau_4
       TYPE(pw_type), POINTER                             :: virial_pw
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set1, deriv_set2
@@ -2013,84 +2058,115 @@ CONTAINS
 
       nspins = SIZE(v_xc)
 
-      NULLIFY (tau, tau_pw)
+      NULLIFY (tau, tau_r, tau_a, tau_b)
 
       h = section_get_rval(xc_section, "STEP_SIZE")
 
       IF (nspins == 2) THEN
-         NULLIFY (vxc_rho_1, vxc_rho_2, rho_g)
+         NULLIFY (vxc_rho_1, vxc_rho_2, rho_g, vxc_tau_1, vxc_tau_2)
          ALLOCATE (rho_r(2))
          DO ispin = 1, nspins
             NULLIFY (rho_r(ispin)%pw)
             CALL pw_pool_create_pw(pw_pool, rho_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
          END DO
-         CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r)
+         IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
+            ALLOCATE (tau_r(2))
+            DO ispin = 1, nspins
+               NULLIFY (tau_r(ispin)%pw)
+               CALL pw_pool_create_pw(pw_pool, tau_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
+            END DO
+         END IF
+         CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rhoa=rhoa, rhob=rhob, tau_a=tau_a, tau_b=tau_b)
+         CALL calc_resp_potential_numer_ab(rho_r, rho_g, rho1_r, rhoa, rhob, vxc_rho_1, &
+                                           tau_r, tau1_r, tau_a, tau_b, vxc_tau_1, xc_section, pw_pool, h)
+         CALL calc_resp_potential_numer_ab(rho_r, rho_g, rho1_r, rhoa, rhob, vxc_rho_2, &
+                                           tau_r, tau1_r, tau_a, tau_b, vxc_tau_2, xc_section, pw_pool, -h)
+         DO ispin = 1, nspins
+!$OMP PARALLEL DEFAULT(NONE) SHARED(v_xc,vxc_rho_1,vxc_rho_2,h,v_tau,vxc_tau_1,vxc_tau_2,tau1_r,ispin)
 !$OMP WORKSHARE
-         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+            v_xc(ispin)%pw%cr3d(:, :, :) = (vxc_rho_1(ispin)%pw%cr3d(:, :, :) - vxc_rho_2(ispin)%pw%cr3d(:, :, :))/h
 !$OMP END WORKSHARE NOWAIT
+            IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau) .AND. ASSOCIATED(vxc_tau_1) .AND. ASSOCIATED(vxc_tau_2)) THEN
 !$OMP WORKSHARE
-         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) + 0.5_dp*h*rho1_r(2)%pw%cr3d(:, :, :)
+               v_tau(ispin)%pw%cr3d(:, :, :) = (vxc_tau_1(ispin)%pw%cr3d(:, :, :) - vxc_tau_2(ispin)%pw%cr3d(:, :, :))/h
 !$OMP END WORKSHARE NOWAIT
+            END IF
 !$OMP END PARALLEL
-         CALL xc_vxc_pw_create(vxc_rho_1, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
-                               pw_pool, .FALSE., virial_dummy)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r)
-!$OMP WORKSHARE
-         rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) - 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
-!$OMP END WORKSHARE NOWAIT
-!$OMP WORKSHARE
-         rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) - 0.5_dp*h*rho1_r(2)%pw%cr3d(:, :, :)
-!$OMP END WORKSHARE NOWAIT
-!$OMP END PARALLEL
-         CALL xc_vxc_pw_create(vxc_rho_2, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
-                               pw_pool, .FALSE., virial_dummy)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(v_xc,vxc_rho_1,vxc_rho_2,h)
-!$OMP WORKSHARE
-         v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
-!$OMP END WORKSHARE NOWAIT
-!$OMP WORKSHARE
-         v_xc(2)%pw%cr3d(:, :, :) = (vxc_rho_1(2)%pw%cr3d(:, :, :) - vxc_rho_2(2)%pw%cr3d(:, :, :))/h
-!$OMP END WORKSHARE NOWAIT
-!$OMP END PARALLEL
+         END DO
          DO ispin = 1, nspins
             CALL pw_release(vxc_rho_1(ispin)%pw)
             CALL pw_release(vxc_rho_2(ispin)%pw)
          END DO
          DEALLOCATE (vxc_rho_1, vxc_rho_2)
+         IF (ASSOCIATED(vxc_tau_1)) THEN
+            DO ispin = 1, nspins
+               CALL pw_release(vxc_tau_1(ispin)%pw)
+               CALL pw_release(vxc_tau_2(ispin)%pw)
+            END DO
+            DEALLOCATE (vxc_tau_1, vxc_tau_2)
+         END IF
       ELSE IF (nspins == 1 .AND. do_triplet) THEN
-         NULLIFY (vxc_rho_1, vxc_rho_2, vxc_rho_3, vxc_rho_4, rho_g)
+         NULLIFY (vxc_rho_1, vxc_rho_2, vxc_rho_3, vxc_rho_4, vxc_tau_1, vxc_tau_2, vxc_tau_3, vxc_tau_4, rho_g)
          ALLOCATE (rho_r(2))
          DO ispin = 1, 2
             NULLIFY (rho_r(ispin)%pw)
             CALL pw_pool_create_pw(pw_pool, rho_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
          END DO
-         CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob)
+         IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
+            ALLOCATE (tau_r(2))
+            DO ispin = 1, nspins
+               NULLIFY (tau_r(ispin)%pw)
+               CALL pw_pool_create_pw(pw_pool, tau_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
+            END DO
+         END IF
+         CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rhoa=rhoa, rhob=rhob, tau_a=tau_a, tau_b=tau_b)
          ! K(alpha,alpha)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r,tau_r,tau_a,tau_b,tau1_r)
 !$OMP WORKSHARE
          rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
 !$OMP END WORKSHARE NOWAIT
 !$OMP WORKSHARE
          rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)
 !$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(tau1_r)) THEN
+!$OMP WORKSHARE
+            tau_r(1)%pw%cr3d(:, :, :) = tau_a(:, :, :) + 0.5_dp*h*tau1_r(1)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+!$OMP WORKSHARE
+            tau_r(2)%pw%cr3d(:, :, :) = tau_b(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+         END IF
 !$OMP END PARALLEL
-         CALL xc_vxc_pw_create(vxc_rho_1, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
+         CALL xc_vxc_pw_create(vxc_rho_1, vxc_tau_2, exc, rho_r, rho_g, tau_r, xc_section, &
                                pw_pool, .FALSE., virial_dummy)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r,tau_r,tau_a,tau_b,tau1_r)
 !$OMP WORKSHARE
          rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) - 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
 !$OMP END WORKSHARE NOWAIT
 !$OMP WORKSHARE
          rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :)
 !$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(tau1_r)) THEN
+!$OMP WORKSHARE
+            tau_r(1)%pw%cr3d(:, :, :) = tau_a(:, :, :) - 0.5_dp*h*tau1_r(1)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+!$OMP WORKSHARE
+            tau_r(2)%pw%cr3d(:, :, :) = tau_b(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+         END IF
 !$OMP END PARALLEL
-         CALL xc_vxc_pw_create(vxc_rho_2, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
+         CALL xc_vxc_pw_create(vxc_rho_2, vxc_tau_2, exc, rho_r, rho_g, tau_r, xc_section, &
                                pw_pool, .FALSE., virial_dummy)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r,v_xc,vxc_rho_1,vxc_rho_2)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r,v_xc,vxc_rho_1,vxc_rho_2,&
+!$OMP                               v_tau,vxc_tau_1,vxc_tau_2,tau_r,tau_a,tau_b,tau1_r)
 !$OMP WORKSHARE
          v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
 !$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(vxc_tau_1) .AND. ASSOCIATED(vxc_tau_2) .AND. ASSOCIATED(v_tau)) THEN
+!$OMP WORKSHARE
+            v_tau(1)%pw%cr3d(:, :, :) = (vxc_tau_1(1)%pw%cr3d(:, :, :) - vxc_tau_2(1)%pw%cr3d(:, :, :))/h
+!$OMP END WORKSHARE NOWAIT
+         END IF
 !$OMP WORKSHARE
          ! K(alpha,beta)
          rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)
@@ -2098,23 +2174,47 @@ CONTAINS
 !$OMP WORKSHARE
          rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
 !$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(tau1_r)) THEN
+!$OMP WORKSHARE
+            tau_r(1)%pw%cr3d(:, :, :) = tau_a(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+!$OMP WORKSHARE
+            tau_r(2)%pw%cr3d(:, :, :) = tau_b(:, :, :) + 0.5_dp*h*tau1_r(1)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+         END IF
 !$OMP END PARALLEL
-         CALL xc_vxc_pw_create(vxc_rho_3, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
+         CALL xc_vxc_pw_create(vxc_rho_3, vxc_tau_3, exc, rho_r, rho_g, tau_r, xc_section, &
                                pw_pool, .FALSE., virial_dummy)
-!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r,tau_r,tau_a,tau_b,tau1_r)
 !$OMP WORKSHARE
          rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :)
 !$OMP END WORKSHARE NOWAIT
 !$OMP WORKSHARE
          rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) - 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
 !$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(tau_a) .AND. ASSOCIATED(tau_b) .AND. ASSOCIATED(tau_r)) THEN
+!$OMP WORKSHARE
+            tau_r(1)%pw%cr3d(:, :, :) = tau_a(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+!$OMP WORKSHARE
+            tau_r(2)%pw%cr3d(:, :, :) = tau_b(:, :, :) - 0.5_dp*h*tau1_r(1)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+         END IF
 !$OMP END PARALLEL
-         CALL xc_vxc_pw_create(vxc_rho_4, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
+         CALL xc_vxc_pw_create(vxc_rho_4, vxc_tau_4, exc, rho_r, rho_g, tau_r, xc_section, &
                                pw_pool, .FALSE., virial_dummy)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(v_xc,vxc_rho_3,vxc_rho_4,rhob,h)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(v_xc,vxc_rho_3,vxc_rho_4,rhob,h,v_tau,vxc_tau_3,vxc_tau_4)
+!$OMP WORKSHARE
          v_xc(1)%pw%cr3d(:, :, :) = v_xc(1)%pw%cr3d(:, :, :) - &
                                     (vxc_rho_3(1)%pw%cr3d(:, :, :) - vxc_rho_4(1)%pw%cr3d(:, :, :))/h
-!$OMP END PARALLEL WORKSHARE
+!$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(vxc_tau_3) .AND. ASSOCIATED(vxc_tau_4) .AND. ASSOCIATED(v_tau)) THEN
+!$OMP WORKSHARE
+            v_tau(1)%pw%cr3d(:, :, :) = v_tau(1)%pw%cr3d(:, :, :) - &
+                                        (vxc_tau_3(1)%pw%cr3d(:, :, :) - vxc_tau_4(1)%pw%cr3d(:, :, :))/h
+!$OMP END WORKSHARE NOWAIT
+         END IF
+!$OMP END PARALLEL
          DO ispin = 1, 2
             CALL pw_release(vxc_rho_1(ispin)%pw)
             CALL pw_release(vxc_rho_2(ispin)%pw)
@@ -2122,28 +2222,68 @@ CONTAINS
             CALL pw_release(vxc_rho_4(ispin)%pw)
          END DO
          DEALLOCATE (vxc_rho_1, vxc_rho_2, vxc_rho_3, vxc_rho_4)
+         IF (ASSOCIATED(vxc_tau_1)) THEN
+         DO ispin = 1, 2
+            CALL pw_release(vxc_tau_1(ispin)%pw)
+            CALL pw_release(vxc_tau_2(ispin)%pw)
+            CALL pw_release(vxc_tau_3(ispin)%pw)
+            CALL pw_release(vxc_tau_4(ispin)%pw)
+         END DO
+         DEALLOCATE (vxc_tau_1, vxc_tau_2, vxc_tau_3, vxc_tau_4)
+         END IF
       ELSE
-         NULLIFY (vxc_rho_1, vxc_rho_2, rho_r, rho_g)
+         NULLIFY (vxc_rho_1, vxc_rho_2, rho_r, rho_g, vxc_tau_1, vxc_tau_2, tau_r, tau)
          ALLOCATE (rho_r(1))
          NULLIFY (rho_r(1)%pw)
          CALL pw_pool_create_pw(pw_pool, rho_r(1)%pw, in_space=REALSPACE, use_data=REALDATA3D)
-         CALL xc_rho_set_get(rho_set, rho=rho)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(rho_r,rho,h,rho1_r)
+         IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
+            ALLOCATE (tau_r(1))
+            NULLIFY (tau_r(1)%pw)
+            CALL pw_pool_create_pw(pw_pool, tau_r(1)%pw, in_space=REALSPACE, use_data=REALDATA3D)
+         END IF
+         CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rho=rho, tau=tau)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rho,h,rho1_r,tau1_r,tau,tau_r)
+!$OMP WORKSHARE
          rho_r(1)%pw%cr3d(:, :, :) = rho(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-         CALL xc_vxc_pw_create(vxc_rho_1, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
+!$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(tau) .AND. ASSOCIATED(tau1_r)) THEN
+!$OMP WORKSHARE
+            tau_r(1)%pw%cr3d(:, :, :) = tau(:, :, :) + 0.5_dp*h*tau1_r(1)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+         END IF
+!$OMP END PARALLEL
+         CALL xc_vxc_pw_create(vxc_rho_1, vxc_tau_1, exc, rho_r, rho_g, tau_r, xc_section, &
                                pw_pool, .FALSE., virial_dummy)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(rho_r,rho,h,rho1_r)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rho,h,rho1_r,tau_r,tau,tau1_r)
+!$OMP WORKSHARE
          rho_r(1)%pw%cr3d(:, :, :) = rho(:, :, :) - 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-         CALL xc_vxc_pw_create(vxc_rho_2, tau_pw, exc, rho_r, rho_g, tau, xc_section, &
+!$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(tau_r) .AND. ASSOCIATED(tau)) THEN
+!$OMP WORKSHARE
+            tau_r(1)%pw%cr3d(:, :, :) = tau(:, :, :) - 0.5_dp*h*tau1_r(1)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+         END IF
+!$OMP END PARALLEL
+         CALL xc_vxc_pw_create(vxc_rho_2, vxc_tau_2, exc, rho_r, rho_g, tau_r, xc_section, &
                                pw_pool, .FALSE., virial_dummy)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(v_xc,vxc_rho_1,vxc_rho_2,h)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(v_xc,vxc_rho_1,vxc_rho_2,h,v_tau,vxc_tau_1,vxc_tau_2)
+!$OMP WORKSHARE
          v_xc(1)%pw%cr3d(:, :, :) = (vxc_rho_1(1)%pw%cr3d(:, :, :) - vxc_rho_2(1)%pw%cr3d(:, :, :))/h
-!$OMP END PARALLEL WORKSHARE
+!$OMP END WORKSHARE NOWAIT
+         IF (ASSOCIATED(vxc_tau_1) .AND. ASSOCIATED(vxc_tau_2) .AND. ASSOCIATED(v_tau)) THEN
+!$OMP WORKSHARE
+            v_tau(1)%pw%cr3d(:, :, :) = (vxc_tau_1(1)%pw%cr3d(:, :, :) - vxc_tau_2(1)%pw%cr3d(:, :, :))/h
+!$OMP END WORKSHARE NOWAIT
+         END IF
+!$OMP END PARALLEL
          CALL pw_release(vxc_rho_1(1)%pw)
          CALL pw_release(vxc_rho_2(1)%pw)
          DEALLOCATE (vxc_rho_1, vxc_rho_2)
+         IF (ASSOCIATED(vxc_tau_1)) THEN
+            CALL pw_release(vxc_tau_1(1)%pw)
+            CALL pw_release(vxc_tau_2(1)%pw)
+            DEALLOCATE (vxc_tau_1, vxc_tau_2)
+         END IF
       END IF
 
       IF (my_calc_virial) THEN
@@ -2152,11 +2292,12 @@ CONTAINS
             lsd = .TRUE.
          END IF
 
-         CALL check_for_gradients(deriv_set, (nspins == 2), gradient_f)
+         CALL check_for_gradients(deriv_set, (nspins == 2), gradient_f, tau_f)
 
          ! Calculate the virial terms
          ! Those arising from the first derivatives are treated like in xc_calc_2nd_deriv_analytical
          ! Those arising from the second derivatives are calculated numerically
+         ! We assume that all metaGGA functionals require the gradient
          IF (gradient_f) THEN
             bo = rho_set%local_bounds
 
@@ -2165,8 +2306,8 @@ CONTAINS
 
             gradient_cut = section_get_rval(xc_section, "GRADIENT_CUTOFF")
 
-            NULLIFY (tau_pw, rho1_set)
-            ! create the place where to store the argument for the functionals
+            NULLIFY (rho1_set)
+            ! create the container to store the argument of the functionals
             CALL xc_rho_set_create(rho1_set, bo, &
                                    rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
                                    drho_cutoff=gradient_cut, &
@@ -2176,21 +2317,21 @@ CONTAINS
             needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
 
             ! calculate the arguments needed by the functionals
-            CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau_pw, needs, &
+            CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau1_r, needs, &
                                    section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
                                    section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                                    pw_pool)
 
             IF (lsd) THEN
                CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob, norm_drho=norm_drho, &
-                                   norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, can_return_null=.TRUE.)
+                                   norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, tau_a=tau_a, tau_b=tau_b, can_return_null=.TRUE.)
                CALL xc_rho_set_get(rho1_set, drhoa=drho1a, drhob=drho1b)
 
                NULLIFY (drho, drho1)
                CALL calc_drho_from_ab(drho, drhoa, drhob)
                CALL calc_drho_from_ab(drho1, drho1a, drho1b)
             ELSE
-               CALL xc_rho_set_get(rho_set, drho=drho, norm_drho=norm_drho)
+               CALL xc_rho_set_get(rho_set, drho=drho, norm_drho=norm_drho, tau=tau, can_return_null=.TRUE.)
                CALL xc_rho_set_get(rho1_set, drho=drho1)
             END IF
 
@@ -2227,6 +2368,14 @@ CONTAINS
             ELSE
                rho_r(1)%pw%cr3d = rho
             END IF
+            IF (ASSOCIATED(tau1_r)) THEN
+            IF (lsd) THEN
+               tau_r(1)%pw%cr3d = tau_a
+               tau_r(2)%pw%cr3d = tau_b
+            ELSE
+               tau_r(1)%pw%cr3d = tau
+            END IF
+            END IF
 
             ! Create deriv sets with same densities but different gradients
             NULLIFY (deriv_set1, deriv_set2)
@@ -2241,13 +2390,13 @@ CONTAINS
                                    tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
 
             ! calculate the arguments needed by the functionals
-            CALL xc_rho_set_update(rho2_set, rho_r, rho_g, tau_pw, needs, &
+            CALL xc_rho_set_update(rho2_set, rho_r, rho_g, tau_r, needs, &
                                    section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
                                    section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                                    pw_pool)
 
             IF (lsd) THEN
-               CALL xc_rho_set_get(rho1_set, rhoa=rho1a, rhob=rho1b)
+               CALL xc_rho_set_get(rho1_set, rhoa=rho1a, rhob=rho1b, tau_a=tau1a, tau_b=tau1b, can_return_null=.TRUE.)
                CALL xc_rho_set_get(rho2_set, norm_drhoa=norm_drho2a, norm_drhob=norm_drho2b, &
                                    norm_drho=norm_drho2, can_return_null=.TRUE.)
 
@@ -2261,6 +2410,10 @@ CONTAINS
                                             norm_drhoa, gradient_cut, h, dra1dra, drb1drb, v_drhoa%pw%cr3d, v_drhob%pw%cr3d)
                   CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drho)", bo, &
                                             norm_drhoa, gradient_cut, h, dra1dra, dr1dr, v_drhoa%pw%cr3d, v_drho%pw%cr3d)
+                  IF (ASSOCIATED(tau1a) .AND. ASSOCIATED(tau1b)) THEN
+                   CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_a)", bo, norm_drhoa, gradient_cut, h, tau1a, v_drhoa%pw%cr3d)
+                   CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_b)", bo, norm_drhoa, gradient_cut, h, tau1b, v_drhoa%pw%cr3d)
+                  END IF
                END IF
 
                IF (ASSOCIATED(norm_drhob)) THEN
@@ -2273,6 +2426,10 @@ CONTAINS
                                             norm_drhob, gradient_cut, h, drb1drb, dra1dra, v_drhob%pw%cr3d, v_drhoa%pw%cr3d)
                   CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drho)", bo, &
                                             norm_drhob, gradient_cut, h, drb1drb, dr1dr, v_drhob%pw%cr3d, v_drho%pw%cr3d)
+                  IF (ASSOCIATED(tau1a) .AND. ASSOCIATED(tau1b)) THEN
+                   CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_a)", bo, norm_drhob, gradient_cut, h, tau1a, v_drhob%pw%cr3d)
+                   CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_b)", bo, norm_drhob, gradient_cut, h, tau1b, v_drhob%pw%cr3d)
+                  END IF
                END IF
 
                IF (ASSOCIATED(norm_drho)) THEN
@@ -2285,6 +2442,10 @@ CONTAINS
                                             norm_drho, gradient_cut, h, dr1dr, dra1dra, v_drho%pw%cr3d, v_drhoa%pw%cr3d)
                   CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drhob)", bo, &
                                             norm_drho, gradient_cut, h, dr1dr, drb1drb, v_drho%pw%cr3d, v_drhob%pw%cr3d)
+                  IF (ASSOCIATED(tau1a) .AND. ASSOCIATED(tau1b)) THEN
+                     CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_a)", bo, norm_drho, gradient_cut, h, tau1a, v_drho%pw%cr3d)
+                     CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_b)", bo, norm_drho, gradient_cut, h, tau1b, v_drho%pw%cr3d)
+                  END IF
                END IF
 
                CALL virial_drho_drho(virial_pw, drhoa, v_drhoa, virial_xc)
@@ -2304,7 +2465,7 @@ CONTAINS
                DEALLOCATE (dra1dra, drb1drb)
 
             ELSE
-               CALL xc_rho_set_get(rho1_set, rho=rho1)
+               CALL xc_rho_set_get(rho1_set, rho=rho1, tau=tau1, can_return_null=.TRUE.)
                CALL xc_rho_set_get(rho2_set, norm_drho=norm_drho2)
 
                CALL get_derivs_rho(norm_drho2, norm_drho, h, xc_fun_section, lsd, rho2_set, deriv_set1, deriv_set2)
@@ -2312,6 +2473,10 @@ CONTAINS
                ! Obtain the numerical 2nd derivatives w.r.t. to drho and collect the potential
                CALL update_deriv_rho(deriv_set1, deriv_set2, "(rho)", bo, norm_drho, gradient_cut, h, rho1, v_drho%pw%cr3d)
                CALL update_deriv_rho(deriv_set1, deriv_set2, "(norm_rho)", bo, norm_drho, gradient_cut, h, dr1dr, v_drho%pw%cr3d)
+
+               IF (ASSOCIATED(tau1)) THEN
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau)", bo, norm_drho, gradient_cut, h, tau1, v_drho%pw%cr3d)
+               END IF
 
                ! Calculate the virial contribution from the potential
                CALL virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
@@ -2337,9 +2502,59 @@ CONTAINS
       END DO
       DEALLOCATE (rho_r)
 
+      IF (ASSOCIATED(tau_r)) THEN
+      DO ispin = 1, SIZE(tau_r)
+         CALL pw_pool_give_back_pw(pw_pool, tau_r(ispin)%pw)
+      END DO
+      DEALLOCATE (tau_r)
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE xc_calc_2nd_deriv_numerical
+
+   SUBROUTINE calc_resp_potential_numer_ab(rho_r, rho_g, rho1_r, rhoa, rhob, vxc_rho, &
+                                           tau_r, tau1_r, tau_a, tau_b, vxc_tau, &
+                                           xc_section, pw_pool, h)
+
+      TYPE(pw_p_type), DIMENSION(:), POINTER, INTENT(IN) :: vxc_rho, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, tau1_r
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'calc_resp_potential_numer_ab', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: exc, h
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_dummy
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: rhoa, rhob, tau_a, tau_b
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau_r
+
+      CALL timeset(routineN, handle)
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(rho_r,rhoa,rhob,h,rho1_r,tau_r,tau_a,tau_b,tau1_r)
+!$OMP WORKSHARE
+      rho_r(1)%pw%cr3d(:, :, :) = rhoa(:, :, :) + 0.5_dp*h*rho1_r(1)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+!$OMP WORKSHARE
+      rho_r(2)%pw%cr3d(:, :, :) = rhob(:, :, :) + 0.5_dp*h*rho1_r(2)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+      IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(tau_r) .AND. ASSOCIATED(tau_a) .AND. ASSOCIATED(tau_b)) THEN
+!$OMP WORKSHARE
+         tau_r(1)%pw%cr3d(:, :, :) = tau_a(:, :, :) + 0.5_dp*h*tau1_r(1)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+!$OMP WORKSHARE
+         tau_r(2)%pw%cr3d(:, :, :) = tau_b(:, :, :) + 0.5_dp*h*tau1_r(2)%pw%cr3d(:, :, :)
+!$OMP END WORKSHARE NOWAIT
+      END IF
+!$OMP END PARALLEL
+      CALL xc_vxc_pw_create(vxc_rho, vxc_tau, exc, rho_r, rho_g, tau_r, xc_section, &
+                            pw_pool, .FALSE., virial_dummy)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calc_resp_potential_numer_ab
 
 ! **************************************************************************************************
 !> \brief calculates stress tensor and potential contributions from the first derivative
@@ -2611,11 +2826,11 @@ CONTAINS
 !>      Anyway I strongly encourage whoever wants to modify this code to give a
 !>      look to the old version. [fawzi]
 ! **************************************************************************************************
-   SUBROUTINE xc_calc_2nd_deriv_analytical(v_xc, deriv_set, rho_set, rho1_set, &
+   SUBROUTINE xc_calc_2nd_deriv_analytical(v_xc, v_xc_tau, deriv_set, rho_set, rho1_set, &
                                            pw_pool, xc_section, gapw, vxg, tddfpt_fac, &
                                            compute_virial, virial_xc)
 
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho_set, rho1_set
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -2635,12 +2850,12 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(3, 3)                           :: nd
       LOGICAL                                            :: gradient_f, lsd, my_compute_virial, &
-                                                            my_gapw
+                                                            my_gapw, tau_f
       REAL(KIND=dp)                                      :: fac, gradient_cut, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, e_drhoa, e_drhob, &
                                                             e_drho, norm_drho, norm_drhoa, &
-                                                            norm_drhob, rho1, rho1a, rho1b
+                                                            norm_drhob, rho1, rho1a, rho1b, tau1, tau1a, tau1b
       TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE         :: v_drhoa, v_drhob, v_drho, v_drho_r
       TYPE(pw_type), POINTER                             :: tmp_g, virial_pw
@@ -2678,7 +2893,11 @@ CONTAINS
       nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
       bo = rho_set%local_bounds
 
-      CALL check_for_gradients(deriv_set, lsd, gradient_f)
+      CALL check_for_gradients(deriv_set, lsd, gradient_f, tau_f)
+
+      IF (tau_f) THEN
+         CPASSERT(ASSOCIATED(v_xc_tau))
+      END IF
 
       IF (gradient_f) THEN
          ALLOCATE (v_drho_r(nspins), v_drho(nspins))
@@ -2741,6 +2960,10 @@ CONTAINS
 
          END IF
 
+         IF (tau_f) THEN
+            CALL xc_rho_set_get(rho1_set, tau_a=tau1a, tau_b=tau1b)
+         END IF
+
          IF (nspins /= 1) THEN
 
             $:add_2nd_derivative_terms(arguments_openshell)
@@ -2799,7 +3022,7 @@ CONTAINS
                            ELSE
                               vxg(idir, ia, ir, 1) = vxg(idir, ia, ir, 1) - &
                                                      e_drho(ia, ir, 1)*(drho1a(idir)%array(ia, ir, 1) + &
-                                                                             fac*drho1b(idir)%array(ia, ir, 1))
+                                                                        fac*drho1b(idir)%array(ia, ir, 1))
                            END IF
                         END IF
                      END DO
@@ -2847,7 +3070,7 @@ CONTAINS
                               ELSE
                                  v_drho_r(1)%pw%cr3d(i, j, k) = v_drho_r(1)%pw%cr3d(i, j, k) - &
                                                                 e_drho(i, j, k)*(drho1a(idir)%array(i, j, k) + &
-                                                                                      fac*drho1b(idir)%array(i, j, k))
+                                                                                 fac*drho1b(idir)%array(i, j, k))
                               END IF
                            END DO
                         END DO
@@ -2930,6 +3153,10 @@ CONTAINS
             CALL xc_rho_set_get(rho_set, drho=drho, norm_drho=norm_drho)
             CALL xc_rho_set_get(rho1_set, drho=drho1)
             CALL prepare_dr1dr(dr1dr, drho, drho1)
+         END IF
+
+         IF (tau_f) THEN
+            CALL xc_rho_set_get(rho1_set, tau=tau1)
          END IF
 
          $:add_2nd_derivative_terms(arguments_closedshell)
@@ -3258,7 +3485,10 @@ CONTAINS
                CASE ("rho")
                   IF (lsd) &
                      CPABORT("rho not handled in lsd: '"//TRIM(desc)//"'")
-               CASE ("rhoa", "rhob")
+               CASE ("tau")
+                  IF (lsd) &
+                     CPABORT("tau not handled in lsd: '"//TRIM(desc)//"'")
+               CASE ("rhoa", "rhob", "tau_a", "tau_b")
                CASE default
                   CALL cp_abort(__LOCATION__, &
                                 "unhandled derivative: '"// &
@@ -3384,15 +3614,15 @@ CONTAINS
    END SUBROUTINE prepare_dr1dr_ab
 
 ! **************************************************************************************************
-!> \brief checks for gradients, metaGGAs will not be supported for 2nd derivatives
+!> \brief checks for gradients
 !> \param deriv_set ...
 !> \param lsd ...
 !> \param gradient_f ...
 ! **************************************************************************************************
-   SUBROUTINE check_for_gradients(deriv_set, lsd, gradient_f)
+   SUBROUTINE check_for_gradients(deriv_set, lsd, gradient_f, tau_f)
       TYPE(xc_derivative_set_type), INTENT(IN), POINTER  :: deriv_set
       LOGICAL, INTENT(IN)                                :: lsd
-      LOGICAL, INTENT(OUT)                               :: gradient_f
+      LOGICAL, INTENT(OUT)                               :: gradient_f, tau_f
 
       CHARACTER(len=*), PARAMETER :: routineN = 'check_for_gradients'
 
@@ -3407,6 +3637,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       gradient_f = .FALSE.
+      tau_f = .FALSE.
       ! check for unknown derivatives
       pos => deriv_set%derivs
       DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
@@ -3419,6 +3650,8 @@ CONTAINS
                CASE ("rho", "rhoa", "rhob")
                CASE ("norm_drho", "norm_drhoa", "norm_drhob")
                   gradient_f = .TRUE.
+               CASE ("tau_a", "tau_b", "tau")
+                  tau_f = .TRUE.
                CASE default
                   unknown_deriv = .TRUE.
                END SELECT
@@ -3427,6 +3660,8 @@ CONTAINS
             DO iorder = 1, order
                SELECT CASE (split_desc(iorder))
                CASE ("rho")
+               CASE ("tau")
+                  tau_f = .TRUE.
                CASE ("norm_drho")
                   gradient_f = .TRUE.
                CASE default

@@ -97,7 +97,7 @@ MODULE ec_env_types
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: cpmos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz, matrix_z, matrix_wz, z_admm
       ! Harris (rhoout), and response density (rhoz) on grid
-      TYPE(pw_p_type), DIMENSION(:), POINTER           :: rhoout_r, rhoz_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER           :: rhoout_r, rhoz_r, tauout_r
       ! potentials from input density
       TYPE(pw_p_type), POINTER                         :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace, vadmm_rspace

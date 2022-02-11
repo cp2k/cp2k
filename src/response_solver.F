@@ -159,7 +159,7 @@ MODULE response_solver
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'response_solver'
 
-   LOGICAL, PARAMETER                   :: debug_stress = .FALSE.
+   LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
    LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
@@ -173,7 +173,7 @@ CONTAINS
 !> \brief Initializes solver of linear response equation for Harris functional Lagrangian
 !>
 !> \param qs_env ...
-!> \param ec_env Environemnt of Harris energy correction
+!> \param ec_env Environment of Harris energy correction
 !>
 !> \date    01.2020
 !> \author  Fabian Belleflamme
@@ -800,7 +800,7 @@ CONTAINS
                                                             matrix_wz
       REAL(KIND=dp), OPTIONAL                            :: zehartree, zexc
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rhopz_r
-      TYPE(qs_p_env_type), OPTIONAL, POINTER             :: p_env
+      TYPE(qs_p_env_type), OPTIONAL                      :: p_env
       TYPE(excited_energy_type), OPTIONAL, POINTER       :: ex_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_force'
@@ -836,11 +836,12 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho_tot_gspace, rhoz_tot_gspace, &
-                                                            vhxc_rspace, zv_hartree_gspace, &
-                                                            zv_hartree_rspace
+                                                            vhxc_rspace, work_g, &
+                                                            zv_hartree_gspace, zv_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_g_aux, rho_r, rho_r_aux, &
                                                             rhoz_g, rhoz_g_aux, rhoz_r, &
-                                                            rhoz_r_aux, tau_r, tau_r_aux, v_xc
+                                                            rhoz_r_aux, tau_r, tau_r_aux, tauz_r, &
+                                                            v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -890,7 +891,7 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       fconv = 1.0E-9_dp*pascal/cell%deth
-      IF (debug_stress) THEN
+      IF (debug_stress .AND. use_virial) THEN
          sttot = virial%pv_virial
       END IF
 
@@ -921,7 +922,7 @@ CONTAINS
       ! Kinetic energy matrix
       NULLIFY (scrm)
       IF (debug_forces) fodeb(1:3) = force(1)%kinetic(1:3, 1)
-      IF (debug_stress) stdeb = virial%pv_ekinetic
+      IF (debug_stress .AND. use_virial) stdeb = virial%pv_ekinetic
       CALL build_kinetic_matrix(ks_env, matrix_t=scrm, &
                                 matrix_name="KINETIC ENERGY MATRIX", &
                                 basis_type="ORB", &
@@ -932,7 +933,7 @@ CONTAINS
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dT      ", fodeb
       END IF
-      IF (debug_stress) THEN
+      IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_ekinetic - stdeb)
          CALL mp_sum(stdeb, para_env%group)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -968,7 +969,7 @@ CONTAINS
       IF (ASSOCIATED(sac_ppl)) THEN
          nder = 1
          IF (debug_forces) fodeb(1:3) = force(1)%gth_ppl(1:3, 1)
-         IF (debug_stress) stdeb = virial%pv_ppl
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_ppl
          CALL build_core_ppl(matrix_h, matrix_p, force, &
                              virial, .TRUE., use_virial, nder, &
                              qs_kind_set, atomic_kind_set, particle_set, &
@@ -978,7 +979,7 @@ CONTAINS
             CALL mp_sum(fodeb, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dHppl   ", fodeb
          END IF
-         IF (debug_stress) THEN
+         IF (debug_stress .AND. use_virial) THEN
             stdeb = fconv*(virial%pv_ppl - stdeb)
             CALL mp_sum(stdeb, para_env%group)
             IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -989,7 +990,7 @@ CONTAINS
       IF (ASSOCIATED(sap_ppnl)) THEN
          nder = 1
          IF (debug_forces) fodeb(1:3) = force(1)%gth_ppnl(1:3, 1)
-         IF (debug_stress) stdeb = virial%pv_ppnl
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_ppnl
          CALL build_core_ppnl(matrix_h, matrix_p, force, &
                               virial, .TRUE., use_virial, nder, &
                               qs_kind_set, atomic_kind_set, particle_set, &
@@ -999,7 +1000,7 @@ CONTAINS
             CALL mp_sum(fodeb, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dHppnl  ", fodeb
          END IF
-         IF (debug_stress) THEN
+         IF (debug_stress .AND. use_virial) THEN
             stdeb = fconv*(virial%pv_ppnl - stdeb)
             CALL mp_sum(stdeb, para_env%group)
             IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -1018,7 +1019,7 @@ CONTAINS
             END IF
 
             IF (debug_forces) fodeb(1:3) = force(1)%kinetic(1:3, 1)
-            IF (debug_stress) stdeb = virial%pv_virial
+            IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
             CALL build_tnadd_mat(kg_env=kg_env, matrix_p=matrix_p, force=force, virial=virial, &
                                  calculate_forces=.TRUE., use_virial=use_virial, &
                                  qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
@@ -1028,7 +1029,7 @@ CONTAINS
                CALL mp_sum(fodeb, para_env%group)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dTnadd  ", fodeb
             END IF
-            IF (debug_stress) THEN
+            IF (debug_stress .AND. use_virial) THEN
                stdeb = fconv*(virial%pv_virial - stdeb)
                CALL mp_sum(stdeb, para_env%group)
                IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -1065,7 +1066,7 @@ CONTAINS
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Force Pz*dHcore", fodeb
       END IF
-      IF (debug_stress) THEN
+      IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_virial - sttot)
          CALL mp_sum(stdeb, para_env%group)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -1092,29 +1093,48 @@ CONTAINS
       END IF
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
-      IF (debug_stress) stdeb = virial%pv_virial
+      IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
       DO ispin = 1, nspins
          CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
          CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
          CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                  hmat=scrm(ispin), pmat=mpa(ispin), &
                                  qs_env=qs_env, calculate_forces=.TRUE.)
-         IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
-                                    hmat=scrm(ispin), pmat=mpa(ispin), &
-                                    qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
-         END IF
       END DO
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dVhxc   ", fodeb
       END IF
-      IF (debug_stress) THEN
+      IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_virial - pv_loc)
          CALL mp_sum(stdeb, para_env%group)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| INT Pz*dVhxc   ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+      END IF
+
+      IF (ASSOCIATED(vtau_rspace)) THEN
+         IF (use_virial) &
+            CALL cp_abort(__LOCATION__, "Stress tensor of the Harris functional with "// &
+                          "tau-dependent functionals not implemented!")
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
+         DO ispin = 1, nspins
+            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+                                    hmat=scrm(ispin), pmat=mpa(ispin), &
+                                    qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
+         END DO
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dVxc_tau   ", fodeb
+         END IF
+         IF (debug_stress .AND. use_virial) THEN
+            stdeb = fconv*(virial%pv_virial - pv_loc)
+            CALL mp_sum(stdeb, para_env%group)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| INT Pz*dVxc_tau   ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace%pw)
 
@@ -1146,20 +1166,18 @@ CONTAINS
                CALL mp_sum(fodeb, para_env%group)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dVkg   ", fodeb
             END IF
-            IF (debug_stress) THEN
+            IF (debug_stress .AND. use_virial) THEN
                !IF (iounit > 0) WRITE(iounit, *) &
                !   "response_force | VOL 1st KG - v_KG[n_in]*n_z: ", ekin_mol
                stdeb = 1.0_dp*fconv*ekin_mol
                IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
                   'STRESS| VOL KG Pz*dVKG ', one_third_sum_diag(stdeb), det_3x3(stdeb)
-            END IF
-            IF (debug_stress) THEN
+
                stdeb = fconv*(virial%pv_virial - pv_loc)
                CALL mp_sum(stdeb, para_env%group)
                IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
                   'STRESS| INT KG Pz*dVKG  ', one_third_sum_diag(stdeb), det_3x3(stdeb)
-            END IF
-            IF (debug_stress) THEN
+
                stdeb = fconv*virial%pv_xc
                CALL mp_sum(stdeb, para_env%group)
                IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -1199,6 +1217,22 @@ CONTAINS
                                  rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin))
          CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace%pw)
       END DO
+
+      IF (ASSOCIATED(vtau_rspace)) THEN
+         NULLIFY (work_g%pw)
+         ALLOCATE (tauz_r(nspins))
+         CALL pw_pool_create_pw(auxbas_pw_pool, work_g%pw, &
+                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         DO ispin = 1, nspins
+            NULLIFY (tauz_r(ispin)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, tauz_r(ispin)%pw, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
+                                    rho=tauz_r(ispin), rho_gspace=work_g, &
+                                    compute_tau=.TRUE., total_rho=total_rhoz)
+         END DO
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, work_g%pw)
+      END IF
 
       ! Save response density on real space grid for properties
       IF (PRESENT(rhopz_r)) THEN
@@ -1264,6 +1298,12 @@ CONTAINS
             exc = exc + pw_integral_ab(rhoz_r(ispin)%pw, vxc_rspace(ispin)%pw)/ &
                   vxc_rspace(ispin)%pw%pw_grid%dvol
          END DO
+         IF (ASSOCIATED(vtau_rspace)) THEN
+            DO ispin = 1, nspins
+               exc = exc + pw_integral_ab(tauz_r(ispin)%pw, vtau_rspace(ispin)%pw)/ &
+                     vtau_rspace(ispin)%pw%pw_grid%dvol
+            END DO
+         END IF
 
          ! Add KG embedding correction
          IF (dft_control%qs_control%do_kg) THEN
@@ -1286,7 +1326,7 @@ CONTAINS
       END IF
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_core(1:3, 1)
-      IF (debug_stress) stdeb = virial%pv_ehartree
+      IF (debug_stress .AND. use_virial) stdeb = virial%pv_ehartree
       CALL pw_transfer(zv_hartree_gspace%pw, zv_hartree_rspace%pw)
       CALL pw_scale(zv_hartree_rspace%pw, zv_hartree_rspace%pw%pw_grid%dvol)
       ! Getting nuclear force contribution from the core charge density
@@ -1296,7 +1336,7 @@ CONTAINS
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Vh(rhoz)*dncore ", fodeb
       END IF
-      IF (debug_stress) THEN
+      IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_ehartree - stdeb)
          CALL mp_sum(stdeb, para_env%group)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -1316,13 +1356,15 @@ CONTAINS
          virial%pv_xc = 0.0_dp
       END IF
       !
-      NULLIFY (v_xc)
+      NULLIFY (v_xc, v_xc_tau)
 
       CALL create_kernel(qs_env, &
                          vxc=v_xc, &
+                         vxc_tau=v_xc_tau, &
                          rho=rho, &
                          rho1_r=rhoz_r, &
                          rho1_g=rhoz_g, &
+                         tau1_r=tauz_r, &
                          xc_section=xc_section, &
                          compute_virial=use_virial, &
                          virial_xc=virial%pv_xc)
@@ -1333,7 +1375,7 @@ CONTAINS
          virial%pv_virial = virial%pv_virial + virial%pv_xc
       END IF
 
-      IF (debug_stress) THEN
+      IF (debug_stress .AND. use_virial) THEN
          stdeb = 1.0_dp*fconv*virial%pv_xc
          CALL mp_sum(stdeb, para_env%group)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -1347,7 +1389,7 @@ CONTAINS
 
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
-      IF (debug_stress) stdeb = virial%pv_virial
+      IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
          CALL pw_axpy(zv_hartree_rspace%pw, v_xc(ispin)%pw)
@@ -1363,11 +1405,37 @@ CONTAINS
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dK*rhoz ", fodeb
       END IF
-      IF (debug_stress) THEN
+      IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_virial - stdeb)
          CALL mp_sum(stdeb, para_env%group)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| INT 2nd f_Hxc[Pz]*Pin', one_third_sum_diag(stdeb), det_3x3(stdeb)
+      END IF
+
+      IF (ASSOCIATED(v_xc_tau)) THEN
+         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
+         DO ispin = 1, nspins
+            CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
+            CALL integrate_v_rspace(qs_env=qs_env, &
+                                    v_rspace=v_xc_tau(ispin), &
+                                    hmat=matrix_hz(ispin), &
+                                    pmat=matrix_p(ispin, 1), &
+                                    compute_tau=.TRUE., &
+                                    calculate_forces=.TRUE.)
+         END DO
+
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+            CALL mp_sum(fodeb, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dKtau*tauz ", fodeb
+         END IF
+         IF (debug_stress .AND. use_virial) THEN
+            stdeb = fconv*(virial%pv_virial - stdeb)
+            CALL mp_sum(stdeb, para_env%group)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| INT 2nd f_xctau[Pz]*Pin', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
       END IF
 
       ! Stress-tensor integral contribution of 2nd derivative terms
@@ -1398,13 +1466,12 @@ CONTAINS
                CALL mp_sum(fodeb, para_env%group)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*d(Kkg)*rhoz ", fodeb
             END IF
-            IF (debug_stress) THEN
+            IF (debug_stress .AND. use_virial) THEN
                stdeb = fconv*(virial%pv_virial - pv_loc)
                CALL mp_sum(stdeb, para_env%group)
                IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
                   'STRESS| INT KG Pin*d(KKG)*rhoz    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
-            END IF
-            IF (debug_stress) THEN
+
                stdeb = fconv*(virial%pv_xc)
                CALL mp_sum(stdeb, para_env%group)
                IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -1432,6 +1499,13 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (rhoz_r, rhoz_g, v_xc)
+      IF (ASSOCIATED(v_xc_tau)) THEN
+      DO ispin = 1, nspins
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, tauz_r(ispin)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+      END DO
+      DEALLOCATE (tauz_r, v_xc_tau)
+      END IF
       IF (debug_forces) THEN
          ALLOCATE (ftot3(3, natom))
          CALL total_qs_force(ftot3, force, atomic_kind_set)
@@ -1521,7 +1595,7 @@ CONTAINS
             NULLIFY (v_xc)
             deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
             IF (deriv2_analytic) THEN
-               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, xc_section, auxbas_pw_pool, .FALSE., v_xc)
+               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
             ELSE
                CPABORT("NYA 00005")
                NULLIFY (rhoz_aux)
@@ -1787,7 +1861,7 @@ CONTAINS
       END IF
 
       IF (debug_forces) fodeb(1:3) = force(1)%overlap(1:3, 1)
-      IF (debug_stress) stdeb = virial%pv_overlap
+      IF (debug_stress .AND. use_virial) stdeb = virial%pv_overlap
       NULLIFY (scrm)
       CALL build_overlap_matrix(ks_env, matrix_s=scrm, &
                                 matrix_name="OVERLAP MATRIX", &
@@ -1805,7 +1879,7 @@ CONTAINS
          CALL mp_sum(fodeb, para_env%group)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wz*dS ", fodeb
       END IF
-      IF (debug_stress) THEN
+      IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_overlap - stdeb)
          CALL mp_sum(stdeb, para_env%group)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -2168,7 +2242,6 @@ CONTAINS
       REAL(dp)                                           :: eadmm, eovrl, eself
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -2190,7 +2263,7 @@ CONTAINS
       ! get all information on the electronic density
       NULLIFY (rho, ks_env)
       CALL get_qs_env(qs_env=qs_env, rho=rho, dft_control=dft_control, &
-                      para_env=para_env, blacs_env=blacs_env, ks_env=ks_env, rho_core=rho_core)
+                      para_env=para_env, ks_env=ks_env, rho_core=rho_core)
 
       nspins = dft_control%nspins
 

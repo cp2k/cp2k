@@ -154,6 +154,8 @@ MODULE qs_tddfpt2_types
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: wpw_gspace_sub
       !> group-specific copy of a real-space grid
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: wpw_rspace_sub
+      !> group-specific copy of a real-space grid for the kinetic energy density
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: wpw_tau_rspace_sub
       !
       ! *** globally distributed matrices required to compute exact exchange terms ***
       !
@@ -369,16 +371,20 @@ CONTAINS
       ! work plain-wave grids
       CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
       ALLOCATE (work_matrices%A_ia_rspace_sub(nspins))
-      ALLOCATE (work_matrices%wpw_gspace_sub(nspins), work_matrices%wpw_rspace_sub(nspins))
+      ALLOCATE (work_matrices%wpw_gspace_sub(nspins), work_matrices%wpw_rspace_sub(nspins), &
+                work_matrices%wpw_tau_rspace_sub(nspins))
       DO ispin = 1, nspins
          NULLIFY (work_matrices%A_ia_rspace_sub(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
 
-         NULLIFY (work_matrices%wpw_gspace_sub(ispin)%pw, work_matrices%wpw_rspace_sub(ispin)%pw)
+         NULLIFY (work_matrices%wpw_gspace_sub(ispin)%pw, work_matrices%wpw_rspace_sub(ispin)%pw, &
+                  work_matrices%wpw_tau_rspace_sub(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin)%pw, &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_tau_rspace_sub(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
       END DO
 
@@ -591,10 +597,12 @@ CONTAINS
          CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
          DO ispin = SIZE(work_matrices%wpw_rspace_sub), 1, -1
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_tau_rspace_sub(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin)%pw)
          END DO
-         DEALLOCATE (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, work_matrices%wpw_rspace_sub)
+         DEALLOCATE (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
+                     work_matrices%wpw_rspace_sub, work_matrices%wpw_tau_rspace_sub)
       END IF
 
       IF (ASSOCIATED(work_matrices%rho_aux_fit_struct_sub)) &
