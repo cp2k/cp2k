@@ -1133,7 +1133,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau1_r, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1155,7 +1155,7 @@ CONTAINS
       ! Get non-ortho input density matrix on grid
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       ! Get non-ortho trial density
-      CALL qs_rho_get(rho1, rho_g=rho1_g, rho_r=rho1_r)
+      CALL qs_rho_get(rho1, rho_g=rho1_g, rho_r=rho1_r, tau_r=tau1_r)
 
       NULLIFY (pw_env)
       CALL get_qs_env(qs_env, pw_env=pw_env)
@@ -1183,7 +1183,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       ! XC-Kernel
-      NULLIFY (v_xc, xc_section)
+      NULLIFY (v_xc, v_xc_tau, xc_section)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
       ! No HFX allowed
@@ -1198,9 +1198,11 @@ CONTAINS
       ! add xc-kernel
       CALL create_kernel(qs_env, &
                          vxc=v_xc, &
+                         vxc_tau=v_xc_tau, &
                          rho=rho, &
                          rho1_r=rho1_r, &
                          rho1_g=rho1_g, &
+                         tau1_r=tau1_r, &
                          xc_section=xc_section)
 
       DO ispin = 1, nspins
@@ -1223,7 +1225,10 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_axpy(v_hartree_rspace%pw, v_xc(ispin)%pw)
       END DO
-      IF (nspins == 1) CALL pw_scale(v_xc(1)%pw, 2.0_dp)
+      IF (nspins == 1) THEN
+         CALL pw_scale(v_xc(1)%pw, 2.0_dp)
+         IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(1)%pw, 2.0_dp)
+      END IF
 
       ! Init response kernel matrix
       ! matrix G(B)
@@ -1241,6 +1246,16 @@ CONTAINS
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
                                  basis_type="ORB")
+
+         IF (ASSOCIATED(v_xc_tau)) THEN
+            CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                                    pmat=rho_ao(ispin), &
+                                    hmat=matrix_G(ispin), &
+                                    qs_env=qs_env, &
+                                    compute_tau=.TRUE., &
+                                    calculate_forces=.FALSE., &
+                                    basis_type="ORB")
+         END IF
       END DO
 
       ! Calculate KG correction to kernel
@@ -1278,6 +1293,12 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (v_xc)
+      IF (ASSOCIATED(v_xc_tau)) THEN
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+         END DO
+         DEALLOCATE (v_xc_tau)
+      END IF
 
       CALL dbcsr_deallocate_matrix_set(matrix_G)
 

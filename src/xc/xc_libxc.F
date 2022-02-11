@@ -671,26 +671,25 @@ CONTAINS
             CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
          CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
             ! not implemented ...
-            CPABORT("derivatives larger than 1 not implemented or checked")
 
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rho_rho)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(rho)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(norm_drho)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rho)(tau)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rho_tau)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(tau)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_tau)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(tau)(tau)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_tau_tau)
+            deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(rho)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rho)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
+            deriv => xc_dset_get_derivative(deriv_set, "(rho)(tau)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rho_tau)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(tau)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_tau)
+            deriv => xc_dset_get_derivative(deriv_set, "(tau)(tau)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_tau_tau)
             !             IF (has_laplace) THEN
             !                deriv => xc_dset_get_derivative(deriv_set,"(rho)(laplace_rho)",&
             !                     allocate_deriv=.TRUE.)
@@ -1044,93 +1043,91 @@ CONTAINS
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_ndrhob)
          CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
-            ! not implemented ...
-            CPABORT("derivatives larger than 1 not implemented or checked")
 
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rhoa_rhoa)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhob)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rhoa_rhob)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rhob_rhob)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(rhoa)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rhoa)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(rhob)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rhob)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(rhoa)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_rhoa)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(rhob)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_rhob)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(rhoa)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_rhoa)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(rhob)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_rhob)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(norm_drho)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(norm_drhoa)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrhoa)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(norm_drhob)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrhob)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(norm_drhoa)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_ndrhoa)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(norm_drhob)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_ndrhob)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(norm_drhob)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_ndrhob)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(tau_a)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rhoa_tau_a)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(tau_b)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rhoa_tau_b)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rhob)(tau_a)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rhob_tau_a)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(rhob)(tau_b)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_rhob_tau_b)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(tau_a)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_tau_a)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(tau_b)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_tau_b)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(tau_a)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_tau_a)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(tau_b)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_tau_b)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(tau_a)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_tau_a)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(tau_b)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_tau_b)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(tau_a)(tau_a)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_tau_a_tau_a)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(tau_a)(tau_b)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_tau_a_tau_b)
-            !             deriv => xc_dset_get_derivative(deriv_set,"(tau_b)(tau_b)",&
-            !                  allocate_deriv=.TRUE.)
-            !             CALL xc_derivative_get(deriv,deriv_data=e_tau_b_tau_b)
+            deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rhoa_rhoa)
+            deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rhoa_rhob)
+            deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rhob_rhob)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(rhoa)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rhoa)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(rhob)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rhob)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(rhoa)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_rhoa)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(rhob)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_rhob)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(rhoa)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_rhoa)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(rhob)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_rhob)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drhoa)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrhoa)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drhob)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrhob)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drhoa)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_ndrhoa)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drhob)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_ndrhob)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(norm_drhob)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_ndrhob)
+            deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(tau_a)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rhoa_tau_a)
+            deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(tau_b)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rhoa_tau_b)
+            deriv => xc_dset_get_derivative(deriv_set, "(rhob)(tau_a)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rhob_tau_a)
+            deriv => xc_dset_get_derivative(deriv_set, "(rhob)(tau_b)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_rhob_tau_b)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(tau_a)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_tau_a)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(tau_b)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrho_tau_b)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(tau_a)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_tau_a)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(tau_b)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_tau_b)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(tau_a)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_tau_a)
+            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(tau_b)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_tau_b)
+            deriv => xc_dset_get_derivative(deriv_set, "(tau_a)(tau_a)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_tau_a_tau_a)
+            deriv => xc_dset_get_derivative(deriv_set, "(tau_a)(tau_b)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_tau_a_tau_b)
+            deriv => xc_dset_get_derivative(deriv_set, "(tau_b)(tau_b)", &
+                                            allocate_deriv=.TRUE.)
+            CALL xc_derivative_get(deriv, deriv_data=e_tau_b_tau_b)
             !            IF (has_laplace) THEN
             !                deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(laplace_rhoa)",&
             !                     allocate_deriv=.TRUE.)
@@ -1583,13 +1580,13 @@ CONTAINS
                IF (no_exc) THEN
                   CALL xc_f03_mgga_vxc_fxc(xc_func, one, rho(ii), sigma, &
                                            laplace_rho(ii), my_tau, vrho, vsigma, vlapl, vtau, &
-                                           v2rho2, v2sigma2, v2lapl2, v2tau2, v2rhosigma, v2rholapl, &
-                                           v2rhotau, v2sigmalapl, v2sigmatau, v2lapltau)
+                                           v2rho2, v2rhosigma, v2rholapl, v2rhotau, v2sigma2, v2sigmalapl, v2sigmatau, &
+                                           v2lapl2, v2lapltau, v2tau2)
                ELSE
                   CALL xc_f03_mgga(xc_func, one, rho(ii), sigma, &
                                    laplace_rho(ii), my_tau, exc, vrho, vsigma, vlapl, vtau, &
-                                   v2rho2, v2sigma2, v2lapl2, v2tau2, v2rhosigma, v2rholapl, &
-                                   v2rhotau, v2sigmalapl, v2sigmatau, v2lapltau)
+                                   v2rho2, v2rhosigma, v2rholapl, v2rhotau, v2sigma2, v2sigmalapl, v2sigmatau, &
+                                   v2lapl2, v2lapltau, v2tau2)
                END IF
                e_rho_rho(ii) = e_rho_rho(ii) + sc*v2rho2(1)
                e_ndrho_rho(ii) = e_ndrho_rho(ii) + sc*2.0_dp*v2rhosigma(1)*norm_drho(ii)
@@ -1615,14 +1612,14 @@ CONTAINS
                IF (no_exc) THEN
                   CALL xc_f03_mgga_vxc_fxc(xc_func, one, rho(ii), sigma, &
                                            laplace_rho(ii), my_tau, vrho, vsigma, vlapl, vtau, &
-                                           v2rho2, v2sigma2, v2lapl2, v2tau2, v2rhosigma, v2rholapl, &
-                                           v2rhotau, v2sigmalapl, v2sigmatau, v2lapltau)
+                                           v2rho2, v2rhosigma, v2rholapl, v2rhotau, v2sigma2, v2sigmalapl, v2sigmatau, &
+                                           v2lapl2, v2lapltau, v2tau2)
                   exc = 0.0_dp
                ELSE
                   CALL xc_f03_mgga(xc_func, one, rho(ii), sigma, &
                                    laplace_rho(ii), my_tau, exc, vrho, vsigma, vlapl, vtau, &
-                                   v2rho2, v2sigma2, v2lapl2, v2tau2, v2rhosigma, v2rholapl, &
-                                   v2rhotau, v2sigmalapl, v2sigmatau, v2lapltau)
+                                   v2rho2, v2rhosigma, v2rholapl, v2rhotau, v2sigma2, v2sigmalapl, v2sigmatau, &
+                                   v2lapl2, v2lapltau, v2tau2)
                END IF
                e_0(ii) = e_0(ii) + sc*exc(1)*rho(ii)
                e_rho(ii) = e_rho(ii) + sc*vrho(1)
@@ -2250,15 +2247,15 @@ CONTAINS
                      CALL xc_f03_mgga_vxc_fxc(xc_func, one, rhov(1, 1), sigmav(1, 1), &
                                               laplace_rhov(1, 1), tauv(1, 1), vrho(1, 1), vsigma(1, 1), &
                                               vlapl(1, 1), vtau(1, 1), &
-                                              v2rho2(1, 1), v2sigma2(1, 1), v2lapl2(1, 1), v2tau2(1, 1), &
-                                              v2rhosigma(1, 1), v2rholapl(1, 1), v2rhotau(1, 1), &
-                                              v2sigmalapl(1, 1), v2sigmatau(1, 1), v2lapltau(1, 1))
+                                              v2rho2(1, 1), v2rhosigma(1, 1), v2rholapl(1, 1), v2rhotau(1, 1), &
+                                              v2sigma2(1, 1), v2sigmalapl(1, 1), v2sigmatau(1, 1), &
+                                              v2lapl2(1, 1), v2lapltau(1, 1), v2tau2(1, 1))
                   ELSE
                      CALL xc_f03_mgga(xc_func, one, rhov(1, 1), sigmav(1, 1), &
                                       laplace_rhov(1, 1), tauv(1, 1), exc, vrho(1, 1), vsigma(1, 1), &
-                                      vlapl(1, 1), vtau(1, 1), v2rho2(1, 1), v2sigma2(1, 1), &
-                                      v2lapl2(1, 1), v2tau2(1, 1), v2rhosigma(1, 1), v2rholapl(1, 1), &
-                                      v2rhotau(1, 1), v2sigmalapl(1, 1), v2sigmatau(1, 1), v2lapltau(1, 1))
+                                      vlapl(1, 1), vtau(1, 1), v2rho2(1, 1), v2rhosigma(1, 1), v2rholapl(1, 1), &
+                                      v2rhotau(1, 1), v2sigma2(1, 1), v2sigmalapl(1, 1), v2sigmatau(1, 1), &
+                                      v2lapl2(1, 1), v2lapltau(1, 1), v2tau2(1, 1))
                   END IF
                   e_rhoa_rhoa(ii) = e_rhoa_rhoa(ii) + sc*v2rho2(1, 1)
                   e_rhoa_rhob(ii) = e_rhoa_rhob(ii) + sc*v2rho2(2, 1)
@@ -2355,16 +2352,16 @@ CONTAINS
                      CALL xc_f03_mgga_vxc_fxc(xc_func, one, rhov(1, 1), sigmav(1, 1), &
                                               laplace_rhov(1, 1), tauv(1, 1), vrho(1, 1), vsigma(1, 1), &
                                               vlapl(1, 1), vtau(1, 1), &
-                                              v2rho2(1, 1), v2sigma2(1, 1), v2lapl2(1, 1), v2tau2(1, 1), &
-                                              v2rhosigma(1, 1), v2rholapl(1, 1), v2rhotau(1, 1), &
-                                              v2sigmalapl(1, 1), v2sigmatau(1, 1), v2lapltau(1, 1))
+                                              v2rho2(1, 1), v2rhosigma(1, 1), v2rholapl(1, 1), v2rhotau(1, 1), &
+                                              v2sigma2(1, 1), v2sigmalapl(1, 1), v2sigmatau(1, 1), &
+                                              v2lapl2(1, 1), v2lapltau(1, 1), v2tau2(1, 1))
                      exc = 0.0_dp
                   ELSE
                      CALL xc_f03_mgga(xc_func, one, rhov(1, 1), sigmav(1, 1), &
                                       laplace_rhov(1, 1), tauv(1, 1), exc, vrho(1, 1), vsigma(1, 1), &
-                                      vlapl(1, 1), vtau(1, 1), v2rho2(1, 1), v2sigma2(1, 1), &
-                                      v2lapl2(1, 1), v2tau2(1, 1), v2rhosigma(1, 1), v2rholapl(1, 1), &
-                                      v2rhotau(1, 1), v2sigmalapl(1, 1), v2sigmatau(1, 1), v2lapltau(1, 1))
+                                      vlapl(1, 1), vtau(1, 1), v2rho2(1, 1), v2rhosigma(1, 1), v2rholapl(1, 1), &
+                                      v2rhotau(1, 1), v2sigma2(1, 1), v2sigmalapl(1, 1), v2sigmatau(1, 1), &
+                                      v2lapl2(1, 1), v2lapltau(1, 1), v2tau2(1, 1))
                   END IF
                   e_0(ii) = e_0(ii) + sc*exc(1)*(rhov(1, 1) + rhov(2, 1))
                   e_rhoa(ii) = e_rhoa(ii) + sc*vrho(1, 1)

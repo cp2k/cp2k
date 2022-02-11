@@ -63,6 +63,7 @@ MODULE qs_linres_kernel
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
+                                              pw_scale,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -191,8 +192,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau, &
-                                                            v_rspace_new, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau1_r, &
+                                                            v_rspace_new, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
@@ -204,7 +205,7 @@ CONTAINS
 
       NULLIFY (auxbas_pw_pool, pw_env, v_rspace_new, para_env, rho1_r, &
                v_xc, rho1_ao, rho_ao, poisson_env, input, rho, dft_control, &
-               logger, rho1_g)
+               logger, rho1_g, v_xc_tau)
       logger => cp_get_default_logger()
 
       energy_hartree = 0.0_dp
@@ -325,14 +326,14 @@ CONTAINS
       END IF
 
       deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
+      NULLIFY (v_xc_tau)
       IF (deriv2_analytic) THEN
-         CALL qs_rho_get(rho1a, rho_r=rho1_r)
-         CALL qs_fxc_analytic(rho, rho1_r, xc_section, auxbas_pw_pool, lr_triplet, v_xc)
+         CALL qs_rho_get(rho1a, rho_r=rho1_r, tau_r=tau1_r)
+         CALL qs_fxc_analytic(rho, rho1_r, tau1_r, xc_section, auxbas_pw_pool, lr_triplet, v_xc, v_xc_tau)
          IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
                                                     do_tddft=.FALSE., do_triplet=lr_triplet)
       ELSE
-         NULLIFY (tau)
-         CALL qs_fxc_fdiff(ks_env, rho, rho1a, xc_section, 6, lr_triplet, v_xc, tau)
+         CALL qs_fxc_fdiff(ks_env, rho, rho1a, xc_section, 6, lr_triplet, v_xc, v_xc_tau)
          CPASSERT(.NOT. gapw)
       END IF
 
@@ -340,6 +341,12 @@ CONTAINS
          v_rspace_new(ispin)%pw => v_xc(ispin)%pw
       END DO
       DEALLOCATE (v_xc)
+
+      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
+      DO ispin = 1, nspins
+         CALL pw_scale(v_rspace_new(ispin)%pw, v_rspace_new(ispin)%pw%pw_grid%dvol)
+         IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
+      END DO
 
       ! ADMM Correction
       IF (dft_control%do_admm) THEN
@@ -360,31 +367,37 @@ CONTAINS
       ! Add both hartree and xc terms !
       !-------------------------------!
       DO ispin = 1, nspins
+         CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
 
          IF (gapw_xc) THEN
             ! XC and Hartree are integrated separatedly
             ! XC uses the sofft basis set only
-            v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d* &
-                                          v_rspace_new(ispin)%pw%pw_grid%dvol
 
             IF (nspins == 1) THEN
 
                IF (.NOT. (lr_triplet)) THEN
                   v_rspace_new(1)%pw%cr3d = 2.0_dp*v_rspace_new(1)%pw%cr3d
+                  IF (ASSOCIATED(v_xc_tau)) v_xc_tau(1)%pw%cr3d = 2.0_dp*v_xc_tau(1)%pw%cr3d
                END IF
                CALL qs_rho_get(rho1, rho_ao=rho1_ao)
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-               CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                        pmat=rho1_ao(ispin), &
                                        hmat=kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=.FALSE., gapw=gapw_xc)
 
+               IF (ASSOCIATED(v_xc_tau)) THEN
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                                          pmat=rho1_ao(ispin), &
+                                          hmat=kpp1_env%v_ao(ispin), &
+                                          qs_env=qs_env, &
+                                          compute_tau=.TRUE., &
+                                          calculate_forces=.FALSE., gapw=gapw_xc)
+               END IF
+
                ! add hartree only for SINGLETS
                IF (.NOT. lr_triplet) THEN
-                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d* &
-                                             v_hartree_rspace%pw%pw_grid%dvol
                   v_rspace_new(1)%pw%cr3d = 2.0_dp*v_hartree_rspace%pw%cr3d
 
                   CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
@@ -395,17 +408,21 @@ CONTAINS
                END IF
             ELSE
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-               CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                        pmat=rho_ao(ispin), &
                                        hmat=kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=.FALSE., gapw=gapw_xc)
 
-               IF (ispin == 1) THEN
-                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d* &
-                                             v_hartree_rspace%pw%pw_grid%dvol
+               IF (ASSOCIATED(v_xc_tau)) THEN
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                                          pmat=rho_ao(ispin), &
+                                          hmat=kpp1_env%v_ao(ispin), &
+                                          qs_env=qs_env, &
+                                          compute_tau=.TRUE., &
+                                          calculate_forces=.FALSE., gapw=gapw_xc)
                END IF
+
                v_rspace_new(ispin)%pw%cr3d = v_hartree_rspace%pw%cr3d
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
                                        pmat=rho_ao(ispin), &
@@ -416,34 +433,26 @@ CONTAINS
 
          ELSE
 
-            v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d* &
-                                          v_rspace_new(ispin)%pw%pw_grid%dvol
-
             IF (nspins == 1) THEN
                IF (.NOT. (lr_triplet)) THEN
                   v_rspace_new(1)%pw%cr3d = 2.0_dp*v_rspace_new(1)%pw%cr3d
+                  IF (ASSOCIATED(v_xc_tau)) v_xc_tau(1)%pw%cr3d = 2.0_dp*v_xc_tau(1)%pw%cr3d
                END IF
                ! add hartree only for SINGLETS
                !IF (res_etype == tddfpt_singlet) THEN
                IF (.NOT. lr_triplet) THEN
-                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d* &
-                                             v_hartree_rspace%pw%pw_grid%dvol
                   v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d + &
                                             2.0_dp*v_hartree_rspace%pw%cr3d
                END IF
             ELSE
-               IF (ispin == 1) THEN
-                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d* &
-                                             v_hartree_rspace%pw%pw_grid%dvol
-               END IF
                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
                                              v_hartree_rspace%pw%cr3d
             END IF
 
-            ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-            CALL dbcsr_set(kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
-
             IF (lrigpw) THEN
+               IF (ASSOCIATED(v_xc_tau)) &
+                  CPABORT("metaGGA-functionals not supported with LRI!")
+
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL get_qs_env(qs_env, nkind=nkind)
                DO ikind = 1, nkind
@@ -468,6 +477,15 @@ CONTAINS
                                        hmat=kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=.FALSE., gapw=gapw)
+
+               IF (ASSOCIATED(v_xc_tau)) THEN
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                                          pmat=rho_ao(ispin), &
+                                          hmat=kpp1_env%v_ao(ispin), &
+                                          qs_env=qs_env, &
+                                          compute_tau=.TRUE., &
+                                          calculate_forces=.FALSE., gapw=gapw)
+               END IF
             END IF
 
          END IF
@@ -524,6 +542,12 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
       END DO
       DEALLOCATE (v_rspace_new)
+      IF (ASSOCIATED(v_xc_tau)) THEN
+      DO ispin = 1, nspins
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+      END DO
+      DEALLOCATE (v_xc_tau)
+      END IF
 
       DO ispin = 1, nspins
          CALL cp_fm_get_info(c0(ispin)%matrix, ncol_global=ncol)
@@ -899,7 +923,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, tau_pw, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, tau_pw, v_xc, &
+                                                            v_xc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
@@ -965,9 +990,12 @@ CONTAINS
                                    section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                                    auxbas_pw_pool)
             fac = 0._dp
-            CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set_admm, p_env%kpp1_env%rho_set_admm, &
-                                   rho1_aux_r, rho1_aux_g, auxbas_pw_pool, gapw=.FALSE., &
+            CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set_admm, p_env%kpp1_env%rho_set_admm, &
+                                   rho1_aux_r, rho1_aux_g, tau_pw, auxbas_pw_pool, gapw=.FALSE., &
                                    xc_section=xc_section)
+            IF (ASSOCIATED(v_xc_tau)) THEN
+               CPABORT("Meta-GGA ADMM functionals not yet supported!")
+            END IF
             CALL xc_rho_set_release(rho1_set)
 
             tc0 => admm_env%work_aux_orb
@@ -1099,12 +1127,12 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_rho_r, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_rho_r, my_tau_r, rho_r, tau_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
 
-      NULLIFY (pw_env, auxbas_pw_pool, matrix_s, rho, rho_r, input)
+      NULLIFY (pw_env, auxbas_pw_pool, matrix_s, rho, rho_r, input, tau_r, my_tau_r)
 
       CPASSERT(ASSOCIATED(kpp1_env))
       CPASSERT(kpp1_env%ref_count > 0)
@@ -1112,7 +1140,7 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env, &
                       matrix_s=matrix_s, input=input, rho=rho)
 
-      CALL qs_rho_get(rho, rho_r=rho_r)
+      CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
       nspins = SIZE(rho_r)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
@@ -1145,12 +1173,27 @@ CONTAINS
                                       use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space)
                my_rho_r(ispin)%pw%cr3d = 0.5_dp*rho_r(1)%pw%cr3d
             END DO
+            IF (ASSOCIATED(tau_r)) THEN
+               ALLOCATE (my_tau_r(2))
+               DO ispin = 1, 2
+                  CALL pw_pool_create_pw(auxbas_pw_pool, my_tau_r(ispin)%pw, &
+                                         use_data=tau_r(1)%pw%in_use, in_space=tau_r(1)%pw%in_space)
+                  my_tau_r(ispin)%pw%cr3d = 0.5_dp*tau_r(1)%pw%cr3d
+               END DO
+            END IF
          ELSE
             ALLOCATE (my_rho_r(SIZE(rho_r)))
             DO ispin = 1, SIZE(rho_r)
                my_rho_r(ispin)%pw => rho_r(ispin)%pw
                CALL pw_retain(my_rho_r(ispin)%pw)
             END DO
+            IF (ASSOCIATED(tau_r)) THEN
+               ALLOCATE (my_tau_r(SIZE(tau_r)))
+               DO ispin = 1, SIZE(tau_r)
+                  my_tau_r(ispin)%pw => tau_r(ispin)%pw
+                  CALL pw_retain(my_tau_r(ispin)%pw)
+               END DO
+            END IF
          END IF
 
          IF (dft_control%do_admm) THEN
@@ -1161,12 +1204,18 @@ CONTAINS
 
          CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                                 my_rho_r, auxbas_pw_pool, &
-                                xc_section=xc_section)
+                                xc_section=xc_section, tau_r=my_tau_r)
 
          DO ispin = 1, SIZE(my_rho_r)
             CALL pw_release(my_rho_r(ispin)%pw)
          END DO
          DEALLOCATE (my_rho_r)
+         IF (ASSOCIATED(my_tau_r)) THEN
+         DO ispin = 1, SIZE(my_tau_r)
+            CALL pw_release(my_tau_r(ispin)%pw)
+         END DO
+         DEALLOCATE (my_tau_r)
+         END IF
       END IF
 
       ! ADMM Correction

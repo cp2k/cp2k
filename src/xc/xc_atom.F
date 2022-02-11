@@ -358,7 +358,7 @@ CONTAINS
       LOGICAL                                            :: lsd
       REAL(dp)                                           :: drho_cutoff
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_pw
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_pw, vxc_tau_pw
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
@@ -397,7 +397,9 @@ CONTAINS
          vxc_pw(ispin)%pw%cr3d => vxc(:, :, ispin:ispin)
       END DO
 
-      CALL xc_calc_2nd_deriv_analytical(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, &
+      NULLIFY (vxc_tau_pw)
+
+      CALL xc_calc_2nd_deriv_analytical(vxc_pw, vxc_tau_pw, deriv_set, rho_set, rho1_set, pw_pool, &
                                         xc_section, gapw=.TRUE., vxg=vxg)
 
       DO ispin = 1, nspins

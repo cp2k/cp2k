@@ -71,22 +71,23 @@ CONTAINS
 !> \param vxc will contain the partially integrated second derivative
 !>        taken with respect to rho, evaluated in rho and folded with rho1
 !>        vxc is allocated here and needs to be deallocated by the caller.
+!> \param vxc_tau ...
 !> \param rho density at which derivatives were calculated
 !> \param rho1_r density in r-space with which to fold
 !> \param rho1_g density in g-space with which to fold
+!> \param tau1_r ...
 !> \param xc_section XC parameters of this potential
 !> \param compute_virial Enable stress-tensor calculation
 !> \param virial_xc Will contain GGA contribution of XC-kernel to stress-tensor
 !> \date    11.2019
 !> \author  fbelle
 ! **************************************************************************************************
-   SUBROUTINE create_kernel(qs_env, vxc, rho, rho1_r, rho1_g, xc_section, compute_virial, virial_xc)
+   SUBROUTINE create_kernel(qs_env, vxc, vxc_tau, rho, rho1_r, rho1_g, tau1_r, xc_section, compute_virial, virial_xc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:), INTENT(OUT), &
-         POINTER                                         :: vxc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc, vxc_tau
       TYPE(qs_rho_type), INTENT(IN), POINTER             :: rho
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g, tau1_r
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
@@ -96,32 +97,35 @@ CONTAINS
 
       INTEGER                                            :: handle
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, tau_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(xc_derivative_set_type), POINTER              :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (auxbas_pw_pool, deriv_set, pw_env, rho_r, rho_set)
+      NULLIFY (auxbas_pw_pool, deriv_set, pw_env, rho_r, rho_set, vxc, vxc_tau)
 
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
       ! Get density
-      CALL qs_rho_get(rho, rho_r=rho_r)
+      CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
 
       CALL xc_prep_2nd_deriv(deriv_set=deriv_set, &    ! containing potentials
                              rho_set=rho_set, &        ! density at which derivs are calculated
                              rho_r=rho_r, &            ! place where derivative is evaluated
+                             tau_r=tau_r, &
                              pw_pool=auxbas_pw_pool, & ! pool for grids
                              xc_section=xc_section)
 
       ! folding of second deriv with density in rho1_set
-      CALL xc_calc_2nd_deriv(v_xc=vxc, &               ! XC-potential
+      CALL xc_calc_2nd_deriv(v_xc=vxc, &               ! XC-potential, rho-dependent
+                             v_xc_tau=vxc_tau, &      ! XC-potential, tau-dependent
                              deriv_set=deriv_set, &    ! deriv of xc-potential
                              rho_set=rho_set, &        ! density at which deriv are calculated
                              rho1_r=rho1_r, &          ! density with which to fold
                              rho1_g=rho1_g, &          ! density with which to fold
+                             tau1_r=tau1_r, &
                              pw_pool=auxbas_pw_pool, & ! pool for grids
                              xc_section=xc_section, &
                              gapw=.FALSE., &

@@ -233,7 +233,8 @@ CONTAINS
       TYPE(pw_p_type)                                    :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_g_pw, rho1_r, rho1_r_pw, &
-                                                            v_rspace_new, v_xc
+                                                            tau1_r, tau1_r_pw, v_rspace_new, v_xc, &
+                                                            v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -241,7 +242,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (v_xc, rho1_g, pw_env, rho1_g_pw)
+      NULLIFY (v_xc, rho1_g, pw_env, rho1_g_pw, tau1_r_pw)
       logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(p_env%kpp1))
@@ -332,9 +333,9 @@ CONTAINS
 
 ! *** calculate the xc potential ***
       IF (gapw_xc) THEN
-         CALL qs_rho_get(rho1_xc, rho_r=rho1_r)
+         CALL qs_rho_get(rho1_xc, rho_r=rho1_r, tau_r=tau1_r)
       ELSE
-         CALL qs_rho_get(rho1, rho_r=rho1_r)
+         CALL qs_rho_get(rho1, rho_r=rho1_r, tau_r=tau1_r)
       END IF
 
       IF (nspins == 1 .AND. do_excitations .AND. &
@@ -349,6 +350,16 @@ CONTAINS
             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
          END DO
 
+         IF (ASSOCIATED(tau1_r)) THEN
+            ALLOCATE (tau1_r_pw(2))
+            DO ispin = 1, 2
+               NULLIFY (tau1_r_pw(ispin)%pw)
+               CALL pw_create(tau1_r_pw(ispin)%pw, tau1_r(1)%pw%pw_grid, &
+                              tau1_r(1)%pw%in_use, tau1_r(1)%pw%in_space)
+               CALL pw_transfer(tau1_r(1)%pw, tau1_r_pw(ispin)%pw)
+            END DO
+         END IF
+
       ELSE
 
          ALLOCATE (rho1_r_pw(nspins))
@@ -357,10 +368,18 @@ CONTAINS
             CALL pw_retain(rho1_r_pw(ispin)%pw)
          END DO
 
+         IF (ASSOCIATED(tau1_r)) THEN
+            ALLOCATE (tau1_r_pw(nspins))
+            DO ispin = 1, nspins
+               tau1_r_pw(ispin)%pw => tau1_r(ispin)%pw
+               CALL pw_retain(tau1_r_pw(ispin)%pw)
+            END DO
+         END IF
+
       END IF
 
-      CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
-                             rho1_r_pw, rho1_g_pw, auxbas_pw_pool, xc_section, .FALSE., &
+      CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
+                             rho1_r_pw, rho1_g_pw, tau1_r_pw, auxbas_pw_pool, xc_section, .FALSE., &
                              NULL(vxg), lsd_singlets, do_excitations, do_triplet, do_tddft, &
                              compute_virial=calc_virial, virial_xc=virial)
 
@@ -370,6 +389,12 @@ CONTAINS
       END DO
       IF (SIZE(v_xc) /= nspins) CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(2)%pw)
       DEALLOCATE (v_xc)
+      IF (ASSOCIATED(v_xc_tau)) THEN
+      DO ispin = 1, nspins
+         CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
+      END DO
+      IF (SIZE(v_xc_tau) /= nspins) CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(2)%pw)
+      END IF
 
       IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
                                                  do_tddft=do_tddft, do_triplet=do_triplet)
@@ -378,6 +403,12 @@ CONTAINS
          CALL pw_release(rho1_r_pw(ispin)%pw)
       END DO
       DEALLOCATE (rho1_r_pw)
+      IF (ASSOCIATED(tau1_r_pw)) THEN
+      DO ispin = 1, SIZE(tau1_r_pw)
+         IF (ASSOCIATED(tau1_r_pw(ispin)%pw)) CALL pw_release(tau1_r_pw(ispin)%pw)
+      END DO
+      DEALLOCATE (tau1_r_pw)
+      END IF
 
       alpha = 1.0_dp
       IF (do_excitations .AND. nspins == 1) alpha = 2.0_dp
@@ -389,7 +420,7 @@ CONTAINS
          CALL dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix, 0.0_dp)
 
          ! XC and Hartree are integrated separatedly
-         ! XC uses the sofft basis set only
+         ! XC uses the soft basis set only
          IF (gapw_xc) THEN
 
             IF (do_excitations .AND. nspins == 1) THEN
@@ -398,6 +429,15 @@ CONTAINS
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=my_calc_forces, gapw=gapw_xc)
+
+               IF (ASSOCIATED(v_xc_tau)) THEN
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                                          pmat=rho_ao(ispin), &
+                                          hmat=p_env%kpp1_env%v_ao(ispin), &
+                                          qs_env=qs_env, &
+                                          compute_tau=.TRUE., &
+                                          calculate_forces=my_calc_forces, gapw=gapw_xc)
+               END IF
 
                ! add hartree only for SINGLETS
                IF (.NOT. do_triplet) THEN
@@ -415,6 +455,15 @@ CONTAINS
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=my_calc_forces, gapw=gapw_xc)
+
+               IF (ASSOCIATED(v_xc_tau)) THEN
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                                          pmat=rho_ao(ispin), &
+                                          hmat=p_env%kpp1_env%v_ao(ispin), &
+                                          qs_env=qs_env, &
+                                          compute_tau=.TRUE., &
+                                          calculate_forces=my_calc_forces, gapw=gapw_xc)
+               END IF
 
                v_rspace_new(ispin)%pw%cr3d = v_hartree_rspace%pw%cr3d
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
@@ -439,6 +488,8 @@ CONTAINS
             END IF
 
             IF (lrigpw) THEN
+               IF (ASSOCIATED(v_xc_tau)) CPABORT("Meta-GGA functionals not supported with LRI!")
+
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
                CALL get_qs_env(qs_env, nkind=nkind)
                DO ikind = 1, nkind
@@ -463,6 +514,15 @@ CONTAINS
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=my_calc_forces, gapw=gapw)
+
+               IF (ASSOCIATED(v_xc_tau)) THEN
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                                          pmat=rho_ao(ispin), &
+                                          hmat=p_env%kpp1_env%v_ao(ispin), &
+                                          qs_env=qs_env, &
+                                          compute_tau=.TRUE., &
+                                          calculate_forces=my_calc_forces, gapw=gapw)
+               END IF
             END IF
          END IF
 
@@ -494,6 +554,12 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
       END DO
       DEALLOCATE (v_rspace_new)
+      IF (ASSOCIATED(v_xc_tau)) THEN
+      DO ispin = 1, SIZE(v_xc_tau)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+      END DO
+      DEALLOCATE (v_xc_tau)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE calc_kpp1
@@ -620,14 +686,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_rho_r, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: my_rho_r, my_tau_r, rho_r, tau_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: admm_xc_section
 
 ! ------------------------------------------------------------------
 
-      NULLIFY (pw_env, auxbas_pw_pool, matrix_s, rho, rho_r, admm_env, dft_control)
+      NULLIFY (pw_env, auxbas_pw_pool, matrix_s, rho, rho_r, admm_env, dft_control, my_rho_r, my_tau_r)
 
       CPASSERT(ASSOCIATED(kpp1_env))
       CPASSERT(kpp1_env%ref_count > 0)
@@ -636,7 +702,7 @@ CONTAINS
                       matrix_s=matrix_s, rho=rho, &
                       admm_env=admm_env, dft_control=dft_control)
 
-      CALL qs_rho_get(rho, rho_r=rho_r)
+      CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
       nspins = SIZE(rho_r)
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
@@ -669,22 +735,43 @@ CONTAINS
                                       use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space)
                my_rho_r(ispin)%pw%cr3d = 0.5_dp*rho_r(1)%pw%cr3d
             END DO
+            IF (dft_control%use_kinetic_energy_density) THEN
+               ALLOCATE (my_tau_r(2))
+               DO ispin = 1, 2
+                  CALL pw_pool_create_pw(auxbas_pw_pool, my_tau_r(ispin)%pw, &
+                                         use_data=tau_r(1)%pw%in_use, in_space=tau_r(1)%pw%in_space)
+                  my_tau_r(ispin)%pw%cr3d = 0.5_dp*tau_r(1)%pw%cr3d
+               END DO
+            END IF
          ELSE
             ALLOCATE (my_rho_r(SIZE(rho_r)))
             DO ispin = 1, SIZE(rho_r)
                my_rho_r(ispin)%pw => rho_r(ispin)%pw
                CALL pw_retain(my_rho_r(ispin)%pw)
             END DO
+            IF (dft_control%use_kinetic_energy_density) THEN
+               ALLOCATE (my_tau_r(SIZE(tau_r)))
+               DO ispin = 1, SIZE(tau_r)
+                  my_tau_r(ispin)%pw => tau_r(ispin)%pw
+                  CALL pw_retain(my_tau_r(ispin)%pw)
+               END DO
+            END IF
          END IF
 
          CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                                 my_rho_r, auxbas_pw_pool, &
-                                xc_section=xc_section)
+                                xc_section=xc_section, tau_r=my_tau_r)
 
          DO ispin = 1, SIZE(my_rho_r)
             CALL pw_release(my_rho_r(ispin)%pw)
          END DO
          DEALLOCATE (my_rho_r)
+         IF (dft_control%use_kinetic_energy_density) THEN
+            DO ispin = 1, SIZE(my_tau_r)
+               CALL pw_release(my_tau_r(ispin)%pw)
+            END DO
+            DEALLOCATE (my_tau_r)
+         END IF
       END IF
 
       ! ADMM Correction

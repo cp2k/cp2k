@@ -6,22 +6,22 @@
 #!-------------------------------------------------------------------------------------------------!
 #:mute
 
-#! each list collects the different variable names
-#! element 1: name of quantity to get derivative
-#! element 2: name of spin channel (only used with density gradients)
-#! element 3: name of response quantity variable
-#! element 4: name of variable nameof the contribution to the response potential
-#! elements 5+6: first and last indices of the potential arrays corresponding to the required spin channels
+   #! each list collects the different variable names
+   #! element 1: name of quantity to get derivative
+   #! element 2: name of spin channel (only used with density gradients)
+   #! element 3: name of response quantity variable
+   #! element 4: name of variable nameof the contribution to the response potential
+   #! elements 5+6: first and last indices of the potential arrays corresponding to the required spin channels
 
-   #:set arguments_openshell = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drho", "", "dr1dr", "v_drho", 1, 2), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2)]
-   #:set arguments_triplet_outer = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1)]
-   #:set arguments_triplet_inner = arguments_triplet_outer + [("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2)]
-   #:set arguments_closedshell = [("rho", "", "rho1", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1)]
+   #:set arguments_openshell = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drho", "", "dr1dr", "v_drho", 1, 2), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("tau_a", "a", "tau1a", "v_xc_tau", 1, 1), ("tau_b", "b", "tau1b", "v_xc_tau", 2, 2)]
+   #:set arguments_triplet_outer = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("taua", "a", "tau1a", "v_xc_tau", 1, 1)]
+   #:set arguments_triplet_inner = arguments_triplet_outer + [("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("taub", "b", "tau1b", "v_xc_tau", 2, 2)]
+   #:set arguments_closedshell = [("rho", "", "rho1", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("tau", "", "tau1", "v_xc_tau", 1, 1)]
 
    #:def add_2nd_derivative_terms(outer_arguments, inner_arguments=[])
       #:set my_inner_arguments = outer_arguments if inner_arguments==[] else inner_arguments
       #:for arg1, appendix1, darg1, v_arg1, start1, end1 in outer_arguments
-#! Code for the second order contributions
+         #! Code for the second order contributions
          #:for arg2, _, darg2, v_arg2, _, _ in my_inner_arguments
             deriv_att => xc_dset_get_derivative(deriv_set, "(${arg1}$)(${arg2}$)")
             IF (ASSOCIATED(deriv_att)) THEN
@@ -41,26 +41,26 @@
             END IF
          #:endfor
 
-#! Extra code of the gradients
-#:if arg1.startswith("norm")
-         deriv_att => xc_dset_get_derivative(deriv_set, "(${arg1}$)")
-         IF (ASSOCIATED(deriv_att)) THEN
-            CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-            CALL xc_derivative_get(deriv_att, deriv_data=e_drho${appendix1}$)
+         #! Extra code of the gradients
+         #:if arg1.startswith("norm")
+            deriv_att => xc_dset_get_derivative(deriv_set, "(${arg1}$)")
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               CALL xc_derivative_get(deriv_att, deriv_data=e_drho${appendix1}$)
 
-            IF (my_compute_virial) THEN
-               CALL virial_drho_drho1(virial_pw, drho${appendix1}$, drho1${appendix1}$, deriv_data, virial_xc)
-            END IF ! my_compute_virial
+               IF (my_compute_virial) THEN
+                  CALL virial_drho_drho1(virial_pw, drho${appendix1}$, drho1${appendix1}$, deriv_data, virial_xc)
+               END IF ! my_compute_virial
 
 !$OMP       PARALLEL WORKSHARE DEFAULT(NONE) SHARED(${darg1}$,gradient_cut,${arg1}$,${v_arg1}$,deriv_data)
-#:for i in range(start1, end1+1)
-            ${v_arg1}$(${i}$)%pw%cr3d(:, :, :) = ${v_arg1}$(${i}$)%pw%cr3d(:, :, :) + &
-                                          deriv_data(:, :, :)*${darg1}$(:, :, :)/MAX(gradient_cut, ${arg1}$(:, :, :))**2
-#:endfor
+               #:for i in range(start1, end1+1)
+                  ${v_arg1}$ (${i}$)%pw%cr3d(:, :, :) = ${v_arg1}$ (${i}$)%pw%cr3d(:, :, :) + &
+                                                    deriv_data(:, :, :)*${darg1}$ (:, :, :)/MAX(gradient_cut, ${arg1}$ (:, :, :))**2
+               #:endfor
 !$OMP       END PARALLEL WORKSHARE
-         END IF
-#:endif
-#:endfor
+            END IF
+         #:endif
+      #:endfor
 
    #:enddef
 
