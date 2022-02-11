@@ -1128,6 +1128,8 @@ CONTAINS
                   scale_result = residual_dot_search_vec/search_vec_dot_A_search_vec
                END IF
 
+               scale_result = scale_result*mp2_env%ri_grad%scale_x0
+
                DO ispin = 1, nspins
                   P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
                                                         + scale_result*search_vector(ispin)%matrix%local_data(:, :)
@@ -1138,10 +1140,10 @@ CONTAINS
             ELSE
                DO ispin = 1, nspins
                   P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
-                                                        + search_vector(ispin)%matrix%local_data(:, :)
+                                                        + mp2_env%ri_grad%scale_x0*search_vector(ispin)%matrix%local_data(:, :)
 
                   residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
-                                                            - A_dot_search_vector(ispin)%matrix%local_data(:, :)
+                                                       - mp2_env%ri_grad%scale_x0*A_dot_search_vector(ispin)%matrix%local_data(:, :)
                END DO
             END IF
 
