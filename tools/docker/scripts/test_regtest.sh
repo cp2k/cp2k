@@ -10,6 +10,8 @@ fi
 ARCH=$1
 VERSION=$2
 
+ulimit -c 0 # Disable core dumps as they can take a very long time to write.
+
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
