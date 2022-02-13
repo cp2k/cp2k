@@ -43,16 +43,6 @@ else
   exit 0
 fi
 
-# Check benchmark files for input errors.
-if [[ "${ARCH}" == "local" ]]; then
-  echo -en "\nChecking benchmarks... "
-  if ! ./tools/regtesting/check_inputs.py "./exe/${ARCH}/cp2k.${VERSION}" "./benchmarks/"; then
-    echo -e "\nSummary: Some benchmark inputs could not be parsed."
-    echo -e "Status: FAILED\n"
-    exit 0
-  fi
-fi
-
 # Improve code coverage on COSMA.
 export COSMA_DIM_THRESHOLD=0
 
