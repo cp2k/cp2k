@@ -175,6 +175,8 @@ CONTAINS
          ELSE
             stda_kernel%alpha_param = alpha(1) + stda_kernel%hfx_fraction*alpha(2)
          END IF
+      ELSE
+         stda_kernel%alpha_param = stda_control%mn_alpha
       END IF
       IF (stda_control%mn_beta < -98.0_dp) THEN
          IF (dft_control%qs_control%xtb) THEN
@@ -182,6 +184,8 @@ CONTAINS
          ELSE
             stda_kernel%beta_param = beta(1) + stda_kernel%hfx_fraction*beta(2)
          END IF
+      ELSE
+         stda_kernel%beta_param = stda_control%mn_beta
       END IF
 
       ! TD Filter
