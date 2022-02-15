@@ -1658,6 +1658,7 @@ CONTAINS
                           "Default value is method dependent!", &
                           usage="MATAGA_NISHIMOTO_XEXP", default_r_val=-99.0_dp)
       CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
    END SUBROUTINE create_stda_section
 
