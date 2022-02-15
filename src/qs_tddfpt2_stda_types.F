@@ -13,7 +13,14 @@ MODULE qs_tddfpt2_stda_types
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cp_control_types,                ONLY: stda_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              stda_control_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -117,19 +124,30 @@ CONTAINS
       TYPE(stda_env_type)                                :: stda_kernel
       TYPE(stda_control_type)                            :: stda_control
 
-      INTEGER                                            :: ikind, nkind
+      INTEGER                                            :: ikind, log_unit, nkind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(section_vals_type), POINTER                   :: tddfpt_print_section
       TYPE(stda_kind_type), POINTER                      :: kind_param
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
 
       CPASSERT(ASSOCIATED(stda_kernel%kind_param_set))
 
       NULLIFY (atomic_kind_set, qs_kind_set) !get element symbol and atomic number
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+      CALL get_qs_env(qs_env, dft_control=dft_control, &
+                      atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
       nkind = SIZE(qs_kind_set)
+
+      NULLIFY (tddfpt_print_section)
+      tddfpt_print_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%PRINT")
+      log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, "PROGRAM_BANNER", extension=".tddfptLog")
 
       DO ikind = 1, nkind
          atomic_kind => atomic_kind_set(ikind)
@@ -151,8 +169,20 @@ CONTAINS
       END IF
 
       ! alpha and beta parameter
-      stda_kernel%alpha_param = alpha(1) + stda_kernel%hfx_fraction*alpha(2)
-      stda_kernel%beta_param = beta(1) + stda_kernel%hfx_fraction*beta(2)
+      IF (stda_control%mn_alpha < -98.0_dp) THEN
+         IF (dft_control%qs_control%xtb) THEN
+            stda_kernel%alpha_param = 2.0_dp
+         ELSE
+            stda_kernel%alpha_param = alpha(1) + stda_kernel%hfx_fraction*alpha(2)
+         END IF
+      END IF
+      IF (stda_control%mn_beta < -98.0_dp) THEN
+         IF (dft_control%qs_control%xtb) THEN
+            stda_kernel%beta_param = 4.0_dp
+         ELSE
+            stda_kernel%beta_param = beta(1) + stda_kernel%hfx_fraction*beta(2)
+         END IF
+      END IF
 
       ! TD Filter
       stda_kernel%eps_td_filter = stda_control%eps_td_filter
@@ -167,6 +197,17 @@ CONTAINS
          CALL get_gto_basis_set(tmp_basis_set, &
                                 kind_radius=stda_kernel%kind_param_set(ikind)%kind_param%rcut)
       END DO
+
+      IF (log_unit > 0) THEN
+         IF (.NOT. stda_kernel%do_exchange) THEN
+            WRITE (log_unit, "(T2,A,T78,A3)") "sTDA| Exchange term is not used!"
+         END IF
+         WRITE (log_unit, "(T2,A,T71,F10.4)") "sTDA| HFX Fraction", stda_kernel%hfx_fraction
+         WRITE (log_unit, "(T2,A,T71,F10.4)") "sTDA| Mataga-Nishimoto exponent (C)", stda_kernel%alpha_param
+         WRITE (log_unit, "(T2,A,T71,F10.4)") "sTDA| Mataga-Nishimoto exponent (X)", stda_kernel%beta_param
+         WRITE (log_unit, "(T2,A,T61,E20.8)") "sTDA| TD matrix filter", stda_kernel%eps_td_filter
+      END IF
+      CALL cp_print_key_finished_output(log_unit, logger, tddfpt_print_section, "PROGRAM_BANNER")
 
    END SUBROUTINE stda_init_param
 ! **************************************************************************************************

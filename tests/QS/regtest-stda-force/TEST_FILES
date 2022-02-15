@@ -13,6 +13,6 @@ h2o_f06.inp                                                 1    1.0E-12        
 h2o_f07.inp                                                 1    1.0E-12             -17.23463662845554
 h2o_f08a.inp                                                1    1.0E-12             -17.23033252463928
 h2o_f08b.inp                                                1    1.0E-12             -17.23207360292983
-CH2O_stda-xtb-s_virtual_shift.inp                          37    1.0E-06             0.256889E-01  
-water_xTB_virtual_shift.inp                                37    1.0E-06             0.295621E+00 
+CH2O_stda-xtb-s_virtual_shift.inp                          37    1.0E-06             0.779158E-01  
+water_xTB_virtual_shift.inp                                37    1.0E-06             0.236248E+00 
 #EOF

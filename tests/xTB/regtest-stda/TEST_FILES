@@ -4,5 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-water_xTB.inp                                              37    2.0E-05               0.185374E+00
+water_xTB.inp                                              37    2.0E-05               0.126001E+00
+water_xTB_2.inp                                            37    2.0E-05               0.351677E+00
 #EOF
