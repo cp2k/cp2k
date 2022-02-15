@@ -76,15 +76,30 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 # Install regression test for local_hip.psmp.
-WORKDIR /workspace
+WORKDIR /workspace/cp2k
 
-COPY ./tools/docker/scripts/install_basics.sh .
-RUN ./install_basics.sh
+# Build binary in a separate layer to improve cache hit rate.
+ARG GIT_COMMIT_SHA
+COPY ./Makefile .
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./tools/build_utils ./tools/build_utils
+RUN /bin/bash -c "mkdir -p arch \
+ && ln -vs /opt/cp2k-toolchain/install/arch/local_hip.psmp ./arch/ \
+ && echo 'Compiling cp2k...' \
+ && if [ -n \"${GIT_COMMIT_SHA}\" ] ; then echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi \
+ && source /opt/cp2k-toolchain/install/setup \
+ && ( make -j ARCH=local_hip VERSION=psmp &> /dev/null || true )"
 
-COPY ./tools/docker/scripts/install_regtest.sh .
-RUN ./install_regtest.sh local_hip psmp
+# Run regression tests.
+ARG TESTOPTS
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/regtesting ./tools/regtesting
+COPY ./tools/docker/scripts/test_regtest.sh ./
+RUN TESTOPTS="${TESTOPTS}" ./test_regtest.sh 'local_hip' 'psmp' 2>&1 | tee report.txt
 
-COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_regtest.sh ./
-CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "local_hip", "psmp"]
+# Output the report if the image was pulled from the build cache.
+CMD cat $(find ./report.txt -mmin +3)
 
 #EOF

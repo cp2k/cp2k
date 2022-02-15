@@ -45,6 +45,14 @@ else
   exit 0
 fi
 
+# Check benchmark files for input errors.
+echo -en "\nChecking benchmark inputs... "
+if ! ./tools/regtesting/check_inputs.py "./exe/${ARCH}/cp2k.psmp" "./benchmarks/"; then
+  echo -e "\nSummary: Some benchmark inputs could not be parsed."
+  echo -e "Status: FAILED\n"
+  exit 0
+fi
+
 echo -e '\n========== Running Performance Test =========='
 mkdir -p /workspace/artifacts
 cd ./benchmarks

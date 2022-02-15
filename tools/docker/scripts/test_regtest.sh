@@ -10,6 +10,8 @@ fi
 ARCH=$1
 VERSION=$2
 
+ulimit -c 0 # Disable core dumps as they can take a very long time to write.
+
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
@@ -41,16 +43,6 @@ else
   echo -e "\nSummary: Compilation failed."
   echo -e "Status: FAILED\n"
   exit 0
-fi
-
-# Check benchmark files for input errors.
-if [[ "${ARCH}" == "local" ]]; then
-  echo -en "\nChecking benchmarks... "
-  if ! ./tools/regtesting/check_inputs.py "./exe/${ARCH}/cp2k.${VERSION}" "./benchmarks/"; then
-    echo -e "\nSummary: Some benchmark inputs could not be parsed."
-    echo -e "Status: FAILED\n"
-    exit 0
-  fi
 fi
 
 # Improve code coverage on COSMA.

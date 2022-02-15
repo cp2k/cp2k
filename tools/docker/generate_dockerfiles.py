@@ -84,18 +84,39 @@ CMD ["./ci_entrypoint.sh", "./test_{name}.sh"]
 
 # ======================================================================================
 def regtest(version: str, arch: str = "local") -> str:
+    if arch.startswith("local"):
+        copy_arch_file = ""
+        arch_file = f"/opt/cp2k-toolchain/install/arch/{arch}.{version}"
+        link_arch_file = f"mkdir -p arch \\\n && ln -vs {arch_file} ./arch/ \\\n && "
+    else:
+        copy_arch_file = f"\nCOPY ./arch/{arch}.{version} /workspace/cp2k/arch/"
+        link_arch_file = ""
+
     return fr"""
 # Install regression test for {arch}.{version}.
-WORKDIR /workspace
+WORKDIR /workspace/cp2k
 
-COPY ./tools/docker/scripts/install_basics.sh .
-RUN ./install_basics.sh
+# Build binary in a separate layer to improve cache hit rate.
+ARG GIT_COMMIT_SHA
+COPY ./Makefile .
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./tools/build_utils ./tools/build_utils{copy_arch_file}
+RUN /bin/bash -c "{link_arch_file}echo 'Compiling cp2k...' \
+ && if [ -n \"${{GIT_COMMIT_SHA}}\" ] ; then echo "git:\${{GIT_COMMIT_SHA::7}}" > REVISION; fi \
+ && source /opt/cp2k-toolchain/install/setup \
+ && ( make -j ARCH={arch} VERSION={version} &> /dev/null || true )"
 
-COPY ./tools/docker/scripts/install_regtest.sh .
-RUN ./install_regtest.sh {arch} {version}
+# Run regression tests.
+ARG TESTOPTS
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/regtesting ./tools/regtesting
+COPY ./tools/docker/scripts/test_regtest.sh ./
+RUN TESTOPTS="${{TESTOPTS}}" ./test_regtest.sh '{arch}' '{version}' 2>&1 | tee report.txt
 
-COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_regtest.sh ./
-CMD ["./ci_entrypoint.sh", "./test_regtest.sh", "{arch}", "{version}"]
+# Output the report if the image was pulled from the build cache.
+CMD cat $(find ./report.txt -mmin +3)
 
 #EOF
 """
