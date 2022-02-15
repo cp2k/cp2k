@@ -1259,7 +1259,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       LOGICAL                                            :: do_ewald, do_exchange, expl, explicit, &
                                                             multigrid_set
-      REAL(KIND=dp)                                      :: filter, hfx
+      REAL(KIND=dp)                                      :: filter, fval, hfx
       TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section, &
                                                             stda_section, xc_func, xc_section
 
@@ -1415,6 +1415,8 @@ CONTAINS
          t_control%stda_control%hfx_fraction = 0.0_dp
          t_control%stda_control%do_exchange = .TRUE.
          t_control%stda_control%eps_td_filter = 1.e-10_dp
+         t_control%stda_control%mn_alpha = -99.0_dp
+         t_control%stda_control%mn_beta = -99.0_dp
          ! set default for Ewald method (on/off) dependent on periodicity
          SELECT CASE (qs_control%periodicity)
          CASE (0)
@@ -1439,6 +1441,10 @@ CONTAINS
          IF (expl) t_control%stda_control%do_ewald = do_ewald
          CALL section_vals_val_get(stda_section, "DO_EXCHANGE", l_val=do_exchange, explicit=expl)
          IF (expl) t_control%stda_control%do_exchange = do_exchange
+         CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_CEXP", r_val=fval)
+         t_control%stda_control%mn_alpha = fval
+         CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_XEXP", r_val=fval)
+         t_control%stda_control%mn_beta = fval
       END IF
 
       CALL timestop(handle)
