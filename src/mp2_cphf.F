@@ -716,18 +716,25 @@ CONTAINS
          END DO
       END DO
 
-      SELECT CASE (mp2_env%ri_grad%z_solver_method)
-      CASE (z_solver_pople)
-         CALL solve_z_vector_pople(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+      IF (mp2_env%ri_grad%enforce_decrease) THEN
+         IF (mp2_env%ri_grad%z_solver_method == z_solver_pople) mp2_env%ri_grad%z_solver_method = z_solver_cg
+         CALL solve_z_vector_cg_auto_restart(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                             mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                             L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      ELSE
+         SELECT CASE (mp2_env%ri_grad%z_solver_method)
+         CASE (z_solver_pople)
+            CALL solve_z_vector_pople(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                      mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                      L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+         CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
+            CALL solve_z_vector_cg(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-      CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
-         CALL solve_z_vector_cg(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
-                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
-                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-      CASE DEFAULT
-         CPABORT("Unknown solver")
-      END SELECT
+         CASE DEFAULT
+            CPABORT("Unknown solver")
+         END SELECT
+      END IF
 
       DO ispin = 1, nspins
          CALL cp_fm_release(precond(ispin)%matrix)
@@ -1219,6 +1226,251 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE solve_z_vector_cg
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen ...
+!> \param unit_nr ...
+!> \param nspins ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param Eigenval ...
+!> \param p_env ...
+!> \param L_jb ...
+!> \param fm_G_mu_nu ...
+!> \param fm_back ...
+!> \param P_ia ...
+!> \param precond ...
+! **************************************************************************************************
+   SUBROUTINE solve_z_vector_cg_auto_restart(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                             mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                             L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
+      INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
+      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
+      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
+      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: precond
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_cg_auto_restart'
+
+      INTEGER :: cycles_passed, handle, iiter, ispin, max_num_iter, restart_counter, &
+         restart_every, transf_type_in, z_solver_method
+      LOGICAL                                            :: converged, do_restart
+      REAL(KIND=dp) :: eps_conv, norm_residual, norm_residual_old, &
+         residual_dot_diff_search_vec_new, residual_dot_diff_search_vec_old, &
+         residual_dot_search_vec, scale_result, scale_search, search_vec_dot_A_search_vec, t1, t2
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: A_dot_search_vector, diff_search_vector, &
+                                                            residual, search_vector
+      TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: fm_struct_tmp
+
+      CALL timeset(routineN, handle)
+
+      max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
+      eps_conv = mp2_env%ri_grad%cphf_eps_conv
+      z_solver_method = mp2_env%ri_grad%z_solver_method
+      restart_every = mp2_env%ri_grad%cphf_restart
+      transf_type_in = 3
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *)
+         SELECT CASE (z_solver_method)
+         CASE (z_solver_cg)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG with Fletcher-Reeves step)'
+         CASE (z_solver_richardson)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (Richardson method)'
+         CASE (z_solver_sd)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (Steepest Descent method)'
+         CASE DEFAULT
+            CPABORT("Unknown solver")
+         END SELECT
+         WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
+         WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
+         WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Number of steps for restart: ', restart_every
+         WRITE (unit_nr, '(T3, A)') 'MP2_CPHF| Restart after no decrease'
+         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+         WRITE (unit_nr, '(T4,A,T13,A,T28,A,T43,A)') 'Step', 'Restart', 'Time', 'Convergence'
+         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+      END IF
+
+      ALLOCATE (fm_struct_tmp(nspins), residual(nspins), diff_search_vector(nspins), &
+                search_vector(nspins), A_dot_search_vector(nspins))
+      DO ispin = 1, nspins
+         fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
+
+         NULLIFY (residual(ispin)%matrix)
+         CALL cp_fm_create(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
+         CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+
+         NULLIFY (diff_search_vector(ispin)%matrix)
+         CALL cp_fm_create(diff_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="difference search vector")
+         CALL cp_fm_set_all(diff_search_vector(ispin)%matrix, 0.0_dp)
+
+         NULLIFY (search_vector(ispin)%matrix)
+         CALL cp_fm_create(search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="search vector")
+         CALL cp_fm_set_all(search_vector(ispin)%matrix, 0.0_dp)
+
+         NULLIFY (A_dot_search_vector(ispin)%matrix)
+         CALL cp_fm_create(A_dot_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="A times search vector")
+         CALL cp_fm_set_all(A_dot_search_vector(ispin)%matrix, 0.0_dp)
+      END DO
+
+      converged = .FALSE.
+      cycles_passed = max_num_iter
+      ! By that, we enforce the setup of the matrices
+      do_restart = .TRUE.
+
+      t1 = m_walltime()
+
+      DO iiter = 1, max_num_iter
+
+         ! During the first iteration, P_ia=0 such that the application of the 2nd order matrix is zero
+         IF (do_restart) THEN
+! We do not consider the first step to be a restart
+            IF (iiter > 1) THEN
+               CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
+                                     mo_coeff_o, &
+                                     mo_coeff_v, Eigenval, p_env, &
+                                     P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
+                                     residual)
+            ELSE
+               do_restart = .FALSE.
+            END IF
+
+            DO ispin = 1, nspins
+             residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) - residual(ispin)%matrix%local_data(:, :)
+               diff_search_vector(ispin)%matrix%local_data(:, :) = &
+                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+               search_vector(ispin)%matrix%local_data(:, :) = diff_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+
+            norm_residual_old = SQRT(accurate_dot_product_spin(residual, residual))
+
+            restart_counter = 1
+         END IF
+
+         residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
+
+         CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
+                               mo_coeff_o, &
+                               mo_coeff_v, Eigenval, p_env, &
+                               search_vector, fm_G_mu_nu, fm_back, transf_type_in, &
+                               A_dot_search_vector)
+
+         IF (z_solver_method /= z_solver_richardson) THEN
+            search_vec_dot_A_search_vec = accurate_dot_product_spin(search_vector, A_dot_search_vector)
+
+            IF (z_solver_method == z_solver_cg) THEN
+               scale_result = residual_dot_diff_search_vec_old/search_vec_dot_A_search_vec
+            ELSE
+               residual_dot_search_vec = accurate_dot_product_spin(residual, search_vector)
+               scale_result = residual_dot_search_vec/search_vec_dot_A_search_vec
+            END IF
+
+            scale_result = scale_result*mp2_env%ri_grad%scale_x0
+
+            DO ispin = 1, nspins
+               P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
+                                                     + scale_result*search_vector(ispin)%matrix%local_data(:, :)
+
+               residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
+                                                         - scale_result*A_dot_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
+                                                     + mp2_env%ri_grad%scale_x0*search_vector(ispin)%matrix%local_data(:, :)
+
+               residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
+                                                       - mp2_env%ri_grad%scale_x0*A_dot_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+         END IF
+
+         norm_residual = SQRT(accurate_dot_product_spin(residual, residual))
+
+         t2 = m_walltime()
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T3,I4,T16,L1,T26,F6.1,8X,F14.8)') iiter, do_restart, t2 - t1, norm_residual
+            CALL m_flush(unit_nr)
+         END IF
+
+         IF (norm_residual <= eps_conv) THEN
+            converged = .TRUE.
+            cycles_passed = iiter
+            EXIT
+         END IF
+
+         t1 = m_walltime()
+
+         IF (z_solver_method == z_solver_richardson) THEN
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = mp2_env%ri_grad%scale_richardson* &
+                                                      precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE IF (z_solver_method == z_solver_sd) THEN
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = &
+                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               diff_search_vector(ispin)%matrix%local_data(:, :) = &
+                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
+
+            residual_dot_diff_search_vec_new = accurate_dot_product_spin(residual, diff_search_vector)
+
+            scale_search = residual_dot_diff_search_vec_new/residual_dot_diff_search_vec_old
+
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = scale_search*search_vector(ispin)%matrix%local_data(:, :) &
+                                                              + diff_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+
+            ! Make new to old
+            residual_dot_diff_search_vec_old = residual_dot_diff_search_vec_new
+         END IF
+
+         ! Check whether the residual decrease or restart is enforced and ask for restart
+
+         do_restart = (norm_residual >= norm_residual_old .OR. (MOD(restart_counter, restart_every) == 0))
+
+         restart_counter = restart_counter + 1
+         norm_residual_old = norm_residual
+
+      END DO
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+         IF (converged) THEN
+            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', cycles_passed, ' steps'
+         ELSE
+            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', max_num_iter, ' steps'
+         END IF
+      END IF
+
+      DO ispin = 1, nspins
+         CALL cp_fm_release(residual(ispin)%matrix)
+         CALL cp_fm_release(diff_search_vector(ispin)%matrix)
+         CALL cp_fm_release(search_vector(ispin)%matrix)
+         CALL cp_fm_release(A_dot_search_vector(ispin)%matrix)
+      END DO
+      DEALLOCATE (residual, diff_search_vector, search_vector, A_dot_search_vector, fm_struct_tmp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_z_vector_cg_auto_restart
 
 ! **************************************************************************************************
 !> \brief ...

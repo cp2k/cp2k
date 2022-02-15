@@ -1457,6 +1457,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ENFORCE_DECREASE", &
+                          description="Restarts if residual does not decrease.", &
+                          usage="ENFORCE_DECREASE T", &
+                          lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_cphf
 
 ! **************************************************************************************************
