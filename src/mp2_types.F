@@ -29,11 +29,18 @@ MODULE mp2_types
                                               ri_mp2_laplace,&
                                               ri_mp2_method_gpw,&
                                               ri_rpa_method_gpw
+   USE iso_c_binding,                   ONLY: c_ptr
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_sum
+   USE offload_api,                     ONLY: offload_set_device
+   USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
+                                              OFFLOAD_GEMM_PU_HOST,&
+                                              offload_gemm_create,&
+                                              offload_gemm_destroy,&
+                                              offload_gemm_set_op_threshold_gpu
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
 #include "./base/base_uses.f90"
@@ -247,6 +254,7 @@ MODULE mp2_types
       LOGICAL  :: do_svd
       REAL(KIND=dp) :: eps_range
       TYPE(libint_potential_type) :: ri_metric
+      TYPE(C_ptr)                 :: offload_gemm_ctx
    END TYPE
 
    TYPE integ_mat_buffer_type
@@ -298,9 +306,45 @@ CONTAINS
       IF (mp2_env%eri_method .EQ. do_eri_mme) CALL cp_eri_mme_finalize(mp2_env%eri_mme_param)
       IF (ASSOCIATED(mp2_env%eri_mme_param)) DEALLOCATE (mp2_env%eri_mme_param)
 
+      CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
+
+      DEALLOCATE (mp2_env)
+
       CALL timestop(handle)
 
    END SUBROUTINE mp2_env_release
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE mp2_env_create(mp2_env)
+      TYPE(mp2_type), POINTER                            :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_env_create'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(.NOT. ASSOCIATED(mp2_env))
+
+      ALLOCATE (mp2_env)
+
+      CALL offload_set_device()
+
+#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
+      CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
+#else
+      CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_HOST)
+#endif
+      CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
+
+      NULLIFY (mp2_env%ri_rpa%x_data)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE mp2_env_create
 
 ! **************************************************************************************************
 !> \brief Initialize a dgemm_counter

@@ -91,7 +91,60 @@ case "$with_spfft" in
         [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
       fi
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
+
+      if [ "$ENABLE_HIP" = "__TRUE__" ]; then
+        case "${GPUVER}" in
+          K20X | K40 | K80 | P100 | V100 | A100)
+            [ -d build-cuda ] && rm -rf "build-cuda"
+            mkdir build-cuda
+            cd build-cuda
+            cmake \
+              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+              -DCMAKE_INSTALL_LIBDIR=lib \
+              -DCMAKE_CXX_COMPILER="${MPICXX}" \
+              -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
+              -DCMAKE_VERBOSE_MAKEFILE=ON \
+              -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+              -DSPFFT_OMP=ON \
+              -DSPFFT_MPI=ON \
+              -DSPFFT_STATIC=ON \
+              -DSPFFT_FORTRAN=ON \
+              -DSPFFT_INSTALL=ON \
+              -DSPFFT_GPU_BACKEND=CUDA \
+              ${EXTRA_CMAKE_FLAGS} .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+            make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+            install -d ${pkg_install_dir}/lib/cuda
+            [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+            [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+            ;;
+          Mi50 | Mi100 | Mi200)
+            [ -d build-hip ] && rm -rf "build-hip"
+            mkdir build-hip
+            cd build-hip
+            cmake \
+              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+              -DCMAKE_INSTALL_LIBDIR=lib \
+              -DCMAKE_VERBOSE_MAKEFILE=ON \
+              -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+              -DSPLA_OMP=ON \
+              -DSPLA_FORTRAN=ON \
+              -DSPLA_INSTALL=ON \
+              -DSPLA_STATIC=ON \
+              -DSPLA_GPU_BACKEND=ROCM \
+              ${EXTRA_CMAKE_FLAGS} .. \
+              > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+            make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
+            install -d ${pkg_install_dir}/lib/rocm
+            [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/rocm >> install.log 2>&1
+            [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/rocm >> install.log 2>&1
+            ;;
+          *) ;;
+
+        esac
+      fi
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
+
     SPFFT_ROOT="${pkg_install_dir}"
     SPFFT_CFLAGS="-I'${pkg_install_dir}/include'"
     SPFFT_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
