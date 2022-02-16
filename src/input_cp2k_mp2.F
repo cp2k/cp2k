@@ -1465,6 +1465,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="RECALC_RESIDUAL", &
+                          description="Recalculates residual in every step.", &
+                          usage="RECALC_RESIDUAL T", &
+                          lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_cphf
 
 ! **************************************************************************************************

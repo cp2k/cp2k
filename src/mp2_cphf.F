@@ -728,9 +728,9 @@ CONTAINS
                                       mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                       L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
          CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
-            CALL solve_z_vector_cg(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
-                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
-                                   L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+            CALL solve_z_vector_cg_auto_restart(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
          CASE DEFAULT
             CPABORT("Unknown solver")
          END SELECT
@@ -1337,26 +1337,35 @@ CONTAINS
          ! During the first iteration, P_ia=0 such that the application of the 2nd order matrix is zero
          IF (do_restart) THEN
 ! We do not consider the first step to be a restart
-            IF (iiter > 1) THEN
-               CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
-                                     mo_coeff_o, &
-                                     mo_coeff_v, Eigenval, p_env, &
-                                     P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
-                                     residual)
-            ELSE
-               do_restart = .FALSE.
+            IF (.NOT. mp2_env%ri_grad%recalc_residual .OR. (iiter == 1)) THEN
+               IF (iiter > 1) THEN
+                  CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
+                                        mo_coeff_o, &
+                                        mo_coeff_v, Eigenval, p_env, &
+                                        P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
+                                        residual)
+               ELSE
+                  do_restart = .FALSE.
+               END IF
+
+               DO ispin = 1, nspins
+             residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) - residual(ispin)%matrix%local_data(:, :)
+               END DO
+
+               norm_residual_old = SQRT(accurate_dot_product_spin(residual, residual))
             END IF
 
             DO ispin = 1, nspins
-             residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) - residual(ispin)%matrix%local_data(:, :)
                diff_search_vector(ispin)%matrix%local_data(:, :) = &
                   precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
                search_vector(ispin)%matrix%local_data(:, :) = diff_search_vector(ispin)%matrix%local_data(:, :)
             END DO
 
-            norm_residual_old = SQRT(accurate_dot_product_spin(residual, residual))
-
             restart_counter = 1
+         END IF
+
+         IF (mp2_env%ri_grad%enforce_decrease) THEN
+            norm_residual_old = SQRT(accurate_dot_product_spin(residual, residual))
          END IF
 
          residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
@@ -1379,20 +1388,32 @@ CONTAINS
 
             scale_result = scale_result*mp2_env%ri_grad%scale_x0
 
-            DO ispin = 1, nspins
-               P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
-                                                     + scale_result*search_vector(ispin)%matrix%local_data(:, :)
-
-               residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
-                                                         - scale_result*A_dot_search_vector(ispin)%matrix%local_data(:, :)
-            END DO
          ELSE
-            DO ispin = 1, nspins
-               P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
-                                                     + mp2_env%ri_grad%scale_x0*search_vector(ispin)%matrix%local_data(:, :)
 
+            scale_result = mp2_env%ri_grad%scale_x0
+
+         END IF
+
+         DO ispin = 1, nspins
+            P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
+                                                  + mp2_env%ri_grad%scale_x0*search_vector(ispin)%matrix%local_data(:, :)
+         END DO
+
+         IF (.NOT. mp2_env%ri_grad%recalc_residual) THEN
+
+            DO ispin = 1, nspins
                residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
                                                        - mp2_env%ri_grad%scale_x0*A_dot_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE
+            CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
+                                  mo_coeff_o, &
+                                  mo_coeff_v, Eigenval, p_env, &
+                                  P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
+                                  residual)
+
+            DO ispin = 1, nspins
+             residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) - residual(ispin)%matrix%local_data(:, :)
             END DO
          END IF
 
