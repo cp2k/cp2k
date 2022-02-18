@@ -2,7 +2,7 @@
 #
 # CP2K arch file for Cray-XC50 (Piz Daint, CSCS, GPU partition)
 #
-# Tested with: GNU 8.3.0, Cray-MPICH 7.7.16, Cray-libsci 20.09.1, Cray-FFTW 3.3.8,
+# Tested with: GNU 9.3.0, Cray-MPICH 7.7.18, Cray-libsci 20.09.1, Cray-FFTW 3.3.8.10,
 #              COSMA 2.5.1, ELPA 2021.11.001, LIBINT 2.6.0, LIBPEXSI 1.2.0,
 #              LIBXC 5.2.2, LIBVORI 210412, LIBXSMM 1.17, PLUMED 2.7.2,
 #              SIRIUS 7.3.1, SPGLIB 1.16.2
@@ -11,7 +11,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (03.02.2022)
+# Author: Matthias Krack (18.02.2022)
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -23,24 +23,24 @@
    if [ -n "${1}" ]; then \
       gcc_version="${1}"; \
    else \
-      gcc_version="8.3.0"; \
+      gcc_version="9.3.0"; \
    fi; \
    module add daint-gpu; \
    module rm PrgEnv-cray; \
    module add PrgEnv-gnu; \
    module rm gcc; \
    module add gcc/${gcc_version}; \
-   module add cray-fftw; \
+   module add cray-fftw/3.3.8.10; \
    module add cudatoolkit; \
    echo "Expected setup:"; \
-   echo "   cray-mpich/7.7.16"; \
+   echo "   cray-mpich/7.7.18"; \
    echo "   craype-haswell"; \
-   echo "   daint-gpu/20.11"; \
-   echo "   craype/2.7.3"; \
+   echo "   daint-gpu/21.09"; \
+   echo "   craype/2.7.10"; \
    echo "   cray-libsci/20.09.1"; \
-   echo "   PrgEnv-gnu/6.0.9"; \
+   echo "   PrgEnv-gnu/6.0.10"; \
    echo "   gcc/${gcc_version}"; \
-   echo "   cray-fftw/3.3.8.8"; \
+   echo "   cray-fftw/3.3.8.10"; \
    echo "   cudatoolkit/11.0.2_3.38-8.1__g5b73779"; \
    module list; \
    module -f save cp2k_gpu_gnu_psmp; \
