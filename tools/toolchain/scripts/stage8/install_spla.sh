@@ -44,11 +44,17 @@ case "$with_spla" in
       cd spla-${spla_ver}
       mkdir -p build-cpu
       cd build-cpu
-      if [ "${MATH_MODE}" = "mkl" ]; then
-        EXTRA_CMAKE_FLAGS="-DSPLA_HOST_BLAS=MKL"
-      else
-        EXTRA_CMAKE_FLAGS=""
-      fi
+      case "${MATH_MODE}" in
+        cray)
+          EXTRA_CMAKE_FLAGS="-DSPLA_HOST_BLAS=CRAY_LIBSCI"
+          ;;
+        mkl)
+          EXTRA_CMAKE_FLAGS="-DSPLA_HOST_BLAS=MKL"
+          ;;
+        *)
+          EXTRA_CMAKE_FLAGS="-DSPLA_HOST_BLAS=AUTO"
+          ;;
+      esac
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
