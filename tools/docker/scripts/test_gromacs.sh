@@ -7,7 +7,7 @@ source /opt/cp2k-toolchain/install/setup
 
 cd /workspace/cp2k
 echo -n "Compiling libcp2k... "
-if make -j VERSION=pdbg libcp2k &> make.out; then
+if make -j VERSION=sdbg libcp2k &> make.out; then
   echo "done."
 else
   echo -e "failed.\n\n"
@@ -18,8 +18,10 @@ else
 fi
 
 echo -e "\n========== Building Gromacs =========="
+echo -n "Cloning Gromacs repository... "
+git clone --quiet --depth=1 --single-branch -b master https://gitlab.com/gromacs/gromacs.git /opt/gromacs
+echo "done."
 cd /opt/gromacs/
-git pull
 GROMACS_REVISION=$(git rev-parse --short HEAD)
 mkdir build
 cd build
@@ -31,7 +33,7 @@ if cmake .. \
   -DGMX_INSTALL_NBLIB_API=OFF \
   -DGMXAPI=OFF \
   -DGMX_CP2K=ON \
-  -DCP2K_DIR="/workspace/cp2k/lib/local/pdbg/" \
+  -DCP2K_DIR="/workspace/cp2k/lib/local/sdbg/" \
   &> cmake.out; then
   echo "done."
 else

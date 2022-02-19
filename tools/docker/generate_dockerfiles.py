@@ -54,116 +54,197 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_hip_rocm_{gpu_ver}", args.check) as f:
             f.write(toolchain_hip_rocm(gpu_ver=gpu_ver) + regtest("psmp", "local_hip"))
 
-    for name in "aiida", "ase", "conventions", "gromacs", "i-pi", "manual":
+    with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
+        f.write(toolchain_full() + conventions())
+
+    with OutputFile(f"Dockerfile.test_manual", args.check) as f:
+        f.write(toolchain_full() + manual())
+
+    for name in "aiida", "ase", "gromacs", "i-pi":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
-            f.write(toolchain_full() + generic_test(name))
+            f.write(toolchain_full() + test_3rd_party(name))
 
-    for name in "doxygen", "python":
+    for name in "python", "doxygen":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
-            f.write("\nFROM ubuntu:20.04\n" + generic_test(name))
-
-
-# ======================================================================================
-def generic_test(name: str) -> str:
-    return fr"""
-# Install test for {name}.
-WORKDIR /workspace
-
-COPY ./tools/docker/scripts/install_basics.sh .
-RUN ./install_basics.sh
-
-COPY ./tools/docker/scripts/install_{name}.sh .
-RUN ./install_{name}.sh
-
-COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_{name}.sh ./
-CMD ["./ci_entrypoint.sh", "./test_{name}.sh"]
-
-#EOF
-"""
+            f.write(test_without_build(name))
 
 
 # ======================================================================================
 def regtest(version: str, arch: str = "local") -> str:
-    if arch.startswith("local"):
-        copy_arch_file = ""
-        arch_file = f"/opt/cp2k-toolchain/install/arch/{arch}.{version}"
-        link_arch_file = f"mkdir -p arch \\\n && ln -vs {arch_file} ./arch/ \\\n && "
-    else:
-        copy_arch_file = f"\nCOPY ./arch/{arch}.{version} /workspace/cp2k/arch/"
-        link_arch_file = ""
-
-    return fr"""
-# Install regression test for {arch}.{version}.
-WORKDIR /workspace/cp2k
-
-# Build binary in a separate layer to improve cache hit rate.
-ARG GIT_COMMIT_SHA
-COPY ./Makefile .
-COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils{copy_arch_file}
-RUN /bin/bash -c "{link_arch_file}echo 'Compiling cp2k...' \
- && if [ -n \"${{GIT_COMMIT_SHA}}\" ] ; then echo "git:\${{GIT_COMMIT_SHA::7}}" > REVISION; fi \
- && source /opt/cp2k-toolchain/install/setup \
- && ( make -j ARCH={arch} VERSION={version} &> /dev/null || true )"
-
+    return (
+        install_cp2k(version=version, arch=arch, prod=False)
+        + fr"""
 # Run regression tests.
 ARG TESTOPTS
-COPY ./data ./data
-COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
 COPY ./tools/docker/scripts/test_regtest.sh ./
-RUN TESTOPTS="${{TESTOPTS}}" ./test_regtest.sh '{arch}' '{version}' 2>&1 | tee report.txt
-
-# Output the report if the image was pulled from the build cache.
-CMD cat $(find ./report.txt -mmin +3)
-
-#EOF
+RUN /bin/bash -c " \
+    TESTOPTS="${{TESTOPTS}}" \
+    ./test_regtest.sh '{arch}' '{version}' |& tee report.log && \
+    rm -rf regtesting"
 """
+        + print_cached_report()
+    )
 
 
 # ======================================================================================
 def performance(arch: str = "local") -> str:
-    return fr"""
-# Install performance test for {arch}.
-WORKDIR /workspace
-
-COPY ./tools/docker/scripts/install_basics.sh .
-RUN ./install_basics.sh
-
-COPY ./tools/docker/scripts/install_performance.sh .
-RUN ./install_performance.sh "{arch}"
-
-COPY ./tools/docker/scripts/ci_entrypoint.sh \
-     ./tools/docker/scripts/test_performance.sh  \
+    return (
+        install_cp2k(version="psmp", arch=arch, prod=False)
+        + fr"""
+# Run performance test for {arch}.
+COPY ./benchmarks ./benchmarks
+COPY ./tools/docker/scripts/test_performance.sh  \
      ./tools/docker/scripts/plot_performance.py  \
      ./
+RUN ./test_performance.sh "{arch}" 2>&1 | tee report.log
+"""
+        + print_cached_report()
+    )
 
-CMD ["./ci_entrypoint.sh", "./test_performance.sh", "{arch}"]
+
+# ======================================================================================
+def coverage(version: str) -> str:
+    return (
+        install_cp2k(version=version, arch="local_coverage", prod=False)
+        + fr"""
+# Run coverage test for {version}.
+COPY ./tools/docker/scripts/test_coverage.sh .
+RUN ./test_coverage.sh "{version}" 2>&1 | tee report.log
+"""
+        + print_cached_report()
+    )
+
+
+# ======================================================================================
+def conventions() -> str:
+    return (
+        install_cp2k(version="psmp", arch="local_warn", prod=False)
+        + fr"""
+# Run test for conventions.
+COPY ./arch/Linux-x86-64-gfortran.dumpast ./arch/
+COPY ./tools/conventions ./tools/conventions
+WORKDIR ./tools/conventions
+RUN /bin/bash -ec " \
+    source /opt/cp2k-toolchain/install/setup && \
+   ./test_conventions.sh |& tee report.log"
+"""
+        + print_cached_report()
+    )
+
+
+# ======================================================================================
+def manual() -> str:
+    return (
+        install_cp2k(version="psmp", arch="local", prod=True)  # prod has REVISION set
+        + fr"""
+# Generate manual.
+COPY ./tools/manual ./tools/manual
+COPY ./tools/input_editing ./tools/input_editing
+COPY ./tools/docker/scripts/test_manual.sh .
+RUN ./test_manual.sh 2>&1 | tee report.log
+"""
+        + print_cached_report()
+    )
+
+
+# ======================================================================================
+def test_3rd_party(name: str) -> str:
+    return (
+        install_cp2k(version="sdbg", arch="local", prod=False)
+        + fr"""
+# Run test for {name}.
+COPY ./tools/docker/scripts/test_{name}.sh .
+RUN ./test_{name}.sh 2>&1 | tee report.log
+"""
+        + print_cached_report()
+    )
+
+
+# ======================================================================================
+def test_without_build(name: str) -> str:
+    return (
+        fr"""
+FROM ubuntu:20.04
+
+# Install dependencies.
+WORKDIR /workspace/cp2k
+COPY ./tools/docker/scripts/install_{name}.sh .
+RUN ./install_{name}.sh
+
+# Install sources.
+ARG GIT_COMMIT_SHA
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./data ./data
+COPY ./tools ./tools
+COPY ./Makefile .
+RUN bash -c "if [ -n "${{GIT_COMMIT_SHA}}" ] ; then echo "git:\${{GIT_COMMIT_SHA::7}}" > REVISION; fi"
+
+# Run test for {name}.
+COPY ./tools/docker/scripts/test_{name}.sh .
+RUN ./test_{name}.sh 2>&1 | tee report.log
+"""
+        + print_cached_report()
+    )
+
+
+# ======================================================================================
+def print_cached_report() -> str:
+    return r"""
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +3) | sed '/^Summary:/ s/$/ (cached)/'
 
 #EOF
 """
 
 
 # ======================================================================================
-def coverage(version: str) -> str:
+def install_cp2k(version: str, arch: str, prod: bool) -> str:
+    input_lines = []
+    run_lines = []
+
+    if prod:
+        input_lines.append("ARG GIT_COMMIT_SHA")
+        run_lines.append(
+            'if [ -n "${GIT_COMMIT_SHA}" ] ; then'
+            ' echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi'
+        )
+
+    input_lines.append("COPY ./Makefile .")
+    input_lines.append("COPY ./src ./src")
+    input_lines.append("COPY ./exts ./exts")
+    input_lines.append("COPY ./tools/build_utils ./tools/build_utils")
+
+    if arch.startswith("local"):
+        arch_file = f"/opt/cp2k-toolchain/install/arch/{arch}.{version}"
+        run_lines.append("mkdir -p arch")
+        run_lines.append(f"ln -vs {arch_file} ./arch/")
+    else:
+        input_lines.append(f"COPY ./arch/{arch}.{version} /workspace/cp2k/arch/")
+
+    run_lines.append("echo 'Compiling cp2k...'")
+    run_lines.append("source /opt/cp2k-toolchain/install/setup")
+
+    if prod:
+        run_lines.append(f"make -j ARCH={arch} VERSION={version}")
+        run_lines.append(f"rm -rf lib obj exe/{arch}/*_unittest.{version}")
+    else:
+        run_lines.append(
+            f"( make -j ARCH={arch} VERSION={version} &> /dev/null || true )"
+        )
+
+    input_block = "\n".join(input_lines)
+    run_block = " && \\\n    ".join(run_lines)
+
     return fr"""
-# Install coverage test for {version}.
-WORKDIR /workspace
-
-COPY ./tools/docker/scripts/install_basics.sh .
-RUN ./install_basics.sh
-
-COPY ./tools/docker/scripts/install_coverage.sh .
-RUN ./install_coverage.sh
-
-COPY ./tools/docker/scripts/install_regtest.sh .
-RUN ./install_regtest.sh local_coverage {version}
-
-COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_coverage.sh ./
-CMD ["./ci_entrypoint.sh", "./test_coverage.sh", "{version}"]
-
-#EOF
+# Install CP2K using {arch}.{version}.
+WORKDIR /workspace/cp2k
+{input_block}
+RUN /bin/bash -c " \
+    {run_block}"
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/regtesting ./tools/regtesting
 """
 
 

@@ -13,6 +13,7 @@ VERSION=$1
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
+echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k || exit 1
 CP2K_REVISION=$(./tools/build_utils/get_revision_number ./src)
 rm -rf "obj/${ARCH}/${VERSION}"/*.gcda # remove old gcov statistics
@@ -29,7 +30,28 @@ else
   exit 0
 fi
 
+echo -e "\n========== Installing Dependencies =========="
+lcov_version="1.15"
+lcov_sha256="c1cda2fa33bec9aa2c2c73c87226cfe97de0831887176b45ee523c5e30f8053a"
+
+# LCOV dependencies
+apt-get update -qq
+apt-get install -qq --no-install-recommends \
+  libperlio-gzip-perl \
+  libjson-perl
+rm -rf /var/lib/apt/lists/*
+
+cd /tmp || exit 1
+wget -q "https://www.cp2k.org/static/downloads/lcov-${lcov_version}.tar.gz"
+echo "${lcov_sha256} lcov-${lcov_version}.tar.gz" | sha256sum --check
+tar -xzf "lcov-${lcov_version}.tar.gz"
+cd "lcov-${lcov_version}" || exit 1
+make install > make.log 2>&1
+cd .. || exit 1
+rm -rf "lcov-${lcov_version}.tar.gz" "lcov-${lcov_version}"
+
 echo -e "\n========== Running Regtests =========="
+cd /workspace/cp2k || exit 1
 make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 
 # gcov gets stuck on some files...

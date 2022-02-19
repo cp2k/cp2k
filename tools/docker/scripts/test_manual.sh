@@ -7,7 +7,6 @@ source /opt/cp2k-toolchain/install/setup
 
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
-touch src/cp2k_info.F # ensure latest REVISION is picked up.
 echo -n "Compiling cp2k... "
 if make -j VERSION=psmp &> make.out; then
   echo "done."
@@ -18,6 +17,13 @@ else
   echo -e "Status: FAILED\n"
   exit 0
 fi
+
+echo -e "\n========== Installing Dependencies =========="
+apt-get update -qq
+apt-get install -qq --no-install-recommends \
+  default-jre-headless \
+  libsaxonhe-java
+rm -rf /var/lib/apt/lists/*
 
 echo -e "\n========== Generating Manual =========="
 
@@ -41,13 +47,12 @@ set +e # disable error trapping for remainder of script
 )
 EXIT_CODE=$?
 
-echo ""
 if ((EXIT_CODE)); then
-  echo "Summary: Something is wrong."
-  echo "Status: FAILED"
+  echo -e "\nSummary: Something is wrong."
+  echo -e "Status: FAILED\n"
 else
-  echo "Summary: Manual generation works fine."
-  echo "Status: OK"
+  echo -e "\nSummary: Manual generation works fine."
+  echo -e "Status: OK\n"
 fi
 
 #EOF
