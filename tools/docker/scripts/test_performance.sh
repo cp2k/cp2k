@@ -81,7 +81,7 @@ if [[ "${ARCH}" == "local" ]]; then
     run_benchmark 32 1 "${INPUT_BASENAME}" "${OUTPUT_OMP}"
     cd ..
     echo ""
-    /workspace/plot_performance.py \
+    /workspace/cp2k/plot_performance.py \
       "${LABEL} with 32 OpenMP Threads" "${LABEL}_timings_32omp" "${OUTPUT_OMP}" \
       "${LABEL} with 32 MPI Ranks" "${LABEL}_timings_32mpi" "${OUTPUT_MPI}"
     echo ""
@@ -100,7 +100,7 @@ elif [[ "${ARCH}" == "local_cuda" ]]; then
     run_benchmark 3 2 "${INPUT_BASENAME}" "${OUTPUT}"
     cd ..
     echo ""
-    /workspace/plot_performance.py \
+    /workspace/cp2k/plot_performance.py \
       "${LABEL} with 6 CPU Cores and 1 GPU" "${LABEL}_timings_6cpu_1gpu" "${OUTPUT}"
     echo ""
   done

@@ -71,20 +71,30 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install performance test for local_cuda.
-WORKDIR /workspace
+# Install CP2K using local_cuda.psmp.
+WORKDIR /workspace/cp2k
+COPY ./Makefile .
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./tools/build_utils ./tools/build_utils
+RUN /bin/bash -c " \
+    mkdir -p arch && \
+    ln -vs /opt/cp2k-toolchain/install/arch/local_cuda.psmp ./arch/ && \
+    echo 'Compiling cp2k...' && \
+    source /opt/cp2k-toolchain/install/setup && \
+    ( make -j ARCH=local_cuda VERSION=psmp &> /dev/null || true )"
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/regtesting ./tools/regtesting
 
-COPY ./tools/docker/scripts/install_basics.sh .
-RUN ./install_basics.sh
-
-COPY ./tools/docker/scripts/install_performance.sh .
-RUN ./install_performance.sh "local_cuda"
-
-COPY ./tools/docker/scripts/ci_entrypoint.sh \
-     ./tools/docker/scripts/test_performance.sh  \
+# Run performance test for local_cuda.
+COPY ./benchmarks ./benchmarks
+COPY ./tools/docker/scripts/test_performance.sh  \
      ./tools/docker/scripts/plot_performance.py  \
      ./
+RUN ./test_performance.sh "local_cuda" 2>&1 | tee report.log
 
-CMD ["./ci_entrypoint.sh", "./test_performance.sh", "local_cuda"]
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +3) | sed '/^Summary:/ s/$/ (cached)/'
 
 #EOF
