@@ -937,7 +937,7 @@ CONTAINS
       INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
       LOGICAL                                            :: use_virial
       REAL(dp)                                           :: dehartree, eexc, ehartree, eovrl, exc, &
-                                                            fconv, total_rhoout
+                                                            fconv
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
       REAL(dp), DIMENSION(3)                             :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot
@@ -1039,7 +1039,6 @@ CONTAINS
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
                                  rho=rhoout_r(ispin), &
                                  rho_gspace=rhoout_g(ispin), &
-                                 total_rho=total_rhoout, &
                                  basis_type="HARRIS", &
                                  task_list_external=ec_env%task_list)
       END DO

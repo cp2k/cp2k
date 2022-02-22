@@ -812,8 +812,7 @@ CONTAINS
       LOGICAL :: deriv2_analytic, distribute_fock_matrix, do_ex, do_hfx, hfx_treat_lsd_in_core, &
          resp_only, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
-                                                            eps_ppnl, exc, fconv, focc, &
-                                                            total_rhoz, total_rhoz_aux
+                                                            eps_ppnl, exc, fconv, focc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot, sttot2
@@ -1197,8 +1196,7 @@ CONTAINS
       CALL pw_zero(rhoz_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
-                                 rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin), &
-                                 total_rho=total_rhoz)
+                                 rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin))
          CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace%pw)
       END DO
 
@@ -1516,7 +1514,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpz(ispin, 1)%matrix, &
                                        rho=rhoz_r_aux(ispin), rho_gspace=rhoz_g_aux(ispin), &
-                                       total_rho=total_rhoz_aux, basis_type="AUX_FIT", &
+                                       basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
             END DO
             !

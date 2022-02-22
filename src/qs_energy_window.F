@@ -96,7 +96,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: stride(:)
       LOGICAL                                            :: mpi_io, print_cube, restrict_range
       REAL(KIND=dp) :: bin_width, density_ewindow_total, density_total, energy_range, fermi_level, &
-         filter_eps, frob_norm, lanzcos_threshold, lower_bound, occupation, total_rho, upper_bound
+         filter_eps, frob_norm, lanzcos_threshold, lower_bound, occupation, upper_bound
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, P_eigenvalues, &
                                                             window_eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -215,7 +215,6 @@ CONTAINS
          CALL calculate_rho_elec(matrix_p=window, &
                                  rho=rho_r, &
                                  rho_gspace=rho_g, &
-                                 total_rho=total_rho, &
                                  ks_env=ks_env)
          density_total = pw_integrate_function(rho_r%pw)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Ground-state density: ", density_total
@@ -283,7 +282,6 @@ CONTAINS
             CALL calculate_rho_elec(matrix_p=window, &
                                     rho=rho_r, &
                                     rho_gspace=rho_g, &
-                                    total_rho=total_rho, &
                                     ks_env=ks_env)
             WRITE (ext, "(A14,I5.5,A)") "-ENERGY-WINDOW", i, TRIM(cp_iter_string(logger%iter_info))//".cube"
             mpi_io = .TRUE.

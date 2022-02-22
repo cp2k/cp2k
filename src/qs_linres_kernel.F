@@ -1023,7 +1023,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_aux_reponse_density'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, ncol, nspins
-      REAL(KIND=dp)                                      :: tot_rho_aux
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: tc0, tc1
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho1_ao
@@ -1072,7 +1071,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL calculate_rho_elec(matrix_p=rho1_ao(ispin)%matrix, &
                                  rho=rho1_aux_r(ispin), rho_gspace=rho1_aux_g(ispin), &
-                                 total_rho=tot_rho_aux, ks_env=ks_env, &
+                                 ks_env=ks_env, &
                                  basis_type="AUX_FIT", &
                                  task_list_external=task_list_aux_fit)
       END DO
