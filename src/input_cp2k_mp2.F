@@ -1473,6 +1473,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ADD_HARTREE", &
+                          description="Adds Hartree contribution to the preconditioner.", &
+                          usage="ADD_HARTREE T", &
+                          lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_cphf
 
 ! **************************************************************************************************

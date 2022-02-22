@@ -294,6 +294,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%RESTART_EVERY", i_val=mp2_env%ri_grad%cphf_restart)
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%ENFORCE_DECREASE", l_val=mp2_env%ri_grad%enforce_decrease)
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%RECALC_RESIDUAL", l_val=mp2_env%ri_grad%recalc_residual)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%ADD_HARTREE", l_val=mp2_env%ri_grad%add_hartree)
 
       CALL section_vals_val_get(mp2_section, "RI%ROW_BLOCK", i_val=mp2_env%block_size_row)
       CALL section_vals_val_get(mp2_section, "RI%COL_BLOCK", i_val=mp2_env%block_size_col)

@@ -20,6 +20,7 @@ MODULE mp2_cphf
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -28,7 +29,8 @@ MODULE mp2_cphf
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
+                                              cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
@@ -90,9 +92,11 @@ MODULE mp2_cphf
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_2nd_kernel_ao,                ONLY: admm_projection_derivative,&
                                               apply_2nd_order_kernel
+   USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
@@ -710,10 +714,16 @@ CONTAINS
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               precond(ispin)%matrix%local_data(iiB, jjB) = precond(ispin)%matrix%local_data(iiB, jjB)/ &
-                                                            (Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin))
+               precond(ispin)%matrix%local_data(iiB, jjB) = Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin)
             END DO
          END DO
+      END DO
+
+      IF (mp2_env%ri_grad%add_hartree) CALL add_hartree_component(mo_coeff_o, mo_coeff_v, &
+                                                                  p_env, precond, qs_env)
+
+      DO ispin = 1, nspins
+         precond(ispin)%matrix%local_data(:, :) = 1.0_dp/precond(ispin)%matrix%local_data(:, :)
       END DO
 
       IF (mp2_env%ri_grad%enforce_decrease) THEN
@@ -744,6 +754,104 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE solve_z_vector_eq_low
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param p_env ...
+!> \param precond ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE add_hartree_component(mo_coeff_o, mo_coeff_v, p_env, precond, qs_env)
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v
+      TYPE(qs_p_env_type), INTENT(IN)                    :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: precond
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'add_hartree_component'
+
+      INTEGER                                            :: dimen, handle, homo, ispin, my_homo, &
+                                                            my_virtual, virtual
+      REAL(KIND=dp)                                      :: alpha, hartree_term, total_rho
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: fm_work
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: rho_g, rho_r
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: pot_g
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (pw_env, poisson_env, auxbas_pw_pool, rho_r%pw, rho_g%pw, pot_g)
+
+      CALL get_qs_env(qs_env, pw_env=pw_env, ks_env=ks_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
+
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
+                             use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
+                             use_data=COMPLEXDATA1D, &
+                             in_space=RECIPROCALSPACE)
+
+      alpha = 1.0_dp
+      IF (SIZE(mo_coeff_o) == 1) alpha = 2.0_dp
+
+      DO ispin = 1, SIZE(mo_coeff_o)
+         CALL cp_fm_get_info(matrix=precond(ispin)%matrix, &
+                             nrow_global=homo, &
+                             ncol_global=virtual)
+
+         dimen = homo + virtual
+
+         NULLIFY (fm_work, fm_struct)
+         CALL cp_fm_struct_create(fm_struct, template_fmstruct=precond(ispin)%matrix%matrix_struct, &
+                                  nrow_global=dimen, ncol_global=dimen)
+         CALL cp_fm_create(fm_work, fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
+
+         DO my_virtual = 1, virtual
+            DO my_homo = 1, homo
+
+               ! Step 1: Collect the density
+               CALL cp_gemm('N', 'T', dimen, dimen, 1, 0.5_dp, &
+                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, 0.0_dp, fm_work, my_homo, 1, my_virtual, 1)
+               CALL cp_gemm('N', 'T', dimen, dimen, 1, 0.5_dp, &
+                            mo_coeff_v(ispin)%matrix, mo_coeff_o(ispin)%matrix, 1.0_dp, fm_work, my_virtual, 1, my_homo, 1)
+               CALL copy_fm_to_dbcsr(fm_work, p_env%kpp1(ispin)%matrix, keep_sparsity=.TRUE.)
+
+               ! Step 2: Collocate the density
+               CALL calculate_rho_elec(matrix_p=p_env%kpp1(ispin)%matrix, &
+                                       rho=rho_r, &
+                                       rho_gspace=rho_g, &
+                                       total_rho=total_rho, &
+                                       ks_env=ks_env)
+
+               ! Step 3: Calculate the Hartree-term
+               CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g)
+
+               ! Step 4: Collect the results
+               hartree_term = alpha*pw_integral_ab(rho_g%pw, pot_g)
+               CALL cp_fm_add_to_element(precond(ispin)%matrix, my_homo, my_virtual, hartree_term)
+
+            END DO
+         END DO
+
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
+
+         CALL cp_fm_release(fm_work)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
