@@ -163,7 +163,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: occupations
       LOGICAL                                            :: compute_virial, in_range, &
                                                             uniform_occupation
-      REAL(KIND=dp)                                      :: exc, total_rho
+      REAL(KIND=dp)                                      :: exc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_scaling, rvec, scaling
       TYPE(cell_type), POINTER                           :: cell
@@ -311,7 +311,7 @@ CONTAINS
                                 0.0_dp, matrix_p(ispin)%matrix, retain_sparsity=.TRUE.)
             ! compute the densities on the grid
             CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
-                                    rho=rho_r(ispin), rho_gspace=rho_g(ispin), total_rho=total_rho, &
+                                    rho=rho_r(ispin), rho_gspace=rho_g(ispin), &
                                     ks_env=ks_env)
          END DO
 
@@ -406,7 +406,7 @@ CONTAINS
       INTEGER                                            :: handle, i, Iorb, k_alpha, k_beta, Norb
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: sic_orbital_list
       LOGICAL                                            :: compute_virial, uniform_occupation
-      REAL(KIND=dp)                                      :: ener, exc, total_rho
+      REAL(KIND=dp)                                      :: ener, exc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_local
@@ -613,11 +613,8 @@ CONTAINS
                                     alpha=1.0_dp)
 
          CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
-                                 rho=orb_rho_r, rho_gspace=orb_rho_g, total_rho=total_rho, &
+                                 rho=orb_rho_r, rho_gspace=orb_rho_g, &
                                  ks_env=ks_env)
-
-         ! write(*,*) 'Orbital ',sic_orbital_list(1,iorb),sic_orbital_list(2,iorb)
-         ! write(*,*) 'Total orbital rho= ',total_rho
 
          ! compute the energy functional for this orbital and its derivative
 
@@ -1650,7 +1647,7 @@ CONTAINS
       INTEGER                                            :: handle, my_val, nelectron, nspins, stat
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       LOGICAL                                            :: do_zmp_read, fermi_amaldi
-      REAL(KIND=dp)                                      :: factor, lambda, total_rho
+      REAL(KIND=dp)                                      :: factor, lambda
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_ext_r
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -1716,7 +1713,6 @@ CONTAINS
 
          CALL pw_axpy(rho_g(1)%pw, rho_eff_gspace%pw, alpha=factor)
          CALL pw_axpy(rho_ext_g(1)%pw, rho_eff_gspace%pw, alpha=-1.0_dp)
-         total_rho = pw_integrate_function(rho_eff_gspace%pw, isign=1)
          ext_den_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_DENSITY")
          CALL section_vals_val_get(ext_den_section, "LAMBDA", r_val=lambda)
          CALL section_vals_val_get(ext_den_section, "ZMP_CONSTRAINT", i_val=my_val)

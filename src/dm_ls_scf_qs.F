@@ -654,7 +654,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_matrix_to_cube'
 
       INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: tot_rho
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), POINTER                          :: matrix_p_qs
       TYPE(particle_list_type), POINTER                  :: particles
@@ -700,7 +699,6 @@ CONTAINS
       CALL calculate_rho_elec(matrix_p=matrix_p_qs, &
                               rho=wf_r, &
                               rho_gspace=wf_g, &
-                              total_rho=tot_rho, &
                               ks_env=ks_env)
 
       ! write this to a cube

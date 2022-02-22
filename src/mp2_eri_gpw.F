@@ -599,7 +599,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, skip_shell
-      REAL(KIND=dp)                                      :: radius, total_rho
+      REAL(KIND=dp)                                      :: radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
@@ -619,7 +619,6 @@ CONTAINS
       CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix, &
                               rho=rho_r, &
                               rho_gspace=rho_g, &
-                              total_rho=total_rho, &
                               task_list_external=task_list_sub, &
                               pw_env_external=pw_env_sub, &
                               ks_env=ks_env)

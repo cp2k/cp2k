@@ -429,7 +429,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'p_env_update_rho'
 
       INTEGER                                            :: handle, ispin
-      REAL(KIND=dp)                                      :: tot_rho_r_aux
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
@@ -473,7 +472,6 @@ CONTAINS
                                        matrix_p=rho1_ao(ispin)%matrix, &
                                        rho=rho_r_aux(ispin), &
                                        rho_gspace=rho_g_aux(ispin), &
-                                       total_rho=tot_rho_r_aux, &
                                        soft_valid=.FALSE., &
                                        basis_type="AUX_FIT", &
                                        task_list_external=task_list)

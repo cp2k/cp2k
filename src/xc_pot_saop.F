@@ -137,8 +137,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: compute_virial, gapw, lsd
       REAL(KIND=dp)                                      :: density_cut, efac, gradient_cut, &
-                                                            tau_cut, tot_rho_psi, we_GLLB, we_LB, &
-                                                            xc_energy
+                                                            tau_cut, we_GLLB, we_LB, xc_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_col
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -351,7 +350,7 @@ CONTAINS
             CALL pw_zero(orbital_g%pw)
             CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
                                     rho=orbital, rho_gspace=orbital_g, &
-                                    total_rho=tot_rho_psi, ks_env=ks_env)
+                                    ks_env=ks_env)
 
             vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
                                      efac*orbital%pw%cr3d
@@ -420,7 +419,7 @@ CONTAINS
             CALL pw_zero(orbital_g%pw)
             CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
                                     rho=orbital, rho_gspace=orbital_g, &
-                                    total_rho=tot_rho_psi, ks_env=ks_env)
+                                    ks_env=ks_env)
 
 !TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env)
 !TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))
