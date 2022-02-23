@@ -16,15 +16,15 @@
 !>                 [Felix Uhl
 ! **************************************************************************************************
 MODULE pint_normalmode
-   USE input_constants, ONLY: propagator_pimd, &
-                              propagator_rpmd, &
-                              propagator_cmd
-   USE input_section_types, ONLY: section_vals_type, &
-                                  section_vals_val_get
-   USE kinds, ONLY: dp
-   USE mathconstants, ONLY: pi, &
-                            twopi
-   USE pint_types, ONLY: normalmode_env_type
+   USE input_constants,                 ONLY: propagator_cmd,&
+                                              propagator_pimd,&
+                                              propagator_rpmd
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi,&
+                                              twopi
+   USE pint_types,                      ONLY: normalmode_env_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -62,8 +62,9 @@ CONTAINS
       INTEGER, INTENT(in)                                :: propagator
 
       INTEGER                                            :: i, j, k, li
-      REAL(kind=dp)                                      :: invsqrtp, pip, sqrt2p, twopip, gamma_parameter
       LOGICAL                                            :: explicit_gamma, explicit_modefactor
+      REAL(kind=dp)                                      :: gamma_parameter, invsqrtp, pip, sqrt2p, &
+                                                            twopip
 
       CPASSERT(.NOT. ASSOCIATED(normalmode_env))
       ALLOCATE (normalmode_env)
