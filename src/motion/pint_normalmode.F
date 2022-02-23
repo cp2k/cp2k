@@ -104,8 +104,6 @@ CONTAINS
          END IF
       END IF
 
-      IF (
-
       IF (normalmode_env%Q_centroid < 0.0_dp) THEN
          normalmode_env%Q_centroid = -normalmode_env%Q_centroid/(kT*p)
       END IF
