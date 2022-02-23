@@ -1460,7 +1460,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DO_POLAK_RIBIERE", &
                           description="Use a Polak-Ribiere update of the search vector in CG instead of the Fletcher "// &
-                          "Reeves update. Ignored with other methods.", &
+                          "Reeves update. Improves the convergence with modified step sizes. "// &
+                          "Ignored with other methods than CG.", &
                           usage="ENFORCE_DECREASE T", &
                           lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
