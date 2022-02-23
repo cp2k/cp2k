@@ -7283,6 +7283,15 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FULL_RESTART", &
+                                       description="Controls the dumping of a standard MO restart file "// &
+                                       "where coefficients and occupation numbers are those of the TP scheme,"// &
+                                       "i.e. with emptied core state.", &
+                                       print_level=high_print_level, common_iter_levels=3, each_iter_names=s2a("XAS_SCF"), &
+                                       add_last=add_last_numeric, each_iter_values=(/3/), filename="")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "CLS_FUNCTION_CUBES", &
                                        description="Controls the printing of the relaxed orbitals ", &
                                        print_level=high_print_level, common_iter_levels=3, add_last=add_last_numeric, filename="")
