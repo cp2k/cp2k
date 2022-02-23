@@ -371,7 +371,7 @@ CONTAINS
          CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
             max_deriv = 2
          CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
-            max_deriv = 1
+            max_deriv = 2
          CASE default
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
@@ -481,7 +481,7 @@ CONTAINS
          CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
             max_deriv = 2
          CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
-            max_deriv = 1
+            max_deriv = 2
          CASE default
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
@@ -688,20 +688,20 @@ CONTAINS
             deriv => xc_dset_get_derivative(deriv_set, "(tau)(tau)", &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_tau_tau)
-            !             IF (has_laplace) THEN
-            !                deriv => xc_dset_get_derivative(deriv_set,"(rho)(laplace_rho)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_rho_laplace_rho)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(norm_rho)(laplace_rho)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_ndrho_laplace_rho)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rho)(laplace_rho)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rho_laplace_rho)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rho)(tau)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rho_tau)
-            !             END IF
+            IF (has_laplace) THEN
+               deriv => xc_dset_get_derivative(deriv_set, "(rho)(laplace_rho)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_rho_laplace_rho)
+               deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(laplace_rho)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_ndrho_laplace_rho)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rho)(laplace_rho)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rho_laplace_rho)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rho)(tau)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rho_tau)
+            END IF
          CASE default
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
@@ -1124,59 +1124,59 @@ CONTAINS
             deriv => xc_dset_get_derivative(deriv_set, "(tau_b)(tau_b)", &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_tau_b_tau_b)
-            !            IF (has_laplace) THEN
-            !                deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(laplace_rhoa)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_rhoa_laplace_rhoa)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(laplace_rhob)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_rhoa_laplace_rhob)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(rhob)(laplace_rhoa)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_rhob_laplace_rhoa)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(rhob)(laplace_rhob)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_rhob_laplace_rhob)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(laplace_rhoa)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_ndrho_laplace_rhoa)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(laplace_rhob)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_ndrho_laplace_rhob)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(laplace_rhoa)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_laplace_rhoa)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)(laplace_rhob)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa_laplace_rhob)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(laplace_rhoa)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_laplace_rhoa)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)(laplace_rhob)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_laplace_rhob)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhoa)(laplace_rhoa)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhoa_laplace_rhoa)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhoa)(laplace_rhob)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhoa_laplace_rhob)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhob)(laplace_rhob)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob_laplace_rhob)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhoa)(tau_a)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhoa_tau_a)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhoa)(tau_b)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhoa_tau_b)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhob)(tau_a)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob_tau_a)
-            !                deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhob)(tau_b)",&
-            !                     allocate_deriv=.TRUE.)
-            !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob_tau_b)
-            !             END IF
+            IF (has_laplace) THEN
+               deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(laplace_rhoa)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_rhoa_laplace_rhoa)
+               deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(laplace_rhob)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_rhoa_laplace_rhob)
+               deriv => xc_dset_get_derivative(deriv_set, "(rhob)(laplace_rhoa)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_rhob_laplace_rhoa)
+               deriv => xc_dset_get_derivative(deriv_set, "(rhob)(laplace_rhob)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_rhob_laplace_rhob)
+               deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(laplace_rhoa)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_ndrho_laplace_rhoa)
+               deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(laplace_rhob)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_ndrho_laplace_rhob)
+               deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(laplace_rhoa)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_laplace_rhoa)
+               deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(laplace_rhob)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa_laplace_rhob)
+               deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(laplace_rhoa)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_laplace_rhoa)
+               deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(laplace_rhob)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_ndrhob_laplace_rhob)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhoa)(laplace_rhoa)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhoa_laplace_rhoa)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhoa)(laplace_rhob)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhoa_laplace_rhob)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhob)(laplace_rhob)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhob_laplace_rhob)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhoa)(tau_a)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhoa_tau_a)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhoa)(tau_b)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhoa_tau_b)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhob)(tau_a)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhob_tau_a)
+               deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhob)(tau_b)", &
+                                               allocate_deriv=.TRUE.)
+               CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhob_tau_b)
+            END IF
          CASE default
             CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
          END SELECT
