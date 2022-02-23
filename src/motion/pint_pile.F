@@ -13,6 +13,7 @@
 !>      10.2014 created [Felix Uhl]
 ! **************************************************************************************************
 MODULE pint_pile
+   USE input_constants,                 ONLY: propagator_cmd
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -58,11 +59,11 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: section
 
       CHARACTER(LEN=rng_record_length)                   :: rng_record
-      INTEGER                                            :: i, j, p
+      INTEGER                                            :: i, i_propagator, j, p
       LOGICAL                                            :: explicit
       REAL(KIND=dp)                                      :: dti2, ex
       REAL(KIND=dp), DIMENSION(3, 2)                     :: initial_seed
-      TYPE(section_vals_type), POINTER                   :: rng_section
+      TYPE(section_vals_type), POINTER                   :: pint_section, rng_section
 
       pint_env%e_pile = 0.0_dp
       ALLOCATE (pile_therm)
@@ -72,6 +73,12 @@ CONTAINS
       CALL section_vals_val_get(section, "TAU", r_val=pile_therm%tau)
       CALL section_vals_val_get(section, "LAMBDA", r_val=pile_therm%lamb)
       CALL section_vals_val_get(section, "THERMOSTAT_ENERGY", r_val=pile_therm%thermostat_energy)
+      pint_section => section_vals_get_subs_vals(pint_env%input, "MOTION%PINT")
+      CALL section_vals_val_get(pint_section, "PROPAGATOR", i_val=i_propagator)
+
+      IF (i_propagator == propagator_cmd) THEN
+         pile_therm%tau = 0.0_dp
+      END IF
 
       p = pint_env%p
       dti2 = 0.5_dp*pint_env%dt
