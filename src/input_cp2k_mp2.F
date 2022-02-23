@@ -1415,9 +1415,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RESTART_EVERY", &
-                          description="Restart iteration every given number of steps Z-vector equations.", &
-                          usage="RESTART_EVERY", &
-                          default_i_val=50)
+                          description="Restart iteration every given number of steps.", &
+                          usage="RESTART_EVERY 5", &
+                          default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1443,22 +1443,24 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SCALE_X0", &
-                          description="Scale the initial guess of the iteration.", &
-                          usage="SCALE_X0 1.0", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_STEP_SIZE", &
+                          description="Scaling factor of each step.", &
+                          usage="SCALE_STEP_SIZE 1.0", &
                           default_r_val=1.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SCALE_RICHARDSON", &
-                          description="Scaling factor of the Richardson iteration.", &
-                          usage="SCALE_RICHARDSON 1.0", &
-                          default_r_val=0.66_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENFORCE_DECREASE", &
                           description="Restarts if residual does not decrease.", &
+                          usage="ENFORCE_DECREASE T", &
+                          lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DO_POLAK_RIBIERE", &
+                          description="Use a Polak-Ribiere update of the search vector in CG instead of the Fletcher "// &
+                          "Reeves update. Ignored with other methods.", &
                           usage="ENFORCE_DECREASE T", &
                           lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)

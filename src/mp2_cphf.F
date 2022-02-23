@@ -29,8 +29,7 @@ MODULE mp2_cphf
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
-                                              cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
@@ -738,9 +737,9 @@ CONTAINS
                                       mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                       L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
          CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
-            CALL solve_z_vector_cg_auto_restart(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
-                                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
-                                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+            CALL solve_z_vector_cg(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                   L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
          CASE DEFAULT
             CPABORT("Unknown solver")
          END SELECT
@@ -815,32 +814,35 @@ CONTAINS
          CALL cp_fm_create(fm_work, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
-         DO my_virtual = 1, virtual
-            DO my_homo = 1, homo
+!         DO my_virtual = 1, virtual
+!            DO my_homo = 1, homo
+         my_virtual = 1
+         my_homo = homo
 
-               ! Step 1: Collect the density
-               CALL cp_gemm('N', 'T', dimen, dimen, 1, 0.5_dp, &
-                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, 0.0_dp, fm_work, my_homo, 1, my_virtual, 1)
-               CALL cp_gemm('N', 'T', dimen, dimen, 1, 0.5_dp, &
-                            mo_coeff_v(ispin)%matrix, mo_coeff_o(ispin)%matrix, 1.0_dp, fm_work, my_virtual, 1, my_homo, 1)
-               CALL copy_fm_to_dbcsr(fm_work, p_env%kpp1(ispin)%matrix, keep_sparsity=.TRUE.)
+         ! Step 1: Collect the density
+         CALL cp_gemm('N', 'T', dimen, dimen, 1, 0.5_dp, &
+                      mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, 0.0_dp, fm_work, my_homo, 1, my_virtual, 1)
+         CALL cp_gemm('N', 'T', dimen, dimen, 1, 0.5_dp, &
+                      mo_coeff_v(ispin)%matrix, mo_coeff_o(ispin)%matrix, 1.0_dp, fm_work, my_virtual, 1, my_homo, 1)
+         CALL copy_fm_to_dbcsr(fm_work, p_env%kpp1(ispin)%matrix, keep_sparsity=.TRUE.)
 
-               ! Step 2: Collocate the density
-               CALL calculate_rho_elec(matrix_p=p_env%kpp1(ispin)%matrix, &
-                                       rho=rho_r, &
-                                       rho_gspace=rho_g, &
-                                       total_rho=total_rho, &
-                                       ks_env=ks_env)
+         ! Step 2: Collocate the density
+         CALL calculate_rho_elec(matrix_p=p_env%kpp1(ispin)%matrix, &
+                                 rho=rho_r, &
+                                 rho_gspace=rho_g, &
+                                 total_rho=total_rho, &
+                                 ks_env=ks_env)
 
-               ! Step 3: Calculate the Hartree-term
-               CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g)
+         ! Step 3: Calculate the Hartree-term
+         CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g)
 
-               ! Step 4: Collect the results
-               hartree_term = alpha*pw_integral_ab(rho_g%pw, pot_g)
-               CALL cp_fm_add_to_element(precond(ispin)%matrix, my_homo, my_virtual, hartree_term)
+         ! Step 4: Collect the results
+         hartree_term = alpha*pw_integral_ab(rho_g%pw, pot_g)
+!               CALL cp_fm_add_to_element(precond(ispin)%matrix, my_homo, my_virtual, hartree_term)
+         precond(ispin)%matrix%local_data(:, :) = precond(ispin)%matrix%local_data(:, :) + hartree_term
 
-            END DO
-         END DO
+!            END DO
+!         END DO
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
@@ -904,12 +906,14 @@ CONTAINS
 
       max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
       eps_conv = mp2_env%ri_grad%cphf_eps_conv
+      scale_cphf = mp2_env%ri_grad%scale_step_size
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, *)
          WRITE (unit_nr, '(T3,A)') "MP2_CPHF| Iterative solution of Z-Vector equations (Pople's method)"
          WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
          WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
+         WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Scaling of initial guess: ', scale_cphf
          WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
          WRITE (unit_nr, '(T4,A,T15,A,T33,A)') 'Step', 'Time', 'Convergence'
          WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
@@ -945,8 +949,6 @@ CONTAINS
       x_norm = 0.0_dp
       xi_b = 0.0_dp
       xi_Axi = 0.0_dp
-
-      scale_cphf = mp2_env%ri_grad%scale_x0
 
       cycle_counter = 0
       DO iiter = 1, max_num_iter
@@ -1144,7 +1146,7 @@ CONTAINS
       LOGICAL                                            :: converged
       REAL(KIND=dp) :: eps_conv, norm_residual, residual_dot_diff_search_vec_new, &
          residual_dot_diff_search_vec_old, residual_dot_search_vec, scale_result, scale_search, &
-         search_vec_dot_A_search_vec, t1, t2
+         scale_step_size, search_vec_dot_A_search_vec, t1, t2
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: A_dot_search_vector, diff_search_vector, &
                                                             residual, search_vector
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
@@ -1156,6 +1158,7 @@ CONTAINS
       eps_conv = mp2_env%ri_grad%cphf_eps_conv
       z_solver_method = mp2_env%ri_grad%z_solver_method
       restart_every = mp2_env%ri_grad%cphf_restart
+      scale_step_size = mp2_env%ri_grad%scale_step_size
       transf_type_in = 3
 
       IF (unit_nr > 0) THEN
@@ -1173,6 +1176,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
          WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
          WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Number of steps for restart: ', restart_every
+         WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Scaling factor of each step: ', scale_step_size
          WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
          WRITE (unit_nr, '(T4,A,T15,A,T33,A)') 'Step', 'Time', 'Convergence'
          WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
@@ -1243,7 +1247,7 @@ CONTAINS
                   scale_result = residual_dot_search_vec/search_vec_dot_A_search_vec
                END IF
 
-               scale_result = scale_result*mp2_env%ri_grad%scale_x0
+               scale_result = scale_result*scale_step_size
 
                DO ispin = 1, nspins
                   P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
@@ -1255,10 +1259,10 @@ CONTAINS
             ELSE
                DO ispin = 1, nspins
                   P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
-                                                        + mp2_env%ri_grad%scale_x0*search_vector(ispin)%matrix%local_data(:, :)
+                                                        + scale_step_size*search_vector(ispin)%matrix%local_data(:, :)
 
                   residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
-                                                       - mp2_env%ri_grad%scale_x0*A_dot_search_vector(ispin)%matrix%local_data(:, :)
+                                                            - scale_step_size*A_dot_search_vector(ispin)%matrix%local_data(:, :)
                END DO
             END IF
 
@@ -1283,7 +1287,7 @@ CONTAINS
 
             IF (z_solver_method == z_solver_richardson) THEN
                DO ispin = 1, nspins
-                  search_vector(ispin)%matrix%local_data(:, :) = mp2_env%ri_grad%scale_richardson* &
+                  search_vector(ispin)%matrix%local_data(:, :) = scale_step_size* &
                                                       precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
                END DO
             ELSE IF (z_solver_method == z_solver_sd) THEN
@@ -1376,7 +1380,8 @@ CONTAINS
       LOGICAL                                            :: converged, do_restart
       REAL(KIND=dp) :: eps_conv, norm_residual, norm_residual_old, &
          residual_dot_diff_search_vec_new, residual_dot_diff_search_vec_old, &
-         residual_dot_search_vec, scale_result, scale_search, search_vec_dot_A_search_vec, t1, t2
+         residual_dot_search_vec, residual_new_dot_diff_search_vec_old, scale_result, &
+         scale_search, scale_step_size, search_vec_dot_A_search_vec, t1, t2
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: A_dot_search_vector, diff_search_vector, &
                                                             residual, search_vector
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
@@ -1388,6 +1393,7 @@ CONTAINS
       eps_conv = mp2_env%ri_grad%cphf_eps_conv
       z_solver_method = mp2_env%ri_grad%z_solver_method
       restart_every = mp2_env%ri_grad%cphf_restart
+      scale_step_size = mp2_env%ri_grad%scale_step_size
       transf_type_in = 3
 
       IF (unit_nr > 0) THEN
@@ -1406,6 +1412,7 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
          WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Number of steps for restart: ', restart_every
          WRITE (unit_nr, '(T3, A)') 'MP2_CPHF| Restart after no decrease'
+         WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Scaling factor of each step: ', scale_step_size
          WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
          WRITE (unit_nr, '(T4,A,T13,A,T28,A,T43,A)') 'Step', 'Restart', 'Time', 'Convergence'
          WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
@@ -1444,7 +1451,8 @@ CONTAINS
 
          ! During the first iteration, P_ia=0 such that the application of the 2nd order matrix is zero
          IF (do_restart) THEN
-! We do not consider the first step to be a restart
+            ! We do not consider the first step to be a restart
+            ! Do not recalculate residual if it is already enforced to save FLOPs
             IF (.NOT. mp2_env%ri_grad%recalc_residual .OR. (iiter == 1)) THEN
                IF (iiter > 1) THEN
                   CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
@@ -1454,13 +1462,16 @@ CONTAINS
                                         residual)
                ELSE
                   do_restart = .FALSE.
+
+                  DO ispin = 1, nspins
+                     CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+                  END DO
                END IF
 
                DO ispin = 1, nspins
-             residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) - residual(ispin)%matrix%local_data(:, :)
+                  residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) &
+                                                            - residual(ispin)%matrix%local_data(:, :)
                END DO
-
-               norm_residual_old = SQRT(accurate_dot_product_spin(residual, residual))
             END IF
 
             DO ispin = 1, nspins
@@ -1472,9 +1483,7 @@ CONTAINS
             restart_counter = 1
          END IF
 
-         IF (mp2_env%ri_grad%enforce_decrease) THEN
-            norm_residual_old = SQRT(accurate_dot_product_spin(residual, residual))
-         END IF
+         norm_residual_old = SQRT(accurate_dot_product_spin(residual, residual))
 
          residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
 
@@ -1494,24 +1503,24 @@ CONTAINS
                scale_result = residual_dot_search_vec/search_vec_dot_A_search_vec
             END IF
 
-            scale_result = scale_result*mp2_env%ri_grad%scale_x0
+            scale_result = scale_result*scale_step_size
 
          ELSE
 
-            scale_result = mp2_env%ri_grad%scale_x0
+            scale_result = scale_step_size
 
          END IF
 
          DO ispin = 1, nspins
             P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
-                                                  + mp2_env%ri_grad%scale_x0*search_vector(ispin)%matrix%local_data(:, :)
+                                                  + scale_result*search_vector(ispin)%matrix%local_data(:, :)
          END DO
 
          IF (.NOT. mp2_env%ri_grad%recalc_residual) THEN
 
             DO ispin = 1, nspins
                residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
-                                                       - mp2_env%ri_grad%scale_x0*A_dot_search_vector(ispin)%matrix%local_data(:, :)
+                                                         - scale_result*A_dot_search_vector(ispin)%matrix%local_data(:, :)
             END DO
          ELSE
             CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
@@ -1544,8 +1553,8 @@ CONTAINS
 
          IF (z_solver_method == z_solver_richardson) THEN
             DO ispin = 1, nspins
-               search_vector(ispin)%matrix%local_data(:, :) = mp2_env%ri_grad%scale_richardson* &
-                                                      precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+               search_vector(ispin)%matrix%local_data(:, :) = &
+                  scale_step_size*precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
             END DO
          ELSE IF (z_solver_method == z_solver_sd) THEN
             DO ispin = 1, nspins
@@ -1553,6 +1562,9 @@ CONTAINS
                   precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
             END DO
          ELSE
+            IF (mp2_env%ri_grad%polak_ribiere) &
+               residual_new_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
+
             DO ispin = 1, nspins
                diff_search_vector(ispin)%matrix%local_data(:, :) = &
                   precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
@@ -1561,6 +1573,8 @@ CONTAINS
             residual_dot_diff_search_vec_new = accurate_dot_product_spin(residual, diff_search_vector)
 
             scale_search = residual_dot_diff_search_vec_new/residual_dot_diff_search_vec_old
+            IF (mp2_env%ri_grad%polak_ribiere) scale_search = &
+               scale_search - residual_new_dot_diff_search_vec_old/residual_dot_diff_search_vec_old
 
             DO ispin = 1, nspins
                search_vector(ispin)%matrix%local_data(:, :) = scale_search*search_vector(ispin)%matrix%local_data(:, :) &
@@ -1572,7 +1586,6 @@ CONTAINS
          END IF
 
          ! Check whether the residual decrease or restart is enforced and ask for restart
-
          do_restart = (norm_residual >= norm_residual_old .OR. (MOD(restart_counter, restart_every) == 0))
 
          restart_counter = restart_counter + 1
