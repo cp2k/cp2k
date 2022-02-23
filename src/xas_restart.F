@@ -47,12 +47,15 @@ MODULE xas_restart
                                               default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_bcast
+   USE particle_types,                  ONLY: particle_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_mixing_utils,                 ONLY: mixing_init
-   USE qs_mo_io,                        ONLY: wfn_restart_file_name
+   USE qs_mo_io,                        ONLY: wfn_restart_file_name,&
+                                              write_mo_set_low
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
@@ -293,10 +296,12 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: print_key
 
       CALL timeset(routineN, handle)
-      NULLIFY (mos, logger, print_key)
+      NULLIFY (mos, logger, print_key, particle_set, qs_kind_set)
       logger => cp_get_default_logger()
 
       CALL get_xas_env(xas_env=xas_env, occ_estate=occ_estate, xas_estate=xas_estate, &
@@ -350,6 +355,21 @@ CONTAINS
          CALL cp_print_key_finished_output(rst_unit, logger, xas_section, &
                                            "PRINT%RESTART")
       END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           xas_section, "PRINT%FULL_RESTART", used_print_key=print_key), &
+                cp_p_file)) THEN
+         rst_unit = cp_print_key_unit_nr(logger, xas_section, "PRINT%FULL_RESTART", &
+                                         extension="_full.rst", file_status="REPLACE", file_action="WRITE", &
+                                         file_form="UNFORMATTED", middle_name=TRIM(my_middle))
+
+         CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
+         CALL write_mo_set_low(mos, particle_set=particle_set, &
+                               qs_kind_set=qs_kind_set, ires=rst_unit)
+         CALL cp_print_key_finished_output(rst_unit, logger, xas_section, "PRINT%FULL_RESTART")
+
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE xas_write_restart
