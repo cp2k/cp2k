@@ -16,6 +16,6 @@ he32_only_restart.inp                                 40      2e-13       -1.437
 water-in-helium.inp                                    9      7e-14        1.0717546824070511E-003
 water-in-helium-restart.inp                            9      1e-13        1.0716120146125518E-003
 water-in-helium-lastforce.inp                          9      1e-13        1.0708166830830485E-003
-h2o_cmd_nose.inp                                       9      1e-15        2.5049926484361770E-002
-h2o_cmd_pile.inp                                       9      1e-15        6.7246877655376420E-003
+h2o_cmd_nose.inp                                       9      1e-13        2.5049926484361770E-002
+h2o_cmd_pile.inp                                       9      1e-13        6.7246877655376420E-003
 #EOF
