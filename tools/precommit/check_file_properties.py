@@ -65,7 +65,6 @@ FLAG_EXCEPTIONS = (
     r"LIBXSMM_VERSION3",
     r"LIBXSMM_VERSION4",
     r"__PW_CUDA_HIP_KERNELS",
-    r"__SPLA",
 )
 
 FLAG_EXCEPTIONS_RE = re.compile(r"|".join(FLAG_EXCEPTIONS))

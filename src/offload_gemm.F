@@ -79,11 +79,8 @@ CONTAINS
       REAL(8), DIMENSION(*), INTENT(inout), TARGET ::C
       INTEGER, INTENT(in) :: ldc
       TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
-
-      REAL(8), ALLOCATABLE, DIMENSION(:, :)  :: Ctest
-      INTEGER                               :: i, j
       ! no point of using SPLA offloading on CPU ONLY nodes
-#if defined(__SPLA) && (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
+#if defined(__SPLA)
       INTEGER :: spla_op_A, spla_op_B, spla_error
 
       IF (PRESENT(ctx)) THEN
@@ -111,7 +108,6 @@ CONTAINS
          CALL dgemm(opA, opB, m, n, k, alpha, &
                     A, lda, &
                     B, ldb, beta, C, ldc)
-
 #if defined(__SPLA)
       END IF
 #else
@@ -153,11 +149,8 @@ CONTAINS
       REAL(4), DIMENSION(*), INTENT(inout), TARGET ::C
       INTEGER, INTENT(in) :: ldc
       TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
-
-      REAL(8), ALLOCATABLE, DIMENSION(:, :)  :: Ctest
-      INTEGER                               :: i, j
       ! no point of using SPLA offloading on CPU ONLY nodes
-#if defined(__SPLA) && (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
+#if defined(__SPLA)
       INTEGER :: spla_op_A, spla_op_B, spla_error
 
       IF (PRESENT(ctx)) THEN
@@ -227,11 +220,8 @@ CONTAINS
       COMPLEX(4), DIMENSION(*), INTENT(inout), TARGET ::C
       INTEGER, INTENT(in) :: ldc
       TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
-
-      REAL(8), ALLOCATABLE, DIMENSION(:, :)  :: Ctest
-      INTEGER                               :: i, j
       ! no point of using SPLA offloading on CPU ONLY nodes
-#if defined(__SPLA) && (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
+#if defined(__SPLA)
       INTEGER :: spla_op_A, spla_op_B, spla_error
 
       IF (PRESENT(ctx)) THEN
@@ -303,11 +293,8 @@ CONTAINS
       COMPLEX(8), DIMENSION(*), INTENT(inout), TARGET ::C
       INTEGER, INTENT(in) :: ldc
       TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
-
-      REAL(8), ALLOCATABLE, DIMENSION(:, :)  :: Ctest
-      INTEGER                               :: i, j
       ! no point of using SPLA offloading on CPU ONLY nodes
-#if defined(__SPLA) && (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
+#if defined(__SPLA)
       INTEGER :: spla_op_A, spla_op_B, spla_error
 
       IF (PRESENT(ctx)) THEN
