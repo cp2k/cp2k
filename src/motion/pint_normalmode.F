@@ -88,8 +88,7 @@ CONTAINS
                                 explicit=explicit_gamma)
 
       IF (explicit_modefactor .AND. explicit_gamma) THEN
-         CPABORT("Both GAMMA and MODEFACTOR have been declared. Please use &
-&                  GAMMA only with the CMD PROPAGATOR and MODEFACTOR with the PIMD KEYWORD.")
+         CPABORT("Both GAMMA and MODEFACTOR have been declared. Please use only one.")
       END IF
       IF (explicit_gamma) THEN
          normalmode_env%modefactor = 1.0_dp/gamma_parameter**2
