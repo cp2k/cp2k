@@ -17,6 +17,9 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             f.write(toolchain_full() + regtest(version))
 
+        with OutputFile(f"Dockerfile.prod_{version}", args.check) as f:
+            f.write(toolchain_full() + production(version))
+
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
         f.write(toolchain_full(mpi_mode="openmpi") + regtest("psmp"))
 
@@ -43,6 +46,9 @@ def main() -> None:
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
             f.write(toolchain_cuda(gpu_ver=gpu_ver) + regtest("psmp", "local_cuda"))
+
+        with OutputFile(f"Dockerfile.prod_cuda_{gpu_ver}", args.check) as f:
+            f.write(toolchain_cuda(gpu_ver=gpu_ver) + production("psmp", "local_cuda"))
 
         with OutputFile(f"Dockerfile.test_hip_cuda_{gpu_ver}", args.check) as f:
             f.write(toolchain_hip_cuda(gpu_ver=gpu_ver) + regtest("psmp", "local_hip"))
@@ -196,6 +202,28 @@ CMD cat $(find ./report.log -mmin +3) | sed '/^Summary:/ s/$/ (cached)/'
 
 #EOF
 """
+
+
+# ======================================================================================
+def production(version: str, arch: str = "local") -> str:
+    return (
+        install_cp2k(version=version, arch=arch, prod=True)
+        + fr"""
+# Run regression tests.
+ARG TESTOPTS
+RUN /bin/bash -c " \
+    source /opt/cp2k-toolchain/install/setup && \
+    ./tools/regtesting/do_regtest.py '{arch}' '{version}' "${{TESTOPTS}}" |& tee regtests.log && \
+    rm -rf regtesting"
+
+# Setup entry point for production.
+COPY ./tools/docker/scripts/prod_entrypoint.sh ./
+ENTRYPOINT ["./prod_entrypoint.sh", "{arch}", "{version}"]
+CMD ["cp2k", "--help"]
+
+#EOF
+"""
+    )
 
 
 # ======================================================================================
