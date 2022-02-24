@@ -147,7 +147,7 @@ case "$with_spla" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     SPLA_ROOT="${pkg_install_dir}"
-    SPLA_CFLAGS="-I'${pkg_install_dir}/include'"
+    SPLA_CFLAGS="-I'${pkg_install_dir}/include/spla'"
     SPLA_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     SPLA_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
     SPLA_HIP_LDFLAGS="-L'${pkg_install_dir}/lib/rocm' -Wl,-rpath='${pkg_install_dir}/lib/rocm'"
