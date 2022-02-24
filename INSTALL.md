@@ -396,14 +396,14 @@ CP2K's grid backend does not yet support OpenCL devices.
 ### 2w. matrix-matrix multiplication offloading on GPU using SPLA
 
 The SPLA library is a hard dependency of SIRIUS but can also be used as a
-standalone library. It provide a generic interface to the blas gemm family with
+standalone library. It provides a generic interface to the blas gemm family with
 offloading on GPU. Offloading supports both CUDA and ROCM.
 
-To make the functionality availablem, add the flag `-D__SPLA` to the `DFLAGS`
-variable and compile SPLA with fortran interface and GPU support. Please note
+To make the functionality available, add the flag `-D__SPLA` to the `DFLAGS`
+variable and compile SPLA with Fortran interface and GPU support. Please note
 that only the functions replacing the dgemm calls with `offload_dgemm` will
-eventually be offloaded to the GPU. The spla library has a internal criteria to
-decide if it is worth to do the operation on GPU or not. Calling offload_dgemm
+eventually be offloaded to the GPU. The SPLA library has internal criteria to
+decide if it is worth to do the operation on GPU or not. Calls to `offload_dgemm`
 also accept pointers on GPU or a combination of them.
 
 <!---
