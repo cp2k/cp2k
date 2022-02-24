@@ -3,7 +3,7 @@
 # CP2K arch file for Cray-XC40 (Piz Daint, CSCS, multi-core partition)
 #
 # Tested with: GNU 11.2.0, Cray-MPICH 7.7.18, Cray-libsci 20.09.1, Cray-FFTW 3.3.8.10,
-#              COSMA 2.5.1, ELPA 2021.11.001, LIBINT 2.6.0, LIBPEXSI 1.2.0,
+#              COSMA 2.5.1, ELPA 2021.11.002, LIBINT 2.6.0, LIBPEXSI 1.2.0,
 #              LIBXC 5.2.2, LIBVORI 210412, LIBXSMM 1.17, PLUMED 2.7.2,
 #              SIRIUS 7.3.1, SPGLIB 1.16.2
 #
@@ -11,7 +11,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (17.02.2022)
+# Author: Matthias Krack (24.02.2022)
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -62,7 +62,7 @@
 # Set options
 DO_CHECKS      := no
 USE_COSMA      := 2.5.1
-USE_ELPA       := 2021.11.001
+USE_ELPA       := 2021.11.002
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 210412
