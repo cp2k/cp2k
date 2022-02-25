@@ -73,7 +73,7 @@ RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
     make -j ARCH=local VERSION=ssmp && \
-    rm -rf lib obj exe/local/*_unittest.ssmp"
+    rm -rf lib obj exe/local/libcp2k_unittest.ssmp"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
@@ -87,7 +87,8 @@ RUN /bin/bash -c " \
 
 # Setup entry point for production.
 COPY ./tools/docker/scripts/prod_entrypoint.sh ./
-ENTRYPOINT ["./prod_entrypoint.sh", "local", "ssmp"]
+WORKDIR /mnt
+ENTRYPOINT ["/workspace/cp2k/prod_entrypoint.sh", "local", "ssmp"]
 CMD ["cp2k", "--help"]
 
 #EOF

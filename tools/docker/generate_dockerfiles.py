@@ -78,7 +78,7 @@ def main() -> None:
 # ======================================================================================
 def regtest(version: str, arch: str = "local") -> str:
     return (
-        install_cp2k(version=version, arch=arch, prod=False)
+        install_cp2k(version=version, arch=arch)
         + fr"""
 # Run regression tests.
 ARG TESTOPTS
@@ -95,7 +95,7 @@ RUN /bin/bash -c " \
 # ======================================================================================
 def performance(arch: str = "local") -> str:
     return (
-        install_cp2k(version="psmp", arch=arch, prod=False)
+        install_cp2k(version="psmp", arch=arch)
         + fr"""
 # Run performance test for {arch}.
 COPY ./benchmarks ./benchmarks
@@ -111,7 +111,7 @@ RUN ./test_performance.sh "{arch}" 2>&1 | tee report.log
 # ======================================================================================
 def coverage(version: str) -> str:
     return (
-        install_cp2k(version=version, arch="local_coverage", prod=False)
+        install_cp2k(version=version, arch="local_coverage")
         + fr"""
 # Run coverage test for {version}.
 COPY ./tools/docker/scripts/test_coverage.sh .
@@ -124,7 +124,7 @@ RUN ./test_coverage.sh "{version}" 2>&1 | tee report.log
 # ======================================================================================
 def conventions() -> str:
     return (
-        install_cp2k(version="psmp", arch="local_warn", prod=False)
+        install_cp2k(version="psmp", arch="local_warn")
         + fr"""
 # Run test for conventions.
 COPY ./arch/Linux-x86-64-gfortran.dumpast ./arch/
@@ -141,7 +141,7 @@ RUN /bin/bash -ec " \
 # ======================================================================================
 def manual() -> str:
     return (
-        install_cp2k(version="psmp", arch="local", prod=True)  # prod has REVISION set
+        install_cp2k(version="psmp", arch="local", revision=True)
         + fr"""
 # Generate manual.
 COPY ./tools/manual ./tools/manual
@@ -156,7 +156,7 @@ RUN ./test_manual.sh 2>&1 | tee report.log
 # ======================================================================================
 def test_3rd_party(name: str) -> str:
     return (
-        install_cp2k(version="sdbg", arch="local", prod=False)
+        install_cp2k(version="sdbg", arch="local")
         + fr"""
 # Run test for {name}.
 COPY ./tools/docker/scripts/test_{name}.sh .
@@ -198,7 +198,7 @@ RUN ./test_{name}.sh 2>&1 | tee report.log
 def print_cached_report() -> str:
     return r"""
 # Output the report if the image is old and was therefore pulled from the build cache.
-CMD cat $(find ./report.log -mmin +3) | sed '/^Summary:/ s/$/ (cached)/'
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
 
 #EOF
 """
@@ -207,7 +207,7 @@ CMD cat $(find ./report.log -mmin +3) | sed '/^Summary:/ s/$/ (cached)/'
 # ======================================================================================
 def production(version: str, arch: str = "local") -> str:
     return (
-        install_cp2k(version=version, arch=arch, prod=True)
+        install_cp2k(version=version, arch=arch, revision=True, prod=True)
         + fr"""
 # Run regression tests.
 ARG TESTOPTS
@@ -218,7 +218,8 @@ RUN /bin/bash -c " \
 
 # Setup entry point for production.
 COPY ./tools/docker/scripts/prod_entrypoint.sh ./
-ENTRYPOINT ["./prod_entrypoint.sh", "{arch}", "{version}"]
+WORKDIR /mnt
+ENTRYPOINT ["/workspace/cp2k/prod_entrypoint.sh", "{arch}", "{version}"]
 CMD ["cp2k", "--help"]
 
 #EOF
@@ -227,11 +228,13 @@ CMD ["cp2k", "--help"]
 
 
 # ======================================================================================
-def install_cp2k(version: str, arch: str, prod: bool) -> str:
+def install_cp2k(
+    version: str, arch: str, revision: bool = False, prod: bool = False
+) -> str:
     input_lines = []
     run_lines = []
 
-    if prod:
+    if revision:
         input_lines.append("ARG GIT_COMMIT_SHA")
         run_lines.append(
             'if [ -n "${GIT_COMMIT_SHA}" ] ; then'
@@ -255,7 +258,7 @@ def install_cp2k(version: str, arch: str, prod: bool) -> str:
 
     if prod:
         run_lines.append(f"make -j ARCH={arch} VERSION={version}")
-        run_lines.append(f"rm -rf lib obj exe/{arch}/*_unittest.{version}")
+        run_lines.append(f"rm -rf lib obj exe/{arch}/libcp2k_unittest.{version}")
     else:
         run_lines.append(
             f"( make -j ARCH={arch} VERSION={version} &> /dev/null || true )"
