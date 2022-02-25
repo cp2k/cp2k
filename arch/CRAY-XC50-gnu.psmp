@@ -11,7 +11,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (24.02.2022)
+# Author: Matthias Krack (25.02.2022)
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -98,7 +98,7 @@ LD             := ftn
 AR             := ar -r
 
 # cc, CC, and ftn include already the proper -march flag
-CFLAGS         := -O3 -fopenmp -funroll-loops -g
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
