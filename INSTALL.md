@@ -10,7 +10,10 @@ For more details on downloading CP2K, see <https://www.cp2k.org/download>.
 
 ## 2. Install prerequisites
 
-The most convenient way to install pre-requisites is by using the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh).
+The easiest way to build CP2K with all of its dependencies is as a [Docker container](./tools/docker/README.md).
+
+Alternatively, the [toolchain script](./tools/toolchain/install_cp2k_toolchain.sh)
+can also be run directly.
 
 For a complete introduction to the toolchain script, see the [README](./tools/toolchain/README.md).
 

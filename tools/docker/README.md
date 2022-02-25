@@ -13,7 +13,7 @@ The only prerequisite is to [install Docker](https://docs.docker.com/get-docker/
     ```
     <!-- markdownlint-enable MD013 -->
 
- 2. Goto the directory with your input files:
+ 2. Go to the directory with your input files:
 
     ```shell
     cd ../../benchmarks/QS_single_node
@@ -29,8 +29,8 @@ The only prerequisite is to [install Docker](https://docs.docker.com/get-docker/
 
 ## Test Images
 
-The `Dockerfile.test_*` file are used by the [cp2k-ci](github.com/cp2k/cp2k-ci)
-to check pull requests. and populate the [dashboard](http:s//dashboard.cp2k.org).
+The `Dockerfile.test_*` file are used by the [cp2k-ci](https://github.com/cp2k/cp2k-ci)
+to check pull requests and populate the [dashboard](https://dashboard.cp2k.org).
 
 Building a test image executes the test:
 
