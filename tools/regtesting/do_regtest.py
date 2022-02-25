@@ -326,15 +326,18 @@ class TestResult:
         test: Union[Regtest, Unittest],
         duration: float,
         status: TestStatus,
+        value: Optional[float] = None,
         error: Optional[str] = None,
     ):
         self.test = test
         self.duration = duration
         self.status = status
+        self.value = value
         self.error = error
 
     def __str__(self) -> str:
-        return f"    {self.test.name :<50s} {self.status :>30s} ( {self.duration:6.2f} sec)"
+        value = f"{self.value:.10g}" if self.value else "-"
+        return f"    {self.test.name :<50s} {value :>17} {self.status :>12s} ( {self.duration:6.2f} sec)"
 
 
 # ======================================================================================
@@ -449,10 +452,10 @@ async def run_unittests(batch: Batch, cfg: Config) -> List[TestResult]:
         error = "x" * 100 + f"\n{test.out_path}\n{output_tail}\n\n"
         if timed_out:
             error += f"Timed out after {duration} seconds."
-            results.append(TestResult(test, duration, "TIMED OUT", error))
+            results.append(TestResult(test, duration, "TIMED OUT", error=error))
         elif returncode != 0:
             error += f"Runtime failure with code {returncode}."
-            results.append(TestResult(test, duration, "RUNTIME FAIL", error))
+            results.append(TestResult(test, duration, "RUNTIME FAIL", error=error))
         else:
             results.append(TestResult(test, duration, "OK"))
 
@@ -522,27 +525,28 @@ def eval_regtest(
     error = "x" * 100 + f"\n{test.out_path}\n"
     if timed_out:
         error += f"{output_tail}\n\nTimed out after {duration} seconds."
-        return TestResult(test, duration, "TIMED OUT", error)
+        return TestResult(test, duration, "TIMED OUT", error=error)
     elif returncode != 0:
         error += f"{output_tail}\n\nRuntime failure with code {returncode}."
-        return TestResult(test, duration, "RUNTIME FAIL", error)
+        return TestResult(test, duration, "RUNTIME FAIL", error=error)
     elif not test.test_type:
         return TestResult(test, duration, "OK")  # test type zero
     else:
         value_txt = test.test_type.grep(output)
         if not value_txt:
             error += f"{output_tail}\n\nResult not found: '{test.test_type.pattern}'."
-            return TestResult(test, duration, "WRONG RESULT", error)
+            return TestResult(test, duration, "WRONG RESULT", error=error)
         else:
             # compare result to reference
-            diff = float(value_txt) - test.ref_value
+            value = float(value_txt)
+            diff = value - test.ref_value
             rel_error = abs(diff / test.ref_value if test.ref_value != 0.0 else diff)
             if rel_error <= test.tolerance:
-                return TestResult(test, duration, "OK")
+                return TestResult(test, duration, "OK", value)
             else:
                 error += f"Difference too large: {rel_error:.2e} > {test.tolerance}, "
                 error += f"ref_value: {test.ref_value_txt}, value: {value_txt}."
-                return TestResult(test, duration, "WRONG RESULT", error)
+                return TestResult(test, duration, "WRONG RESULT", value, error)
 
 
 # ======================================================================================
