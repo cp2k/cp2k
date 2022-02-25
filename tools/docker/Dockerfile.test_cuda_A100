@@ -96,6 +96,6 @@ RUN /bin/bash -c " \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
-CMD cat $(find ./report.log -mmin +3) | sed '/^Summary:/ s/$/ (cached)/'
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
 
 #EOF

@@ -72,8 +72,7 @@ RUN /bin/bash -c " \
     ln -vs /opt/cp2k-toolchain/install/arch/local.psmp ./arch/ && \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
-    make -j ARCH=local VERSION=psmp && \
-    rm -rf lib obj exe/local/*_unittest.psmp"
+    ( make -j ARCH=local VERSION=psmp &> /dev/null || true )"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
@@ -85,6 +84,6 @@ COPY ./tools/docker/scripts/test_manual.sh .
 RUN ./test_manual.sh 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
-CMD cat $(find ./report.log -mmin +3) | sed '/^Summary:/ s/$/ (cached)/'
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
 
 #EOF
