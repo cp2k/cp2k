@@ -16,7 +16,7 @@ function run_benchmark {
   INPUT=$3
   OUTPUT=$4
   echo -n "Running ${INPUT} with ${OMP_THREADS} threads and ${MPI_RANKS} ranks... "
-  if OMP_NUM_THREADS="${OMP_THREADS}" mpiexec -np "${MPI_RANKS}" \
+  if OMP_NUM_THREADS="${OMP_THREADS}" mpiexec -bind-to socket -np "${MPI_RANKS}" \
     "/workspace/cp2k/exe/${ARCH}/cp2k.psmp" "${INPUT}" &> "${OUTPUT}"; then
     echo "done."
   else
