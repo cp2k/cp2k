@@ -64,6 +64,7 @@ BENCHMARKS=(
   "QS_single_node/H2O-hyb.inp"
   "QS_single_node/GW_PBE_4benzene.inp"
   "QS_single_node/RI-HFX_H2O-32.inp"
+  "QS_single_node/RI-MP2_ammonia.inp"
   "QS_single_node/diag_cu144_broy.inp"
   "QS_single_node/bench_dftb.inp"
   "QS_single_node/dbcsr.inp"
