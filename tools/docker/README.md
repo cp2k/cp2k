@@ -23,7 +23,7 @@ The only prerequisite is to [install Docker](https://docs.docker.com/get-docker/
 
     <!-- markdownlint-disable MD013 -->
     ```shell
-    docker run -ti -v "$(pwd)":/mnt cp2k_prod_psmp mpiexec -genv OMP_NUM_THREADS=2 -np 16 cp2k dbcsr.inp
+    docker run --shm-size=1g -ti -v "$(pwd)":/mnt cp2k_prod_psmp mpiexec -genv OMP_NUM_THREADS=2 -np 16 cp2k dbcsr.inp
     ```
     <!-- markdownlint-enable MD013 -->
 
@@ -35,7 +35,7 @@ to check pull requests and populate the [dashboard](https://dashboard.cp2k.org).
 Building a test image executes the test:
 
 ```shell
-docker build -f Dockerfile.test_sdbg -t cp2k_test_sdbg ../../
+docker build --shm-size=1g -f Dockerfile.test_sdbg -t cp2k_test_sdbg ../../
 ```
 
 To retrieve the cached report of an old image simply run it:
