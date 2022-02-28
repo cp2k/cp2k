@@ -27,6 +27,8 @@ MODULE offload_gemm
                    SPLA_SUCCESS
 #endif
 
+   USE offload_api, ONLY: offload_set_device
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -71,18 +73,38 @@ CONTAINS
       INTEGER, INTENT(in) :: n
       INTEGER, INTENT(in) :: k
       REAL(8), INTENT(in) :: alpha
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       REAL(8), DIMENSION(*), INTENT(in), TARGET :: A
+#else
+      REAL(8), DIMENSION(:, :), INTENT(in), TARGET :: A
+#endif
       INTEGER, INTENT(in) :: lda
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       REAL(8), DIMENSION(*), INTENT(in), TARGET :: B
+#else
+      REAL(8), DIMENSION(:, :), INTENT(in), TARGET :: B
+#endif
+
       INTEGER, INTENT(in) :: ldb
       REAL(8), INTENT(in) :: beta
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       REAL(8), DIMENSION(*), INTENT(inout), TARGET ::C
+#else
+      REAL(8), DIMENSION(:, :), INTENT(in), TARGET :: C
+#endif
       INTEGER, INTENT(in) :: ldc
       TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
-      ! no point of using SPLA offloading on CPU ONLY nodes
-#if defined(__SPLA)
-      INTEGER :: spla_op_A, spla_op_B, spla_error
 
+      INTEGER                                            :: handle
+!     no point of using SPLA offloading on CPU ONLY nodes
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+      INTEGER :: spla_op_A, spla_op_B, spla_error
+#endif
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'offload_gemm'
+      CALL timeset(routineN, handle)
+
+!     no point of using SPLA offloading on CPU ONLY nodes
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       IF (PRESENT(ctx)) THEN
 
          IF (opA == 'N') spla_op_A = SPLA_OP_NONE
@@ -97,6 +119,7 @@ CONTAINS
          CPASSERT(IS_CONTIGUOUS(C))
 #endif
 
+         CALL offload_set_device()
          spla_error = spla_dgemm(spla_op_A, spla_op_B, &
                                  m, n, k, alpha, &
                                  c_loc(A), lda, &
@@ -108,229 +131,14 @@ CONTAINS
          CALL dgemm(opA, opB, m, n, k, alpha, &
                     A, lda, &
                     B, ldb, beta, C, ldc)
-#if defined(__SPLA)
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       END IF
 #else
       MARK_USED(ctx)
 #endif
+      CALL timestop(handle)
+
    END SUBROUTINE offload_dgemm
-
-! **************************************************************************************************
-!> \brief offload sgemm to GPU when beneficial. All arguemnts identical to blas sgemm
-!> \param opA ...
-!> \param opB ...
-!> \param m ...
-!> \param n ...
-!> \param k ...
-!> \param alpha ...
-!> \param A ...
-!> \param lda ...
-!> \param B ...
-!> \param ldb ...
-!> \param beta ...
-!> \param C ...
-!> \param ldc ...
-!> \param ctx ...
-! **************************************************************************************************
-   SUBROUTINE offload_sgemm(opA, opB, m, n, k, &
-                            alpha, A, lda, B, ldb, &
-                            beta, C, ldc, ctx)
-      CHARACTER, INTENT(in) :: opA
-      CHARACTER, INTENT(in) :: opB
-      INTEGER, INTENT(in) :: m
-      INTEGER, INTENT(in) :: n
-      INTEGER, INTENT(in) :: k
-      REAL(4), INTENT(in) :: alpha
-      REAL(4), DIMENSION(*), INTENT(in), TARGET :: A
-      INTEGER, INTENT(in) :: lda
-      REAL(4), DIMENSION(*), INTENT(in), TARGET :: B
-      INTEGER, INTENT(in) :: ldb
-      REAL(4), INTENT(in) :: beta
-      REAL(4), DIMENSION(*), INTENT(inout), TARGET ::C
-      INTEGER, INTENT(in) :: ldc
-      TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
-      ! no point of using SPLA offloading on CPU ONLY nodes
-#if defined(__SPLA)
-      INTEGER :: spla_op_A, spla_op_B, spla_error
-
-      IF (PRESENT(ctx)) THEN
-
-         IF (opA == 'N') spla_op_A = SPLA_OP_NONE
-         IF (opA == 'T') spla_op_A = SPLA_OP_TRANSPOSE
-
-         IF (opB == 'N') spla_op_B = SPLA_OP_NONE
-         IF (opB == 'T') spla_op_B = SPLA_OP_TRANSPOSE
-
-#if __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(A))
-         CPASSERT(IS_CONTIGUOUS(B))
-         CPASSERT(IS_CONTIGUOUS(C))
-#endif
-
-         spla_error = spla_sgemm(spla_op_A, spla_op_B, &
-                                 m, n, k, alpha, &
-                                 c_loc(A), lda, &
-                                 c_loc(B), ldb, &
-                                 beta, c_loc(C), ldc, ctx)
-         CPASSERT(spla_error == SPLA_SUCCESS)
-      ELSE
-#endif
-         CALL sgemm(opA, opB, m, n, k, alpha, &
-                    A, lda, &
-                    B, ldb, beta, C, ldc)
-
-#if defined(__SPLA)
-      END IF
-#else
-      MARK_USED(ctx)
-#endif
-   END SUBROUTINE offload_sgemm
-
-! **************************************************************************************************
-!> \brief offload cgemm to GPU when beneficial. All arguemnts identical to blas cgemm
-!> \param opA ...
-!> \param opB ...
-!> \param m ...
-!> \param n ...
-!> \param k ...
-!> \param alpha ...
-!> \param A ...
-!> \param lda ...
-!> \param B ...
-!> \param ldb ...
-!> \param beta ...
-!> \param C ...
-!> \param ldc ...
-!> \param ctx ...
-! **************************************************************************************************
-   SUBROUTINE offload_cgemm(opA, opB, m, n, k, &
-                            alpha, A, lda, B, ldb, &
-                            beta, C, ldc, ctx)
-      CHARACTER, INTENT(in) :: opA
-      CHARACTER, INTENT(in) :: opB
-      INTEGER, INTENT(in) :: m
-      INTEGER, INTENT(in) :: n
-      INTEGER, INTENT(in) :: k
-      COMPLEX(4), INTENT(in) :: alpha
-      COMPLEX(4), DIMENSION(*), INTENT(in), TARGET :: A
-      INTEGER, INTENT(in) :: lda
-      COMPLEX(4), DIMENSION(*), INTENT(in), TARGET :: B
-      INTEGER, INTENT(in) :: ldb
-      COMPLEX(4), INTENT(in) :: beta
-      COMPLEX(4), DIMENSION(*), INTENT(inout), TARGET ::C
-      INTEGER, INTENT(in) :: ldc
-      TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
-      ! no point of using SPLA offloading on CPU ONLY nodes
-#if defined(__SPLA)
-      INTEGER :: spla_op_A, spla_op_B, spla_error
-
-      IF (PRESENT(ctx)) THEN
-
-         IF (opA == 'N') spla_op_A = SPLA_OP_NONE
-         IF (opA == 'T') spla_op_A = SPLA_OP_TRANSPOSE
-         IF (opA == 'C') spla_op_A = SPLA_OP_CONJ_TRANSPOSE
-
-         IF (opB == 'N') spla_op_B = SPLA_OP_NONE
-         IF (opB == 'T') spla_op_B = SPLA_OP_TRANSPOSE
-         IF (opA == 'C') spla_op_A = SPLA_OP_CONJ_TRANSPOSE
-
-#if __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(A))
-         CPASSERT(IS_CONTIGUOUS(B))
-         CPASSERT(IS_CONTIGUOUS(C))
-#endif
-
-         spla_error = spla_cgemm(spla_op_A, spla_op_B, &
-                                 m, n, k, alpha, &
-                                 c_loc(A), lda, &
-                                 c_loc(B), ldb, &
-                                 beta, c_loc(C), ldc, ctx)
-         CPASSERT(spla_error == SPLA_SUCCESS)
-      ELSE
-#endif
-         CALL cgemm(opA, opB, m, n, k, alpha, &
-                    A, lda, &
-                    B, ldb, beta, C, ldc)
-
-#if defined(__SPLA)
-      END IF
-#else
-      MARK_USED(ctx)
-#endif
-   END SUBROUTINE offload_cgemm
-
-! **************************************************************************************************
-!> \brief offload zgemm to GPU when beneficial. All arguemnts identical to blas cgemm
-!> \param opA ...
-!> \param opB ...
-!> \param m ...
-!> \param n ...
-!> \param k ...
-!> \param alpha ...
-!> \param A ...
-!> \param lda ...
-!> \param B ...
-!> \param ldb ...
-!> \param beta ...
-!> \param C ...
-!> \param ldc ...
-!> \param ctx ...
-! **************************************************************************************************
-   SUBROUTINE offload_zgemm(opA, opB, m, n, k, &
-                            alpha, A, lda, B, ldb, &
-                            beta, C, ldc, ctx)
-      CHARACTER, INTENT(in) :: opA
-      CHARACTER, INTENT(in) :: opB
-      INTEGER, INTENT(in) :: m
-      INTEGER, INTENT(in) :: n
-      INTEGER, INTENT(in) :: k
-      COMPLEX(8), INTENT(in) :: alpha
-      COMPLEX(8), DIMENSION(*), INTENT(in), TARGET :: A
-      INTEGER, INTENT(in) :: lda
-      COMPLEX(8), DIMENSION(*), INTENT(in), TARGET :: B
-      INTEGER, INTENT(in) :: ldb
-      COMPLEX(8), INTENT(in) :: beta
-      COMPLEX(8), DIMENSION(*), INTENT(inout), TARGET ::C
-      INTEGER, INTENT(in) :: ldc
-      TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
-      ! no point of using SPLA offloading on CPU ONLY nodes
-#if defined(__SPLA)
-      INTEGER :: spla_op_A, spla_op_B, spla_error
-
-      IF (PRESENT(ctx)) THEN
-
-         IF (opA == 'N') spla_op_A = SPLA_OP_NONE
-         IF (opA == 'T') spla_op_A = SPLA_OP_TRANSPOSE
-         IF (opA == 'C') spla_op_A = SPLA_OP_CONJ_TRANSPOSE
-
-         IF (opB == 'N') spla_op_B = SPLA_OP_NONE
-         IF (opB == 'T') spla_op_B = SPLA_OP_TRANSPOSE
-         IF (opA == 'C') spla_op_A = SPLA_OP_CONJ_TRANSPOSE
-
-#if __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(A))
-         CPASSERT(IS_CONTIGUOUS(B))
-         CPASSERT(IS_CONTIGUOUS(C))
-#endif
-
-         spla_error = spla_zgemm(spla_op_A, spla_op_B, &
-                                 m, n, k, alpha, &
-                                 c_loc(A), lda, &
-                                 c_loc(B), ldb, &
-                                 beta, c_loc(C), ldc, ctx)
-         CPASSERT(spla_error == SPLA_SUCCESS)
-      ELSE
-#endif
-         CALL zgemm(opA, opB, m, n, k, alpha, &
-                    A, lda, &
-                    B, ldb, beta, C, ldc)
-
-#if defined(__SPLA)
-      END IF
-#else
-      MARK_USED(ctx)
-#endif
-   END SUBROUTINE offload_zgemm
 
 ! **************************************************************************************************
 !> \brief create a context for handling gemm offloading
@@ -343,7 +151,9 @@ CONTAINS
 
       INTEGER error_
 
-#if defined(__SPLA)
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+      CALL offload_set_device()
+
       error_ = spla_ctx_create(ctx, pu)
       CPASSERT(error_ == SPLA_SUCCESS)
 #else
@@ -363,7 +173,9 @@ CONTAINS
 
       INTEGER error_
 
-#if defined(__SPLA)
+#if defined(__SPLA)  && defined(__OFFLOAD_GEMM)
+      CALL offload_set_device()
+
       error_ = spla_ctx_destroy(ctx)
       CPASSERT(error_ == SPLA_SUCCESS)
 #else
@@ -385,7 +197,8 @@ CONTAINS
       INTEGER                                            :: error__
 
       error__ = 0
-#if defined(__SPLA)
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+      CALL offload_set_device()
       error__ = spla_ctx_set_op_threshold_gpu(ctx, opThresholdGPU)
 #else
       MARK_USED(ctx)

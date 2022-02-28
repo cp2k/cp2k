@@ -90,6 +90,7 @@ case "$with_spla" in
         install -d ${pkg_install_dir}/lib/cuda
         [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+        CP_DFLAGS+=' -D__OFFLOAD_GEMM'
       fi
 
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
@@ -137,8 +138,8 @@ case "$with_spla" in
             [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/rocm >> install.log 2>&1
             ;;
           *) ;;
-
         esac
+        CP_DFLAGS+=' -D__OFFLOAD_GEMM'
       fi
 
       # https://github.com/eth-cscs/spla/issues/17

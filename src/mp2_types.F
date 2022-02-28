@@ -35,9 +35,7 @@ MODULE mp2_types
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_sum
-   USE offload_api,                     ONLY: offload_set_device
    USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
-                                              OFFLOAD_GEMM_PU_HOST,&
                                               offload_gemm_create,&
                                               offload_gemm_destroy,&
                                               offload_gemm_set_op_threshold_gpu
@@ -331,13 +329,10 @@ CONTAINS
 
       ALLOCATE (mp2_env)
 
-      CALL offload_set_device()
+      ! these two functions are empty if spla is build without gpu support and
+      ! OFFLOAD_GEMM is not given at compilation time
 
-#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
       CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
-#else
-      CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_HOST)
-#endif
       CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
 
       NULLIFY (mp2_env%ri_rpa%x_data)

@@ -386,11 +386,6 @@ CONTAINS
                            local_ba = 0.0_dp
                         END IF
                         CALL dgemm_counter_start(dgemm_counter)
-#if __GNUC__ >= 9
-                        CPASSERT(IS_CONTIGUOUS(my_local_i_aL))
-                        CPASSERT(IS_CONTIGUOUS(my_local_j_aL))
-                        CPASSERT(IS_CONTIGUOUS(local_ab))
-#endif
                         CALL offload_dgemm('T', 'N', my_B_size(ispin), my_B_size(jspin), dimen_RI, 1.0_dp, &
                                            my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
                                          0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
