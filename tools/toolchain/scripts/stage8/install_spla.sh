@@ -60,7 +60,7 @@ case "$with_spla" in
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-        -DSPLA_OMP=ON \
+        -DSPLA_OMP=OFF \
         -DSPLA_FORTRAN=ON \
         -DSPLA_INSTALL=ON \
         -DSPLA_STATIC=ON \
@@ -79,7 +79,7 @@ case "$with_spla" in
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-          -DSPLA_OMP=ON \
+          -DSPLA_OMP=OFF \
           -DSPLA_FORTRAN=ON \
           -DSPLA_INSTALL=ON \
           -DSPLA_STATIC=ON \
@@ -104,7 +104,7 @@ case "$with_spla" in
               -DCMAKE_INSTALL_LIBDIR=lib \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-              -DSPLA_OMP=ON \
+              -DSPLA_OMP=OFF \
               -DSPLA_FORTRAN=ON \
               -DSPLA_INSTALL=ON \
               -DSPLA_STATIC=ON \
@@ -125,7 +125,7 @@ case "$with_spla" in
               -DCMAKE_INSTALL_LIBDIR=lib \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-              -DSPLA_OMP=ON \
+              -DSPLA_OMP=OFF \
               -DSPLA_FORTRAN=ON \
               -DSPLA_INSTALL=ON \
               -DSPLA_STATIC=ON \

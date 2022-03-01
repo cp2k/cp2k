@@ -61,7 +61,9 @@ MODULE mp2_types
              ri_mp2_laplace, &
              init_TShPSC_lmax
 
-   PUBLIC :: mp2_env_release, mp2_biel_type, &
+   PUBLIC :: mp2_env_create, &
+             mp2_env_release, &
+             mp2_biel_type, &
              pair_list_type_mp2, &
              one_dim_int_array, &
              two_dim_int_array, &
@@ -305,8 +307,6 @@ CONTAINS
       IF (ASSOCIATED(mp2_env%eri_mme_param)) DEALLOCATE (mp2_env%eri_mme_param)
 
       CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
-
-      DEALLOCATE (mp2_env)
 
       CALL timestop(handle)
 
