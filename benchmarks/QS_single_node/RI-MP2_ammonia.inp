@@ -20,10 +20,10 @@
         &END RI_MP2
         &INTEGRALS
           &WFC_GPW
-            CUTOFF      150
-            REL_CUTOFF  35
-            EPS_FILTER  1.0E-9
-            EPS_GRID    1.0E-8
+            CUTOFF      40
+            REL_CUTOFF  10
+            EPS_FILTER  1.0E-6
+            EPS_GRID    1.0E-5
           &END
         &END INTEGRALS
         MEMORY    3000
@@ -34,10 +34,10 @@
   &SUBSYS
     &CELL
       ABC [angstrom] 5.048 5.048 5.048
-      MULTIPLE_UNIT_CELL 1 1 2
+      MULTIPLE_UNIT_CELL 1 2 2
     &END CELL
     &TOPOLOGY
-      MULTIPLE_UNIT_CELL 1 1 2
+      MULTIPLE_UNIT_CELL 1 2 2
     &END TOPOLOGY
     &COORD
       N    0.988906    0.988906    0.988906
