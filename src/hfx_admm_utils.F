@@ -42,9 +42,11 @@ MODULE hfx_admm_utils
                                               hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
-        do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
-        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, do_potential_coulomb, &
-        do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
+        do_admm_aux_exch_func_bee, do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
+        do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
+        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
+        do_admm_aux_exch_func_pbex_libxc, do_potential_coulomb, do_potential_long, &
+        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
         do_potential_truncated, xc_funct_no_shortcut, xc_none
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
@@ -632,6 +634,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
 
       LOGICAL, PARAMETER                                 :: debug_functional = .FALSE.
+      REAL(KIND=dp), PARAMETER :: x_factor_c = 0.930525736349100025
 
       CHARACTER(LEN=20)                                  :: name_x_func
       INTEGER                                            :: hfx_potential_type, ifun, iounit, nfun
@@ -759,7 +762,7 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
                                       r_val=omega)
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unknown potential operator!")
          END SELECT
 
          !** Now modify the functionals for the primary basis
@@ -877,7 +880,6 @@ CONTAINS
                                          r_val=-hfx_fraction)
                CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
                                          r_val=cutoff_radius)
-
             ELSE
                CALL section_vals_val_get(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
                                          r_val=scale_x)
@@ -970,7 +972,6 @@ CONTAINS
                scale_x = scale_x + hfx_fraction*(scale_coulomb + scale_longrange)
                CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
                                          r_val=scale_x)
-
                CALL section_vals_val_get(xc_fun_section, "XWPBE%SCALE_X", &
                                          r_val=scale_x)
                scale_x = scale_x - hfx_fraction*scale_longrange
@@ -1020,8 +1021,388 @@ CONTAINS
                CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
                                          r_val=omega)
             END IF
-
          END SELECT
+      ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_default_libxc) THEN
+         ! default PBE Functional
+         !! ** Add functionals evaluated with auxiliary basis
+#if defined (__LIBXC)
+         SELECT CASE (hfx_potential_type)
+         CASE (do_potential_coulomb)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                      r_val=-hfx_fraction)
+         CASE (do_potential_short)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                      r_val=-hfx_fraction)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                      r_val=omega)
+         CASE (do_potential_truncated)
+            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                      r_val=hfx_fraction)
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                      r_val=cutoff_radius)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                      r_val=-hfx_fraction)
+         CASE (do_potential_long)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                      r_val=hfx_fraction)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                      r_val=omega)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                      r_val=-hfx_fraction)
+         CASE (do_potential_mix_cl)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                      r_val=hfx_fraction*scale_longrange)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                      r_val=omega)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                      r_val=-hfx_fraction*(scale_longrange + scale_coulomb))
+         CASE (do_potential_mix_cl_trunc)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                      r_val=hfx_fraction*(scale_longrange + scale_coulomb))
+            CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                      r_val=cutoff_radius)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                      r_val=hfx_fraction*scale_longrange)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                      r_val=omega)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                      r_val=-hfx_fraction*(scale_longrange + scale_coulomb))
+         CASE DEFAULT
+            CPABORT("Unknown potential operator!")
+         END SELECT
+
+         !** Now modify the functionals for the primary basis
+         xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary, "XC_FUNCTIONAL")
+         !* Overwrite possible shortcut
+         CALL section_vals_val_set(xc_fun_section, "_SECTION_PARAMETERS_", &
+                                   i_val=xc_funct_no_shortcut)
+
+         SELECT CASE (hfx_potential_type)
+         CASE (do_potential_coulomb)
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_PBE") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=hfx_fraction)
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+            END IF
+         CASE (do_potential_short)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_WPBEH") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=hfx_fraction)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                         r_val=omega)
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=scale_x)
+            END IF
+         CASE (do_potential_long)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_WPBEH") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=-hfx_fraction)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                         r_val=omega)
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=scale_x)
+
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                         r_val=omega)
+            END IF
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_PBE") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=hfx_fraction)
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+            END IF
+         CASE (do_potential_truncated)
+            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "PBE_HOLE_T_C_LR") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=-hfx_fraction)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                         r_val=cutoff_radius)
+
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=scale_x)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                         r_val=cutoff_radius)
+            END IF
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_PBE") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=hfx_fraction)
+
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+            END IF
+         CASE (do_potential_mix_cl_trunc)
+            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "PBE_HOLE_T_C_LR") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=-hfx_fraction*(scale_coulomb + scale_longrange))
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                         r_val=cutoff_radius)
+
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction*(scale_coulomb + scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
+                                         r_val=scale_x)
+               CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%CUTOFF_RADIUS", &
+                                         r_val=cutoff_radius)
+            END IF
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_WPBEH") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=-hfx_fraction*scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                         r_val=omega)
+
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction*scale_longrange
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=scale_x)
+
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                         r_val=omega)
+            END IF
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_PBE") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=hfx_fraction*(scale_coulomb + scale_longrange))
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction*(scale_coulomb + scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+            END IF
+         CASE (do_potential_mix_cl)
+            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_WPBEH") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=-hfx_fraction*scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                         r_val=omega)
+
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x - hfx_fraction*scale_longrange
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
+                                         r_val=scale_x)
+
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
+                                         r_val=omega)
+            END IF
+            ifun = 0
+            funct_found = .FALSE.
+            DO
+               ifun = ifun + 1
+               xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+               IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+               IF (xc_fun%section%name == "GGA_X_PBE") THEN
+                  funct_found = .TRUE.
+               END IF
+            END DO
+            IF (.NOT. funct_found) THEN
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%_SECTION_PARAMETERS_", &
+                                         l_val=.TRUE.)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=hfx_fraction*(scale_coulomb + scale_longrange))
+            ELSE
+               CALL section_vals_val_get(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+               scale_x = scale_x + hfx_fraction*(scale_coulomb + scale_longrange)
+               CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
+                                         r_val=scale_x)
+            END IF
+         END SELECT
+#else
+         CALL cp_abort(__LINE__, "In order use a LibXC-based ADMM "// &
+                       "exchange correction functionals, you have to compile and link against LibXC!")
+#endif
 
          ! PBEX (always bare form), OPTX and Becke88 functional
       ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_pbex .OR. &
@@ -1102,6 +1483,86 @@ CONTAINS
             END IF
          END IF
 
+      ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_pbex_libxc .OR. &
+               admm_env%aux_exch_func == do_admm_aux_exch_func_opt_libxc .OR. &
+               admm_env%aux_exch_func == do_admm_aux_exch_func_bee_libxc) THEN
+#if defined(__LIBXC)
+         IF (admm_env%aux_exch_func == do_admm_aux_exch_func_pbex_libxc) THEN
+            name_x_func = 'GGA_X_PBE'
+         ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_opt_libxc) THEN
+            name_x_func = 'GGA_X_OPTX'
+         ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_bee_libxc) THEN
+            name_x_func = 'GGA_X_B88'
+         END IF
+         !primary basis
+         CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_SECTION_PARAMETERS_", &
+                                   l_val=.TRUE.)
+         CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%SCALE", &
+                                   r_val=-hfx_fraction)
+
+         IF (admm_env%aux_exch_func == do_admm_aux_exch_func_opt_libxc) THEN
+            IF (admm_env%aux_exch_func_param) THEN
+               CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_A", &
+                                         r_val=admm_env%aux_x_param(1))
+               ! LibXC rescales the second parameter of the OPTX functional (see documentation there)
+               CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_B", &
+                                         r_val=admm_env%aux_x_param(2)/x_factor_c)
+               CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_GAMMA", &
+                                         r_val=admm_env%aux_x_param(3))
+            END IF
+         END IF
+
+         !** Now modify the functionals for the primary basis
+         xc_fun_section => section_vals_get_subs_vals(admm_env%xc_section_primary, "XC_FUNCTIONAL")
+         !* Overwrite possible L")
+         !* Overwrite possible shortcut
+         CALL section_vals_val_set(xc_fun_section, "_SECTION_PARAMETERS_", &
+                                   i_val=xc_funct_no_shortcut)
+
+         ifun = 0
+         funct_found = .FALSE.
+         DO
+            ifun = ifun + 1
+            xc_fun => section_vals_get_subs_vals2(xc_fun_section, i_section=ifun)
+            IF (.NOT. ASSOCIATED(xc_fun)) EXIT
+            IF (xc_fun%section%name == TRIM(name_x_func)) THEN
+               funct_found = .TRUE.
+            END IF
+         END DO
+         IF (.NOT. funct_found) THEN
+            CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_SECTION_PARAMETERS_", &
+                                      l_val=.TRUE.)
+            CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%SCALE", &
+                                      r_val=hfx_fraction)
+            IF (admm_env%aux_exch_func == do_admm_aux_exch_func_opt_libxc) THEN
+               IF (admm_env%aux_exch_func_param) THEN
+                  CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_A", &
+                                            r_val=admm_env%aux_x_param(1))
+                  ! LibXC rescales the second parameter of the OPTX functional (see documentation there)
+                  CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_B", &
+                                            r_val=admm_env%aux_x_param(2)/x_factor_c)
+                  CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_GAMMA", &
+                                            r_val=admm_env%aux_x_param(3))
+               END IF
+            END IF
+
+         ELSE
+            CALL section_vals_val_get(xc_fun_section, TRIM(name_x_func)//"%SCALE", &
+                                      r_val=scale_x)
+            scale_x = scale_x + hfx_fraction
+            CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%SCALE", &
+                                      r_val=scale_x)
+            IF (admm_env%aux_exch_func == do_admm_aux_exch_func_opt_libxc) THEN
+               CPASSERT(.NOT. admm_env%aux_exch_func_param)
+            END IF
+         END IF
+#else
+         CALL cp_abort(__LINE__, "In order use a LibXC-based ADMM "// &
+                       "exchange correction functionals, you have to compile and link against LibXC!")
+#endif
+
+      ELSE
+         CPABORT("Unknown exchange correction functional!")
       END IF
 
       IF (debug_functional) THEN
