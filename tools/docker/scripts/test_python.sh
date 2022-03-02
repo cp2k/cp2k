@@ -31,6 +31,7 @@ run_test ./tools/docker/generate_dockerfiles.py --check
 
 run_test mypy --strict ./tools/minimax_tools/minimax_to_fortran_source.py
 run_test mypy --strict ./tools/dashboard/generate_dashboard.py
+run_test mypy --strict ./tools/dashboard/generate_regtest_survey.py
 run_test mypy --strict ./tools/regtesting/do_regtest.py
 run_test mypy --strict ./tools/regtesting/optimize_test_dirs.py
 run_test mypy --strict ./tools/precommit/check_file_properties.py
