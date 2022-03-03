@@ -98,6 +98,7 @@ MODULE qs_tddfpt2_properties
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
@@ -105,7 +106,9 @@ MODULE qs_tddfpt2_properties
                                               mo_set_p_type,&
                                               set_mo_set
    USE qs_moments,                      ONLY: build_berry_moment_matrix
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_operators_ao,                 ONLY: rRc_xyz_ao
+   USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
@@ -179,9 +182,13 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: ediff_inv, rRc_mos_occ, wfm_ao_ao, &
                                                             wfm_mo_virt_mo_occ
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: berry_cossin_xyz, matrix_s, rRc_xyz
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: berry_cossin_xyz, matrix_s, rRc_xyz, scrm
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
 
@@ -221,6 +228,20 @@ CONTAINS
       ! check that the chosen dipole operator is consistent with the periodic boundary conditions used
       CALL pw_env_get(pw_env, poisson_env=poisson_env)
       ndim_periodic = COUNT(poisson_env%parameters%periodic == 1)
+
+      ! select default for dipole form
+      IF (tddfpt_control%dipole_form == 0) THEN
+         CALL get_qs_env(qs_env, dft_control=dft_control)
+         IF (dft_control%qs_control%xtb) THEN
+            IF (ndim_periodic == 0) THEN
+               tddfpt_control%dipole_form = tddfpt_dipole_length
+            ELSE
+               tddfpt_control%dipole_form = tddfpt_dipole_berry
+            END IF
+         ELSE
+            tddfpt_control%dipole_form = tddfpt_dipole_velocity
+         END IF
+      END IF
 
       SELECT CASE (tddfpt_control%dipole_form)
       CASE (tddfpt_dipole_berry)
@@ -434,9 +455,12 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(rRc_xyz)
 
       CASE (tddfpt_dipole_velocity)
-         IF (SIZE(matrix_s) < nderivs + 1) THEN
-            CPABORT("Where are the overlap matrix derivatives?")
-         END IF
+         ! generate overlap derivatives
+         CALL get_qs_env(qs_env, ks_env=ks_env, sab_orb=sab_orb)
+         NULLIFY (scrm)
+         CALL build_overlap_matrix(ks_env, matrix_s=scrm, nderivative=1, &
+                                   basis_type_a="ORB", basis_type_b="ORB", &
+                                   sab_nl=sab_orb)
 
          DO ispin = 1, nspins
             NULLIFY (fm_struct, ediff_inv, wfm_mo_virt_mo_occ)
@@ -466,7 +490,7 @@ CONTAINS
 !$OMP       END PARALLEL DO
 
             DO ideriv = 1, nderivs
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(ideriv + 1)%matrix, &
+               CALL cp_dbcsr_sm_fm_multiply(scrm(ideriv + 1)%matrix, &
                                             gs_mos(ispin)%mos_occ, &
                                             dipole_op_mos_occ(ideriv, ispin)%matrix, &
                                             ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
@@ -497,6 +521,7 @@ CONTAINS
             CALL cp_fm_release(wfm_mo_virt_mo_occ)
             CALL cp_fm_release(ediff_inv)
          END DO
+         CALL dbcsr_deallocate_matrix_set(scrm)
 
       CASE DEFAULT
          CPABORT("Unimplemented form of the dipole operator")

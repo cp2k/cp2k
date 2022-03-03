@@ -1427,7 +1427,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DIPOLE_FORM", &
                           description="Form of dipole transition integrals.", &
-                          default_i_val=tddfpt_dipole_velocity, &
+                          type_of_var=integer_t, &
                           enum_c_vals=s2a("BERRY", "LENGTH", "VELOCITY"), &
                           enum_desc=s2a("Based on Berry phase formula (valid for fully periodic molecular systems only)", &
                                         "Length form &lang; i | r | j &rang; (valid for non-periodic molecular systems only)", &

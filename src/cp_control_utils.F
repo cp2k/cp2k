@@ -43,7 +43,7 @@ MODULE cp_control_utils
         real_time_propagation, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
         sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-        tddfpt_excitations, tddfpt_kernel_stda, use_mom_ref_user, xas_dip_len
+        tddfpt_dipole_length, tddfpt_excitations, tddfpt_kernel_stda, use_mom_ref_user
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -1328,14 +1328,19 @@ CONTAINS
 
       ! DIPOLE_MOMENTS subsection
       dipole_section => section_vals_get_subs_vals(t_section, "DIPOLE_MOMENTS")
-      CALL section_vals_val_get(dipole_section, "DIPOLE_FORM", i_val=t_control%dipole_form)
+      CALL section_vals_val_get(dipole_section, "DIPOLE_FORM", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(dipole_section, "DIPOLE_FORM", i_val=t_control%dipole_form)
+      ELSE
+         t_control%dipole_form = 0
+      END IF
       CALL section_vals_val_get(dipole_section, "REFERENCE", i_val=t_control%dipole_reference)
       CALL section_vals_val_get(dipole_section, "REFERENCE_POINT", explicit=explicit)
       IF (explicit) THEN
          CALL section_vals_val_get(dipole_section, "REFERENCE_POINT", r_vals=t_control%dipole_ref_point)
       ELSE
          NULLIFY (t_control%dipole_ref_point)
-         IF (t_control%dipole_form == xas_dip_len .AND. t_control%dipole_reference == use_mom_ref_user) THEN
+         IF (t_control%dipole_form == tddfpt_dipole_length .AND. t_control%dipole_reference == use_mom_ref_user) THEN
             CPABORT("User-defined reference point should be given explicitly")
          END IF
       END IF
