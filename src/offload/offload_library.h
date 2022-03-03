@@ -13,6 +13,8 @@
 #define __OFFLOAD_HIP
 #endif
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

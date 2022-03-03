@@ -247,10 +247,8 @@ MODULE pw_gpu
    END INTERFACE
 
    INTERFACE
-      FUNCTION pw_gpu_init_cu() RESULT(istat) BIND(C, name="pw_gpu_init")
-         IMPORT
-         INTEGER(KIND=C_INT)                    :: istat
-      END FUNCTION pw_gpu_init_cu
+      SUBROUTINE pw_gpu_init_cu() BIND(C, name="pw_gpu_init")
+      END SUBROUTINE pw_gpu_init_cu
       SUBROUTINE pw_gpu_finalize_cu() BIND(C, name="pw_gpu_finalize")
       END SUBROUTINE pw_gpu_finalize_cu
    END INTERFACE
@@ -265,11 +263,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_init()
-      INTEGER                                            :: istat
-
-      istat = pw_gpu_init_cu()
-      IF (istat /= 0) &
-         CPABORT("pw_gpu_init: failed")
+      CALL pw_gpu_init_cu()
    END SUBROUTINE pw_gpu_init
 
 ! **************************************************************************************************
