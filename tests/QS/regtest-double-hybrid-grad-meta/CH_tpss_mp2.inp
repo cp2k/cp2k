@@ -11,6 +11,7 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
+    BASIS_SET_FILE_NAME  GTH_BASIS_SETS
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  POTENTIAL
     UKS
@@ -33,8 +34,6 @@
       &XC_FUNCTIONAL
         &MGGA_X_TPSS
         &END
-        &MGGA_C_TPSS
-        &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         &RI_MP2
@@ -50,8 +49,8 @@
           &WFC_GPW
             CUTOFF      25
             REL_CUTOFF  10
-            EPS_FILTER  1.0E-12
-            EPS_GRID    1.0E-8
+            EPS_FILTER  1.0E-6
+            EPS_GRID    1.0E-6
           &END WFC_GPW
         &END INTEGRALS
         MEMORY       1.00
@@ -65,15 +64,15 @@
   &END
   &SUBSYS
     &CELL
-      ABC [angstrom]  4.0 4.0 4.0
+      ABC [angstrom]  3.5 3.5 3.5
     &END CELL
     &KIND H
-      BASIS_SET         DZVP-GTH
+      BASIS_SET         SZV-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
       POTENTIAL         GTH-PBE-q1
     &END KIND
     &KIND C
-      BASIS_SET         DZVP-GTH
+      BASIS_SET         SZV-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
       POTENTIAL         GTH-PBE-q4
     &END KIND

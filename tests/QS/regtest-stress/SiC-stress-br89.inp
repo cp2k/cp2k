@@ -7,7 +7,7 @@
 &MOTION
   &GEO_OPT
     OPTIMIZER BFGS
-    MAX_ITER  2
+    MAX_ITER  1
     MAX_DR    0.001
     RMS_DR    0.0005
     MAX_FORCE 0.00015
@@ -32,7 +32,7 @@
       &END DFT_CONTROL_PARAMETERS
     &END PRINT
     &QS
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
       EXTRAPOLATION use_prev_p
     &END QS
     &SCF
