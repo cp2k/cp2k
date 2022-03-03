@@ -14,12 +14,12 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
-      CUTOFF     150
+      CUTOFF     200
       REL_CUTOFF  30
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
       SCF_GUESS   ATOMIC
@@ -46,8 +46,8 @@
           &WFC_GPW
             CUTOFF      50
             REL_CUTOFF  20
-            EPS_FILTER  1.0E-12
-            EPS_GRID    1.0E-8
+            EPS_FILTER  1.0E-6
+            EPS_GRID    1.0E-6
           &END WFC_GPW
         &END INTEGRALS
         MEMORY       1.00
@@ -61,7 +61,7 @@
   &END
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.0 5.0 5.0
+      ABC [angstrom]  3.5 3.5 3.5
     &END CELL
     &KIND H
       BASIS_SET         DZVP-GTH
