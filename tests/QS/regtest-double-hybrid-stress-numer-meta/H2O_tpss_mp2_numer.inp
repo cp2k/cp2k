@@ -18,12 +18,12 @@
     BASIS_SET_FILE_NAME  HFX_BASIS
     POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
-      CUTOFF      100
+      CUTOFF      200
       REL_CUTOFF   30
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
       SCF_GUESS   ATOMIC
@@ -39,8 +39,6 @@
       # Not a very useful functional, just for testing
       &XC_FUNCTIONAL 
         &MGGA_X_TPSS
-        &END
-        &MGGA_C_TPSS
         &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
@@ -68,7 +66,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  5.0000  5.0000  5.0000
+      ABC [angstrom]  3.5 3.5 3.5
     &END CELL
     &KIND H
       BASIS_SET         SZV-GTH
