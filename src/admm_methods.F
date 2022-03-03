@@ -2025,12 +2025,12 @@ CONTAINS
 
       ! *** forces are only implemented for mo_diag or none and basis_projection ***
       IF (admm_env%block_dm) THEN
-         CPABORT("")
+         CPABORT("ADMM Forces not implemented for blocked projection methods!")
       END IF
 
       IF (.NOT. (admm_env%purification_method == do_admm_purify_mo_diag .OR. &
                  admm_env%purification_method == do_admm_purify_none)) THEN
-         CPABORT("")
+         CPABORT("ADMM Forces only implemented without purification or for MO_DIAG.")
       END IF
 
       ! *** Create sparse work matrices

@@ -3,6 +3,7 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
+QS/regtest-admm-libxc                                       libint libxc
 QS/regtest-mp2-admm-stress-numer                            libint
 QS/regtest-mp2-admm-grad-numer                              libint
 QS/regtest-double-hybrid-stress-numer                       libint
