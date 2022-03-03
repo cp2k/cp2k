@@ -6,5 +6,6 @@
         "offload_buffer.h",
         "offload_library.h",
         "offload_operations.h",
+        "offload_fft.h",
     ],
 }

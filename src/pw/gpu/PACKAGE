@@ -1,5 +1,4 @@
 {
     "description": "fft on gpu",
-    "archive": "libcp2kpwgpu",
-    "requires": ["../../offload", "hip", "cuda",],
+    "requires": ["../../offload"],
 }

@@ -3,8 +3,8 @@
     "requires": [
         "fpga",
         "fft",
-        "../common",
         "gpu",
+        "../common",
         "../base",
         "../mpiwrap",
         "../offload",

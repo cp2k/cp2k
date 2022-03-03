@@ -1,5 +1,0 @@
-{
-    "description": "hip FFT acceleration",
-    "requires": ["../../../offload", "../kernels"],
-    "archive": "libcp2kpwhip",
-}
