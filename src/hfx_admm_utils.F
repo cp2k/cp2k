@@ -1400,7 +1400,7 @@ CONTAINS
             END IF
          END SELECT
 #else
-         CALL cp_abort(__LINE__, "In order use a LibXC-based ADMM "// &
+         CALL cp_abort(__LOCATION__, "In order use a LibXC-based ADMM "// &
                        "exchange correction functionals, you have to compile and link against LibXC!")
 #endif
 
@@ -1557,7 +1557,7 @@ CONTAINS
             END IF
          END IF
 #else
-         CALL cp_abort(__LINE__, "In order use a LibXC-based ADMM "// &
+         CALL cp_abort(__LOCATION__, "In order use a LibXC-based ADMM "// &
                        "exchange correction functionals, you have to compile and link against LibXC!")
 #endif
 
