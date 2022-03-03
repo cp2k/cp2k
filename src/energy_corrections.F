@@ -426,12 +426,6 @@ CONTAINS
             CALL pw_pool_give_back_pw(auxbas_pw_pool, ec_env%rhoz_r(ispin)%pw)
          END DO
          DEALLOCATE (ec_env%rhoout_r, ec_env%rhoz_r)
-         IF (ASSOCIATED(ec_env%tauout_r)) THEN
-         DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, ec_env%tauout_r(ispin)%pw)
-         END DO
-         DEALLOCATE (ec_env%tauout_r)
-         END IF
 
          ! Deallocate matrices
          IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
@@ -1081,15 +1075,6 @@ CONTAINS
                                     compute_tau=.TRUE., &
                                     basis_type="HARRIS", &
                                     task_list_external=ec_env%task_list)
-         END DO
-
-         ! Save Harris on real space grid for use in properties
-         ALLOCATE (ec_env%tauout_r(nspins))
-         DO ispin = 1, nspins
-            NULLIFY (ec_env%tauout_r(ispin)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, ec_env%tauout_r(ispin)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_copy(tauout_r(ispin)%pw, ec_env%tauout_r(ispin)%pw)
          END DO
       END IF
 
