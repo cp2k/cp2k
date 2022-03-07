@@ -18,6 +18,9 @@
 MODULE xc_thomas_fermi
    USE cp_array_utils,                  ONLY: cp_3d_r_p_type
    USE kinds,                           ONLY: dp
+   USE xc_derivative_desc,              ONLY: deriv_rho,&
+                                              deriv_rhoa,&
+                                              deriv_rhob
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -139,28 +142,28 @@ CONTAINS
       CALL thomas_fermi_init(epsilon_rho)
 
       IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
 
          CALL thomas_fermi_lda_0(rho, r13, e_0, npoints)
       END IF
       IF (order >= 1 .OR. order == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
 
          CALL thomas_fermi_lda_1(rho, r13, e_rho, npoints)
       END IF
       IF (order >= 2 .OR. order == -2) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
 
          CALL thomas_fermi_lda_2(rho, r13, e_rho_rho, npoints)
       END IF
       IF (order >= 3 .OR. order == -3) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
 
@@ -184,7 +187,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: order
 
       CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lsd_eval'
-      CHARACTER(len=6), DIMENSION(2), PARAMETER :: rho_spin_name = (/"(rhoa)", "(rhob)"/)
+      INTEGER, DIMENSION(2), PARAMETER :: rho_spin_name = [deriv_rhoa, deriv_rhob]
 
       INTEGER                                            :: handle, i, ispin, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -212,7 +215,7 @@ CONTAINS
 
       DO ispin = 1, 2
          IF (order >= 0) THEN
-            deriv => xc_dset_get_derivative(deriv_set, "", &
+            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_0)
 
@@ -220,7 +223,7 @@ CONTAINS
                                     e_0, npoints)
          END IF
          IF (order >= 1 .OR. order == -1) THEN
-            deriv => xc_dset_get_derivative(deriv_set, rho_spin_name(ispin), &
+            deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho)
 
@@ -228,16 +231,16 @@ CONTAINS
                                     e_rho, npoints)
          END IF
          IF (order >= 2 .OR. order == -2) THEN
-            deriv => xc_dset_get_derivative(deriv_set, rho_spin_name(ispin)// &
-                                            rho_spin_name(ispin), allocate_deriv=.TRUE.)
+            deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin), &
+                                                        rho_spin_name(ispin)], allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
 
             CALL thomas_fermi_lsd_2(rho(ispin)%array, rho_1_3(ispin)%array, &
                                     e_rho_rho, npoints)
          END IF
          IF (order >= 3 .OR. order == -3) THEN
-            deriv => xc_dset_get_derivative(deriv_set, rho_spin_name(ispin)// &
-                                            rho_spin_name(ispin)//rho_spin_name(ispin), &
+            deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin), &
+                                                        rho_spin_name(ispin), rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
 

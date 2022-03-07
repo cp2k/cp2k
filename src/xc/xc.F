@@ -59,8 +59,10 @@ MODULE xc
                        pw_p_type, &
                        pw_release, &
                        pw_type
-   USE xc_derivative_desc, ONLY: MAX_DERIVATIVE_DESC_LENGTH, &
-                                 MAX_LABEL_LENGTH
+   USE xc_derivative_desc, ONLY: &
+      deriv_rho, deriv_rhoa, deriv_rhob, &
+      deriv_norm_drhoa, deriv_norm_drhob, deriv_norm_drho, deriv_tau_a, deriv_tau_b, deriv_tau, &
+      deriv_laplace_rho, deriv_laplace_rhoa, deriv_laplace_rhob, id_to_desc
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
                                       xc_dset_create, &
                                       xc_dset_get_derivative, &
@@ -142,7 +144,7 @@ CONTAINS
 !> \param vxc_rho will contain the v_xc part that depend on rho
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
-!> \param vxc_tau will contain the kinetic (tau) part of v_xcthe functional
+!> \param vxc_tau will contain the kinetic tau part of v_xcthe functional
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param rho_r the value of the density in the real space
@@ -206,7 +208,7 @@ CONTAINS
 !> \param vxc_rho will contain the v_xc part that depend on rho
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
-!> \param vxc_tau will contain the kinetic (tau) part of v_xc
+!> \param vxc_tau will contain the kinetic tau part of v_xc
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param rho_r the value of the density in the real space
@@ -231,9 +233,8 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: compute_virial = .FALSE.
 
       CHARACTER(len=default_path_length)                 :: filename
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
-         POINTER                                         :: split_desc
-      INTEGER                                            :: i, ii, ispin, j, k
+      INTEGER, DIMENSION(:), POINTER         :: split_desc
+      INTEGER                                            :: i, ii, ispin, j, k, order
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: diff, exc2, maxdiff, tmp
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
@@ -244,7 +245,7 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv, deriv2, deriv3
       TYPE(xc_rho_set_type), POINTER                     :: rho_set1, rho_set2
 
-      NULLIFY (vxc_rho2, vxc_tau2, tau2, rho_set1, rho_set2, split_desc, pot, pot3, pot3, &
+      NULLIFY (vxc_rho2, vxc_tau2, tau2, rho_set1, rho_set2, pot, pot3, pot3, &
                deriv, deriv2, deriv3, rho2_g)
 
       bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -445,21 +446,21 @@ CONTAINS
       END IF
       deriv_iter => dSet1%derivs
       DO WHILE (cp_sll_xc_deriv_next(deriv_iter, el_att=deriv))
-         CALL xc_derivative_get(deriv, &
+         CALL xc_derivative_get(deriv, order=order, &
                                 split_desc=split_desc, deriv_data=pot)
-         SELECT CASE (SIZE(split_desc))
+         SELECT CASE (order)
          CASE (0)
             filename = "e_0.bindata"
-            deriv2 => xc_dset_get_derivative(dSet2, "")
+            deriv2 => xc_dset_get_derivative(dSet2, [INTEGER::])
          CASE (1)
-            filename = "e_"//TRIM(split_desc(1))//".bindata"
-            IF (split_desc(1) == "rho") THEN
-               deriv2 => xc_dset_get_derivative(dSet2, "(rhoa)")
-            ELSEIF (split_desc(1) == "tau") THEN
-               deriv2 => xc_dset_get_derivative(dSet2, "(tau_a)")
-            ELSEIF (split_desc(1) == "norm_drho") THEN
-               deriv2 => xc_dset_get_derivative(dSet2, "(norm_drhoa)")
-               deriv3 => xc_dset_get_derivative(dSet2, "(norm_drho)")
+            filename = "e_"//TRIM(id_to_desc(split_desc(1)))//".bindata"
+            IF (split_desc(1) == deriv_rho) THEN
+               deriv2 => xc_dset_get_derivative(dSet2, [deriv_rhoa])
+            ELSEIF (split_desc(1) == deriv_tau) THEN
+               deriv2 => xc_dset_get_derivative(dSet2, [deriv_tau_a])
+            ELSEIF (split_desc(1) == deriv_norm_drho) THEN
+               deriv2 => xc_dset_get_derivative(dSet2, [deriv_norm_drhoa])
+               deriv3 => xc_dset_get_derivative(dSet2, [deriv_norm_drho])
                IF (ASSOCIATED(deriv3)) THEN
                   IF (ASSOCIATED(deriv2)) THEN
                      CALL xc_derivative_get(deriv2, &
@@ -473,10 +474,10 @@ CONTAINS
                   NULLIFY (deriv3, pot2, pot3)
                END IF
             ELSE
-               CPABORT("")
+               CPABORT("Unknown derivative variable")
             END IF
          CASE default
-            CPABORT("")
+            CPABORT("Unsupported derivative order")
          END SELECT
          CALL xc_derivative_get(deriv2, &
                                 deriv_data=pot2)
@@ -504,15 +505,15 @@ CONTAINS
       END DO
       deriv_iter => dSet2%derivs
       DO WHILE (cp_sll_xc_deriv_next(deriv_iter, el_att=deriv))
-         CALL xc_derivative_get(deriv, &
+         CALL xc_derivative_get(deriv, order=order, &
                                 split_desc=split_desc, deriv_data=pot)
-         SELECT CASE (SIZE(split_desc))
+         SELECT CASE (order)
          CASE (0)
             filename = "e_0-2.bindata"
          CASE (1)
-            filename = "e_"//TRIM(split_desc(1))//"-2.bindata"
+            filename = "e_"//TRIM(id_to_desc(split_desc(1)))//"-2.bindata"
          CASE default
-            CPABORT("")
+            CPABORT("Unsupported derivative order")
          END SELECT
          OPEN (unit=120, file=TRIM(filename), status="unknown", &
                access='sequential', &
@@ -544,7 +545,7 @@ CONTAINS
 !> \param vxc_rho will contain the v_xc part that depend on rho
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
-!> \param vxc_tau will contain the kinetic (tau) part of v_xc
+!> \param vxc_tau will contain the kinetic tau part of v_xc
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param rho_r the value of the density in the real space
@@ -569,9 +570,8 @@ CONTAINS
       LOGICAL, PARAMETER                                 :: compute_virial = .FALSE.
 
       CHARACTER(len=default_path_length)                 :: filename
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
-         POINTER                                         :: split_desc
-      INTEGER                                            :: i, ispin, j, k
+      INTEGER, DIMENSION(:), POINTER         :: split_desc
+      INTEGER                                            :: i, ispin, j, k, order
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: pot
@@ -581,7 +581,7 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_set_type), POINTER                     :: rho_set1
 
-      NULLIFY (rho_set1, split_desc, pot, deriv)
+      NULLIFY (rho_set1, pot, deriv)
       logger => cp_get_default_logger()
 
       bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -654,15 +654,15 @@ CONTAINS
 
          deriv_iter => dSet1%derivs
          DO WHILE (cp_sll_xc_deriv_next(deriv_iter, el_att=deriv))
-            CALL xc_derivative_get(deriv, &
+            CALL xc_derivative_get(deriv, order=order, &
                                    split_desc=split_desc, deriv_data=pot)
-            SELECT CASE (SIZE(split_desc))
+            SELECT CASE (order)
             CASE (0)
                filename = "e_0.bindata"
             CASE (1)
-               filename = "e_"//TRIM(split_desc(1))//".bindata"
+               filename = "e_"//TRIM(id_to_desc(split_desc(1)))//".bindata"
             CASE default
-               CPABORT("")
+               CPABORT("Unsupported derivative order")
             END SELECT
             OPEN (unit=120, file=TRIM(filename), status="unknown", &
                   access='sequential', &
@@ -726,15 +726,15 @@ CONTAINS
 
                            deriv_iter => dSet1%derivs
                            DO WHILE (cp_sll_xc_deriv_next(deriv_iter, el_att=deriv))
-                              CALL xc_derivative_get(deriv, &
+                              CALL xc_derivative_get(deriv, order=order, &
                                                      split_desc=split_desc, deriv_data=pot)
-                              SELECT CASE (SIZE(split_desc))
+                              SELECT CASE (order)
                               CASE (0)
                                  filename = " e_0"
                               CASE (1)
-                                 filename = " e_"//TRIM(split_desc(1))
+                                 filename = " e_"//TRIM(id_to_desc(split_desc(1)))
                               CASE default
-                                 CPABORT("")
+                                 CPABORT("Unsupported derivative order")
                               END SELECT
                               WRITE (unit=cp_logger_get_default_unit_nr(logger), &
                                      fmt="(a,'=',e11.4)", advance="no") &
@@ -795,15 +795,15 @@ CONTAINS
 
                            deriv_iter => dSet1%derivs
                            DO WHILE (cp_sll_xc_deriv_next(deriv_iter, el_att=deriv))
-                              CALL xc_derivative_get(deriv, &
+                              CALL xc_derivative_get(deriv, order=order, &
                                                      split_desc=split_desc, deriv_data=pot)
-                              SELECT CASE (SIZE(split_desc))
+                              SELECT CASE (order)
                               CASE (0)
                                  filename = " e_0"
                               CASE (1)
-                                 filename = " e_"//TRIM(split_desc(1))
+                                 filename = " e_"//TRIM(id_to_desc(split_desc(1)))
                               CASE default
-                                 CPABORT("")
+                                 CPABORT("Unsupported derivative order")
                               END SELECT
                               WRITE (unit=cp_logger_get_default_unit_nr(logger), &
                                      fmt="(a,'=',e11.4)", advance="no") &
@@ -900,9 +900,9 @@ CONTAINS
    END SUBROUTINE xc_rho_set_and_dset_create
 
 ! **************************************************************************************************
-!> \brief smooths the cutoff on rho with a function smooth(rho) that is 0
+!> \brief smooths the cutoff on rho with a function smoothderiv_rho that is 0
 !>      for rho<rho_cutoff and 1 for rho>rho_cutoff*rho_smooth_cutoff_range:
-!>      E= integral e_0*smooth(rho) => dE/d...= de/d... * smooth,
+!>      E= integral e_0*smoothderiv_rho => dE/d...= de/d... * smooth,
 !>      dE/drho = de/drho * smooth + e_0 * dsmooth/drho
 !> \param pot the potential to smooth
 !> \param rho , rhoa,rhob: the value of the density (used to apply the cutoff)
@@ -1073,7 +1073,7 @@ CONTAINS
 !> \param vxc_rho will contain the v_xc part that depend on rho
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
-!> \param vxc_tau will contain the kinetic (tau) part of v_xc
+!> \param vxc_tau will contain the kinetic tau part of v_xc
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param exc the xc energy
@@ -1112,11 +1112,10 @@ CONTAINS
       TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_vxc_pw_create'
-      CHARACTER(len=30), DIMENSION(2), PARAMETER :: &
-         norm_drho_spin_name = (/"(norm_drhoa)", "(norm_drhob)"/)
+      INTEGER, DIMENSION(2), PARAMETER :: norm_drho_spin_name = [deriv_norm_drhoa, deriv_norm_drhob]
       INTEGER, DIMENSION(3, 3), PARAMETER ::        nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
 
-      CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: desc
+      INTEGER, DIMENSION(:), POINTER         :: split_desc
       INTEGER                                            :: handle, i, idir, ispin, j, jdir, k, &
                                                             n_deriv, npoints, nspins, order, &
                                                             xc_deriv_method_id, xc_rho_smooth_id
@@ -1190,39 +1189,34 @@ CONTAINS
       pos => deriv_set%derivs
       DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
          CALL xc_derivative_get(deriv_att, order=order, &
-                                desc=desc)
+                                split_desc=split_desc)
          IF (order == 1) THEN
             IF (lsd) THEN
-               SELECT CASE (desc)
-               CASE ("(rho)", "(rhoa)", "(rhob)", "(norm_drho)", "(norm_drhoa)", &
-                     "(norm_drhob)")
+               SELECT CASE (split_desc(1))
+               CASE (deriv_rho, deriv_rhoa, deriv_rhob, deriv_norm_drho, deriv_norm_drhoa, &
+                     deriv_norm_drhob)
                   n_deriv = n_deriv + 1
-               CASE ("(tau)", "(tau_a)", "(tau_b)")
+               CASE (deriv_tau, deriv_tau_a, deriv_tau_b)
                   has_tau = .TRUE.
                   n_deriv = n_deriv + 1
-               CASE ("(laplace_rhoa)", "(laplace_rhob)")
+               CASE (deriv_laplace_rhoa, deriv_laplace_rhob)
                   has_laplace = .TRUE.
                   n_deriv = n_deriv + 1
                CASE default
-                  !FM if you are looking at this error probably you are missing the
-                  !FM cross term (drhoa_drhob), I never got round to implement it,
-                  !FM in the functionals that I have implemented I use norm_drho
-                  !FM instead, either do the same or implement it, it shouldn't be
-                  !FM difficult (I am just lazy ;)
-                  CPABORT("unknown functional derivative (LSD): '"//TRIM(desc)//"'")
+                  CPABORT("Unknown derivative id")
                END SELECT
             ELSE
-               SELECT CASE (desc)
-               CASE ("(rho)", "(norm_drho)")
+               SELECT CASE (split_desc(1))
+               CASE (deriv_rho, deriv_norm_drho)
                   n_deriv = n_deriv + 1
-               CASE ("(tau)")
+               CASE (deriv_tau)
                   has_tau = .TRUE.
                   n_deriv = n_deriv + 1
-               CASE ("(laplace_rho)")
+               CASE (deriv_laplace_rho)
                   has_laplace = .TRUE.
                   n_deriv = n_deriv + 1
                CASE default
-                  CPABORT("unknown functional derivative (LDA): '"//TRIM(desc)//"'")
+                  CPABORT("Unknown derivative id")
                END SELECT
             END IF
          END IF
@@ -1238,7 +1232,7 @@ CONTAINS
 
       ! recover the vxc arrays
       IF (lsd) THEN
-         deriv_att => xc_dset_get_derivative(deriv_set, "(rhoa)")
+         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhoa])
          IF (ASSOCIATED(deriv_att)) THEN
             CALL pw_create(vxc_rho(1)%pw, pw_grid=pw_grid, &
                            cr3d_ptr=deriv_att%deriv_data, &
@@ -1250,7 +1244,7 @@ CONTAINS
             CALL pw_zero(vxc_rho(1)%pw)
          END IF
 
-         deriv_att => xc_dset_get_derivative(deriv_set, "(rhob)")
+         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhob])
          IF (ASSOCIATED(deriv_att)) THEN
             CALL pw_create(vxc_rho(2)%pw, pw_grid=pw_grid, &
                            cr3d_ptr=deriv_att%deriv_data, &
@@ -1263,7 +1257,7 @@ CONTAINS
          END IF
 
       ELSE
-         deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho])
          IF (ASSOCIATED(deriv_att)) THEN
             CALL pw_create(vxc_rho(1)%pw, pw_grid=pw_grid, &
                            cr3d_ptr=deriv_att%deriv_data, &
@@ -1276,7 +1270,7 @@ CONTAINS
          END IF
       END IF
 
-      deriv_att => xc_dset_get_derivative(deriv_set, "(rho)")
+      deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho])
       IF (ASSOCIATED(deriv_att)) THEN
          IF (lsd) THEN ! otherwise already taken care in vxc recovery
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
@@ -1294,7 +1288,7 @@ CONTAINS
 
       ! rhoa,rhob already taken care of in vxc recovery
 
-      deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+      deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
       IF (ASSOCIATED(deriv_att)) THEN
          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
@@ -1415,7 +1409,7 @@ CONTAINS
                                    can_return_null=.TRUE.)
             END IF
 
-            deriv_att => xc_dset_get_derivative(deriv_set, norm_drho_spin_name(ispin))
+            deriv_att => xc_dset_get_derivative(deriv_set, [norm_drho_spin_name(ispin)])
             IF (ASSOCIATED(deriv_att)) THEN
                CPASSERT(lsd)
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
@@ -1546,7 +1540,7 @@ CONTAINS
                      CALL pw_spline3_interpolate_values_g(tmp_g)
                      CALL pw_spline3_deriv_g(tmp_g, idir=idir)
                   CASE default
-                     CPABORT("")
+                     CPABORT("Unsupported deriv method")
                   END SELECT
 
                   IF (zero_result .AND. idir == 1) THEN
@@ -1587,7 +1581,7 @@ CONTAINS
                                         pw_out=v_drho_r, coeffs=nn50_deriv_coeffs, &
                                         idir=idir)
                   CASE default
-                     CPABORT("")
+                     CPABORT("Unsupported derivative method")
                   END SELECT
                   IF (dealloc_pw_to_deriv) THEN
                      CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(idir)%pw)
@@ -1601,17 +1595,17 @@ CONTAINS
          IF (has_laplace) THEN
             IF (lsd) THEN
                IF (ispin == 1) THEN
-                  deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rhoa)")
+                  deriv_att => xc_dset_get_derivative(deriv_set, [deriv_laplace_rhoa])
                   CPASSERT(ASSOCIATED(deriv_att))
                   CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
                ELSE
-                  deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rhob)")
+                  deriv_att => xc_dset_get_derivative(deriv_set, [deriv_laplace_rhob])
                   CPASSERT(ASSOCIATED(deriv_att))
                   CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
                END IF
 
             ELSE
-               deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rho)")
+               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_laplace_rho])
                CPASSERT(ASSOCIATED(deriv_att))
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
             END IF
@@ -1644,7 +1638,7 @@ CONTAINS
                CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(1)%pw)
                CALL pw_pool_give_back_pw(pw_pool, tmp_g)
             CASE default
-               CPABORT("")
+               CPABORT("Unsupported derivative method")
             END SELECT
          END IF
 
@@ -1679,7 +1673,7 @@ CONTAINS
                CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw, pw_out=v_drho_r, &
                                   coeffs=nn50_coeffs)
             CASE default
-               CPABORT("")
+               CPABORT("Unsupported smoothing method")
             END SELECT
             deriv_data => vxc_rho(ispin)%pw%cr3d
             vxc_rho(ispin)%pw%cr3d => v_drho_r%cr3d
@@ -1696,7 +1690,7 @@ CONTAINS
       ! 0-deriv -> value of exc
       ! this has to be kept consistent with xc_exc_calc
       IF (n_deriv > 0) THEN
-         deriv_att => xc_dset_get_derivative(deriv_set, "")
+         deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
          CPASSERT(ASSOCIATED(deriv_att))
          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
@@ -1719,7 +1713,7 @@ CONTAINS
          !
          IF (PRESENT(exc_r)) THEN
             CPASSERT(.NOT. ASSOCIATED(exc_r%pw))
-            deriv_att => xc_dset_get_derivative(deriv_set, "")
+            deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
             CALL pw_create(exc_r%pw, pw_grid, &
                            use_data=REALDATA3D, in_space=REALSPACE, &
@@ -1739,7 +1733,7 @@ CONTAINS
             NULLIFY (vxc_tau(ispin)%pw)
          END DO
          IF (lsd) THEN
-            deriv_att => xc_dset_get_derivative(deriv_set, "(tau_a)")
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau_a])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
@@ -1748,7 +1742,7 @@ CONTAINS
                               cr3d_ptr=deriv_data)
                NULLIFY (deriv_att%deriv_data)
             END IF
-            deriv_att => xc_dset_get_derivative(deriv_set, "(tau_b)")
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau_b])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
@@ -1757,7 +1751,7 @@ CONTAINS
                               cr3d_ptr=deriv_data)
                NULLIFY (deriv_att%deriv_data)
             END IF
-            deriv_att => xc_dset_get_derivative(deriv_set, "(tau)")
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
                IF (ASSOCIATED(vxc_tau(1)%pw)) THEN
@@ -1777,7 +1771,7 @@ CONTAINS
                END IF
             END IF
          ELSE
-            deriv_att => xc_dset_get_derivative(deriv_set, "(tau)")
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
             CALL pw_create(vxc_tau(1)%pw, pw_grid, &
                            use_data=REALDATA3D, in_space=REALSPACE, &
@@ -1835,7 +1829,7 @@ CONTAINS
                                       rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
                                       pw_pool=pw_pool, &
                                       needs_basic_components=.FALSE.)
-      deriv => xc_dset_get_derivative(deriv_set, "")
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::])
 
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=e_0)
@@ -2371,11 +2365,11 @@ CONTAINS
                CALL allocate_pw(v_drhoa%pw, pw_pool, bo)
                CALL allocate_pw(v_drhob%pw, pw_pool, bo)
 
-               IF (ASSOCIATED(norm_drhoa)) CALL apply_drho(deriv_set, "(norm_drhoa)", virial_pw, drhoa, drho1a, virial_xc, &
+               IF (ASSOCIATED(norm_drhoa)) CALL apply_drho(deriv_set, [deriv_norm_drhoa], virial_pw, drhoa, drho1a, virial_xc, &
                                                            norm_drhoa, gradient_cut, dra1dra, v_drhoa%pw%cr3d)
-               IF (ASSOCIATED(norm_drhob)) CALL apply_drho(deriv_set, "(norm_drhob)", virial_pw, drhob, drho1b, virial_xc, &
+               IF (ASSOCIATED(norm_drhob)) CALL apply_drho(deriv_set, [deriv_norm_drhob], virial_pw, drhob, drho1b, virial_xc, &
                                                            norm_drhob, gradient_cut, drb1drb, v_drhob%pw%cr3d)
-               IF (ASSOCIATED(norm_drho)) CALL apply_drho(deriv_set, "(norm_drho)", virial_pw, drho, drho1, virial_xc, &
+               IF (ASSOCIATED(norm_drho)) CALL apply_drho(deriv_set, [deriv_norm_drho], virial_pw, drho, drho1, virial_xc, &
                                                           norm_drho, gradient_cut, dr1dr, v_drho%pw%cr3d)
 
             ELSE
@@ -2383,7 +2377,7 @@ CONTAINS
                ! Create the work grid for the potential of the gradient part
                CALL allocate_pw(v_drho%pw, pw_pool, bo)
 
-               CALL apply_drho(deriv_set, "(norm_drho)", virial_pw, drho, drho1, virial_xc, &
+               CALL apply_drho(deriv_set, [deriv_norm_drho], virial_pw, drho, drho1, virial_xc, &
                                norm_drho, gradient_cut, dr1dr, v_drho%pw%cr3d)
             END IF
 
@@ -2427,60 +2421,60 @@ CONTAINS
 
                IF (ASSOCIATED(norm_drhoa)) THEN
                   CALL get_derivs_rho(norm_drho2a, norm_drhoa, h, xc_fun_section, lsd, rho2_set, deriv_set1, deriv_set2)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(rhoa)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_rhoa], bo, &
                                         norm_drhoa, gradient_cut, h, rho1a, v_drhoa%pw%cr3d)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(rhob)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_rhob], bo, &
                                         norm_drhoa, gradient_cut, h, rho1b, v_drhoa%pw%cr3d)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(norm_drhoa)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_norm_drhoa], bo, &
                                         norm_drhoa, gradient_cut, h, dra1dra, v_drhoa%pw%cr3d)
-                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drhob)", bo, &
+                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, [deriv_norm_drhob], bo, &
                                             norm_drhoa, gradient_cut, h, dra1dra, drb1drb, v_drhoa%pw%cr3d, v_drhob%pw%cr3d)
-                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drho)", bo, &
+                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, [deriv_norm_drho], bo, &
                                             norm_drhoa, gradient_cut, h, dra1dra, dr1dr, v_drhoa%pw%cr3d, v_drho%pw%cr3d)
                   IF (ASSOCIATED(tau1a) .AND. ASSOCIATED(tau1b)) THEN
-                     CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_a)", bo, &
+                     CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_tau_a], bo, &
                                            norm_drhoa, gradient_cut, h, tau1a, v_drhoa%pw%cr3d)
-                     CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_b)", bo, &
+                     CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_tau_b], bo, &
                                            norm_drhoa, gradient_cut, h, tau1b, v_drhoa%pw%cr3d)
                   END IF
                END IF
 
                IF (ASSOCIATED(norm_drhob)) THEN
                   CALL get_derivs_rho(norm_drho2b, norm_drhob, h, xc_fun_section, lsd, rho2_set, deriv_set1, deriv_set2)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(rhoa)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_rhoa], bo, &
                                         norm_drhob, gradient_cut, h, rho1a, v_drhob%pw%cr3d)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(rhob)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_rhob], bo, &
                                         norm_drhob, gradient_cut, h, rho1b, v_drhob%pw%cr3d)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(norm_drhob)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_norm_drhob], bo, &
                                         norm_drhob, gradient_cut, h, drb1drb, v_drhob%pw%cr3d)
-                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drhoa)", bo, &
+                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, [deriv_norm_drhoa], bo, &
                                             norm_drhob, gradient_cut, h, drb1drb, dra1dra, v_drhob%pw%cr3d, v_drhoa%pw%cr3d)
-                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drho)", bo, &
+                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, [deriv_norm_drho], bo, &
                                             norm_drhob, gradient_cut, h, drb1drb, dr1dr, v_drhob%pw%cr3d, v_drho%pw%cr3d)
                   IF (ASSOCIATED(tau1a) .AND. ASSOCIATED(tau1b)) THEN
-                     CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_a)", bo, &
+                     CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_tau_a], bo, &
                                            norm_drhob, gradient_cut, h, tau1a, v_drhob%pw%cr3d)
-                     CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_b)", bo, &
+                     CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_tau_b], bo, &
                                            norm_drhob, gradient_cut, h, tau1b, v_drhob%pw%cr3d)
                   END IF
                END IF
 
                IF (ASSOCIATED(norm_drho)) THEN
                   CALL get_derivs_rho(norm_drho2, norm_drho, h, xc_fun_section, lsd, rho2_set, deriv_set1, deriv_set2)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(rhoa)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_rhoa], bo, &
                                         norm_drho, gradient_cut, h, rho1a, v_drho%pw%cr3d)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(rhob)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_rhob], bo, &
                                         norm_drho, gradient_cut, h, rho1b, v_drho%pw%cr3d)
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(norm_drho)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_norm_drho], bo, &
                                         norm_drho, gradient_cut, h, dr1dr, v_drho%pw%cr3d)
-                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drhoa)", bo, &
+                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, [deriv_norm_drhoa], bo, &
                                             norm_drho, gradient_cut, h, dr1dr, dra1dra, v_drho%pw%cr3d, v_drhoa%pw%cr3d)
-                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, "(norm_drhob)", bo, &
+                  CALL update_deriv_drho_ab(deriv_set1, deriv_set2, [deriv_norm_drhob], bo, &
                                             norm_drho, gradient_cut, h, dr1dr, drb1drb, v_drho%pw%cr3d, v_drhob%pw%cr3d)
                   IF (ASSOCIATED(tau1a) .AND. ASSOCIATED(tau1b)) THEN
-                     CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_a)", bo, &
+                     CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_tau_a], bo, &
                                            norm_drho, gradient_cut, h, tau1a, v_drho%pw%cr3d)
-                     CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau_b)", bo, &
+                     CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_tau_b], bo, &
                                            norm_drho, gradient_cut, h, tau1b, v_drho%pw%cr3d)
                   END IF
                END IF
@@ -2508,13 +2502,13 @@ CONTAINS
                CALL get_derivs_rho(norm_drho2, norm_drho, h, xc_fun_section, lsd, rho2_set, deriv_set1, deriv_set2)
 
                ! Obtain the numerical 2nd derivatives w.r.t. to drho and collect the potential
-               CALL update_deriv_rho(deriv_set1, deriv_set2, "(rho)", bo, &
+               CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_rho], bo, &
                                      norm_drho, gradient_cut, h, rho1, v_drho%pw%cr3d)
-               CALL update_deriv_rho(deriv_set1, deriv_set2, "(norm_drho)", bo, &
+               CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_norm_drho], bo, &
                                      norm_drho, gradient_cut, h, dr1dr, v_drho%pw%cr3d)
 
                IF (ASSOCIATED(tau1)) THEN
-                  CALL update_deriv_rho(deriv_set1, deriv_set2, "(tau)", bo, &
+                  CALL update_deriv_rho(deriv_set1, deriv_set2, [deriv_tau], bo, &
                                         norm_drho, gradient_cut, h, tau1, v_drho%pw%cr3d)
                END IF
 
@@ -2629,7 +2623,7 @@ CONTAINS
    SUBROUTINE apply_drho(deriv_set, description, virial_pw, drho, drho1, virial_xc, norm_drho, gradient_cut, dr1dr, v_drho)
 
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
-      CHARACTER(len=*), INTENT(in)                       :: description
+      INTEGER, DIMENSION(:), INTENT(in)                  :: description
       TYPE(pw_type), INTENT(IN)                          :: virial_pw
       TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
@@ -2646,7 +2640,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      deriv_att => xc_dset_get_derivative(deriv_set, TRIM(description))
+      deriv_att => xc_dset_get_derivative(deriv_set, description)
       IF (ASSOCIATED(deriv_att)) THEN
          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
          CALL virial_drho_drho1(virial_pw, drho, drho1, deriv_data, virial_xc)
@@ -2676,7 +2670,7 @@ CONTAINS
    SUBROUTINE update_deriv_rho(deriv_set1, deriv_set2, description, bo, norm_drho, gradient_cut, h, rho1, v_drho)
 
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set1, deriv_set2
-      CHARACTER(len=*), INTENT(in)                       :: description
+      INTEGER, DIMENSION(:), INTENT(in)                  :: description
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
       REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
                                                      2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(IN)     :: norm_drho
@@ -2697,8 +2691,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Obtain the numerical 2nd derivatives w.r.t. to drho and collect the potential
-      deriv_att1 => xc_dset_get_derivative(deriv_set1, TRIM(description))
-      deriv_att2 => xc_dset_get_derivative(deriv_set2, TRIM(description))
+      deriv_att1 => xc_dset_get_derivative(deriv_set1, description)
+      deriv_att2 => xc_dset_get_derivative(deriv_set2, description)
       IF (ASSOCIATED(deriv_att1) .AND. ASSOCIATED(deriv_att2)) THEN
          CALL xc_derivative_get(deriv_att1, deriv_data=deriv_data1)
          CALL xc_derivative_get(deriv_att2, deriv_data=deriv_data2)
@@ -2732,7 +2726,7 @@ CONTAINS
    SUBROUTINE update_deriv(deriv_set1, deriv_set2, description, bo, rho, h, rho1, v)
 
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set1, deriv_set2
-      CHARACTER(len=*), INTENT(in)                       :: description
+      INTEGER, DIMENSION(:), INTENT(in)                  :: description
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
       REAL(KIND=dp), INTENT(IN)                          :: h
       REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
@@ -2751,8 +2745,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Obtain the numerical 2nd derivatives w.r.t. to drho and collect the potential
-      deriv_att1 => xc_dset_get_derivative(deriv_set1, TRIM(description))
-      deriv_att2 => xc_dset_get_derivative(deriv_set2, TRIM(description))
+      deriv_att1 => xc_dset_get_derivative(deriv_set1, description)
+      deriv_att2 => xc_dset_get_derivative(deriv_set2, description)
       IF (ASSOCIATED(deriv_att1) .AND. ASSOCIATED(deriv_att2)) THEN
          CALL xc_derivative_get(deriv_att1, deriv_data=deriv_data1)
          CALL xc_derivative_get(deriv_att2, deriv_data=deriv_data2)
@@ -2791,7 +2785,7 @@ CONTAINS
                                    norm_drhoa, gradient_cut, h, dra1dra, drb1drb, v_drhoa, v_drhob)
 
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set1, deriv_set2
-      CHARACTER(len=*), INTENT(in)                       :: description
+      INTEGER, DIMENSION(:), INTENT(in)                  :: description
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
       REAL(KIND=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
                                                      2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(IN)     :: norm_drhoa
@@ -2811,8 +2805,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      deriv_att1 => xc_dset_get_derivative(deriv_set1, TRIM(description))
-      deriv_att2 => xc_dset_get_derivative(deriv_set2, TRIM(description))
+      deriv_att1 => xc_dset_get_derivative(deriv_set1, description)
+      deriv_att2 => xc_dset_get_derivative(deriv_set2, description)
       IF (ASSOCIATED(deriv_att1) .AND. ASSOCIATED(deriv_att2)) THEN
          CALL xc_derivative_get(deriv_att1, deriv_data=deriv_data1)
          CALL xc_derivative_get(deriv_att1, deriv_data=deriv_data2)
@@ -3740,10 +3734,8 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
       LOGICAL, INTENT(IN)                                :: lsd
 
-      CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: desc
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
-         POINTER                                         :: split_desc
-      INTEGER                                            :: idesc, order
+      INTEGER, DIMENSION(:), POINTER                     :: split_desc
+      INTEGER                                            :: idesc
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: norm_drho, norm_drhoa, norm_drhob
@@ -3758,44 +3750,32 @@ CONTAINS
 
       pos => deriv_set%derivs
       DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
-         CALL xc_derivative_get(deriv_att, order=order, &
-                                desc=desc, split_desc=split_desc)
-         IF (order == 1 .OR. order == 2) THEN
-            DO idesc = 1, SIZE(split_desc)
-               SELECT CASE (split_desc(idesc))
-               CASE ("norm_drho")
+         CALL xc_derivative_get(deriv_att, split_desc=split_desc)
+         DO idesc = 1, SIZE(split_desc)
+            SELECT CASE (split_desc(idesc))
+            CASE (deriv_norm_drho)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drho,drho_cutoff)
-                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
-                                                  MAX(norm_drho(:, :, :), drho_cutoff)
+               deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                               MAX(norm_drho(:, :, :), drho_cutoff)
 !$OMP END PARALLEL WORKSHARE
-               CASE ("norm_drhoa")
+            CASE (deriv_norm_drhoa)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drhoa,drho_cutoff)
-                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
-                                                  MAX(norm_drhoa(:, :, :), drho_cutoff)
+               deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                               MAX(norm_drhoa(:, :, :), drho_cutoff)
 !$OMP END PARALLEL WORKSHARE
-               CASE ("norm_drhob")
+            CASE (deriv_norm_drhob)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drhob,drho_cutoff)
-                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
-                                                  MAX(norm_drhob(:, :, :), drho_cutoff)
+               deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                               MAX(norm_drhob(:, :, :), drho_cutoff)
 !$OMP END PARALLEL WORKSHARE
-               CASE ("rho")
-                  IF (lsd) &
-                     CPABORT("rho not handled in lsd: '"//TRIM(desc)//"'")
-               CASE ("tau")
-                  IF (lsd) &
-                     CPABORT("tau not handled in lsd: '"//TRIM(desc)//"'")
-               CASE ("laplace_rho")
-                  IF (lsd) &
-                     CPABORT("laplace_rho not handled in lsd: '"//TRIM(desc)//"'")
-               CASE ("rhoa", "rhob", "tau_a", "tau_b", "laplace_rhoa", "laplace_rhob")
-               CASE default
-                  CALL cp_abort(__LOCATION__, &
-                                "unhandled derivative: '"// &
-                                TRIM(split_desc(idesc))//"' in '"// &
-                                TRIM(desc)//"'")
-               END SELECT
-            END DO
-         END IF
+            CASE (deriv_rho, deriv_tau, deriv_laplace_rho)
+               IF (lsd) &
+                  CPABORT(TRIM(id_to_desc(split_desc(idesc)))//" not handled in lsd!'")
+            CASE (deriv_rhoa, deriv_rhob, deriv_tau_a, deriv_tau_b, deriv_laplace_rhoa, deriv_laplace_rhob)
+            CASE default
+               CPABORT("Unknown derivative id")
+            END SELECT
+         END DO
       END DO
 
    END SUBROUTINE divide_by_norm_drho
@@ -3927,11 +3907,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'check_for_gradients'
 
-      CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: desc
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
-         POINTER                                         :: split_desc
       INTEGER                                            :: handle, iorder, order
-      LOGICAL                                            :: unknown_deriv
+      INTEGER, DIMENSION(:), POINTER                     :: split_desc
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
@@ -3943,42 +3920,37 @@ CONTAINS
       ! check for unknown derivatives
       pos => deriv_set%derivs
       DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
-         unknown_deriv = .FALSE.
          CALL xc_derivative_get(deriv_att, order=order, &
-                                desc=desc, split_desc=split_desc)
+                                split_desc=split_desc)
          IF (lsd) THEN
-            DO iorder = 1, order
+            DO iorder = 1, size(split_desc)
                SELECT CASE (split_desc(iorder))
-               CASE ("rho", "rhoa", "rhob")
-               CASE ("norm_drho", "norm_drhoa", "norm_drhob")
+               CASE (deriv_rho, deriv_rhoa, deriv_rhob)
+               CASE (deriv_norm_drho, deriv_norm_drhoa, deriv_norm_drhob)
                   gradient_f = .TRUE.
-               CASE ("tau_a", "tau_b", "tau")
+               CASE (deriv_tau_a, deriv_tau_b, deriv_tau)
                   tau_f = .TRUE.
-               CASE ("laplace_rhoa", "laplace_rhob", "laplace_rho")
+               CASE (deriv_laplace_rhoa, deriv_laplace_rhob, deriv_laplace_rho)
                   laplace_f = .TRUE.
                CASE default
-                  unknown_deriv = .TRUE.
+                  CPABORT("Unknown derivative id")
                END SELECT
             END DO
          ELSE
-            DO iorder = 1, order
+            DO iorder = 1, size(split_desc)
                SELECT CASE (split_desc(iorder))
-               CASE ("rho")
-               CASE ("tau")
+               CASE (deriv_rho)
+               CASE (deriv_tau)
                   tau_f = .TRUE.
-               CASE ("norm_drho")
+               CASE (deriv_norm_drho)
                   gradient_f = .TRUE.
-               CASE ("laplace_rho")
+               CASE (deriv_laplace_rho)
                   laplace_f = .TRUE.
                CASE default
-                  unknown_deriv = .TRUE.
+                  CPABORT("Unknown derivative id")
                END SELECT
             END DO
          END IF
-         IF (unknown_deriv) &
-            CALL cp_abort(__LOCATION__, &
-                          "unknown functional derivative (LSD="//TRIM(cp_to_string(lsd))// &
-                          "): '"//TRIM(desc)//"'")
       END DO
 
       CALL timestop(handle)

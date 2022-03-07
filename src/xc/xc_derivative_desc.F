@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief Module with functions to handle derivative descriptors.
 !>      derivative description are strings have the following form
-!>      "(rho)(rho)(rhoa)" which means that it is a forth order
+!>      "rhorhorhoa" which means that it is a forth order
 !>      derivative, twice with respect to rho, once with respect to rhoa
 !>      and once with respect to drhoa.
 !>      Possible derivatives are:
@@ -27,103 +27,157 @@
 ! **************************************************************************************************
 MODULE xc_derivative_desc
 
+   USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
+
    IMPLICIT NONE
 
    PRIVATE
 
-   INTEGER, PARAMETER :: &
-      MAX_LABEL_LENGTH = 12, &
-      MAX_DERIVATIVE = 4, &
-      MAX_DERIVATIVE_DESC_LENGTH = (MAX_LABEL_LENGTH + 2)*MAX_DERIVATIVE
+   INTEGER, PARAMETER, PUBLIC :: &
+      deriv_rho = 1, &
+      deriv_rhoa = 2, &
+      deriv_rhob = 3, &
+      deriv_norm_drho = 4, &
+      deriv_norm_drhoa = 5, &
+      deriv_norm_drhob = 6, &
+      deriv_tau = 7, &
+      deriv_tau_a = 8, &
+      deriv_tau_b = 9, &
+      deriv_laplace_rho = 10, &
+      deriv_laplace_rhoa = 11, &
+      deriv_laplace_rhob = 12
+
+   INTEGER, PARAMETER :: MAX_LABEL_LENGTH = 12
 
    LOGICAL, PARAMETER :: debug_this_module = .FALSE.
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_desc'
 
-   PUBLIC :: MAX_DERIVATIVE_DESC_LENGTH, MAX_LABEL_LENGTH, &
-             standardize_derivative_desc, &
-             create_split_derivative_desc
+   PUBLIC :: desc_to_id, id_to_desc, create_split_desc, standardize_desc
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief returns a unique string for a given derivative string
-!> \param deriv_desc input string which describes the derivative and
-!>                    should be standardized
-!> \param res ...
+!> \brief ...
+!> \param desc ...
+!> \return ...
 ! **************************************************************************************************
-   PURE SUBROUTINE standardize_derivative_desc(deriv_desc, res)
-      CHARACTER(len=*), INTENT(in)                       :: deriv_desc
-      CHARACTER(LEN=MAX_DERIVATIVE_DESC_LENGTH), &
-         INTENT(OUT)                                     :: res
+   FUNCTION desc_to_id(desc) RESULT(id)
+      CHARACTER(LEN=*), INTENT(IN)                       :: desc
+      INTEGER                                            :: id
 
-      CHARACTER(len=MAX_LABEL_LENGTH)                    :: tmp
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
-         POINTER                                         :: deriv_array
-      INTEGER                                            :: i, l_label, pos
-      LOGICAL                                            :: ordered
+      SELECT CASE (TRIM(desc))
+      CASE ("rho")
+         id = deriv_rho
+      CASE ("rhoa")
+         id = deriv_rhoa
+      CASE ("rhob")
+         id = deriv_rhob
+      CASE ("norm_drho")
+         id = deriv_norm_drho
+      CASE ("norm_drhoa")
+         id = deriv_norm_drhoa
+      CASE ("norm_drhob")
+         id = deriv_norm_drhob
+      CASE ("tau")
+         id = deriv_tau
+      CASE ("tau_a")
+         id = deriv_tau_a
+      CASE ("tau_b")
+         id = deriv_tau_b
+      CASE ("laplace_rho")
+         id = deriv_laplace_rho
+      CASE ("laplace_rhoa")
+         id = deriv_laplace_rhoa
+      CASE ("laplace_rhob")
+         id = deriv_laplace_rhob
+      CASE DEFAULT
+         CPABORT("Unknown derivative variable: "//desc)
+      END SELECT
 
-      CALL create_split_derivative_desc(deriv_desc, deriv_array)
-
-      ordered = .FALSE.
-      DO WHILE (.NOT. ordered)
-         ordered = .TRUE.
-         DO i = 1, SIZE(deriv_array) - 1
-            IF (deriv_array(i) > deriv_array(i + 1)) THEN
-               tmp = deriv_array(i + 1)
-               deriv_array(i + 1) = deriv_array(i)
-               deriv_array(i) = tmp
-               ordered = .FALSE.
-            END IF
-         END DO
-      END DO
-
-      res = ""
-      pos = 1
-      DO i = 1, SIZE(deriv_array)
-         l_label = LEN_TRIM(deriv_array(i))
-         res(pos:pos + l_label + 1) = '('//deriv_array(i) (1:l_label)//')'
-         pos = pos + l_label + 2
-      END DO
-
-      DEALLOCATE (deriv_array)
-
-   END SUBROUTINE standardize_derivative_desc
+   END FUNCTION desc_to_id
 
 ! **************************************************************************************************
-!> \brief returns an array of 1st order derivative descriptions
-!> \param deriv_desc input string which describes the derivative
-!> \param res ...
+!> \brief ...
+!> \param id ...
+!> \return ...
 ! **************************************************************************************************
-   PURE SUBROUTINE create_split_derivative_desc(deriv_desc, res)
-      CHARACTER(len=*), INTENT(in)                       :: deriv_desc
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
-         POINTER                                         :: res
+   FUNCTION id_to_desc(id) RESULT(desc)
+      INTEGER, INTENT(IN)                                :: id
+      CHARACTER(LEN=MAX_LABEL_LENGTH)                    :: desc
 
-      INTEGER                                            :: i, j, nderiv
+      SELECT CASE (id)
+      CASE (deriv_rho)
+         desc = "rho"
+      CASE (deriv_rhoa)
+         desc = "rhoa"
+      CASE (deriv_rhob)
+         desc = "rhob"
+      CASE (deriv_norm_drho)
+         desc = "norm_drho"
+      CASE (deriv_norm_drhoa)
+         desc = "norm_drhoa"
+      CASE (deriv_norm_drhob)
+         desc = "norm_drhob"
+      CASE (deriv_tau)
+         desc = "tau"
+      CASE (deriv_tau_a)
+         desc = "tau_a"
+      CASE (deriv_tau_b)
+         desc = "tau_b"
+      CASE (deriv_laplace_rho)
+         desc = "laplace_rho"
+      CASE (deriv_laplace_rhoa)
+         desc = "laplace_rhoa"
+      CASE (deriv_laplace_rhob)
+         desc = "laplace_rhob"
+      CASE DEFAULT
+         CPABORT("Unknown derivative id!")
+      END SELECT
 
-      nderiv = 0
-      DO i = 1, LEN(deriv_desc)
-         IF (deriv_desc(i:i) == '(') THEN
-            nderiv = nderiv + 1
-         END IF
-      END DO
+   END FUNCTION id_to_desc
 
-      ALLOCATE (res(nderiv))
+! **************************************************************************************************
+!> \brief ...
+!> \param desc ...
+!> \param split_desc ...
+! **************************************************************************************************
+   SUBROUTINE create_split_desc(desc, split_desc)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: desc
+      INTEGER, DIMENSION(:), POINTER                     :: split_desc
 
-      nderiv = 0
-      DO i = 1, LEN(deriv_desc)
-         IF (deriv_desc(i:i) == '(') THEN
-            nderiv = nderiv + 1
-            DO j = i + 1, LEN(deriv_desc)
-               IF (deriv_desc(j:j) == ')') EXIT
-            END DO
-!tc: should we do a check on the derivative descriptions?
-            res(nderiv) = deriv_desc(i + 1:j - 1)
-         END IF
-      END DO
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices
 
-   END SUBROUTINE create_split_derivative_desc
+      ALLOCATE (split_desc(SIZE(desc)))
+      IF (SIZE(desc) > 0) THEN
+         ALLOCATE (indices(SIZE(desc)))
+         split_desc = desc
+         CALL sort(split_desc, SIZE(desc), indices)
+         DEALLOCATE (indices)
+      END IF
+
+   END SUBROUTINE create_split_desc
+
+! **************************************************************************************************
+!> \brief ...
+!> \param desc ...
+!> \param split_desc ...
+! **************************************************************************************************
+   SUBROUTINE standardize_desc(desc, split_desc)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: desc
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: split_desc
+
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indices
+
+      ALLOCATE (split_desc(SIZE(desc)))
+      IF (SIZE(desc) > 0) THEN
+         ALLOCATE (indices(SIZE(desc)))
+         split_desc(:) = desc
+         CALL sort(split_desc, SIZE(desc), indices)
+         DEALLOCATE (indices)
+      END IF
+
+   END SUBROUTINE standardize_desc
 
 END MODULE xc_derivative_desc

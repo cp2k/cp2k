@@ -33,9 +33,17 @@ MODULE cp_linked_list_xc_deriv
             type(xc_derivative_type), INTENT(IN) :: el1, el2
             logical :: res
 
-            CPASSERT(associated(el1%split_desc))
-            CPASSERT(associated(el2%split_desc))
-     res = size(el1%split_desc) < size(el2%split_desc) .or. (size(el1%split_desc) == size(el2%split_desc) .and. el1%desc < el2%desc)
+            integer :: i
+
+            res = size(el1%split_desc) < size(el2%split_desc)
+            if (size(el1%split_desc) == size(el2%split_desc)) then
+               do i = 1, size(el1%split_desc)
+                  if (el1%split_desc(i) /= el2%split_desc(i)) then
+                     res = el1%split_desc(i) < el2%split_desc(i)
+                     exit
+                  end if
+               end do
+            end if
          end function
       #:enddef
 

@@ -113,6 +113,11 @@ MODULE xas_tdp_atom
                                               xas_tdp_env_type
    USE xc,                              ONLY: divide_by_norm_drho
    USE xc_atom,                         ONLY: xc_rho_set_atom_update
+   USE xc_derivative_desc,              ONLY: deriv_norm_drho,&
+                                              deriv_norm_drhoa,&
+                                              deriv_norm_drhob,&
+                                              deriv_rhoa,&
+                                              deriv_rhob
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_create,&
                                               xc_dset_get_derivative,&
@@ -2304,7 +2309,7 @@ CONTAINS
       !Deal with f_aa
 
       !Vxc, first term
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_norm_drhoa])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2317,7 +2322,7 @@ CONTAINS
       END IF
 
       !Vxc, second term
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_norm_drho])
 
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
@@ -2340,7 +2345,7 @@ CONTAINS
 !$OMP END DO NOWAIT
 
       !Vxg, first term (to be multiplied by drhoa)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_norm_drhoa])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2353,7 +2358,7 @@ CONTAINS
       END IF
 
       !Vxg, second term (to be multiplied by drhoa)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2366,7 +2371,7 @@ CONTAINS
       END IF
 
       !Vxg, third term (to be multiplied by drhoa)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_norm_drhoa])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2379,7 +2384,7 @@ CONTAINS
       END IF
 
       !Vxg, fourth term (to be multiplied by drhoa)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d1e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2404,7 +2409,7 @@ CONTAINS
       END DO !dir
 
       !Vxg, fifth term (to be multiplied by drhob)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2417,7 +2422,7 @@ CONTAINS
       END IF
 
       !Vxg, sixth term (to be multiplied by drhob)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2430,7 +2435,7 @@ CONTAINS
       END IF
 
       !Vxg, seventh term (to be multiplied by drhob)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho, deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2454,7 +2459,7 @@ CONTAINS
       END DO !dir
 
       !Vxg, last term
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d1e)
          DO dir = 1, 3
@@ -2482,7 +2487,7 @@ CONTAINS
       !Deal with fab
 
       !Vxc, first term
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drhob)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_norm_drhob])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2495,7 +2500,7 @@ CONTAINS
       END IF
 
       !Vxc, second term
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2517,7 +2522,7 @@ CONTAINS
 !$OMP END DO NOWAIT
 
       !Vxg, first term (to be multiplied by drhoa)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhob)(norm_drhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drhoa])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2530,7 +2535,7 @@ CONTAINS
       END IF
 
       !Vxg, second term (to be multiplied by drhoa)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2543,7 +2548,7 @@ CONTAINS
       END IF
 
       !Vxg, third term (to be multiplied by drhoa)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drhob)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_norm_drhob])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2567,7 +2572,7 @@ CONTAINS
       END DO !dir
 
       !Vxg, fourth term (to be multiplied by drhob)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhob)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2580,7 +2585,7 @@ CONTAINS
       END IF
 
       !Vxg, fifth term (to be multiplied by drhob)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drhob)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho, deriv_norm_drhob])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2593,7 +2598,7 @@ CONTAINS
       END IF
 
       !Vxg, sixth term (to be multiplied by drhob)
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho, deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2617,7 +2622,7 @@ CONTAINS
       END DO
 
       !Vxg, last term
-      deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
       IF (ASSOCIATED(deriv)) THEN
          CALL xc_derivative_get(deriv, deriv_data=d1e)
          DO dir = 1, 3
@@ -2646,7 +2651,7 @@ CONTAINS
       IF (ub == 3) THEN
 
          !Vxc, first term
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(norm_drhob)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drhob])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2659,7 +2664,7 @@ CONTAINS
          END IF
 
          !Vxc, second term
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(norm_drho)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drho])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2681,7 +2686,7 @@ CONTAINS
 !$OMP END DO NOWAIT
 
          !Vxg, first term (to be multiplied by drhob)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(norm_drhob)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drhob])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2694,7 +2699,7 @@ CONTAINS
          END IF
 
          !Vxg, second term (to be multiplied by drhob)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(norm_drho)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob, deriv_norm_drho])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2707,7 +2712,7 @@ CONTAINS
          END IF
 
          !Vxg, third term (to be multiplied by drhob)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(norm_drhob)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob, deriv_norm_drhob])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2720,7 +2725,7 @@ CONTAINS
          END IF
 
          !Vxg, fourth term (to be multiplied by drhob)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d1e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2745,7 +2750,7 @@ CONTAINS
          END DO !dir
 
          !Vxg, fifth term (to be multiplied by drhoa)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(norm_drho)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_norm_drho])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2758,7 +2763,7 @@ CONTAINS
          END IF
 
          !Vxg, sixth term (to be multiplied by drhoa)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(norm_drho)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob, deriv_norm_drho])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2771,7 +2776,7 @@ CONTAINS
          END IF
 
          !Vxg, seventh term (to be multiplied by drhoa)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho, deriv_norm_drho])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d2e)
 !$OMP DO SCHEDULE(STATIC) COLLAPSE(2)
@@ -2796,7 +2801,7 @@ CONTAINS
          END DO !dir
 
          !Vxg, last term
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)")
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob])
          IF (ASSOCIATED(deriv)) THEN
             CALL xc_derivative_get(deriv, deriv_data=d1e)
             DO dir = 1, 3
@@ -2872,11 +2877,11 @@ CONTAINS
 
       ! Get the second derivatives
       ALLOCATE (d2e(3))
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
       CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob])
       CALL xc_derivative_get(deriv, deriv_data=d2e(2)%array)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])
       CALL xc_derivative_get(deriv, deriv_data=d2e(3)%array)
 
       ! Allocate some work arrays
@@ -2948,18 +2953,18 @@ CONTAINS
       rhob => rho_set%rhob
 
       ALLOCATE (d1e(2))
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa])
       CALL xc_derivative_get(deriv, deriv_data=d1e(1)%array)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhob)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob])
       CALL xc_derivative_get(deriv, deriv_data=d1e(2)%array)
 
       ! In case rhoa -> rhob, take the limit, which involves the (already computed) second derivatives
       ALLOCATE (d2e(3))
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
       CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob])
       CALL xc_derivative_get(deriv, deriv_data=d2e(2)%array)
-      deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)")
+      deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])
       CALL xc_derivative_get(deriv, deriv_data=d2e(3)%array)
 
       !Compute the kernel on the grid. Already take weight into acocunt there

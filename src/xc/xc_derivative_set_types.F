@@ -26,8 +26,7 @@ MODULE xc_derivative_set_types
                                               pw_pool_release,&
                                               pw_pool_retain,&
                                               pw_pool_type
-   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
-                                              standardize_derivative_desc
+   USE xc_derivative_desc,              ONLY: standardize_desc
    USE xc_derivative_types,             ONLY: xc_derivative_create,&
                                               xc_derivative_release,&
                                               xc_derivative_type
@@ -66,11 +65,11 @@ CONTAINS
       RESULT(res)
 
       TYPE(xc_derivative_set_type), INTENT(IN)           :: derivative_set
-      CHARACTER(len=*), INTENT(in)                       :: description
+      INTEGER, DIMENSION(:), INTENT(in)                  :: description
       LOGICAL, INTENT(in), OPTIONAL                      :: allocate_deriv
       TYPE(xc_derivative_type), POINTER                  :: res
 
-      CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: std_deriv_desc
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: std_deriv_desc
       LOGICAL                                            :: my_allocate_deriv
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d_ptr
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
@@ -81,12 +80,14 @@ CONTAINS
       my_allocate_deriv = .FALSE.
       IF (PRESENT(allocate_deriv)) my_allocate_deriv = allocate_deriv
       NULLIFY (res)
-      CALL standardize_derivative_desc(description, std_deriv_desc)
+      CALL standardize_desc(description, std_deriv_desc)
       pos => derivative_set%derivs
       DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
-         IF (deriv_att%desc == std_deriv_desc) THEN
+         IF (SIZE(deriv_att%split_desc) == SIZE(std_deriv_desc)) THEN
+         IF (ALL(deriv_att%split_desc == std_deriv_desc)) THEN
             res => deriv_att
             EXIT
+         END IF
          END IF
       END DO
       IF (.NOT. ASSOCIATED(res) .AND. my_allocate_deriv) THEN

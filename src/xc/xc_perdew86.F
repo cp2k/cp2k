@@ -16,6 +16,8 @@ MODULE xc_perdew86
 
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE xc_derivative_desc,              ONLY: deriv_norm_drho,&
+                                              deriv_rho
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -153,17 +155,17 @@ CONTAINS
 
       CALL calc_rs_pw(rho, rs, npoints)
       IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
 
          CALL p86_u_0(rho, rs, grho, e_0, npoints)
       END IF
       IF (order >= 1 .OR. order == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
 
@@ -171,31 +173,31 @@ CONTAINS
                       e_ndrho, npoints)
       END IF
       IF (order >= 2 .OR. order == -2) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(norm_drho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_norm_drho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_ndrho)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
 
          CALL p86_u_2(rho, grho, rs, e_rho_rho, &
                       e_rho_ndrho, e_ndrho_ndrho, npoints)
       END IF
       IF (order >= 3 .OR. order == -3) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(rho)(rho)(norm_drho)", allocate_deriv=.TRUE.)
+                                         [deriv_rho, deriv_rho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_ndrho)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(rho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+                                         [deriv_rho, deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_ndrho_ndrho)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drho, deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho)
 
          CALL p86_u_3(rho, grho, rs, e_rho_rho_rho, &

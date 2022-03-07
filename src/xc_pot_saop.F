@@ -289,7 +289,7 @@ CONTAINS
                                deriv_set=deriv_set, &
                                deriv_order=0)
 
-      deriv => xc_dset_get_derivative(deriv_set, "")
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::])
       CALL xc_derivative_get(deriv, deriv_data=e_uniform)
 
       ALLOCATE (vxc_GLLB(nspins))
@@ -749,7 +749,7 @@ CONTAINS
             NULLIFY (dummy)
 
             vxc_GLLB_h = 0.0_dp
-            deriv => xc_dset_get_derivative(deriv_set, "")
+            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::])
             CPASSERT(ASSOCIATED(deriv))
             CALL xc_derivative_get(deriv, deriv_data=e_uniform)
             DO ispin = 1, nspins
@@ -775,7 +775,7 @@ CONTAINS
             NULLIFY (dummy)
 
             vxc_GLLB_s = 0.0_dp
-            deriv => xc_dset_get_derivative(deriv_set, "")
+            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::])
             CPASSERT(ASSOCIATED(deriv))
             CALL xc_derivative_get(deriv, deriv_data=e_uniform)
             DO ispin = 1, nspins
@@ -1006,7 +1006,7 @@ CONTAINS
             CASE (oe_saop)
                CALL gaVxcgb_noGC(vxc_SAOP_h, vxc_SAOP_s, qs_kind_set(ikind), rho_atom, nspins)
             CASE default
-               CPABORT("")
+               CPABORT("Unknown correction!")
             END SELECT
 
          END DO

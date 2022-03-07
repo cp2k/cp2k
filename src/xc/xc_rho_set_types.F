@@ -188,7 +188,7 @@ CONTAINS
                   CALL xc_rho_set_clean(rho_set, pw_pool)
                   rho_set%ref_count = 0
                ELSE
-                  CPABORT("")
+                  CPABORT("pw_pool must be associated")
                END IF
             END IF
 
@@ -624,7 +624,7 @@ CONTAINS
          CPASSERT(rho_r(1)%pw%in_use == REALDATA3D)
          CPASSERT(rho_r(2)%pw%in_use == REALDATA3D)
       CASE default
-         CPABORT("")
+         CPABORT("Unknown number of spin states")
       END SELECT
 
       CALL xc_rho_set_clean(rho_set, pw_pool=pw_pool)
@@ -687,7 +687,7 @@ CONTAINS
                                   pw_out=my_rho_r(ispin)%pw, &
                                   coeffs=nn50_coeffs)
             CASE default
-               CPABORT("")
+               CPABORT("Unsupported smoothing")
             END SELECT
          END IF
 
@@ -805,7 +805,7 @@ CONTAINS
                   END DO
                   CPABORT("Drho collocation not implemented")
                CASE default
-                  CPABORT("")
+                  CPABORT("Unknown deriv method")
                END SELECT
             END IF
 
