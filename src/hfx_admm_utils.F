@@ -634,7 +634,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
 
       LOGICAL, PARAMETER                                 :: debug_functional = .FALSE.
-      REAL(KIND=dp), PARAMETER :: x_factor_c = 0.930525736349100025
+      REAL(KIND=dp), PARAMETER :: x_factor_c = 0.930525736349100025_dp
 
       CHARACTER(LEN=20)                                  :: name_x_func
       INTEGER                                            :: hfx_potential_type, ifun, iounit, nfun
