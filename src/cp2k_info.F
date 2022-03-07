@@ -304,6 +304,10 @@ CONTAINS
       flags = TRIM(flags)//" offload_profiling"
 #endif
 
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+      flags = TRIM(flags)//" spla_gemm_offloading"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************

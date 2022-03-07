@@ -127,7 +127,8 @@ MODULE qs_environment
                                               write_molecule_kind_set
    USE molecule_types,                  ONLY: molecule_type
    USE mp2_setup,                       ONLY: read_mp2_section
-   USE mp2_types,                       ONLY: mp2_type
+   USE mp2_types,                       ONLY: mp2_env_create,&
+                                              mp2_type
    USE multipole_types,                 ONLY: do_multipole_none
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
@@ -888,7 +889,7 @@ CONTAINS
          END IF
 
          ! Check if RI_AUX basis (for MP2/RPA) is given, auto-generate if not
-         ALLOCATE (qs_env%mp2_env)
+         CALL mp2_env_create(qs_env%mp2_env)
          CALL get_qs_env(qs_env, mp2_env=mp2_env, nkind=nkind)
          CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%RI_MP2%_SECTION_PARAMETERS_", l_val=do_ri_mp2)
          CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%RI_SOS_MP2%_SECTION_PARAMETERS_", l_val=do_ri_sos_mp2)
