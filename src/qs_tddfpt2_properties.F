@@ -545,6 +545,7 @@ CONTAINS
 !> \param mult               multiplicity
 !> \param dipole_op_mos_occ  action of the dipole operator on the ground state wave function
 !>                           [x,y,z ; spin]
+!> \param dipole_form ...
 !> \par History
 !>    * 05.2016 created [Sergey Chulkov]
 !>    * 06.2016 transition dipole moments and oscillator strengths [Sergey Chulkov]
@@ -558,12 +559,13 @@ CONTAINS
 !>       \f[ t_d(spin) = Tr[evects^T dipole\_op\_mos\_occ(d, spin)] .\f]
 !>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ)
+   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ, dipole_form)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       INTEGER, INTENT(in)                                :: mult
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: dipole_op_mos_occ
+      INTEGER, INTENT(in)                                :: dipole_form
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_summary'
 
@@ -588,7 +590,17 @@ CONTAINS
       ! *** summary header ***
       IF (log_unit > 0) THEN
          CALL integer_to_string(mult, mult_str)
-         WRITE (log_unit, '(/,1X,A1,A,1X,A,/)') lsd_str, "-TDDFPT states of multiplicity", TRIM(mult_str)
+         WRITE (log_unit, '(/,1X,A1,A,1X,A)') lsd_str, "-TDDFPT states of multiplicity", TRIM(mult_str)
+         SELECT CASE (dipole_form)
+         CASE (tddfpt_dipole_berry)
+            WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using Berry operator formulation"
+         CASE (tddfpt_dipole_length)
+            WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using length formulation"
+         CASE (tddfpt_dipole_velocity)
+            WRITE (log_unit, '(1X,A,/)') "Transition dipoles calculated using velocity formulation"
+         CASE DEFAULT
+            CPABORT("Unimplemented form of the dipole operator")
+         END SELECT
 
          WRITE (log_unit, '(T10,A,T19,A,T37,A,T69,A)') "State", "Excitation", &
             "Transition dipole (a.u.)", "Oscillator"
