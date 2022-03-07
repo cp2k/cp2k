@@ -122,7 +122,7 @@ MODULE cp2k_runs
    USE pint_methods, ONLY: do_pint_run
    USE pw_fpga, ONLY: pw_fpga_finalize, &
                       pw_fpga_init
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
    USE pw_gpu, ONLY: pw_gpu_finalize, &
                      pw_gpu_init
 #endif
@@ -211,7 +211,7 @@ CONTAINS
       CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
 #endif
 
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
       CALL pw_gpu_init()
 #endif
 
@@ -284,7 +284,7 @@ CONTAINS
          CALL dbcsr_finalize_lib()
          IF (method_name_id == do_sirius) CALL cp_sirius_finalize()
 
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
          CALL pw_gpu_finalize()
 #endif
 
@@ -301,7 +301,7 @@ CONTAINS
          CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
 #endif
 
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
          CALL pw_gpu_init()
 #endif
          CALL pw_fpga_init()
@@ -428,7 +428,7 @@ CONTAINS
 
       IF (method_name_id == do_sirius) CALL cp_sirius_finalize()
 
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
       CALL pw_gpu_finalize()
 #endif
 

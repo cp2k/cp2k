@@ -11,9 +11,6 @@ FC          = mpifrtpx
 LD          = mpiFCCpx
 DFLAGS      = -D__parallel -D__MPI_VERSION=3 -D__SCALAPACK
 DFLAGS     += -D__FFTW3
-DFLAGS     += -D__NO_OFFLOAD_GRID
-DFLAGS     += -D__NO_OFFLOAD_PW
-DFLAGS     += -D__NO_OFFLOAD_DBM
 FCFLAGS     = -Free -X08 -Kopenmp,SVE $(DFLAGS)
 FCFLAGS    += -I$(FFTW_DIR)/include
 CFLAGS      = -Kopenmp,SVE $(DFLAGS)

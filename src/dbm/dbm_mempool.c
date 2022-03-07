@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if !defined(__NO_OFFLOAD_DBM)
+#if defined(__OFFLOAD_DBM)
 #include "../offload/offload_operations.h"
 #endif
 #include "../offload/offload_library.h"
@@ -35,7 +35,7 @@
 static void *actual_malloc(const size_t size, const bool on_device) {
   (void)on_device; // mark used
 
-#ifndef __NO_OFFLOAD_DBM
+#if defined(__OFFLOAD_DBM)
   if (on_device) {
     void *memory;
     offload_set_device();
@@ -61,7 +61,7 @@ static void actual_free(void *memory, const bool on_device) {
     return;
   }
 
-#ifndef __NO_OFFLOAD_DBM
+#if defined(__OFFLOAD_DBM)
   if (on_device) {
     offload_set_device();
     offloadFree(memory);

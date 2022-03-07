@@ -117,7 +117,7 @@ MODULE f77_interface
                           offload_get_device_id, &
                           offload_set_device_id
    USE periodic_table, ONLY: init_periodic_table
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
    USE pw_gpu, ONLY: pw_gpu_finalize, &
                      pw_gpu_init
 #endif
@@ -294,7 +294,7 @@ CONTAINS
          CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr)
 #endif
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
          CALL pw_gpu_init()
 #endif
          CALL grid_library_init()
@@ -340,7 +340,7 @@ CONTAINS
 
          ! Finalize the DBCSR configuration
          CALL dbcsr_finalize_lib()
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
          CALL pw_gpu_finalize()
 #endif
          CALL cp_para_env_release(default_para_env)

@@ -7,15 +7,14 @@
 #ifndef OFFLOAD_LIBRARY_H
 #define OFFLOAD_LIBRARY_H
 
-#if !defined(__NO_OFFLOAD_GRID) || !defined(__NO_OFFLOAD_PW) ||                \
-    !defined(__NO_OFFLOAD_DBM)
+#if defined(__OFFLOAD_GRID) || defined(__OFFLOAD_PW) || defined(__OFFLOAD_DBM)
 
 /* Check that __OFFLOAD_CUDA or __OFFLOAD_HIP are given. breaks the compilation
  * if not */
 
 #if !defined(__OFFLOAD_CUDA) && !defined(__OFFLOAD_HIP)
 #error                                                                         \
-    "GPU support is activated by default for modules supporting it. To continue compilation please add -D__OFFLOAD_CUDA or -D__OFFLOAD_HIP to DFLAGS"
+    "GPU support is activated for modules supporting it. To continue compilation please add -D__OFFLOAD_CUDA or -D__OFFLOAD_HIP to DFLAGS"
 #endif
 #endif
 

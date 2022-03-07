@@ -47,7 +47,7 @@ void grid_create_task_list(
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
-#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_GRID)
       task_list->backend = GRID_BACKEND_GPU;
 #else
       task_list->backend = GRID_BACKEND_REF;
@@ -110,7 +110,7 @@ void grid_create_task_list(
   case GRID_BACKEND_GPU:
     fprintf(stderr, "Error: The GPU grid backend is not available. "
                     "Please re-compile with -D__OFFLOAD_CUDA or "
-                    "-D__OFFLOAD_HIP and without -D__NO_OFFLOAD_GRID");
+                    "-D__OFFLOAD_HIP and -D__OFFLOAD_GRID");
     abort();
     break;
 #endif
@@ -139,7 +139,7 @@ void grid_free_task_list(grid_task_list *task_list) {
     task_list->cpu = NULL;
   }
 
-#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_GRID)
   if (task_list->gpu != NULL) {
 #ifdef __OFFLOAD_CUDA
     grid_gpu_free_task_list(task_list->gpu);
@@ -182,7 +182,7 @@ void grid_collocate_task_list(const grid_task_list *task_list,
     grid_cpu_collocate_task_list(task_list->cpu, func, nlevels, pab_blocks,
                                  grids);
     break;
-#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
 #ifdef __OFFLOAD_CUDA
     grid_gpu_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
@@ -270,12 +270,12 @@ void grid_integrate_task_list(
   assert(virial == NULL || pab_blocks != NULL);
 
   switch (task_list->backend) {
-#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
-#ifdef __OFFLOAD_CUDA
+#if defined(__OFFLOAD_CUDA)
     grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms, nlevels,
                                  pab_blocks, grids, hab_blocks, forces, virial);
-#elif __OFFLOAD_HIP
+#elif defined(__OFFLOAD_HIP)
     grid_hip_integrate_task_list(task_list->gpu, compute_tau, nlevels,
                                  pab_blocks, grids, hab_blocks, &forces[0][0],
                                  &virial[0][0]);

@@ -185,15 +185,15 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 ### 2j. GPU support (optional, improved performance on GPU systems)
 
 By default CUDA or HIP support are enabled, imply that all cp2k code that
-include gpu support is enabled by default. The three following variables can be
-added to the `DFLAGS` variable to disable the different parts of the code when
-needed.
+include gpu support is enabled by default.  The `DFLAGS` variable contains the
+following three options:
 
-- `__NO_OFFLOAD_GRID` if gpu support for collocate/integrate is not needed
-- `__NO_OFFLOAD_DBM` if dbm gpu support is not needed
-- `__NO_OFFLOAD_PW` if fft gpu support is not needed
+- `__OFFLOAD_GRID` for gpu support in the grid backend
+- `__OFFLOAD_DBM` for gpu support in dbm module
+- `__OFFLOAD_PW` for gpu support in fft module
 
-these three parameters are common to all GPU vendors.
+these three parameters are common to all GPU vendors and removing them from the
+`DFLAGS` variable will turn off the GPU backends.
 
 #### parameters specific to CUDA
 
@@ -207,15 +207,16 @@ these three parameters are common to all GPU vendors.
   possible values are K20X, K40, K80, P100, V100.
 - Specify the C++ compiler (e.g. `CXX = g++`) and the CXXFLAGS to support
   the C++11 standard.
-- Use `-D__PW_CUDA` for CUDA support for PW (gather/scatter/fft) calculations.
+- Add `-D__OFFLOAD_CUDA` to the `DFLAGS` variable
+- Use `-D__OFFLOAD_PW` for CUDA support for PW (gather/scatter/fft) calculations.
 - CUFFT 7.0 has a known bug and is therefore disabled by default.
   NVIDIA's webpage list a patch (an upgraded version cufft i.e. >= 7.0.35) -
   use this together with `-D__HAS_PATCHED_CUFFT_70`.
 - Use `-D__OFFLOAD_PROFILING` to turn on Nvidia Tools Extensions.
   It requires to link `-lnvToolsExt`.
+- Use the `-D__OFFLOAD_GRID` to compile the nvidia GPU backend for the grid library.
+- Use the `-D__OFFLOAD_DBM` to compile the GPU backend for the sparse tensor library.
 - Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
-- Use the `-D__GRID_CUDA` to compile the GPU and HYBRID backends for the grid library.
-- Use the `-D__DBM_CUDA` to compile the GPU backend for the sparse tensor library.
 
 #### parameters specific to HIP / ROCM
 
@@ -498,10 +499,10 @@ partially depending on installed libraries (see 2.)
 - `-D__LIBXC` use LIBXC
 - `-D__ELPA` use ELPA in place of SYEVD  to solve the eigenvalue problem
 - `-D__FFTW3` FFTW version 3 is recommended
-- `-D__NO_OFFLOAD_PW` to disable CUDA or hip FFT and associated gather/scatter
+- `-D__OFFLOAD_PW` to enable CUDA or hip FFT and associated gather/scatter
 on the GPU
-- `-D__NO_OFFLOAD_GRID` to disable CUDA / HIP collocate integrate functions
-- `-D__NU_OFFLOAD_DBM` to disable gpu dbm support
+- `-D__OFFLOAD_GRID` to enable CUDA / HIP collocate integrate functions
+- `-D__OFFLOAD_DBM` to enable gpu dbm support
 - `-D__MKL` link the MKL library for linear algebra and/or FFT
 - `-D__GRID_CORE=X` (with X=1..6) specific optimized core routines can be
   selected.  Reasonable defaults are [provided](./src/grid/collocate_fast.f90)

@@ -8,9 +8,6 @@ AR       = ar -r
 RANLIB   = ranlib
 CFLAGS   = -O2 -fopenmp -g
 DFLAGS   = -D__NO_STATM_ACCESS -D__ACCELERATE -D__LIBXC -D__LIBINT
-DFLAGS     += -D__NO_OFFLOAD_GRID
-DFLAGS     += -D__NO_OFFLOAD_PW
-DFLAGS     += -D__NO_OFFLOAD_DBM
 FCFLAGS  = -I $(LIBXC_INCLUDE_DIR) -I $(LIBINT_INCLUDE_DIR) -fopenmp -funroll-loops \
            -ftree-vectorize -ffree-form -O2 -g $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)

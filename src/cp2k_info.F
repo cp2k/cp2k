@@ -143,7 +143,7 @@ CONTAINS
       flags = TRIM(flags)//" quip"
 #endif
 
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
       flags = TRIM(flags)//" pw_gpu"
 #if defined(__OFFLOAD_HIP)
       flags = TRIM(flags)//" pw_hip"
@@ -292,7 +292,7 @@ CONTAINS
       flags = TRIM(flags)//" libmaxwell"
 #endif
 
-#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_GRID)
 #if defined(__OFFLOAD_CUDA)
       flags = TRIM(flags)//" grid_cuda"
 #endif
@@ -301,7 +301,7 @@ CONTAINS
 #endif
 #endif
 
-#ifndef __NO_OFFLOAD_DBM
+#if defined(__OFFLOAD_DBM)
 #if defined(__OFFLOAD_CUDA)
       flags = TRIM(flags)//" dbm_cuda"
 #endif

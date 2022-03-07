@@ -3,9 +3,6 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 DFLAGS   = -D__FFTW3 -D__NO_STATM_ACCESS
-DFLAGS  += -D__NO_OFFLOAD_GRID
-DFLAGS  += -D__NO_OFFLOAD_PW
-DFLAGS  += -D__NO_OFFLOAD_DBM
 FCFLAGS  = -O2 -fopenmp -funroll-loops -ftree-vectorize -march=native -ffree-form $(DFLAGS)
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -llapack -lblas -lfftw3 -lfftw3_omp

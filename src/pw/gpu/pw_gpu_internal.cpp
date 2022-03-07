@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
 
-#ifndef __NO_OFFLOAD_PW
+#if defined(__OFFLOAD_PW)
 
 #include <array>
 #include <cstdio>

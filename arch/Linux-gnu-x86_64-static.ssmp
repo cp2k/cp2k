@@ -62,9 +62,6 @@ else
 endif
 
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
-DFLAGS         += -D__NO_OFFLOAD_GRID
-DFLAGS         += -D__NO_OFFLOAD_PW
-DFLAGS         += -D__NO_OFFLOAD_DBM
 
 INSTALL_PATH   := $(PWD)/tools/toolchain/install
 

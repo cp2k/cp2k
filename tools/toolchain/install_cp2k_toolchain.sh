@@ -229,11 +229,11 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-libvori          Enable libvori for the Voronoi integration (and the BQB compressed trajectory format)
                           Default = install
-  --enable-grid-offload   Enable grid offloading on GPU (only valid when CUDA or HIP are enabled)
+  --enable-grid-offload   Enable grid offloading on GPU. It has no effect unless CUDA or HIP are enabled.
                           Default = true
-  --enable-dbm-offload    Enable dbm offloading on GPU  (only valid when CUDA or HIP are enabled)
+  --enable-dbm-offload    Enable dbm offloading on GPU. It has no effect unless CUDA or HIP are enabled.
                           Default = true
-  --enable-pw-offload     Enable fft offloading on GPU (only valid when CUDA or HIP are enabled)
+  --enable-pw-offload     Enable fft offloading on GPU. It has no effect unless CUDA or HIP are enabled.
                           Default = true
 
 FURTHER INSTRUCTIONS
@@ -353,9 +353,9 @@ enable_gcc_master="__FALSE__"
 enable_libxsmm_master="__FALSE__"
 enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
-enable_grid_offloading="__FALSE__"
-enable_pw_offloading="__FALSE__"
-enable_dbm_offloading="__FALSE__"
+enable_grid_offloading="__TRUE__"
+enable_pw_offloading="__TRUE__"
+enable_dbm_offloading="__TRUE__"
 
 export GPUVER="no"
 
@@ -748,18 +748,9 @@ else
   esac
 fi
 
-# If CUDA or HIP are enabled, make sure the GPU version has been defined.
-if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
-  if [ "${GPUVER}" = "no" ]; then
-    report_error "Please choose GPU architecture to compile for with --gpu-ver"
-    exit 1
-  fi
-  enable_dbm_offloading="__TRUE__"
-  enable_pw_offloading="__TRUE__"
-  enable_grid_offloading="__TRUE__"
-fi
-
-# if cuda or hip are not explicitly given disable all offloading code to gpu
+# if cuda or hip are not explicitly given disable all offloading code to gpu.
+# Note that if --enable-option=no and cuda or hip are requested the value of
+# enable_option has precedence over CUDA or HIP
 
 if [ "${ENABLE_CUDA}" = "__FALSE__" ] && [ "${ENABLE_HIP}" = "__FALSE__" ]; then
   enable_dbm_offloading="__FALSE__"

@@ -15,7 +15,7 @@
 #include "cpu/grid_cpu_task_list.h"
 #include "ref/grid_ref_task_list.h"
 
-#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_GRID)
 #if defined(__OFFLOAD_CUDA)
 #include "gpu/grid_gpu_task_list.h"
 #elif defined(__OFFLOAD_HIP)
@@ -33,7 +33,7 @@ typedef struct {
   int (*npts_local)[3];
   grid_ref_task_list *ref;
   grid_cpu_task_list *cpu;
-#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_GRID)
   grid_gpu_task_list *gpu;
 #endif
   // more backends to be added here

@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef __NO_OFFLOAD_DBM
+#if defined(__OFFLOAD_DBM)
 
 #include <assert.h>
 #include <stdio.h>

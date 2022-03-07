@@ -51,11 +51,7 @@ CHECKS=0
 DFLAGS   = -D__parallel -D__SCALAPACK \
            -D__FFTW3 \
            -D__LIBXSMM \
-           -D__LIBXC \
-           -D__NO_OFFLOAD_GRID \
-           -D__NO_OFFLOAD_PW \
-           -D__NO_OFFLOAD_DBM
-
+           -D__LIBXC
 # === LIBRARIES and MODULES ===
 
 LIBS    += -lfftw3 -lfftw3_omp

@@ -16,7 +16,7 @@
 #include "dbm_multiply_comm.h"
 #include "dbm_multiply_cpu.h"
 
-#if !defined(__NO_OFFLOAD_DBM)
+#if defined(__OFFLOAD_DBM)
 #include "dbm_multiply_gpu.h"
 #if !defined(__OFFLOAD_CUDA) && !defined(__OFFLOAD_HIP)
 #error "Please add -D__OFFLOAD_CUDA or -D__OFFLOAD_HIP to the DFLAGS variable"
@@ -74,7 +74,7 @@ typedef dbm_multiply_gpu_context_t backend_context_t;
 static backend_context_t *backend_start(const dbm_matrix_t *matrix_c) {
   backend_context_t *ctx = calloc(1, sizeof(backend_context_t));
 
-#if !defined(__NO_OFFLOAD_DBM)
+#if defined(__OFFLOAD_DBM)
   dbm_multiply_gpu_start(MAX_BATCH_SIZE, matrix_c->nshards, matrix_c->shards,
                          ctx);
 #else
@@ -92,7 +92,7 @@ static void backend_upload_packs(const dbm_pack_t *pack_a,
                                  const dbm_pack_t *pack_b,
                                  backend_context_t *ctx) {
 
-#if !defined(__NO_OFFLOAD_DBM)
+#if defined(__OFFLOAD_DBM)
   dbm_multiply_gpu_upload_packs(pack_a, pack_b, ctx);
 #else
   (void)pack_a;   // mark as used
@@ -111,7 +111,7 @@ static void backend_process_batch(const int ntasks, dbm_task_t batch[ntasks],
                                   const dbm_pack_t *pack_b, const int kshard,
                                   dbm_shard_t *shard_c,
                                   backend_context_t *ctx) {
-#if !defined(__NO_OFFLOAD_DBM)
+#if defined(__OFFLOAD_DBM)
   (void)pack_a; // mark as used
   (void)pack_b;
   (void)shard_c;
@@ -130,7 +130,7 @@ static void backend_process_batch(const int ntasks, dbm_task_t batch[ntasks],
  * \author Ole Schuett
  ******************************************************************************/
 static void backend_download_results(backend_context_t *ctx) {
-#if !defined(__NO_OFFLOAD_DBM)
+#if defined(__OFFLOAD_DBM)
   dbm_multiply_gpu_download_results(ctx);
 #else
   (void)ctx; // mark as used
@@ -142,7 +142,7 @@ static void backend_download_results(backend_context_t *ctx) {
  * \author Ole Schuett
  ******************************************************************************/
 static void backend_stop(backend_context_t *ctx) {
-#if !defined(__NO_OFFLOAD_DBM)
+#if defined(__OFFLOAD_DBM)
   dbm_multiply_gpu_stop(ctx);
 #endif
   free(ctx);

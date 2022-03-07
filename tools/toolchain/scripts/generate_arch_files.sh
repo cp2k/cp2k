@@ -119,19 +119,9 @@ CXXFLAGS+=" --std=c++11 \$(DFLAGS) -Wno-deprecated-declarations"
 CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
 CUDA_DFLAGS="-D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|) -D__OFFLOAD_CUDA"
 
-if [ "${ENABLE_DBM_OFFLOADING}" != __TRUE__ ]; then
-  DFLAGS+=" -D__NO_OFFLOAD_DBM"
-fi
-if [ "${ENABLE_PW_OFFLOADING}" != __TRUE__ ]; then
-  DFLAGS+=" -D__NO_OFFLOAD_PW"
-fi
-if [ "${ENABLE_GRID_OFFLOADING}" != __TRUE__ ]; then
-  DFLAGS+=" -D__NO_OFFLOAD_GRID"
-fi
-
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
-  DFLAGS="IF_CUDA(${CUDA_DFLAGS}|-D__NO_OFFLOAD_GRID -D__NO_OFFLOAD_DBM -D__NO_OFFLOAD_PW) ${DFLAGS}"
+  DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
   NVFLAGS="-g -arch sm_${ARCH_NUM} -O3 -allow-unsupported-compiler -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
   check_command nvcc "cuda"
   check_lib -lcudart "cuda"
@@ -173,7 +163,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
 
   PLATFORM_FLAGS=''
   HIP_INCLUDES="-I${ROCM_PATH}/hip/include -I${ROCM_PATH}/hipblas/include -I${ROCM_PATH}/include"
-  DFLAGS+=" IF_HIP(-D__OFFLOAD_HIP|-D__NO_OFFLOAD_GRID -D__NO_OFFLOAD_DBM -D__NO_OFFLOAD_PW)"
+  DFLAGS+=" IF_HIP(-D__OFFLOAD_HIP|)"
 
   case "${GPUVER}" in
     Mi50)
@@ -196,7 +186,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       add_lib_from_paths HIP_LDFLAGS "libroctx64.*" $LIB_PATHS
       check_lib -lroctracer64 "hip"
       add_lib_from_paths HIP_LDFLAGS "libroctracer64.*" $LIB_PATHS
-      HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__  -D__OFFLOAD_HIP -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
+      HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP( -lhipblas -lamdhip64 IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
       DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
@@ -231,6 +221,17 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CXXFLAGS+=" ${HIP_INCLUDES}"
 fi
 
+if [ "${ENABLE_HIP}" = __TRUE__ ] || [ "${ENABLE_CUDA}" = __TRUE__ ]; then
+  if [ "${ENABLE_GRID_OFFLOADING}" = __TRUE__ ]; then
+    DFLAGS+=" -D__OFFLOAD_GRID"
+  fi
+  if [ "${ENABLE_PW_OFFLOADING}" = __TRUE__ ]; then
+    DFLAGS+=" -D__OFFLOAD_PW"
+  fi
+  if [ "${ENABLE_DBM_OFFLOADING}" = __TRUE__ ]; then
+    DFLAGS+=" -D__OFFLOAD_DBM"
+  fi
+fi
 # -------------------------
 # generate the arch files
 # -------------------------

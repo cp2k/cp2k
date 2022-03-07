@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef __NO_OFFLOAD_GRID
+#if defined(__OFFLOAD_GRID)
 
 #include <algorithm>
 #include <assert.h>
