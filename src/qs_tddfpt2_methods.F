@@ -436,7 +436,7 @@ CONTAINS
                       "the velocity form of dipole transition integrals")
       END IF
 
-      CALL tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ)
+      CALL tddfpt_print_summary(log_unit, evects, evals, mult, dipole_op_mos_occ, tddfpt_control%dipole_form)
       CALL tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s(1)%matrix, &
                                             min_amplitude=tddfpt_control%min_excitation_amplitude)
       CALL tddfpt_print_nto_analysis(qs_env, evects, evals, gs_mos, matrix_s(1)%matrix, &
