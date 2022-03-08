@@ -254,34 +254,6 @@ CONTAINS
                           description="Configuration options for the ACC-Driver.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-      CALL dbcsr_get_default_config(accdrv_priority_buffers=idefault)
-      CALL keyword_create(keyword, __LOCATION__, name="priority_buffers", &
-                          description="Number of transfer-buffers associated with high priority streams.", &
-                          default_i_val=idefault)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL dbcsr_get_default_config(accdrv_posterior_buffers=idefault)
-      CALL keyword_create(keyword, __LOCATION__, name="posterior_buffers", &
-                          description="Number of transfer-buffers associated with low priority streams.", &
-                          default_i_val=idefault)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL dbcsr_get_default_config(accdrv_priority_streams=idefault)
-      CALL keyword_create(keyword, __LOCATION__, name="priority_streams", &
-                          description="Number of acc streams created with high priority.", &
-                          default_i_val=idefault)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL dbcsr_get_default_config(accdrv_posterior_streams=idefault)
-      CALL keyword_create(keyword, __LOCATION__, name="posterior_streams", &
-                          description="Number of acc streams created with low priority.", &
-                          default_i_val=idefault)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
       CALL dbcsr_get_default_config(accdrv_avoid_after_busy=ldefault)
       CALL keyword_create(keyword, __LOCATION__, name="avoid_after_busy", &
                           description="If enabled, stacks are not processed by the acc-driver " &
@@ -402,18 +374,6 @@ CONTAINS
 
       CALL section_vals_val_get(dbcsr_section, "TENSOR%tas_split_factor", r_val=rval)
       CALL dbcsr_set_config(tas_split_factor=rval)
-
-      CALL section_vals_val_get(dbcsr_section, "ACC%priority_streams", i_val=ival)
-      CALL dbcsr_set_config(accdrv_priority_streams=ival)
-
-      CALL section_vals_val_get(dbcsr_section, "ACC%priority_buffers", i_val=ival)
-      CALL dbcsr_set_config(accdrv_priority_buffers=ival)
-
-      CALL section_vals_val_get(dbcsr_section, "ACC%posterior_streams", i_val=ival)
-      CALL dbcsr_set_config(accdrv_posterior_streams=ival)
-
-      CALL section_vals_val_get(dbcsr_section, "ACC%posterior_buffers", i_val=ival)
-      CALL dbcsr_set_config(accdrv_posterior_buffers=ival)
 
       CALL section_vals_val_get(dbcsr_section, "ACC%min_flop_process", i_val=ival)
       CALL dbcsr_set_config(accdrv_min_flop_process=ival)
