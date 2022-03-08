@@ -16,7 +16,8 @@
 !>                 [Felix Uhl
 ! **************************************************************************************************
 MODULE pint_normalmode
-   USE input_constants,                 ONLY: propagator_pimd,&
+   USE input_constants,                 ONLY: propagator_cmd,&
+                                              propagator_pimd,&
                                               propagator_rpmd
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
@@ -61,7 +62,9 @@ CONTAINS
       INTEGER, INTENT(in)                                :: propagator
 
       INTEGER                                            :: i, j, k, li
-      REAL(kind=dp)                                      :: invsqrtp, pip, sqrt2p, twopip
+      LOGICAL                                            :: explicit_gamma, explicit_modefactor
+      REAL(kind=dp)                                      :: gamma_parameter, invsqrtp, pip, sqrt2p, &
+                                                            twopip
 
       CPASSERT(.NOT. ASSOCIATED(normalmode_env))
       ALLOCATE (normalmode_env)
@@ -79,7 +82,27 @@ CONTAINS
       CALL section_vals_val_get(normalmode_section, "Q_BEAD", &
                                 r_val=normalmode_env%Q_bead)
       CALL section_vals_val_get(normalmode_section, "MODEFACTOR", &
+                                explicit=explicit_modefactor, &
                                 r_val=normalmode_env%modefactor)
+      CALL section_vals_val_get(normalmode_section, "GAMMA", &
+                                r_val=gamma_parameter, &
+                                explicit=explicit_gamma)
+
+      IF (explicit_modefactor .AND. explicit_gamma) THEN
+         CPABORT("Both GAMMA and MODEFACTOR have been declared. Please use only one.")
+      END IF
+      IF (explicit_gamma) THEN
+         normalmode_env%modefactor = 1.0_dp/gamma_parameter**2
+      END IF
+
+      IF (propagator == propagator_cmd) THEN
+         IF (.NOT. explicit_gamma) THEN
+            CPABORT("GAMMA needs to be specified with CMD PROPAGATOR")
+         END IF
+         IF (gamma_parameter <= 1.0_dp) THEN
+            CPWARN("GAMMA should be larger than 1.0 for CMD PROPAGATOR")
+         END IF
+      END IF
 
       IF (normalmode_env%Q_centroid < 0.0_dp) THEN
          normalmode_env%Q_centroid = -normalmode_env%Q_centroid/(kT*p)
@@ -89,8 +112,14 @@ CONTAINS
       END IF
 
       !Use different normal mode transformations depending on the propagator
-      IF (propagator == propagator_pimd) THEN
-         normalmode_env%harm = p*kT*kT/normalmode_env%modefactor
+      IF (propagator == propagator_pimd .OR. propagator == propagator_cmd) THEN
+
+         IF (propagator == propagator_pimd) THEN
+            normalmode_env%harm = p*kT*kT/normalmode_env%modefactor
+         ELSE IF (propagator == propagator_cmd) THEN
+            normalmode_env%harm = p*kT*kT*gamma_parameter*gamma_parameter
+            normalmode_env%modefactor = 1.0_dp/(gamma_parameter*gamma_parameter)
+         END IF
 
          ! set up the transformation matrices
          DO i = 1, p
@@ -118,6 +147,7 @@ CONTAINS
             END DO
          END DO
          normalmode_env%lambda(:) = normalmode_env%harm
+
       ELSE IF (propagator == propagator_rpmd) THEN
          normalmode_env%harm = kT/normalmode_env%modefactor
          sqrt2p = SQRT(2.0_dp/REAL(p, dp))

@@ -85,7 +85,7 @@ CONTAINS
                                 qs_env, para_env, unit_nr, C_j, Auto_j)
       INTEGER                                            :: dimen, occ_i, occ_j
       TYPE(mp2_biel_type)                                :: mp2_biel
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), DIMENSION(dimen, dimen)             :: C_i
       REAL(KIND=dp), DIMENSION(dimen)                    :: Auto_i
       REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_ex
@@ -390,9 +390,9 @@ CONTAINS
                                                 occupied_beta, C_beta, Auto_beta, Integ_MP2)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2, Emp2_Cou, Emp2_ex
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       INTEGER, INTENT(IN)                                :: dimen
       REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C
@@ -1261,7 +1261,7 @@ CONTAINS
          INTENT(IN)                                      :: BI1
       REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: elements_ij_proc, multiple
       INTEGER, DIMENSION((-para_env%num_pe):(2*para_env%&
          num_pe-1)), INTENT(IN)                          :: proc_map
@@ -1430,7 +1430,7 @@ CONTAINS
          INTENT(IN)                                      :: BI1
       REAL(KIND=dp), DIMENSION(dimen, dimen), INTENT(IN) :: C_T
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: elements_ij_proc
       INTEGER, DIMENSION((-para_env%num_pe):(2*para_env%&
          num_pe-1)), INTENT(IN)                          :: proc_map

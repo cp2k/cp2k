@@ -4,13 +4,13 @@
 #
 # Tested with: GNU 11.2.0, MPICH 3.3.2,
 #              ScaLAPACK 2.1.0, OpenBLAS 0.3.19, FFTW 3.3.10, LIBINT 2.6.0,
-#              LIBXC 5.2.2, ELPA 2021.11.001, PLUMED 2.7.3, SPGLIB 1.16.2,
+#              LIBXC 5.2.2, ELPA 2021.11.002, PLUMED 2.7.3, SPGLIB 1.16.2,
 #              LIBVORI 210412, GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Author: Matthias Krack (03.02.2022)
+# Author: Matthias Krack (25.02.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -39,7 +39,7 @@
 DO_CHECKS      := no
 SHARED         := no
 USE_COSMA      := 2.5.1
-USE_ELPA       := 2021.11.001
+USE_ELPA       := 2021.11.002
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
@@ -69,7 +69,7 @@ FC             := mpif90
 LD             := mpif90
 AR             := ar -r
 
-CFLAGS         := -O3 -fopenmp -funroll-loops -g -mtune=native
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=native
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK

@@ -85,7 +85,8 @@ CONTAINS
                                 my_group_L_size, dimen_RI)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: homo, virtual
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_start, &
@@ -470,7 +471,7 @@ CONTAINS
    SUBROUTINE communicate_buffer(para_env, num_entries_rec, num_entries_send, buffer_rec, buffer_send, &
                                  req_array, do_indx, do_msg)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: num_entries_rec, num_entries_send
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send

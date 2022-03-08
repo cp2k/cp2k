@@ -162,7 +162,7 @@ CONTAINS
       CHARACTER(len=12), DIMENSION(2)                    :: norm_drho_spin_name
       CHARACTER(len=6), DIMENSION(2)                     :: rho_spin_name
       INTEGER                                            :: handle, ispin, m, npoints, nspin
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff, rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fs
@@ -173,14 +173,13 @@ CONTAINS
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo, e_0, e_ndrho, e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho_ndrho_ndrho, &
+      NULLIFY (e_0, e_ndrho, e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho_ndrho_ndrho, &
                e_rho_ndrho, e_rho_rho_ndrho, e_rho, e_rho_rho, e_rho_rho_rho)
       DO ispin = 1, 2
          NULLIFY (norm_drho(ispin)%array, rho(ispin)%array, rho_1_3(ispin)%array)
       END DO
 
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(deriv_set%ref_count > 0)
       IF (lsd) THEN
          CALL xc_rho_set_get(rho_set, rhoa_1_3=rho_1_3(1)%array, &
                              rhob_1_3=rho_1_3(2)%array, rhoa=rho(1)%array, &

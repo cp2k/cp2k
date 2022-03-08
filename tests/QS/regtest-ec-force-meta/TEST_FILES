@@ -1,0 +1,8 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+N2_tpss_pade.inp                               1      1e-12                 -19.52888605962090
+N2_pade_tpss.inp                               1      1e-12                 -19.79534215334482
+N2_br89_pade.inp                               1      1e-12                 -19.51922270784055
+N2_pade_br89.inp                               1      1e-12                 -19.79514891375846
+#EOF

@@ -35,7 +35,9 @@ For help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-T
 
 ## Install CP2K
 
-See [installation instructions](./INSTALL.md)
+The easiest way to build CP2K with all of its dependencies is as a [Docker container](./tools/docker/README.md).
+
+For building CP2K from scratch see the [installation instructions](./INSTALL.md).
 
 ## Links
 

@@ -71,8 +71,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(3, 3)                           :: nd
       LOGICAL                                            :: deriv_pw, drho_r_valid, tau_r_valid
-      REAL(kind=dp)                                      :: cfermi, dum, elf_kernel, norm_drho, &
-                                                            rho_53, udvol
+      REAL(kind=dp)                                      :: cfermi, elf_kernel, norm_drho, rho_53, &
+                                                            udvol
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -125,7 +125,6 @@ CONTAINS
             CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                     rho=tau_r(ispin), &
                                     rho_gspace=tau_g(ispin), &
-                                    total_rho=dum, &
                                     ks_env=ks_env, soft_valid=.FALSE., &
                                     compute_tau=.TRUE.)
          END IF
@@ -160,7 +159,6 @@ CONTAINS
                   CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                           rho=drho_r(3*(ispin - 1) + idir), &
                                           rho_gspace=drho_g(3*(ispin - 1) + idir), &
-                                          total_rho=dum, &
                                           ks_env=ks_env, soft_valid=.FALSE., &
                                           compute_tau=.FALSE., compute_grad=.TRUE., idir=idir)
 

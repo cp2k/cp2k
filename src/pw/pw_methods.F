@@ -67,7 +67,7 @@ MODULE pw_methods
 
    PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
    PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
-   PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_dr2, pw_write, pw_multiply
+   PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_laplace, pw_dr2, pw_write, pw_multiply
    PUBLIC :: pw_gauss_damp_mix
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
@@ -694,6 +694,51 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_derive
+
+! **************************************************************************************************
+!> \brief Calculate the Laplacian of a plane wave vector
+!> \param pw ...
+!> \par History
+!>      Frederick Stein (01-02-2022) created
+!> \author JGH (25-Feb-2001)
+!> \note
+!>      Calculate the derivative DELTA PW
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_laplace(pw)
+
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_laplace'
+
+      INTEGER                                            :: cnt, handle
+      REAL(KIND=dp)                                      :: flop
+
+      CALL timeset(routineN, handle)
+      CPASSERT(pw%ref_count > 0)
+
+      flop = 0.0_dp
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+         cnt = SIZE(pw%cc)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(cnt, pw)
+         pw%cc(:) = -pw%cc(:)*pw%pw_grid%gsq(:)
+!$OMP END PARALLEL WORKSHARE
+         flop = flop + 6*cnt
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      flop = flop*1.e-6_dp
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_laplace
 
 ! **************************************************************************************************
 !> \brief Calculate the tensorial 2nd derivative of a plane wave vector

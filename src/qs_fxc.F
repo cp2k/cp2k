@@ -77,19 +77,21 @@ CONTAINS
 !> \brief ...
 !> \param rho0 ...
 !> \param rho1_r ...
+!> \param tau1_r ...
 !> \param xc_section ...
 !> \param auxbas_pw_pool ...
 !> \param is_triplet ...
 !> \param v_xc ...
+!> \param v_xc_tau ...
 ! **************************************************************************************************
-   SUBROUTINE qs_fxc_analytic(rho0, rho1_r, xc_section, auxbas_pw_pool, is_triplet, v_xc)
+   SUBROUTINE qs_fxc_analytic(rho0, rho1_r, tau1_r, xc_section, auxbas_pw_pool, is_triplet, v_xc, v_xc_tau)
 
       TYPE(qs_rho_type), POINTER                         :: rho0
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, tau1_r
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       LOGICAL, INTENT(IN)                                :: is_triplet
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_analytic', &
          routineP = moduleN//':'//routineN
@@ -100,13 +102,14 @@ CONTAINS
       REAL(KIND=dp)                                      :: fac
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho0_g, rho0_r, rho1_g, tau0_r
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho0_set
 
       CALL timeset(routineN, handle)
 
       CPASSERT(.NOT. ASSOCIATED(v_xc))
+      CPASSERT(.NOT. ASSOCIATED(v_xc_tau))
 
       CALL qs_rho_get(rho0, rho_r=rho0_r, rho_g=rho0_g, tau_r=tau0_r)
       nspins = SIZE(rho0_r)
@@ -115,14 +118,14 @@ CONTAINS
       fac = 0._dp
       IF (is_triplet .AND. nspins == 1) fac = -1.0_dp
 
-      NULLIFY (deriv_set, rho0_set)
+      NULLIFY (rho0_set)
       NULLIFY (rho1_g)
       bo = rho1_r(1)%pw%pw_grid%bounds_local
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
       ! calculate the arguments needed by the functionals
-      CALL xc_prep_2nd_deriv(deriv_set, rho0_set, rho0_r, auxbas_pw_pool, xc_section=xc_section)
-      CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho0_set, rho1_r, rho1_g, &
+      CALL xc_prep_2nd_deriv(deriv_set, rho0_set, rho0_r, auxbas_pw_pool, xc_section=xc_section, tau_r=tau0_r)
+      CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho0_set, rho1_r, rho1_g, tau1_r, &
                              auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE., do_triplet=is_triplet)
       CALL xc_dset_release(deriv_set)
       CALL xc_rho_set_release(rho0_set)
@@ -206,6 +209,7 @@ CONTAINS
                CALL qs_vxc_create(ks_env=ks_env, rho_struct=rhoin, xc_section=xc_section, &
                                   vxc_rho=vxc00, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
                CALL pw_axpy(vxc00(2)%pw, vxc00(1)%pw, -1.0_dp)
+               IF (ASSOCIATED(v_tau_rspace)) CALL pw_axpy(v_tau_rspace(2)%pw, v_tau_rspace(1)%pw, -1.0_dp)
             ELSE
                CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
                CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, beta)
@@ -221,7 +225,6 @@ CONTAINS
                   CALL pw_zero(fxc_rho(ispin)%pw)
                END DO
             END IF
-!deb        CPASSERT(.NOT. ASSOCIATED(v_tau_rspace))
             DO ispin = 1, nspins
                CALL pw_axpy(vxc00(ispin)%pw, fxc_rho(ispin)%pw, ak(istep))
             END DO
@@ -229,6 +232,23 @@ CONTAINS
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc00(ispin)%pw)
             END DO
             DEALLOCATE (vxc00)
+            IF (ASSOCIATED(v_tau_rspace)) THEN
+               IF (.NOT. ASSOCIATED(fxc_tau)) THEN
+                  ALLOCATE (fxc_tau(nspins))
+                  DO ispin = 1, nspins
+                     CALL pw_pool_create_pw(auxbas_pw_pool, fxc_tau(ispin)%pw, &
+                                            in_space=REALSPACE, use_data=REALDATA3D)
+                     CALL pw_zero(fxc_tau(ispin)%pw)
+                  END DO
+               END IF
+               DO ispin = 1, nspins
+                  CALL pw_axpy(v_tau_rspace(ispin)%pw, fxc_tau(ispin)%pw, ak(istep))
+               END DO
+               DO ispin = 1, SIZE(v_tau_rspace)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+               END DO
+               DEALLOCATE (v_tau_rspace)
+            END IF
          END IF
 
       END DO
@@ -237,6 +257,11 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_scale(fxc_rho(ispin)%pw, oeps1)
       END DO
+      IF (ASSOCIATED(fxc_tau)) THEN
+      DO ispin = 1, nspins
+         CALL pw_scale(fxc_tau(ispin)%pw, oeps1)
+      END DO
+      END IF
 
       CALL timestop(handle)
 

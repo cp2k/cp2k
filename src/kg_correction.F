@@ -148,7 +148,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, vxc_rho, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau1_r, vxc_rho, &
+                                                            vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: old_rho, rho1, rho_struct
@@ -215,12 +216,14 @@ CONTAINS
       IF (do_kernel) THEN
          ! derivation wrt to rho_struct and evaluation at rho_struct
          IF (use_virial) virial%pv_xc = 0.0_dp
-         CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g)
+         CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
          CALL create_kernel(qs_env, &
                             vxc=vxc_rho, &
+                            vxc_tau=vxc_tau, &
                             rho=rho_struct, &
                             rho1_r=rho1_r, &
                             rho1_g=rho1_g, &
+                            tau1_r=tau1_r, &
                             xc_section=xc_section, &
                             compute_virial=use_virial, &
                             virial_xc=virial%pv_xc)
@@ -231,11 +234,10 @@ CONTAINS
                             vxc_rho=vxc_rho, &
                             vxc_tau=vxc_tau, &
                             exc=ekin_imol)
+      END IF
 
-         IF (ASSOCIATED(vxc_tau)) THEN
-            CPABORT(" KG with meta-kinetic energy functionals not implemented")
-         END IF
-
+      IF (ASSOCIATED(vxc_tau)) THEN
+         CPABORT(" KG with meta-kinetic energy functionals not implemented")
       END IF
 
       ! Integrate xc-potential with external density for outer response forces
@@ -290,12 +292,14 @@ CONTAINS
          ! calculate xc-potential or kernel
          IF (do_kernel) THEN
             IF (use_virial) virial%pv_xc = 0.0_dp
-            CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g)
+            CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
             CALL create_kernel(qs_env, &
                                vxc=vxc_rho, &
+                               vxc_tau=vxc_tau, &
                                rho=rho_struct, &
                                rho1_r=rho1_r, &
                                rho1_g=rho1_g, &
+                               tau1_r=tau1_r, &
                                xc_section=xc_section, &
                                compute_virial=use_virial, &
                                virial_xc=virial%pv_xc)
@@ -323,9 +327,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL pw_scale(vxc_rho(ispin)%pw, -alpha*vxc_rho(ispin)%pw%pw_grid%dvol)
-         END DO
 
-         DO ispin = 1, nspins
             CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
                                     pmat=density_matrix(ispin), &
                                     hmat=ks_matrix(ispin), &
@@ -334,6 +336,18 @@ CONTAINS
                                     task_list_external=kg_env%subset(isub)%task_list)
             ! clean up vxc_rho
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
+            IF (ASSOCIATED(vxc_tau)) THEN
+               CALL pw_scale(vxc_tau(ispin)%pw, -alpha*vxc_tau(ispin)%pw%pw_grid%dvol)
+               CALL integrate_v_rspace(v_rspace=vxc_tau(ispin), &
+                                       pmat=density_matrix(ispin), &
+                                       hmat=ks_matrix(ispin), &
+                                       qs_env=qs_env, &
+                                       compute_tau=.TRUE., &
+                                       calculate_forces=calc_force, &
+                                       task_list_external=kg_env%subset(isub)%task_list)
+               ! clean up vxc_rho
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_tau(ispin)%pw)
+            END IF
          END DO
          DEALLOCATE (vxc_rho)
 
@@ -566,7 +580,7 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env, lri_env1
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, vxc_rho, vxc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau1_r, vxc_rho, vxc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct
@@ -663,12 +677,14 @@ CONTAINS
       IF (do_kernel) THEN
          ! kernel total
          ! derivation wrt to rho_struct and evaluation at rho_struct
-         CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g)
+         CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
          CALL create_kernel(qs_env, &
                             vxc=vxc_rho, &
+                            vxc_tau=vxc_tau, &
                             rho=rho_struct, &
                             rho1_r=rho1_r, &
                             rho1_g=rho1_g, &
+                            tau1_r=tau1_r, &
                             xc_section=xc_section)
       ELSE
          ! vxc total
@@ -679,9 +695,10 @@ CONTAINS
                             vxc_tau=vxc_tau, &
                             exc=ekin_imol)
 
-         IF (ASSOCIATED(vxc_tau)) THEN
-            CPABORT(" KG with meta-kinetic energy functionals not implemented")
-         END IF
+      END IF
+
+      IF (ASSOCIATED(vxc_tau)) THEN
+         CPABORT(" KG with meta-kinetic energy functionals not implemented")
       END IF
 
       DO ispin = 1, nspins
@@ -731,12 +748,14 @@ CONTAINS
          ! calculate xc potential or kernel
          IF (do_kernel) THEN
             ! subsys kernel
-            CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g)
+            CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
             CALL create_kernel(qs_env, &
                                vxc=vxc_rho, &
+                               vxc_tau=vxc_tau, &
                                rho=rho_struct, &
                                rho1_r=rho1_r, &
                                rho1_g=rho1_g, &
+                               tau1_r=tau1_r, &
                                xc_section=xc_section)
          ELSE
 

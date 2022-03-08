@@ -256,7 +256,7 @@ CONTAINS
    SUBROUTINE dcdr_response_dR(dcdr_env, p_env, qs_env)
 
       TYPE(dcdr_env_type)                                :: dcdr_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dcdr_response_dR', &

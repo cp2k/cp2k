@@ -343,7 +343,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_array
       INTEGER, INTENT(IN)                                :: ngroup, dimen_RI
       INTEGER, INTENT(INOUT)                             :: dimen_RI_red
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       IF (do_svd) THEN
          CALL matrix_root_with_svd(fm_matrix_L, num_small_eigen, cond_num, do_inversion, para_env)
@@ -689,7 +689,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub, para_env_L
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub, para_env_L
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
@@ -973,7 +974,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: num_small_evals
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_root_with_svd'
 
@@ -1107,7 +1108,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: L_local_col
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             dimen_RI
 

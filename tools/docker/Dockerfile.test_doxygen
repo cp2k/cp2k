@@ -5,16 +5,25 @@
 
 FROM ubuntu:20.04
 
-# Install test for doxygen.
-WORKDIR /workspace
-
-COPY ./tools/docker/scripts/install_basics.sh .
-RUN ./install_basics.sh
-
+# Install dependencies.
+WORKDIR /workspace/cp2k
 COPY ./tools/docker/scripts/install_doxygen.sh .
 RUN ./install_doxygen.sh
 
-COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_doxygen.sh ./
-CMD ["./ci_entrypoint.sh", "./test_doxygen.sh"]
+# Install sources.
+ARG GIT_COMMIT_SHA
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./data ./data
+COPY ./tools ./tools
+COPY ./Makefile .
+RUN bash -c "if [ -n "${GIT_COMMIT_SHA}" ] ; then echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi"
+
+# Run test for doxygen.
+COPY ./tools/docker/scripts/test_doxygen.sh .
+RUN ./test_doxygen.sh 2>&1 | tee report.log
+
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
 
 #EOF

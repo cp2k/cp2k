@@ -695,7 +695,7 @@ CONTAINS
    SUBROUTINE grep_my_integrals(para_env_sub, fm_BIb_jb, BIb_jb, max_row_col_local, &
                                 proc_map, local_col_row_info, &
                                 my_B_virtual_end, my_B_virtual_start)
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       INTEGER, INTENT(IN)                                :: max_row_col_local
@@ -806,7 +806,7 @@ CONTAINS
                                      my_A_virtual_start, my_A_virtual_end, my_A_batch_size, &
                                      mo_coeff_o, mo_coeff_v, my_Cocc, my_Cvirt)
 
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, INTENT(IN) :: dimen, my_I_occupied_start, my_I_occupied_end, my_I_batch_size, &
          my_A_virtual_start, my_A_virtual_end, my_A_batch_size
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v

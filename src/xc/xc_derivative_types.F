@@ -24,8 +24,6 @@ MODULE xc_derivative_types
 
    PRIVATE
 
-   INTEGER, SAVE :: derivative_id_nr = 1
-
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_types'
 
    PUBLIC :: xc_derivative_type, xc_derivative_p_type
@@ -36,7 +34,6 @@ MODULE xc_derivative_types
 !> \brief represent a derivative of a functional
 ! **************************************************************************************************
    TYPE xc_derivative_type
-      INTEGER                                   :: ref_count, id_nr
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH) :: desc
       CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), POINTER :: split_desc
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: deriv_data
@@ -64,38 +61,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_derivative_create(derivative, desc, cr3d_ptr)
 
-      TYPE(xc_derivative_type), POINTER                  :: derivative
+      TYPE(xc_derivative_type)                           :: derivative
       CHARACTER(len=*), INTENT(in)                       :: desc
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d_ptr
 
       CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: my_desc
 
-      CPASSERT(.NOT. ASSOCIATED(derivative))
-      ALLOCATE (derivative)
-
-      derivative%ref_count = 1
-      derivative%id_nr = derivative_id_nr
-      derivative_id_nr = derivative_id_nr + 1
       CALL standardize_derivative_desc(desc, my_desc)
       CALL create_split_derivative_desc(my_desc, derivative%split_desc)
       derivative%desc = my_desc
       derivative%deriv_data => cr3d_ptr
 
    END SUBROUTINE xc_derivative_create
-
-! **************************************************************************************************
-!> \brief retains the given derivative (see doc/ReferenceCounting.html)
-!> \param deriv the object you want to retain
-!> \par History
-!>      11.2003 created [fawzi]
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE xc_derivative_retain(deriv)
-      TYPE(xc_derivative_type), INTENT(INOUT)            :: deriv
-
-      CPASSERT(deriv%ref_count > 0)
-      deriv%ref_count = deriv%ref_count + 1
-   END SUBROUTINE xc_derivative_retain
 
 ! **************************************************************************************************
 !> \brief allocates and initializes a derivative type
@@ -105,28 +82,19 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_derivative_release(derivative, pw_pool)
 
-      TYPE(xc_derivative_type), POINTER                  :: derivative
+      TYPE(xc_derivative_type)                           :: derivative
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
 
-      CPASSERT(ASSOCIATED(derivative))
-      CPASSERT(derivative%ref_count >= 1)
-
-      derivative%ref_count = derivative%ref_count - 1
-      IF (derivative%ref_count == 0) THEN
-         IF (PRESENT(pw_pool)) THEN
-            IF (ASSOCIATED(pw_pool)) THEN
-               CALL pw_pool_give_back_cr3d(pw_pool, derivative%deriv_data, &
-                                           accept_non_compatible=.TRUE.)
-            END IF
+      IF (PRESENT(pw_pool)) THEN
+         IF (ASSOCIATED(pw_pool)) THEN
+            CALL pw_pool_give_back_cr3d(pw_pool, derivative%deriv_data, &
+                                        accept_non_compatible=.TRUE.)
          END IF
-         IF (ASSOCIATED(derivative%deriv_data)) THEN
-            DEALLOCATE (derivative%deriv_data)
-         END IF
-         DEALLOCATE (derivative%split_desc)
-
-         DEALLOCATE (derivative)
       END IF
-      NULLIFY (derivative)
+      IF (ASSOCIATED(derivative%deriv_data)) THEN
+         DEALLOCATE (derivative%deriv_data)
+      END IF
+      DEALLOCATE (derivative%split_desc)
 
    END SUBROUTINE xc_derivative_release
 
@@ -160,7 +128,6 @@ CONTAINS
       my_accept_null_data = .FALSE.
       IF (PRESENT(accept_null_data)) my_accept_null_data = accept_null_data
 
-      CPASSERT(deriv%ref_count > 0)
       IF (PRESENT(desc)) desc = deriv%desc
       IF (PRESENT(split_desc)) split_desc => deriv%split_desc
       IF (PRESENT(deriv_data)) THEN

@@ -103,7 +103,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, energy_ex, t3, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
       REAL(KIND=dp), INTENT(OUT)                         :: energy_ex, t3
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -657,9 +657,9 @@ CONTAINS
                                                             matrix_sigma_x_minus_vxc_im
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: vec_Sigma_x_minus_vxc_gw, &
                                                             vec_Sigma_x_minus_vxc_gw_im
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER                                            :: nmo
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_sigma_x_minus_vxc_to_MO_basis', &
          routineP = moduleN//':'//routineN

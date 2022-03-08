@@ -132,7 +132,7 @@ CONTAINS
                            mos_mp2, para_env, unit_nr, calc_forces, calc_ex, do_ri_mp2, do_ri_rpa, &
                            do_ri_sos_laplace_mp2)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -655,8 +655,8 @@ CONTAINS
    SUBROUTINE replicate_mat_to_subgroup(mp2_env, para_env, para_env_sub, mo_coeff, dimen, homo, mat_munu, &
                                         mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, my_do_gw, &
                                         gw_corr_lev_occ, gw_corr_lev_virt)
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(mp2_type)                                     :: mp2_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       INTEGER, INTENT(IN)                                :: dimen, homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
@@ -856,8 +856,8 @@ CONTAINS
    SUBROUTINE build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_to_build, Cread, &
                                      number_of_level, my_mu_start, my_mu_end, &
                                      mat_munu, gd_array, proc_map)
-      TYPE(mp2_type), POINTER                            :: mp2_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(mp2_type)                                     :: mp2_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_to_build
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: Cread
@@ -971,7 +971,7 @@ CONTAINS
 
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1204,7 +1204,7 @@ CONTAINS
 
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_P_global
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1255,7 +1255,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE get_eps_old(dft_control, eps_pgf_orb_old, eps_rho_rspace_old, eps_gvg_rspace_old)
 
-      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(dft_control_type), INTENT(INOUT)              :: dft_control
       REAL(kind=dp), INTENT(OUT)                         :: eps_pgf_orb_old, eps_rho_rspace_old, &
                                                             eps_gvg_rspace_old
 

@@ -64,7 +64,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: gw_corr_lev_tot, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt, homo, unit_nr
       LOGICAL, INTENT(IN)                                :: print_ic_values
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_alpha, do_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ic_correction'

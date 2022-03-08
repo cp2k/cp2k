@@ -77,6 +77,7 @@ MODULE xas_tp_scf
                                               localized_wfn_control_type,&
                                               qs_loc_env_new_type
    USE qs_mixing_utils,                 ONLY: self_consistency_check
+   USE qs_mo_io,                        ONLY: write_mo_set_to_restart
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -156,17 +157,20 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(xas_control_type), POINTER                    :: xas_control
 
       CALL timeset(routineN, handle)
       NULLIFY (xas_control, matrix_s, matrix_ks, para_env, rho_ao_kp)
       NULLIFY (rho, energy, scf_control, logger, ks_env, mos, atomic_kind_set)
-      NULLIFY (qs_charges)
+      NULLIFY (qs_charges, particle_set, qs_kind_set)
 
       logger => cp_get_default_logger()
       t1 = m_walltime()
@@ -330,6 +334,10 @@ CONTAINS
          ! ** Write restart file **
          CALL xas_write_restart(xas_env, xas_section, qs_env, xas_control%xas_method, &
                                 iatom, istate)
+
+         dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
+         CALL get_qs_env(qs_env=qs_env, mos=mos, particle_set=particle_set, qs_kind_set=qs_kind_set)
+         CALL write_mo_set_to_restart(mos, particle_set, dft_section=dft_section, qs_kind_set=qs_kind_set)
 
          IF (exit_loop) THEN
             CALL timestop(handle2)

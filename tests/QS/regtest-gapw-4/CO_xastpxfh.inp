@@ -82,6 +82,12 @@
            &END
            ADD_LAST NUMERIC
         &END
+        &FULL_RESTART
+           &EACH
+             XAS_SCF 4
+           &END
+           ADD_LAST NUMERIC
+        &END
          &XES_SPECTRUM
          &END
          &XAS_SPECTRUM

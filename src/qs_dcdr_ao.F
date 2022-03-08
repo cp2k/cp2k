@@ -134,12 +134,12 @@ CONTAINS
       TYPE(pw_p_type)                                    :: rho1_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_g_pw, rho1_r, rho_r, &
-                                                            v_rspace_new, v_xc
+                                                            tau1_r, v_rspace_new, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
 
       ! Build the perturbed density matrix correction depending on the overlap derivative
@@ -163,7 +163,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (auxbas_pw_pool, pw_env, v_rspace_new, rho1_r, rho1_g_pw, &
-               v_xc, rho1_set, poisson_env, input, rho, rho1_g)
+               v_xc, rho1_set, poisson_env, input, rho, rho1_g, v_xc_tau)
 
       CALL dbcsr_set(dcdr_env%perturbed_dm_correction, 0._dp)
 
@@ -228,7 +228,7 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Allocate deriv_set and rho_set
-      NULLIFY (deriv_set, rho_set)
+      NULLIFY (rho_set)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
       CALL xc_prep_2nd_deriv(deriv_set, rho_set, &
@@ -250,7 +250,7 @@ CONTAINS
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
-      CALL qs_rho_get(perturbed_density, rho_g=rho1_g, rho_r=rho1_r)
+      CALL qs_rho_get(perturbed_density, rho_g=rho1_g, rho_r=rho1_r, tau_r=tau1_r)
       CALL pw_copy(rho1_g(1)%pw, rho1_tot_gspace%pw)
 
       CALL pw_poisson_solve(poisson_env, rho1_tot_gspace%pw, &
@@ -261,8 +261,8 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
 
       ! Calculate the second derivative of the exchange-correlation potential
-      CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                             rho1_r, rho1_g_pw, auxbas_pw_pool, xc_section, gapw=.FALSE.)
+      CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, &
+                             rho1_r, rho1_g_pw, tau1_r, auxbas_pw_pool, xc_section, gapw=.FALSE.)
 
       v_rspace_new(1)%pw => v_xc(1)%pw
       DEALLOCATE (v_xc)
@@ -290,6 +290,18 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(1)%pw)
       DEALLOCATE (v_rspace_new)
+
+      IF (ASSOCIATED(v_xc_tau)) THEN
+         CALL pw_scale(v_xc_tau(1)%pw, 2._dp*v_xc_tau(1)%pw%pw_grid%dvol)
+         CALL integrate_v_rspace(v_rspace=v_xc_tau(1), &
+                                 hmat=dcdr_env%matrix_apply_op_constant(1), &
+                                 qs_env=qs_env, &
+                                 compute_tau=.TRUE., &
+                                 calculate_forces=.FALSE.)
+
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(1)%pw)
+         DEALLOCATE (v_xc_tau)
+      END IF
 
       CALL qs_rho_release(perturbed_density)
       CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
@@ -485,13 +497,13 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_hartree_gspace, v_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, rho_r, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, rho_r, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
-      TYPE(xc_derivative_set_type), POINTER              :: my_deriv_set
+      TYPE(xc_derivative_set_type)                       :: my_deriv_set
       TYPE(xc_rho_set_type), POINTER                     :: my_rho_set
 
       CALL timeset(routineN, handle)
@@ -522,7 +534,7 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(1)%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       DO idir = 1, 3
-         NULLIFY (my_deriv_set, my_rho_set)
+         NULLIFY (my_rho_set)
 
          CALL pw_zero(v_hartree_gspace%pw)
          CALL pw_zero(v_hartree_rspace%pw)
@@ -546,8 +558,9 @@ CONTAINS
                                 rho_r, auxbas_pw_pool, &
                                 xc_section=xc_section)
 
-         CALL xc_calc_2nd_deriv(v_xc, my_deriv_set, my_rho_set, &
-                                drho_r, drho_g, auxbas_pw_pool, xc_section, gapw=.FALSE.)
+         CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, my_deriv_set, my_rho_set, &
+                                drho_r, drho_g, NULL(), auxbas_pw_pool, xc_section, gapw=.FALSE.)
+         IF (ASSOCIATED(v_xc_tau)) CPABORT("Meta functionals are not supported!")
 
          CALL xc_dset_release(my_deriv_set)
          CALL xc_rho_set_release(my_rho_set)
@@ -576,8 +589,6 @@ CONTAINS
 
       DEALLOCATE (drho_g)
       DEALLOCATE (drho_r)
-
-      NULLIFY (my_deriv_set)
 
       CALL timestop(handle)
 

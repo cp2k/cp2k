@@ -528,8 +528,7 @@ CONTAINS
       LOGICAL                                            :: deriv2_analytic, distribute_fock_matrix, &
                                                             do_hfx, hfx_treat_lsd_in_core, &
                                                             s_mstruct_changed
-      REAL(KIND=dp)                                      :: eh1, focc, thartree, total_rho, &
-                                                            total_rhoz_aux
+      REAL(KIND=dp)                                      :: eh1, focc, thartree, total_rho
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mos
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -544,7 +543,8 @@ CONTAINS
                                                             v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_g_aux, rho_r, rho_r_aux, &
                                                             rhoz_g_aux, rhoz_r_aux, tau_r, &
-                                                            tau_r_aux, trho_g, trho_r, v_xc
+                                                            tau_r_aux, trho_g, trho_r, v_xc, &
+                                                            v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -619,10 +619,10 @@ CONTAINS
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
       !
-      NULLIFY (v_xc)
+      NULLIFY (v_xc, v_xc_tau)
       deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
       IF (deriv2_analytic) THEN
-         CALL qs_fxc_analytic(rho, trho_r, xc_section, auxbas_pw_pool, .FALSE., v_xc)
+         CALL qs_fxc_analytic(rho, trho_r, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
       ELSE
          CPABORT("NYA 00006")
          NULLIFY (trho)
@@ -650,6 +650,12 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (trho_r, trho_g, v_xc)
+      IF (ASSOCIATED(v_xc_tau)) THEN
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+         END DO
+         DEALLOCATE (v_xc_tau)
+      END IF
 
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
@@ -686,14 +692,14 @@ CONTAINS
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpe(ispin, 1)%matrix, &
                                        rho=rhoz_r_aux(ispin), rho_gspace=rhoz_g_aux(ispin), &
-                                       total_rho=total_rhoz_aux, basis_type="AUX_FIT", &
+                                       basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
             END DO
             !
             NULLIFY (v_xc)
             deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
             IF (deriv2_analytic) THEN
-               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, xc_section, auxbas_pw_pool, .FALSE., v_xc)
+               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
             ELSE
                CPABORT("NYA 00007")
                NULLIFY (rhoz_aux)

@@ -23,8 +23,7 @@ MODULE qs_p_env_methods
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                              cp_fm_symm,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
                                               cp_fm_triangular_multiply
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -105,7 +104,6 @@ MODULE qs_p_env_methods
    IMPLICIT NONE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_p_env_methods'
-   INTEGER, PRIVATE, SAVE :: last_p_env_id = 0
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
 
    PRIVATE
@@ -132,7 +130,7 @@ CONTAINS
    SUBROUTINE p_env_create(p_env, qs_env, p1_option, p1_admm_option, &
                            psi0d, orthogonal_orbitals, linres_control)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: p1_option, p1_admm_option
@@ -165,42 +163,12 @@ CONTAINS
 
       n_spins = dft_control%nspins
 
-      ALLOCATE (p_env)
-      NULLIFY (p_env%kpp1, &
-               p_env%kpp1_admm, &
-               p_env%p1, &
-               p_env%w1, &
-               p_env%m_epsilon, &
-               p_env%psi0d, &
-               p_env%S_psi0, &
-               p_env%kpp1_env, &
-               p_env%rho1, &
-               p_env%rho1_xc, &
-               p_env%rho1_admm, &
-               p_env%Smo_inv, &
-               p_env%local_rho_set, &
-               p_env%hartree_local, &
-               p_env%PS_psi0, &
-               p_env%preconditioner)
-
-      p_env%ref_count = 1
-      last_p_env_id = last_p_env_id + 1
-      p_env%id_nr = last_p_env_id
-      p_env%iter = 0
-
       p_env%new_preconditioner = .TRUE.
-      p_env%only_energy = .FALSE.
-      p_env%os_valid = .FALSE.
-      p_env%ls_count = 0
-      p_env%delta = 0.0_dp
-      p_env%gnorm = 0.0_dp
-      p_env%gnorm_old = 0.0_dp
-      p_env%etotal = 0.0_dp
-      p_env%gradient = 0.0_dp
 
       CALL qs_rho_create(p_env%rho1)
       CALL qs_rho_create(p_env%rho1_xc)
 
+      ALLOCATE (p_env%kpp1_env)
       CALL kpp1_create(p_env%kpp1_env)
 
       IF (PRESENT(p1_option)) THEN
@@ -210,8 +178,7 @@ CONTAINS
          DO spin = 1, n_spins
             ALLOCATE (p_env%p1(spin)%matrix)
             CALL dbcsr_copy(p_env%p1(spin)%matrix, matrix_s(1)%matrix, &
-                            name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))// &
-                            "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))))
+                            name="p_env%p1-"//TRIM(ADJUSTL(cp_to_string(spin))))
             CALL dbcsr_set(p_env%p1(spin)%matrix, 0.0_dp)
          END DO
       END IF
@@ -228,8 +195,7 @@ CONTAINS
             DO spin = 1, n_spins
                ALLOCATE (p_env%p1_admm(spin)%matrix)
                CALL dbcsr_copy(p_env%p1_admm(spin)%matrix, matrix_s_aux_fit(1)%matrix, &
-                               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))// &
-                               "%p1_admm-"//TRIM(ADJUSTL(cp_to_string(spin))))
+                               name="p_env%p1_admm-"//TRIM(ADJUSTL(cp_to_string(spin))))
                CALL dbcsr_set(p_env%p1_admm(spin)%matrix, 0.0_dp)
             END DO
          END IF
@@ -258,18 +224,16 @@ CONTAINS
          p_env%orthogonal_orbitals = orthogonal_orbitals
 
       CALL fm_pools_create_fm_vect(ao_mo_fm_pools, elements=p_env%S_psi0, &
-                                   name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%S_psi0")
+                                   name="p_env%S_psi0")
 
       ! alloc m_epsilon
       CALL fm_pools_create_fm_vect(mo_mo_fm_pools, elements=p_env%m_epsilon, &
-                                   name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))// &
-                                   "%m_epsilon")
+                                   name="p_env%m_epsilon")
 
       ! alloc Smo_inv
       IF (.NOT. p_env%orthogonal_orbitals) THEN
          CALL fm_pools_create_fm_vect(mo_mo_fm_pools, elements=p_env%Smo_inv, &
-                                      name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))// &
-                                      "%Smo_inv")
+                                      name="p_env%Smo_inv")
       END IF
 
       IF (PRESENT(psi0d)) THEN
@@ -279,8 +243,7 @@ CONTAINS
       ELSE IF (.NOT. p_env%orthogonal_orbitals) THEN
          CALL fm_pools_create_fm_vect(ao_mo_fm_pools, &
                                       elements=p_env%psi0d, &
-                                      name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))// &
-                                      "%psi0d")
+                                      name="p_env%psi0d")
       END IF
 
       !----------------------!
@@ -319,7 +282,7 @@ CONTAINS
                END DO
 
                CALL fm_pools_create_fm_vect(ao_mo_fm_pools, elements=p_env%PS_psi0, &
-                                            name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%PS_psi0")
+                                            name="p_env%PS_psi0")
             END IF
          END IF
 
@@ -340,7 +303,7 @@ CONTAINS
 !>      private routine
 ! **************************************************************************************************
    SUBROUTINE p_env_check_i_alloc(p_env, qs_env)
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'p_env_check_i_alloc'
@@ -355,8 +318,6 @@ CONTAINS
 
       NULLIFY (dft_control, matrix_s)
 
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
       CALL get_qs_env(qs_env, dft_control=dft_control)
       gapw_xc = dft_control%qs_control%gapw_xc
       IF (.NOT. ASSOCIATED(p_env%kpp1)) THEN
@@ -364,7 +325,7 @@ CONTAINS
          nspins = dft_control%nspins
 
          CALL dbcsr_allocate_matrix_set(p_env%kpp1, nspins)
-         name = "p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
+         name = "p_env%kpp1-"
          CALL compress(name, full=.TRUE.)
          DO ispin = 1, nspins
             ALLOCATE (p_env%kpp1(ispin)%matrix)
@@ -385,7 +346,7 @@ CONTAINS
          nspins = dft_control%nspins
 
          CALL dbcsr_allocate_matrix_set(p_env%kpp1_admm, nspins)
-         name = "p_env"//cp_to_string(p_env%id_nr)//"%kpp1_admm-"
+         name = "p_env%kpp1_admm-"
          CALL compress(name, full=.TRUE.)
          DO ispin = 1, nspins
             ALLOCATE (p_env%kpp1_admm(ispin)%matrix)
@@ -423,13 +384,12 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE p_env_update_rho(p_env, qs_env)
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(qs_p_env_type), INTENT(IN)                    :: p_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'p_env_update_rho'
 
       INTEGER                                            :: handle, ispin
-      REAL(KIND=dp)                                      :: tot_rho_r_aux
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
@@ -473,7 +433,6 @@ CONTAINS
                                        matrix_p=rho1_ao(ispin)%matrix, &
                                        rho=rho_r_aux(ispin), &
                                        rho_gspace=rho_g_aux(ispin), &
-                                       total_rho=tot_rho_r_aux, &
                                        soft_valid=.FALSE., &
                                        basis_type="AUX_FIT", &
                                        task_list_external=task_list)
@@ -490,28 +449,21 @@ CONTAINS
 !>      Recalculates the quantities S_psi0 and m_epsilon.
 !> \param p_env the perturbation environment to set
 !> \param qs_env ...
-!> \param psi0 the value of psi0, if not given defaults to the qs_env mos
-!> \param Hrho_psi0d is given, then the partial result Hrho_psi0d is stored in
-!>        that vector
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE p_env_psi0_changed(p_env, qs_env, psi0, Hrho_psi0d)
+   SUBROUTINE p_env_psi0_changed(p_env, qs_env)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: psi0
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout), &
-         OPTIONAL                                        :: Hrho_psi0d
 
       CHARACTER(len=*), PARAMETER :: routineN = 'p_env_psi0_changed'
 
       INTEGER                                            :: handle, iounit, lfomo, n_spins, nmo, spin
       LOGICAL                                            :: was_present
       REAL(KIND=dp)                                      :: maxocc
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: my_psi0
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -525,12 +477,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ao_mo_fm_pools, mos, my_psi0, matrix_s, mos, para_env, ks_env, rho, &
+      NULLIFY (ao_mo_fm_pools, mos, psi0, matrix_s, mos, para_env, ks_env, rho, &
                logger, input, lr_section, energy, matrix_ks, dft_control, rho_ao)
       logger => cp_get_default_logger()
-
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -548,18 +497,13 @@ CONTAINS
       n_spins = dft_control%nspins
       CALL mpools_get(qs_env%mpools, &
                       ao_mo_fm_pools=ao_mo_fm_pools)
-      ! def my_psi0
-      IF (PRESENT(psi0)) THEN
-         CALL cp_fm_vect_copy(psi0, my_psi0)
-      ELSE
-         ALLOCATE (my_psi0(n_spins))
-         DO spin = 1, n_spins
-            NULLIFY (my_psi0(spin)%matrix)
-            CALL get_mo_set(mos(spin)%mo_set, &
-                            mo_coeff=my_psi0(spin)%matrix)
-            CALL cp_fm_retain(my_psi0(spin)%matrix)
-         END DO
-      END IF
+      ALLOCATE (psi0(n_spins))
+      DO spin = 1, n_spins
+         NULLIFY (psi0(spin)%matrix)
+         CALL get_mo_set(mos(spin)%mo_set, &
+                         mo_coeff=psi0(spin)%matrix)
+         CALL cp_fm_retain(psi0(spin)%matrix)
+      END DO
 
       lr_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES")
       ! def psi0d
@@ -567,25 +511,25 @@ CONTAINS
          IF (ASSOCIATED(p_env%psi0d)) THEN
             CALL cp_fm_vect_dealloc(p_env%psi0d)
          END IF
-         p_env%psi0d => my_psi0
+         p_env%psi0d => psi0
       ELSE
 
          DO spin = 1, n_spins
-            ! m_epsilon=cholesky_decomposition(my_psi0^T S my_psi0)^-1
+            ! m_epsilon=cholesky_decomposition(psi0^T S psi0)^-1
             ! could be optimized by combining next two calls
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
-                                         my_psi0(spin)%matrix, &
+                                         psi0(spin)%matrix, &
                                          p_env%S_psi0(spin)%matrix, &
                                          ncol=p_env%n_mo(spin), alpha=1.0_dp)
             CALL cp_gemm(transa='T', transb='N', n=p_env%n_mo(spin), &
                          m=p_env%n_mo(spin), k=p_env%n_ao(spin), alpha=1.0_dp, &
-                         matrix_a=my_psi0(spin)%matrix, &
+                         matrix_a=psi0(spin)%matrix, &
                          matrix_b=p_env%S_psi0(spin)%matrix, &
                          beta=0.0_dp, matrix_c=p_env%m_epsilon(spin)%matrix)
             CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin)%matrix, &
                                           n=p_env%n_mo(spin))
 
-            ! Smo_inv= (my_psi0^T S my_psi0)^-1
+            ! Smo_inv= (psi0^T S psi0)^-1
             CALL cp_fm_set_all(p_env%Smo_inv(spin)%matrix, 0.0_dp, 1.0_dp)
             ! faster using cp_fm_cholesky_invert ?
             CALL cp_fm_triangular_multiply( &
@@ -600,9 +544,9 @@ CONTAINS
                invert_tr=.TRUE., n_rows=p_env%n_mo(spin), &
                n_cols=p_env%n_mo(spin))
 
-            ! psi0d=my_psi0 (my_psi0^T S my_psi0)^-1
+            ! psi0d=psi0 (psi0^T S psi0)^-1
             ! faster using cp_fm_cholesky_invert ?
-            CALL cp_fm_to_fm(my_psi0(spin)%matrix, &
+            CALL cp_fm_to_fm(psi0(spin)%matrix, &
                              p_env%psi0d(spin)%matrix)
             CALL cp_fm_triangular_multiply( &
                triangular_matrix=p_env%m_epsilon(spin)%matrix, &
@@ -622,7 +566,7 @@ CONTAINS
             IF (lfomo > nmo) THEN
                CALL dbcsr_set(rho_ao(spin)%matrix, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(rho_ao(spin)%matrix, &
-                                          matrix_v=my_psi0(spin)%matrix, &
+                                          matrix_v=psi0(spin)%matrix, &
                                           matrix_g=p_env%psi0d(spin)%matrix, &
                                           ncol=p_env%n_mo(spin))
                CALL dbcsr_scale(rho_ao(spin)%matrix, alpha_scalar=maxocc)
@@ -662,10 +606,6 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(spin)%matrix, &
                                       p_env%psi0d(spin)%matrix, &
                                       p_env%S_psi0(spin)%matrix, p_env%n_mo(spin))
-         IF (PRESENT(Hrho_psi0d)) THEN
-            CALL cp_fm_scale_and_add(alpha=0.0_dp, matrix_a=Hrho_psi0d(spin)%matrix, &
-                                     beta=1.0_dp, matrix_b=p_env%S_psi0(spin)%matrix)
-         END IF
          ! m_epsilon = -1 times S_psi0^T times psi0d
          CALL cp_gemm('T', 'N', &
                       p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
@@ -674,7 +614,7 @@ CONTAINS
       END DO
 
       !----------------------------------|
-      ! calculates S_psi0 = S * my_psi0  |
+      ! calculates S_psi0 = S * psi0  |
       !----------------------------------|
       ! calculating this reduces the mat mult without storing a full aoxao
       ! matrix (for P). If nspin>1 you might consider calculating it on the
@@ -682,20 +622,20 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
       DO spin = 1, n_spins
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
-                                      my_psi0(spin)%matrix, &
+                                      psi0(spin)%matrix, &
                                       p_env%S_psi0(spin)%matrix, &
                                       p_env%n_mo(spin))
       END DO
 
-      ! releases my_psi0
+      ! releases psi0
       IF (p_env%orthogonal_orbitals) THEN
-         NULLIFY (my_psi0)
+         NULLIFY (psi0)
       ELSE
-         CALL cp_fm_vect_dealloc(my_psi0)
+         CALL cp_fm_vect_dealloc(psi0)
       END IF
 
       ! tells kpp1_env about the change of psi0
-      CALL kpp1_did_change(p_env%kpp1_env, psi0_changed=.TRUE.)
+      CALL kpp1_did_change(p_env%kpp1_env)
 
       CALL timestop(handle)
 
@@ -714,7 +654,7 @@ CONTAINS
    SUBROUTINE p_op_l1(p_env, qs_env, v, res)
 
       ! argument
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: v
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: res
@@ -722,8 +662,6 @@ CONTAINS
       INTEGER                                            :: n_spins, spin
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
       NULLIFY (dft_control)
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
@@ -752,7 +690,7 @@ CONTAINS
    SUBROUTINE p_op_l1_spin(p_env, qs_env, spin, v, res)
 
       ! argument
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: spin
       TYPE(cp_fm_type), POINTER                          :: v, res
@@ -775,8 +713,6 @@ CONTAINS
                       matrix_ks=matrix_ks, &
                       dft_control=dft_control)
 
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
       CPASSERT(0 < spin)
       CPASSERT(spin <= dft_control%nspins)
 
@@ -822,7 +758,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE p_op_l2(p_env, qs_env, p1, res, alpha, beta)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p1
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: res
@@ -849,9 +785,6 @@ CONTAINS
       IF (PRESENT(alpha)) my_alpha = alpha
       my_beta = 0.0_dp
       IF (PRESENT(beta)) my_beta = beta
-
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
 
       CALL p_env_check_i_alloc(p_env, qs_env=qs_env)
       n_spins = dft_control%nspins
@@ -902,7 +835,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE p_preortho(p_env, qs_env, v, n_cols)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: v
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_cols
@@ -920,9 +853,6 @@ CONTAINS
 
       NULLIFY (tmp_matrix, maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
                dft_control)
-
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       CALL mpools_get(qs_env%mpools, maxmo_maxmo_fm_pool=maxmo_maxmo_fm_pool)
@@ -997,7 +927,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE p_postortho(p_env, qs_env, v, n_cols)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(inout)    :: v
       INTEGER, DIMENSION(:), INTENT(in), OPTIONAL        :: n_cols
@@ -1015,9 +945,6 @@ CONTAINS
 
       NULLIFY (tmp_matrix, maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
                dft_control)
-
-      CPASSERT(ASSOCIATED(p_env))
-      CPASSERT(p_env%ref_count > 0)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       CALL mpools_get(qs_env%mpools, maxmo_maxmo_fm_pool=maxmo_maxmo_fm_pool)

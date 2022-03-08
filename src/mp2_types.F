@@ -29,11 +29,16 @@ MODULE mp2_types
                                               ri_mp2_laplace,&
                                               ri_mp2_method_gpw,&
                                               ri_rpa_method_gpw
+   USE iso_c_binding,                   ONLY: c_ptr
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_sum
+   USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
+                                              offload_gemm_create,&
+                                              offload_gemm_destroy,&
+                                              offload_gemm_set_op_threshold_gpu
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
 #include "./base/base_uses.f90"
@@ -56,7 +61,9 @@ MODULE mp2_types
              ri_mp2_laplace, &
              init_TShPSC_lmax
 
-   PUBLIC :: mp2_env_create, mp2_env_release, mp2_biel_type, &
+   PUBLIC :: mp2_env_create, &
+             mp2_env_release, &
+             mp2_biel_type, &
              pair_list_type_mp2, &
              one_dim_int_array, &
              two_dim_int_array, &
@@ -128,7 +135,7 @@ MODULE mp2_types
       INTEGER                  :: rpa_integ_group_size
       INTEGER                  :: mm_style
       TYPE(hfx_type), DIMENSION(:, :), POINTER &
-         :: x_data
+         :: x_data => NULL()
       LOGICAL                  :: minimax_quad
       LOGICAL                  :: do_ri_g0w0
       LOGICAL                  :: do_admm
@@ -247,6 +254,7 @@ MODULE mp2_types
       LOGICAL  :: do_svd
       REAL(KIND=dp) :: eps_range
       TYPE(libint_potential_type) :: ri_metric
+      TYPE(C_ptr)                 :: offload_gemm_ctx
    END TYPE
 
    TYPE integ_mat_buffer_type
@@ -282,15 +290,13 @@ CONTAINS
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE mp2_env_release(mp2_env)
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_env_release'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(mp2_env))
 
       ! release the HFX section for the EXX calculation
       IF (ASSOCIATED(mp2_env%ri_rpa%x_data)) THEN
@@ -300,7 +306,7 @@ CONTAINS
       IF (mp2_env%eri_method .EQ. do_eri_mme) CALL cp_eri_mme_finalize(mp2_env%eri_mme_param)
       IF (ASSOCIATED(mp2_env%eri_mme_param)) DEALLOCATE (mp2_env%eri_mme_param)
 
-      DEALLOCATE (mp2_env)
+      CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
 
       CALL timestop(handle)
 
@@ -322,6 +328,12 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(mp2_env))
 
       ALLOCATE (mp2_env)
+
+      ! these two functions are empty if spla is build without gpu support and
+      ! OFFLOAD_GEMM is not given at compilation time
+
+      CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
+      CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
 
       NULLIFY (mp2_env%ri_rpa%x_data)
 
@@ -390,7 +402,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dgemm_counter_write(dgemm_counter, para_env)
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(MAX(dgemm_counter%num_dgemm_call, 1), dp)/1.0E9_dp
       ! Average over all ranks

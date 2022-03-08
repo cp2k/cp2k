@@ -1427,12 +1427,12 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DIPOLE_FORM", &
                           description="Form of dipole transition integrals.", &
-                          default_i_val=tddfpt_dipole_velocity, &
                           enum_c_vals=s2a("BERRY", "LENGTH", "VELOCITY"), &
                           enum_desc=s2a("Based on Berry phase formula (valid for fully periodic molecular systems only)", &
                                         "Length form &lang; i | r | j &rang; (valid for non-periodic molecular systems only)", &
                                         "Velocity form &lang; i | d/dr | j &rang;"), &
-                          enum_i_vals=(/tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity/))
+                          enum_i_vals=(/tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity/), &
+                          default_i_val=tddfpt_dipole_velocity)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1643,6 +1643,20 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="EPS_TD_FILTER", &
                           description="Threshold for filtering the transition density matrix", &
                           usage="EPS_TD_FILTER", default_r_val=1.e-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MATAGA_NISHIMOTO_CEXP", &
+                          description="Exponent used in Mataga-Nishimoto formula for Coulomb (alpha). "// &
+                          "Default value is method dependent!", &
+                          usage="MATAGA_NISHIMOTO_CEXP", default_r_val=-99.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MATAGA_NISHIMOTO_XEXP", &
+                          description="Exponent used in Mataga-Nishimoto formula for Exchange (beta). "// &
+                          "Default value is method dependent!", &
+                          usage="MATAGA_NISHIMOTO_XEXP", default_r_val=-99.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

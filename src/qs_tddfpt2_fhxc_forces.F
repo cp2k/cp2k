@@ -155,8 +155,7 @@ CONTAINS
                                                             n_rep_hf, nao, nao_aux, norb, nspins
       LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_numeric, &
          hfx_treat_lsd_in_core, is_rks_triplets, s_mstruct_changed, use_virial
-      REAL(KIND=dp)                                      :: eh1, focc, fval, total_rhox, &
-                                                            total_rhox_aux, xehartree
+      REAL(KIND=dp)                                      :: eh1, focc, fval, xehartree
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: cpmos, evect
@@ -262,8 +261,7 @@ CONTAINS
       DO ispin = 1, nspins
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
-                                 rho=rhox_r(ispin), rho_gspace=rhox_g(ispin), &
-                                 total_rho=total_rhox)
+                                 rho=rhox_r(ispin), rho_gspace=rhox_g(ispin))
          CALL pw_axpy(rhox_g(ispin)%pw, rhox_tot_gspace%pw)
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
       END DO
@@ -424,7 +422,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1_admm(ispin)%matrix, &
                                           rho=rhox_r_aux(ispin), rho_gspace=rhox_g_aux(ispin), &
-                                          total_rho=total_rhox_aux, basis_type="AUX_FIT", &
+                                          basis_type="AUX_FIT", &
                                           task_list_external=task_list_aux_fit)
                END DO
                !

@@ -1230,7 +1230,7 @@ CONTAINS
 !> \param mpi_comm ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE mpi_sum_func(number, mpi_comm) BIND(C)
+   SUBROUTINE mpi_sum_func(number, mpi_comm) BIND(C, name="grid_api_mpi_sum_func")
       INTEGER(KIND=C_LONG), INTENT(INOUT)                :: number
       INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: mpi_comm
 
@@ -1243,7 +1243,7 @@ CONTAINS
 !> \param output_unit ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE print_func(message, output_unit) BIND(C)
+   SUBROUTINE print_func(message, output_unit) BIND(C, name="grid_api_print_func")
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: message(*)
       INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: output_unit
 

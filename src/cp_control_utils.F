@@ -43,7 +43,7 @@ MODULE cp_control_utils
         real_time_propagation, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
         sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
-        tddfpt_excitations, tddfpt_kernel_stda, use_mom_ref_user, xas_dip_len
+        tddfpt_dipole_length, tddfpt_excitations, tddfpt_kernel_stda, use_mom_ref_user
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -62,9 +62,9 @@ MODULE cp_control_utils
    USE qs_cdft_utils,                   ONLY: read_cdft_control_section
    USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: sort
-   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+   USE xc,                              ONLY: xc_uses_kinetic_energy_density,&
+                                              xc_uses_norm_drho
    USE xc_input_constants,              ONLY: xc_deriv_collocate
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_write_output,                 ONLY: xc_write
 #include "./base/base_uses.f90"
 
@@ -106,7 +106,6 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: maxwell_section, sccs_section, &
                                                             scf_section, tmp_section, &
                                                             xc_fun_section, xc_section
-      TYPE(xc_rho_cflags_type)                           :: needs
 
       was_present = .FALSE.
 
@@ -168,13 +167,11 @@ CONTAINS
       END IF
 
       dft_control%lsd = (dft_control%nspins > 1)
-      needs = xc_functionals_get_needs(xc_fun_section, &
-                                       lsd=dft_control%lsd, &
-                                       add_basic_components=.TRUE.)
-      dft_control%use_kinetic_energy_density = (needs%tau_spin .OR. needs%tau)
+      dft_control%use_kinetic_energy_density = xc_uses_kinetic_energy_density(xc_fun_section, dft_control%lsd)
 
       xc_deriv_method_id = section_get_ival(xc_section, "XC_GRID%XC_DERIV")
-      dft_control%drho_by_collocation = (needs%norm_drho .AND. (xc_deriv_method_id == xc_deriv_collocate))
+      dft_control%drho_by_collocation = (xc_uses_norm_drho(xc_fun_section, dft_control%lsd) &
+                                         .AND. (xc_deriv_method_id == xc_deriv_collocate))
       IF (dft_control%drho_by_collocation) THEN
          CPABORT("derivatives by collocation not implemented")
       END IF
@@ -1259,7 +1256,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       LOGICAL                                            :: do_ewald, do_exchange, expl, explicit, &
                                                             multigrid_set
-      REAL(KIND=dp)                                      :: filter, hfx
+      REAL(KIND=dp)                                      :: filter, fval, hfx
       TYPE(section_vals_type), POINTER                   :: dipole_section, mgrid_section, &
                                                             stda_section, xc_func, xc_section
 
@@ -1328,14 +1325,19 @@ CONTAINS
 
       ! DIPOLE_MOMENTS subsection
       dipole_section => section_vals_get_subs_vals(t_section, "DIPOLE_MOMENTS")
-      CALL section_vals_val_get(dipole_section, "DIPOLE_FORM", i_val=t_control%dipole_form)
+      CALL section_vals_val_get(dipole_section, "DIPOLE_FORM", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(dipole_section, "DIPOLE_FORM", i_val=t_control%dipole_form)
+      ELSE
+         t_control%dipole_form = 0
+      END IF
       CALL section_vals_val_get(dipole_section, "REFERENCE", i_val=t_control%dipole_reference)
       CALL section_vals_val_get(dipole_section, "REFERENCE_POINT", explicit=explicit)
       IF (explicit) THEN
          CALL section_vals_val_get(dipole_section, "REFERENCE_POINT", r_vals=t_control%dipole_ref_point)
       ELSE
          NULLIFY (t_control%dipole_ref_point)
-         IF (t_control%dipole_form == xas_dip_len .AND. t_control%dipole_reference == use_mom_ref_user) THEN
+         IF (t_control%dipole_form == tddfpt_dipole_length .AND. t_control%dipole_reference == use_mom_ref_user) THEN
             CPABORT("User-defined reference point should be given explicitly")
          END IF
       END IF
@@ -1415,6 +1417,8 @@ CONTAINS
          t_control%stda_control%hfx_fraction = 0.0_dp
          t_control%stda_control%do_exchange = .TRUE.
          t_control%stda_control%eps_td_filter = 1.e-10_dp
+         t_control%stda_control%mn_alpha = -99.0_dp
+         t_control%stda_control%mn_beta = -99.0_dp
          ! set default for Ewald method (on/off) dependent on periodicity
          SELECT CASE (qs_control%periodicity)
          CASE (0)
@@ -1439,6 +1443,10 @@ CONTAINS
          IF (expl) t_control%stda_control%do_ewald = do_ewald
          CALL section_vals_val_get(stda_section, "DO_EXCHANGE", l_val=do_exchange, explicit=expl)
          IF (expl) t_control%stda_control%do_exchange = do_exchange
+         CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_CEXP", r_val=fval)
+         t_control%stda_control%mn_alpha = fval
+         CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_XEXP", r_val=fval)
+         t_control%stda_control%mn_beta = fval
       END IF
 
       CALL timestop(handle)

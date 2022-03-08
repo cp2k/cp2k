@@ -103,7 +103,7 @@ CONTAINS
    SUBROUTINE issc_response(issc_env, p_env, qs_env)
       !
       TYPE(issc_env_type)                                :: issc_env
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'issc_response'

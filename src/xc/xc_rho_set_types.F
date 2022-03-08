@@ -325,7 +325,7 @@ CONTAINS
       REAL(kind=dp), INTENT(out), OPTIONAL               :: rho_cutoff, drho_cutoff, tau_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: tau, tau_a, tau_b
-      INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: local_bounds
+      INTEGER, DIMENSION(2, 3), INTENT(OUT), OPTIONAL    :: local_bounds
 
       INTEGER                                            :: i
       LOGICAL                                            :: my_can_return_null
@@ -426,7 +426,7 @@ CONTAINS
       IF (PRESENT(rho_cutoff)) rho_cutoff = rho_set%rho_cutoff
       IF (PRESENT(drho_cutoff)) drho_cutoff = rho_set%drho_cutoff
       IF (PRESENT(tau_cutoff)) tau_cutoff = rho_set%tau_cutoff
-      IF (PRESENT(local_bounds)) local_bounds => rho_set%local_bounds
+      IF (PRESENT(local_bounds)) local_bounds = rho_set%local_bounds
    END SUBROUTINE xc_rho_set_get
 
 ! **************************************************************************************************

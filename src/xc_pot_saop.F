@@ -137,8 +137,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: compute_virial, gapw, lsd
       REAL(KIND=dp)                                      :: density_cut, efac, gradient_cut, &
-                                                            tau_cut, tot_rho_psi, we_GLLB, we_LB, &
-                                                            xc_energy
+                                                            tau_cut, we_GLLB, we_LB, xc_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_col
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -159,7 +158,7 @@ CONTAINS
                                                             xc_fun_section_tmp, xc_section_orig, &
                                                             xc_section_tmp
       TYPE(virial_type), POINTER                         :: virial
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
@@ -167,7 +166,7 @@ CONTAINS
       NULLIFY (ks_env, pw_env, auxbas_pw_pool, input)
       NULLIFY (rho_g, rho_r, tau, rho_struct, rho_set, e_uniform)
       NULLIFY (vxc_GLLB, vxc_LB, vxc_tmp, vxc_SAOP, vxc_tau)
-      NULLIFY (mo_eigenvalues, deriv_set, deriv, rho_struct_r, rho_struct_ao)
+      NULLIFY (mo_eigenvalues, deriv, rho_struct_r, rho_struct_ao)
       NULLIFY (orbital_density_matrix, dummy, xc_section_tmp, xc_fun_section_tmp)
 
       CALL get_qs_env(qs_env, &
@@ -351,7 +350,7 @@ CONTAINS
             CALL pw_zero(orbital_g%pw)
             CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
                                     rho=orbital, rho_gspace=orbital_g, &
-                                    total_rho=tot_rho_psi, ks_env=ks_env)
+                                    ks_env=ks_env)
 
             vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
                                      efac*orbital%pw%cr3d
@@ -420,7 +419,7 @@ CONTAINS
             CALL pw_zero(orbital_g%pw)
             CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
                                     rho=orbital, rho_gspace=orbital_g, &
-                                    total_rho=tot_rho_psi, ks_env=ks_env)
+                                    ks_env=ks_env)
 
 !TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env)
 !TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))
@@ -546,7 +545,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input, xc_fun_section_orig, &
                                                             xc_fun_section_tmp, xc_section_orig, &
                                                             xc_section_tmp
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs, needs_orbs
       TYPE(xc_rho_set_type), POINTER                     :: orb_rho_set_h, orb_rho_set_s, rho_set_h, &
@@ -554,7 +553,7 @@ CONTAINS
 
       NULLIFY (weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
                vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
-               atomic_kind_set, qs_kind_set, deriv_set, deriv, atomic_grid, rho_struct_ao, &
+               atomic_kind_set, qs_kind_set, deriv, atomic_grid, rho_struct_ao, &
                harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
                r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, para_env, &
                mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, matrix_ks, &

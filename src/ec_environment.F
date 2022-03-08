@@ -36,7 +36,8 @@ MODULE ec_environment
         ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, ls_s_preconditioner_none, &
         ls_s_sqrt_ns, ls_s_sqrt_proot, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_check,                ONLY: xc_functionals_expand
-   USE input_section_types,             ONLY: section_vals_get,&
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -55,7 +56,11 @@ MODULE ec_environment
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_rho_types,                    ONLY: qs_rho_type
    USE string_utilities,                ONLY: uppercase
+   USE xc,                              ONLY: xc_uses_kinetic_energy_density,&
+                                              xc_uses_norm_drho
+   USE xc_input_constants,              ONLY: xc_deriv_collocate
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -120,8 +125,9 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: nl_section, pp_section, section1, &
-                                                            section2, xc_section
+                                                            section2, xc_fun_section, xc_section
 
       CALL timeset(routineN, handle)
 
@@ -259,6 +265,15 @@ CONTAINS
          ELSE
             ec_env%xc_section => xc_section
          END IF
+         ! Check whether energy correction requires the kinetic energy density and rebuild rho if necessary
+         CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho)
+         xc_fun_section => section_vals_get_subs_vals(ec_env%xc_section, "XC_FUNCTIONAL")
+         dft_control%use_kinetic_energy_density = dft_control%use_kinetic_energy_density .OR. &
+                                                  xc_uses_kinetic_energy_density(xc_fun_section, dft_control%lsd)
+         ! Same for density gradient
+         dft_control%drho_by_collocation = dft_control%drho_by_collocation .OR. &
+                                           (xc_uses_norm_drho(xc_fun_section, dft_control%lsd) .AND. &
+                                            (section_get_ival(xc_section, "XC_GRID%XC_DERIV") == xc_deriv_collocate))
          ! dispersion
          ALLOCATE (dispersion_env)
          NULLIFY (xc_section)

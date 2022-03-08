@@ -378,7 +378,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE polar_response(p_env, qs_env)
 
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'polar_response'

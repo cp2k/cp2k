@@ -8,7 +8,7 @@ source /opt/cp2k-toolchain/install/setup
 echo -e "\n========== Compiling CP2K =========="
 cd /workspace/cp2k
 echo -n "Compiling cp2k... "
-if make -j VERSION=pdbg &> make.out; then
+if make -j VERSION=sdbg &> make.out; then
   echo "done."
 else
   echo -e "failed.\n\n"
@@ -18,9 +18,18 @@ else
   exit 0
 fi
 
+echo -e "\n========== Installing Dependencies =========="
+apt-get update -qq
+apt-get install -qq --no-install-recommends \
+  python3 \
+  python3-pip \
+  python3-wheel \
+  python3-setuptools
+rm -rf /var/lib/apt/lists/*
+
 echo -e "\n========== Installing i-Pi =========="
+git clone --quiet --depth=1 --single-branch -b master https://github.com/i-pi/i-pi.git /opt/i-pi
 cd /opt/i-pi
-git pull --quiet
 pip3 install --quiet .
 
 echo -e "\n========== Running i-Pi Tests =========="
@@ -38,7 +47,7 @@ ulimit -t ${TIMEOUT_SEC} # Limit cpu time.
   echo 42 > cp2k_exit_code
   sleep 10 # give i-pi some time to startup
   export OMP_NUM_THREADS=2
-  mpiexec -np 2 /workspace/cp2k/exe/local/cp2k.pdbg ../in.cp2k
+  /workspace/cp2k/exe/local/cp2k.sdbg ../in.cp2k
   echo $? > cp2k_exit_code
 ) &
 
@@ -57,11 +66,11 @@ echo "i-Pi exit code: ${IPI_EXIT_CODE}"
 
 IPI_REVISION=$(git rev-parse --short HEAD)
 if ((IPI_EXIT_CODE)) || ((CP2K_EXIT_CODE)); then
-  echo "Summary: Something is wrong with i-Pi commit ${IPI_REVISION}."
-  echo "Status: FAILED"
+  echo -e "\nnSummary: Something is wrong with i-Pi commit ${IPI_REVISION}."
+  echo -e "Status: FAILED\n"
 else
-  echo "Summary: i-Pi commit ${IPI_REVISION} works fine."
-  echo "Status: OK"
+  echo -e "\nSummary: i-Pi commit ${IPI_REVISION} works fine."
+  echo -e "Status: OK\n"
 fi
 
 #EOF

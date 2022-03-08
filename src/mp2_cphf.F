@@ -159,7 +159,7 @@ CONTAINS
    SUBROUTINE solve_z_vector_eq(qs_env, mp2_env, para_env, dft_control, &
                                 mo_coeff, nmo, homo, Eigenval, unit_nr)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN), &
@@ -337,6 +337,7 @@ CONTAINS
       linres_control%energy_gap = 0.02_dp
 
       NULLIFY (p_env)
+      ALLOCATE (p_env)
       CALL p_env_create(p_env, qs_env, p1_option=P_mu_nu, orthogonal_orbitals=.TRUE., linres_control=linres_control)
       CALL set_qs_env(qs_env, linres_control=linres_control)
       CALL p_env_psi0_changed(p_env, qs_env)
@@ -537,7 +538,7 @@ CONTAINS
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_ao, fm_back
       INTEGER, INTENT(IN)                                :: transf_type_in
@@ -670,13 +671,13 @@ CONTAINS
                                     mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
                                     L_jb, fm_G_mu_nu, fm_back, P_ia)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
       TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_blacs_env_type), INTENT(IN), POINTER       :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
@@ -1332,6 +1333,11 @@ CONTAINS
       CALL apply_2nd_order_kernel(qs_env, p_env, .FALSE., .TRUE., use_virial, h_stress)
       IF (use_virial) THEN
          virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_virial)
+         IF (debug_forces) THEN
+            e_dummy = third_tr(virial%pv_virial - pv_virial)
+            CALL mp_sum(e_dummy, para_env%group)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Kh       ", e_dummy
+         END IF
          virial%pv_exc = virial%pv_exc + h_stress
          virial%pv_virial = virial%pv_virial + h_stress
          IF (debug_forces) THEN
@@ -1566,6 +1572,8 @@ CONTAINS
 
       ! Release linres stuff
       CALL p_env_release(p_env)
+      DEALLOCATE (p_env)
+      NULLIFY (qs_env%mp2_env%ri_grad%p_env)
       CALL linres_control_release(linres_control)
 
       CALL sum_qs_force(force, qs_env%mp2_env%ri_grad%mp2_force)
@@ -1575,7 +1583,7 @@ CONTAINS
          virial%pv_mp2 = qs_env%mp2_env%ri_grad%mp2_virial
          virial%pv_virial = virial%pv_virial + qs_env%mp2_env%ri_grad%mp2_virial
          IF (debug_forces) THEN
-            e_dummy = third_tr(virial%pv_virial)
+            e_dummy = third_tr(virial%pv_mp2)
             CALL mp_sum(e_dummy, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: MP2nonsep  ", e_dummy
          END IF

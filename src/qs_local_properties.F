@@ -91,7 +91,6 @@ CONTAINS
                                                             nkind, nspins
       LOGICAL                                            :: gapw, gapw_xc
       REAL(KIND=dp)                                      :: eban, eband, eh, exc, ovol
-      REAL(KIND=dp), DIMENSION(2)                        :: band_energy
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_w, rho_ao_kp
@@ -152,7 +151,6 @@ CONTAINS
       END IF
       ! band structure energy density
       CALL qs_energies_compute_w(qs_env, .TRUE.)
-      band_energy = 0.0_dp
       CALL get_qs_env(qs_env, ks_env=ks_env, matrix_w_kp=matrix_w)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              edens_r%pw, &
@@ -168,7 +166,6 @@ CONTAINS
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
                                  rho=edens_r, &
                                  rho_gspace=edens_g, &
-                                 total_rho=band_energy(ispin), &
                                  ks_env=ks_env, soft_valid=(gapw .OR. gapw_xc))
          CALL pw_axpy(edens_r%pw, band_density%pw)
       END DO

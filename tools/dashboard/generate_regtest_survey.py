@@ -2,21 +2,31 @@
 
 # author: Ole Schuett
 
+from typing import Any, Dict, Set, List, Optional, NewType, cast
 from urllib.request import urlopen
 from datetime import datetime
 from glob import glob
+import configparser
+import dataclasses
 import numpy as np
 import gzip
 import sys
 import re
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+# ======================================================================================
+Report = NewType("Report", Dict[str, str])
 
-# ===============================================================================
-def main():
+# ======================================================================================
+@dataclasses.dataclass
+class TestDef:
+    test_type: int
+    flags: List[str]
+    tolerance: float
+    ref_value: str
+
+
+# ======================================================================================
+def main() -> None:
     if len(sys.argv) != 3:
         print("Usage generate_regtest_survey.py <dashboard.conf> <output-dir>")
         sys.exit(1)
@@ -31,13 +41,13 @@ def main():
     test_types = parse_test_types()
 
     # find eligible testers by parsing latest reports
-    tester_names = list()
-    tester_values = dict()
-    inp_names = set()
+    tester_names: List[str] = list()
+    tester_values: Dict[str, Report] = dict()
+    inp_names: Set[str] = set()
     config = configparser.ConfigParser()
     config.read(config_fn)
 
-    def get_sortkey(s):
+    def get_sortkey(s: str) -> int:
         return config.getint(s, "sortkey")
 
     for tname in sorted(config.sections(), key=get_sortkey):
@@ -96,38 +106,25 @@ def main():
     ntests = len(test_defs)
     output += "<tr><td>Total number of test-cases</td>"
     output += '<td align="right">%d</td><td align="right">100.0%%</tr>\n' % ntests
-    n = len([t for t in test_defs.values() if len(t["flags"]) != 0])
+    n = sum(len(t.flags) != 0 for t in test_defs.values() if t.flags)
+    pc = n / (0.01 * ntests)
     output += "<tr><td>Tests which require flags</td>"
-    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n' % (
-        n,
-        n / (0.01 * ntests),
-    )
-    n = len([t for t in test_defs.values() if int(t["type"]) != 0])
+    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n' % (n, pc)
+    n = sum(t.test_type != 0 for t in test_defs.values())
+    pc = n / (0.01 * ntests)
     output += "<tr><td>Numeric tests, ie. type &ne; 0</td>"
-    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n' % (
-        n,
-        n / (0.01 * ntests),
-    )
-    n = len([t for t in test_defs.values() if "ref-value" in t])
+    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n' % (n, pc)
+    n = sum(t.ref_value != "" for t in test_defs.values())
+    pc = n / (0.01 * ntests)
     output += "<tr><td>Numeric tests with fixed reference</td>"
-    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n' % (
-        n,
-        n / (0.01 * ntests),
-    )
-    for i in range(14, 9, -1):
+    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n' % (n, pc)
+    for i in range(14, 5, -1):
         tol = float("1.e-%d" % i)
-        n = len(
-            [
-                t
-                for t in test_defs.values()
-                if int(t["type"]) != 0 and float(t["tolerance"]) <= tol
-            ]
-        )
+        n = sum(t.test_type != 0 and t.tolerance <= tol for t in test_defs.values())
+        pc = n / (0.01 * ntests)
         output += "<tr><td>Numeric tests with tolerance &le; 10<sup>-%d</sup></td>" % i
-        output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n' % (
-            n,
-            n / (0.01 * ntests),
-        )
+        output += '<td align="right">%d</td><td align="right">%.1f%%</td>' % (n, pc)
+        output += "</tr>\n"
     output += "</table></div>\n"
 
     # table-body
@@ -136,37 +133,37 @@ def main():
     tbody = ""
     for inp in sorted(inp_names):
         # calculate median and MAD
-        values = list()
+        value_list = list()
         for tname in tester_names:
             val = tester_values[tname].get(inp, None)
             if val:
-                values.append(float(val))
-        values = np.array(values)
+                value_list.append(float(val))
+        values: Any = np.array(value_list)
         median_iterp = np.median(values)  # takes midpoint if len(values)%2==0
         median_idx = (np.abs(values - median_iterp)).argmin()  # find closest point
         median = values[median_idx]
         norm = median + 1.0 * (median == 0.0)
         rel_diff = abs((values - median) / norm)
         mad = np.amax(rel_diff)  # Maximum Absolute Deviation
-        outlier = list(rel_diff > test_defs[inp]["tolerance"])
+        outlier = list(rel_diff > test_defs[inp].tolerance)
 
         # output table-row
         tbody += '<tr align="right">\n'
         style = 'bgcolor="#FF9900"' if any(outlier) else ""
         tbody += '<th align="left" %s>%s</th>\n' % (style, inp)
-        ttype_num = test_defs[inp]["type"]
-        ttype_re = test_types[int(test_defs[inp]["type"])].split("!")[0].strip()
+        ttype_num = test_defs[inp].test_type
+        ttype_re = test_types[test_defs[inp].test_type].split("!")[0].strip()
         tbody += '<td title="%s" >%s</td>\n' % (ttype_re, ttype_num)
-        tbody += "<td>%.1e</td>\n" % test_defs[inp]["tolerance"]
+        tbody += "<td>%.1e</td>\n" % test_defs[inp].tolerance
         tbody += "<td>%.1e</td>\n" % mad
-        tol_mad = test_defs[inp]["tolerance"] / max(1e-14, mad)
+        tol_mad = test_defs[inp].tolerance / max(1e-14, mad)
         if tol_mad < 1.0:
             tbody += '<td bgcolor="#FF9900">%.1e</td>\n' % tol_mad
         elif tol_mad > 10.0:
             tbody += '<td bgcolor="#99FF00">%.1e</td>\n' % tol_mad
         else:
             tbody += "<td>%.1e</td>\n" % tol_mad
-        tbody += "<td>%s</td>\n" % test_defs[inp].get("ref-value", "")
+        tbody += "<td>%s</td>\n" % test_defs[inp].ref_value
         tbody += "<td>%.17g</td>\n" % median
         tbody += "<td>%i</td>\n" % np.sum(outlier)
         for tname in tester_names:
@@ -186,9 +183,7 @@ def main():
     theader = '<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
     theader += '<th><abbr title="Maximum Absolute Deviation">MAD</abbr></th>'
     theader += "<th>Tol. / MAD</th><th>Reference</th><th>Median</th>"
-    theader += (
-        '<th><abbr title="Failures if reference were at median.">#failed</abbr></th>'
-    )
+    theader += '<th><abbr title="Failures if ref. were at median.">#failed</abbr></th>'
     for tname in tester_names:
         theader += '<th><span class="nowrap">%s</span>' % config.get(tname, "name")
         theader += "<br>#failed: %d" % tester_nfailed[tname]
@@ -219,8 +214,8 @@ def main():
     print("Wrote: " + fn)
 
 
-# ===============================================================================
-def parse_test_files():
+# ======================================================================================
+def parse_test_files() -> Dict[str, TestDef]:
     test_defs = dict()
 
     tests_root = "../../tests/"
@@ -240,25 +235,26 @@ def parse_test_files():
                 continue
             parts = line.split()
             name = d + "/" + parts[0]
-            entry = {"type": parts[1], "flags": flags}
+            test_type = int(parts[1])
             if len(parts) == 2:
-                entry["tolerance"] = 1.0e-14  # default
+                tolerance = 1.0e-14  # default
+                ref_value = ""
             elif len(parts) == 3:
-                entry["tolerance"] = float(parts[2])
+                tolerance = float(parts[2])
+                ref_value = ""
             elif len(parts) == 4:
-                entry["tolerance"] = float(parts[2])
-                entry["ref-value"] = parts[3]  # do not parse float
+                tolerance = float(parts[2])
+                ref_value = parts[3]  # do not parse float
             else:
                 raise (Exception("Found strange line in: " + fn))
-
-            test_defs[name] = entry
+            test_defs[name] = TestDef(test_type, flags, tolerance, ref_value)
 
     return test_defs
 
 
-# ===============================================================================
-def parse_test_types():
-    test_types = [None]
+# ======================================================================================
+def parse_test_types() -> List[str]:
+    test_types = [""]
     lines = open("../../tests/TEST_TYPES", encoding="utf8").readlines()
     ntypes = int(lines[0])
     for i in range(1, ntypes + 1):
@@ -266,53 +262,52 @@ def parse_test_types():
     return test_types
 
 
-# ===============================================================================
-def parse_report(report_url):
+# ======================================================================================
+def parse_report(report_url: str) -> Optional[Report]:
     print("Parsing: " + report_url)
     data = urlopen(report_url, timeout=5).read()
     report_txt = gzip.decompress(data).decode("utf-8", errors="replace")
 
-    m = re.search(
-        "\n-+ ?regtesting cp2k ?-+\n(.*)\n-+ Summary -+\n", report_txt, re.DOTALL
-    )
-    if not m:
-        print("Not a complete regtests report - skipping.")
+    if "Keepalive:" not in report_txt:
+        print("Could not recognize as regtests report - skipping.")
         return None
 
-    main_part = m.group(1)
     curr_dir = None
-    values = dict()
-    for line in main_part.split("\n"):
-        if "/UNIT/" in line:
-            curr_dir = None  # ignore unit-tests
+    dir_offset = None
+    values: Report = cast(Report, {})
+    for line in report_txt.split("\n"):
+        if line.endswith("/UNIT"):
+            dir_offset = len(line) - 4  # relies on unit tests starting first.
+            continue  # ignore unit-tests
         elif line.startswith(">>>"):
-            curr_dir = line.rsplit("/tests/")[1] + "/"
+            curr_dir = line[dir_offset:]
+            continue
         elif line.startswith("<<<"):
             curr_dir = None
-        elif curr_dir:
-            if "RUNTIME FAIL" in line:
-                continue  # ignore crashed tests
-            if "KILLED" in line:
-                continue  # ignore timeouted tests
-            if "FAILED START" in line:
-                continue  # ignore crashed farming run
-            parts = line.split()
-            if parts[0].rsplit(".", 1)[1] not in ("inp", "restart"):
-                print("Found strange line:\n" + line)
-                continue
-            test_name = curr_dir + parts[0]
-            if parts[1] == "-":
-                continue  # test without numeric check
-            try:
-                float(parts[1])  # try parsing float...
-                values[test_name] = parts[1]  # ... but pass on the original string
-            except TypeError:
-                pass  # ignore values which can not be parsed
-        else:
-            pass  # ignore line
+            continue
+        elif curr_dir is None:
+            continue  # ignore line
+
+        # Found an actual result line.
+        if "OK" not in line and "WRONG RESULT" not in line:
+            continue  # ignore failed tests
+        parts = line.split()
+        if parts[0].rsplit(".", 1)[1] not in ("inp", "restart"):
+            print("Found strange line:\n" + line)
+            continue
+        test_name = curr_dir + "/" + parts[0]
+        if parts[1] == "-":
+            continue  # test without numeric check
+        try:
+            float(parts[1])  # try parsing float...
+            values[test_name] = parts[1]  # ... but pass on the original string
+        except ValueError:
+            pass  # ignore values which can not be parsed
 
     return values
 
 
-# ===============================================================================
+# ======================================================================================
 main()
+
+# EOF

@@ -100,7 +100,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: Emp2, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T
       INTEGER, INTENT(IN)                                :: dimen, natom, homo
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
-      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
@@ -598,7 +598,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: index_table_RI
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
-      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C
       TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
@@ -727,7 +727,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: index_table_RI
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
-      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Auto
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C
       TYPE(hfx_basis_type), DIMENSION(:), INTENT(IN), &
@@ -1056,7 +1056,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: MOenerg, MOenerg_beta
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: abij
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Lai, Lai_beta
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER                                            :: a, b, i, ij_counter, j
       REAL(KIND=dp)                                      :: t_iajb, t_iajb_RI
@@ -1113,7 +1113,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE calc_elem_ij_proc(homo, homo_beta, para_env, elements_ij_proc, ij_list_proc)
       INTEGER, INTENT(IN)                                :: homo, homo_beta
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(OUT)                               :: elements_ij_proc
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: ij_list_proc
 
@@ -1173,7 +1173,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE generate_RI_init_basis(qs_env, mp2_env, nkind, max_rel_dev_output, basis_was_assoc)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(mp2_type), INTENT(IN), POINTER                :: mp2_env
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(OUT)                               :: nkind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: max_rel_dev_output

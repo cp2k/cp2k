@@ -74,7 +74,7 @@ CONTAINS
       TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, lr_force
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
 
       CALL timeset(routineN, handle)
 
@@ -107,7 +107,6 @@ CONTAINS
             CALL zero_qs_force(lr_force)
             CALL set_qs_env(qs_env, force=lr_force)
             !
-            NULLIFY (p_env)
             CALL response_equation(qs_env, p_env, ex_env%cpmos, unit_nr)
             !
             CALL get_qs_env(qs_env, dft_control=dft_control)

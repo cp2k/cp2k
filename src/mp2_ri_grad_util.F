@@ -85,7 +85,7 @@ CONTAINS
                              my_B_size, my_B_virtual_start, gd_array, gd_B_virtual, &
                              sub_proc_map, kspin)
 
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: B_ia_Q
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
@@ -516,7 +516,7 @@ CONTAINS
          INTENT(INOUT)                                   :: mat2D
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       INTEGER, INTENT(IN)                                :: num_rows, num_cols
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: my_start_row, my_end_row, my_start_col, &
                                                             my_end_col
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_row, gd_col
@@ -932,7 +932,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: mat2D
       INTEGER, INTENT(IN)                                :: num_rows, num_cols
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: my_rows, my_start_row, my_end_row, &
                                                             my_cols, my_start_col, my_end_col
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos, mepos_2_grid_group
@@ -1291,7 +1291,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       INTEGER, INTENT(IN)                                :: my_ia_start, my_ia_end, my_group_L_size
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_ia
-      TYPE(mp2_type), POINTER                            :: mp2_env
+      TYPE(mp2_type)                                     :: mp2_env
       INTEGER, INTENT(IN)                                :: kspin
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma'
@@ -1634,7 +1634,7 @@ CONTAINS
    SUBROUTINE prepare_redistribution(para_env, para_env_sub, ngroup, &
                                      group_grid_2_mepos, mepos_2_grid_group, &
                                      pos_info)
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: ngroup
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: group_grid_2_mepos, mepos_2_grid_group
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT), &

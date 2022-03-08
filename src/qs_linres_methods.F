@@ -217,9 +217,9 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, iounit, should_stop)
-      TYPE(qs_p_env_type), POINTER                       :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi1, h1_psi0, psi0_order
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: psi1, h1_psi0, psi0_order
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
 
@@ -327,7 +327,6 @@ CONTAINS
       ! build the preconditioner
       IF (linres_control%preconditioner_type /= ot_precond_none) THEN
          IF (p_env%new_preconditioner) THEN
-            p_env%os_valid = .FALSE.
             DO ispin = 1, nspins
                IF (ASSOCIATED(matrix_t)) THEN
                   CALL make_preconditioner(p_env%preconditioner(ispin), &
@@ -565,8 +564,8 @@ CONTAINS
    SUBROUTINE apply_op(qs_env, p_env, c0, v, Av, chc)
       !
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: c0, v, Av, chc
+      TYPE(qs_p_env_type)                                :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: c0, v, Av, chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 
@@ -622,7 +621,7 @@ CONTAINS
                IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_set(p_env%kpp1_admm(ispin)%matrix, 0.0_dp)
             END DO
 
-            CALL apply_op_2(qs_env, p_env, c0, v, Av)
+            CALL apply_op_2(qs_env, p_env, c0, Av)
 
          END IF
 
@@ -653,9 +652,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       !
-      CPASSERT(ASSOCIATED(v))
-      CPASSERT(ASSOCIATED(Av))
-      CPASSERT(ASSOCIATED(chc))
       NULLIFY (buf)
       !
       CALL cp_fm_create(buf, v%matrix_struct)
@@ -792,7 +788,7 @@ CONTAINS
    SUBROUTINE linres_write_restart(qs_env, linres_section, vec, ivec, tag, ind)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: vec
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: vec
       INTEGER, INTENT(IN)                                :: ivec
       CHARACTER(LEN=*)                                   :: tag
       INTEGER, INTENT(IN), OPTIONAL                      :: ind
@@ -906,7 +902,7 @@ CONTAINS
    SUBROUTINE linres_read_restart(qs_env, linres_section, vec, ivec, tag, ind)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: vec
+      TYPE(cp_fm_p_type), DIMENSION(:)                   :: vec
       INTEGER, INTENT(IN)                                :: ivec
       CHARACTER(LEN=*)                                   :: tag
       INTEGER, INTENT(INOUT), OPTIONAL                   :: ind
@@ -1068,8 +1064,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_p_env_init(p_env, linres_control, nspins)
       !
-      TYPE(qs_p_env_type), POINTER                       :: p_env
-      TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(qs_p_env_type)                                :: p_env
+      TYPE(linres_control_type), INTENT(IN)              :: linres_control
       INTEGER, INTENT(IN)                                :: nspins
 
       INTEGER                                            :: ispin, ncol, nrow

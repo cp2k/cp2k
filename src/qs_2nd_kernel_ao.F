@@ -125,7 +125,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_2nd_order_kernel(qs_env, p_env, recalc_hfx_integrals, calc_forces, calc_virial, virial)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals, calc_forces, &
                                                             calc_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
@@ -277,7 +277,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_xc_admm_ao(qs_env, p_env, calc_forces, calc_virial, virial)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(qs_p_env_type)                                :: p_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: calc_forces, calc_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial
@@ -293,7 +293,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, tau1_aux_r, &
+                                                            v_xc, v_xc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux
@@ -327,12 +328,12 @@ CONTAINS
          lsd = (nspins == 2)
          CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, task_list_aux_fit=task_list_aux_fit, admm_env=admm_env)
 
-         CALL qs_rho_get(p_env%rho1_admm, rho_r=rho1_aux_r, rho_g=rho1_aux_g)
+         CALL qs_rho_get(p_env%rho1_admm, rho_r=rho1_aux_r, rho_g=rho1_aux_g, tau_r=tau1_aux_r)
          xc_section => admm_env%xc_section_aux
 
-         CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set_admm, &
+         CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set_admm, &
                                 p_env%kpp1_env%rho_set_admm, &
-                                rho1_aux_r, rho1_aux_g, auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE., &
+                                rho1_aux_r, rho1_aux_g, tau1_aux_r, auxbas_pw_pool, xc_section=xc_section, gapw=.FALSE., &
                                 compute_virial=calc_virial, virial_xc=virial)
 
          NULLIFY (work_hmat%matrix)
@@ -352,6 +353,13 @@ CONTAINS
             CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=work_hmat, qs_env=qs_env, &
                                     calculate_forces=my_calc_forces, basis_type="AUX_FIT", &
                                     task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
+            IF (ASSOCIATED(v_xc_tau)) THEN
+               v_xc_tau(ispin)%pw%cr3d = v_xc_tau(ispin)%pw%cr3d*v_xc_tau(ispin)%pw%pw_grid%dvol
+               CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), hmat=work_hmat, qs_env=qs_env, &
+                                       compute_tau=.TRUE., &
+                                       calculate_forces=my_calc_forces, basis_type="AUX_FIT", &
+                                       task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
+            END IF
             CALL dbcsr_add(p_env%kpp1_admm(ispin)%matrix, work_hmat%matrix, 1.0_dp, alpha)
 
          END DO

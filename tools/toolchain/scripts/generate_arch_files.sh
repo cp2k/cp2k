@@ -293,6 +293,7 @@ rm -f ${INSTALLDIR}/arch/local*
 gen_arch_file "local.ssmp"
 gen_arch_file "local_static.ssmp" STATIC
 gen_arch_file "local.sdbg" DEBUG
+gen_arch_file "local_coverage.sdbg" COVERAGE
 arch_vers="ssmp sdbg"
 
 if [ "$MPI_MODE" != no ]; then

@@ -59,16 +59,31 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install test for manual.
-WORKDIR /workspace
+# Install CP2K using local.psmp.
+WORKDIR /workspace/cp2k
+ARG GIT_COMMIT_SHA
+COPY ./Makefile .
+COPY ./src ./src
+COPY ./exts ./exts
+COPY ./tools/build_utils ./tools/build_utils
+RUN /bin/bash -c " \
+    if [ -n "${GIT_COMMIT_SHA}" ] ; then echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi && \
+    mkdir -p arch && \
+    ln -vs /opt/cp2k-toolchain/install/arch/local.psmp ./arch/ && \
+    echo 'Compiling cp2k...' && \
+    source /opt/cp2k-toolchain/install/setup && \
+    ( make -j ARCH=local VERSION=psmp &> /dev/null || true )"
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/regtesting ./tools/regtesting
 
-COPY ./tools/docker/scripts/install_basics.sh .
-RUN ./install_basics.sh
+# Generate manual.
+COPY ./tools/manual ./tools/manual
+COPY ./tools/input_editing ./tools/input_editing
+COPY ./tools/docker/scripts/test_manual.sh .
+RUN ./test_manual.sh 2>&1 | tee report.log
 
-COPY ./tools/docker/scripts/install_manual.sh .
-RUN ./install_manual.sh
-
-COPY ./tools/docker/scripts/ci_entrypoint.sh ./tools/docker/scripts/test_manual.sh ./
-CMD ["./ci_entrypoint.sh", "./test_manual.sh"]
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
 
 #EOF

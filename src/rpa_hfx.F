@@ -172,7 +172,7 @@ CONTAINS
 !> \param energy ...
 ! **************************************************************************************************
    SUBROUTINE remove_exc_energy(energy)
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'remove_exc_energy', &
          routineP = moduleN//':'//routineN

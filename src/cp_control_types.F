@@ -424,6 +424,8 @@ MODULE cp_control_types
       LOGICAL                                :: do_exchange
       REAL(KIND=dp)                          :: hfx_fraction
       REAL(KIND=dp)                          :: eps_td_filter
+      REAL(KIND=dp)                          :: mn_alpha
+      REAL(KIND=dp)                          :: mn_beta
    END TYPE stda_control_type
 
 ! **************************************************************************************************

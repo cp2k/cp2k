@@ -1547,7 +1547,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho, rho_gspace
-      REAL(KIND=dp), INTENT(OUT)                         :: total_rho
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_rho
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, compute_tau, compute_grad
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
@@ -1690,7 +1690,7 @@ CONTAINS
 
       ! Merge realspace multi-grids into single planewave grid.
       CALL density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
-      total_rho = pw_integrate_function(rho%pw, isign=-1)
+      IF (PRESENT(total_rho)) total_rho = pw_integrate_function(rho%pw, isign=-1)
 
       CALL timestop(handle)
 

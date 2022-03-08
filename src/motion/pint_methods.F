@@ -68,6 +68,7 @@ MODULE pint_methods
    USE helium_types,                    ONLY: helium_solvent_p_type
    USE input_constants,                 ONLY: integrate_exact,&
                                               integrate_numeric,&
+                                              propagator_cmd,&
                                               propagator_rpmd,&
                                               transformation_normal,&
                                               transformation_stage
@@ -298,6 +299,11 @@ CONTAINS
 
       CALL section_vals_val_get(pint_section, "transformation", &
                                 i_val=pint_env%transform)
+
+      IF ((pint_env%propagator%prop_kind == propagator_cmd) .AND. &
+          (pint_env%transform /= transformation_normal)) THEN
+         CPABORT("CMD Propagator without normal modes not implemented!")
+      END IF
 
       NULLIFY (pint_env%tx, pint_env%tv, pint_env%tv_t, pint_env%tv_old, pint_env%tv_new, pint_env%tf)
 
@@ -1619,6 +1625,9 @@ CONTAINS
                END DO
             END DO
          END DO
+         IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+            pint_env%tv(:, 1, :) = 0.0_dp
+         END IF
 
          NULLIFY (input_section)
          input_section => section_vals_get_subs_vals(pint_env%input, &
@@ -1644,6 +1653,9 @@ CONTAINS
                END DO
             END IF
          END IF
+         IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+            pint_env%tx(:, 1, :) = 0.0_dp
+         END IF
 
          NULLIFY (input_section)
          input_section => section_vals_get_subs_vals(pint_env%input, &
@@ -1667,6 +1679,9 @@ CONTAINS
                      END DO
                   END DO
                END DO
+            END IF
+            IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+               pint_env%tv(:, 1, :) = 0.0_dp
             END IF
          END IF
 
@@ -2072,11 +2087,24 @@ CONTAINS
                   END DO
                END IF
 
+               ! Exempt centroid from thermostat for CMD
+               IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                  pint_env%tx(:, 1, :) = 0.0_dp
+                  pint_env%tv(:, 1, :) = 0.0_dp
+                  pint_env%tf(:, 1, :) = 0.0_dp
+               END IF
+
                DO i = pint_env%first_propagated_mode, pint_env%p
                   pint_env%ux(i, :) = pint_env%ux(i, :) - &
                                       dti22*pint_env%uv(i, :)*pint_env%tv(1, i, :)
                END DO
                pint_env%tx = pint_env%tx + dti*pint_env%tv + dti22*pint_env%tf
+
+               IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                  pint_env%tx(:, 1, :) = 0.0_dp
+                  pint_env%tv(:, 1, :) = 0.0_dp
+                  pint_env%tf(:, 1, :) = 0.0_dp
+               END IF
 
             END IF
             !Integrate position in harmonic springs (uf_h) and physical potential
@@ -2091,6 +2119,13 @@ CONTAINS
             ! apply thermostats to velocities
             SELECT CASE (pint_env%pimd_thermostat)
             CASE (thermostat_nose)
+
+               IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                  pint_env%tx(:, 1, :) = 0.0_dp
+                  pint_env%tv(:, 1, :) = 0.0_dp
+                  pint_env%tf(:, 1, :) = 0.0_dp
+               END IF
+
                pint_env%uv_t = pint_env%uv - dti2* &
                                pint_env%uv*pint_env%tv(1, :, :)
                tmp => pint_env%tv_t
@@ -2112,6 +2147,13 @@ CONTAINS
                      pint_env%tv_t(:, 1, j) = 0.0_dp
                   END DO
                END DO
+            END IF
+
+            ! Exempt centroid from thermostat for CMD
+            IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+               pint_env%tx(:, 1, :) = 0.0_dp
+               pint_env%tv(:, 1, :) = 0.0_dp
+               pint_env%tf(:, 1, :) = 0.0_dp
             END IF
 
             !Integrate harmonic velocities and physical velocities
@@ -2160,6 +2202,12 @@ CONTAINS
                END DO
 
             END IF
+            ! Exempt centroid from thermostat for CMD
+            IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+               pint_env%tx(:, 1, :) = 0.0_dp
+               pint_env%tv(:, 1, :) = 0.0_dp
+               pint_env%tf(:, 1, :) = 0.0_dp
+            END IF
 
             CALL pint_calc_uf_h(pint_env=pint_env, e_h=e_h)
             pint_env%uv_t = pint_env%uv_t + dti2*(pint_env%uf_h + pint_env%uf)
@@ -2196,6 +2244,12 @@ CONTAINS
             ! Apply second half of thermostats
             SELECT CASE (pint_env%pimd_thermostat)
             CASE (thermostat_nose)
+               ! Exempt centroid from thermostat for CMD
+               IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                  pint_env%tx(:, 1, :) = 0.0_dp
+                  pint_env%tv(:, 1, :) = 0.0_dp
+                  pint_env%tf(:, 1, :) = 0.0_dp
+               END IF
                DO i = 1, 6
                   tol = 0._dp
                   pint_env%uv_new = pint_env%uv_t/(1.+dti2*pint_env%tv(1, :, :))
@@ -2215,6 +2269,13 @@ CONTAINS
                            pint_env%tf(:, 1, j) = 0.0_dp
                         END DO
                      END DO
+                  END IF
+
+                  ! Exempt centroid from thermostat for CMD
+                  IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                     pint_env%tx(:, 1, :) = 0.0_dp
+                     pint_env%tv(:, 1, :) = 0.0_dp
+                     pint_env%tf(:, 1, :) = 0.0_dp
                   END IF
 
                   DO idim = 1, pint_env%ndim
@@ -2240,6 +2301,13 @@ CONTAINS
                            END DO
                         END IF
 
+                        ! Exempt centroid from thermostat for CMD
+                        IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                           pint_env%tx(:, 1, :) = 0.0_dp
+                           pint_env%tv(:, 1, :) = 0.0_dp
+                           pint_env%tf(:, 1, :) = 0.0_dp
+                        END IF
+
                         pint_env%tv_new(pint_env%nnos, ib, idim) = &
                            pint_env%tv_t(pint_env%nnos, ib, idim) + &
                            dti2*pint_env%tf(pint_env%nnos, ib, idim)
@@ -2256,6 +2324,12 @@ CONTAINS
                               END DO
                            END DO
                         END IF
+                        ! Exempt centroid from thermostat for CMD
+                        IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                           pint_env%tx(:, 1, :) = 0.0_dp
+                           pint_env%tv(:, 1, :) = 0.0_dp
+                           pint_env%tf(:, 1, :) = 0.0_dp
+                        END IF
 
                      END DO
                   END DO
@@ -2263,6 +2337,12 @@ CONTAINS
                   pint_env%uv = pint_env%uv_new
                   pint_env%tv = pint_env%tv_new
                   IF (tol <= pint_env%v_tol) EXIT
+                  ! Exempt centroid from thermostat for CMD
+                  IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                     pint_env%tx(:, 1, :) = 0.0_dp
+                     pint_env%tv(:, 1, :) = 0.0_dp
+                     pint_env%tf(:, 1, :) = 0.0_dp
+                  END IF
                END DO
 
                ! Apply centroid constraints (RATTLE)
@@ -2308,6 +2388,13 @@ CONTAINS
                   pint_env%tf(inos, :, :) = pint_env%tf(inos, :, :) &
                                             - pint_env%tv(inos, :, :)*pint_env%tv(inos + 1, :, :)
                END DO
+
+               ! Exempt centroid from thermostat for CMD
+               IF (pint_env%propagator%prop_kind == propagator_cmd) THEN
+                  pint_env%tx(:, 1, :) = 0.0_dp
+                  pint_env%tv(:, 1, :) = 0.0_dp
+                  pint_env%tf(:, 1, :) = 0.0_dp
+               END IF
 
             CASE (thermostat_gle)
                CALL pint_gle_step(pint_env)

@@ -296,7 +296,8 @@ MODULE input_constants
 
    ! pint propagator mode
    INTEGER, PARAMETER, PUBLIC               :: propagator_pimd = 1, &
-                                               propagator_rpmd = 2
+                                               propagator_rpmd = 2, &
+                                               propagator_cmd = 3
    ! pint propagator mode
    INTEGER, PARAMETER, PUBLIC               :: integrate_numeric = 1, &
                                                integrate_exact = 2
@@ -834,7 +835,11 @@ MODULE input_constants
                                                do_admm_aux_exch_func_pbex = 1, &
                                                do_admm_aux_exch_func_none = 2, &
                                                do_admm_aux_exch_func_opt = 3, &
-                                               do_admm_aux_exch_func_bee = 4
+                                               do_admm_aux_exch_func_bee = 4, &
+                                               do_admm_aux_exch_func_default_libxc = 5, &
+                                               do_admm_aux_exch_func_pbex_libxc = 6, &
+                                               do_admm_aux_exch_func_opt_libxc = 7, &
+                                               do_admm_aux_exch_func_bee_libxc = 8
 
    ! Define scaling of the exchange correction
    INTEGER, PARAMETER, PUBLIC               :: do_admm_exch_scaling_none = 0, &

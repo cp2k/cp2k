@@ -446,7 +446,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: force
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(pw_p_type), INTENT(INOUT)                     :: psi_L
 
@@ -580,7 +580,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g_copy, dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
@@ -599,7 +599,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, skip_shell
-      REAL(KIND=dp)                                      :: radius, total_rho
+      REAL(KIND=dp)                                      :: radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
@@ -619,7 +619,6 @@ CONTAINS
       CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix, &
                               rho=rho_r, &
                               rho_gspace=rho_g, &
-                              total_rho=total_rho, &
                               task_list_external=task_list_sub, &
                               pw_env_external=pw_env_sub, &
                               ks_env=ks_env)
@@ -792,7 +791,7 @@ CONTAINS
       TYPE(pw_p_type)                                    :: rho_g_copy, pot_g, rho_g, dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_gpw_potential'
 
@@ -920,7 +919,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential'

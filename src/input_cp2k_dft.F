@@ -43,8 +43,10 @@ MODULE input_cp2k_dft
         cdft_magnetization_constraint, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
         cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, diag_block_krylov, &
         diag_filter_matrix, diag_ot, diag_standard, dmft_model, do_admm_aux_exch_func_bee, &
-        do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, &
-        do_admm_aux_exch_func_pbex, do_admm_basis_projection, do_admm_blocked_projection, &
+        do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
+        do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
+        do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
+        do_admm_aux_exch_func_pbex_libxc, do_admm_basis_projection, do_admm_blocked_projection, &
         do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
         do_admm_exch_scaling_merlot, do_admm_exch_scaling_none, do_admm_purify_cauchy, &
         do_admm_purify_cauchy_subspace, do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
@@ -3213,16 +3215,23 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="EXCH_CORRECTION_FUNC", &
-         description="Exchange functional which is used for the ADMM correction.", &
-         enum_c_vals=s2a("DEFAULT", "PBEX", "NONE", "OPTX", "BECKE88X"), &
+         description="Exchange functional which is used for the ADMM correction. "// &
+         "LibXC implementations require linking with LibXC", &
+         enum_c_vals=s2a("DEFAULT", "PBEX", "NONE", "OPTX", "BECKE88X", &
+                         "PBEX_LIBXC", "BECKE88X_LIBXC", "OPTX_LIBXC", "DEFAULT_LIBXC"), &
          enum_i_vals=(/do_admm_aux_exch_func_default, do_admm_aux_exch_func_pbex, &
-                       do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, do_admm_aux_exch_func_bee/), &
-         enum_desc=s2a("Use PBEX functional for exchange correction, also for truncated and"// &
-                       " short Coulomb interaction.", &
-                       "Use PBEX functional for exchange correction but always normal form.", &
+                       do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, do_admm_aux_exch_func_bee, &
+                       do_admm_aux_exch_func_pbex_libxc, do_admm_aux_exch_func_bee_libxc, &
+                       do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_default_libxc/), &
+         enum_desc=s2a("Use PBE-based corrections according to the chosen interaction operator.", &
+                       "Use PBEX functional for exchange correction.", &
                        "No correction: X(D)-x(d)-> 0.", &
                        "Use OPTX functional for exchange correction.", &
-                       "Use Becke88X functional for exchange correction."), &
+                       "Use Becke88X functional for exchange correction.", &
+                       "Use PBEX functional (LibXC implementation) for exchange correction.", &
+                       "Use Becke88X functional (LibXC implementation) for exchange correction.", &
+                       "Use OPTX functional (LibXC implementation) for exchange correction.", &
+                       "Use PBE-based corrections (LibXC where possible) to the chosen interaction operator."), &
          default_i_val=do_admm_aux_exch_func_default)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -7279,6 +7288,15 @@ CONTAINS
                                        "employed only to restart the same type of CLS calculation, "// &
                                        "i.e. with the same core potential.", &
                                        print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("XAS_SCF"), &
+                                       add_last=add_last_numeric, each_iter_values=(/3/), filename="")
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FULL_RESTART", &
+                                       description="Controls the dumping of a standard MO restart file "// &
+                                       "where coefficients and occupation numbers are those of the TP scheme,"// &
+                                       "i.e. with emptied core state.", &
+                                       print_level=high_print_level, common_iter_levels=3, each_iter_names=s2a("XAS_SCF"), &
                                        add_last=add_last_numeric, each_iter_values=(/3/), filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)

@@ -282,7 +282,7 @@ CONTAINS
                                                             istates, nmo, nspin, nstates(2), &
                                                             state_start(2), unit_nr
       LOGICAL                                            :: mpi_io
-      REAL(KIND=dp)                                      :: alpha, total_rho
+      REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occ_tot
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: matrix_v, matrix_vf
@@ -370,7 +370,7 @@ CONTAINS
          DO i = 1, SIZE(stm_th_torb)
             iorb = stm_th_torb(i)
             CALL calculate_rho_elec(matrix_p=stm_density_ao, &
-                                    rho=wf_r, rho_gspace=wf_g, total_rho=total_rho, &
+                                    rho=wf_r, rho_gspace=wf_g, &
                                     ks_env=ks_env, der_type=iorb)
 
             oname = torb_string(iorb)

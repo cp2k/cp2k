@@ -16,7 +16,7 @@ function run_benchmark {
   INPUT=$3
   OUTPUT=$4
   echo -n "Running ${INPUT} with ${OMP_THREADS} threads and ${MPI_RANKS} ranks... "
-  if OMP_NUM_THREADS="${OMP_THREADS}" mpiexec -np "${MPI_RANKS}" \
+  if OMP_NUM_THREADS="${OMP_THREADS}" mpiexec -bind-to socket -np "${MPI_RANKS}" \
     "/workspace/cp2k/exe/${ARCH}/cp2k.psmp" "${INPUT}" &> "${OUTPUT}"; then
     echo "done."
   else
@@ -64,6 +64,7 @@ BENCHMARKS=(
   "QS_single_node/H2O-hyb.inp"
   "QS_single_node/GW_PBE_4benzene.inp"
   "QS_single_node/RI-HFX_H2O-32.inp"
+  "QS_single_node/RI-MP2_ammonia.inp"
   "QS_single_node/diag_cu144_broy.inp"
   "QS_single_node/bench_dftb.inp"
   "QS_single_node/dbcsr.inp"
@@ -81,7 +82,7 @@ if [[ "${ARCH}" == "local" ]]; then
     run_benchmark 32 1 "${INPUT_BASENAME}" "${OUTPUT_OMP}"
     cd ..
     echo ""
-    /workspace/plot_performance.py \
+    /workspace/cp2k/plot_performance.py \
       "${LABEL} with 32 OpenMP Threads" "${LABEL}_timings_32omp" "${OUTPUT_OMP}" \
       "${LABEL} with 32 MPI Ranks" "${LABEL}_timings_32mpi" "${OUTPUT_MPI}"
     echo ""
@@ -100,7 +101,7 @@ elif [[ "${ARCH}" == "local_cuda" ]]; then
     run_benchmark 3 2 "${INPUT_BASENAME}" "${OUTPUT}"
     cd ..
     echo ""
-    /workspace/plot_performance.py \
+    /workspace/cp2k/plot_performance.py \
       "${LABEL} with 6 CPU Cores and 1 GPU" "${LABEL}_timings_6cpu_1gpu" "${OUTPUT}"
     echo ""
   done

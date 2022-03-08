@@ -160,14 +160,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xbecke_roussel_lda_eval(rho_set, deriv_set, grad_deriv, br_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: br_params
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_eval'
 
       INTEGER                                            :: handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(dp)                                           :: gamma, R, sx
       REAL(kind=dp)                                      :: epsilon_rho
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_laplace_rho, e_ndrho, &
@@ -177,12 +177,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (bo)
-
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, norm_drho=norm_drho, &
                           tau=tau, laplace_rho=laplace_rho, local_bounds=bo, &
                           rho_cutoff=epsilon_rho)
@@ -362,14 +358,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xbecke_roussel_lsd_eval(rho_set, deriv_set, grad_deriv, br_params)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: br_params
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_eval'
 
       INTEGER                                            :: handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(dp)                                           :: gamma, R, sx
       REAL(kind=dp)                                      :: epsilon_rho
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, e_laplace_rhob, &
@@ -379,12 +375,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (bo)
-
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
                           norm_drhob=norm_drhob, tau_a=tau_a, tau_b=tau_b, laplace_rhoa=laplace_rhoa, &
                           laplace_rhob=laplace_rhob, local_bounds=bo, &

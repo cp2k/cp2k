@@ -1,0 +1,77 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME    BASIS_RI_cc-TZ
+    POTENTIAL_FILE_NAME    POTENTIAL
+    &XC
+      !
+      ! Since this is a benchmark of MP2 we're simply skipping HFX here.
+      ! Don't try this at home!
+      !
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &WF_CORRELATION
+        &RI_MP2
+          &CPHF
+            EPS_CONV 1.0E-4
+            MAX_ITER 20
+          &END
+          BLOCK_SIZE 1
+        &END RI_MP2
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF      40
+            REL_CUTOFF  10
+            EPS_FILTER  1.0E-6
+            EPS_GRID    1.0E-5
+          &END
+        &END INTEGRALS
+        MEMORY    3000
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 5.048 5.048 5.048
+      MULTIPLE_UNIT_CELL 1 2 2
+    &END CELL
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL 1 2 2
+    &END TOPOLOGY
+    &COORD
+      N    0.988906    0.988906    0.988906
+      N    1.535094    4.059094    3.512906
+      N    4.059094    3.512906    1.535094
+      N    3.512906    1.535094    4.059094
+      H    1.774270    1.378902    0.464078
+      H    0.749730    3.669098    2.988078
+      H    3.273730    3.902902    2.059922
+      H    4.298270    1.145098    4.583922
+      H    0.464078    1.774270    1.378902
+      H    2.988078    0.749730    3.669098
+      H    2.059922    3.273730    3.902902
+      H    4.583922    4.298270    1.145098
+      H    1.378902    0.464078    1.774270
+      H    3.669098    2.988078    0.749730
+      H    3.902902    2.059922    3.273730
+      H    1.145098    4.583922    4.298270
+    &END COORD
+    &KIND H
+      BASIS_SET         cc-TZ
+      BASIS_SET RI_AUX  RI_TZ
+      POTENTIAL         GTH-HF-q1
+    &END KIND
+    &KIND N
+      BASIS_SET         cc-TZ
+      BASIS_SET RI_AUX  RI_TZ
+      POTENTIAL         GTH-HF-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT                 RI-MP2_ammonia
+  RUN_TYPE                ENERGY
+  PREFERRED_DIAG_LIBRARY  ELPA
+  PRINT_LEVEL             MEDIUM
+&END GLOBAL

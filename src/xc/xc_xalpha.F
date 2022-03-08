@@ -147,7 +147,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xalpha_lda_eval(rho_set, deriv_set, order, xa_params, xa_parameter)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: xa_params
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: xa_parameter
@@ -155,21 +155,18 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xalpha_lda_eval'
 
       INTEGER                                            :: handle, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho, sx
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho, &
                                                             r13, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (bo)
 
       CALL section_vals_val_get(xa_params, "scale_x", r_val=sx)
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=r13, rho=rho, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -221,7 +218,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xalpha_lsd_eval(rho_set, deriv_set, order, xa_params, xa_parameter)
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: xa_params
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: xa_parameter
@@ -230,14 +227,14 @@ CONTAINS
       CHARACTER(len=6), DIMENSION(2), PARAMETER :: rho_spin_name = (/"(rhoa)", "(rhob)"/)
 
       INTEGER                                            :: handle, i, ispin, npoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: bo
+      INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho, sx
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho
       TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: rho, rho_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
-      NULLIFY (deriv, bo)
+      NULLIFY (deriv)
       DO i = 1, 2
          NULLIFY (rho(i)%array, rho_1_3(i)%array)
       END DO
@@ -246,8 +243,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
-      CPASSERT(ASSOCIATED(deriv_set))
-      CPASSERT(deriv_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa_1_3=rho_1_3(1)%array, &
                           rhob_1_3=rho_1_3(2)%array, rhoa=rho(1)%array, &
                           rhob=rho(2)%array, rho_cutoff=epsilon_rho, &
