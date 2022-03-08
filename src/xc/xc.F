@@ -1126,7 +1126,7 @@ CONTAINS
                                                             ndr, rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, norm_drho, norm_drho_spin, &
                                                             rho, rhoa, rhob, tmp_cr3d
-      TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho, drho_spin, drhoa, drhob
+      TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho_spin, drhoa, drhob
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_p_type), DIMENSION(2)                      :: vxc_to_deriv
@@ -1137,8 +1137,7 @@ CONTAINS
       TYPE(xc_rho_set_type), POINTER                     :: rho_set
 
       CALL timeset(routineN, handle)
-      NULLIFY (tmp_g, v_drho_r, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa, &
-               drhob, pos, rho_set, virial_pw)
+      NULLIFY (tmp_g, v_drho_r, vxc_g, norm_drho_spin, norm_drho, pos, rho_set, virial_pw)
       DO idir = 1, 3
          NULLIFY (pw_to_deriv(idir)%pw, pw_to_deriv_rho(idir)%pw)
       END DO
@@ -1301,7 +1300,7 @@ CONTAINS
 !$OMP       PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,norm_drho,drho_cutoff)
             deriv_data(:, :, :) = -deriv_data(:, :, :)/MAX(norm_drho(:, :, :), drho_cutoff)
 !$OMP       END PARALLEL WORKSHARE
-         ELSE IF (ASSOCIATED(drho)) THEN
+         ELSE IF (ASSOCIATED(drho(1)%array)) THEN
 !$OMP         PARALLEL DO DEFAULT(NONE) SHARED(bo,deriv_data,drho,drho_cutoff)&
 !$OMP                     PRIVATE(k,j,i,ndr) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
@@ -1315,8 +1314,8 @@ CONTAINS
                END DO
             END DO
          ELSE
-            CPASSERT(ASSOCIATED(drhoa))
-            CPASSERT(ASSOCIATED(drhob))
+            CPASSERT(ASSOCIATED(drhoa(1)%array))
+            CPASSERT(ASSOCIATED(drhob(1)%array))
 !$OMP         PARALLEL DO DEFAULT(NONE) SHARED(bo,deriv_data,drhoa,drhob,drho_cutoff)&
 !$OMP                     PRIVATE(k,j,i,ndr) COLLAPSE(3)
             DO k = bo(1, 3), bo(2, 3)
@@ -1331,7 +1330,7 @@ CONTAINS
             END DO
          END IF
 
-         IF (ASSOCIATED(drho) .AND. ASSOCIATED(drho(1)%array)) THEN
+         IF (ASSOCIATED(drho(1)%array)) THEN
             CPASSERT(ASSOCIATED(deriv_data))
             IF (use_virial) THEN
                CALL pw_pool_create_pw(pw_pool, virial_pw, &
@@ -1359,7 +1358,8 @@ CONTAINS
 !$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,drho,idir)
                drho(idir)%array(:, :, :) = drho(idir)%array(:, :, :)*deriv_data(:, :, :)
 !$OMP          END PARALLEL WORKSHARE
-               NULLIFY (drho(idir)%array)
+               ! ???
+               NULLIFY (drho(idir)%array, rho_set%drho(idir)%array)
             END DO
          ELSE
             IF (use_virial) THEN
@@ -1471,7 +1471,13 @@ CONTAINS
                   CALL pw_create(pw_to_deriv(idir)%pw, pw_grid=pw_grid, &
                                  cr3d_ptr=drho_spin(idir)%array, &
                                  use_data=REALDATA3D, in_space=REALSPACE)
+                  ! ???
                   NULLIFY (drho_spin(idir)%array)
+                  IF (ispin == 1) THEN
+                     NULLIFY (rho_set%drhoa(idir)%array)
+                  ELSE
+                     NULLIFY (rho_set%drhob(idir)%array)
+                  END IF
                END DO
 
                dealloc_pw_to_deriv = .TRUE.
@@ -2043,7 +2049,7 @@ CONTAINS
                                                             rho, rho1, rho1a, rho1b, rhoa, rhob, &
                                                             tau_a, tau_b, tau, tau1, tau1a, tau1b, laplace, laplace1, &
                                                             laplacea, laplaceb, laplace1a, laplace1b, laplace2, laplace2a, laplace2b
-      TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho, drho1, drho1a, drho1b, drhoa, drhob
+      TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type)                                    :: v_drho, v_drhoa, v_drhob
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc_rho_1, &
                                                             vxc_rho_2, vxc_rho_3, vxc_rho_4, tau_r, &
@@ -2337,7 +2343,6 @@ CONTAINS
                CALL xc_rho_set_get(rho1_set, drhoa=drho1a, drhob=drho1b, laplace_rhoa=laplace1a, &
                                    laplace_rhob=laplace1b, can_return_null=.TRUE.)
 
-               NULLIFY (drho, drho1)
                CALL calc_drho_from_ab(drho, drhoa, drhob)
                CALL calc_drho_from_ab(drho1, drho1a, drho1b)
             ELSE
@@ -2492,7 +2497,6 @@ CONTAINS
                   DEALLOCATE (drho(idir)%array)
                   DEALLOCATE (drho1(idir)%array)
                END DO
-               DEALLOCATE (drho, drho1)
                DEALLOCATE (dra1dra, drb1drb)
 
             ELSE
@@ -3030,7 +3034,7 @@ CONTAINS
                                                             norm_drhob, rho1, rho1a, rho1b, &
                                                             tau1, tau1a, tau1b, laplace1, laplace1a, laplace1b, &
                                                             rho, rhoa, rhob
-      TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho, drho1, drho1a, drho1b, drhoa, drhob
+      TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE         :: v_drhoa, v_drhob, v_drho, v_drho_r, v_laplace
       TYPE(pw_type), POINTER                             :: tmp_g, virial_pw
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
@@ -3129,7 +3133,6 @@ CONTAINS
                                 norm_drho=norm_drho, norm_drhoa=norm_drhoa, norm_drhob=norm_drhob)
             CALL xc_rho_set_get(rho1_set, drhoa=drho1a, drhob=drho1b)
 
-            NULLIFY (drho, drho1)
             CALL calc_drho_from_ab(drho, drhoa, drhob)
             CALL calc_drho_from_ab(drho1, drho1a, drho1b)
 
@@ -3334,7 +3337,6 @@ CONTAINS
                DEALLOCATE (drho(idir)%array)
                DEALLOCATE (drho1(idir)%array)
             END DO
-            DEALLOCATE (drho, drho1)
 
             DO ispin = 1, nspins
                CALL deallocate_pw(v_drhoa(ispin)%pw, pw_pool)
@@ -3787,7 +3789,7 @@ CONTAINS
 !> \param drhob ...
 ! **************************************************************************************************
    SUBROUTINE calc_drho_from_ab(drho, drhoa, drhob)
-      TYPE(cp_3d_r_p_type), DIMENSION(:), POINTER        :: drho
+      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(OUT)    :: drho
       TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drhoa, drhob
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_drho_from_ab'
@@ -3796,9 +3798,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(.NOT. ASSOCIATED(drho))
-
-      ALLOCATE (drho(3))
       DO idir = 1, 3
          NULLIFY (drho(idir)%array)
          ALLOCATE (drho(idir)%array(LBOUND(drhoa(1)%array, 1):UBOUND(drhoa(1)%array, 1), &

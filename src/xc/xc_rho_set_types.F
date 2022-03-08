@@ -315,13 +315,11 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: can_return_null
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: rho
-      TYPE(cp_3d_r_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: drho
+      TYPE(cp_3d_r_p_type), DIMENSION(3), OPTIONAL       :: drho
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, POINTER :: norm_drho, rhoa, rhob, norm_drhoa, &
          norm_drhob, drhoa_drhob, rho_1_3, rhoa_1_3, rhob_1_3, laplace_rho, laplace_rhoa, &
          laplace_rhob
-      TYPE(cp_3d_r_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: drhoa, drhob
+      TYPE(cp_3d_r_p_type), DIMENSION(3), OPTIONAL       :: drhoa, drhob
       REAL(kind=dp), INTENT(out), OPTIONAL               :: rho_cutoff, drho_cutoff, tau_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: tau, tau_a, tau_b
@@ -340,12 +338,10 @@ CONTAINS
          CPASSERT(my_can_return_null .OR. ASSOCIATED(rho))
       END IF
       IF (PRESENT(drho)) THEN
-         drho => rho_set%drho
-         IF (.NOT. my_can_return_null) THEN
-            DO i = 1, 3
-               CPASSERT(ASSOCIATED(rho_set%drho(i)%array))
-            END DO
-         END IF
+         DO i = 1, 3
+            drho(i)%array => rho_set%drho(i)%array
+            CPASSERT(my_can_return_null .OR. ASSOCIATED(rho_set%drho(i)%array))
+         END DO
       END IF
       IF (PRESENT(norm_drho)) THEN
          norm_drho => rho_set%norm_drho
@@ -364,20 +360,16 @@ CONTAINS
          CPASSERT(my_can_return_null .OR. ASSOCIATED(rhob))
       END IF
       IF (PRESENT(drhoa)) THEN
-         drhoa => rho_set%drhoa
-         IF (.NOT. my_can_return_null) THEN
-            DO i = 1, 3
-               CPASSERT(ASSOCIATED(rho_set%drhoa(i)%array))
-            END DO
-         END IF
+         DO i = 1, 3
+            drhoa(i)%array => rho_set%drhoa(i)%array
+            CPASSERT(my_can_return_null .OR. ASSOCIATED(rho_set%drhoa(i)%array))
+         END DO
       END IF
       IF (PRESENT(drhob)) THEN
-         drhob => rho_set%drhob
-         IF (.NOT. my_can_return_null) THEN
-            DO i = 1, 3
-               CPASSERT(ASSOCIATED(rho_set%drhob(i)%array))
-            END DO
-         END IF
+         DO i = 1, 3
+            drhob(i)%array => rho_set%drhob(i)%array
+            CPASSERT(my_can_return_null .OR. ASSOCIATED(rho_set%drhob(i)%array))
+         END DO
       END IF
       IF (PRESENT(laplace_rhoa)) THEN
          laplace_rhoa => rho_set%laplace_rhoa
