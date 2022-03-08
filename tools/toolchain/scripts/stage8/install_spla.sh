@@ -108,7 +108,7 @@ case "$with_spla" in
               -DSPLA_FORTRAN=ON \
               -DSPLA_INSTALL=ON \
               -DSPLA_STATIC=ON \
-              -DSPLA_GPU_BACKEND=CUDA \
+              -DSPLA_GPU_BACKEND=ROCM \
               ${EXTRA_CMAKE_FLAGS} .. \
               > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
             make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
