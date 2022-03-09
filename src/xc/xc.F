@@ -894,6 +894,8 @@ CONTAINS
                                deriv_set=deriv_set, &
                                deriv_order=deriv_order)
 
+      CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
+
       CALL timestop(handle)
 
    END SUBROUTINE xc_rho_set_and_dset_create
@@ -1168,8 +1170,6 @@ CONTAINS
                                       xc_section=xc_section, &
                                       pw_pool=pw_pool, &
                                       needs_basic_components=.TRUE.)
-
-      CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
 
       CALL section_vals_val_get(xc_section, "XC_GRID%XC_DERIV", &
                                 i_val=xc_deriv_method_id)
@@ -3495,8 +3495,6 @@ CONTAINS
                                          rho_r_pw, rho_g, tau, xc_section, pw_pool, &
                                          needs_basic_components=.TRUE.)
       END IF
-
-      CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
 
       DEALLOCATE (rho_r_pw)
 
