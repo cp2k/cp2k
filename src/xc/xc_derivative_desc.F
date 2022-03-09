@@ -17,8 +17,6 @@
 !>      - rhoa, rhob: alpha and beta spin density (with LSD)
 !>      - norm_drhoa, norm_drhob: norm of the gradient of the alpha and beta
 !>        spin density
-!>      - drhoa_drhob: scalar product between the gradient of rhoa and the
-!>        grandient of rhob
 !>      - tau: the local kinetic part
 !>      - taua, taub: the kinetic part of the different spins
 !> \note

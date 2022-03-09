@@ -113,7 +113,7 @@ CONTAINS
       IF (my_epr_xc) my_deriv_order = 2
 
       gradient_f = (needs%drho_spin .OR. needs%norm_drho_spin .OR. &
-                    needs%drhoa_drhob .OR. needs%drho .OR. needs%norm_drho)
+                    needs%drho .OR. needs%norm_drho)
 
 !  Calculate the derivatives
       CALL xc_functionals_eval(xc_fun_section, &
@@ -522,13 +522,6 @@ CONTAINS
             rho_set%owns%norm_drho_spin = .TRUE.
             rho_set%has%norm_drho_spin = .FALSE.
          END IF
-!
-         IF (needs%drhoa_drhob) THEN
-            NULLIFY (rho_set%drhoa_drhob)
-            ALLOCATE (rho_set%drhoa_drhob(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
-            rho_set%owns%drhoa_drhob = .TRUE.
-            rho_set%has%drhoa_drhob = .FALSE.
-         END IF
 !     Allocate the storage space for the components of the gradient for the total rho
          IF (needs%drho) THEN
             DO idir = 1, 3
@@ -627,7 +620,6 @@ CONTAINS
          CPASSERT(.NOT. needs%rho_spin)
          CPASSERT(.NOT. needs%drho_spin)
          CPASSERT(.NOT. needs%norm_drho_spin)
-         CPASSERT(.NOT. needs%drhoa_drhob)
          CPASSERT(.NOT. needs%rho_spin_1_3)
       CASE (2)
       CASE default
@@ -635,7 +627,7 @@ CONTAINS
       END SELECT
 
       gradient_f = (needs%drho_spin .OR. needs%norm_drho_spin .OR. &
-                    needs%drhoa_drhob .OR. needs%drho .OR. needs%norm_drho)
+                    needs%drho .OR. needs%norm_drho)
 
       SELECT CASE (my_nspins)
       CASE (1)
@@ -771,27 +763,6 @@ CONTAINS
             END IF
             rho_set%owns%norm_drho_spin = .TRUE.
             rho_set%has%norm_drho_spin = .TRUE.
-         END IF
-         !
-         IF (needs%drhoa_drhob) THEN
-            IF (.NOT. tddft_split) THEN
-               DO ia = 1, na
-                  rho_set%drhoa_drhob(ia, ir, 1) = &
-                     (drho(1, ia, ir, 1)*drho(1, ia, ir, 2)) + &
-                     (drho(2, ia, ir, 1)*drho(2, ia, ir, 2)) + &
-                     (drho(3, ia, ir, 1)*drho(3, ia, ir, 2))
-               END DO
-            ELSE
-               DO ia = 1, na
-                  rho_set%drhoa_drhob(ia, ir, 1) = 0.25_dp*drho(4, ia, ir, 1)**2
-!!                rho_set%drhoa_drhob(ia,ir,1) =&
-!!                     (0.25_dp*drho(1,ia,ir,1)**2)+&
-!!                     (0.25_dp*drho(2,ia,ir,1)**2)+&
-!!                     (0.25_dp*drho(3,ia,ir,1)**2)
-               END DO
-            END IF
-            rho_set%owns%drhoa_drhob = .TRUE.
-            rho_set%has%drhoa_drhob = .TRUE.
          END IF
          ! Give the components of the gradient for the total rho
          IF (needs%drho) THEN

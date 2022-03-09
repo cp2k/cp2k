@@ -628,7 +628,7 @@ CONTAINS
             needs%rho = .TRUE.
          END IF
          IF (needs%drho .OR. needs%drho_spin .OR. needs%norm_drho .OR. &
-             needs%norm_drho_spin .OR. needs%drhoa_drhob) THEN
+             needs%norm_drho_spin) THEN
             IF (lsd) THEN
                needs%drho_spin = .TRUE.
             ELSE

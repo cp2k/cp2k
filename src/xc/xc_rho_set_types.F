@@ -69,8 +69,6 @@ MODULE xc_rho_set_types
 !> \param drhoa , drhob: gradient of the spin alpha and beta parts of the density
 !>        in the LSD case (x,y and z direction)
 !> \param norm_drhoa , norm_drhob: norm of the gradient of rhoa and rhob
-!> \param drhoa_drhob the scalar product between the gradient of rhoa and the
-!>        one of rhob
 !> \param rho_ 1_3: rho^(1.0_dp/3.0_dp)
 !> \param rhoa_ 1_3, rhob_1_3: rhoa^(1.0_dp/3.0_dp), rhob^(1.0_dp/3.0_dp)
 !> \param tau the kinetic (KohnSham) part of rho
@@ -101,7 +99,6 @@ MODULE xc_rho_set_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rhoa, rhob
       TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drhoa, drhob
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: norm_drhoa, norm_drhob
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: drhoa_drhob
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: rhoa_1_3, rhob_1_3
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: tau_a, tau_b
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: laplace_rho, laplace_rhoa, laplace_rhob
@@ -144,7 +141,7 @@ CONTAINS
          NULLIFY (rho_set%drhoa(i)%array, rho_set%drhob(i)%array)
       END DO
       NULLIFY (rho_set%norm_drhoa, rho_set%norm_drhob, &
-               rho_set%drhoa_drhob, rho_set%rhoa_1_3, rho_set%rhob_1_3, &
+               rho_set%rhoa_1_3, rho_set%rhob_1_3, &
                rho_set%tau, rho_set%tau_a, rho_set%tau_b, rho_set%laplace_rho, rho_set%laplace_rhoa, &
                rho_set%laplace_rhob)
    END SUBROUTINE xc_rho_set_create
@@ -233,9 +230,6 @@ CONTAINS
             DEALLOCATE (rho_set%norm_drhob)
          END IF
       END IF
-      IF (rho_set%owns%drhoa_drhob .AND. ASSOCIATED(rho_set%drhoa_drhob)) THEN
-         DEALLOCATE (rho_set%drhoa_drhob)
-      END IF
       IF (rho_set%owns%tau .AND. ASSOCIATED(rho_set%tau)) THEN
          DEALLOCATE (rho_set%tau)
       END IF
@@ -262,7 +256,6 @@ CONTAINS
 !> \param rhob ...
 !> \param norm_drhoa ...
 !> \param norm_drhob ...
-!> \param drhoa_drhob ...
 !> \param rho_1_3 ...
 !> \param rhoa_1_3 ...
 !> \param rhob_1_3 ...
@@ -280,7 +273,7 @@ CONTAINS
 !> \param local_bounds ...
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho, &
-                             rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob, rho_1_3, rhoa_1_3, &
+                             rhoa, rhob, norm_drhoa, norm_drhob, rho_1_3, rhoa_1_3, &
                              rhob_1_3, laplace_rho, laplace_rhoa, laplace_rhob, drhoa, drhob, rho_cutoff, &
                              drho_cutoff, tau_cutoff, tau, tau_a, tau_b, local_bounds)
       TYPE(xc_rho_set_type)                              :: rho_set
@@ -288,9 +281,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: rho
       TYPE(cp_3d_r_p_type), DIMENSION(3), OPTIONAL       :: drho
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, POINTER :: norm_drho, rhoa, rhob, norm_drhoa, &
-         norm_drhob, drhoa_drhob, rho_1_3, rhoa_1_3, rhob_1_3, laplace_rho, laplace_rhoa, &
-         laplace_rhob
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+         POINTER                                         :: norm_drho, rhoa, rhob, norm_drhoa, &
+                                                            norm_drhob, rho_1_3, rhoa_1_3, &
+                                                            rhob_1_3, laplace_rho, laplace_rhoa, &
+                                                            laplace_rhob
       TYPE(cp_3d_r_p_type), DIMENSION(3), OPTIONAL       :: drhoa, drhob
       REAL(kind=dp), INTENT(out), OPTIONAL               :: rho_cutoff, drho_cutoff, tau_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
@@ -356,10 +351,6 @@ CONTAINS
       IF (PRESENT(norm_drhob)) THEN
          norm_drhob => rho_set%norm_drhob
          CPASSERT(my_can_return_null .OR. ASSOCIATED(norm_drhob))
-      END IF
-      IF (PRESENT(drhoa_drhob)) THEN
-         drhoa_drhob => rho_set%drhoa_drhob
-         CPASSERT(my_can_return_null .OR. ASSOCIATED(drhoa_drhob))
       END IF
       IF (PRESENT(rho_1_3)) THEN
          rho_1_3 => rho_set%rho_1_3
@@ -488,12 +479,6 @@ CONTAINS
       ELSE
          NULLIFY (rho_set%norm_drhoa, rho_set%norm_drhob)
       END IF
-      IF (rho_set%owns%drhoa_drhob) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa_drhob, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%drhoa_drhob)
-      END IF
       IF (rho_set%owns%tau_spin) THEN
          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_a, &
                                      accept_non_compatible=.TRUE.)
@@ -574,7 +559,6 @@ CONTAINS
          CPASSERT(.NOT. needs%rho_spin)
          CPASSERT(.NOT. needs%drho_spin)
          CPASSERT(.NOT. needs%norm_drho_spin)
-         CPASSERT(.NOT. needs%drhoa_drhob)
          CPASSERT(.NOT. needs%rho_spin_1_3)
       CASE (2)
          CPASSERT(SIZE(rho_r) == 2)
@@ -590,7 +574,7 @@ CONTAINS
 
       needs_laplace = (needs%laplace_rho .OR. needs%laplace_rho_spin)
       gradient_f = (needs%drho_spin .OR. needs%norm_drho_spin .OR. &
-                    needs%drhoa_drhob .OR. needs%drho .OR. needs%norm_drho .OR. &
+                    needs%drho .OR. needs%norm_drho .OR. &
                     needs_laplace)
       needs_rho_g = (xc_deriv_method_id == xc_deriv_spline3 .OR. &
                      xc_deriv_method_id == xc_deriv_spline2 .OR. &
@@ -962,22 +946,6 @@ CONTAINS
 
             rho_set%owns%laplace_rho_spin = .TRUE.
             rho_set%has%laplace_rho_spin = .TRUE.
-         END IF
-         IF (needs%drhoa_drhob) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%drhoa_drhob)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%drhoa_drhob(i, j, k) = &
-                        drho_r(1, 1)%pw%cr3d(i, j, k)*drho_r(1, 2)%pw%cr3d(i, j, k) + &
-                        drho_r(2, 1)%pw%cr3d(i, j, k)*drho_r(2, 2)%pw%cr3d(i, j, k) + &
-                        drho_r(3, 1)%pw%cr3d(i, j, k)*drho_r(3, 2)%pw%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%drhoa_drhob = .TRUE.
-            rho_set%has%drhoa_drhob = .TRUE.
          END IF
          IF (needs%drho) THEN
             ! this should basically never be the case unless you use LDA functionals

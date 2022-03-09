@@ -1074,7 +1074,6 @@ CONTAINS
          CPASSERT(.NOT. needs%rho_spin)
          CPASSERT(.NOT. needs%drho_spin)
          CPASSERT(.NOT. needs%norm_drho_spin)
-         CPASSERT(.NOT. needs%drhoa_drhob)
          CPASSERT(.NOT. needs%rho_spin_1_3)
          CPASSERT(.NOT. needs%tau_spin)
          CPASSERT(.NOT. needs%drho)
@@ -1105,7 +1104,6 @@ CONTAINS
       CASE (2)
          CPASSERT(.NOT. needs%drho)
          CPASSERT(.NOT. needs%drho_spin)
-         CPASSERT(.NOT. needs%drhoa_drhob)
          ! Give the total density
          IF (needs%rho) THEN
             DO ia = 1, na
