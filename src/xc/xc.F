@@ -1114,14 +1114,14 @@ CONTAINS
       INTEGER, DIMENSION(2), PARAMETER :: norm_drho_spin_name = [deriv_norm_drhoa, deriv_norm_drhob]
       INTEGER, DIMENSION(3, 3), PARAMETER ::        nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
 
-      INTEGER                                            :: handle, i, idir, ispin, j, jdir, k, &
+      INTEGER                                            :: handle, i, idir, ispin, jdir, &
                                                             npoints, nspins, &
                                                             xc_deriv_method_id, xc_rho_smooth_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: dealloc_pw_to_deriv, has_laplace, &
                                                             has_tau, lsd, use_virial, zero_result, has_gradient, has_derivs, has_rho
       REAL(KIND=dp)                                      :: density_smooth_cut_range, drho_cutoff, &
-                                                            ndr, rho_cutoff
+                                                            rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, norm_drho, norm_drho_spin, &
                                                             rho, rhoa, rhob
       TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho_spin, drhoa, drhob
@@ -1169,6 +1169,8 @@ CONTAINS
                                       pw_pool=pw_pool, &
                                       needs_basic_components=.TRUE.)
 
+      CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
+
       CALL section_vals_val_get(xc_section, "XC_GRID%XC_DERIV", &
                                 i_val=xc_deriv_method_id)
       CALL section_vals_val_get(xc_section, "XC_GRID%XC_SMOOTH_RHO", &
@@ -1211,39 +1213,9 @@ CONTAINS
                              drho_cutoff=drho_cutoff, &
                              can_return_null=.TRUE.)
 
-         IF (ASSOCIATED(norm_drho)) THEN
-!$OMP       PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,norm_drho,drho_cutoff)
-            deriv_data(:, :, :) = -deriv_data(:, :, :)/MAX(norm_drho(:, :, :), drho_cutoff)
-!$OMP       END PARALLEL WORKSHARE
-         ELSE IF (ASSOCIATED(drho(1)%array)) THEN
-!$OMP         PARALLEL DO DEFAULT(NONE) SHARED(bo,deriv_data,drho,drho_cutoff)&
-!$OMP                     PRIVATE(k,j,i,ndr) COLLAPSE(3)
-            DO k = bo(1, 3), bo(2, 3)
-               DO j = bo(1, 2), bo(2, 2)
-                  DO i = bo(1, 1), bo(2, 1)
-                     ndr = SQRT(drho(1)%array(i, j, k)**2 + &
-                                drho(2)%array(i, j, k)**2 + &
-                                drho(3)%array(i, j, k)**2)
-                     deriv_data(i, j, k) = -deriv_data(i, j, k)/MAX(ndr, drho_cutoff)
-                  END DO
-               END DO
-            END DO
-         ELSE
-            CPASSERT(ASSOCIATED(drhoa(1)%array))
-            CPASSERT(ASSOCIATED(drhob(1)%array))
-!$OMP         PARALLEL DO DEFAULT(NONE) SHARED(bo,deriv_data,drhoa,drhob,drho_cutoff)&
-!$OMP                     PRIVATE(k,j,i,ndr) COLLAPSE(3)
-            DO k = bo(1, 3), bo(2, 3)
-               DO j = bo(1, 2), bo(2, 2)
-                  DO i = bo(1, 1), bo(2, 1)
-                     ndr = SQRT((drhoa(1)%array(i, j, k) + drhob(1)%array(i, j, k))**2 + &
-                                (drhoa(2)%array(i, j, k) + drhob(2)%array(i, j, k))**2 + &
-                                (drhoa(3)%array(i, j, k) + drhob(3)%array(i, j, k))**2)
-                     deriv_data(i, j, k) = -deriv_data(i, j, k)/MAX(ndr, drho_cutoff)
-                  END DO
-               END DO
-            END DO
-         END IF
+!$OMP    PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data)
+         deriv_data(:, :, :) = -deriv_data(:, :, :)
+!$OMP    END PARALLEL WORKSHARE
 
          IF (ASSOCIATED(drho(1)%array)) THEN
             CPASSERT(ASSOCIATED(deriv_data))
@@ -1329,25 +1301,9 @@ CONTAINS
                CPASSERT(lsd)
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
-               IF (ASSOCIATED(norm_drho_spin)) THEN
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,norm_drho_spin,drho_cutoff)
-                  deriv_data(:, :, :) = -deriv_data(:, :, :)/ &
-                                        MAX(norm_drho_spin(:, :, :), drho_cutoff)
-!$OMP             END PARALLEL WORKSHARE
-               ELSE
-!$OMP               PARALLEL DO DEFAULT(NONE) SHARED(bo,deriv_data,drho_spin,drho_cutoff)&
-!$OMP                           PRIVATE(k,j,i, ndr) COLLAPSE(3)
-                  DO k = bo(1, 3), bo(2, 3)
-                     DO j = bo(1, 2), bo(2, 2)
-                        DO i = bo(1, 1), bo(2, 1)
-                           ndr = SQRT(drho_spin(1)%array(i, j, k)**2 + &
-                                      drho_spin(2)%array(i, j, k)**2 + &
-                                      drho_spin(3)%array(i, j, k)**2)
-                           deriv_data(i, j, k) = -deriv_data(i, j, k)/MAX(ndr, drho_cutoff)
-                        END DO
-                     END DO
-                  END DO
-               END IF
+!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data)
+               deriv_data(:, :, :) = -deriv_data(:, :, :)
+!$OMP          END PARALLEL WORKSHARE
 
                IF (use_virial) THEN
                   CALL pw_pool_create_pw(pw_pool, virial_pw, &
@@ -3566,6 +3522,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: norm_drho, norm_drhoa, norm_drhob
+      TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drhoa, drhob
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
@@ -3573,7 +3530,8 @@ CONTAINS
 
       bo = rho_set%local_bounds
       CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, norm_drho=norm_drho, &
-                          norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, can_return_null=.TRUE.)
+                          norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, &
+                          drho=drho, drhoa=drhoa, drhob=drhob, can_return_null=.TRUE.)
 
       pos => deriv_set%derivs
       DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
@@ -3581,20 +3539,60 @@ CONTAINS
          DO idesc = 1, SIZE(split_desc)
             SELECT CASE (split_desc(idesc))
             CASE (deriv_norm_drho)
+               IF (ASSOCIATED(norm_drho)) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drho,drho_cutoff)
-               deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
-                                               MAX(norm_drho(:, :, :), drho_cutoff)
+                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                                  MAX(norm_drho(:, :, :), drho_cutoff)
 !$OMP END PARALLEL WORKSHARE
+               ELSE IF (ASSOCIATED(drho(1)%array)) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,drho,drho_cutoff)
+                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                                  MAX(SQRT(drho(1)%array(:, :, :)**2 + &
+                                                           drho(2)%array(:, :, :)**2 + &
+                                                           drho(3)%array(:, :, :)**2), drho_cutoff)
+!$OMP END PARALLEL WORKSHARE
+               ELSE IF (ASSOCIATED(drhoa(1)%array) .AND. ASSOCIATED(drhob(1)%array)) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,drhoa,drhob,drho_cutoff)
+                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                                  MAX(SQRT((drhoa(1)%array(:, :, :) + drhob(1)%array(:, :, :))**2 + &
+                                                           (drhoa(2)%array(:, :, :) + drhob(2)%array(:, :, :))**2 + &
+                                                           (drhoa(3)%array(:, :, :) + drhob(3)%array(:, :, :))**2), drho_cutoff)
+!$OMP END PARALLEL WORKSHARE
+               ELSE
+                  CPABORT("Normalization of derivative requires any of norm_drho, drho or drhoa+drhob!")
+               END IF
             CASE (deriv_norm_drhoa)
+               IF (ASSOCIATED(norm_drhoa)) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drhoa,drho_cutoff)
-               deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
-                                               MAX(norm_drhoa(:, :, :), drho_cutoff)
+                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                                  MAX(norm_drhoa(:, :, :), drho_cutoff)
 !$OMP END PARALLEL WORKSHARE
+               ELSE IF (ASSOCIATED(drhoa(1)%array)) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,drhoa,drho_cutoff)
+                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                                  MAX(SQRT(drhoa(1)%array(:, :, :)**2 + &
+                                                           drhoa(2)%array(:, :, :)**2 + &
+                                                           drhoa(3)%array(:, :, :)**2), drho_cutoff)
+!$OMP END PARALLEL WORKSHARE
+               ELSE
+                  CPABORT("Normalization of derivative requires any of norm_drhoa or drhoa!")
+               END IF
             CASE (deriv_norm_drhob)
+               IF (ASSOCIATED(norm_drhob)) THEN
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,norm_drhob,drho_cutoff)
-               deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
-                                               MAX(norm_drhob(:, :, :), drho_cutoff)
+                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                                  MAX(norm_drhob(:, :, :), drho_cutoff)
 !$OMP END PARALLEL WORKSHARE
+               ELSE IF (ASSOCIATED(drhob(1)%array)) THEN
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_att,drhob,drho_cutoff)
+                  deriv_att%deriv_data(:, :, :) = deriv_att%deriv_data(:, :, :)/ &
+                                                  MAX(SQRT(drhob(1)%array(:, :, :)**2 + &
+                                                           drhob(2)%array(:, :, :)**2 + &
+                                                           drhob(3)%array(:, :, :)**2), drho_cutoff)
+!$OMP END PARALLEL WORKSHARE
+               ELSE
+                  CPABORT("Normalization of derivative requires any of norm_drhob or drhob!")
+               END IF
             CASE (deriv_rho, deriv_tau, deriv_laplace_rho)
                IF (lsd) &
                   CPABORT(TRIM(id_to_desc(split_desc(idesc)))//" not handled in lsd!'")
