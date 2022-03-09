@@ -1114,13 +1114,12 @@ CONTAINS
       INTEGER, DIMENSION(2), PARAMETER :: norm_drho_spin_name = [deriv_norm_drhoa, deriv_norm_drhob]
       INTEGER, DIMENSION(3, 3), PARAMETER ::        nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
 
-      INTEGER, DIMENSION(:), POINTER         :: split_desc
       INTEGER                                            :: handle, i, idir, ispin, j, jdir, k, &
-                                                            n_deriv, npoints, nspins, order, &
+                                                            npoints, nspins, &
                                                             xc_deriv_method_id, xc_rho_smooth_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: dealloc_pw_to_deriv, has_laplace, &
-                                                            has_tau, lsd, use_virial, zero_result
+                                                            has_tau, lsd, use_virial, zero_result, has_gradient, has_derivs, has_rho
       REAL(KIND=dp)                                      :: density_smooth_cut_range, drho_cutoff, &
                                                             ndr, rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, norm_drho, norm_drho_spin, &
@@ -1180,45 +1179,9 @@ CONTAINS
       CALL xc_rho_set_get(rho_set, rho_cutoff=rho_cutoff, &
                           drho_cutoff=drho_cutoff)
 
-      has_tau = .FALSE.
-      has_laplace = .FALSE.
+      CALL check_for_derivatives(deriv_set, lsd, has_rho, has_gradient, has_tau, has_laplace)
       ! check for unknown derivatives
-      n_deriv = 0
-      pos => deriv_set%derivs
-      DO WHILE (cp_sll_xc_deriv_next(pos, el_att=deriv_att))
-         CALL xc_derivative_get(deriv_att, order=order, &
-                                split_desc=split_desc)
-         IF (order == 1) THEN
-            IF (lsd) THEN
-               SELECT CASE (split_desc(1))
-               CASE (deriv_rho, deriv_rhoa, deriv_rhob, deriv_norm_drho, deriv_norm_drhoa, &
-                     deriv_norm_drhob)
-                  n_deriv = n_deriv + 1
-               CASE (deriv_tau, deriv_tau_a, deriv_tau_b)
-                  has_tau = .TRUE.
-                  n_deriv = n_deriv + 1
-               CASE (deriv_laplace_rhoa, deriv_laplace_rhob)
-                  has_laplace = .TRUE.
-                  n_deriv = n_deriv + 1
-               CASE default
-                  CPABORT("Unknown derivative id")
-               END SELECT
-            ELSE
-               SELECT CASE (split_desc(1))
-               CASE (deriv_rho, deriv_norm_drho)
-                  n_deriv = n_deriv + 1
-               CASE (deriv_tau)
-                  has_tau = .TRUE.
-                  n_deriv = n_deriv + 1
-               CASE (deriv_laplace_rho)
-                  has_laplace = .TRUE.
-                  n_deriv = n_deriv + 1
-               CASE default
-                  CPABORT("Unknown derivative id")
-               END SELECT
-            END IF
-         END IF
-      END DO
+      has_derivs = has_rho .OR. has_gradient .OR. has_tau .OR. has_laplace
 
       ALLOCATE (vxc_rho(nspins))
       DO ispin = 1, nspins
@@ -1694,7 +1657,7 @@ CONTAINS
 
       ! 0-deriv -> value of exc
       ! this has to be kept consistent with xc_exc_calc
-      IF (n_deriv > 0) THEN
+      IF (has_derivs) THEN
          deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
          CPASSERT(ASSOCIATED(deriv_att))
          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
@@ -2038,7 +2001,7 @@ CONTAINS
 
       INTEGER                                            :: handle, idir, ispin, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: gradient_f, lsd, my_calc_virial, tau_f, laplace_f
+      LOGICAL                                            :: gradient_f, lsd, my_calc_virial, tau_f, laplace_f, rho_f
       REAL(KIND=dp)                                      :: exc, gradient_cut, h
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_dummy
@@ -2300,7 +2263,7 @@ CONTAINS
             lsd = .TRUE.
          END IF
 
-         CALL check_for_gradients(deriv_set, (nspins == 2), gradient_f, tau_f, laplace_f)
+         CALL check_for_derivatives(deriv_set, (nspins == 2), rho_f, gradient_f, tau_f, laplace_f)
 
          IF (laplace_f) THEN
             CPABORT("Stress tensors with Laplace-dependent functionals not supported!")
@@ -3022,7 +2985,7 @@ CONTAINS
                                                             k, nspins, xc_deriv_method_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: gradient_f, lsd, my_compute_virial, &
-                                                            my_gapw, tau_f, laplace_f
+                                                            my_gapw, tau_f, laplace_f, rho_f
       REAL(KIND=dp)                                      :: fac, gradient_cut, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, e_drhoa, e_drhob, &
@@ -3064,7 +3027,7 @@ CONTAINS
 
       bo = rho_set%local_bounds
 
-      CALL check_for_gradients(deriv_set, lsd, gradient_f, tau_f, laplace_f)
+      CALL check_for_derivatives(deriv_set, lsd, rho_f, gradient_f, tau_f, laplace_f)
 
       IF (tau_f) THEN
          CPASSERT(ASSOCIATED(v_xc_tau))
@@ -3892,12 +3855,12 @@ CONTAINS
 !> \param tau_f ...
 !> \param laplace_f ...
 ! **************************************************************************************************
-   SUBROUTINE check_for_gradients(deriv_set, lsd, gradient_f, tau_f, laplace_f)
+   SUBROUTINE check_for_derivatives(deriv_set, lsd, rho_f, gradient_f, tau_f, laplace_f)
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       LOGICAL, INTENT(IN)                                :: lsd
-      LOGICAL, INTENT(OUT)                               :: gradient_f, tau_f, laplace_f
+      LOGICAL, INTENT(OUT)                               :: rho_f, gradient_f, tau_f, laplace_f
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'check_for_gradients'
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_for_derivatives'
 
       INTEGER                                            :: handle, iorder, order
       INTEGER, DIMENSION(:), POINTER                     :: split_desc
@@ -3906,6 +3869,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      rho_f = .FALSE.
       gradient_f = .FALSE.
       tau_f = .FALSE.
       laplace_f = .FALSE.
@@ -3918,6 +3882,7 @@ CONTAINS
             DO iorder = 1, size(split_desc)
                SELECT CASE (split_desc(iorder))
                CASE (deriv_rho, deriv_rhoa, deriv_rhob)
+                  rho_f = .TRUE.
                CASE (deriv_norm_drho, deriv_norm_drhoa, deriv_norm_drhob)
                   gradient_f = .TRUE.
                CASE (deriv_tau_a, deriv_tau_b, deriv_tau)
@@ -3932,6 +3897,7 @@ CONTAINS
             DO iorder = 1, size(split_desc)
                SELECT CASE (split_desc(iorder))
                CASE (deriv_rho)
+                  rho_f = .TRUE.
                CASE (deriv_tau)
                   tau_f = .TRUE.
                CASE (deriv_norm_drho)
@@ -3947,7 +3913,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE check_for_gradients
+   END SUBROUTINE check_for_derivatives
 
 END MODULE xc
 
