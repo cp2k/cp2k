@@ -41,16 +41,11 @@ MODULE xc
                          pw_derive, &
                          pw_scale, &
                          pw_transfer, &
-                         pw_zero, pw_laplace, pw_integrate_function
+                         pw_zero, pw_integrate_function
    USE pw_pool_types, ONLY: pw_pool_create_pw, &
                             pw_pool_give_back_cr3d, &
                             pw_pool_give_back_pw, &
                             pw_pool_type
-   USE pw_spline_utils, ONLY: &
-      nn10_coeffs, nn10_deriv_coeffs, nn50_coeffs, nn50_deriv_coeffs, pw_nn_deriv_r, &
-      pw_nn_smear_r, pw_spline2_deriv_g, pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
-      pw_spline3_interpolate_values_g, pw_spline_scale_deriv, spline2_coeffs, &
-      spline2_deriv_coeffs, spline3_coeffs, spline3_deriv_coeffs
    USE pw_types, ONLY: COMPLEXDATA1D, &
                        REALDATA3D, &
                        REALSPACE, &
@@ -73,16 +68,14 @@ MODULE xc
    USE xc_derivatives, ONLY: xc_functionals_eval, &
                              xc_functionals_get_needs
    USE xc_input_constants, ONLY: &
-      xc_debug_new_routine, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
-      xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-      xc_new_f_routine, xc_test_lsd_f_routine
+      xc_debug_new_routine, xc_new_f_routine, xc_test_lsd_f_routine
    USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
    USE xc_rho_set_types, ONLY: xc_rho_set_create, &
                                xc_rho_set_get, &
                                xc_rho_set_release, &
                                xc_rho_set_type, &
                                xc_rho_set_update
-   USE xc_util, ONLY: xc_pw_smooth
+   USE xc_util, ONLY: xc_pw_smooth, xc_pw_laplace, xc_pw_divergence, xc_requires_tmp_g
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1114,14 +1107,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_vxc_pw_create'
       INTEGER, DIMENSION(2), PARAMETER :: norm_drho_spin_name = [deriv_norm_drhoa, deriv_norm_drhob]
-      INTEGER, DIMENSION(3, 3), PARAMETER ::        nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
 
       INTEGER                                            :: handle, i, idir, ispin, jdir, &
                                                             npoints, nspins, &
-                                                            xc_deriv_method_id, xc_rho_smooth_id
+                                                            xc_deriv_method_id, xc_rho_smooth_id, deriv_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: dealloc_pw_to_deriv, has_laplace, &
-                                                            has_tau, lsd, use_virial, zero_result, has_gradient, has_derivs, has_rho
+                                                            has_tau, lsd, use_virial, has_gradient, has_derivs, has_rho
       REAL(KIND=dp)                                      :: density_smooth_cut_range, drho_cutoff, &
                                                             rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, norm_drho, norm_drho_spin, &
@@ -1202,8 +1194,6 @@ CONTAINS
          CALL xc_dset_recover_pw(deriv_set, [deriv_rho], vxc_rho(1)%pw, pw_grid, pw_pool)
       END IF
 
-      ! rhoa,rhob already taken care of in vxc recovery
-
       deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
       IF (ASSOCIATED(deriv_att)) THEN
          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
@@ -1212,10 +1202,6 @@ CONTAINS
                              drho=drho, drhoa=drhoa, drhob=drhob, rho_cutoff=rho_cutoff, &
                              drho_cutoff=drho_cutoff, &
                              can_return_null=.TRUE.)
-
-!$OMP    PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data)
-         deriv_data(:, :, :) = -deriv_data(:, :, :)
-!$OMP    END PARALLEL WORKSHARE
 
          IF (ASSOCIATED(drho(1)%array)) THEN
             CPASSERT(ASSOCIATED(deriv_data))
@@ -1229,7 +1215,7 @@ CONTAINS
                   virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*deriv_data(:, :, :)
 !$OMP             END PARALLEL WORKSHARE
                   DO jdir = 1, idir
-                     virial_xc(idir, jdir) = pw_grid%dvol* &
+                     virial_xc(idir, jdir) = -pw_grid%dvol* &
                                              accurate_dot_product(virial_pw%cr3d(:, :, :), &
                                                                   drho(jdir)%array(:, :, :))
                      virial_xc(jdir, idir) = virial_xc(idir, jdir)
@@ -1242,7 +1228,7 @@ CONTAINS
 !$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,drho,idir)
                drho(idir)%array(:, :, :) = drho(idir)%array(:, :, :)*deriv_data(:, :, :)
 !$OMP          END PARALLEL WORKSHARE
-               ! ???
+               ! Use this construct to deallocate drho while shifting the allocation to pw_to_deriv_rho
                CALL pw_create(pw_to_deriv_rho(idir)%pw, pw_grid=pw_grid, &
                               cr3d_ptr=drho(idir)%array, &
                               use_data=REALDATA3D, in_space=REALSPACE)
@@ -1259,8 +1245,8 @@ CONTAINS
                   virial_pw%cr3d(:, :, :) = (drhoa(idir)%array(:, :, :) + drhob(idir)%array(:, :, :))*deriv_data(:, :, :)
 !$OMP             END PARALLEL WORKSHARE
                   DO jdir = 1, idir
-                     virial_xc(idir, jdir) = pw_grid%dvol*accurate_sum(virial_pw%cr3d(:, :, :)* &
-                                                                       (drhoa(jdir)%array(:, :, :) + drhob(jdir)%array(:, :, :)))
+                     virial_xc(idir, jdir) = -pw_grid%dvol*accurate_sum(virial_pw%cr3d(:, :, :)* &
+                                                                        (drhoa(jdir)%array(:, :, :) + drhob(jdir)%array(:, :, :)))
                      virial_xc(jdir, idir) = virial_xc(idir, jdir)
                   END DO
                END DO
@@ -1277,8 +1263,16 @@ CONTAINS
             END DO
          END IF
 
+         ! Deallocate pw to save memory
          CALL pw_pool_give_back_cr3d(pw_pool, deriv_att%deriv_data)
 
+      END IF
+
+      IF ((has_gradient .AND. xc_requires_tmp_g(xc_deriv_method_id)) .OR. pw_grid%spherical) THEN
+         CALL pw_pool_create_pw(pw_pool, vxc_g, &
+                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         IF (.NOT. pw_grid%spherical) CALL pw_pool_create_pw(pw_pool, tmp_g, &
+                                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END IF
 
       DO ispin = 1, nspins
@@ -1301,10 +1295,6 @@ CONTAINS
                CPASSERT(lsd)
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
-!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data)
-               deriv_data(:, :, :) = -deriv_data(:, :, :)
-!$OMP          END PARALLEL WORKSHARE
-
                IF (use_virial) THEN
                   CALL pw_pool_create_pw(pw_pool, virial_pw, &
                                          use_data=REALDATA3D, &
@@ -1315,7 +1305,7 @@ CONTAINS
                      virial_pw%cr3d(:, :, :) = drho_spin(idir)%array(:, :, :)*deriv_data(:, :, :)
 !$OMP                END PARALLEL WORKSHARE
                      DO jdir = 1, idir
-                        virial_xc(idir, jdir) = virial_xc(idir, jdir) + pw_grid%dvol* &
+                        virial_xc(idir, jdir) = virial_xc(idir, jdir) - pw_grid%dvol* &
                                                 accurate_dot_product(virial_pw%cr3d(:, :, :), &
                                                                      drho_spin(jdir)%array(:, :, :))
                         virial_xc(jdir, idir) = virial_xc(idir, jdir)
@@ -1351,6 +1341,7 @@ CONTAINS
 
          IF (ASSOCIATED(pw_to_deriv_rho(1)%pw)) THEN
             IF (.NOT. ASSOCIATED(pw_to_deriv(1)%pw)) THEN
+               ! This branch is called in case of closed-shell systems (???)
                DO idir = 1, 3
                   pw_to_deriv(idir)%pw => pw_to_deriv_rho(idir)%pw
                END DO
@@ -1361,6 +1352,8 @@ CONTAINS
                   END DO
                END IF
             ELSE
+               ! This branch is called in case of open-shell systems
+               ! Add the contributions from norm_drho and norm_drho_spin
                DO idir = 1, 3
                   CALL pw_axpy(pw_to_deriv_rho(idir)%pw, pw_to_deriv(idir)%pw)
                   IF (ispin == 2) THEN
@@ -1371,153 +1364,44 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(pw_to_deriv(1)%pw)) THEN
-            ! partial integration
-            IF (xc_deriv_method_id /= xc_deriv_pw) THEN
-               CALL pw_spline_scale_deriv(pw_to_deriv, &
-                                          transpose=.TRUE.)
-            END IF
+            DO idir = 1, 3
+               CALL pw_scale(pw_to_deriv(idir)%pw, -1.0_dp)
+            END DO
 
-            IF (xc_deriv_method_id == xc_deriv_pw .OR. &
-                xc_deriv_method_id == xc_deriv_spline3 .OR. &
-                xc_deriv_method_id == xc_deriv_spline2) THEN
+            CALL xc_pw_divergence(xc_deriv_method_id, pw_to_deriv, tmp_g, vxc_g, vxc_rho(ispin)%pw)
 
-               IF (.NOT. ASSOCIATED(vxc_g)) THEN
-                  CALL pw_pool_create_pw(pw_pool, vxc_g, &
-                                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-                  zero_result = .TRUE.
-               ELSE
-                  zero_result = .FALSE.
-               END IF
-
-               DO idir = 1, 3
-                  IF (zero_result .AND. idir == 1) THEN
-                     tmp_g => vxc_g
-                  ELSE
-                     CALL pw_pool_create_pw(pw_pool, tmp_g, &
-                                            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-                  END IF
-
-                  CALL pw_transfer(pw_to_deriv(idir)%pw, tmp_g)
-
-                  SELECT CASE (xc_deriv_method_id)
-                  CASE (xc_deriv_pw)
-                     CALL pw_derive(tmp_g, nd(:, idir))
-                  CASE (xc_deriv_spline2)
-                     CALL pw_spline2_interpolate_values_g(tmp_g)
-                     CALL pw_spline2_deriv_g(tmp_g, idir=idir)
-                  CASE (xc_deriv_spline3)
-                     CALL pw_spline3_interpolate_values_g(tmp_g)
-                     CALL pw_spline3_deriv_g(tmp_g, idir=idir)
-                  CASE default
-                     CPABORT("Unsupported deriv method")
-                  END SELECT
-
-                  IF (zero_result .AND. idir == 1) THEN
-                     NULLIFY (tmp_g)
-                  ELSE
-                     CALL pw_axpy(tmp_g, vxc_g)
-                     CALL pw_pool_give_back_pw(pw_pool, tmp_g)
-                  END IF
-                  IF (dealloc_pw_to_deriv) THEN
-                     CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(idir)%pw)
-                  END IF
-               END DO
-               ! transfer vxc in real space
-               CALL pw_pool_create_pw(pw_pool, v_drho_r, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_transfer(vxc_g, v_drho_r)
-               CALL pw_axpy(v_drho_r, vxc_rho(ispin)%pw)
-               CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
-               CALL pw_pool_give_back_pw(pw_pool, vxc_g)
-            ELSE
-               v_drho_r => vxc_rho(ispin)%pw
-               DO idir = 1, 3
-                  SELECT CASE (xc_deriv_method_id)
-                  CASE (xc_deriv_spline2_smooth)
-                     CALL pw_nn_deriv_r(pw_in=pw_to_deriv(idir)%pw, &
-                                        pw_out=v_drho_r, coeffs=spline2_deriv_coeffs, &
-                                        idir=idir)
-                  CASE (xc_deriv_spline3_smooth)
-                     CALL pw_nn_deriv_r(pw_in=pw_to_deriv(idir)%pw, &
-                                        pw_out=v_drho_r, coeffs=spline3_deriv_coeffs, &
-                                        idir=idir)
-                  CASE (xc_deriv_nn10_smooth)
-                     CALL pw_nn_deriv_r(pw_in=pw_to_deriv(idir)%pw, &
-                                        pw_out=v_drho_r, coeffs=nn10_deriv_coeffs, &
-                                        idir=idir)
-                  CASE (xc_deriv_nn50_smooth)
-                     CALL pw_nn_deriv_r(pw_in=pw_to_deriv(idir)%pw, &
-                                        pw_out=v_drho_r, coeffs=nn50_deriv_coeffs, &
-                                        idir=idir)
-                  CASE default
-                     CPABORT("Unsupported derivative method")
-                  END SELECT
-                  IF (dealloc_pw_to_deriv) THEN
-                     CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(idir)%pw)
-                  END IF
-               END DO
-               NULLIFY (v_drho_r)
-            END IF
+            DO idir = 1, 3
+               CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(idir)%pw)
+            END DO
          END IF
 
          ! ** Add laplace part to vxc_rho
          IF (has_laplace) THEN
             IF (lsd) THEN
                IF (ispin == 1) THEN
-                  deriv_att => xc_dset_get_derivative(deriv_set, [deriv_laplace_rhoa])
-                  CPASSERT(ASSOCIATED(deriv_att))
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+                  deriv_id = deriv_laplace_rhoa
                ELSE
-                  deriv_att => xc_dset_get_derivative(deriv_set, [deriv_laplace_rhob])
-                  CPASSERT(ASSOCIATED(deriv_att))
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+                  deriv_id = deriv_laplace_rhob
                END IF
-
             ELSE
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_laplace_rho])
-               CPASSERT(ASSOCIATED(deriv_att))
-               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               deriv_id = deriv_laplace_rho
             END IF
 
-            IF (use_virial) CALL virial_laplace(rho_r(ispin)%pw, pw_pool, virial_xc, deriv_data)
+            CALL xc_dset_recover_pw(deriv_set, [deriv_id], pw_to_deriv(1)%pw, pw_grid)
 
-            SELECT CASE (xc_deriv_method_id)
-            CASE (xc_deriv_pw)
-               CALL pw_pool_create_pw(pw_pool, pw_to_deriv(1)%pw, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_pool_create_pw(pw_pool, tmp_g, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               CALL pw_zero(tmp_g)
-               CALL pw_pool_create_pw(pw_pool, v_drho_r, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_zero(v_drho_r)
-!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,&
-!$OMP                         pw_to_deriv,idir)
-               pw_to_deriv(1)%pw%cr3d(:, :, :) = deriv_data(:, :, :)
-!$OMP          END PARALLEL WORKSHARE
-               CALL pw_transfer(pw_to_deriv(1)%pw, tmp_g)
+            IF (use_virial) CALL virial_laplace(rho_r(ispin)%pw, pw_pool, virial_xc, pw_to_deriv(1)%pw%cr3d)
 
-               CALL pw_laplace(tmp_g)
+            CALL xc_pw_laplace(pw_to_deriv(1)%pw, pw_pool, xc_deriv_method_id)
 
-               ! Add this to the potential
-               CALL pw_transfer(tmp_g, v_drho_r)
+            CALL pw_axpy(pw_to_deriv(1)%pw, vxc_rho(ispin)%pw)
 
-               CALL pw_axpy(v_drho_r, vxc_rho(ispin)%pw)
-               CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
-               CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(1)%pw)
-               CALL pw_pool_give_back_pw(pw_pool, tmp_g)
-            CASE default
-               CPABORT("Unsupported derivative method")
-            END SELECT
+            CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(1)%pw)
          END IF
 
          IF (pw_grid%spherical) THEN
             ! filter vxc
-            CALL pw_pool_create_pw(pw_pool, vxc_g, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             CALL pw_transfer(vxc_rho(ispin)%pw, vxc_g)
             CALL pw_transfer(vxc_g, vxc_rho(ispin)%pw)
-            CALL pw_pool_give_back_pw(pw_pool, vxc_g)
          END IF
          CALL smooth_cutoff(pot=vxc_rho(ispin)%pw%cr3d, rho=rho, rhoa=rhoa, rhob=rhob, &
                             rho_cutoff=rho_cutoff*density_smooth_cut_range, &
@@ -1525,9 +1409,14 @@ CONTAINS
 
          v_drho_r => vxc_rho(ispin)%pw
          NULLIFY (vxc_rho(ispin)%pw)
-         CALL xc_pw_smooth(v_drho_r, vxc_rho(ispin)%pw, xc_rho_smooth_id, pw_pool)
+         CALL pw_pool_create_pw(pw_pool, vxc_rho(ispin)%pw, &
+                                use_data=REALDATA3D, in_space=REALSPACE)
+         CALL xc_pw_smooth(v_drho_r, vxc_rho(ispin)%pw, xc_rho_smooth_id)
          CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
       END DO
+
+      IF (ASSOCIATED(vxc_g)) CALL pw_pool_give_back_pw(pw_pool, vxc_g)
+      IF (ASSOCIATED(tmp_g)) CALL pw_pool_give_back_pw(pw_pool, tmp_g)
 
       DO idir = 1, 3
          CPASSERT(.NOT. ASSOCIATED(pw_to_deriv(idir)%pw))
@@ -2803,7 +2692,6 @@ CONTAINS
          OPTIONAL                                        :: virial_xc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_analytical'
-      INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
 
       INTEGER                                            :: handle, i, ia, idir, ir, ispin, j, jdir, &
                                                             k, nspins, xc_deriv_method_id
@@ -2818,13 +2706,14 @@ CONTAINS
                                                             tau1, tau1a, tau1b, laplace1, laplace1a, laplace1b, &
                                                             rho, rhoa, rhob
       TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
-      TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE         :: v_drhoa, v_drhob, v_drho, v_drho_r, v_laplace
-      TYPE(pw_type), POINTER                             :: tmp_g, virial_pw
+      TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE         :: v_drhoa, v_drhob, v_drho, v_laplace
+      TYPE(pw_p_type), DIMENSION(:, :), ALLOCATABLE      :: v_drho_r
+      TYPE(pw_type), POINTER                             :: tmp_g, virial_pw, vxc_g
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (e_drhoa, e_drhob, e_drho, tmp_g)
+      NULLIFY (e_drhoa, e_drhob, e_drho, tmp_g, vxc_g)
 
       my_gapw = .FALSE.
       IF (PRESENT(gapw)) my_gapw = gapw
@@ -2858,18 +2747,21 @@ CONTAINS
       END IF
 
       IF (gradient_f) THEN
-         ALLOCATE (v_drho_r(nspins), v_drho(nspins))
+         ALLOCATE (v_drho_r(3, nspins), v_drho(nspins))
          DO ispin = 1, nspins
-            NULLIFY (v_drho_r(ispin)%pw, v_drho(ispin)%pw)
+            DO idir = 1, 3
+               NULLIFY (v_drho_r(idir, ispin)%pw)
+               CALL allocate_pw(v_drho_r(idir, ispin)%pw, pw_pool, bo)
+            END DO
+            NULLIFY (v_drho(ispin)%pw)
             CALL allocate_pw(v_drho(ispin)%pw, pw_pool, bo)
-            CALL allocate_pw(v_drho_r(ispin)%pw, pw_pool, bo)
          END DO
 
-         IF ((xc_deriv_method_id == xc_deriv_pw .OR. &
-              xc_deriv_method_id == xc_deriv_spline3 .OR. &
-              xc_deriv_method_id == xc_deriv_spline2) .AND. .NOT. my_gapw) THEN
+         IF (xc_requires_tmp_g(xc_deriv_method_id) .AND. .NOT. my_gapw) THEN
             IF (ASSOCIATED(pw_pool)) THEN
                CALL pw_pool_create_pw(pw_pool, tmp_g, &
+                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL pw_pool_create_pw(pw_pool, vxc_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             ELSE
                ! remember to refix for gapw
@@ -2883,20 +2775,6 @@ CONTAINS
 
       IF (laplace_f .AND. my_compute_virial) THEN
          CPABORT("Laplace-dependent functionals not implemented with stress tensors!")
-      END IF
-
-      IF (laplace_f .AND. .NOT. ASSOCIATED(tmp_g)) THEN
-         IF ((xc_deriv_method_id == xc_deriv_pw .OR. &
-              xc_deriv_method_id == xc_deriv_spline3 .OR. &
-              xc_deriv_method_id == xc_deriv_spline2) .AND. .NOT. my_gapw) THEN
-            IF (ASSOCIATED(pw_pool)) THEN
-               CALL pw_pool_create_pw(pw_pool, tmp_g, &
-                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            ELSE
-               ! remember to refix for gapw
-               CPABORT("XC_DERIV method is not implemented in GAPW")
-            END IF
-         END IF
       END IF
 
       IF (my_compute_virial .AND. (gradient_f .OR. laplace_f)) CALL allocate_pw(virial_pw, pw_pool, bo)
@@ -3024,7 +2902,7 @@ CONTAINS
                   DO ispin = 1, nspins
 !$OMP                PARALLEL WORKSHARE DEFAULT(NONE) &
 !$OMP                SHARED(v_drho_r,v_drhoa,v_drhob,v_drho,drhoa,drhob,drho,ispin,idir)
-                     v_drho_r(ispin)%pw%cr3d(:, :, :) = &
+                     v_drho_r(idir, ispin)%pw%cr3d(:, :, :) = &
                         v_drhoa(ispin)%pw%cr3d(:, :, :)*drhoa(idir)%array(:, :, :) + &
                         v_drhob(ispin)%pw%cr3d(:, :, :)*drhob(idir)%array(:, :, :) + &
                         v_drho(ispin)%pw%cr3d(:, :, :)*drho(idir)%array(:, :, :)
@@ -3033,15 +2911,15 @@ CONTAINS
                   IF (ASSOCIATED(e_drhoa)) THEN
 !$OMP                PARALLEL WORKSHARE DEFAULT(NONE) &
 !$OMP                SHARED(v_drho_r,e_drhoa,drho1a,idir)
-                     v_drho_r(1)%pw%cr3d(:, :, :) = v_drho_r(1)%pw%cr3d(:, :, :) - &
-                                                    e_drhoa(:, :, :)*drho1a(idir)%array(:, :, :)
+                     v_drho_r(idir, 1)%pw%cr3d(:, :, :) = v_drho_r(idir, 1)%pw%cr3d(:, :, :) - &
+                                                          e_drhoa(:, :, :)*drho1a(idir)%array(:, :, :)
 !$OMP                END PARALLEL WORKSHARE
                   END IF
                   IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
 !$OMP                PARALLEL WORKSHARE DEFAULT(NONE)&
 !$OMP                SHARED(v_drho_r,e_drhob,drho1b,idir)
-                     v_drho_r(2)%pw%cr3d(:, :, :) = v_drho_r(2)%pw%cr3d(:, :, :) - &
-                                                    e_drhob(:, :, :)*drho1b(idir)%array(:, :, :)
+                     v_drho_r(idir, 2)%pw%cr3d(:, :, :) = v_drho_r(idir, 2)%pw%cr3d(:, :, :) - &
+                                                          e_drhob(:, :, :)*drho1b(idir)%array(:, :, :)
 !$OMP                END PARALLEL WORKSHARE
                   END IF
                   IF (ASSOCIATED(e_drho)) THEN
@@ -3051,66 +2929,25 @@ CONTAINS
                         DO j = bo(1, 2), bo(2, 2)
                            DO i = bo(1, 1), bo(2, 1)
                               IF (nspins /= 1) THEN
-                                 v_drho_r(1)%pw%cr3d(i, j, k) = v_drho_r(1)%pw%cr3d(i, j, k) - &
-                                                                e_drho(i, j, k)*drho1(idir)%array(i, j, k)
-                                 v_drho_r(2)%pw%cr3d(i, j, k) = v_drho_r(2)%pw%cr3d(i, j, k) - &
-                                                                e_drho(i, j, k)*drho1(idir)%array(i, j, k)
+                                 v_drho_r(idir, 1)%pw%cr3d(i, j, k) = v_drho_r(idir, 1)%pw%cr3d(i, j, k) - &
+                                                                      e_drho(i, j, k)*drho1(idir)%array(i, j, k)
+                                 v_drho_r(idir, 2)%pw%cr3d(i, j, k) = v_drho_r(idir, 2)%pw%cr3d(i, j, k) - &
+                                                                      e_drho(i, j, k)*drho1(idir)%array(i, j, k)
                               ELSE
-                                 v_drho_r(1)%pw%cr3d(i, j, k) = v_drho_r(1)%pw%cr3d(i, j, k) - &
-                                                                e_drho(i, j, k)*(drho1a(idir)%array(i, j, k) + &
-                                                                                 fac*drho1b(idir)%array(i, j, k))
+                                 v_drho_r(idir, 1)%pw%cr3d(i, j, k) = v_drho_r(idir, 1)%pw%cr3d(i, j, k) - &
+                                                                      e_drho(i, j, k)*(drho1a(idir)%array(i, j, k) + &
+                                                                                       fac*drho1b(idir)%array(i, j, k))
                               END IF
                            END DO
                         END DO
                      END DO
                   END IF
+               END DO
 
-                  DO ispin = 1, nspins
-
-                     SELECT CASE (xc_deriv_method_id)
-
-                     CASE (xc_deriv_pw)
-                        CALL pw_transfer(v_drho_r(ispin)%pw, tmp_g)
-                        CALL pw_derive(tmp_g, nd(:, idir))
-                        CALL pw_transfer(tmp_g, v_drho_r(ispin)%pw)
-                        CALL pw_axpy(v_drho_r(ispin)%pw, v_xc(ispin)%pw)
-
-                     CASE (xc_deriv_spline2)
-                        CALL pw_transfer(v_drho_r(ispin)%pw, tmp_g)
-                        CALL pw_spline2_interpolate_values_g(tmp_g)
-                        CALL pw_spline2_deriv_g(tmp_g, idir=idir)
-                        CALL pw_transfer(tmp_g, v_drho_r(ispin)%pw)
-                        CALL pw_axpy(v_drho_r(ispin)%pw, v_xc(ispin)%pw)
-
-                     CASE (xc_deriv_spline3)
-                        CALL pw_transfer(v_drho_r(ispin)%pw, tmp_g)
-                        CALL pw_spline3_interpolate_values_g(tmp_g)
-                        CALL pw_spline3_deriv_g(tmp_g, idir=idir)
-                        CALL pw_transfer(tmp_g, v_drho_r(ispin)%pw)
-                        CALL pw_axpy(v_drho_r(ispin)%pw, v_xc(ispin)%pw)
-
-                     CASE (xc_deriv_spline2_smooth)
-                        CALL pw_nn_deriv_r(pw_in=v_drho_r(ispin)%pw, &
-                                           pw_out=v_xc(ispin)%pw, coeffs=spline2_deriv_coeffs, &
-                                           idir=idir)
-                     CASE (xc_deriv_spline3_smooth)
-                        CALL pw_nn_deriv_r(pw_in=v_drho_r(ispin)%pw, &
-                                           pw_out=v_xc(ispin)%pw, coeffs=spline3_deriv_coeffs, &
-                                           idir=idir)
-                     CASE (xc_deriv_nn10_smooth)
-                        CALL pw_nn_deriv_r(pw_in=v_drho_r(ispin)%pw, &
-                                           pw_out=v_xc(ispin)%pw, coeffs=nn10_deriv_coeffs, &
-                                           idir=idir)
-                     CASE (xc_deriv_nn50_smooth)
-                        CALL pw_nn_deriv_r(pw_in=v_drho_r(ispin)%pw, &
-                                           pw_out=v_xc(ispin)%pw, coeffs=nn50_deriv_coeffs, &
-                                           idir=idir)
-                     CASE default
-                        CPABORT("XC_DERIV method is not implemented")
-                     END SELECT
-                  END DO ! ispin
-
-               END DO ! idir
+               DO ispin = 1, nspins
+                  ! partial integration
+                  CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, ispin), tmp_g, vxc_g, v_xc(ispin)%pw)
+               END DO ! ispin
 
             END IF
 
@@ -3186,53 +3023,12 @@ CONTAINS
                DO idir = 1, 3
 !$OMP             PARALLEL WORKSHARE DEFAULT(NONE)&
 !$OMP             SHARED(v_drho_r,drho,v_drho,drho1,e_drho,idir)
-                  v_drho_r(1)%pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*v_drho(1)%pw%cr3d(:, :, :) - &
-                                                 drho1(idir)%array(:, :, :)*e_drho(:, :, :)
+                  v_drho_r(idir, 1)%pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*v_drho(1)%pw%cr3d(:, :, :) - &
+                                                       drho1(idir)%array(:, :, :)*e_drho(:, :, :)
 !$OMP             END PARALLEL WORKSHARE
-
-                  SELECT CASE (xc_deriv_method_id)
-
-                  CASE (xc_deriv_pw)
-                     CALL pw_transfer(v_drho_r(1)%pw, tmp_g)
-                     CALL pw_derive(tmp_g, nd(:, idir))
-                     CALL pw_transfer(tmp_g, v_drho_r(1)%pw)
-                     CALL pw_axpy(v_drho_r(1)%pw, v_xc(1)%pw)
-
-                  CASE (xc_deriv_spline2)
-                     CALL pw_transfer(v_drho_r(1)%pw, tmp_g)
-                     CALL pw_spline2_interpolate_values_g(tmp_g)
-                     CALL pw_spline2_deriv_g(tmp_g, idir=idir)
-                     CALL pw_transfer(tmp_g, v_drho_r(1)%pw)
-                     CALL pw_axpy(v_drho_r(1)%pw, v_xc(1)%pw)
-
-                  CASE (xc_deriv_spline3)
-                     CALL pw_transfer(v_drho_r(1)%pw, tmp_g)
-                     CALL pw_spline3_interpolate_values_g(tmp_g)
-                     CALL pw_spline3_deriv_g(tmp_g, idir=idir)
-                     CALL pw_transfer(tmp_g, v_drho_r(1)%pw)
-                     CALL pw_axpy(v_drho_r(1)%pw, v_xc(1)%pw)
-
-                  CASE (xc_deriv_spline2_smooth)
-                     CALL pw_nn_deriv_r(pw_in=v_drho_r(1)%pw, &
-                                        pw_out=v_xc(1)%pw, coeffs=spline2_deriv_coeffs, &
-                                        idir=idir)
-                  CASE (xc_deriv_spline3_smooth)
-                     CALL pw_nn_deriv_r(pw_in=v_drho_r(1)%pw, &
-                                        pw_out=v_xc(1)%pw, coeffs=spline3_deriv_coeffs, &
-                                        idir=idir)
-                  CASE (xc_deriv_nn10_smooth)
-                     CALL pw_nn_deriv_r(pw_in=v_drho_r(1)%pw, &
-                                        pw_out=v_xc(1)%pw, coeffs=nn10_deriv_coeffs, &
-                                        idir=idir)
-                  CASE (xc_deriv_nn50_smooth)
-                     CALL pw_nn_deriv_r(pw_in=v_drho_r(1)%pw, &
-                                        pw_out=v_xc(1)%pw, coeffs=nn50_deriv_coeffs, &
-                                        idir=idir)
-                  CASE default
-                     CPABORT("XC_DERIV method is not implemented")
-                  END SELECT
-
                END DO
+
+               CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 1), tmp_g, vxc_g, v_xc(1)%pw)
             END IF
 
          END IF
@@ -3240,26 +3036,19 @@ CONTAINS
       END IF
 
       IF (laplace_f) THEN
-
-         SELECT CASE (xc_deriv_method_id)
-
-         CASE (xc_deriv_pw)
-            DO ispin = 1, nspins
-               CALL pw_transfer(v_laplace(ispin)%pw, tmp_g)
-               CALL pw_laplace(tmp_g)
-               CALL pw_transfer(tmp_g, v_laplace(ispin)%pw)
-               CALL pw_axpy(v_laplace(ispin)%pw, v_xc(ispin)%pw)
-            END DO
-         CASE default
-            CPABORT("XC_DERIV method not implemented with Laplace-dependent functionals!")
-         END SELECT
+         DO ispin = 1, nspins
+            CALL xc_pw_laplace(v_laplace(ispin)%pw, pw_pool, xc_deriv_method_id)
+            CALL pw_axpy(v_laplace(ispin)%pw, v_xc(ispin)%pw)
+         END DO
       END IF
 
       IF (gradient_f) THEN
 
          DO ispin = 1, nspins
             CALL deallocate_pw(v_drho(ispin)%pw, pw_pool)
-            CALL deallocate_pw(v_drho_r(ispin)%pw, pw_pool)
+            DO idir = 1, 3
+               CALL deallocate_pw(v_drho_r(idir, ispin)%pw, pw_pool)
+            END DO
          END DO
          DEALLOCATE (v_drho, v_drho_r)
 
@@ -3274,6 +3063,10 @@ CONTAINS
 
       IF (ASSOCIATED(tmp_g) .AND. ASSOCIATED(pw_pool)) THEN
          CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+      END IF
+
+      IF (ASSOCIATED(vxc_g) .AND. ASSOCIATED(pw_pool)) THEN
+         CALL pw_pool_give_back_pw(pw_pool, vxc_g)
       END IF
 
       IF (my_compute_virial .AND. (gradient_f .OR. laplace_f)) THEN
