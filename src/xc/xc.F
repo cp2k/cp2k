@@ -41,7 +41,7 @@ MODULE xc
                          pw_derive, &
                          pw_scale, &
                          pw_transfer, &
-                         pw_zero, pw_laplace
+                         pw_zero, pw_laplace, pw_integrate_function
    USE pw_pool_types, ONLY: pw_pool_create_pw, &
                             pw_pool_give_back_cr3d, &
                             pw_pool_give_back_pw, &
@@ -1603,35 +1603,21 @@ CONTAINS
       ! 0-deriv -> value of exc
       ! this has to be kept consistent with xc_exc_calc
       IF (has_derivs) THEN
-         deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
-         CPASSERT(ASSOCIATED(deriv_att))
-         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+         CALL xc_dset_recover_pw(deriv_set, [INTEGER::], v_drho_r, pw_grid)
 
-         CALL pw_create(v_drho_r, pw_grid, &
-                        use_data=REALDATA3D, in_space=REALSPACE, &
-                        cr3d_ptr=deriv_data)
-         NULLIFY (v_drho_r%cr3d)
-         CALL pw_release(v_drho_r)
-
-         CALL smooth_cutoff(pot=deriv_data, rho=rho, rhoa=rhoa, rhob=rhob, &
+         CALL smooth_cutoff(pot=v_drho_r%cr3d, rho=rho, rhoa=rhoa, rhob=rhob, &
                             rho_cutoff=rho_cutoff, &
                             rho_smooth_cutoff_range=density_smooth_cut_range)
 
-         exc = accurate_sum(deriv_data)*pw_grid%dvol
-         IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-            CALL mp_sum(exc, pw_grid%para%group)
-         END IF
+         exc = pw_integrate_function(v_drho_r)
          !
          ! return the xc functional value at the grid points
          !
          IF (PRESENT(exc_r)) THEN
-            CPASSERT(.NOT. ASSOCIATED(exc_r%pw))
-            deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
-            CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-            CALL pw_create(exc_r%pw, pw_grid, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           cr3d_ptr=deriv_data)
-            NULLIFY (deriv_att%deriv_data)
+            exc_r%pw => v_drho_r
+            NULLIFY (v_drho_r)
+         ELSE
+            CALL pw_release(v_drho_r)
          END IF
       ELSE
          exc = 0.0_dp
