@@ -75,14 +75,14 @@ MODULE xc
    USE xc_input_constants, ONLY: &
       xc_debug_new_routine, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-      xc_new_f_routine, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-      xc_rho_spline3_smooth, xc_test_lsd_f_routine
+      xc_new_f_routine, xc_test_lsd_f_routine
    USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
    USE xc_rho_set_types, ONLY: xc_rho_set_create, &
                                xc_rho_set_get, &
                                xc_rho_set_release, &
                                xc_rho_set_type, &
                                xc_rho_set_update
+   USE xc_util, ONLY: xc_pw_smooth
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1567,29 +1567,10 @@ CONTAINS
                             rho_cutoff=rho_cutoff*density_smooth_cut_range, &
                             rho_smooth_cutoff_range=density_smooth_cut_range)
 
-         ! final smoothing if rho was smoothed
-         IF (xc_rho_smooth_id /= xc_rho_no_smooth) THEN
-            CALL pw_pool_create_pw(pw_pool, v_drho_r, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_copy(vxc_rho(ispin)%pw, v_drho_r)
-            SELECT CASE (xc_rho_smooth_id)
-            CASE (xc_rho_spline2_smooth)
-               CALL pw_nn_smear_r(pw_in=v_drho_r, pw_out=vxc_rho(ispin)%pw, &
-                                  coeffs=spline2_coeffs)
-            CASE (xc_rho_spline3_smooth)
-               CALL pw_nn_smear_r(pw_in=v_drho_r, pw_out=vxc_rho(ispin)%pw, &
-                                  coeffs=spline3_coeffs)
-            CASE (xc_rho_nn10)
-               CALL pw_nn_smear_r(pw_in=v_drho_r, pw_out=vxc_rho(ispin)%pw, &
-                                  coeffs=nn10_coeffs)
-            CASE (xc_rho_nn50)
-               CALL pw_nn_smear_r(pw_in=v_drho_r, pw_out=vxc_rho(ispin)%pw, &
-                                  coeffs=nn50_coeffs)
-            CASE default
-               CPABORT("Unsupported smoothing method")
-            END SELECT
-            CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
-         END IF
+         v_drho_r => vxc_rho(ispin)%pw
+         NULLIFY (vxc_rho(ispin)%pw)
+         CALL xc_pw_smooth(v_drho_r, vxc_rho(ispin)%pw, xc_rho_smooth_id, pw_pool)
+         CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
       END DO
 
       DO idir = 1, 3

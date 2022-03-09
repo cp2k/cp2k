@@ -24,10 +24,9 @@ MODULE xc_rho_set_types
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
    USE pw_spline_utils,                 ONLY: &
-        nn10_coeffs, nn10_deriv_coeffs, nn50_coeffs, nn50_deriv_coeffs, pw_nn_deriv_r, &
-        pw_nn_smear_r, pw_spline2_deriv_g, pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
-        pw_spline3_interpolate_values_g, pw_spline_scale_deriv, spline2_coeffs, &
-        spline2_deriv_coeffs, spline3_coeffs, spline3_deriv_coeffs
+        nn10_deriv_coeffs, nn50_deriv_coeffs, pw_nn_deriv_r, pw_spline2_deriv_g, &
+        pw_spline2_interpolate_values_g, pw_spline3_deriv_g, pw_spline3_interpolate_values_g, &
+        pw_spline_scale_deriv, spline2_deriv_coeffs, spline3_deriv_coeffs
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
@@ -37,10 +36,11 @@ MODULE xc_rho_set_types
    USE xc_input_constants,              ONLY: &
         xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
         xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
+        xc_rho_no_smooth
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
                                               xc_rho_cflags_setall,&
                                               xc_rho_cflags_type
+   USE xc_util,                         ONLY: xc_pw_smooth
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -619,35 +619,7 @@ CONTAINS
             CALL pw_copy(rho_r(ispin)%pw, my_rho_r(ispin)%pw)
          ELSE
             my_rho_r_local = .TRUE.
-            CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-
-            SELECT CASE (xc_rho_smooth_id)
-            CASE (xc_rho_no_smooth)
-               CALL pw_copy(rho_r(ispin)%pw, my_rho_r(ispin)%pw)
-            CASE (xc_rho_spline2_smooth)
-               CALL pw_zero(my_rho_r(ispin)%pw)
-               CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw, &
-                                  pw_out=my_rho_r(ispin)%pw, &
-                                  coeffs=spline2_coeffs)
-            CASE (xc_rho_spline3_smooth)
-               CALL pw_zero(my_rho_r(ispin)%pw)
-               CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw, &
-                                  pw_out=my_rho_r(ispin)%pw, &
-                                  coeffs=spline3_coeffs)
-            CASE (xc_rho_nn10)
-               CALL pw_zero(my_rho_r(ispin)%pw)
-               CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw, &
-                                  pw_out=my_rho_r(ispin)%pw, &
-                                  coeffs=nn10_coeffs)
-            CASE (xc_rho_nn50)
-               CALL pw_zero(my_rho_r(ispin)%pw)
-               CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw, &
-                                  pw_out=my_rho_r(ispin)%pw, &
-                                  coeffs=nn50_coeffs)
-            CASE default
-               CPABORT("Unsupported smoothing")
-            END SELECT
+            CALL xc_pw_smooth(rho_r(ispin)%pw, my_rho_r(ispin)%pw, xc_rho_smooth_id, pw_pool)
          END IF
 
          IF (gradient_f) THEN ! calculate the grad of rho
