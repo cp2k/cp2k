@@ -67,7 +67,7 @@ MODULE xc
                                       xc_dset_create, &
                                       xc_dset_get_derivative, &
                                       xc_dset_release, &
-                                      xc_dset_zero_all
+                                      xc_dset_zero_all, xc_dset_recover_pw
    USE xc_derivative_types, ONLY: xc_derivative_get, &
                                   xc_derivative_type
    USE xc_derivatives, ONLY: xc_functionals_eval, &
@@ -1193,42 +1193,11 @@ CONTAINS
 
       ! recover the vxc arrays
       IF (lsd) THEN
-         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhoa])
-         IF (ASSOCIATED(deriv_att)) THEN
-            CALL pw_create(vxc_rho(1)%pw, pw_grid=pw_grid, &
-                           cr3d_ptr=deriv_att%deriv_data, &
-                           use_data=REALDATA3D, in_space=REALSPACE)
-            NULLIFY (deriv_att%deriv_data)
-         ELSE
-            CALL pw_pool_create_pw(pw_pool, vxc_rho(1)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_zero(vxc_rho(1)%pw)
-         END IF
-
-         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhob])
-         IF (ASSOCIATED(deriv_att)) THEN
-            CALL pw_create(vxc_rho(2)%pw, pw_grid=pw_grid, &
-                           cr3d_ptr=deriv_att%deriv_data, &
-                           use_data=REALDATA3D, in_space=REALSPACE)
-            NULLIFY (deriv_att%deriv_data)
-         ELSE
-            CALL pw_pool_create_pw(pw_pool, vxc_rho(2)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_zero(vxc_rho(2)%pw)
-         END IF
+         CALL xc_dset_recover_pw(deriv_set, [deriv_rhoa], vxc_rho(1)%pw, pw_grid, pw_pool)
+         CALL xc_dset_recover_pw(deriv_set, [deriv_rhob], vxc_rho(2)%pw, pw_grid, pw_pool)
 
       ELSE
-         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho])
-         IF (ASSOCIATED(deriv_att)) THEN
-            CALL pw_create(vxc_rho(1)%pw, pw_grid=pw_grid, &
-                           cr3d_ptr=deriv_att%deriv_data, &
-                           use_data=REALDATA3D, in_space=REALSPACE)
-            NULLIFY (deriv_att%deriv_data)
-         ELSE
-            CALL pw_pool_create_pw(pw_pool, vxc_rho(1)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_zero(vxc_rho(1)%pw)
-         END IF
+         CALL xc_dset_recover_pw(deriv_set, [deriv_rho], vxc_rho(1)%pw, pw_grid, pw_pool)
       END IF
 
       ! rhoa,rhob already taken care of in vxc recovery
@@ -1399,17 +1368,11 @@ CONTAINS
                   CALL pw_pool_give_back_pw(pw_pool, virial_pw)
                END IF ! use_virial
 
-               CALL pw_create(vxc_to_deriv(ispin)%pw, pw_grid, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              cr3d_ptr=deriv_data)
-               NULLIFY (deriv_att%deriv_data)
-
                DO idir = 1, 3
                   CPASSERT(ASSOCIATED(drho_spin(idir)%array))
-                  CPASSERT(ASSOCIATED(vxc_to_deriv(ispin)%pw%cr3d))
 !$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,drho_spin,&
 !$OMP                           ispin,idir,vxc_to_deriv,drho_cutoff)
-                  drho_spin(idir)%array(:, :, :) = vxc_to_deriv(ispin)%pw%cr3d(:, :, :)* &
+                  drho_spin(idir)%array(:, :, :) = deriv_data(:, :, :)* &
                                                    drho_spin(idir)%array(:, :, :)
 !$OMP             END PARALLEL WORKSHARE
 
@@ -1426,7 +1389,6 @@ CONTAINS
                END DO
 
                dealloc_pw_to_deriv = .TRUE.
-               CALL pw_pool_give_back_pw(pw_pool, vxc_to_deriv(ispin)%pw)
             END IF ! deriv_att
 
          END IF ! LSD
@@ -1684,31 +1646,10 @@ CONTAINS
             NULLIFY (vxc_tau(ispin)%pw)
          END DO
          IF (lsd) THEN
-            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau_a])
-            IF (ASSOCIATED(deriv_att)) THEN
-               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-
-               CALL pw_create(vxc_tau(1)%pw, pw_grid, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              cr3d_ptr=deriv_data)
-               NULLIFY (deriv_att%deriv_data)
-            END IF
-            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau_b])
-            IF (ASSOCIATED(deriv_att)) THEN
-               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-
-               CALL pw_create(vxc_tau(2)%pw, pw_grid, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              cr3d_ptr=deriv_data)
-               NULLIFY (deriv_att%deriv_data)
-            END IF
+            CALL xc_dset_recover_pw(deriv_set, [deriv_tau_a], vxc_tau(1)%pw, pw_grid)
+            CALL xc_dset_recover_pw(deriv_set, [deriv_tau_b], vxc_tau(2)%pw, pw_grid)
          ELSE
-            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
-            CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-            CALL pw_create(vxc_tau(1)%pw, pw_grid, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           cr3d_ptr=deriv_data)
-            NULLIFY (deriv_att%deriv_data)
+            CALL xc_dset_recover_pw(deriv_set, [deriv_tau], vxc_tau(1)%pw, pw_grid)
          END IF
          DO ispin = 1, nspins
             CPASSERT(ASSOCIATED(vxc_tau(ispin)%pw))
