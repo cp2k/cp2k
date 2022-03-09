@@ -1297,14 +1297,14 @@ CONTAINS
                CALL pw_pool_give_back_pw(pw_pool, virial_pw)
             END IF ! use_virial
             DO idir = 1, 3
-               CALL pw_create(pw_to_deriv_rho(idir)%pw, pw_grid=pw_grid, &
-                              cr3d_ptr=drho(idir)%array, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
                CPASSERT(ASSOCIATED(drho(idir)%array))
 !$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,drho,idir)
                drho(idir)%array(:, :, :) = drho(idir)%array(:, :, :)*deriv_data(:, :, :)
 !$OMP          END PARALLEL WORKSHARE
                ! ???
+               CALL pw_create(pw_to_deriv_rho(idir)%pw, pw_grid=pw_grid, &
+                              cr3d_ptr=drho(idir)%array, &
+                              use_data=REALDATA3D, in_space=REALSPACE)
                NULLIFY (drho(idir)%array, rho_set%drho(idir)%array)
             END DO
          ELSE
@@ -1359,9 +1359,6 @@ CONTAINS
             IF (ASSOCIATED(deriv_att)) THEN
                CPASSERT(lsd)
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-               CALL pw_create(v_drho_r, pw_grid, &
-                              use_data=REALDATA3D, in_space=REALSPACE, &
-                              cr3d_ptr=deriv_data)
 
                IF (ASSOCIATED(norm_drho_spin)) THEN
 !$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,norm_drho_spin,drho_cutoff)
@@ -1402,8 +1399,10 @@ CONTAINS
                   CALL pw_pool_give_back_pw(pw_pool, virial_pw)
                END IF ! use_virial
 
-               vxc_to_deriv(ispin)%pw => v_drho_r
-               NULLIFY (v_drho_r, deriv_att%deriv_data)
+               CALL pw_create(vxc_to_deriv(ispin)%pw, pw_grid, &
+                              use_data=REALDATA3D, in_space=REALSPACE, &
+                              cr3d_ptr=deriv_data)
+               NULLIFY (deriv_att%deriv_data)
 
                DO idir = 1, 3
                   CPASSERT(ASSOCIATED(drho_spin(idir)%array))
