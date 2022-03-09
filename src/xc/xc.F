@@ -1571,26 +1571,23 @@ CONTAINS
          IF (xc_rho_smooth_id /= xc_rho_no_smooth) THEN
             CALL pw_pool_create_pw(pw_pool, v_drho_r, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_zero(v_drho_r)
+            CALL pw_copy(vxc_rho(ispin)%pw, v_drho_r)
             SELECT CASE (xc_rho_smooth_id)
             CASE (xc_rho_spline2_smooth)
-               CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw, pw_out=v_drho_r, &
+               CALL pw_nn_smear_r(pw_in=v_drho_r, pw_out=vxc_rho(ispin)%pw, &
                                   coeffs=spline2_coeffs)
             CASE (xc_rho_spline3_smooth)
-               CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw, pw_out=v_drho_r, &
+               CALL pw_nn_smear_r(pw_in=v_drho_r, pw_out=vxc_rho(ispin)%pw, &
                                   coeffs=spline3_coeffs)
             CASE (xc_rho_nn10)
-               CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw, pw_out=v_drho_r, &
+               CALL pw_nn_smear_r(pw_in=v_drho_r, pw_out=vxc_rho(ispin)%pw, &
                                   coeffs=nn10_coeffs)
             CASE (xc_rho_nn50)
-               CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw, pw_out=v_drho_r, &
+               CALL pw_nn_smear_r(pw_in=v_drho_r, pw_out=vxc_rho(ispin)%pw, &
                                   coeffs=nn50_coeffs)
             CASE default
                CPABORT("Unsupported smoothing method")
             END SELECT
-            deriv_data => vxc_rho(ispin)%pw%cr3d
-            vxc_rho(ispin)%pw%cr3d => v_drho_r%cr3d
-            v_drho_r%cr3d => deriv_data
             CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
          END IF
       END DO
