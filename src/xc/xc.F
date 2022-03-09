@@ -1123,7 +1123,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: density_smooth_cut_range, drho_cutoff, &
                                                             ndr, rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, norm_drho, norm_drho_spin, &
-                                                            rho, rhoa, rhob, tmp_cr3d
+                                                            rho, rhoa, rhob
       TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho_spin, drhoa, drhob
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(pw_grid_type), POINTER                        :: pw_grid
@@ -1228,22 +1228,6 @@ CONTAINS
             CALL pw_pool_create_pw(pw_pool, vxc_rho(1)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(vxc_rho(1)%pw)
-         END IF
-      END IF
-
-      deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho])
-      IF (ASSOCIATED(deriv_att)) THEN
-         IF (lsd) THEN ! otherwise already taken care in vxc recovery
-            CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-!$OMP       PARALLEL DEFAULT(NONE) SHARED(vxc_rho,deriv_data)
-            DO ispin = 1, 2
-!$OMP          WORKSHARE
-               vxc_rho(ispin)%pw%cr3d(:, :, :) = vxc_rho(ispin)%pw%cr3d(:, :, :) + deriv_data(:, :, :)
-!$OMP          END WORKSHARE NOWAIT
-            END DO
-!$OMP       END PARALLEL
-            CALL pw_pool_give_back_cr3d(pw_pool, deriv_att%deriv_data)
-            NULLIFY (deriv_att%deriv_data)
          END IF
       END IF
 
@@ -1718,25 +1702,6 @@ CONTAINS
                               use_data=REALDATA3D, in_space=REALSPACE, &
                               cr3d_ptr=deriv_data)
                NULLIFY (deriv_att%deriv_data)
-            END IF
-            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
-            IF (ASSOCIATED(deriv_att)) THEN
-               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-               IF (ASSOCIATED(vxc_tau(1)%pw)) THEN
-                  DO ispin = 1, 2
-                     CPASSERT(ASSOCIATED(vxc_tau(ispin)%pw))
-                     tmp_cr3d => vxc_tau(ispin)%pw%cr3d
-                     CALL daxpy(npoints, 1.0_dp, deriv_data, 1, tmp_cr3d, 1)
-                  END DO
-               ELSE
-                  CALL pw_create(vxc_tau(1)%pw, pw_grid, &
-                                 use_data=REALDATA3D, in_space=REALSPACE, &
-                                 cr3d_ptr=deriv_data)
-                  NULLIFY (deriv_att%deriv_data)
-                  CALL pw_pool_create_pw(pw_pool, vxc_tau(2)%pw, &
-                                         use_data=REALDATA3D, in_space=REALSPACE)
-                  CALL pw_copy(vxc_tau(1)%pw, vxc_tau(2)%pw)
-               END IF
             END IF
          ELSE
             deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
@@ -3881,14 +3846,16 @@ CONTAINS
          IF (lsd) THEN
             DO iorder = 1, size(split_desc)
                SELECT CASE (split_desc(iorder))
-               CASE (deriv_rho, deriv_rhoa, deriv_rhob)
+               CASE (deriv_rhoa, deriv_rhob)
                   rho_f = .TRUE.
                CASE (deriv_norm_drho, deriv_norm_drhoa, deriv_norm_drhob)
                   gradient_f = .TRUE.
-               CASE (deriv_tau_a, deriv_tau_b, deriv_tau)
+               CASE (deriv_tau_a, deriv_tau_b)
                   tau_f = .TRUE.
-               CASE (deriv_laplace_rhoa, deriv_laplace_rhob, deriv_laplace_rho)
+               CASE (deriv_laplace_rhoa, deriv_laplace_rhob)
                   laplace_f = .TRUE.
+               CASE (deriv_rho, deriv_tau, deriv_laplace_rho)
+                  CPABORT("Derivative not handled in lsd!")
                CASE default
                   CPABORT("Unknown derivative id")
                END SELECT
