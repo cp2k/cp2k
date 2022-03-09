@@ -2145,7 +2145,6 @@ CONTAINS
             END IF
 
             CALL prepare_dr1dr(dr1dr, drho, drho1)
-            CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
 
             IF (lsd) THEN
                CALL prepare_dr1dr(dra1dra, drhoa, drho1a)
@@ -3491,13 +3490,13 @@ CONTAINS
          CALL xc_rho_set_and_dset_create(rho_set, deriv_set, 2, &
                                          rho_r_pw, rho_g, tau, xc_section, pw_pool, &
                                          needs_basic_components=.TRUE.)
-
-         CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
       ELSE
          CALL xc_rho_set_and_dset_create(rho_set, deriv_set, 1, &
                                          rho_r_pw, rho_g, tau, xc_section, pw_pool, &
                                          needs_basic_components=.TRUE.)
       END IF
+
+      CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
 
       DEALLOCATE (rho_r_pw)
 
