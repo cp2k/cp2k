@@ -47,11 +47,7 @@ MODULE hfx_ri
         dbt_iterator_type, dbt_mp_environ_pgrid, dbt_nd_mp_comm, dbt_pgrid_create, &
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
-   USE hfx_types,                       ONLY: alloc_containers,&
-                                              block_ind_type,&
-                                              dealloc_containers,&
-                                              hfx_compression_type,&
-                                              hfx_ri_init,&
+   USE hfx_types,                       ONLY: hfx_ri_init,&
                                               hfx_ri_release,&
                                               hfx_ri_type
    USE input_constants,                 ONLY: hfx_ri_do_2c_cholesky,&
@@ -107,7 +103,7 @@ MODULE hfx_ri
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: hfx_ri_update_ks, hfx_ri_update_forces
+   PUBLIC :: hfx_ri_update_ks, hfx_ri_update_forces, get_force_from_3c_trace, get_2c_der_force, get_idx_to_atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_ri'
 CONTAINS
@@ -484,7 +480,7 @@ CONTAINS
          CALL init_interaction_radii_orb_basis(ri_basis, ri_data%eps_pgf_orb)
       END DO
 
-      n_mem = FLOOR(SQRT(ri_data%n_mem - 0.1)) + 1
+      n_mem = ri_data%n_mem
       CALL create_tensor_batches(sizes_AO, n_mem, starts_array_mc_int, ends_array_mc_int, &
                                  starts_array_mc_block_int, ends_array_mc_block_int)
 
@@ -1766,7 +1762,7 @@ CONTAINS
       END IF
 
       !3 loops in MO force evaluations. To be consistent with input MEMORY_CUT, need to take the cubic root
-      !No need to cut memory further (like for RHO flavor) because SCF tensors alrady dense
+      !No need to cut memory further because SCF tensors alrady dense
       n_mem_input = FLOOR((ri_data%n_mem_input - 0.1_dp)**(1._dp/3._dp)) + 1
       n_mem_input_RI = FLOOR((ri_data%n_mem_input - 0.1_dp)/n_mem_input**2) + 1
 
@@ -2280,7 +2276,7 @@ CONTAINS
    END SUBROUTINE hfx_ri_forces_mo
 
 ! **************************************************************************************************
-!> \brief More optimized and general implementation
+!> \brief New sparser implementation
 !> \param qs_env ...
 !> \param ri_data ...
 !> \param nspins ...
@@ -2305,48 +2301,43 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_forces_Pmat'
 
-      INTEGER                                            :: dummy, handle, i_mem, i_spin, i_xyz, &
-                                                            j_mem, j_xyz, k_mem, k_xyz, n_mem, &
-                                                            n_mem_RI, n_mem_RI_fit, natom, &
+      INTEGER                                            :: handle, i_mem, i_spin, i_xyz, j_mem, &
+                                                            j_xyz, k_xyz, n_mem, natom, &
                                                             unit_nr_dbcsr
       INTEGER(int_8)                                     :: nflop
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_of_kind, batch_blk_end, batch_blk_start, &
-         batch_end, batch_end_RI, batch_end_RI_fit, batch_ranges, batch_ranges_RI, &
-         batch_ranges_RI_fit, batch_start, batch_start_RI, batch_start_RI_fit, bsizes_RI_fit, &
-         dist1, dist2, dist3, idx_to_at_AO, idx_to_at_RI, kind_of
-      INTEGER, DIMENSION(2, 1)                           :: bounds_ctr_1d
-      INTEGER, DIMENSION(2, 2)                           :: bounds_ctr_2d
-      INTEGER, DIMENSION(3)                              :: pdims
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, batch_end, batch_ranges, &
+                                                            batch_start, dist1, dist2, dist3, &
+                                                            idx_to_at_AO, idx_to_at_RI, kind_of
+      INTEGER, DIMENSION(2, 1)                           :: ibounds, jbounds
+      INTEGER, DIMENSION(2, 3)                           :: bounds_cpy
       LOGICAL                                            :: do_resp, resp_only_prv, use_virial_prv
-      REAL(dp)                                           :: memory, pref, spin_fac, t1, t2
+      REAL(dp)                                           :: pref, spin_fac, t1, t2
       REAL(dp), DIMENSION(3, 3)                          :: work_virial
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :) :: blk_indices
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: dbcsr_tmp
-      TYPE(dbt_pgrid_type)                               :: pgrid_1, pgrid_2
-      TYPE(dbt_type) :: rho_ao_1, rho_ao_2, t_2c_inv_fit, t_2c_RI, t_2c_RI_inv, t_2c_RI_met, &
-         t_2c_RI_PQ, t_2c_tmp, t_3c_0, t_3c_2, t_3c_3, t_3c_4, t_3c_5, t_3c_AO_ctr, &
-         t_3c_AO_ctr_resp, t_3c_ao_ri_ao, t_3c_ao_ri_ao_fit, t_3c_cpy_1, t_3c_cpy_2, t_3c_cpy_3, &
-         t_3c_cpy_4, t_3c_int_1, t_3c_int_2, t_3c_int_3, t_3c_int_4, t_3c_ri_ao_ao, &
-         t_3c_ri_ao_ao_fit, t_3c_RI_ctr
+      TYPE(dbt_type) :: rho_ao_1, rho_ao_2, t_2c_RI, t_2c_RI_tmp, t_2c_tmp, t_3c_1, t_3c_2, &
+         t_3c_3, t_3c_4, t_3c_ao_ri_ao, t_3c_help_1, t_3c_help_2, t_3c_int, t_3c_int_2, &
+         t_3c_ri_ao_ao, t_3c_sparse, t_R, t_SVS
       TYPE(dbt_type), DIMENSION(3)                       :: t_2c_der_metric, t_2c_der_RI, &
-                                                            t_3c_der_AO, t_3c_der_RI
-      TYPE(hfx_compression_type), ALLOCATABLE, &
-         DIMENSION(:, :)                                 :: store_3c
+                                                            t_3c_der_AO, t_3c_der_RI, t_3c_tmp
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
 
-      ! 1) Precompute the derivatives that are needed (3c, 3c RI and metric)
-      ! 2) Pre-contract with the inverse RI 2c tensor (metric or potential)
-      ! 3) Go over batches of block of both density matrices, such that intermediate 3c tensors are small
-      ! 4) Precontract the 3c integrals with the density matrix: sum_cd P_ac P_bd (S|cd)
-      ! 5) First force contribution with the 2c RI derivative d/dx (Q|R)
-      ! 6) If metric, do the additional contraction  with S_pq^-1 (Q|R)
-      ! 7) Do the force contribution due to 3c integrals (a'b|P) and (ab|P')
-      ! 8) If metric, do the last force contribution due to d/dx S^-1 (First contract (ab|P), then S^-1)
+      !The idea is the following: we need to compute the gradients
+      ! d/dx [P_ab P_cd (acP) S^-1_PQ (Q|R) S^-1_RS (Sbd)]
+      ! Which we do in a few steps:
+      ! 1) Contract the density matrices with the 3c integrals: M_acS = P_ab P_cd (Sbd)
+      ! 2) Calculate the 3c contributions: d/dx (acP) [S^-1_PQ (Q|R) S^-1_RS M_acS]
+      !    For maximum perf, we first multiply all 2c matrices together, than contract with retain_sparsity
+      ! 3) Contract the 3c integrals and the M tensor together in order to only work with 2c quantities:
+      !    R_PS = (acP) M_acS
+      ! 4) From there, we can easily calculate the 2c contributions to the force:
+      !    Potential: [S^-1*R*S^-1]_QR d/dx (Q|R)
+      !    Metric:    [S^-1*R*S^-1*(Q|R)*S^-1]_UV d/dx S_UV
+      ! TODO: for now we assume that there is a metric. We need to generalize later
 
       NULLIFY (particle_set, virial, cell, force, atomic_kind_set)
 
@@ -2377,101 +2368,22 @@ CONTAINS
                             [1], [2, 3], name="(RI | AO AO)")
       DEALLOCATE (dist1, dist2, dist3)
 
-      !Take large RI blocks (256) such that dense contractions have block size 4x4x256 (for dense contrctions on GPUs)
-      CALL split_block_sizes([SUM(ri_data%bsizes_RI)], bsizes_RI_fit, 4096/ri_data%min_bsize**2)
-
-      pdims(:) = 0
-      CALL dbt_pgrid_create(para_env%group, pdims, pgrid_1, tensor_dims=[SIZE(ri_data%bsizes_AO_split), &
-                                                                         SIZE(bsizes_RI_fit), &
-                                                                         SIZE(ri_data%bsizes_AO_split)])
-      pdims(:) = 0
-      CALL dbt_pgrid_create(para_env%group, pdims, pgrid_2, tensor_dims=[SIZE(bsizes_RI_fit), &
-                                                                         SIZE(ri_data%bsizes_AO_split), &
-                                                                         SIZE(ri_data%bsizes_AO_split)])
-
-      CALL create_3c_tensor(t_3c_ao_ri_ao_fit, dist1, dist2, dist3, pgrid_1, &
-                            ri_data%bsizes_AO_split, bsizes_RI_fit, ri_data%bsizes_AO_split, &
-                            [1, 2], [3], name="(AO RI | AO)")
-      DEALLOCATE (dist1, dist2, dist3)
-      CALL create_3c_tensor(t_3c_ri_ao_ao_fit, dist1, dist2, dist3, pgrid_2, &
-                            bsizes_RI_fit, ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
-                            [1], [2, 3], name="(RI | AO AO)")
-      DEALLOCATE (dist1, dist2, dist3)
-
-      CALL dbt_pgrid_destroy(pgrid_1)
-      CALL dbt_pgrid_destroy(pgrid_2)
-
-      ! 1) Precompute the derivatives
-      !TODO: may want to store those integrals (are they ever needed multiple times, i.e. in response calculations ?)
-      !      that is only worth is if the actual integral calculation is not negligible
-      CALL precalc_derivatives(t_3c_der_RI, t_3c_der_AO, t_2c_der_RI, t_2c_der_metric, &
+      ! Precompute the derivatives
+      CALL precalc_derivatives(t_3c_der_RI, t_3c_tmp, t_2c_der_RI, t_2c_der_metric, &
                                t_3c_ri_ao_ao, t_3c_ao_ri_ao, ri_data, qs_env)
 
-      !Go over batches of Pmat rows to save memory, such that any contracted quantity with Pmat is small
-      !Note that RI blocks batching is only there when one of the tensors is dense
-      !We take the same as SCF for the AO batching, but add an extra RI loop (denser tensors in forces)
-      n_mem = ri_data%n_mem
-      ALLOCATE (batch_start(n_mem), batch_end(n_mem))
-      batch_start(:) = ri_data%starts_array_mem(:)
-      batch_end(:) = ri_data%ends_array_mem(:)
+      CALL dbt_create(t_3c_ri_ao_ao, t_3c_sparse)
+      DO i_xyz = 1, 3
+         CALL dbt_create(t_3c_ri_ao_ao, t_3c_der_AO(i_xyz))
+         CALL dbt_copy(t_3c_tmp(i_xyz), t_3c_der_AO(i_xyz), order=[2, 1, 3], move_data=.TRUE.)
+         CALL dbt_destroy(t_3c_tmp(i_xyz))
 
-      ALLOCATE (batch_ranges(n_mem + 1))
-      batch_ranges(:n_mem) = ri_data%starts_array_mem_block(:)
-      batch_ranges(n_mem + 1) = ri_data%ends_array_mem_block(n_mem) + 1
+         CALL dbt_copy(t_3c_der_RI(i_xyz), t_3c_sparse, summation=.TRUE.)
+         CALL dbt_copy(t_3c_der_AO(i_xyz), t_3c_sparse, summation=.TRUE.)
+         CALL dbt_copy(t_3c_der_AO(i_xyz), t_3c_sparse, order=[1, 3, 2], summation=.TRUE.)
+      END DO
 
-      n_mem_RI = ri_data%n_mem_RI
-      ALLOCATE (batch_start_RI(n_mem_RI), batch_end_RI(n_mem_RI))
-      batch_start_RI(:) = ri_data%starts_array_RI_mem(:)
-      batch_end_RI(:) = ri_data%ends_array_RI_mem(:)
-
-      ALLOCATE (batch_ranges_RI(n_mem_RI + 1))
-      batch_ranges_RI(:n_mem_RI) = ri_data%starts_array_RI_mem_block(:)
-      batch_ranges_RI(n_mem_RI + 1) = ri_data%ends_array_RI_mem_block(n_mem) + 1
-
-      n_mem_RI_fit = ri_data%n_mem_RI
-      CALL create_tensor_batches(bsizes_RI_fit, n_mem_RI_fit, batch_start_RI_fit, batch_end_RI_fit, &
-                                 batch_blk_start, batch_blk_end)
-      ALLOCATE (batch_ranges_RI_fit(n_mem_RI_fit + 1))
-      batch_ranges_RI_fit(1:n_mem_RI_fit) = batch_blk_start(1:n_mem_RI_fit)
-      batch_ranges_RI_fit(n_mem_RI_fit + 1) = batch_blk_end(n_mem_RI_fit) + 1
-      DEALLOCATE (batch_blk_start, batch_blk_end)
-
-      !Pre-allocate everything we need before the contraction loops
-      CALL dbt_create(t_3c_ao_ri_ao, t_3c_int_1) ! (AO RI | AO)
-      CALL dbt_create(t_3c_ao_ri_ao, t_3c_0) ! (AO RI | AO)
-      CALL dbt_create(t_3c_ao_ri_ao, t_3c_2) ! (AO RI | AO)
-      CALL dbt_create(t_3c_ao_ri_ao, t_3c_cpy_1) ! (AO RI | AO)
-      CALL dbt_create(t_3c_ao_ri_ao, t_3c_cpy_2) ! (AO RI | AO)
-      CALL dbt_create(t_3c_ri_ao_ao, t_3c_3) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ri_ao_ao_fit, t_3c_4) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ri_ao_ao_fit, t_3c_5) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ri_ao_ao_fit, t_3c_cpy_3) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ri_ao_ao_fit, t_3c_cpy_4) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ri_ao_ao, t_3c_int_2) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ri_ao_ao_fit, t_3c_int_3) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ri_ao_ao_fit, t_3c_int_4) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ri_ao_ao, t_3c_RI_ctr) ! (RI| AO AO)
-      CALL dbt_create(t_3c_ao_ri_ao, t_3c_AO_ctr) ! (AO RI | AO)
-      IF (do_resp) CALL dbt_create(t_3c_ao_ri_ao, t_3c_AO_ctr_resp) ! (AO RI | AO)
-
-      CALL create_2c_tensor(t_2c_RI, dist1, dist2, ri_data%pgrid_2d, &
-                            ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, name="(RI | RI)")
-      DEALLOCATE (dist1, dist2)
-
-      CALL create_2c_tensor(t_2c_RI_PQ, dist1, dist2, ri_data%pgrid_2d, &
-                            bsizes_RI_fit, bsizes_RI_fit, name="(RI | RI)")
-      DEALLOCATE (dist1, dist2)
-      CALL dbt_create(t_2c_RI_PQ, t_2c_inv_fit)
-      CALL dbt_copy(ri_data%t_2c_inv(1, 1), t_2c_inv_fit)
-
-      CALL create_2c_tensor(rho_ao_1, dist1, dist2, ri_data%pgrid_2d, &
-                            ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
-                            name="(AO | AO)")
-      DEALLOCATE (dist1, dist2)
-
-      CALL dbt_create(rho_ao_1, rho_ao_2)
-
-      !Some utilities
+      ! Some utilities
       spin_fac = 0.5_dp
       IF (nspins == 2) spin_fac = 1.0_dp
       IF (PRESENT(rescale_factor)) spin_fac = spin_fac*rescale_factor
@@ -2485,87 +2397,77 @@ CONTAINS
       ALLOCATE (atom_of_kind(natom), kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
+      ! Go over batches of the 2 AO indices to save memory
+      n_mem = ri_data%n_mem
+      ALLOCATE (batch_start(n_mem), batch_end(n_mem))
+      batch_start(:) = ri_data%starts_array_mem(:)
+      batch_end(:) = ri_data%ends_array_mem(:)
+
+      ALLOCATE (batch_ranges(n_mem + 1))
+      batch_ranges(:n_mem) = ri_data%starts_array_mem_block(:)
+      batch_ranges(n_mem + 1) = ri_data%ends_array_mem_block(n_mem) + 1
+
+      ! Pre-create all the needed tensors
+      CALL create_2c_tensor(rho_ao_1, dist1, dist2, ri_data%pgrid_2d, &
+                            ri_data%bsizes_AO_split, ri_data%bsizes_AO_split, &
+                            name="(AO | AO)")
+      DEALLOCATE (dist1, dist2)
+      CALL dbt_create(rho_ao_1, rho_ao_2)
+
+      CALL create_2c_tensor(t_2c_RI, dist1, dist2, ri_data%pgrid_2d, &
+                            ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, name="(RI | RI)")
+      DEALLOCATE (dist1, dist2)
+      CALL dbt_create(t_2c_RI, t_SVS)
+      CALL dbt_create(t_2c_RI, t_R)
+      CALL dbt_create(t_2c_RI, t_2c_RI_tmp)
+
+      CALL dbt_create(t_3c_ao_ri_ao, t_3c_1)
+      CALL dbt_create(t_3c_ao_ri_ao, t_3c_2)
+      CALL dbt_create(t_3c_ri_ao_ao, t_3c_3)
+      CALL dbt_create(t_3c_ri_ao_ao, t_3c_4)
+      CALL dbt_create(t_3c_ri_ao_ao, t_3c_help_1)
+      CALL dbt_create(t_3c_ri_ao_ao, t_3c_help_2)
+
+      CALL dbt_create(t_3c_ao_ri_ao, t_3c_int)
+      CALL dbt_copy(ri_data%t_3c_int_ctr_2(1, 1), t_3c_int)
+
+      CALL dbt_create(t_3c_ri_ao_ao, t_3c_int_2)
+      CALL dbt_copy(t_3c_int, t_3c_int_2, order=[2, 1, 3])
+
       CALL mp_sync(para_env%group)
       t1 = m_walltime()
 
+      !Pre-calculate the necessary 2-center quantities
       IF (.NOT. ri_data%same_op) THEN
-         !precompute the (P|Q)*S^-1 product
-         CALL dbt_create(t_2c_RI_PQ, t_2c_RI_inv)
-         CALL dbt_create(t_2c_RI_PQ, t_2c_RI_met)
-         CALL dbt_create(ri_data%t_2c_inv(1, 1), t_2c_tmp)
-
-         CALL dbt_contract(1.0_dp, ri_data%t_2c_inv(1, 1), ri_data%t_2c_pot(1, 1), &
-                           0.0_dp, t_2c_tmp, &
+         !S^-1 * V * S^-1
+         CALL dbt_contract(1.0_dp, ri_data%t_2c_inv(1, 1), ri_data%t_2c_pot(1, 1), 0.0_dp, t_2c_RI, &
                            contract_1=[2], notcontract_1=[1], &
                            contract_2=[1], notcontract_2=[2], &
                            map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
                            unit_nr=unit_nr_dbcsr, flop=nflop)
          ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
 
-         CALL dbt_copy(t_2c_tmp, t_2c_RI_inv, move_data=.TRUE.)
-         CALL dbt_destroy(t_2c_tmp)
+         CALL dbt_contract(1.0_dp, t_2c_RI, ri_data%t_2c_inv(1, 1), 0.0_dp, t_SVS, &
+                           contract_1=[2], notcontract_1=[1], &
+                           contract_2=[1], notcontract_2=[2], &
+                           map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
+                           unit_nr=unit_nr_dbcsr, flop=nflop)
+         ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+      ELSE
+         ! Simply V^-1
+         CALL dbt_copy(ri_data%t_2c_inv(1, 1), t_SVS)
       END IF
 
-      !2) pre-contract with the inverse RI 2-center tensor: S^-1 (Q|cd)
-      !   We compress that tensor since it is large and not sparse
-      !   Note: cannot take that of ri_data, as in case of metric, it contains (P|Q) S^-1 (Q|cd)
-      ALLOCATE (store_3c(n_mem, n_mem))
-      ALLOCATE (blk_indices(n_mem, n_mem))
-
-      CALL dbt_batched_contract_init(t_3c_int_2, batch_range_1=batch_ranges_RI, &
-                                     batch_range_2=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_int, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_int_2, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_1, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_2, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
       CALL dbt_batched_contract_init(t_3c_3, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-
-      CALL timeset(routineN//"_2c_inv_1", handle)
-      CALL dbt_copy(ri_data%t_3c_int_ctr_2(1, 1), t_3c_int_2, order=[2, 1, 3])
-      memory = 0.0_dp
-      DO i_mem = 1, n_mem
-         DO j_mem = 1, n_mem
-
-            CALL alloc_containers(store_3c(j_mem, i_mem), 1)
-
-            bounds_ctr_2d(1, 1) = batch_start(i_mem)
-            bounds_ctr_2d(2, 1) = batch_end(i_mem)
-            bounds_ctr_2d(1, 2) = batch_start(j_mem)
-            bounds_ctr_2d(2, 2) = batch_end(j_mem)
-
-            DO k_mem = 1, n_mem_RI
-               bounds_ctr_1d(1, 1) = batch_start_RI(k_mem)
-               bounds_ctr_1d(2, 1) = batch_end_RI(k_mem)
-
-               CALL dbt_batched_contract_init(ri_data%t_2c_inv(1, 1))
-               CALL dbt_contract(1.0_dp, ri_data%t_2c_inv(1, 1), t_3c_int_2, &
-                                 0.0_dp, t_3c_3, &
-                                 contract_1=[2], notcontract_1=[1], &
-                                 contract_2=[1], notcontract_2=[2, 3], &
-                                 bounds_1=bounds_ctr_1d, &
-                                 bounds_3=bounds_ctr_2d, &
-                                 map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                                 unit_nr=unit_nr_dbcsr, flop=nflop)
-               ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-               CALL dbt_batched_contract_finalize(ri_data%t_2c_inv(1, 1))
-               CALL dbt_copy(t_3c_3, t_3c_int_1, order=[2, 1, 3], summation=.TRUE., move_data=.TRUE.)
-            END DO
-
-            CALL compress_tensor(t_3c_int_1, blk_indices(j_mem, i_mem)%ind, &
-                                 store_3c(j_mem, i_mem), ri_data%filter_eps_storage, memory)
-
-         END DO
-      END DO
-      CALL timestop(handle)
-
-      CALL dbt_batched_contract_finalize(t_3c_int_2)
-      CALL dbt_batched_contract_finalize(t_3c_3)
-
-      CALL dbt_clear(t_3c_int_1)
-      CALL dbt_clear(t_3c_int_2)
-      CALL dbt_clear(t_3c_ri_ao_ao)
+      CALL dbt_batched_contract_init(t_3c_4, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
 
       DO i_spin = 1, nspins
 
          !Prepare Pmat in tensor format
-         CALL dbt_clear(rho_ao_1)
-         CALL dbt_clear(rho_ao_2)
          CALL dbt_create(rho_ao(i_spin, 1)%matrix, t_2c_tmp)
          CALL dbt_copy_matrix_to_tensor(rho_ao(i_spin, 1)%matrix, t_2c_tmp)
          CALL dbt_copy(t_2c_tmp, rho_ao_1, move_data=.TRUE.)
@@ -2599,251 +2501,117 @@ CONTAINS
          END IF
          work_virial = 0.0_dp
 
-         CALL dbt_batched_contract_init(ri_data%t_3c_int_ctr_2(1, 1))
-         CALL dbt_batched_contract_init(t_3c_cpy_1, batch_range_3=batch_ranges)
-
+         CALL timeset(routineN//"_3c", handle)
+         !Start looping of the batches
          DO i_mem = 1, n_mem
+            ibounds(:, 1) = [batch_start(i_mem), batch_end(i_mem)]
 
-            ! 4) Precontract 3c integrals with density matrices
-            bounds_ctr_1d(1, 1) = batch_start(i_mem)
-            bounds_ctr_1d(2, 1) = batch_end(i_mem)
-
-            CALL timeset(routineN//"_Pmat_1", handle)
             CALL dbt_batched_contract_init(rho_ao_1)
-            CALL dbt_contract(1.0_dp, rho_ao_1, ri_data%t_3c_int_ctr_2(1, 1), &
-                              0.0_dp, t_3c_cpy_1, &
-                              contract_1=[2], notcontract_1=[1], &
+            CALL dbt_contract(1.0_dp, rho_ao_1, t_3c_int, 0.0_dp, t_3c_1, &
+                              contract_1=[1], notcontract_1=[2], &
                               contract_2=[3], notcontract_2=[1, 2], &
                               map_1=[3], map_2=[1, 2], filter_eps=ri_data%filter_eps, &
-                              bounds_2=bounds_ctr_1d, &  !corresponds to notcontract_1, aka rows of rho
-                              unit_nr=unit_nr_dbcsr, flop=nflop)
+                              bounds_2=ibounds, unit_nr=unit_nr_dbcsr, flop=nflop)
             ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
             CALL dbt_batched_contract_finalize(rho_ao_1)
 
-            CALL dbt_copy(t_3c_cpy_1, t_3c_2, order=[3, 2, 1], move_data=.TRUE.) !put un-contracted AO in 3rd
-            CALL timestop(handle)
-
-            CALL dbt_batched_contract_init(t_3c_2, batch_range_1=batch_ranges)
-            CALL dbt_batched_contract_init(t_3c_cpy_2, batch_range_1=batch_ranges, batch_range_3=batch_ranges)
-
-            CALL dbt_batched_contract_init(t_3c_cpy_3, batch_range_1=batch_ranges_RI_fit, &
-                                           batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-            CALL dbt_batched_contract_init(t_3c_int_3, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-
-            CALL dbt_batched_contract_init(t_3c_4, batch_range_1=batch_ranges_RI_fit, &
-                                           batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-            CALL dbt_batched_contract_init(t_3c_int_4, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-            CALL dbt_batched_contract_init(t_3c_cpy_4, batch_range_1=batch_ranges_RI_fit, &
-                                           batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-
-            IF (.NOT. ri_data%same_op) THEN
-               CALL dbt_batched_contract_init(t_3c_5, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-            END IF
+            CALL dbt_copy(t_3c_1, t_3c_2, order=[3, 2, 1], move_data=.TRUE.)
 
             DO j_mem = 1, n_mem
-
-               ! second Pmat contraction
-               bounds_ctr_1d(1, 1) = batch_start(j_mem)
-               bounds_ctr_1d(2, 1) = batch_end(j_mem)
-
-               CALL timeset(routineN//"_Pmat_2", handle)
-               bounds_ctr_2d(1, 1) = batch_start(i_mem)
-               bounds_ctr_2d(2, 1) = batch_end(i_mem)
-               bounds_ctr_2d(1, 2) = 1
-               bounds_ctr_2d(2, 2) = SUM(ri_data%bsizes_RI)
+               jbounds(:, 1) = [batch_start(j_mem), batch_end(j_mem)]
 
                CALL dbt_batched_contract_init(rho_ao_2)
-               CALL dbt_contract(1.0_dp, rho_ao_2, t_3c_2, &
-                                 0.0_dp, t_3c_cpy_2, &
-                                 contract_1=[2], notcontract_1=[1], &
+               CALL dbt_contract(1.0_dp, rho_ao_2, t_3c_2, 0.0_dp, t_3c_1, &
+                                 contract_1=[1], notcontract_1=[2], &
                                  contract_2=[3], notcontract_2=[1, 2], &
-                                 map_1=[3], map_2=[1, 2], &
-                                 bounds_3=bounds_ctr_2d, &
-                                 bounds_2=bounds_ctr_1d, filter_eps=ri_data%filter_eps, &
-                                 unit_nr=unit_nr_dbcsr, flop=nflop)
+                                 map_1=[3], map_2=[1, 2], filter_eps=ri_data%filter_eps, &
+                                 bounds_2=jbounds, unit_nr=unit_nr_dbcsr, flop=nflop)
                ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
                CALL dbt_batched_contract_finalize(rho_ao_2)
-               CALL dbt_copy(t_3c_cpy_2, t_3c_0, move_data=.TRUE.)
 
-               CALL timestop(handle)
+               bounds_cpy(:, 1) = [1, SUM(ri_data%bsizes_RI)]
+               bounds_cpy(:, 2) = [batch_start(i_mem), batch_end(i_mem)]
+               bounds_cpy(:, 3) = [batch_start(j_mem), batch_end(j_mem)]
+               CALL dbt_copy(t_3c_1, t_3c_3, order=[2, 1, 3], move_data=.TRUE.)
+               CALL dbt_copy(t_3c_sparse, t_3c_4, bounds=bounds_cpy)
 
-               ! 2) Contract the Pmat integrals with S^-1
-               ! Note: could have been done before, but keep sparsity as long as we can)
-               bounds_ctr_2d(1, 1) = batch_start(i_mem)
-               bounds_ctr_2d(2, 1) = batch_end(i_mem)
-               bounds_ctr_2d(1, 2) = batch_start(j_mem)
-               bounds_ctr_2d(2, 2) = batch_end(j_mem)
+               !Contract with the 2-center product S^-1 * V * S^-1 while keeping sparsity of derivatives
+               CALL dbt_batched_contract_init(t_SVS)
+               CALL dbt_contract(1.0_dp, t_SVS, t_3c_3, 0.0_dp, t_3c_4, &
+                                 contract_1=[2], notcontract_1=[1], &
+                                 contract_2=[1], notcontract_2=[2, 3], &
+                                 map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
+                                 retain_sparsity=.TRUE., unit_nr=unit_nr_dbcsr, flop=nflop)
+               ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+               CALL dbt_batched_contract_finalize(t_SVS)
 
-               CALL timeset(routineN//"_2c_inv_2", handle)
-               CALL dbt_copy(t_3c_0, t_3c_int_3, order=[2, 1, 3], move_data=.TRUE.)
-               DO k_mem = 1, n_mem_RI_fit
-                  bounds_ctr_1d(1, 1) = batch_start_RI_fit(k_mem)
-                  bounds_ctr_1d(2, 1) = batch_end_RI_fit(k_mem)
+               CALL dbt_copy(t_3c_4, t_3c_help_1, move_data=.TRUE., summation=.TRUE.)
 
-                  CALL dbt_batched_contract_init(t_2c_inv_fit)
-                  CALL dbt_contract(1.0_dp, t_2c_inv_fit, t_3c_int_3, &
-                                    0.0_dp, t_3c_cpy_3, &
-                                    contract_1=[2], notcontract_1=[1], &
-                                    contract_2=[1], notcontract_2=[2, 3], &
-                                    bounds_2=bounds_ctr_1d, &
-                                    bounds_3=bounds_ctr_2d, &
-                                    map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                                    unit_nr=unit_nr_dbcsr, flop=nflop)
-                  ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                  CALL dbt_batched_contract_finalize(t_2c_inv_fit)
-                  CALL dbt_copy(t_3c_cpy_3, t_3c_4, summation=.TRUE., move_data=.TRUE.)
-               END DO
-               CALL timestop(handle)
-               CALL dbt_copy(t_3c_ri_ao_ao_fit, t_3c_int_3)
-
-               ! 5) Force contribution due to d/dx (P|Q)
-               bounds_ctr_2d(1, 1) = batch_start(i_mem)
-               bounds_ctr_2d(2, 1) = batch_end(i_mem)
-               bounds_ctr_2d(1, 2) = batch_start(j_mem)
-               bounds_ctr_2d(2, 2) = batch_end(j_mem)
-
-               !Also contract with the simple 3c integrals (with correct bounds)
-               CALL timeset(routineN//"_PQ_der", handle)
-               CALL decompress_tensor(t_3c_int_1, blk_indices(j_mem, i_mem)%ind, store_3c(j_mem, i_mem), &
-                                      ri_data%filter_eps_storage)
-               CALL dbt_copy(t_3c_int_1, t_3c_int_4, order=[2, 1, 3], move_data=.TRUE.)
-
-               DO k_mem = 1, n_mem_RI_fit
-                  bounds_ctr_1d(1, 1) = batch_start_RI_fit(k_mem)
-                  bounds_ctr_1d(2, 1) = batch_end_RI_fit(k_mem)
-
-                  CALL dbt_batched_contract_init(t_2c_RI_PQ)
-                  CALL dbt_contract(1.0_dp, t_3c_int_4, t_3c_4, &
-                                    1.0_dp, t_2c_RI_PQ, &
-                                    contract_1=[2, 3], notcontract_1=[1], &
-                                    contract_2=[2, 3], notcontract_2=[1], &
-                                    bounds_1=bounds_ctr_2d, &
-                                    bounds_3=bounds_ctr_1d, &
-                                    map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                                    unit_nr=unit_nr_dbcsr, flop=nflop)
-                  ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                  CALL dbt_batched_contract_finalize(t_2c_RI_PQ)
-               END DO
-
-               CALL timestop(handle)
-
-               ! 6) If metric, do the additional contraction  with S_pq^-1 (Q|R)
-               IF (.NOT. ri_data%same_op) THEN
-
-                  CALL timeset(routineN//"_metric", handle)
-                  CALL dbt_copy(t_3c_4, t_3c_5, move_data=.TRUE.)
-                  DO k_mem = 1, n_mem_RI_fit
-                     bounds_ctr_1d(1, 1) = batch_start_RI_fit(k_mem)
-                     bounds_ctr_1d(2, 1) = batch_end_RI_fit(k_mem)
-
-                     CALL dbt_batched_contract_init(t_2c_RI_inv)
-                     CALL dbt_contract(1.0_dp, t_2c_RI_inv, t_3c_5, &
-                                       0.0_dp, t_3c_cpy_4, &
-                                       contract_1=[2], notcontract_1=[1], &
-                                       contract_2=[1], notcontract_2=[2, 3], &
-                                       bounds_2=bounds_ctr_1d, &
-                                       bounds_3=bounds_ctr_2d, &
-                                       map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps, &
-                                       unit_nr=unit_nr_dbcsr, flop=nflop)
-                     ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                     CALL dbt_batched_contract_finalize(t_2c_RI_inv)
-                     CALL dbt_copy(t_3c_cpy_4, t_3c_4, summation=.TRUE., move_data=.TRUE.)
-                  END DO
-
-                  ! 8) And the force due to d/dx S^-1
-                  DO k_mem = 1, n_mem_RI_fit
-                     bounds_ctr_1d(1, 1) = batch_start_RI_fit(k_mem)
-                     bounds_ctr_1d(2, 1) = batch_end_RI_fit(k_mem)
-
-                     CALL dbt_batched_contract_init(t_2c_RI_met)
-                     CALL dbt_contract(1.0_dp, t_3c_int_4, t_3c_4, &
-                                       1.0_dp, t_2c_RI_met, &
-                                       contract_1=[2, 3], notcontract_1=[1], &
-                                       contract_2=[2, 3], notcontract_2=[1], &
-                                       bounds_1=bounds_ctr_2d, &
-                                       bounds_3=bounds_ctr_1d, &
-                                       map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                                       unit_nr=unit_nr_dbcsr, flop=nflop)
-                     ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
-                     CALL dbt_batched_contract_finalize(t_2c_RI_met)
-                  END DO
-                  CALL timestop(handle)
-               END IF
-               CALL dbt_copy(t_3c_ri_ao_ao_fit, t_3c_int_4)
-
-               ! 7) Do the force contribution due to 3c integrals (a'b|P) and (ab|P')
-               !    We directly calculate the force from the trace of the 3-center tensors
-
-               ! (ab|P')
-               pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
-               CALL dbt_copy(t_3c_4, t_3c_RI_ctr, move_data=.TRUE.)
-               IF (use_virial_prv) THEN
-                  CALL get_force_from_3c_trace(force, t_3c_RI_ctr, t_3c_der_RI, atom_of_kind, kind_of, &
-                                               idx_to_at_RI, pref, work_virial, cell, particle_set)
-               ELSE
-                  CALL get_force_from_3c_trace(force, t_3c_RI_ctr, t_3c_der_RI, atom_of_kind, kind_of, &
-                                               idx_to_at_RI, pref)
-               END IF
-
-               ! (a'b|P)
-               pref = -0.5_dp*4.0_dp*hf_fraction*spin_fac
-               IF (do_resp) pref = 0.5_dp*pref
-
-               CALL dbt_copy(t_3c_RI_ctr, t_3c_AO_ctr, order=[2, 1, 3], move_data=.TRUE.)
-               IF (use_virial_prv) THEN
-                  CALL get_force_from_3c_trace(force, t_3c_AO_ctr, t_3c_der_AO, atom_of_kind, kind_of, &
-                                               idx_to_at_AO, pref, work_virial, cell, particle_set)
-               ELSE
-                  CALL get_force_from_3c_trace(force, t_3c_AO_ctr, t_3c_der_AO, atom_of_kind, kind_of, &
-                                               idx_to_at_AO, pref)
-               END IF
-
-               !If response matrix, need to consider force contribution from both Pmat
-               IF (do_resp) THEN
-                  CALL dbt_copy(t_3c_AO_ctr, t_3c_AO_ctr_resp, order=[3, 2, 1], move_data=.TRUE.)
-                  IF (use_virial_prv) THEN
-                     CALL get_force_from_3c_trace(force, t_3c_AO_ctr_resp, t_3c_der_AO, atom_of_kind, kind_of, &
-                                                  idx_to_at_AO, pref, work_virial, cell, particle_set)
-                  ELSE
-                     CALL get_force_from_3c_trace(force, t_3c_AO_ctr_resp, t_3c_der_AO, atom_of_kind, kind_of, &
-                                                  idx_to_at_AO, pref)
-                  END IF
-               END IF
+               !Contract R_PS = (acP) M_acS
+               CALL dbt_batched_contract_init(t_R)
+               CALL dbt_contract(1.0_dp, t_3c_int_2, t_3c_3, 1.0_dp, t_R, &
+                                 contract_1=[2, 3], notcontract_1=[1], &
+                                 contract_2=[2, 3], notcontract_2=[1], &
+                                 map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
+                                 unit_nr=unit_nr_dbcsr, flop=nflop)
+               ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+               CALL dbt_batched_contract_finalize(t_R)
 
             END DO !j_mem
-
-            CALL dbt_batched_contract_finalize(t_3c_2)
-            CALL dbt_batched_contract_finalize(t_3c_cpy_2)
-
-            CALL dbt_batched_contract_finalize(t_3c_cpy_3)
-            CALL dbt_batched_contract_finalize(t_3c_int_3)
-
-            CALL dbt_batched_contract_finalize(t_3c_4)
-            CALL dbt_batched_contract_finalize(t_3c_cpy_4)
-            CALL dbt_batched_contract_finalize(t_3c_int_4)
-
-            IF (.NOT. ri_data%same_op) THEN
-               CALL dbt_batched_contract_finalize(t_3c_5)
-            END IF
-
-            CALL dbt_clear(t_3c_2)
-            CALL dbt_clear(t_3c_4)
-            CALL dbt_clear(t_3c_5)
-            CALL dbt_clear(t_3c_int_3)
-            CALL dbt_clear(t_3c_AO_ctr)
-            CALL dbt_clear(t_3c_RI_ctr)
-            IF (do_resp) CALL dbt_clear(t_3c_AO_ctr_resp)
          END DO !i_mem
 
-         CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_2(1, 1))
-         CALL dbt_batched_contract_finalize(t_3c_cpy_1)
+         !The force from the 3c derivatives
+         pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
+         IF (use_virial_prv) THEN
+            CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_RI, atom_of_kind, kind_of, &
+                                         idx_to_at_RI, pref, work_virial, cell, particle_set)
+         ELSE
+            CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_RI, atom_of_kind, kind_of, &
+                                         idx_to_at_RI, pref)
+         END IF
 
-         !Force contribution of d/dx (P|Q)
+         pref = -0.5_dp*4.0_dp*hf_fraction*spin_fac
+         IF (do_resp) pref = 0.5_dp*pref
+         IF (use_virial_prv) THEN
+            CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_AO, atom_of_kind, kind_of, &
+                                         idx_to_at_AO, pref, work_virial, cell, particle_set, deriv_dim=2)
+         ELSE
+            CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_AO, atom_of_kind, kind_of, &
+                                         idx_to_at_AO, pref, deriv_dim=2)
+         END IF
+
+         IF (do_resp) THEN
+            CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE.)
+            IF (use_virial_prv) THEN
+               CALL get_force_from_3c_trace(force, t_3c_help_2, t_3c_der_AO, atom_of_kind, kind_of, &
+                                            idx_to_at_AO, pref, work_virial, cell, particle_set, deriv_dim=2)
+            ELSE
+               CALL get_force_from_3c_trace(force, t_3c_help_2, t_3c_der_AO, atom_of_kind, kind_of, &
+                                            idx_to_at_AO, pref, deriv_dim=2)
+            END IF
+         END IF
+         CALL timestop(handle)
+
+         CALL timeset(routineN//"_2c", handle)
+         !Now we deal with all the 2-center quantities
+         !Calculate S^-1 * R * S^-1
+         CALL dbt_contract(1.0_dp, ri_data%t_2c_inv(1, 1), t_R, 0.0_dp, t_2c_RI_tmp, &
+                           contract_1=[2], notcontract_1=[1], &
+                           contract_2=[1], notcontract_2=[2], &
+                           map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
+                           unit_nr=unit_nr_dbcsr, flop=nflop)
+         ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
+         CALL dbt_contract(1.0_dp, t_2c_RI_tmp, ri_data%t_2c_inv(1, 1), 0.0_dp, t_2c_RI, &
+                           contract_1=[2], notcontract_1=[1], &
+                           contract_2=[1], notcontract_2=[2], &
+                           map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
+                           unit_nr=unit_nr_dbcsr, flop=nflop)
+         ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
+         !Calculate the potential contribution to the force: [S^-1*R*S^-1]_QR d/dx (Q|R)
          pref = 0.5_dp*hf_fraction*spin_fac
          IF (.NOT. ri_data%same_op) pref = -pref
-
-         !Making sure dists of the t_2c_RI tensors match
-         CALL dbt_copy(t_2c_RI_PQ, t_2c_RI, move_data=.TRUE.)
          IF (use_virial_prv) THEN
             CALL get_2c_der_force(force, t_2c_RI, t_2c_der_RI, atom_of_kind, &
                                   kind_of, idx_to_at_RI, pref, work_virial, cell, particle_set)
@@ -2852,13 +2620,24 @@ CONTAINS
                                   kind_of, idx_to_at_RI, pref)
 
          END IF
-         CALL dbt_clear(t_2c_RI)
 
-         !Force contribution due to the inverse metric
+         !And that from the metric: [S^-1*R*S^-1*(Q|R)*S^-1]_UV d/dx S_UV
          IF (.NOT. ri_data%same_op) THEN
-            pref = 0.5_dp*2.0_dp*hf_fraction*spin_fac
+            CALL dbt_contract(1.0_dp, t_2c_RI, ri_data%t_2c_pot(1, 1), 0.0_dp, t_2c_RI_tmp, &
+                              contract_1=[2], notcontract_1=[1], &
+                              contract_2=[1], notcontract_2=[2], &
+                              map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
+                              unit_nr=unit_nr_dbcsr, flop=nflop)
+            ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
 
-            CALL dbt_copy(t_2c_RI_met, t_2c_RI, move_data=.TRUE.)
+            CALL dbt_contract(1.0_dp, t_2c_RI_tmp, ri_data%t_2c_inv(1, 1), 0.0_dp, t_2c_RI, &
+                              contract_1=[2], notcontract_1=[1], &
+                              contract_2=[1], notcontract_2=[2], &
+                              map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
+                              unit_nr=unit_nr_dbcsr, flop=nflop)
+            ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
+
+            pref = 0.5_dp*2.0_dp*hf_fraction*spin_fac
             IF (use_virial_prv) THEN
                CALL get_2c_der_force(force, t_2c_RI, t_2c_der_metric, atom_of_kind, &
                                      kind_of, idx_to_at_RI, pref, work_virial, cell, particle_set)
@@ -2866,8 +2645,13 @@ CONTAINS
                CALL get_2c_der_force(force, t_2c_RI, t_2c_der_metric, atom_of_kind, &
                                      kind_of, idx_to_at_RI, pref)
             END IF
-            CALL dbt_clear(t_2c_RI)
          END IF
+         CALL dbt_clear(t_2c_RI)
+         CALL dbt_clear(t_2c_RI_tmp)
+         CALL dbt_clear(t_R)
+         CALL dbt_clear(t_3c_help_1)
+         CALL dbt_clear(t_3c_help_2)
+         CALL timestop(handle)
 
          IF (use_virial_prv) THEN
             DO k_xyz = 1, 3
@@ -2879,55 +2663,45 @@ CONTAINS
                END DO
             END DO
          END IF
-
       END DO !i_spin
+
+      CALL dbt_batched_contract_finalize(t_3c_int)
+      CALL dbt_batched_contract_finalize(t_3c_int_2)
+      CALL dbt_batched_contract_finalize(t_3c_1)
+      CALL dbt_batched_contract_finalize(t_3c_2)
+      CALL dbt_batched_contract_finalize(t_3c_3)
+      CALL dbt_batched_contract_finalize(t_3c_4)
+
+      CALL mp_sync(para_env%group)
+      t2 = m_walltime()
+
+      CALL dbt_copy(t_3c_int, ri_data%t_3c_int_ctr_2(1, 1), move_data=.TRUE.)
 
       !clean-up
       CALL dbt_destroy(rho_ao_1)
       CALL dbt_destroy(rho_ao_2)
-      CALL dbt_destroy(t_3c_int_1)
+      CALL dbt_destroy(t_3c_ao_ri_ao)
+      CALL dbt_destroy(t_3c_ri_ao_ao)
+      CALL dbt_destroy(t_3c_int)
       CALL dbt_destroy(t_3c_int_2)
-      CALL dbt_destroy(t_3c_int_3)
-      CALL dbt_destroy(t_3c_int_4)
-      CALL dbt_destroy(t_3c_0)
+      CALL dbt_destroy(t_3c_1)
       CALL dbt_destroy(t_3c_2)
       CALL dbt_destroy(t_3c_3)
       CALL dbt_destroy(t_3c_4)
-      CALL dbt_destroy(t_3c_5)
-      CALL dbt_destroy(t_3c_cpy_1)
-      CALL dbt_destroy(t_3c_cpy_2)
-      CALL dbt_destroy(t_3c_cpy_3)
-      CALL dbt_destroy(t_3c_cpy_4)
-      CALL dbt_destroy(t_2c_inv_fit)
+      CALL dbt_destroy(t_3c_help_1)
+      CALL dbt_destroy(t_3c_help_2)
+      CALL dbt_destroy(t_3c_sparse)
+      CALL dbt_destroy(t_SVS)
+      CALL dbt_destroy(t_R)
       CALL dbt_destroy(t_2c_RI)
-      CALL dbt_destroy(t_2c_RI_PQ)
-      CALL dbt_destroy(t_3c_RI_ctr)
-      CALL dbt_destroy(t_3c_ao_ri_ao)
-      CALL dbt_destroy(t_3c_ao_ri_ao_fit)
-      CALL dbt_destroy(t_3c_ri_ao_ao)
-      CALL dbt_destroy(t_3c_ri_ao_ao_fit)
-      CALL dbt_destroy(t_3c_AO_ctr)
-      IF (do_resp) CALL dbt_destroy(t_3c_AO_ctr_resp)
+      CALL dbt_destroy(t_2c_RI_tmp)
+
       DO i_xyz = 1, 3
-         CALL dbt_destroy(t_3c_der_AO(i_xyz))
          CALL dbt_destroy(t_3c_der_RI(i_xyz))
+         CALL dbt_destroy(t_3c_der_AO(i_xyz))
          CALL dbt_destroy(t_2c_der_RI(i_xyz))
          IF (.NOT. ri_data%same_op) CALL dbt_destroy(t_2c_der_metric(i_xyz))
       END DO
-      IF (.NOT. ri_data%same_op) THEN
-         CALL dbt_destroy(t_2c_RI_inv)
-         CALL dbt_destroy(t_2c_RI_met)
-      END IF
-      DO i_mem = 1, n_mem
-         DO j_mem = 1, n_mem
-            CALL dealloc_containers(store_3c(i_mem, j_mem), dummy)
-         END DO
-      END DO
-      DEALLOCATE (store_3c, blk_indices)
-
-      CALL mp_sync(para_env%group)
-      t2 = m_walltime()
-      ri_data%dbcsr_time = ri_data%dbcsr_time + t2 - t1
 
    END SUBROUTINE hfx_ri_forces_Pmat
 
@@ -3140,7 +2914,7 @@ CONTAINS
          CALL dbt_create(ao_ri_ao_template, t_3c_der_AO(i_xyz)) !(AO RI | AO) format
       END DO
 
-      n_mem = FLOOR(SQRT(ri_data%n_mem - 0.1)) + 1
+      n_mem = ri_data%n_mem
       CALL create_tensor_batches(ri_data%bsizes_AO, n_mem, dummy_start, dummy_end, &
                                  start_blocks, end_blocks)
       DEALLOCATE (dummy_start, dummy_end)
@@ -3270,10 +3044,12 @@ CONTAINS
 !> \param work_virial ...
 !> \param cell ...
 !> \param particle_set ...
+!> \param do_mp2 ...
+!> \param deriv_dim ...
 !> \note It is assumed that the center for which t_3c_der is a derivative is the first
 ! **************************************************************************************************
    SUBROUTINE get_force_from_3c_trace(force, t_3c_contr, t_3c_der, atom_of_kind, kind_of, idx_to_at, &
-                                      pref, work_virial, cell, particle_set)
+                                      pref, work_virial, cell, particle_set, do_mp2, deriv_dim)
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_contr
@@ -3284,13 +3060,15 @@ CONTAINS
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_mp2
+      INTEGER, INTENT(IN), OPTIONAL                      :: deriv_dim
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_force_from_3c_trace'
 
-      INTEGER                                            :: handle, i_xyz, iat, iat_of_kind, ikind, &
-                                                            j_xyz
+      INTEGER                                            :: deriv_dim_prv, handle, i_xyz, iat, &
+                                                            iat_of_kind, ikind, j_xyz
       INTEGER, DIMENSION(3)                              :: ind
-      LOGICAL                                            :: found, use_virial
+      LOGICAL                                            :: do_mp2_prv, found, use_virial
       REAL(dp)                                           :: new_force
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: contr_blk, der_blk
       REAL(dp), DIMENSION(3)                             :: scoord
@@ -3300,6 +3078,12 @@ CONTAINS
 
       use_virial = .FALSE.
       IF (PRESENT(work_virial) .AND. PRESENT(cell) .AND. PRESENT(particle_set)) use_virial = .TRUE.
+
+      do_mp2_prv = .FALSE.
+      IF (PRESENT(do_mp2)) do_mp2_prv = do_mp2
+
+      deriv_dim_prv = 1
+      IF (PRESENT(deriv_dim)) deriv_dim_prv = deriv_dim
 
       DO i_xyz = 1, 3
          CALL dbt_iterator_start(iter, t_3c_der(i_xyz))
@@ -3316,12 +3100,17 @@ CONTAINS
                new_force = pref*SUM(der_blk(:, :, :)*contr_blk(:, :, :))
 
                !the first index of the derivative tensor defines the atom
-               iat = idx_to_at(ind(1))
+               iat = idx_to_at(ind(deriv_dim_prv))
                iat_of_kind = atom_of_kind(iat)
                ikind = kind_of(iat)
 
-               force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
-                                                          + new_force
+               IF (.NOT. do_mp2_prv) THEN
+                  force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
+                                                             + new_force
+               ELSE
+                  force(ikind)%mp2_non_sep(i_xyz, iat_of_kind) = force(ikind)%mp2_non_sep(i_xyz, iat_of_kind) &
+                                                                 + new_force
+               END IF
 
                IF (use_virial) THEN
                   CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
@@ -3434,10 +3223,12 @@ CONTAINS
 !> \param work_virial ...
 !> \param cell ...
 !> \param particle_set ...
+!> \param do_mp2 ...
+!> \param do_ovlp ...
 !> \note IMPORTANT: t_tc_contr and t_2c_der need to have the same distribution
 ! **************************************************************************************************
    SUBROUTINE get_2c_der_force(force, t_2c_contr, t_2c_der, atom_of_kind, kind_of, idx_to_at, &
-                               pref, work_virial, cell, particle_set)
+                               pref, work_virial, cell, particle_set, do_mp2, do_ovlp)
 
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(dbt_type), INTENT(INOUT)                      :: t_2c_contr
@@ -3448,13 +3239,15 @@ CONTAINS
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_mp2, do_ovlp
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_2c_der_force'
 
       INTEGER                                            :: handle, i_xyz, iat, iat_of_kind, ikind, &
                                                             j_xyz, jat, jat_of_kind, jkind
       INTEGER, DIMENSION(2)                              :: ind
-      LOGICAL                                            :: found, use_virial
+      LOGICAL                                            :: do_mp2_prv, do_ovlp_prv, found, &
+                                                            use_virial
       REAL(dp)                                           :: new_force
       REAL(dp), ALLOCATABLE, DIMENSION(:, :), TARGET     :: contr_blk, der_blk
       REAL(dp), DIMENSION(3)                             :: scoord
@@ -3467,6 +3260,12 @@ CONTAINS
 
       use_virial = .FALSE.
       IF (PRESENT(work_virial) .AND. PRESENT(cell) .AND. PRESENT(particle_set)) use_virial = .TRUE.
+
+      do_mp2_prv = .FALSE.
+      IF (PRESENT(do_mp2)) do_mp2_prv = do_mp2
+
+      do_ovlp_prv = .FALSE.
+      IF (PRESENT(do_ovlp)) do_ovlp_prv = do_ovlp
 
       DO i_xyz = 1, 3
          CALL dbt_iterator_start(iter, t_2c_der(i_xyz))
@@ -3489,8 +3288,16 @@ CONTAINS
                iat_of_kind = atom_of_kind(iat)
                ikind = kind_of(iat)
 
-               force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
-                                                          + new_force
+               IF (do_mp2_prv) THEN
+                  force(ikind)%mp2_non_sep(i_xyz, iat_of_kind) = force(ikind)%mp2_non_sep(i_xyz, iat_of_kind) &
+                                                                 + new_force
+               ELSE IF (do_ovlp_prv) THEN
+                  force(ikind)%overlap(i_xyz, iat_of_kind) = force(ikind)%overlap(i_xyz, iat_of_kind) &
+                                                             + new_force
+               ELSE
+                  force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
+                                                             + new_force
+               END IF
 
                IF (use_virial) THEN
 
@@ -3505,8 +3312,17 @@ CONTAINS
                jat_of_kind = atom_of_kind(jat)
                jkind = kind_of(jat)
 
-               force(jkind)%fock_4c(i_xyz, jat_of_kind) = force(jkind)%fock_4c(i_xyz, jat_of_kind) &
-                                                          - new_force
+               IF (do_mp2_prv) THEN
+                  force(jkind)%mp2_non_sep(i_xyz, jat_of_kind) = force(jkind)%mp2_non_sep(i_xyz, jat_of_kind) &
+                                                                 - new_force
+               ELSE IF (do_ovlp_prv) THEN
+                  force(jkind)%overlap(i_xyz, jat_of_kind) = force(jkind)%overlap(i_xyz, jat_of_kind) &
+                                                             - new_force
+               ELSE
+
+                  force(jkind)%fock_4c(i_xyz, jat_of_kind) = force(jkind)%fock_4c(i_xyz, jat_of_kind) &
+                                                             - new_force
+               END IF
 
                IF (use_virial) THEN
 

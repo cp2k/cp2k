@@ -1279,11 +1279,12 @@ CONTAINS
       IF (ri_data%flavor == ri_pmat) THEN
 
          !2 batching loops in RHO flavor SCF calculations => need to take the square root of MEMORY_CUT
-         ri_data%n_mem = FLOOR(SQRT(ri_data%n_mem_input - 0.1)) + 1
-         ri_data%n_mem_RI = FLOOR((ri_data%n_mem_input - 0.1)/ri_data%n_mem) + 1
+         ri_data%n_mem = ri_data%n_mem_input
+         ri_data%n_mem_RI = ri_data%n_mem_input
 
-         CALL create_tensor_batches(ri_data%bsizes_AO_split, ri_data%n_mem, ri_data%starts_array_mem, ri_data%ends_array_mem, &
-                                    ri_data%starts_array_mem_block, ri_data%ends_array_mem_block)
+         CALL create_tensor_batches(ri_data%bsizes_AO_split, ri_data%n_mem, ri_data%starts_array_mem, &
+                                    ri_data%ends_array_mem, ri_data%starts_array_mem_block, &
+                                    ri_data%ends_array_mem_block)
 
          CALL create_tensor_batches(ri_data%bsizes_RI_split, ri_data%n_mem_RI, &
                                     ri_data%starts_array_RI_mem, ri_data%ends_array_RI_mem, &
@@ -1349,7 +1350,7 @@ CONTAINS
          ALLOCATE (ri_data%pgrid_2)
          pdims = 0
 
-         ri_data%n_mem = ri_data%n_mem_input
+         ri_data%n_mem = ri_data%n_mem_input**2
          IF (ri_data%n_mem > ri_data%nelectron_total/2) ri_data%n_mem = MAX(ri_data%nelectron_total/2, 1)
          ! Size of dimension corresponding to MOs is nelectron/2 and divided by the memory factor
          ! we are using ceiling of that division to make sure that no MO dimension (after memory cut)

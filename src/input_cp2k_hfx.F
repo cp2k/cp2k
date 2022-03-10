@@ -643,7 +643,7 @@ CONTAINS
                           description="Memory reduction factor. This keyword controls the batching of tensor "// &
                           "contractions into smaller, more manageable chunks. The details vary "// &
                           "depending on the RI_FLAVOR.", &
-                          default_i_val=9)
+                          default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -651,7 +651,7 @@ CONTAINS
                           description="Memory reduction factor to be applied upon RI_FLAVOR switching "// &
                           "from MO to RHO. The RHO flavor typically requires more memory, "// &
                           "and depending on the ressources available, a higher MEMORY_CUT.", &
-                          default_i_val=9)
+                          default_i_val=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
