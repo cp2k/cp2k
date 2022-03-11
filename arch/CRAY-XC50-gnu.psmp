@@ -248,6 +248,11 @@ ifneq ($(USE_SIRIUS),)
    endif
    DFLAGS         += -D__SPLA
    DFLAGS         += -D__SIRIUS
+   LIBS           += $(SIRIUS_LIB)/libsirius.a
+   LIBS           += $(SPLA_LIB)/libspla.a
+   LIBS           += $(SPFFT_LIB)/libspfft.a
+   LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
+   LIBS           += $(HDF5_LIB)/libhdf5.a
 endif
 
 ifneq ($(USE_COSMA),)
