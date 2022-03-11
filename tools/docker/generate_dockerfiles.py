@@ -61,7 +61,12 @@ def main() -> None:
 
     for gpu_ver in "Mi50", "Mi100":
         with OutputFile(f"Dockerfile.test_hip_rocm_{gpu_ver}", args.check) as f:
-            f.write(toolchain_hip_rocm(gpu_ver=gpu_ver) + regtest("psmp", "local_hip"))
+            # ROCm containers require --device, which is not available for docker build.
+            # https://rocmdocs.amd.com/en/latest/ROCm_Virtualization_Containers/ROCm-Virtualization-&-Containers.html#docker-hub
+            f.write(
+                toolchain_hip_rocm(gpu_ver=gpu_ver)
+                + regtest_postponed("psmp", "local_hip")
+            )
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
         f.write(toolchain_full() + conventions())
@@ -95,6 +100,22 @@ RUN /bin/bash -c " \
     rm -rf regtesting"
 """
         + print_cached_report()
+    )
+
+
+# ======================================================================================
+def regtest_postponed(version: str, arch: str = "local") -> str:
+    return (
+        install_cp2k(version=version, arch=arch)
+        + fr"""
+# Postpone running the regression tests until the container is executed.
+ARG TESTOPTS
+COPY ./tools/docker/scripts/test_regtest.sh ./
+ENV TESTOPTS="${{TESTOPTS}}"
+CMD ["./test_regtest.sh", "{arch}", "{version}"]
+
+#EOF
+"""
     )
 
 
