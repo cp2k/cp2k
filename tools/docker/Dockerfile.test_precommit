@@ -1,0 +1,23 @@
+#
+# This file was created by generate_dockerfiles.py.
+# Usage: docker build -f ./Dockerfile.test_precommit ../../
+#
+
+FROM ubuntu:20.04
+
+# Install dependencies.
+WORKDIR /opt/cp2k-precommit
+COPY ./tools/precommit/ /opt/cp2k-precommit/
+RUN ./install_requirements.sh
+
+# Install sources.
+WORKDIR /opt/cp2k
+COPY ./ ./
+
+# Run precommit test.
+RUN ./tools/docker/scripts/test_precommit.sh 2>&1 | tee report.log
+
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
+
+#EOF
