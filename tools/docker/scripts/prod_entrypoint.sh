@@ -13,9 +13,9 @@ shift 2
 
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
-export PATH="/workspace/cp2k/exe/${ARCH}:${PATH}"
-ln -s "./cp2k.${VERSION}" "/workspace/cp2k/exe/${ARCH}/cp2k"
-ln -s "./cp2k_shell.${VERSION}" "/workspace/cp2k/exe/${ARCH}/cp2k_shell"
+export PATH="/opt/cp2k/exe/${ARCH}:${PATH}"
+ln -s "./cp2k.${VERSION}" "/opt/cp2k/exe/${ARCH}/cp2k"
+ln -s "./cp2k_shell.${VERSION}" "/opt/cp2k/exe/${ARCH}/cp2k_shell"
 
 "$@"
 

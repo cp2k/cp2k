@@ -6,7 +6,7 @@
 source /opt/cp2k-toolchain/install/setup
 
 echo -e "\n========== Compiling CP2K =========="
-cd /workspace/cp2k
+cd /opt/cp2k
 echo -n "Compiling cp2k... "
 if make -j VERSION=sdbg &> make.out; then
   echo "done."
@@ -66,7 +66,7 @@ service postgresql start
 cat > /usr/bin/cp2k << EndOfMessage
 #!/bin/bash -e
 source /opt/cp2k-toolchain/install/setup
-/workspace/cp2k/exe/local/cp2k.sdbg "\$@"
+/opt/cp2k/exe/local/cp2k.sdbg "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
 

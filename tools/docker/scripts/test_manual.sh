@@ -6,7 +6,7 @@
 source /opt/cp2k-toolchain/install/setup
 
 echo -e "\n========== Compiling CP2K =========="
-cd /workspace/cp2k
+cd /opt/cp2k
 echo -n "Compiling cp2k... "
 if make -j VERSION=psmp &> make.out; then
   echo "done."
@@ -30,10 +30,10 @@ echo -e "\n========== Generating Manual =========="
 mkdir -p /workspace/artifacts/manual
 cd /workspace/artifacts/manual
 
-/workspace/cp2k/exe/local/cp2k.psmp --version
-/workspace/cp2k/exe/local/cp2k.psmp --xml
+/opt/cp2k/exe/local/cp2k.psmp --version
+/opt/cp2k/exe/local/cp2k.psmp --xml
 
-TOOLS=/workspace/cp2k/tools
+TOOLS=/opt/cp2k/tools
 cp ${TOOLS}/manual/favicon.png .
 cp ${TOOLS}/manual/toggle_folding.js .
 

@@ -14,7 +14,7 @@ VERSION=$1
 source /opt/cp2k-toolchain/install/setup
 
 echo -e "\n========== Compiling CP2K =========="
-cd /workspace/cp2k || exit 1
+cd /opt/cp2k || exit 1
 CP2K_REVISION=$(./tools/build_utils/get_revision_number ./src)
 rm -rf "obj/${ARCH}/${VERSION}"/*.gcda # remove old gcov statistics
 
@@ -51,16 +51,16 @@ cd .. || exit 1
 rm -rf "lcov-${lcov_version}.tar.gz" "lcov-${lcov_version}"
 
 echo -e "\n========== Running Regtests =========="
-cd /workspace/cp2k || exit 1
+cd /opt/cp2k || exit 1
 make ARCH="${ARCH}" VERSION="${VERSION}" TESTOPTS="${TESTOPTS}" test
 
 # gcov gets stuck on some files...
 # Maybe related: https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644
 # As a workaround we'll simply remove the offending files for now.
-rm -f "/workspace/cp2k/obj/${ARCH}/${VERSION}"/exts/*/*.gcda
+rm -f "/opt/cp2k/obj/${ARCH}/${VERSION}"/exts/*/*.gcda
 cd /tmp || exit 1
 GCOV_TIMEOUT="10s"
-for fn in "/workspace/cp2k/obj/${ARCH}/${VERSION}"/*.gcda; do
+for fn in "/opt/cp2k/obj/${ARCH}/${VERSION}"/*.gcda; do
   if ! timeout "${GCOV_TIMEOUT}" gcov "$fn" &> /dev/null; then
     echo "Skipping ${fn} because gcov took longer than ${GCOV_TIMEOUT}."
     rm "${fn}"
@@ -70,7 +70,7 @@ done
 # collect coverage stats
 mkdir -p /workspace/artifacts/coverage
 cd /workspace/artifacts/coverage || exit 1
-lcov --directory "/workspace/cp2k/obj/${ARCH}/${VERSION}" \
+lcov --directory "/opt/cp2k/obj/${ARCH}/${VERSION}" \
   --exclude "/opt/cp2k-toolchain/*" \
   --capture \
   --output-file coverage.info > lcov.log

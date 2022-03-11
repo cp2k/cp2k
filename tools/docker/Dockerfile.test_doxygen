@@ -6,7 +6,7 @@
 FROM ubuntu:20.04
 
 # Install dependencies.
-WORKDIR /workspace/cp2k
+WORKDIR /opt/cp2k
 COPY ./tools/docker/scripts/install_doxygen.sh .
 RUN ./install_doxygen.sh
 

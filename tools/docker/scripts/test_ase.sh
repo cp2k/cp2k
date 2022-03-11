@@ -5,7 +5,7 @@
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
-cd /workspace/cp2k
+cd /opt/cp2k
 echo -n "Compiling cp2k... "
 if make -j VERSION=sdbg &> make.out; then
   echo "done."
@@ -21,7 +21,7 @@ cat > /usr/bin/cp2k_shell << EndOfMessage
 #!/bin/bash -e
 source /opt/cp2k-toolchain/install/setup
 export OMP_NUM_THREADS=1
-/workspace/cp2k/exe/local/cp2k_shell.sdbg "\$@"
+/opt/cp2k/exe/local/cp2k_shell.sdbg "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k_shell
 
@@ -31,7 +31,7 @@ cat > /usr/bin/cp2k << EndOfMessage
 #!/bin/bash -e
 source /opt/cp2k-toolchain/install/setup
 export OMP_NUM_THREADS=1
-/workspace/cp2k/exe/local/cp2k.sdbg "\$@"
+/opt/cp2k/exe/local/cp2k.sdbg "\$@"
 EndOfMessage
 chmod +x /usr/bin/cp2k
 

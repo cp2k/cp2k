@@ -34,7 +34,7 @@ fi
 
 # Compile cp2k.
 echo -en "\nCompiling cp2k... "
-cd /workspace/cp2k || exit 1
+cd /opt/cp2k || exit 1
 if make -j ARCH="${ARCH}" VERSION="${VERSION}" &> make.out; then
   echo "done."
 else

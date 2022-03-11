@@ -60,7 +60,7 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 # Install CP2K using local.ssmp.
-WORKDIR /workspace/cp2k
+WORKDIR /opt/cp2k
 COPY ./Makefile .
 COPY ./src ./src
 COPY ./exts ./exts
