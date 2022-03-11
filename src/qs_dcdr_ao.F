@@ -140,7 +140,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       ! Build the perturbed density matrix correction depending on the overlap derivative
       !   P1 = C0 C1 + C1 C0
@@ -163,7 +163,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (auxbas_pw_pool, pw_env, v_rspace_new, rho1_r, rho1_g_pw, &
-               v_xc, rho1_set, poisson_env, input, rho, rho1_g, v_xc_tau)
+               v_xc, poisson_env, input, rho, rho1_g, v_xc_tau)
 
       CALL dbcsr_set(dcdr_env%perturbed_dm_correction, 0._dp)
 
@@ -228,7 +228,6 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Allocate deriv_set and rho_set
-      NULLIFY (rho_set)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
       CALL xc_prep_2nd_deriv(deriv_set, rho_set, &
@@ -266,8 +265,6 @@ CONTAINS
 
       v_rspace_new(1)%pw => v_xc(1)%pw
       DEALLOCATE (v_xc)
-
-      CALL xc_rho_set_release(rho1_set)
 
       ! Done calculating the potentials
 
@@ -504,7 +501,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: my_deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: my_rho_set
+      TYPE(xc_rho_set_type)                              :: my_rho_set
 
       CALL timeset(routineN, handle)
 
@@ -534,8 +531,6 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(1)%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       DO idir = 1, 3
-         NULLIFY (my_rho_set)
-
          CALL pw_zero(v_hartree_gspace%pw)
          CALL pw_zero(v_hartree_rspace%pw)
          CALL pw_zero(drho_r(1)%pw)

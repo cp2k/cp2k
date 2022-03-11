@@ -116,7 +116,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE hcth_lda_eval(iparset, rho_set, deriv_set, grad_deriv)
       INTEGER, INTENT(in)                                :: iparset
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
 
@@ -128,8 +128,6 @@ CONTAINS
 
       NULLIFY (e_0, e_ndrho, e_rho, norm_drho, rho)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)

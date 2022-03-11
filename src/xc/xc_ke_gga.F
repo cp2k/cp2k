@@ -177,7 +177,7 @@ CONTAINS
    SUBROUTINE ke_gga_lda_eval(functional, rho_set, deriv_set, order)
 
       INTEGER, INTENT(IN)                                :: functional
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
 
@@ -198,9 +198,6 @@ CONTAINS
                e_rho_rho, e_rho_ndrho, e_ndrho_ndrho, &
                e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho)
       m = ABS(order)
-
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
 
       CALL xc_rho_set_get(rho_set, rho_1_3=rho13, rho=rho, &
                           norm_drho=grho, local_bounds=bo, rho_cutoff=rho_cutoff, &
@@ -315,7 +312,7 @@ CONTAINS
    SUBROUTINE ke_gga_lsd_eval(functional, rho_set, deriv_set, order)
 
       INTEGER, INTENT(IN)                                :: functional
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
@@ -341,9 +338,6 @@ CONTAINS
       DO ispin = 1, 2
          NULLIFY (norm_drho(ispin)%array, rho(ispin)%array, rho_1_3(ispin)%array)
       END DO
-
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
 
       CALL xc_rho_set_get(rho_set, rhoa_1_3=rho_1_3(1)%array, &
                           rhob_1_3=rho_1_3(2)%array, rhoa=rho(1)%array, &

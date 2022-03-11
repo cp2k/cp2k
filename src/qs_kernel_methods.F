@@ -133,9 +133,9 @@ CONTAINS
 
       CALL qs_rho_get(rho_struct_sub, rho_r=rho_ij_r, tau_r=tau_ij_r)
 
-      NULLIFY (kernel_env%xc_rho_set, kernel_env%xc_rho1_set, kernel_env%xc_deriv_set)
+      NULLIFY (kernel_env%xc_rho_set, kernel_env%xc_rho1_set)
 
-      ALLOCATE (kernel_env%xc_deriv_set)
+      ALLOCATE (kernel_env%xc_rho_set)
       IF (is_rks_triplets) THEN
          ! we are about to compute triplet states using spin-restricted reference MOs;
          ! we still need the beta-spin density component in order to compute the TDDFT kernel
@@ -169,6 +169,10 @@ CONTAINS
       kernel_env%xc_rho1_cflags = xc_functionals_get_needs(functionals=xc_fun_section, lsd=lsd, &
                                                            add_basic_components=.TRUE.)
 
+IF (.NOT. ASSOCIATED(kernel_env%xc_rho1_set)) THEN
+NULLIFY(kernel_env%xc_rho1_set)
+ALLOCATE(kernel_env%xc_rho1_set)
+END IF
       CALL xc_rho_set_create(kernel_env%xc_rho1_set, auxbas_pw_pool%pw_grid%bounds_local, &
                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
                              drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &

@@ -47,7 +47,6 @@ MODULE xc_rho_set_types
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_set_types'
-   INTEGER, SAVE :: last_rho_set_id = 0
 
    PUBLIC :: xc_rho_set_type
    PUBLIC :: xc_rho_set_create, xc_rho_set_release, &
@@ -89,7 +88,6 @@ MODULE xc_rho_set_types
 !> \author fawzi & thomas
 ! **************************************************************************************************
    TYPE xc_rho_set_type
-      INTEGER :: ref_count, id_nr
       INTEGER, DIMENSION(2, 3) :: local_bounds
       REAL(kind=dp) :: rho_cutoff, drho_cutoff, tau_cutoff
       TYPE(xc_rho_cflags_type) :: owns, has
@@ -121,17 +119,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_create(rho_set, local_bounds, rho_cutoff, drho_cutoff, &
                                 tau_cutoff)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       INTEGER, DIMENSION(2, 3), INTENT(in)               :: local_bounds
       REAL(kind=dp), INTENT(in), OPTIONAL                :: rho_cutoff, drho_cutoff, tau_cutoff
 
       INTEGER                                            :: i
 
-      CPASSERT(.NOT. ASSOCIATED(rho_set))
-      ALLOCATE (rho_set)
-      rho_set%ref_count = 1
-      last_rho_set_id = last_rho_set_id + 1
-      rho_set%id_nr = last_rho_set_id
       rho_set%rho_cutoff = EPSILON(0.0_dp)
       IF (PRESENT(rho_cutoff)) rho_set%rho_cutoff = rho_cutoff
       rho_set%drho_cutoff = EPSILON(0.0_dp)
@@ -157,124 +150,103 @@ CONTAINS
    END SUBROUTINE xc_rho_set_create
 
 ! **************************************************************************************************
-!> \brief retains the given rho_set
-!> \param rho_set the object to retain
-! **************************************************************************************************
-   SUBROUTINE xc_rho_set_retain(rho_set)
-      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
-
-      CPASSERT(rho_set%ref_count > 0)
-      rho_set%ref_count = rho_set%ref_count + 1
-   END SUBROUTINE xc_rho_set_retain
-
-! **************************************************************************************************
 !> \brief releases the given rho_set
 !> \param rho_set the structure to release
 !> \param pw_pool the plae where to give back the arrays
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_release(rho_set, pw_pool)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(rho_set)) THEN
-         CPASSERT(rho_set%ref_count > 0)
-         rho_set%ref_count = rho_set%ref_count - 1
-         IF (rho_set%ref_count == 0) THEN
-            IF (PRESENT(pw_pool)) THEN
-               IF (ASSOCIATED(pw_pool)) THEN
-                  rho_set%ref_count = 1
-                  CALL xc_rho_set_clean(rho_set, pw_pool)
-                  rho_set%ref_count = 0
-               ELSE
-                  CPABORT("pw_pool must be associated")
-               END IF
-            END IF
-
-            rho_set%local_bounds(1, :) = -HUGE(0) ! we want to crash...
-            rho_set%local_bounds(1, :) = HUGE(0)
-            IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
-               DEALLOCATE (rho_set%rho)
-            END IF
-            IF (rho_set%owns%rho_spin) THEN
-               IF (ASSOCIATED(rho_set%rhoa)) THEN
-                  DEALLOCATE (rho_set%rhoa)
-               END IF
-               IF (ASSOCIATED(rho_set%rhob)) THEN
-                  DEALLOCATE (rho_set%rhob)
-               END IF
-            END IF
-            IF (rho_set%owns%rho_1_3 .AND. ASSOCIATED(rho_set%rho_1_3)) THEN
-               DEALLOCATE (rho_set%rho_1_3)
-            END IF
-            IF (rho_set%owns%rho_spin) THEN
-               IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
-                  DEALLOCATE (rho_set%rhoa_1_3)
-               END IF
-               IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
-                  DEALLOCATE (rho_set%rhob_1_3)
-               END IF
-            END IF
-            IF (rho_set%owns%drho) THEN
-               DO i = 1, 3
-                  IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
-                     DEALLOCATE (rho_set%drho(i)%array)
-                  END IF
-               END DO
-            END IF
-            IF (rho_set%owns%drho_spin) THEN
-               DO i = 1, 3
-                  IF (ASSOCIATED(rho_set%drhoa(i)%array)) THEN
-                     DEALLOCATE (rho_set%drhoa(i)%array)
-                  END IF
-                  IF (ASSOCIATED(rho_set%drhob(i)%array)) THEN
-                     DEALLOCATE (rho_set%drhob(i)%array)
-                  END IF
-               END DO
-            END IF
-            IF (rho_set%owns%laplace_rho .AND. ASSOCIATED(rho_set%laplace_rho)) THEN
-               DEALLOCATE (rho_set%laplace_rho)
-            END IF
-
-            IF (rho_set%owns%norm_drho .AND. ASSOCIATED(rho_set%norm_drho)) THEN
-               DEALLOCATE (rho_set%norm_drho)
-            END IF
-            IF (rho_set%owns%laplace_rho_spin) THEN
-               IF (ASSOCIATED(rho_set%laplace_rhoa)) THEN
-                  DEALLOCATE (rho_set%laplace_rhoa)
-               END IF
-               IF (ASSOCIATED(rho_set%laplace_rhob)) THEN
-                  DEALLOCATE (rho_set%laplace_rhob)
-               END IF
-            END IF
-
-            IF (rho_set%owns%norm_drho_spin) THEN
-               IF (ASSOCIATED(rho_set%norm_drhoa)) THEN
-                  DEALLOCATE (rho_set%norm_drhoa)
-               END IF
-               IF (ASSOCIATED(rho_set%norm_drhob)) THEN
-                  DEALLOCATE (rho_set%norm_drhob)
-               END IF
-            END IF
-            IF (rho_set%owns%drhoa_drhob .AND. ASSOCIATED(rho_set%drhoa_drhob)) THEN
-               DEALLOCATE (rho_set%drhoa_drhob)
-            END IF
-            IF (rho_set%owns%tau .AND. ASSOCIATED(rho_set%tau)) THEN
-               DEALLOCATE (rho_set%tau)
-            END IF
-            IF (rho_set%owns%tau_spin) THEN
-               IF (ASSOCIATED(rho_set%tau_a)) THEN
-                  DEALLOCATE (rho_set%tau_a)
-               END IF
-               IF (ASSOCIATED(rho_set%tau_b)) THEN
-                  DEALLOCATE (rho_set%tau_b)
-               END IF
-            END IF
-            DEALLOCATE (rho_set)
+      IF (PRESENT(pw_pool)) THEN
+         IF (ASSOCIATED(pw_pool)) THEN
+            CALL xc_rho_set_clean(rho_set, pw_pool)
+         ELSE
+            CPABORT("pw_pool must be associated")
          END IF
       END IF
-      NULLIFY (rho_set)
+
+      rho_set%local_bounds(1, :) = -HUGE(0) ! we want to crash...
+      rho_set%local_bounds(1, :) = HUGE(0)
+      IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
+         DEALLOCATE (rho_set%rho)
+      END IF
+      IF (rho_set%owns%rho_spin) THEN
+         IF (ASSOCIATED(rho_set%rhoa)) THEN
+            DEALLOCATE (rho_set%rhoa)
+         END IF
+         IF (ASSOCIATED(rho_set%rhob)) THEN
+            DEALLOCATE (rho_set%rhob)
+         END IF
+      END IF
+      IF (rho_set%owns%rho_1_3 .AND. ASSOCIATED(rho_set%rho_1_3)) THEN
+         DEALLOCATE (rho_set%rho_1_3)
+      END IF
+      IF (rho_set%owns%rho_spin) THEN
+         IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
+            DEALLOCATE (rho_set%rhoa_1_3)
+         END IF
+         IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
+            DEALLOCATE (rho_set%rhob_1_3)
+         END IF
+      END IF
+      IF (rho_set%owns%drho) THEN
+         DO i = 1, 3
+            IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
+               DEALLOCATE (rho_set%drho(i)%array)
+            END IF
+         END DO
+      END IF
+      IF (rho_set%owns%drho_spin) THEN
+         DO i = 1, 3
+            IF (ASSOCIATED(rho_set%drhoa(i)%array)) THEN
+               DEALLOCATE (rho_set%drhoa(i)%array)
+            END IF
+            IF (ASSOCIATED(rho_set%drhob(i)%array)) THEN
+               DEALLOCATE (rho_set%drhob(i)%array)
+            END IF
+         END DO
+      END IF
+      IF (rho_set%owns%laplace_rho .AND. ASSOCIATED(rho_set%laplace_rho)) THEN
+         DEALLOCATE (rho_set%laplace_rho)
+      END IF
+
+      IF (rho_set%owns%norm_drho .AND. ASSOCIATED(rho_set%norm_drho)) THEN
+         DEALLOCATE (rho_set%norm_drho)
+      END IF
+      IF (rho_set%owns%laplace_rho_spin) THEN
+         IF (ASSOCIATED(rho_set%laplace_rhoa)) THEN
+            DEALLOCATE (rho_set%laplace_rhoa)
+         END IF
+         IF (ASSOCIATED(rho_set%laplace_rhob)) THEN
+            DEALLOCATE (rho_set%laplace_rhob)
+         END IF
+      END IF
+
+      IF (rho_set%owns%norm_drho_spin) THEN
+         IF (ASSOCIATED(rho_set%norm_drhoa)) THEN
+            DEALLOCATE (rho_set%norm_drhoa)
+         END IF
+         IF (ASSOCIATED(rho_set%norm_drhob)) THEN
+            DEALLOCATE (rho_set%norm_drhob)
+         END IF
+      END IF
+      IF (rho_set%owns%drhoa_drhob .AND. ASSOCIATED(rho_set%drhoa_drhob)) THEN
+         DEALLOCATE (rho_set%drhoa_drhob)
+      END IF
+      IF (rho_set%owns%tau .AND. ASSOCIATED(rho_set%tau)) THEN
+         DEALLOCATE (rho_set%tau)
+      END IF
+      IF (rho_set%owns%tau_spin) THEN
+         IF (ASSOCIATED(rho_set%tau_a)) THEN
+            DEALLOCATE (rho_set%tau_a)
+         END IF
+         IF (ASSOCIATED(rho_set%tau_b)) THEN
+            DEALLOCATE (rho_set%tau_b)
+         END IF
+      END IF
    END SUBROUTINE xc_rho_set_release
 
 ! **************************************************************************************************
@@ -311,7 +283,7 @@ CONTAINS
                              rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob, rho_1_3, rhoa_1_3, &
                              rhob_1_3, laplace_rho, laplace_rhoa, laplace_rhob, drhoa, drhob, rho_cutoff, &
                              drho_cutoff, tau_cutoff, tau, tau_a, tau_b, local_bounds)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       LOGICAL, INTENT(in), OPTIONAL                      :: can_return_null
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: rho
@@ -331,8 +303,6 @@ CONTAINS
       my_can_return_null = .FALSE.
       IF (PRESENT(can_return_null)) my_can_return_null = can_return_null
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       IF (PRESENT(rho)) THEN
          rho => rho_set%rho
          CPASSERT(my_can_return_null .OR. ASSOCIATED(rho))
@@ -433,8 +403,6 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
 
       INTEGER                                            :: idir
-
-      CPASSERT(rho_set%ref_count > 0)
 
       IF (rho_set%owns%rho) THEN
          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rho, &
@@ -590,7 +558,6 @@ CONTAINS
       nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
       nd_laplace = RESHAPE((/2, 0, 0, 0, 2, 0, 0, 0, 2/), (/3, 3/))
 
-      CPASSERT(rho_set%ref_count > 0)
       IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
          CPABORT("pw_pool cr3d have different size than expected")
       nspins = SIZE(rho_r)

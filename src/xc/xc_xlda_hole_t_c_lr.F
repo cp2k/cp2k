@@ -125,7 +125,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xlda_hole_t_c_lr_lda_eval(rho_set, deriv_set, order, params)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: params
@@ -142,9 +142,6 @@ CONTAINS
 
       CALL section_vals_val_get(params, "SCALE_X", r_val=sx)
       CALL section_vals_val_get(params, "CUTOFF_RADIUS", r_val=R)
-
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
 
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
@@ -308,7 +305,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xlda_hole_t_c_lr_lsd_eval(rho_set, deriv_set, order, params)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: params
@@ -325,9 +322,6 @@ CONTAINS
 
       CALL section_vals_val_get(params, "SCALE_X", r_val=sx)
       CALL section_vals_val_get(params, "CUTOFF_RADIUS", r_val=R)
-
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
 
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)

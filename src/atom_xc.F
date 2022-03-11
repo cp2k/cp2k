@@ -211,10 +211,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
 
@@ -228,8 +228,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(xc_section)) THEN
-         NULLIFY (rho_set)
-
          xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
          CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
 
@@ -254,8 +252,6 @@ CONTAINS
             bounds(2, 1) = nr
 
             ! create a place where to put the derivatives
-            NULLIFY (deriv_set)
-            ALLOCATE (deriv_set)
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -368,7 +364,6 @@ CONTAINS
 
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
-            DEALLOCATE (deriv_set)
             CALL xc_rho_set_release(rho_set)
 
          END IF !xc_none
@@ -421,10 +416,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
 
@@ -440,7 +435,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(xc_section)) THEN
-         NULLIFY (rho_set)
          IF (nlcc) THEN
             nr = atom%basis%grid%nr
             ALLOCATE (xfun(nr))
@@ -470,8 +464,6 @@ CONTAINS
             bounds(2, 1) = nr
 
             ! create a place where to put the derivatives
-            NULLIFY (deriv_set)
-            ALLOCATE (deriv_set)
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -605,7 +597,6 @@ CONTAINS
 
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
-            DEALLOCATE (deriv_set)
             CALL xc_rho_set_release(rho_set)
 
          END IF !xc_none
@@ -672,16 +663,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(xc_section))
-
-      NULLIFY (rho_set)
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
@@ -707,8 +696,6 @@ CONTAINS
          bounds(2, 1) = nr
 
          ! create a place where to put the derivatives
-         NULLIFY (deriv_set)
-         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -787,7 +774,6 @@ CONTAINS
 
          ! Release the xc structure used to store the xc derivatives
          CALL xc_dset_release(deriv_set)
-         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set)
 
       END IF !xc_none
@@ -828,16 +814,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(xc_section))
-
-      NULLIFY (rho_set)
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
@@ -863,8 +847,6 @@ CONTAINS
          bounds(2, 1) = nr
 
          ! create a place where to put the derivatives
-         NULLIFY (deriv_set)
-         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -971,7 +953,6 @@ CONTAINS
 
          ! Release the xc structure used to store the xc derivatives
          CALL xc_dset_release(deriv_set)
-         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set)
 
       END IF !xc_none
@@ -1078,7 +1059,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_rho_set(rho_set, nspins, needs, rho, drho, tau, lap, na)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho, drho, tau, lap

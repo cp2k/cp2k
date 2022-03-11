@@ -341,7 +341,7 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: functional
       LOGICAL, INTENT(in)                                :: lsd
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: deriv_order
 
@@ -563,7 +563,7 @@ CONTAINS
                                   deriv_order)
       TYPE(section_vals_type), POINTER                   :: functionals
       LOGICAL, INTENT(in)                                :: lsd
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: deriv_order
 

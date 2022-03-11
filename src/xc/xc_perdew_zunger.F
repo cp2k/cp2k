@@ -136,7 +136,7 @@ CONTAINS
    SUBROUTINE pz_lda_eval(method, rho_set, deriv_set, order, pz_params)
 
       INTEGER, INTENT(in)                                :: method
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: pz_params
@@ -155,8 +155,6 @@ CONTAINS
 
       CALL section_vals_val_get(pz_params, "scale_c", r_val=sc)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           local_bounds=bo, rho_cutoff=rho_cutoff)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -268,7 +266,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pz_lsd_eval(method, rho_set, deriv_set, order, pz_params)
       INTEGER, INTENT(in)                                :: method
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
       TYPE(section_vals_type), POINTER                   :: pz_params
@@ -287,8 +285,6 @@ CONTAINS
 
       CALL section_vals_val_get(pz_params, "scale_c", r_val=sc)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=a, rhob=b, &
                           local_bounds=bo, rho_cutoff=rho_cutoff)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)

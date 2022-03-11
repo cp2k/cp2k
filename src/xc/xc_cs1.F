@@ -147,7 +147,7 @@ CONTAINS
 !> \param order ...
 ! **************************************************************************************************
    SUBROUTINE cs1_lda_eval(rho_set, deriv_set, order)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
@@ -167,8 +167,6 @@ CONTAINS
                e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, &
                e_ndrho_ndrho_ndrho)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=rho13, rho=rho, &
                           norm_drho=grho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -238,7 +236,7 @@ CONTAINS
 !> \param order ...
 ! **************************************************************************************************
    SUBROUTINE cs1_lsd_eval(rho_set, deriv_set, order)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
 
@@ -254,8 +252,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, &
                           rhoa_1_3=rhoa_1_3, rhob_1_3=rhob_1_3, &
                           norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, &

@@ -140,8 +140,8 @@ CONTAINS
    SUBROUTINE perdew_wang_lda_eval(method, rho_set, deriv_set, order, scale)
 
       INTEGER, INTENT(in)                                :: method
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), INTENT(IN)              :: deriv_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       REAL(kind=dp), INTENT(in)                          :: scale
 
@@ -156,8 +156,6 @@ CONTAINS
 
       CALL timeset(routineN, timer_handle)
       NULLIFY (rho, e_0, e_rho, e_rho_rho, e_rho_rho_rho, dummy)
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           local_bounds=bo, rho_cutoff=rho_cutoff)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -272,8 +270,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE perdew_wang_lsd_eval(method, rho_set, deriv_set, order, scale)
       INTEGER, INTENT(in)                                :: method
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), INTENT(IN)              :: deriv_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
       REAL(kind=dp), INTENT(in)                          :: scale
 
@@ -288,8 +286,6 @@ CONTAINS
 
       CALL timeset(routineN, timer_handle)
       NULLIFY (a, b, e_0, ea, eb, eaa, eab, ebb, eaaa, eaab, eabb, ebbb)
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=a, rhob=b, &
                           local_bounds=bo, rho_cutoff=rho_cutoff)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)

@@ -121,7 +121,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE lyp_lda_eval(rho_set, deriv_set, grad_deriv, lyp_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: lyp_params
@@ -141,8 +141,6 @@ CONTAINS
       CALL section_vals_val_get(lyp_params, "scale_c", r_val=sc)
       CALL cite_reference(Lee1988)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=rho_1_3, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho, &
                           drho_cutoff=epsilon_norm_drho)
@@ -726,7 +724,7 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE lyp_lsd_eval(rho_set, deriv_set, grad_deriv, lyp_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: lyp_params
@@ -748,8 +746,6 @@ CONTAINS
       CALL section_vals_val_get(lyp_params, "scale_c", r_val=sc)
       CALL cite_reference(Lee1988)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, &
                           rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
                           norm_drhob=norm_drhob, norm_drho=norm_drho, &

@@ -161,10 +161,10 @@ CONTAINS
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       NULLIFY (ks_env, pw_env, auxbas_pw_pool, input)
-      NULLIFY (rho_g, rho_r, tau, rho_struct, rho_set, e_uniform)
+      NULLIFY (rho_g, rho_r, tau, rho_struct, e_uniform)
       NULLIFY (vxc_GLLB, vxc_LB, vxc_tmp, vxc_SAOP, vxc_tau)
       NULLIFY (mo_eigenvalues, deriv, rho_struct_r, rho_struct_ao)
       NULLIFY (orbital_density_matrix, dummy, xc_section_tmp, xc_fun_section_tmp)
@@ -548,16 +548,16 @@ CONTAINS
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs, needs_orbs
-      TYPE(xc_rho_set_type), POINTER                     :: orb_rho_set_h, orb_rho_set_s, rho_set_h, &
+      TYPE(xc_rho_set_type)                              :: orb_rho_set_h, orb_rho_set_s, rho_set_h, &
                                                             rho_set_s
 
       NULLIFY (weight, rho_h, rho_s, vxc_LB_h, vxc_LB_s, vxc_GLLB_h, vxc_GLLB_s, &
                vxc_tmp_h, vxc_tmp_s, vtau, dummy, e_uniform, drho_h, drho_s, vxg, atom_list, &
                atomic_kind_set, qs_kind_set, deriv, atomic_grid, rho_struct_ao, &
                harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
-               r_h_d, r_s_d, rho_atom_set, rho_atom, rho_set_h, rho_set_s, para_env, &
+               r_h_d, r_s_d, rho_atom_set, rho_atom, para_env, &
                mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, matrix_ks, &
-               orbital_density_matrix, orb_rho_set_h, orb_rho_set_s, vxc_SAOP_h, vxc_SAOP_s)
+               orbital_density_matrix, vxc_SAOP_h, vxc_SAOP_s)
 
       ! tau is needed for fill_rho_set, but should never be used
       NULLIFY (tau)
@@ -1060,7 +1060,7 @@ CONTAINS
    SUBROUTINE add_lb_pot(pot, rho_set, lsd, spin)
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pot
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       LOGICAL, INTENT(IN)                                :: lsd
       INTEGER, INTENT(IN)                                :: spin
 
@@ -1116,7 +1116,7 @@ CONTAINS
    SUBROUTINE calc_2excpbe(pot, rho_set, e_uniform, lsd)
 
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pot
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_uniform
       LOGICAL, INTENT(IN)                                :: lsd
 

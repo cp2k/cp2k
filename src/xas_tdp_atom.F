@@ -1112,7 +1112,7 @@ CONTAINS
    SUBROUTINE put_density_on_atomic_grid(rho_set, ri_dcoeff, atom_kind, do_gga, batch_info, &
                                          xas_atom_env, qs_env)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       TYPE(cp_1d_r_p_type), DIMENSION(:)                 :: ri_dcoeff
       INTEGER, INTENT(IN)                                :: atom_kind
       LOGICAL, INTENT(IN)                                :: do_gga
@@ -1299,7 +1299,7 @@ CONTAINS
    SUBROUTINE put_density_on_other_grid(rho_set, ri_dcoeff, source_iat, source_ikind, target_iat, &
                                         target_ikind, sr, er, do_gga, xas_atom_env, qs_env)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       TYPE(cp_1d_r_p_type), DIMENSION(:)                 :: ri_dcoeff
       INTEGER, INTENT(IN)                                :: source_iat, source_ikind, target_iat, &
                                                             target_ikind, sr, er
@@ -1624,7 +1624,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_norm_drho(rho_set, atom_kind, xas_atom_env)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       INTEGER, INTENT(IN)                                :: atom_kind
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
 
@@ -1873,12 +1873,12 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: input, xc_functionals
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
-      NULLIFY (particle_set, qs_kind_set, dft_control, deriv_set, para_env, exat_neighbors)
-      NULLIFY (rho_set, input, xc_functionals)
+      NULLIFY (particle_set, qs_kind_set, dft_control, para_env, exat_neighbors)
+      NULLIFY (input, xc_functionals)
 
       CALL timeset(routineN, handle)
 
@@ -1953,7 +1953,6 @@ CONTAINS
          CALL xc_rho_set_create(rho_set=rho_set, local_bounds=bounds, &
                                 rho_cutoff=dft_control%qs_control%eps_rho_rspace, &
                                 drho_cutoff=dft_control%qs_control%eps_rho_rspace)
-         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
 
          ! allocate internals of the rho_set
@@ -2011,7 +2010,6 @@ CONTAINS
 
 !     Clean-up
          CALL xc_dset_release(deriv_set)
-         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set)
       END DO !iex
 
@@ -2042,8 +2040,8 @@ CONTAINS
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: int_fxc
       INTEGER, INTENT(IN)                                :: iatom, ikind
       TYPE(batch_info_type)                              :: batch_info
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(INOUT)        :: deriv_set
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -2251,8 +2249,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :)                          :: so
       REAL(dp), DIMENSION(:, :, :)                       :: dso
       INTEGER, INTENT(IN)                                :: na, nr
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       REAL(dp), DIMENSION(:, :), POINTER                 :: weight
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_vxc_vxg'
@@ -2847,7 +2845,7 @@ CONTAINS
 
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: int_fxc
       INTEGER, INTENT(IN)                                :: iatom, ikind
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -2921,8 +2919,8 @@ CONTAINS
 
       TYPE(cp_2d_r_p_type), DIMENSION(:, :), POINTER     :: int_fxc
       INTEGER, INTENT(IN)                                :: iatom, ikind
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       TYPE(xas_atom_env_type), POINTER                   :: xas_atom_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 

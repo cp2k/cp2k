@@ -134,7 +134,7 @@ CONTAINS
 !> \author rkoitz
 ! **************************************************************************************************
    SUBROUTINE xbeef_lda_eval(rho_set, deriv_set, grad_deriv, xbeef_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: xbeef_params
@@ -154,8 +154,6 @@ CONTAINS
 
       CALL cite_reference(Wellendorff2012)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=rho_1_3, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -309,7 +307,7 @@ CONTAINS
 !> \author rkoitz
 ! **************************************************************************************************
    SUBROUTINE xbeef_lsd_eval(rho_set, deriv_set, grad_deriv, xbeef_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: xbeef_params
@@ -333,8 +331,6 @@ CONTAINS
       END DO
 
       CALL section_vals_val_get(xbeef_params, "scale_x", r_val=sx)
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa_1_3=rho_1_3(1)%array, &
                           rhob_1_3=rho_1_3(2)%array, rhoa=rho(1)%array, &
                           rhob=rho(2)%array, norm_drhoa=norm_drho(1)%array, &

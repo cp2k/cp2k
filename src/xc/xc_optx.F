@@ -107,7 +107,7 @@ CONTAINS
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE optx_lda_eval(rho_set, deriv_set, grad_deriv, optx_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: optx_params
@@ -126,8 +126,6 @@ CONTAINS
       CALL section_vals_val_get(optx_params, "a2", r_val=a2)
       CALL section_vals_val_get(optx_params, "gamma", r_val=gam)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho, &
                           drho_cutoff=epsilon_drho)
@@ -167,7 +165,7 @@ CONTAINS
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE optx_lsd_eval(rho_set, deriv_set, grad_deriv, optx_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: optx_params
@@ -193,8 +191,6 @@ CONTAINS
       CALL section_vals_val_get(optx_params, "a2", r_val=a2)
       CALL section_vals_val_get(optx_params, "gamma", r_val=gam)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=rho(1)%array, rhob=rho(2)%array, &
                           norm_drhoa=ndrho(1)%array, &
                           norm_drhob=ndrho(2)%array, rho_cutoff=epsilon_rho, &

@@ -340,7 +340,7 @@ CONTAINS
                xc_section_aux => admm_env%xc_section_aux
                CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_aux)
                CALL qs_rho_get(rho_aux, rho_r=rho_r)
-               ALLOCATE (kpp1_env%deriv_set_admm)
+               ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
                CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
                                       rho_r, auxbas_pw_pool, &
                                       xc_section=xc_section_aux)
@@ -828,7 +828,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set
+      TYPE(xc_rho_set_type)                              :: rho1_set
 
       CALL timeset(routineN, handle)
 
@@ -862,7 +862,6 @@ CONTAINS
             xc_section => admm_env%xc_section_aux
             bo = rho1_aux_r(1)%pw%pw_grid%bounds_local
             ! create the place where to store the argument for the functionals
-            NULLIFY (rho1_set)
             CALL xc_rho_set_create(rho1_set, bo, &
                                    rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
                                    drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &

@@ -118,7 +118,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE p86_lda_eval(rho_set, deriv_set, order, p86_params)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: p86_params
@@ -138,8 +138,6 @@ CONTAINS
       NULLIFY (rho, e_0, e_rho, e_ndrho, &
                e_rho_rho, e_rho_ndrho, e_ndrho_ndrho, &
                e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho)
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
 
       ! calculate the perdew_zunger correlation
       CALL pz_lda_eval(pz_orig, rho_set, deriv_set, order, p86_params)

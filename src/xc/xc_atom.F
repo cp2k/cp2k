@@ -73,7 +73,7 @@ CONTAINS
 ! can safely be called for the next radial point ir_pnt
 
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: deriv_order
       TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
@@ -348,9 +348,9 @@ CONTAINS
 ! Afterwords the arrays containing the derivatives are put to zero so that the routine
 ! can safely be called for the next radial point ir
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set, rho1_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set, rho1_set
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type), INTENT(INOUT)        :: deriv_set
       REAL(dp), DIMENSION(:, :), POINTER                 :: w
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vxc
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg
@@ -436,8 +436,8 @@ CONTAINS
 !   Within the same kind, at each new point on the radial grid, the rho_set
 !   arrays rho and drho are overwritten.
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
-      TYPE(xc_rho_cflags_type)                           :: needs
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
+      TYPE(xc_rho_cflags_type), INTENT(IN)               :: needs
       INTEGER, INTENT(IN)                                :: nspins
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
 
@@ -596,7 +596,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_rho_set(rho_set, lsd, nspins, needs, rho, drho, tau, na, ir)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       LOGICAL, INTENT(IN)                                :: lsd
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(xc_rho_cflags_type), INTENT(IN)               :: needs

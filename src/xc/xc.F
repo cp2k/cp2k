@@ -243,9 +243,9 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho2_g, rho2_r, tau2, vxc_rho2, vxc_tau2
       TYPE(xc_derivative_set_type)                       :: dSet1, dSet2
       TYPE(xc_derivative_type), POINTER                  :: deriv, deriv2, deriv3
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set1, rho_set2
+      TYPE(xc_rho_set_type)                              :: rho_set1, rho_set2
 
-      NULLIFY (vxc_rho2, vxc_tau2, tau2, rho_set1, rho_set2, pot, pot3, pot3, &
+      NULLIFY (vxc_rho2, vxc_tau2, tau2, pot, pot3, pot3, &
                deriv, deriv2, deriv3, rho2_g)
 
       bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -579,9 +579,9 @@ CONTAINS
       TYPE(cp_sll_xc_deriv_type), POINTER                :: deriv_iter
       TYPE(xc_derivative_set_type)                       :: dSet1
       TYPE(xc_derivative_type), POINTER                  :: deriv
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set1
+      TYPE(xc_rho_set_type)                              :: rho_set1
 
-      NULLIFY (rho_set1, pot, deriv)
+      NULLIFY (pot, deriv)
       logger => cp_get_default_logger()
 
       bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -851,7 +851,7 @@ CONTAINS
                                          rho_r, rho_g, tau, xc_section, pw_pool, &
                                          needs_basic_components)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       TYPE(xc_derivative_set_type)                       :: deriv_set
       INTEGER, INTENT(in)                                :: deriv_order
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_g, tau
@@ -867,7 +867,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(.NOT. ASSOCIATED(rho_set))
       CPASSERT(ASSOCIATED(pw_pool))
 
       nspins = SIZE(rho_r)
@@ -1134,10 +1133,10 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: tmp_g, v_drho_r, virial_pw, vxc_g
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
-      NULLIFY (tmp_g, v_drho_r, vxc_g, norm_drho_spin, norm_drho, pos, rho_set, virial_pw)
+      NULLIFY (tmp_g, v_drho_r, vxc_g, norm_drho_spin, norm_drho, pos, virial_pw)
       DO idir = 1, 3
          NULLIFY (pw_to_deriv(idir)%pw, pw_to_deriv_rho(idir)%pw)
       END DO
@@ -1823,10 +1822,10 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: e_0
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
-      NULLIFY (rho_set, deriv, e_0)
+      NULLIFY (deriv, e_0)
       exc = 0.0_dp
 
       ! this has to be consistent with what is done in xc_vxc_pw_create
@@ -1887,7 +1886,7 @@ CONTAINS
 
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho1_g, tau1_r
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
@@ -1910,7 +1909,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: fac
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set
+      TYPE(xc_rho_set_type)                              :: rho1_set
 
       CALL timeset(routineN, handle)
 
@@ -1967,7 +1966,6 @@ CONTAINS
          ! rho1 !
          !------!
          bo = rho1_r(1)%pw%pw_grid%bounds_local
-         NULLIFY (rho1_set)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho1_set, bo, &
                                 rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
@@ -2025,7 +2023,7 @@ CONTAINS
                                           do_triplet, calc_virial, virial_xc, deriv_set)
 
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc, v_tau
-      TYPE(xc_rho_set_type), INTENT(IN), POINTER         :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g, tau1_r
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
@@ -2059,7 +2057,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type)                       :: deriv_set1, deriv_set2
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho2_set
+      TYPE(xc_rho_set_type)                              :: rho1_set, rho2_set
 
       CALL timeset(routineN, handle)
 
@@ -2320,7 +2318,6 @@ CONTAINS
 
             gradient_cut = section_get_rval(xc_section, "GRADIENT_CUTOFF")
 
-            NULLIFY (rho1_set)
             ! create the container to store the argument of the functionals
             CALL xc_rho_set_create(rho1_set, bo, &
                                    rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
@@ -2405,7 +2402,6 @@ CONTAINS
             CALL xc_dset_create(deriv_set1, pw_pool)
             CALL xc_dset_create(deriv_set2, pw_pool)
 
-            NULLIFY (rho2_set)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho2_set, bo, &
                                    rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
@@ -2849,7 +2845,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: h
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_fun_section
       LOGICAL, INTENT(IN)                                :: lsd
-      TYPE(xc_rho_set_type), INTENT(IN), POINTER         :: rho2_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho2_set
       TYPE(xc_derivative_set_type)                       :: deriv_set1, deriv_set2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_derivs_rho', routineP = moduleN//':'//routineN
@@ -2915,7 +2911,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: h
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_fun_section
       LOGICAL, INTENT(IN)                                :: lsd
-      TYPE(xc_rho_set_type), INTENT(IN), POINTER         :: rho2_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho2_set
       TYPE(xc_derivative_set_type)                       :: deriv_set1, deriv_set2
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_derivs_laplace', routineP = moduleN//':'//routineN
@@ -3008,7 +3004,7 @@ CONTAINS
 
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
       TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set, rho1_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set, rho1_set
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: gapw
@@ -3049,8 +3045,6 @@ CONTAINS
       my_compute_virial = .FALSE.
       IF (PRESENT(compute_virial)) my_compute_virial = compute_virial
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(ASSOCIATED(rho1_set))
       CPASSERT(ASSOCIATED(v_xc))
       CPASSERT(ASSOCIATED(xc_section))
       IF (my_gapw) THEN
@@ -3676,7 +3670,7 @@ CONTAINS
                                 rho_set, rho_r, pw_pool, xc_section, tau_r)
 
       TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_section
@@ -3690,7 +3684,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(.NOT. ASSOCIATED(rho_set))
       CPASSERT(ASSOCIATED(xc_section))
       CPASSERT(ASSOCIATED(pw_pool))
 
@@ -3732,8 +3725,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE divide_by_norm_drho(deriv_set, rho_set, lsd)
 
-      TYPE(xc_derivative_set_type)                       :: deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(INOUT)        :: deriv_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       LOGICAL, INTENT(IN)                                :: lsd
 
       INTEGER, DIMENSION(:), POINTER                     :: split_desc

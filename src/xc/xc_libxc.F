@@ -542,8 +542,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE libxc_lda_eval(rho_set, deriv_set, grad_deriv, libxc_params)
 
-      TYPE(xc_rho_set_type), POINTER           :: rho_set
-      TYPE(xc_derivative_set_type), INTENT(IN)    :: deriv_set
+      TYPE(xc_rho_set_type), INTENT(IN)        :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(IN) :: deriv_set
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
 
@@ -569,9 +569,6 @@ CONTAINS
       has_laplace = .FALSE.
       NULLIFY (dummy)
       NULLIFY (rho, norm_drho, laplace_rho, tau)
-
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
 
       func_name = libxc_params%section%name
       CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)
@@ -780,7 +777,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE libxc_lsd_eval(rho_set, deriv_set, grad_deriv, libxc_params)
 
-      TYPE(xc_rho_set_type), POINTER           :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)        :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN) :: deriv_set
       INTEGER, INTENT(in)                      :: grad_deriv
       TYPE(section_vals_type), POINTER         :: libxc_params
@@ -822,9 +819,6 @@ CONTAINS
       NULLIFY (dummy)
       NULLIFY (rhoa, rhob, norm_drho, norm_drhoa, norm_drhob, laplace_rhoa, &
                laplace_rhob, tau_a, tau_b)
-
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
 
       func_name = libxc_params%section%name
       CALL section_vals_val_get(libxc_params, "scale", r_val=func_scale)

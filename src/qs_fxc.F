@@ -104,7 +104,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho0_set
+      TYPE(xc_rho_set_type)                              :: rho0_set
 
       CALL timeset(routineN, handle)
 
@@ -118,7 +118,6 @@ CONTAINS
       fac = 0._dp
       IF (is_triplet .AND. nspins == 1) fac = -1.0_dp
 
-      NULLIFY (rho0_set)
       NULLIFY (rho1_g)
       bo = rho1_r(1)%pw%pw_grid%bounds_local
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
