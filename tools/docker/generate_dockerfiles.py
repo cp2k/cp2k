@@ -66,6 +66,9 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_manual", args.check) as f:
         f.write(toolchain_full() + manual())
 
+    with OutputFile(f"Dockerfile.test_precommit", args.check) as f:
+        f.write(precommit())
+
     for name in "aiida", "ase", "gromacs", "i-pi":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
             f.write(toolchain_full() + test_3rd_party(name))
@@ -148,6 +151,28 @@ COPY ./tools/manual ./tools/manual
 COPY ./tools/input_editing ./tools/input_editing
 COPY ./tools/docker/scripts/test_manual.sh .
 RUN ./test_manual.sh 2>&1 | tee report.log
+"""
+        + print_cached_report()
+    )
+
+
+# ======================================================================================
+def precommit() -> str:
+    return (
+        fr"""
+FROM ubuntu:20.04
+
+# Install dependencies.
+WORKDIR /opt/cp2k-precommit
+COPY ./tools/precommit/ /opt/cp2k-precommit/
+RUN ./install_requirements.sh
+
+# Install sources.
+WORKDIR /opt/cp2k
+COPY ./ ./
+
+# Run precommit test.
+RUN ./tools/docker/scripts/test_precommit.sh 2>&1 | tee report.log
 """
         + print_cached_report()
     )
