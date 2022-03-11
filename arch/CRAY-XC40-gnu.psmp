@@ -11,7 +11,7 @@
 #        A full toolchain installation is performed as default.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (25.02.2022)
+# Author: Matthias Krack (11.03.2022)
 #
 # \
    if [ "${0}" = "${BASH_SOURCE}" ]; then \
@@ -75,7 +75,7 @@ USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
 SPFFT_VER      := 1.0.5
-SPLA_VER       := 1.5.2
+SPLA_VER       := 1.5.3
 HDF5_VER       := 1.12.0
 # Only needed for LIBPEXSI
 SCOTCH_VER     := 6.0.0
@@ -205,23 +205,28 @@ endif
 
 ifneq ($(USE_SIRIUS),)
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
+   HDF5_VER       := $(strip $(HDF5_VER))
+   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(HDF5_VER)/lib
+   LIBVDWXC_VER   := $(strip $(LIBVDWXC_VER))
+   LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
+   LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
+   SPFFT_VER      := $(strip $(SPFFT_VER))
+   SPFFT_INC      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/include
+   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
+   SPLA_VER       := $(strip $(SPLA_VER))
+   SPLA_INC       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/include/spla
+   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
    SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
    SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib
-   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
-   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
-   HDF5_LIB       := $(INSTALL_PATH)/hdf5-$(HDF5_VER)/lib
-   LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
+   CFLAGS         += -I$(LIBVDWXC_INC)
+   CFLAGS         += -I$(SPFFT_INC)
+   CFLAGS         += -I$(SPLA_INC)
    CFLAGS         += -I$(SIRIUS_INC)
-   DFLAGS         += -D__SPFFT
-   DFLAGS         += -D__SPLA
    DFLAGS         += -D__HDF5
    DFLAGS         += -D__LIBVDWXC
+   DFLAGS         += -D__SPFFT
+   DFLAGS         += -D__SPLA
    DFLAGS         += -D__SIRIUS
-   LIBS           += $(SIRIUS_LIB)/libsirius.a
-   LIBS           += $(SPFFT_LIB)/libspfft.a
-   LIBS           += $(SPLA_LIB)/libspla.a
-   LIBS           += $(HDF5_LIB)/libhdf5.a
-   LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
 endif
 
 ifneq ($(USE_COSMA),)
