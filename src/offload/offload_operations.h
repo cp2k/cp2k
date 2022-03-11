@@ -18,7 +18,7 @@
 #if defined(__OFFLOAD_CUDA)
 #include <cuda_runtime.h>
 #elif defined(__OFFLOAD_HIP)
-#include <hip/hip_runtime_api.h>
+#include <hip/hip_runtime.h>
 #endif
 
 #ifdef __cplusplus
