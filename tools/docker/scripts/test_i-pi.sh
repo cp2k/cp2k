@@ -6,7 +6,7 @@
 source /opt/cp2k-toolchain/install/setup
 
 echo -e "\n========== Compiling CP2K =========="
-cd /workspace/cp2k
+cd /opt/cp2k
 echo -n "Compiling cp2k... "
 if make -j VERSION=sdbg &> make.out; then
   echo "done."
@@ -47,7 +47,7 @@ ulimit -t ${TIMEOUT_SEC} # Limit cpu time.
   echo 42 > cp2k_exit_code
   sleep 10 # give i-pi some time to startup
   export OMP_NUM_THREADS=2
-  /workspace/cp2k/exe/local/cp2k.sdbg ../in.cp2k
+  /opt/cp2k/exe/local/cp2k.sdbg ../in.cp2k
   echo $? > cp2k_exit_code
 ) &
 

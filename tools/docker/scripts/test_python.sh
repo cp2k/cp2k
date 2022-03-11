@@ -17,7 +17,7 @@ function run_test {
 }
 
 #===============================================================================
-cd /workspace/cp2k
+cd /opt/cp2k
 
 echo "Using $(python3 --version) and $(mypy --version)."
 echo ""

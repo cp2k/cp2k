@@ -17,7 +17,7 @@ function run_benchmark {
   OUTPUT=$4
   echo -n "Running ${INPUT} with ${OMP_THREADS} threads and ${MPI_RANKS} ranks... "
   if OMP_NUM_THREADS="${OMP_THREADS}" mpiexec -bind-to socket -np "${MPI_RANKS}" \
-    "/workspace/cp2k/exe/${ARCH}/cp2k.psmp" "${INPUT}" &> "${OUTPUT}"; then
+    "/opt/cp2k/exe/${ARCH}/cp2k.psmp" "${INPUT}" &> "${OUTPUT}"; then
     echo "done."
   else
     echo -e "failed.\n\n"
@@ -33,7 +33,7 @@ function run_benchmark {
 source /opt/cp2k-toolchain/install/setup
 
 echo -e '\n========== Compiling CP2K =========='
-cd /workspace/cp2k
+cd /opt/cp2k
 echo -n "Compiling cp2k... "
 if make -j ARCH="${ARCH}" VERSION="psmp" &> make.out; then
   echo "done."
@@ -82,7 +82,7 @@ if [[ "${ARCH}" == "local" ]]; then
     run_benchmark 32 1 "${INPUT_BASENAME}" "${OUTPUT_OMP}"
     cd ..
     echo ""
-    /workspace/cp2k/plot_performance.py \
+    /opt/cp2k/plot_performance.py \
       "${LABEL} with 32 OpenMP Threads" "${LABEL}_timings_32omp" "${OUTPUT_OMP}" \
       "${LABEL} with 32 MPI Ranks" "${LABEL}_timings_32mpi" "${OUTPUT_MPI}"
     echo ""
@@ -101,7 +101,7 @@ elif [[ "${ARCH}" == "local_cuda" ]]; then
     run_benchmark 3 2 "${INPUT_BASENAME}" "${OUTPUT}"
     cd ..
     echo ""
-    /workspace/cp2k/plot_performance.py \
+    /opt/cp2k/plot_performance.py \
       "${LABEL} with 6 CPU Cores and 1 GPU" "${LABEL}_timings_6cpu_1gpu" "${OUTPUT}"
     echo ""
   done

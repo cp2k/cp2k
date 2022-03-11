@@ -5,7 +5,7 @@
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
-cd /workspace/cp2k
+cd /opt/cp2k
 echo -n "Compiling libcp2k... "
 if make -j VERSION=sdbg libcp2k &> make.out; then
   echo "done."
@@ -33,7 +33,7 @@ if cmake .. \
   -DGMX_INSTALL_NBLIB_API=OFF \
   -DGMXAPI=OFF \
   -DGMX_CP2K=ON \
-  -DCP2K_DIR="/workspace/cp2k/lib/local/sdbg/" \
+  -DCP2K_DIR="/opt/cp2k/lib/local/sdbg/" \
   &> cmake.out; then
   echo "done."
 else

@@ -173,7 +173,7 @@ def test_without_build(name: str) -> str:
 FROM ubuntu:20.04
 
 # Install dependencies.
-WORKDIR /workspace/cp2k
+WORKDIR /opt/cp2k
 COPY ./tools/docker/scripts/install_{name}.sh .
 RUN ./install_{name}.sh
 
@@ -219,7 +219,7 @@ RUN /bin/bash -c " \
 # Setup entry point for production.
 COPY ./tools/docker/scripts/prod_entrypoint.sh ./
 WORKDIR /mnt
-ENTRYPOINT ["/workspace/cp2k/prod_entrypoint.sh", "{arch}", "{version}"]
+ENTRYPOINT ["/opt/cp2k/prod_entrypoint.sh", "{arch}", "{version}"]
 CMD ["cp2k", "--help"]
 
 #EOF
@@ -251,7 +251,7 @@ def install_cp2k(
         run_lines.append("mkdir -p arch")
         run_lines.append(f"ln -vs {arch_file} ./arch/")
     else:
-        input_lines.append(f"COPY ./arch/{arch}.{version} /workspace/cp2k/arch/")
+        input_lines.append(f"COPY ./arch/{arch}.{version} /opt/cp2k/arch/")
 
     run_lines.append("echo 'Compiling cp2k...'")
     run_lines.append("source /opt/cp2k-toolchain/install/setup")
@@ -269,7 +269,7 @@ def install_cp2k(
 
     return fr"""
 # Install CP2K using {arch}.{version}.
-WORKDIR /workspace/cp2k
+WORKDIR /opt/cp2k
 {input_block}
 RUN /bin/bash -c " \
     {run_block}"

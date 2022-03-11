@@ -3,7 +3,7 @@
 # author: Ole Schuett
 
 echo -e "\n========== Generating Doxygen =========="
-cd /workspace/cp2k
+cd /opt/cp2k
 if ! make doxygen &> make.out; then
   echo -e "failed.\n\n"
   tail -n 100 make.out

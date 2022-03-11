@@ -72,7 +72,7 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 # Install CP2K using local_cuda.psmp.
-WORKDIR /workspace/cp2k
+WORKDIR /opt/cp2k
 ARG GIT_COMMIT_SHA
 COPY ./Makefile .
 COPY ./src ./src
@@ -100,7 +100,7 @@ RUN /bin/bash -c " \
 # Setup entry point for production.
 COPY ./tools/docker/scripts/prod_entrypoint.sh ./
 WORKDIR /mnt
-ENTRYPOINT ["/workspace/cp2k/prod_entrypoint.sh", "local_cuda", "psmp"]
+ENTRYPOINT ["/opt/cp2k/prod_entrypoint.sh", "local_cuda", "psmp"]
 CMD ["cp2k", "--help"]
 
 #EOF
