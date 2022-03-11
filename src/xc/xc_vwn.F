@@ -50,7 +50,7 @@ MODULE xc_vwn
                                af = 0.01554535_dp, &
                                aa = -0.0168868639404_dp !-1/(6pi^2)
 
-   PUBLIC :: vwn_lda_info, vwn_lda_eval, vwn_lsd_eval
+   PUBLIC :: vwn_lda_info, vwn_lda_eval, vwn_lsd_eval, vwn_lsd_info
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_vwn'
 
@@ -129,6 +129,32 @@ CONTAINS
       IF (PRESENT(max_deriv)) max_deriv = 3
 
    END SUBROUTINE vwn_lda_info
+
+! **************************************************************************************************
+!> \brief ...
+!> \param reference ...
+!> \param shortform ...
+!> \param needs ...
+!> \param max_deriv ...
+! **************************************************************************************************
+   SUBROUTINE vwn_lsd_info(reference, shortform, needs, max_deriv)
+      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: reference, shortform
+      TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL  :: needs
+      INTEGER, INTENT(out), OPTIONAL                     :: max_deriv
+
+      IF (PRESENT(reference)) THEN
+         reference = "S. H. Vosko, L. Wilk and M. Nusair,"// &
+                     " Can. J. Phys. 58, 1200 (1980) {LDA version}"
+      END IF
+      IF (PRESENT(shortform)) THEN
+         shortform = "Vosko-Wilk-Nusair Functional {LDA}"
+      END IF
+      IF (PRESENT(needs)) THEN
+         needs%rho_spin = .TRUE.
+      END IF
+      IF (PRESENT(max_deriv)) max_deriv = 3
+
+   END SUBROUTINE vwn_lsd_info
 
 ! **************************************************************************************************
 !> \brief ...

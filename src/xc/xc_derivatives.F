@@ -75,7 +75,8 @@ MODULE xc_derivatives
                                               tpss_lda_info
    USE xc_vwn,                          ONLY: vwn_lda_eval,&
                                               vwn_lda_info,&
-                                              vwn_lsd_eval
+                                              vwn_lsd_eval,&
+                                              vwn_lsd_info
    USE xc_xalpha,                       ONLY: xalpha_info,&
                                               xalpha_lda_eval,&
                                               xalpha_lsd_eval
@@ -258,7 +259,7 @@ CONTAINS
          CALL thomas_fermi_info(lsd, reference, shortform, needs, max_deriv)
       CASE ("VWN")
          IF (lsd) THEN
-            CALL vwn_lda_info(reference, shortform, needs, max_deriv)
+            CALL vwn_lsd_info(reference, shortform, needs, max_deriv)
          ELSE
             CALL vwn_lda_info(reference, shortform, needs, max_deriv)
          END IF
@@ -627,8 +628,7 @@ CONTAINS
          ELSE
             needs%rho = .TRUE.
          END IF
-         IF (needs%drho .OR. needs%drho_spin .OR. needs%norm_drho .OR. &
-             needs%norm_drho_spin) THEN
+         IF (needs%norm_drho .OR. needs%norm_drho_spin) THEN
             IF (lsd) THEN
                needs%drho_spin = .TRUE.
             ELSE

@@ -550,12 +550,19 @@ CONTAINS
          CPASSERT(.NOT. needs%drho_spin)
          CPASSERT(.NOT. needs%norm_drho_spin)
          CPASSERT(.NOT. needs%rho_spin_1_3)
+         CPASSERT(.NOT. needs%tau_spin)
+         CPASSERT(.NOT. needs%laplace_rho_spin)
       CASE (2)
          CPASSERT(SIZE(rho_r) == 2)
          CPASSERT(ASSOCIATED(rho_r(1)%pw))
          CPASSERT(ASSOCIATED(rho_r(2)%pw))
          CPASSERT(rho_r(1)%pw%in_use == REALDATA3D)
          CPASSERT(rho_r(2)%pw%in_use == REALDATA3D)
+         CPASSERT(.NOT. needs%rho)
+         CPASSERT(.NOT. needs%drho)
+         CPASSERT(.NOT. needs%rho_1_3)
+         CPASSERT(.NOT. needs%tau)
+         CPASSERT(.NOT. needs%laplace_rho)
       CASE default
          CPABORT("Unknown number of spin states")
       END SELECT
@@ -702,39 +709,6 @@ CONTAINS
             rho_set%has%drho = .TRUE.
          END IF
       CASE (2)
-         IF (needs%rho) THEN
-            ! this should basically never be the case unless you use LDA functionals
-            ! with LSD
-
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%rho)
-            !assume that the bounds are the same?
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%rho(i, j, k) = my_rho_r(1)%pw%cr3d(i, j, k) + &
-                                            my_rho_r(2)%pw%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%rho = .TRUE.
-            rho_set%has%rho = .TRUE.
-         END IF
-         IF (needs%rho_1_3) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3)
-            !assume that the bounds are the same?
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%rho_1_3(i, j, k) = MAX(my_rho_r(1)%pw%cr3d(i, j, k) + &
-                                                    my_rho_r(2)%pw%cr3d(i, j, k), 0.0_dp)**f13
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%rho_1_3 = .TRUE.
-            rho_set%has%rho_1_3 = .TRUE.
-         END IF
          IF (needs%rho_spin_1_3) THEN
             CALL pw_pool_create_cr3d(pw_pool, rho_set%rhoa_1_3)
             !assume that the bounds are the same?
@@ -759,17 +733,6 @@ CONTAINS
             rho_set%owns%rho_spin_1_3 = .TRUE.
             rho_set%has%rho_spin_1_3 = .TRUE.
          END IF
-         IF (needs%rho_spin) THEN
-
-            rho_set%rhoa => my_rho_r(1)%pw%cr3d
-            NULLIFY (my_rho_r(1)%pw%cr3d)
-
-            rho_set%rhob => my_rho_r(2)%pw%cr3d
-            NULLIFY (my_rho_r(2)%pw%cr3d)
-
-            rho_set%owns%rho_spin = .TRUE.
-            rho_set%has%rho_spin = .TRUE.
-         END IF
          IF (needs%norm_drho) THEN
 
             CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho)
@@ -787,6 +750,17 @@ CONTAINS
 
             rho_set%owns%norm_drho = .TRUE.
             rho_set%has%norm_drho = .TRUE.
+         END IF
+         IF (needs%rho_spin) THEN
+
+            rho_set%rhoa => my_rho_r(1)%pw%cr3d
+            NULLIFY (my_rho_r(1)%pw%cr3d)
+
+            rho_set%rhob => my_rho_r(2)%pw%cr3d
+            NULLIFY (my_rho_r(2)%pw%cr3d)
+
+            rho_set%owns%rho_spin = .TRUE.
+            rho_set%has%rho_spin = .TRUE.
          END IF
          IF (needs%norm_drho_spin) THEN
 
@@ -830,26 +804,6 @@ CONTAINS
             rho_set%owns%laplace_rho_spin = .TRUE.
             rho_set%has%laplace_rho_spin = .TRUE.
          END IF
-         IF (needs%drho) THEN
-            ! this should basically never be the case unless you use LDA functionals
-            ! with LSD
-            DO idir = 1, 3
-               CALL pw_pool_create_cr3d(pw_pool, rho_set%drho(idir)%array)
-               !assume that the bounds are the same?
-!$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r,idir)
-               DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-                  DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                     DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                        rho_set%drho(idir)%array(i, j, k) = &
-                           drho_r(idir, 1)%pw%cr3d(i, j, k) + &
-                           drho_r(idir, 2)%pw%cr3d(i, j, k)
-                     END DO
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%drho = .TRUE.
-            rho_set%has%drho = .TRUE.
-         END IF
          IF (needs%drho_spin) THEN
             DO idir = 1, 3
                rho_set%drhoa(idir)%array => drho_r(idir, 1)%pw%cr3d
@@ -885,25 +839,8 @@ CONTAINS
          END DO
       END IF
       IF (needs%tau) THEN
-         IF (nspins == 2) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%tau)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,tau)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-
-                     rho_set%tau(i, j, k) = &
-                        tau(1)%pw%cr3d(i, j, k) + &
-                        tau(2)%pw%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%tau = .TRUE.
-
-         ELSE
-            rho_set%tau => tau(1)%pw%cr3d
-            rho_set%owns%tau = .FALSE.
-         END IF
+         rho_set%tau => tau(1)%pw%cr3d
+         rho_set%owns%tau = .FALSE.
          rho_set%has%tau = .TRUE.
       END IF
       IF (needs%tau_spin) THEN
