@@ -105,7 +105,7 @@ CONTAINS
 
       needs = xc_functionals_get_needs(xc_fun_section, &
                                        lsd=lsd, &
-                                       add_basic_components=.TRUE.)
+                                       calc_potential=.FALSE.)
       res = (needs%tau_spin .OR. needs%tau)
 
    END FUNCTION
@@ -125,7 +125,7 @@ CONTAINS
 
       needs = xc_functionals_get_needs(xc_fun_section, &
                                        lsd=lsd, &
-                                       add_basic_components=.TRUE.)
+                                       calc_potential=.FALSE.)
       res = (needs%norm_drho .OR. needs%norm_drho_spin)
 
    END FUNCTION
@@ -283,7 +283,7 @@ CONTAINS
                                       tau=tau, xc_section=xc_section, &
                                       pw_pool=pw_pool, rho_set=rho_set1, &
                                       deriv_set=dSet1, deriv_order=1, &
-                                      needs_basic_components=.FALSE.)
+                                      calc_potential=.FALSE.)
       CALL xc_vxc_pw_create(rho_r=rho_r, rho_g=rho_g, tau=tau, &
                             vxc_rho=vxc_rho, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                             pw_pool=pw_pool, &
@@ -293,7 +293,7 @@ CONTAINS
       CALL xc_rho_set_and_dset_create(rho_set=rho_set2, deriv_set=dSet2, &
                                       rho_r=rho2_r, rho_g=rho2_g, tau=tau2, xc_section=xc_section, &
                                       pw_pool=pw_pool, deriv_order=1, &
-                                      needs_basic_components=.FALSE.)
+                                      calc_potential=.FALSE.)
       CALL xc_vxc_pw_create(rho_r=rho2_r, rho_g=rho2_g, tau=tau2, &
                             vxc_rho=vxc_rho2, vxc_tau=vxc_tau2, exc=exc2, xc_section=xc_section, &
                             pw_pool=pw_pool, compute_virial=compute_virial, virial_xc=virial_xc)
@@ -583,7 +583,7 @@ CONTAINS
                                       tau=tau, xc_section=xc_section, &
                                       pw_pool=pw_pool, rho_set=rho_set1, &
                                       deriv_set=dSet1, deriv_order=1, &
-                                      needs_basic_components=.FALSE.)
+                                      calc_potential=.FALSE.)
 
       ! outputs 0,:,: plane
       IF (bo(1, 1) <= 0 .AND. 0 <= bo(2, 1)) THEN
@@ -832,7 +832,7 @@ CONTAINS
 !>        used only with meta functionals)
 !> \param xc_section the section describing the functional to use
 !> \param pw_pool the pool for the grids
-!> \param needs_basic_components if the basic components of the arguments
+!> \param calc_potential if the basic components of the arguments
 !>        should be kept in rho set (a basic component is for example drho
 !>        when with lda a functional needs norm_drho)
 !> \author fawzi
@@ -842,7 +842,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_and_dset_create(rho_set, deriv_set, deriv_order, &
                                          rho_r, rho_g, tau, xc_section, pw_pool, &
-                                         needs_basic_components)
+                                         calc_potential)
 
       TYPE(xc_rho_set_type)                              :: rho_set
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -850,7 +850,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_g, tau
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      LOGICAL, INTENT(in)                                :: needs_basic_components
+      LOGICAL, INTENT(in)                                :: calc_potential
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create'
 
@@ -876,7 +876,7 @@ CONTAINS
                              tau_cutoff=section_get_rval(xc_section, "tau_cutoff"))
 
       CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, &
-                             xc_functionals_get_needs(xc_fun_sections, lsd, needs_basic_components), &
+                             xc_functionals_get_needs(xc_fun_sections, lsd, calc_potential), &
                              section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
                              section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                              pw_pool)
@@ -1161,7 +1161,7 @@ CONTAINS
                                       deriv_order=1, rho_r=rho_r, rho_g=rho_g, tau=tau, &
                                       xc_section=xc_section, &
                                       pw_pool=pw_pool, &
-                                      needs_basic_components=.TRUE.)
+                                      calc_potential=.TRUE.)
 
       CALL section_vals_val_get(xc_section, "XC_GRID%XC_DERIV", &
                                 i_val=xc_deriv_method_id)
@@ -1510,7 +1510,7 @@ CONTAINS
                                       deriv_set=deriv_set, deriv_order=0, &
                                       rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section, &
                                       pw_pool=pw_pool, &
-                                      needs_basic_components=.FALSE.)
+                                      calc_potential=.FALSE.)
       deriv => xc_dset_get_derivative(deriv_set, [INTEGER::])
 
       IF (ASSOCIATED(deriv)) THEN
@@ -3282,11 +3282,11 @@ CONTAINS
       IF (section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")) THEN
          CALL xc_rho_set_and_dset_create(rho_set, deriv_set, 2, &
                                          rho_r_pw, rho_g, tau, xc_section, pw_pool, &
-                                         needs_basic_components=.TRUE.)
+                                         calc_potential=.TRUE.)
       ELSE
          CALL xc_rho_set_and_dset_create(rho_set, deriv_set, 1, &
                                          rho_r_pw, rho_g, tau, xc_section, pw_pool, &
-                                         needs_basic_components=.TRUE.)
+                                         calc_potential=.TRUE.)
       END IF
 
       DEALLOCATE (rho_r_pw)

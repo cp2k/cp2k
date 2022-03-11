@@ -200,7 +200,7 @@ CONTAINS
          nspins = dft_control%nspins
          needs = xc_functionals_get_needs(xc_fun_section, &
                                           lsd=lsd, &
-                                          add_basic_components=.TRUE.)
+                                          calc_potential=.TRUE.)
 
          ! whatever the xc, if epr_xc, drho_spin is needed
          IF (epr_xc) needs%drho_spin = .TRUE.
@@ -555,7 +555,7 @@ CONTAINS
          nspins = 1
       END IF
       needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, &
-                                       add_basic_components=.TRUE.)
+                                       calc_potential=.TRUE.)
       gradient_functional = needs%drho .OR. needs%drho_spin
       tau_f = (needs%tau .OR. needs%tau_spin)
       IF (tau_f) THEN

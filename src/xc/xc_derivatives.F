@@ -590,25 +590,24 @@ CONTAINS
 !> \param functionals a section containing the functional combination to be
 !>        applied
 !> \param lsd if a local spin desnity is performed
-!> \param add_basic_components makes sure that if some gradient combination
-!>        is needed also the gradient components are requested, and if lsd
-!>        is true rho_spin is requested. Defaults to false.
+!> \param calc_potential set, if potential calculation will be carried out later.
+!>        helps to save memory and flops. defaults to false.
 !> \return ...
 !> \author fawzi
 ! **************************************************************************************************
-   FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components) &
+   FUNCTION xc_functionals_get_needs(functionals, lsd, calc_potential) &
       RESULT(needs)
       TYPE(section_vals_type), POINTER                   :: functionals
       LOGICAL, INTENT(in)                                :: lsd
-      LOGICAL, INTENT(in), OPTIONAL                      :: add_basic_components
+      LOGICAL, INTENT(in), OPTIONAL                      :: calc_potential
       TYPE(xc_rho_cflags_type)                           :: needs
 
       INTEGER                                            :: ifun
-      LOGICAL                                            :: my_add_basic_components
+      LOGICAL                                            :: my_calc_potential
       TYPE(section_vals_type), POINTER                   :: xc_fun
 
-      my_add_basic_components = .FALSE.
-      IF (PRESENT(add_basic_components)) my_add_basic_components = add_basic_components
+      my_calc_potential = .FALSE.
+      IF (PRESENT(calc_potential)) my_calc_potential = calc_potential
 
       CPASSERT(ASSOCIATED(functionals))
       CALL xc_rho_cflags_setall(needs, .FALSE.)
@@ -621,7 +620,7 @@ CONTAINS
          CALL xc_functional_get_info(xc_fun, lsd=lsd, needs=needs)
       END DO
 
-      IF (my_add_basic_components) THEN
+      IF (my_calc_potential) THEN
          IF (lsd) THEN
             needs%rho_spin = .TRUE.
             needs%tau_spin = needs%tau_spin .OR. needs%tau

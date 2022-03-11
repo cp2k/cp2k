@@ -167,7 +167,7 @@ CONTAINS
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       kernel_env%xc_rho1_cflags = xc_functionals_get_needs(functionals=xc_fun_section, lsd=lsd, &
-                                                           add_basic_components=.TRUE.)
+                                                           calc_potential=.TRUE.)
 
 IF (.NOT. ASSOCIATED(kernel_env%xc_rho1_set)) THEN
 NULLIFY(kernel_env%xc_rho1_set)

@@ -1899,7 +1899,7 @@ CONTAINS
 !  Get some info on the functionals
       xc_functionals => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL%XC_FUNCTIONAL")
       ! ask for lsd in any case
-      needs = xc_functionals_get_needs(xc_functionals, lsd=.TRUE., add_basic_components=.TRUE.)
+      needs = xc_functionals_get_needs(xc_functionals, lsd=.TRUE., calc_potential=.TRUE.)
       do_gga = needs%drho_spin !because either LDA or GGA, and the former does not need gradient
 
 !  Distribute the excited atoms over batches of processors

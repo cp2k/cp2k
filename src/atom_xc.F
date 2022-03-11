@@ -240,7 +240,7 @@ CONTAINS
 
             lsd = .FALSE.
             nspins = 1
-            needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+            needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.FALSE.)
 
             ! Prepare the structures needed to calculate and store the xc derivatives
 
@@ -452,7 +452,7 @@ CONTAINS
 
             lsd = .TRUE.
             nspins = 2
-            needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+            needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.FALSE.)
 
             ! Prepare the structures needed to calculate and store the xc derivatives
 
@@ -684,7 +684,7 @@ CONTAINS
 
          lsd = .FALSE.
          nspins = 1
-         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.FALSE.)
 
          ! Prepare the structures needed to calculate and store the xc derivatives
 
@@ -835,7 +835,7 @@ CONTAINS
 
          lsd = .TRUE.
          nspins = 2
-         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.FALSE.)
 
          ! Prepare the structures needed to calculate and store the xc derivatives
 
