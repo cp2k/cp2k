@@ -15,8 +15,7 @@ MODULE xc_rho_set_types
    USE cp_array_utils,                  ONLY: cp_3d_r_p_type
    USE kinds,                           ONLY: dp
    USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_transfer,&
-                                              pw_zero
+                                              pw_transfer
    USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                               pw_pool_create_pw,&
                                               pw_pool_give_back_cr3d,&
@@ -36,7 +35,7 @@ MODULE xc_rho_set_types
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
                                               xc_rho_cflags_setall,&
                                               xc_rho_cflags_type
-   USE xc_util,                         ONLY: xc_pw_derive,&
+   USE xc_util,                         ONLY: xc_pw_gradient,&
                                               xc_pw_laplace,&
                                               xc_pw_smooth
 #include "../base/base_uses.f90"
@@ -634,10 +633,7 @@ CONTAINS
                                       use_data=REALDATA3D, in_space=REALSPACE)
                CALL xc_pw_laplace(my_rho_g, pw_pool, xc_deriv_method_id, laplace_rho_r(ispin)%pw, tmp_g=tmp_g)
             END IF
-            DO idir = 1, 3
-               CALL pw_zero(drho_r(idir, ispin)%pw)
-               CALL xc_pw_derive(my_rho_r(ispin)%pw, tmp_g, drho_r(idir, ispin)%pw, idir, xc_deriv_method_id, pw_g=my_rho_g)
-            END DO
+            CALL xc_pw_gradient(my_rho_r(ispin)%pw, my_rho_g, tmp_g, drho_r(:, ispin), xc_deriv_method_id)
 
             IF (needs_rho_g) THEN
                IF (my_rho_g_local) THEN

@@ -40,7 +40,7 @@ MODULE xc_util
 
    PRIVATE
 
-   PUBLIC :: xc_pw_smooth, xc_pw_laplace, xc_pw_divergence, xc_pw_derive, xc_requires_tmp_g
+   PUBLIC :: xc_pw_smooth, xc_pw_laplace, xc_pw_divergence, xc_pw_derive, xc_requires_tmp_g, xc_pw_gradient
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_util'
 
 CONTAINS
@@ -105,6 +105,28 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE xc_pw_smooth
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw_r ...
+!> \param pw_g ...
+!> \param tmp_g ...
+!> \param gradient ...
+!> \param xc_deriv_method_id ...
+! **************************************************************************************************
+   SUBROUTINE xc_pw_gradient(pw_r, pw_g, tmp_g, gradient, xc_deriv_method_id)
+      TYPE(pw_type), INTENT(IN), POINTER                 :: pw_r, pw_g, tmp_g
+      TYPE(pw_p_type), DIMENSION(3), INTENT(IN)          :: gradient
+      INTEGER, INTENT(IN)                                :: xc_deriv_method_id
+
+      INTEGER                                            :: idir
+
+      DO idir = 1, 3
+         CALL pw_zero(gradient(idir)%pw)
+         CALL xc_pw_derive(pw_r, tmp_g, gradient(idir)%pw, idir, xc_deriv_method_id, pw_g=pw_g)
+      END DO
+
+   END SUBROUTINE xc_pw_gradient
 
 ! **************************************************************************************************
 !> \brief Calculates the Laplacian of pw
