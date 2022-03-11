@@ -49,6 +49,7 @@ RUN ./install_cp2k_toolchain.sh \
     --with-libxc=install \
     --with-libxsmm=install \
     --with-libint=install \
+    --with-libvori=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.

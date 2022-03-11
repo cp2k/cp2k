@@ -38,7 +38,10 @@ def main() -> None:
             f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version) + regtest("ssmp"))
 
     with OutputFile("Dockerfile.test_i386", args.check) as f:
-        f.write(toolchain_ubuntu_nompi(base_image="i386/debian:11") + regtest("ssmp"))
+        f.write(
+            toolchain_ubuntu_nompi(base_image="i386/debian:11", libvori=False)
+            + regtest("ssmp")
+        )
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
         f.write(toolchain_full() + performance())
@@ -313,7 +316,7 @@ def toolchain_full(base_image: str = "ubuntu:20.04", mpi_mode: str = "mpich") ->
 
 # ======================================================================================
 def toolchain_ubuntu_nompi(
-    base_image: str = "ubuntu:20.04", gcc_version: int = 10
+    base_image: str = "ubuntu:20.04", gcc_version: int = 10, libvori: bool = True,
 ) -> str:
     return fr"""
 FROM {base_image}
@@ -348,6 +351,7 @@ RUN ln -sf gcc-{gcc_version}      /usr/bin/gcc  && \
         with_libxc="install",
         with_libxsmm="install",
         with_libint="install",
+        with_libvori=("install" if libvori else "no"),
     )
 
 
