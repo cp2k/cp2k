@@ -68,7 +68,7 @@ MODULE xc
    USE xc_derivatives, ONLY: xc_functionals_eval, &
                              xc_functionals_get_needs
    USE xc_input_constants, ONLY: &
-      xc_debug_new_routine, xc_new_f_routine, xc_test_lsd_f_routine
+      xc_debug_new_routine, xc_default_f_routine, xc_test_lsd_f_routine
    USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
    USE xc_rho_set_types, ONLY: xc_rho_set_create, &
                                xc_rho_set_get, &
@@ -176,7 +176,7 @@ CONTAINS
       CALL section_vals_val_get(xc_section, "FUNCTIONAL_ROUTINE", &
                                 i_val=f_routine)
       SELECT CASE (f_routine)
-      CASE (xc_new_f_routine)
+      CASE (xc_default_f_routine)
          CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau, tau=tau, exc_r=exc_r, &
                                rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section, &
                                pw_pool=pw_pool, compute_virial=compute_virial, virial_xc=virial_xc)
