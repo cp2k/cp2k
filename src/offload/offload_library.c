@@ -16,11 +16,8 @@
 
 #if defined(__OFFLOAD_PROFILING)
 #if defined(__OFFLOAD_CUDA)
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include <nvToolsExt.h>
 #elif defined(__OFFLOAD_HIP) && defined(__HIP_PLATFORM_AMD__)
-#include <hip/hip_runtime_api.h>
 #include <roctracer/roctx.h>
 #endif
 #endif
