@@ -278,17 +278,17 @@ ifneq ($(USE_SIRIUS),)
    DFLAGS         += -D__SPLA
    DFLAGS         += -D__SIRIUS
    ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5
-      LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
-      LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
-      LIBS           += -Wl,-rpath=$(LIBVDWXC_LIB) -L$(LIBVDWXC_LIB) -lvdwxc
       LIBS           += -Wl,-rpath=$(SIRIUS_LIB) -L$(SIRIUS_LIB) -lsirius
+      LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
+      LIBS           += -Wl,-rpath=$(SPFFT_LIB) -L$(SPFFT_LIB) -lspfft
+      LIBS           += -Wl,-rpath=$(LIBVDWXC_LIB) -L$(LIBVDWXC_LIB) -lvdwxc
+      LIBS           += -Wl,-rpath=$(HDF5_LIB) -L$(HDF5_LIB) -lhdf5
    else
-      LIBS           += $(HDF5_LIB)/libhdf5.a
-      LIBS           += $(SPFFT_LIB)/libspfft.a
-      LIBS           += $(SPLA_LIB)/libspla.a
-      LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
       LIBS           += $(SIRIUS_LIB)/libsirius.a
+      LIBS           += $(SPLA_LIB)/libspla.a
+      LIBS           += $(SPFFT_LIB)/libspfft.a
+      LIBS           += $(LIBVDWXC_LIB)/libvdwxc.a
+      LIBS           += $(HDF5_LIB)/libhdf5.a
    endif
 endif
 
