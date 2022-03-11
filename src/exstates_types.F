@@ -53,6 +53,7 @@ MODULE exstates_types
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: fingerprint
    END TYPE excited_energy_type
 
 CONTAINS
@@ -118,6 +119,10 @@ CONTAINS
             END DO
             DEALLOCATE (ex_env%vadmm_rspace)
          END IF
+         IF (ASSOCIATED(ex_env%fingerprint)) THEN
+            DEALLOCATE (ex_env%fingerprint)
+            NULLIFY (ex_env%fingerprint)
+         END IF
 
          DEALLOCATE (ex_env)
 
@@ -150,8 +155,9 @@ CONTAINS
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%XC_KERNEL_METHOD", &
                                    i_val=ex_env%xc_kernel_method)
       ELSE
-         ex_env%state = -1
+         ex_env%state = 0
       END IF
+      NULLIFY (ex_env%fingerprint)
 
    END SUBROUTINE exstate_create
 

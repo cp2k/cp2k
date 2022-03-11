@@ -32,6 +32,7 @@ MODULE mulliken
 ! *** Public subroutines ***
 
    PUBLIC :: mulliken_charges, ao_charges, mulliken_restraint, compute_bond_order
+   PUBLIC :: compute_charges
 
    INTERFACE mulliken_charges
       MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b, mulliken_charges_c, &
