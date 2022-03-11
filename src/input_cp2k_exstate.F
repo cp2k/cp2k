@@ -62,7 +62,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STATE", &
-                          description="Excited state to be used in calculation.", &
+                          description="Excited state to be used in calculation. Negative values indicate state following.", &
                           usage="STATE 2", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
