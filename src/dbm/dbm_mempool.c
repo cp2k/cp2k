@@ -11,23 +11,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(__DBM_CUDA)
-#include <cuda_runtime.h>
-#endif
-
 #include "../offload/offload_library.h"
+#include "../offload/offload_runtime.h"
 #include "dbm_mempool.h"
-
-/*******************************************************************************
- * \brief Check given Cuda status and upon failure abort with a nice message.
- * \author Ole Schuett
- ******************************************************************************/
-#define CHECK(status)                                                          \
-  if (status != cudaSuccess) {                                                 \
-    fprintf(stderr, "ERROR: %s %s %d\n", cudaGetErrorString(status), __FILE__, \
-            __LINE__);                                                         \
-    abort();                                                                   \
-  }
 
 /*******************************************************************************
  * \brief Private routine for actually allocating system memory.
@@ -36,11 +22,11 @@
 static void *actual_malloc(const size_t size, const bool on_device) {
   (void)on_device; // mark used
 
-#if defined(__DBM_CUDA)
+#if defined(__DBM_CUDA) || defined(__DBM_HIP)
   if (on_device) {
     void *memory;
     offload_activate_chosen_device();
-    CHECK(cudaMalloc(&memory, size));
+    offloadMalloc(&memory, size);
     assert(memory != NULL);
     return memory;
   }
@@ -62,10 +48,10 @@ static void actual_free(void *memory, const bool on_device) {
     return;
   }
 
-#if defined(__DBM_CUDA)
+#if defined(__DBM_CUDA) || defined(__DBM_HIP)
   if (on_device) {
     offload_activate_chosen_device();
-    CHECK(cudaFree(memory));
+    offloadFree(memory);
     return;
   }
 #else

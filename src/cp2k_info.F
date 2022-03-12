@@ -300,6 +300,9 @@ CONTAINS
 #if defined(__DBM_CUDA)
       flags = TRIM(flags)//" dbm_cuda"
 #endif
+#if defined(__DBM_HIP)
+      flags = TRIM(flags)//" dbm_hip"
+#endif
 #if defined(__OFFLOAD_PROFILING)
       flags = TRIM(flags)//" offload_profiling"
 #endif

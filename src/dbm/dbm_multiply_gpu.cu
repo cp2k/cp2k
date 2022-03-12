@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifdef __DBM_CUDA
+#if defined(__DBM_CUDA) || defined(__DBM_HIP)
 
 #include <assert.h>
 #include <stdio.h>
@@ -252,6 +252,6 @@ void dbm_multiply_gpu_stop(dbm_multiply_gpu_context_t *ctx) {
   offloadStreamDestroy(ctx->main_stream);
 }
 
-#endif // __DBM_CUDA
+#endif // defined(__DBM_CUDA) || defined(__DBM_HIP)
 
 // EOF

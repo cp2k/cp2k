@@ -9,6 +9,10 @@
 
 #include <omp.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*******************************************************************************
  * \brief Internal struct for storing a block's metadata.
  * \author Ole Schuett
@@ -88,6 +92,10 @@ dbm_block_t *dbm_shard_get_or_promise_block(dbm_shard_t *shard, const int row,
 dbm_block_t *dbm_shard_get_or_allocate_block(dbm_shard_t *shard, const int row,
                                              const int col,
                                              const int block_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 
