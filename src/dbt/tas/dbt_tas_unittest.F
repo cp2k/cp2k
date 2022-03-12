@@ -34,7 +34,7 @@ PROGRAM dbt_tas_unittest
                                               mp_world_finalize,&
                                               mp_world_init
    USE offload_api,                     ONLY: offload_get_device_count,&
-                                              offload_set_device_id
+                                              offload_set_chosen_device
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -55,7 +55,7 @@ PROGRAM dbt_tas_unittest
 
    ! Select active offload device when available.
    IF (offload_get_device_count() > 0) THEN
-      CALL offload_set_device_id(MOD(mynode, offload_get_device_count()))
+      CALL offload_set_chosen_device(MOD(mynode, offload_get_device_count()))
    END IF
 
    io_unit = -1

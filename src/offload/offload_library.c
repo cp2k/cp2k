@@ -22,7 +22,7 @@
 #endif
 #endif
 
-static int current_device_id = -1;
+static int chosen_device_id = -1;
 
 const uint32_t colormap[] = {0xFFFFFF00,  // Yellow
                              0xFFFF00FF,  // Fuchsia
@@ -54,26 +54,26 @@ int offload_get_device_count(void) {
 }
 
 /*******************************************************************************
- * \brief Selects the device to be used.
+ * \brief Selects the chosen device to be used.
  * \author Ole Schuett
  ******************************************************************************/
-void offload_set_device_id(int device_id) { current_device_id = device_id; }
+void offload_set_chosen_device(int device_id) { chosen_device_id = device_id; }
 
 /*******************************************************************************
- * \brief Returns the device to be used.
+ * \brief Returns the chosen device.
  * \author Ole Schuett
  ******************************************************************************/
-int offload_get_device_id(void) { return current_device_id; }
+int offload_get_chosen_device(void) { return chosen_device_id; }
 
 /*******************************************************************************
- * \brief Activates the device selected via offload_set_device_id()
+ * \brief Activates the device selected via offload_set_chosen_device()
  * \author Ole Schuett
  ******************************************************************************/
-void offload_set_device(void) {
+void offload_activate_chosen_device(void) {
 #ifdef __OFFLOAD_CUDA
-  OFFLOAD_CHECK(cudaSetDevice(current_device_id));
+  OFFLOAD_CHECK(cudaSetDevice(chosen_device_id));
 #elif defined(__OFFLOAD_HIP)
-  OFFLOAD_CHECK(hipSetDevice(current_device_id));
+  OFFLOAD_CHECK(hipSetDevice(chosen_device_id));
 #endif
 }
 

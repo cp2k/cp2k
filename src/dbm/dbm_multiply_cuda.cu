@@ -59,7 +59,7 @@ void dbm_multiply_cuda_start(const int max_batch_size, const int nshards,
                              dbm_shard_t *shards_c_host,
                              dbm_multiply_cuda_context_t *ctx) {
   // Select GPU device.
-  offload_set_device();
+  offload_activate_chosen_device();
 
   ctx->nshards = nshards;
   ctx->shards_c_host = shards_c_host;
@@ -108,7 +108,7 @@ void dbm_multiply_cuda_upload_packs(const dbm_pack_t *pack_a,
                                     const dbm_pack_t *pack_b,
                                     dbm_multiply_cuda_context_t *ctx) {
   // Select GPU device.
-  offload_set_device();
+  offload_activate_chosen_device();
 
   // Wait for all c-streams to complete before overwriting old packs.
   cudaEvent_t event;
@@ -172,7 +172,7 @@ void dbm_multiply_cuda_process_batch(const int ntasks, const dbm_task_t *batch,
   }
 
   // Select GPU device.
-  offload_set_device();
+  offload_activate_chosen_device();
 
   const dbm_shard_t *shard_c_host = &ctx->shards_c_host[kshard];
   dbm_shard_cuda_t *shard_c_dev = &ctx->shards_c_dev[kshard];
@@ -224,7 +224,7 @@ void dbm_multiply_cuda_process_batch(const int ntasks, const dbm_task_t *batch,
  ******************************************************************************/
 void dbm_multiply_cuda_download_results(dbm_multiply_cuda_context_t *ctx) {
   // Select GPU device.
-  offload_set_device();
+  offload_activate_chosen_device();
 
 #pragma omp parallel for schedule(dynamic)
   for (int i = 0; i < ctx->nshards; i++) {
@@ -247,7 +247,7 @@ void dbm_multiply_cuda_download_results(dbm_multiply_cuda_context_t *ctx) {
  ******************************************************************************/
 void dbm_multiply_cuda_stop(dbm_multiply_cuda_context_t *ctx) {
   // Select GPU device.
-  offload_set_device();
+  offload_activate_chosen_device();
 
   // Wait for completion, then free cuda ressources.
 #pragma omp parallel for schedule(dynamic)

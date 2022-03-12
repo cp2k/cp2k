@@ -27,7 +27,7 @@ MODULE offload_gemm
                    SPLA_SUCCESS
 #endif
 
-   USE offload_api, ONLY: offload_set_device
+   USE offload_api, ONLY: offload_activate_chosen_device
 
 #include "./base/base_uses.f90"
 
@@ -119,7 +119,7 @@ CONTAINS
          CPASSERT(IS_CONTIGUOUS(C))
 #endif
 
-         CALL offload_set_device()
+         CALL offload_activate_chosen_device()
          spla_error = spla_dgemm(spla_op_A, spla_op_B, &
                                  m, n, k, alpha, &
                                  c_loc(A), lda, &
@@ -152,7 +152,7 @@ CONTAINS
       INTEGER error_
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      CALL offload_set_device()
+      CALL offload_activate_chosen_device()
 
       error_ = spla_ctx_create(ctx, pu)
       CPASSERT(error_ == SPLA_SUCCESS)
@@ -174,7 +174,7 @@ CONTAINS
       INTEGER error_
 
 #if defined(__SPLA)  && defined(__OFFLOAD_GEMM)
-      CALL offload_set_device()
+      CALL offload_activate_chosen_device()
 
       error_ = spla_ctx_destroy(ctx)
       CPASSERT(error_ == SPLA_SUCCESS)
@@ -198,7 +198,7 @@ CONTAINS
 
       error__ = 0
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      CALL offload_set_device()
+      CALL offload_activate_chosen_device()
       error__ = spla_ctx_set_op_threshold_gpu(ctx, opThresholdGPU)
 #else
       MARK_USED(ctx)
