@@ -10,7 +10,7 @@
 
 #if defined(__GRID_CUDA) || defined(__DBM_CUDA) || defined(__PW_CUDA)
 #define __OFFLOAD_CUDA
-#elif defined(__GRID_HIP) || defined(__PW_HIP)
+#elif defined(__GRID_HIP) || defined(__DBM_HIP) || defined(__PW_HIP)
 #define __OFFLOAD_HIP
 #endif
 

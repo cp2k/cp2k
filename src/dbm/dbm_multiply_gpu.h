@@ -8,16 +8,15 @@
 #ifndef DBM_MULTIPLY_GPU_H
 #define DBM_MULTIPLY_GPU_H
 
-#ifdef __DBM_CUDA
+#if defined(__DBM_CUDA) || defined(__DBM_HIP)
+
+#include "../offload/offload_runtime.h"
+#include "dbm_multiply_internal.h"
+#include "dbm_shard.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "../offload/offload_runtime.h"
-
-#include "dbm_multiply_internal.h"
-#include "dbm_shard.h"
 
 /*******************************************************************************
  * \brief Internal struct for storing per shard gpu objects.
@@ -88,7 +87,7 @@ void dbm_multiply_gpu_stop(dbm_multiply_gpu_context_t *ctx);
 }
 #endif
 
-#endif // __DBM_CUDA
+#endif // (defined(__DBM_CUDA) || defined(__DBM_HIP))
 #endif
 
 // EOF

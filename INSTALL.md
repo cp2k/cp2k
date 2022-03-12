@@ -340,6 +340,7 @@ should work out of the box on Nvidia hardware as well.
 
 - USE `-D__GRID_HIP` to enable AMD GPU support for collocate and integrate
   routines.
+- Use the `-D__DBM_HIP` to compile the GPU backend for the sparse tensor library.
 - Add `GPUVER=Mi50, Mi60, Mi100`
 - Add `OFFLOAD_CC = hipcc`
 - Add  `-lamdhip64` to the `LIBS` variable
