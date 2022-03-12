@@ -944,8 +944,8 @@ CONTAINS
          !
          ALLOCATE (dv(nstate))
          DO is = 1, nstate
-            dvp = SQRT(SUM((fingerprint(:, :) + charges(:, :, is))**2)/FLOAT(natom))
-            dvm = SQRT(SUM((fingerprint(:, :) - charges(:, :, is))**2)/FLOAT(natom))
+            dvp = SQRT(SUM((fingerprint(:, :) + charges(:, :, is))**2)/REAL(natom, dp))
+            dvm = SQRT(SUM((fingerprint(:, :) - charges(:, :, is))**2)/REAL(natom, dp))
             dv(is) = MIN(dvp, dvm)
          END DO
          !
