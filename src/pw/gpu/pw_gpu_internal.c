@@ -14,7 +14,7 @@
 
 #include "../../offload/offload_fft.h"
 #include "../../offload/offload_library.h"
-#include "../../offload/offload_operations.h"
+#include "../../offload/offload_runtime.h"
 
 #include "pw_gpu_kernels.h"
 
