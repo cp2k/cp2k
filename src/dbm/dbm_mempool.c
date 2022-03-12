@@ -39,7 +39,7 @@ static void *actual_malloc(const size_t size, const bool on_device) {
 #if defined(__DBM_CUDA)
   if (on_device) {
     void *memory;
-    offload_set_device();
+    offload_activate_chosen_device();
     CHECK(cudaMalloc(&memory, size));
     assert(memory != NULL);
     return memory;
@@ -64,7 +64,7 @@ static void actual_free(void *memory, const bool on_device) {
 
 #if defined(__DBM_CUDA)
   if (on_device) {
-    offload_set_device();
+    offload_activate_chosen_device();
     CHECK(cudaFree(memory));
     return;
   }

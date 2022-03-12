@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  offload_set_device_id(0);
+  offload_set_chosen_device(0);
   grid_library_init();
 
   const double max_diff =

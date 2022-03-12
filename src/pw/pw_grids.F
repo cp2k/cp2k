@@ -47,9 +47,9 @@ MODULE pw_grids
    USE message_passing,                 ONLY: &
         mp_allgather, mp_cart_coords, mp_cart_create, mp_cart_rank, mp_comm_compare, mp_comm_dup, &
         mp_comm_free, mp_comm_self, mp_dims_create, mp_environ, mp_max, mp_min, mp_sum
-   USE offload_api,                     ONLY: offload_free_pinned_mem,&
-                                              offload_malloc_pinned_mem,&
-                                              offload_set_device
+   USE offload_api,                     ONLY: offload_activate_chosen_device,&
+                                              offload_free_pinned_mem,&
+                                              offload_malloc_pinned_mem
    USE pw_grid_info,                    ONLY: pw_find_cutoff,&
                                               pw_grid_bounds_from_n,&
                                               pw_grid_init_setup
@@ -1713,7 +1713,7 @@ CONTAINS
       nmaps = 1
       IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
 #if defined ( __PW_GPU )
-      CALL offload_set_device()
+      CALL offload_activate_chosen_device()
 
       length = INT(int_size*MAX(ng, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
       stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)

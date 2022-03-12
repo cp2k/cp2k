@@ -252,7 +252,7 @@ void grid_gpu_create_task_list(
     const double dh_inv[][3][3], grid_gpu_task_list **task_list_out) {
 
   // Select GPU device.
-  offload_set_device();
+  offload_activate_chosen_device();
 
   if (*task_list_out != NULL) {
     // This is actually an opportunity to reuse some buffers.
@@ -391,7 +391,7 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
                                   offload_buffer *grids[]) {
 
   // Select GPU device.
-  offload_set_device();
+  offload_activate_chosen_device();
 
   // Upload blocks buffer using the main stream
   CHECK(cudaMemcpyAsync(pab_blocks->device_buffer, pab_blocks->host_buffer,
@@ -467,7 +467,7 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
                                   double forces[][3], double virial[3][3]) {
 
   // Select GPU device.
-  offload_set_device();
+  offload_activate_chosen_device();
 
   // Prepare shared buffers using the main stream
   double *forces_dev = NULL;

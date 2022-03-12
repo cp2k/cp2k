@@ -7,12 +7,6 @@
 #ifndef OFFLOAD_LIBRARY_H
 #define OFFLOAD_LIBRARY_H
 
-#if defined(__GRID_CUDA) || defined(__DBM_CUDA) || defined(__PW_CUDA)
-#define __OFFLOAD_CUDA
-#elif defined(__GRID_HIP) || defined(__PW_HIP)
-#define __OFFLOAD_HIP
-#endif
-
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -25,22 +19,22 @@ extern "C" {
 int offload_get_device_count(void);
 
 /*******************************************************************************
- * \brief Selects the device to be used.
+ * \brief Selects the chosen device to be used.
  * \author Ole Schuett
  ******************************************************************************/
-void offload_set_device_id(int device_id);
+void offload_set_chosen_device(int device_id);
 
 /*******************************************************************************
- * \brief Returns the device to be used.
+ * \brief Returns the chosen device.
  * \author Ole Schuett
  ******************************************************************************/
-int offload_get_device_id(void);
+int offload_get_chosen_device(void);
 
 /*******************************************************************************
- * \brief Activates the device selected via offload_set_device_id()
+ * \brief Activates the device selected via offload_set_chosen_device()
  * \author Ole Schuett
  ******************************************************************************/
-void offload_set_device(void);
+void offload_activate_chosen_device(void);
 
 /*******************************************************************************
  * \brief Starts a timing range.

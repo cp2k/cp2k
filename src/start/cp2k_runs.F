@@ -116,7 +116,7 @@ MODULE cp2k_runs
    USE neb_methods, ONLY: neb
    USE negf_methods, ONLY: do_negf
    USE offload_api, ONLY: offload_get_device_count, &
-                          offload_get_device_id
+                          offload_get_chosen_device
    USE optimize_basis, ONLY: run_optimize_basis
    USE optimize_input, ONLY: run_optimize_input
    USE pint_methods, ONLY: do_pint_run
@@ -203,7 +203,7 @@ CONTAINS
 #if defined(__DBCSR_ACC)
       IF (offload_get_device_count() > 0) THEN
          CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit, &
-                             accdrv_active_device_id=offload_get_device_id())
+                             accdrv_active_device_id=offload_get_chosen_device())
       ELSE
          CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
       END IF
@@ -293,7 +293,7 @@ CONTAINS
 #if defined(__DBCSR_ACC)
          IF (offload_get_device_count() > 0) THEN
             CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit, &
-                                accdrv_active_device_id=offload_get_device_id())
+                                accdrv_active_device_id=offload_get_chosen_device())
          ELSE
             CALL dbcsr_init_lib(mpi_comm, io_unit=output_unit)
          END IF

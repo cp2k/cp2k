@@ -23,7 +23,7 @@ MODULE cp_gemm_interface
    USE input_constants,                 ONLY: do_cosma,&
                                               do_scalapack
    USE kinds,                           ONLY: dp
-   USE offload_api,                     ONLY: offload_set_device
+   USE offload_api,                     ONLY: offload_activate_chosen_device
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -88,7 +88,7 @@ CONTAINS
       CASE (do_cosma)
 #if defined(__COSMA)
          CALL timeset(routineN//"_cosma", handle1)
-         CALL offload_set_device()
+         CALL offload_activate_chosen_device()
          CALL cosma_pdgemm(transa=transa, transb=transb, m=m, n=n, k=k, alpha=alpha, &
                            matrix_a=matrix_a, matrix_b=matrix_b, beta=beta, matrix_c=matrix_c, &
                            a_first_col=a_first_col, &

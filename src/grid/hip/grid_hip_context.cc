@@ -51,7 +51,7 @@ extern "C" void grid_hip_create_task_list(
   // Select GPU device.
   rocm_backend::context_info *ctx = nullptr;
   if (*ctx_out == nullptr) {
-    ctx = new rocm_backend::context_info(offload_get_device_id());
+    ctx = new rocm_backend::context_info(offload_get_chosen_device());
     *ctx_out = ctx;
   } else {
     ctx = *ctx_out;

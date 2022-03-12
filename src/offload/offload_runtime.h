@@ -8,12 +8,16 @@
 #ifndef OFFLOAD_RUNTIME_H
 #define OFFLOAD_RUNTIME_H
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "offload_library.h"
+#if defined(__GRID_CUDA) || defined(__DBM_CUDA) || defined(__PW_CUDA)
+#define __OFFLOAD_CUDA
+#elif defined(__GRID_HIP) || defined(__PW_HIP)
+#define __OFFLOAD_HIP
+#endif
 
 #if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
+
+#include <stdio.h>
+#include <stdlib.h>
 
 #if defined(__OFFLOAD_CUDA)
 #include <cuda_runtime.h>

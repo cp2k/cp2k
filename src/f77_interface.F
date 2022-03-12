@@ -114,8 +114,8 @@ MODULE f77_interface
                                     nnp_env_release, &
                                     nnp_type
    USE offload_api, ONLY: offload_get_device_count, &
-                          offload_get_device_id, &
-                          offload_set_device_id
+                          offload_get_chosen_device, &
+                          offload_set_chosen_device
    USE periodic_table, ONLY: init_periodic_table
 #if defined(__PW_GPU)
    USE pw_gpu, ONLY: pw_gpu_finalize, &
@@ -276,7 +276,7 @@ CONTAINS
          ! Select active offload device when available.
          IF (offload_get_device_count() > 0) THEN
             CALL mp_environ(numtask=numtask, taskid=taskid, groupid=mpi_comm_default)
-            CALL offload_set_device_id(MOD(taskid, offload_get_device_count()))
+            CALL offload_set_chosen_device(MOD(taskid, offload_get_device_count()))
          END IF
 
          ! Initialize the DBCSR configuration
@@ -285,7 +285,7 @@ CONTAINS
          IF (offload_get_device_count() > 0) THEN
             CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
-                                accdrv_active_device_id=offload_get_device_id())
+                                accdrv_active_device_id=offload_get_chosen_device())
          ELSE
             CALL dbcsr_init_lib(default_para_env%group, timeset_hook, timestop_hook, &
                                 cp_abort_hook, cp_warn_hook, io_unit=unit_nr)

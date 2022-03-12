@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (offload_get_device_count() > 0) {
-    offload_set_device_id(my_rank % offload_get_device_count());
+    offload_set_chosen_device(my_rank % offload_get_device_count());
   }
 
   // Create 2D cart.

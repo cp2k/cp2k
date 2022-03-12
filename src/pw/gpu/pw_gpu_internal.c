@@ -54,7 +54,7 @@ void pw_gpu_init(void) {
 
   allocated_buffer_size = 1; // start small
   allocated_map_size = 1;
-  offload_set_device();
+  offload_activate_chosen_device();
   offloadMalloc((void **)&buffer_dev_1, allocated_buffer_size);
   offloadMalloc((void **)&buffer_dev_2, allocated_buffer_size);
   offloadMalloc((void **)&ghatmap_dev, allocated_map_size);
@@ -215,7 +215,7 @@ void pw_gpu_cfffg_z_(const double *din, double *zout, const int *ghatmap,
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   const size_t map_size = sizeof(int) * ngpts;
   ensure_memory_sizes(buffer_size, map_size);
@@ -255,7 +255,7 @@ void pw_gpu_sfffc_z_(const double *zin, double *dout, const int *ghatmap,
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   const size_t map_size = sizeof(int) * nmaps * ngpts;
   ensure_memory_sizes(buffer_size, map_size);
@@ -292,7 +292,7 @@ void pw_gpu_cff_z_(const double *din, double *zout, const int *npts) {
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   ensure_memory_sizes(buffer_size, 0);
 
@@ -326,7 +326,7 @@ void pw_gpu_ffc_z_(const double *zin, double *dout, const int *npts) {
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   ensure_memory_sizes(buffer_size, 0);
 
@@ -360,7 +360,7 @@ void pw_gpu_cf_z_(const double *din, double *zout, const int *npts) {
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   ensure_memory_sizes(buffer_size, 0);
 
@@ -391,7 +391,7 @@ void pw_gpu_fc_z_(const double *zin, double *dout, const int *npts) {
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   ensure_memory_sizes(buffer_size, 0);
 
@@ -422,7 +422,7 @@ void pw_gpu_f_z_(const double *zin, double *zout, const int dir, const int n,
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   ensure_memory_sizes(buffer_size, 0);
 
@@ -458,7 +458,7 @@ void pw_gpu_fg_z_(const double *zin, double *zout, const int *ghatmap,
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   const size_t map_size = sizeof(int) * ngpts;
   ensure_memory_sizes(buffer_size, map_size);
@@ -497,7 +497,7 @@ void pw_gpu_sf_z_(const double *zin, double *zout, const int *ghatmap,
   }
 
   // Allocate device memory.
-  offload_set_device();
+  offload_activate_chosen_device();
   const size_t buffer_size = 2 * sizeof(double) * nrpts;
   const size_t map_size = sizeof(int) * nmaps * ngpts;
   ensure_memory_sizes(buffer_size, map_size);

@@ -29,7 +29,7 @@ MODULE offload_api
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'offload_api'
 
    PUBLIC :: offload_get_device_count
-   PUBLIC :: offload_set_device_id, offload_get_device_id, offload_set_device
+   PUBLIC :: offload_set_chosen_device, offload_get_chosen_device, offload_activate_chosen_device
    PUBLIC :: offload_timeset, offload_timestop, offload_mem_info
    PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer
    PUBLIC :: offload_malloc_pinned_mem, offload_free_pinned_mem
@@ -107,63 +107,63 @@ CONTAINS
    END FUNCTION offload_get_device_count
 
 ! **************************************************************************************************
-!> \brief Selects the device to be used.
+!> \brief Selects the chosen device to be used.
 !> \param device_id ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE offload_set_device_id(device_id)
+   SUBROUTINE offload_set_chosen_device(device_id)
       INTEGER, INTENT(IN)                                :: device_id
 
       INTERFACE
-         SUBROUTINE offload_set_device_id_c(device_id) &
-            BIND(C, name="offload_set_device_id")
+         SUBROUTINE offload_set_chosen_device_c(device_id) &
+            BIND(C, name="offload_set_chosen_device")
             IMPORT :: C_INT
             INTEGER(KIND=C_INT), VALUE                :: device_id
-         END SUBROUTINE offload_set_device_id_c
+         END SUBROUTINE offload_set_chosen_device_c
       END INTERFACE
 
-      CALL offload_set_device_id_c(device_id=device_id)
+      CALL offload_set_chosen_device_c(device_id=device_id)
 
-   END SUBROUTINE offload_set_device_id
+   END SUBROUTINE offload_set_chosen_device
 
 ! **************************************************************************************************
-!> \brief Returns the device to be used.
+!> \brief Returns the chosen device.
 !> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   FUNCTION offload_get_device_id() RESULT(device_id)
+   FUNCTION offload_get_chosen_device() RESULT(device_id)
       INTEGER                                            :: device_id
 
       INTERFACE
-         FUNCTION offload_get_device_id_c() &
-            BIND(C, name="offload_get_device_id")
+         FUNCTION offload_get_chosen_device_c() &
+            BIND(C, name="offload_get_chosen_device")
             IMPORT :: C_INT
-            INTEGER(KIND=C_INT)                :: offload_get_device_id_c
-         END FUNCTION offload_get_device_id_c
+            INTEGER(KIND=C_INT)                :: offload_get_chosen_device_c
+         END FUNCTION offload_get_chosen_device_c
       END INTERFACE
 
-      device_id = offload_get_device_id_c()
+      device_id = offload_get_chosen_device_c()
 
       IF (device_id < 0) &
-         CPABORT("Offload device not selected.")
+         CPABORT("No offload device has been chosen.")
 
-   END FUNCTION offload_get_device_id
+   END FUNCTION offload_get_chosen_device
 
 ! **************************************************************************************************
-!> \brief Activates the device selected via offload_set_device_id()
+!> \brief Activates the device selected via offload_set_chosen_device()
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE offload_set_device()
+   SUBROUTINE offload_activate_chosen_device()
 
       INTERFACE
-         SUBROUTINE offload_set_device_c() &
-            BIND(C, name="offload_set_device")
-         END SUBROUTINE offload_set_device_c
+         SUBROUTINE offload_activate_chosen_device_c() &
+            BIND(C, name="offload_activate_chosen_device")
+         END SUBROUTINE offload_activate_chosen_device_c
       END INTERFACE
 
-      CALL offload_set_device_c()
+      CALL offload_activate_chosen_device_c()
 
-   END SUBROUTINE offload_set_device
+   END SUBROUTINE offload_activate_chosen_device
 
 ! **************************************************************************************************
 !> \brief Starts a timing range.
