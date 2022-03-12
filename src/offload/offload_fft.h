@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 #include "offload_library.h"
-#include "offload_operations.h"
+#include "offload_runtime.h"
 
 #if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
 

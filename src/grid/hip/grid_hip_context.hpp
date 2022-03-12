@@ -23,7 +23,7 @@ extern "C" {
 }
 
 #include "../../offload/offload_library.h"
-#include "../../offload/offload_operations.h"
+#include "../../offload/offload_runtime.h"
 namespace rocm_backend {
 // a little helper class in the same spirit than std::vector. it must exist
 // somewhere. Maybe possible to get the same thing with std::vector and

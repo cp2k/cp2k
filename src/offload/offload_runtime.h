@@ -5,8 +5,8 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef OFFLOAD_OPERATIONS_H
-#define OFFLOAD_OPERATIONS_H
+#ifndef OFFLOAD_RUNTIME_H
+#define OFFLOAD_RUNTIME_H
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "offload_library.h"
-#include "offload_operations.h"
+#include "offload_runtime.h"
 
 #if defined(__OFFLOAD_PROFILING)
 #if defined(__OFFLOAD_CUDA)

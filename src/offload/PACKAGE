@@ -5,7 +5,7 @@
         "offload_api.F",
         "offload_buffer.h",
         "offload_library.h",
-        "offload_operations.h",
+        "offload_runtime.h",
         "offload_fft.h",
     ],
 }

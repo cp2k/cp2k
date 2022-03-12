@@ -8,7 +8,7 @@
 #ifndef PW_GPU_KERNELS_H
 #define PW_GPU_KERNELS_H
 
-#include "../../offload/offload_operations.h"
+#include "../../offload/offload_runtime.h"
 
 #ifdef __cplusplus
 extern "C" {
