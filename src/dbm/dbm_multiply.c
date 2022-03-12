@@ -15,7 +15,7 @@
 #include "dbm_multiply.h"
 #include "dbm_multiply_comm.h"
 #include "dbm_multiply_cpu.h"
-#include "dbm_multiply_cuda.h"
+#include "dbm_multiply_gpu.h"
 #include "dbm_multiply_internal.h"
 
 /*******************************************************************************
@@ -58,7 +58,7 @@ static float *compute_rows_max_eps(const bool trans, const dbm_matrix_t *matrix,
  ******************************************************************************/
 typedef struct {
 #if defined(__DBM_CUDA)
-  dbm_multiply_cuda_context_t cuda;
+  dbm_multiply_gpu_context_t gpu;
 #endif
 } backend_context_t;
 
@@ -70,8 +70,8 @@ static backend_context_t *backend_start(const dbm_matrix_t *matrix_c) {
   backend_context_t *ctx = calloc(1, sizeof(backend_context_t));
 
 #if defined(__DBM_CUDA)
-  dbm_multiply_cuda_start(MAX_BATCH_SIZE, matrix_c->nshards, matrix_c->shards,
-                          &ctx->cuda);
+  dbm_multiply_gpu_start(MAX_BATCH_SIZE, matrix_c->nshards, matrix_c->shards,
+                         &ctx->gpu);
 #else
   (void)matrix_c; // mark as used
 #endif
@@ -88,7 +88,7 @@ static void backend_upload_packs(const dbm_pack_t *pack_a,
                                  backend_context_t *ctx) {
 
 #if defined(__DBM_CUDA)
-  dbm_multiply_cuda_upload_packs(pack_a, pack_b, &ctx->cuda);
+  dbm_multiply_gpu_upload_packs(pack_a, pack_b, &ctx->gpu);
 #else
   (void)pack_a;   // mark as used
   (void)pack_b;
@@ -110,8 +110,8 @@ static void backend_process_batch(const int ntasks, dbm_task_t batch[ntasks],
   (void)pack_a; // mark as used
   (void)pack_b;
   (void)shard_c;
-  dbm_multiply_cuda_process_batch(ntasks, batch, transa, transb, alpha, kshard,
-                                  &ctx->cuda);
+  dbm_multiply_gpu_process_batch(ntasks, batch, transa, transb, alpha, kshard,
+                                 &ctx->gpu);
 #else
   (void)kshard; // mark as used
   (void)ctx;
@@ -126,7 +126,7 @@ static void backend_process_batch(const int ntasks, dbm_task_t batch[ntasks],
  ******************************************************************************/
 static void backend_download_results(backend_context_t *ctx) {
 #if defined(__DBM_CUDA)
-  dbm_multiply_cuda_download_results(&ctx->cuda);
+  dbm_multiply_gpu_download_results(&ctx->gpu);
 #else
   (void)ctx; // mark as used
 #endif
@@ -138,7 +138,7 @@ static void backend_download_results(backend_context_t *ctx) {
  ******************************************************************************/
 static void backend_stop(backend_context_t *ctx) {
 #if defined(__DBM_CUDA)
-  dbm_multiply_cuda_stop(&ctx->cuda);
+  dbm_multiply_gpu_stop(&ctx->gpu);
 #endif
   free(ctx);
 }

@@ -68,6 +68,17 @@ static inline const char *offloadGetErrorName(offloadError_t error) {
 }
 
 /*******************************************************************************
+ * \brief Wrapper around cudaGetLastError.
+ ******************************************************************************/
+static inline offloadError_t offloadGetLastError(void) {
+#if defined(__OFFLOAD_CUDA)
+  return cudaGetLastError();
+#elif defined(__OFFLOAD_HIP)
+  return hipGetLastError();
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around cudaMemsetAsync.
  ******************************************************************************/
 static inline void offloadMemsetAsync(void *const ptr, const int val,
@@ -118,6 +129,21 @@ static inline void offloadMemcpyAsyncDtoH(void *const ptr1, const void *ptr2,
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_CHECK(
       hipMemcpyAsync(ptr1, ptr2, size, hipMemcpyDeviceToHost, stream));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around cudaMemcpyAsync(...,cudaMemcpyDeviceToDevice).
+ ******************************************************************************/
+static inline void offloadMemcpyAsyncDtoD(void *ptr1, const void *ptr2,
+                                          const size_t size,
+                                          const offloadStream_t stream) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(
+      cudaMemcpyAsync(ptr1, ptr2, size, cudaMemcpyDeviceToDevice, stream));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(
+      hipMemcpyAsync(ptr1, ptr2, size, hipMemcpyDeviceToDevice, stream));
 #endif
 }
 
