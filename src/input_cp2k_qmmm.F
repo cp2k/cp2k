@@ -980,8 +980,8 @@ CONTAINS
                           usage="LINK_TYPE char", &
                           enum_c_vals=s2a("IMOMM", "GHO", "PSEUDO"), &
                           enum_i_vals=(/do_qmmm_link_imomm, do_qmmm_link_gho, do_qmmm_link_pseudo/), &
-                          enum_desc=s2a("Use Generalized Hybrid Orbital method", &
-                                        "Use Integrated Molecular Orbital Molecular Mechanics method", &
+                          enum_desc=s2a("Use Integrated Molecular Orbital Molecular Mechanics method", &
+                                        "Use Generalized Hybrid Orbital method", &
                                         "Use a monovalent pseudo-potential"), &
                           default_i_val=do_qmmm_link_imomm)
       CALL section_add_keyword(section, keyword)
