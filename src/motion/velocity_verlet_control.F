@@ -19,8 +19,8 @@ MODULE velocity_verlet_control
         nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, &
         npt_ia_ensemble, nve_ensemble, nvt_adiabatic_ensemble, nvt_ensemble, reftraj_ensemble
    USE integrator,                      ONLY: &
-        isokin, langevin, nph_uniaxial, nph_uniaxial_damped, npt_f, npt_i, npt_ia, nve, nve_respa, &
-        nvt, nvt_adiabatic, reftraj
+        isokin, langevin, nph_uniaxial, nph_uniaxial_damped, npt_f, npt_i, nve, nve_respa, nvt, &
+        nvt_adiabatic, reftraj
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE simpar_types,                    ONLY: simpar_type
@@ -79,10 +79,8 @@ CONTAINS
          CALL nvt_adiabatic(md_env, globenv)
       CASE (isokin_ensemble)
          CALL isokin(md_env)
-      CASE (npt_i_ensemble)
+      CASE (npt_i_ensemble, npt_ia_ensemble, npe_i_ensemble)
          CALL npt_i(md_env, globenv)
-      CASE (npt_ia_ensemble)
-         CALL npt_ia(md_env, globenv)
       CASE (npt_f_ensemble)
          CALL npt_f(md_env, globenv)
       CASE (nph_uniaxial_ensemble)
@@ -95,8 +93,6 @@ CONTAINS
          CALL langevin(md_env)
       CASE (npe_f_ensemble)
          CALL npt_f(md_env, globenv)
-      CASE (npe_i_ensemble)
-         CALL npt_i(md_env, globenv)
       END SELECT
 
       CALL timestop(handle)

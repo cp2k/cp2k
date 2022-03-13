@@ -3,5 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-test_npt_ia.inp                                  97      1e-6                3.350000
+test_gal19.inp                                  11      8e-12                -2.717713309171477
+test_gal21.inp                                  11      8e-12                -2.729695004946153
+test_npt_ia.inp                                 97      1e-6                  3.350000
 #EOF

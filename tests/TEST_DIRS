@@ -306,12 +306,11 @@ SE/regtest-3-1
 QMMM/QS/regtest-lrigpw
 Fist/regtest-field
 Fist/regtest-gauss
-Fist/regtest-gal19
-Fist/regtest-gal21
 QS/regtest-fftw                                             fftw3
 QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
 ATOM/regtest-libxc                                          libxc
 Fist/regtest-spgr                                           spglib
 Fist/regtest-plumed2                                        plumed2
 Fist/regtest-quip                                           quip
-Fist/regtest-npt_ia
+Fist/regtest-16
+
