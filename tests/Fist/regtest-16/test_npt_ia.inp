@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT test_barostat 
+  PROJECT md_npt_ia
   RUN_TYPE md
   &PRINT DEBUG 
   &END
@@ -97,7 +97,7 @@
       PERIODIC  XYZ
     &END CELL
     &COORD
-      @INCLUDE "coord.inc"
+      @INCLUDE "coord-npt_ia.inc"
     &END COORD
     &TOPOLOGY
      &GENERATE

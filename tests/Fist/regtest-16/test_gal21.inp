@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT md_gal
+  PROJECT md_gal21
   RUN_TYPE energy
 &END GLOBAL
 
@@ -55,7 +55,7 @@
       PERIODIC  XYZ
     &END CELL
     &COORD
-      @INCLUDE "coord.inc"
+      @INCLUDE "coord-gal21.inc"
     &END COORD
     &TOPOLOGY
      &GENERATE
@@ -114,33 +114,28 @@
      &END SPLINE
      IGNORE_MISSING_CRITICAL_PARAMS T
      &NONBONDED
-      &GAL19
-         ATOMS  Pt O
+      &GAL21
+         ATOMS  O Pt
          METALS Pt Cu
-         RCUT 8
-         epsilon 17.3927912218
-         bxy .8941304
-         bz .1295121
-         r 2.4120767 4.0
-         a1 35.2466895952
-         a2 12.8710527902
-         a3 -5.5830632106
-         a4 3.13229216299
-         A 26445.8258883
-         B 3.7168091
+         RCUT 10
+         epsilon -0.9358113879523 9.09851523151946 -5.424038077984534
+         bxy .6451191 .0010102
+         bz .1214708 .0003720
+         r 1.9000000 4.0
+         a1 -45.03531580496108 2.2912089535351723 0.9952972316569941
+         a2 35.580119531527174 -9.91621141032723 0.7804880180017064
+         a3 -106.48217251468913 29.06440141041192 -1.8553892798403497
+         a4 -14.13835574840837 -1.9537083062459715e-10 0.19129810724417187
+         A -48399.51277185474 18486.892036112804
+         B 3.4989779 .0988938
          C 917.455856665695
-         Fit_express FALSE
+         AH 35728.40150389513 -3751.73899676257
+         BH 4.5412501 -.1265630
+         Fit_express FALSE 
          &GCN
           @INCLUDE "gcn.inc"
          &END GCN
-      &END GAL19
-      &WILLIAMS
-         ATOMS Pt H
-         RCUT 8
-         B 1/.347004
-         A [kcalmol] 3010.3280558906
-         C 0.0
-      &END WILLIAMS
+      &END GAL21
      &END NONBONDED
     &END FORCEFIELD
     &POISSON
