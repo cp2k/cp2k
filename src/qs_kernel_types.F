@@ -89,15 +89,15 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(kernel_env)) THEN
-IF (ASSOCIATED(kernel_env%xc_rho1_set)) THEN
-         CALL xc_rho_set_release(kernel_env%xc_rho1_set)
-DEALLOCATE(kernel_env%xc_rho1_set)
-END IF
+         IF (ASSOCIATED(kernel_env%xc_rho1_set)) THEN
+            CALL xc_rho_set_release(kernel_env%xc_rho1_set)
+            DEALLOCATE (kernel_env%xc_rho1_set)
+         END IF
          CALL xc_dset_release(kernel_env%xc_deriv_set)
-IF (ASSOCIATED(kernel_env%xc_rho_set)) THEN
-         CALL xc_rho_set_release(kernel_env%xc_rho_set)
-DEALLOCATE(kernel_env%xc_rho_set)
-END IF
+         IF (ASSOCIATED(kernel_env%xc_rho_set)) THEN
+            CALL xc_rho_set_release(kernel_env%xc_rho_set)
+            DEALLOCATE (kernel_env%xc_rho_set)
+         END IF
       END IF
 
    END SUBROUTINE release_kernel_env

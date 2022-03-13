@@ -793,10 +793,10 @@ CONTAINS
          DEALLOCATE (kpp1_env%deriv_set)
          NULLIFY (kpp1_env%deriv_set)
       END IF
-IF (ASSOCIATED(kpp1_env%rho_set)) THEN
-      CALL xc_rho_set_release(kpp1_env%rho_set)
-DEALLOCATE(kpp1_env%rho_set)
-END IF
+      IF (ASSOCIATED(kpp1_env%rho_set)) THEN
+         CALL xc_rho_set_release(kpp1_env%rho_set)
+         DEALLOCATE (kpp1_env%rho_set)
+      END IF
 
    END SUBROUTINE kpp1_did_change
 

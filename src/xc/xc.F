@@ -74,7 +74,7 @@ MODULE xc
                                xc_rho_set_get, &
                                xc_rho_set_release, &
                                xc_rho_set_type, &
-                               xc_rho_set_update
+                               xc_rho_set_update, xc_rho_set_recover_pw
    USE xc_util, ONLY: xc_pw_smooth, xc_pw_laplace, xc_pw_divergence, xc_requires_tmp_g
 #include "../base/base_uses.f90"
 
@@ -1113,12 +1113,12 @@ CONTAINS
                                                             xc_deriv_method_id, xc_rho_smooth_id, deriv_id
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: dealloc_pw_to_deriv, has_laplace, &
-                                                            has_tau, lsd, use_virial, has_gradient, has_derivs, has_rho
+                                                            has_tau, lsd, use_virial, has_gradient, &
+                                                            has_derivs, has_rho, dealloc_pw_to_deriv_rho
       REAL(KIND=dp)                                      :: density_smooth_cut_range, drho_cutoff, &
                                                             rho_cutoff
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, norm_drho, norm_drho_spin, &
                                                             rho, rhoa, rhob
-      TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho_spin, drhoa, drhob
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_p_type), DIMENSION(2)                      :: vxc_to_deriv
@@ -1199,69 +1199,36 @@ CONTAINS
          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
          CALL xc_rho_set_get(rho_set, norm_drho=norm_drho, &
-                             drho=drho, drhoa=drhoa, drhob=drhob, rho_cutoff=rho_cutoff, &
+                             rho_cutoff=rho_cutoff, &
                              drho_cutoff=drho_cutoff, &
                              can_return_null=.TRUE.)
+         CALL xc_rho_set_recover_pw(rho_set, pw_grid, pw_pool, dealloc_pw_to_deriv_rho, drho=pw_to_deriv_rho)
 
-         IF (ASSOCIATED(drho(1)%array)) THEN
-            CPASSERT(ASSOCIATED(deriv_data))
-            IF (use_virial) THEN
-               CALL pw_pool_create_pw(pw_pool, virial_pw, &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
-               CALL pw_zero(virial_pw)
-               DO idir = 1, 3
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(virial_pw,drho,deriv_data,idir)
-                  virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*deriv_data(:, :, :)
-!$OMP             END PARALLEL WORKSHARE
-                  DO jdir = 1, idir
-                     virial_xc(idir, jdir) = -pw_grid%dvol* &
-                                             accurate_dot_product(virial_pw%cr3d(:, :, :), &
-                                                                  drho(jdir)%array(:, :, :))
-                     virial_xc(jdir, idir) = virial_xc(idir, jdir)
-                  END DO
-               END DO
-               CALL pw_pool_give_back_pw(pw_pool, virial_pw)
-            END IF ! use_virial
+         CPASSERT(ASSOCIATED(deriv_data))
+         IF (use_virial) THEN
+            CALL pw_pool_create_pw(pw_pool, virial_pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_zero(virial_pw)
             DO idir = 1, 3
-               CPASSERT(ASSOCIATED(drho(idir)%array))
-!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,drho,idir)
-               drho(idir)%array(:, :, :) = drho(idir)%array(:, :, :)*deriv_data(:, :, :)
-!$OMP          END PARALLEL WORKSHARE
-               ! Use this construct to deallocate drho while shifting the allocation to pw_to_deriv_rho
-               CALL pw_create(pw_to_deriv_rho(idir)%pw, pw_grid=pw_grid, &
-                              cr3d_ptr=drho(idir)%array, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-               NULLIFY (drho(idir)%array, rho_set%drho(idir)%array)
-            END DO
-         ELSE
-            IF (use_virial) THEN
-               CALL pw_pool_create_pw(pw_pool, virial_pw, &
-                                      use_data=REALDATA3D, &
-                                      in_space=REALSPACE)
-               CALL pw_zero(virial_pw)
-               DO idir = 1, 3
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(virial_pw,drhoa,drhob,deriv_data,idir)
-                  virial_pw%cr3d(:, :, :) = (drhoa(idir)%array(:, :, :) + drhob(idir)%array(:, :, :))*deriv_data(:, :, :)
+!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(virial_pw,pw_to_deriv_rho,deriv_data,idir)
+               virial_pw%cr3d(:, :, :) = pw_to_deriv_rho(idir)%pw%cr3d(:, :, :)*deriv_data(:, :, :)
 !$OMP             END PARALLEL WORKSHARE
-                  DO jdir = 1, idir
-                     virial_xc(idir, jdir) = -pw_grid%dvol*accurate_sum(virial_pw%cr3d(:, :, :)* &
-                                                                        (drhoa(jdir)%array(:, :, :) + drhob(jdir)%array(:, :, :)))
-                     virial_xc(jdir, idir) = virial_xc(idir, jdir)
-                  END DO
+               DO jdir = 1, idir
+                  virial_xc(idir, jdir) = -pw_grid%dvol* &
+                                          accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                               pw_to_deriv_rho(jdir)%pw%cr3d(:, :, :))
+                  virial_xc(jdir, idir) = virial_xc(idir, jdir)
                END DO
-               CALL pw_pool_give_back_pw(pw_pool, virial_pw)
-            END IF ! use_virial
-            DO idir = 1, 3
-               CALL pw_pool_create_pw(pw_pool, pw_to_deriv_rho(idir)%pw, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-!$OMP            PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,&
-!$OMP                           pw_to_deriv_rho,drhoa,drhob,idir)
-               pw_to_deriv_rho(idir)%pw%cr3d(:, :, :) = (drhoa(idir)%array(:, :, :) + drhob(idir)%array(:, :, :))* &
-                                                        deriv_data(:, :, :)
-!$OMP          END PARALLEL WORKSHARE
             END DO
-         END IF
+            CALL pw_pool_give_back_pw(pw_pool, virial_pw)
+         END IF ! use_virial
+         DO idir = 1, 3
+            CPASSERT(ASSOCIATED(pw_to_deriv_rho(idir)%pw%cr3d))
+!$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,pw_to_deriv_rho,idir)
+            pw_to_deriv_rho(idir)%pw%cr3d(:, :, :) = pw_to_deriv_rho(idir)%pw%cr3d(:, :, :)*deriv_data(:, :, :)
+!$OMP          END PARALLEL WORKSHARE
+         END DO
 
          ! Deallocate pw to save memory
          CALL pw_pool_give_back_cr3d(pw_pool, deriv_att%deriv_data)
@@ -1279,15 +1246,15 @@ CONTAINS
 
          IF (lsd) THEN
             IF (ispin == 1) THEN
-               CALL xc_rho_set_get(rho_set, drhoa=drho_spin, &
-                                   can_return_null=.TRUE.)
                CALL xc_rho_set_get(rho_set, norm_drhoa=norm_drho_spin, &
                                    can_return_null=.TRUE.)
+               IF (ASSOCIATED(norm_drho_spin)) CALL xc_rho_set_recover_pw( &
+                  rho_set, pw_grid, pw_pool, dealloc_pw_to_deriv, drhoa=pw_to_deriv)
             ELSE
-               CALL xc_rho_set_get(rho_set, drhob=drho_spin, &
-                                   can_return_null=.TRUE.)
                CALL xc_rho_set_get(rho_set, norm_drhob=norm_drho_spin, &
                                    can_return_null=.TRUE.)
+               IF (ASSOCIATED(norm_drho_spin)) CALL xc_rho_set_recover_pw( &
+                  rho_set, pw_grid, pw_pool, dealloc_pw_to_deriv, drhob=pw_to_deriv)
             END IF
 
             deriv_att => xc_dset_get_derivative(deriv_set, [norm_drho_spin_name(ispin)])
@@ -1301,13 +1268,13 @@ CONTAINS
                                          in_space=REALSPACE)
                   CALL pw_zero(virial_pw)
                   DO idir = 1, 3
-!$OMP                PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,drho_spin,virial_pw,idir)
-                     virial_pw%cr3d(:, :, :) = drho_spin(idir)%array(:, :, :)*deriv_data(:, :, :)
+!$OMP                PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,pw_to_deriv,virial_pw,idir)
+                     virial_pw%cr3d(:, :, :) = pw_to_deriv(idir)%pw%cr3d(:, :, :)*deriv_data(:, :, :)
 !$OMP                END PARALLEL WORKSHARE
                      DO jdir = 1, idir
                         virial_xc(idir, jdir) = virial_xc(idir, jdir) - pw_grid%dvol* &
                                                 accurate_dot_product(virial_pw%cr3d(:, :, :), &
-                                                                     drho_spin(jdir)%array(:, :, :))
+                                                                     pw_to_deriv(jdir)%pw%cr3d(:, :, :))
                         virial_xc(jdir, idir) = virial_xc(idir, jdir)
                      END DO
                   END DO
@@ -1315,49 +1282,35 @@ CONTAINS
                END IF ! use_virial
 
                DO idir = 1, 3
-                  CPASSERT(ASSOCIATED(drho_spin(idir)%array))
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,drho_spin,&
-!$OMP                           ispin,idir,vxc_to_deriv,drho_cutoff)
-                  drho_spin(idir)%array(:, :, :) = deriv_data(:, :, :)* &
-                                                   drho_spin(idir)%array(:, :, :)
+!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(deriv_data,idir,pw_to_deriv)
+                  pw_to_deriv(idir)%pw%cr3d(:, :, :) = deriv_data(:, :, :)* &
+                                                       pw_to_deriv(idir)%pw%cr3d(:, :, :)
 !$OMP             END PARALLEL WORKSHARE
-
-                  CALL pw_create(pw_to_deriv(idir)%pw, pw_grid=pw_grid, &
-                                 cr3d_ptr=drho_spin(idir)%array, &
-                                 use_data=REALDATA3D, in_space=REALSPACE)
-                  ! ???
-                  NULLIFY (drho_spin(idir)%array)
-                  IF (ispin == 1) THEN
-                     NULLIFY (rho_set%drhoa(idir)%array)
-                  ELSE
-                     NULLIFY (rho_set%drhob(idir)%array)
-                  END IF
                END DO
-
-               dealloc_pw_to_deriv = .TRUE.
             END IF ! deriv_att
 
          END IF ! LSD
 
          IF (ASSOCIATED(pw_to_deriv_rho(1)%pw)) THEN
             IF (.NOT. ASSOCIATED(pw_to_deriv(1)%pw)) THEN
-               ! This branch is called in case of closed-shell systems (???)
                DO idir = 1, 3
                   pw_to_deriv(idir)%pw => pw_to_deriv_rho(idir)%pw
                END DO
-               dealloc_pw_to_deriv = (.NOT. lsd) .OR. (ispin == 2)
+               dealloc_pw_to_deriv = ((.NOT. lsd) .OR. (ispin == 2))
                IF (dealloc_pw_to_deriv) THEN
                   DO idir = 1, 3
                      NULLIFY (pw_to_deriv_rho(idir)%pw)
                   END DO
                END IF
+               dealloc_pw_to_deriv = dealloc_pw_to_deriv .AND. dealloc_pw_to_deriv_rho
             ELSE
                ! This branch is called in case of open-shell systems
                ! Add the contributions from norm_drho and norm_drho_spin
                DO idir = 1, 3
                   CALL pw_axpy(pw_to_deriv_rho(idir)%pw, pw_to_deriv(idir)%pw)
                   IF (ispin == 2) THEN
-                     CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv_rho(idir)%pw)
+                     IF (dealloc_pw_to_deriv_rho) CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv_rho(idir)%pw)
+                     NULLIFY (pw_to_deriv_rho(idir)%pw)
                   END IF
                END DO
             END IF
@@ -1370,9 +1323,11 @@ CONTAINS
 
             CALL xc_pw_divergence(xc_deriv_method_id, pw_to_deriv, tmp_g, vxc_g, vxc_rho(ispin)%pw)
 
+            IF (dealloc_pw_to_deriv) THEN
             DO idir = 1, 3
                CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(idir)%pw)
             END DO
+            END IF
          END IF
 
          ! ** Add laplace part to vxc_rho

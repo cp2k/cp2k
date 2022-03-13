@@ -169,10 +169,10 @@ CONTAINS
       kernel_env%xc_rho1_cflags = xc_functionals_get_needs(functionals=xc_fun_section, lsd=lsd, &
                                                            calc_potential=.TRUE.)
 
-IF (.NOT. ASSOCIATED(kernel_env%xc_rho1_set)) THEN
-NULLIFY(kernel_env%xc_rho1_set)
-ALLOCATE(kernel_env%xc_rho1_set)
-END IF
+      IF (.NOT. ASSOCIATED(kernel_env%xc_rho1_set)) THEN
+         NULLIFY (kernel_env%xc_rho1_set)
+         ALLOCATE (kernel_env%xc_rho1_set)
+      END IF
       CALL xc_rho_set_create(kernel_env%xc_rho1_set, auxbas_pw_pool%pw_grid%bounds_local, &
                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
                              drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
