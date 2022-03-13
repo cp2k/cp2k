@@ -72,8 +72,8 @@ void pw_gpu_launch_complex_to_real(const double *zin, double *dout,
  * \brief   Performs a (double precision complex) gather and scale on the GPU.
  * \author  Andreas Gloess
  ******************************************************************************/
-__global__ void pw_gather_z(double *pwcc, const double *c, const double scale,
-                            const int ngpts, const int *ghatmap) {
+__global__ void pw_gather(double *pwcc, const double *c, const double scale,
+                          const int ngpts, const int *ghatmap) {
   const int igpt = blockIdx.x * blockDim.x + threadIdx.x;
   if (igpt < ngpts) {
     pwcc[2 * igpt] = scale * c[2 * ghatmap[igpt]];
@@ -82,25 +82,25 @@ __global__ void pw_gather_z(double *pwcc, const double *c, const double scale,
 }
 
 /*******************************************************************************
- * \brief Launcher for pw_gather_z kernel.
+ * \brief Launcher for pw_gather kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void pw_gpu_launch_gather_z(double *pwcc, const double *c, const double scale,
-                            const int ngpts, const int *ghatmap,
-                            offloadStream_t stream) {
+void pw_gpu_launch_gather(double *pwcc, const double *c, const double scale,
+                          const int ngpts, const int *ghatmap,
+                          offloadStream_t stream) {
   const int threadsPerBlock = 32;
   const int numBlocks = (ngpts + threadsPerBlock - 1) / threadsPerBlock;
-  pw_gather_z<<<numBlocks, threadsPerBlock, 0, stream>>>(pwcc, c, scale, ngpts,
-                                                         ghatmap);
+  pw_gather<<<numBlocks, threadsPerBlock, 0, stream>>>(pwcc, c, scale, ngpts,
+                                                       ghatmap);
 }
 
 /*******************************************************************************
  * \brief   Performs a (double precision complex) scatter and scale on the GPU.
  * \author  Andreas Gloess
  ******************************************************************************/
-__global__ void pw_scatter_z(double *c, const double *pwcc, const double scale,
-                             const int ngpts, const int nmaps,
-                             const int *ghatmap) {
+__global__ void pw_scatter(double *c, const double *pwcc, const double scale,
+                           const int ngpts, const int nmaps,
+                           const int *ghatmap) {
   const int igpt = blockIdx.x * blockDim.x + threadIdx.x;
   if (igpt < ngpts) {
     c[2 * ghatmap[igpt]] = scale * pwcc[2 * igpt];
@@ -113,16 +113,16 @@ __global__ void pw_scatter_z(double *c, const double *pwcc, const double scale,
 }
 
 /*******************************************************************************
- * \brief Launcher for pw_scatter_z kernel.
+ * \brief Launcher for pw_scatter kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void pw_gpu_launch_scatter_z(double *c, const double *pwcc, const double scale,
-                             const int ngpts, const int nmaps,
-                             const int *ghatmap, offloadStream_t stream) {
+void pw_gpu_launch_scatter(double *c, const double *pwcc, const double scale,
+                           const int ngpts, const int nmaps, const int *ghatmap,
+                           offloadStream_t stream) {
   const int threadsPerBlock = 32;
   const int numBlocks = (ngpts + threadsPerBlock - 1) / threadsPerBlock;
-  pw_scatter_z<<<numBlocks, threadsPerBlock, 0, stream>>>(c, pwcc, scale, ngpts,
-                                                          nmaps, ghatmap);
+  pw_scatter<<<numBlocks, threadsPerBlock, 0, stream>>>(c, pwcc, scale, ngpts,
+                                                        nmaps, ghatmap);
 }
 
 // EOF

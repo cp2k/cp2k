@@ -23,42 +23,40 @@
 !> \author apsi
 ! **************************************************************************************************
 MODULE pw_methods
-   USE cp_log_handling, ONLY: cp_logger_get_default_io_unit, &
-                              cp_to_string
-   USE fast, ONLY: copy_cr, &
-                   copy_rc, &
-                   zero_c
-   USE fft_tools, ONLY: BWFFT, &
-                        FWFFT, &
-                        fft3d
-   USE kahan_sum, ONLY: accurate_sum
-   USE kinds, ONLY: dp
-   USE machine, ONLY: m_memory
-   USE message_passing, ONLY: mp_sum
-   USE pw_copy_all, ONLY: pw_copy_match
-   USE pw_fpga, ONLY: pw_fpga_c1dr3d_3d_dp, &
-                      pw_fpga_c1dr3d_3d_sp, &
-                      pw_fpga_init_bitstream, &
-                      pw_fpga_r3dc1d_3d_dp, &
-                      pw_fpga_r3dc1d_3d_sp
-#ifdef __PW_GPU
-   USE pw_gpu, ONLY: pw_gpu_c1dr3d_3d, &
-                     pw_gpu_c1dr3d_3d_ps, &
-                     pw_gpu_r3dc1d_3d, &
-                     pw_gpu_r3dc1d_3d_ps
-#endif
-   USE pw_grid_types, ONLY: HALFSPACE, &
-                            PW_MODE_DISTRIBUTED, &
-                            PW_MODE_LOCAL, &
-                            pw_grid_type
-   USE pw_types, ONLY: COMPLEXDATA1D, &
-                       COMPLEXDATA3D, &
-                       NOSPACE, &
-                       REALDATA1D, &
-                       REALDATA3D, &
-                       REALSPACE, &
-                       RECIPROCALSPACE, &
-                       pw_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                              cp_to_string
+   USE fast,                            ONLY: copy_cr,&
+                                              copy_rc,&
+                                              zero_c
+   USE fft_tools,                       ONLY: BWFFT,&
+                                              FWFFT,&
+                                              fft3d
+   USE kahan_sum,                       ONLY: accurate_sum
+   USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_memory
+   USE message_passing,                 ONLY: mp_sum
+   USE pw_copy_all,                     ONLY: pw_copy_match
+   USE pw_fpga,                         ONLY: pw_fpga_c1dr3d_3d_dp,&
+                                              pw_fpga_c1dr3d_3d_sp,&
+                                              pw_fpga_init_bitstream,&
+                                              pw_fpga_r3dc1d_3d_dp,&
+                                              pw_fpga_r3dc1d_3d_sp
+   USE pw_gpu,                          ONLY: pw_gpu_c1dr3d_3d,&
+                                              pw_gpu_c1dr3d_3d_ps,&
+                                              pw_gpu_r3dc1d_3d,&
+                                              pw_gpu_r3dc1d_3d_ps
+   USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                              PW_MODE_DISTRIBUTED,&
+                                              PW_MODE_LOCAL,&
+                                              pw_grid_type
+   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              COMPLEXDATA3D,&
+                                              NOSPACE,&
+                                              REALDATA1D,&
+                                              REALDATA3D,&
+                                              REALSPACE,&
+                                              RECIPROCALSPACE,&
+                                              pw_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
