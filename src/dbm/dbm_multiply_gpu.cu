@@ -22,7 +22,7 @@ __device__ static void atomicAddDouble(double *address, double val) {
   if (val == 0.0)
     return;
 
-#if __GPU_ARCH__ >= 600
+#if __CUDA_ARCH__ >= 600
   atomicAdd(address, val); // part of gpu library
 #else
   // https://docs.nvidia.com/gpu/gpu-c-programming-guide/index.html#atomic-functions
