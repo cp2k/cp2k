@@ -23,7 +23,6 @@
 !>                            can be added easily.
 !> \author Benjamin G. Levine
 ! **************************************************************************************************
-#if defined (__PW_GPU)
 MODULE pw_gpu
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
                                               C_INT,&
@@ -53,207 +52,7 @@ MODULE pw_gpu
    PUBLIC :: pw_gpu_c1dr3d_3d_ps
    PUBLIC :: pw_gpu_init, pw_gpu_finalize
 
-   ! Explicit interfaces to double precision complex transformation
-   ! routines (C+GPU). For more details, see: gpu
-   INTERFACE pw_gpu_cfffg_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param din ...
-!> \param zout ...
-!> \param ghatmap ...
-!> \param npts ...
-!> \param ngpts ...
-!> \param scale ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_cfffg_z(din, zout, ghatmap, npts, ngpts, scale) &
-         BIND(C, name="pw_gpu_cfffg_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: din
-         TYPE(C_PTR), VALUE                       :: zout
-         TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                             :: npts
-         INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: ngpts
-         REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
-
-      END SUBROUTINE pw_gpu_cfffg_z
-   END INTERFACE
-
-   INTERFACE pw_gpu_sfffc_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param zin ...
-!> \param dout ...
-!> \param ghatmap ...
-!> \param npts ...
-!> \param ngpts ...
-!> \param nmaps ...
-!> \param scale ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_sfffc_z(zin, dout, ghatmap, npts, ngpts, nmaps, scale) &
-         BIND(C, name="pw_gpu_sfffc_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: zin
-         TYPE(C_PTR), VALUE                       :: dout
-         TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                             :: npts
-         INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: ngpts, nmaps
-         REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
-
-      END SUBROUTINE pw_gpu_sfffc_z
-   END INTERFACE
-
-   INTERFACE pw_gpu_cff_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param din ...
-!> \param zout ...
-!> \param npts ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_cff_z(din, zout, npts) &
-         BIND(C, name="pw_gpu_cff_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: din
-         TYPE(C_PTR), VALUE                       :: zout
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                             :: npts
-
-      END SUBROUTINE pw_gpu_cff_z
-   END INTERFACE
-
-   INTERFACE pw_gpu_ffc_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param zin ...
-!> \param dout ...
-!> \param npts ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_ffc_z(zin, dout, npts) &
-         BIND(C, name="pw_gpu_ffc_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: zin
-         TYPE(C_PTR), VALUE                       :: dout
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                             :: npts
-
-      END SUBROUTINE pw_gpu_ffc_z
-   END INTERFACE
-
-   INTERFACE pw_gpu_cf_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param din ...
-!> \param zout ...
-!> \param npts ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_cf_z(din, zout, npts) &
-         BIND(C, name="pw_gpu_cf_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: din
-         TYPE(C_PTR), VALUE                       :: zout
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                             :: npts
-
-      END SUBROUTINE pw_gpu_cf_z
-   END INTERFACE
-
-   INTERFACE pw_gpu_fc_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param zin ...
-!> \param dout ...
-!> \param npts ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_fc_z(zin, dout, npts) &
-         BIND(C, name="pw_gpu_fc_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: zin
-         TYPE(C_PTR), VALUE                       :: dout
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                             :: npts
-
-      END SUBROUTINE pw_gpu_fc_z
-   END INTERFACE
-
-   INTERFACE pw_gpu_f_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param zin ...
-!> \param zout ...
-!> \param dir ...
-!> \param n ...
-!> \param m ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_f_z(zin, zout, dir, n, m) &
-         BIND(C, name="pw_gpu_f_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: zin
-         TYPE(C_PTR), VALUE                       :: zout
-         INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: dir, n, m
-
-      END SUBROUTINE pw_gpu_f_z
-   END INTERFACE
-
-   INTERFACE pw_gpu_fg_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param zin ...
-!> \param zout ...
-!> \param ghatmap ...
-!> \param npts ...
-!> \param mmax ...
-!> \param ngpts ...
-!> \param scale ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_fg_z(zin, zout, ghatmap, npts, mmax, ngpts, scale) &
-         BIND(C, name="pw_gpu_fg_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: zin
-         TYPE(C_PTR), VALUE                       :: zout
-         TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                             :: npts
-         INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: mmax, ngpts
-         REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
-
-      END SUBROUTINE pw_gpu_fg_z
-   END INTERFACE
-
-   INTERFACE pw_gpu_sf_cu
-! **************************************************************************************************
-!> \brief ...
-!> \param zin ...
-!> \param zout ...
-!> \param ghatmap ...
-!> \param npts ...
-!> \param mmax ...
-!> \param ngpts ...
-!> \param nmaps ...
-!> \param scale ...
-! **************************************************************************************************
-      SUBROUTINE pw_gpu_sf_z(zin, zout, ghatmap, npts, mmax, ngpts, nmaps, scale) &
-         BIND(C, name="pw_gpu_sf_z_")
-         IMPORT
-         TYPE(C_PTR), INTENT(IN), VALUE           :: zin
-         TYPE(C_PTR), VALUE                       :: zout
-         TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
-         INTEGER(KIND=C_INT), DIMENSION(*), &
-            INTENT(IN)                             :: npts
-         INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: mmax, ngpts, nmaps
-         REAL(KIND=C_DOUBLE), INTENT(IN), VALUE   :: scale
-
-      END SUBROUTINE pw_gpu_sf_z
-   END INTERFACE
-
-   INTERFACE
-      SUBROUTINE pw_gpu_init_cu() BIND(C, name="pw_gpu_init")
-      END SUBROUTINE pw_gpu_init_cu
-      SUBROUTINE pw_gpu_finalize_cu() BIND(C, name="pw_gpu_finalize")
-      END SUBROUTINE pw_gpu_finalize_cu
-   END INTERFACE
-
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods_gpu'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_gpu'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
 CONTAINS
@@ -263,7 +62,18 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_init()
-      CALL pw_gpu_init_cu()
+      INTEGER                                            :: dummy
+      INTERFACE
+         SUBROUTINE pw_gpu_init_c() BIND(C, name="pw_gpu_init")
+         END SUBROUTINE pw_gpu_init_c
+      END INTERFACE
+
+      MARK_USED(dummy) ! TODO: fix fpretty
+#if defined(__PW_GPU)
+      CALL pw_gpu_init_c()
+#else
+      CPABORT("Compiled without -D__PW_GPU")
+#endif
    END SUBROUTINE pw_gpu_init
 
 ! **************************************************************************************************
@@ -271,7 +81,18 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_finalize()
-      CALL pw_gpu_finalize_cu()
+      INTEGER                                            :: dummy
+      INTERFACE
+         SUBROUTINE pw_gpu_finalize_c() BIND(C, name="pw_gpu_finalize")
+         END SUBROUTINE pw_gpu_finalize_c
+      END INTERFACE
+
+      MARK_USED(dummy) ! TODO: fix fpretty
+#if defined(__PW_GPU)
+      CALL pw_gpu_finalize_c()
+#else
+      CPABORT("Compiled without -D__PW_GPU")
+#endif
    END SUBROUTINE pw_gpu_finalize
 
 ! **************************************************************************************************
@@ -293,6 +114,18 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
       REAL(KIND=dp), POINTER                             :: ptr_pwin
+      INTERFACE
+         SUBROUTINE pw_gpu_cfffg_c(din, zout, ghatmap, npts, ngpts, scale) BIND(C, name="pw_gpu_cfffg")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: din
+            TYPE(C_PTR), VALUE                           :: zout
+            TYPE(C_PTR), INTENT(IN), VALUE               :: ghatmap
+            INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
+            INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: ngpts
+            REAL(KIND=C_DOUBLE), INTENT(IN), VALUE       :: scale
+
+         END SUBROUTINE pw_gpu_cfffg_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -310,7 +143,12 @@ CONTAINS
       ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
 
       ! invoke the combined transformation
-      CALL pw_gpu_cfffg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
+#if defined(__PW_GPU)
+      CALL pw_gpu_cfffg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
+#else
+      MARK_USED(scale)
+      CPABORT("Compiled without -D__PW_GPU")
+#endif
 
       pw2%in_space = RECIPROCALSPACE
 
@@ -336,6 +174,17 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
       REAL(KIND=dp), POINTER                             :: ptr_pwout
+      INTERFACE
+         SUBROUTINE pw_gpu_sfffc_c(zin, dout, ghatmap, npts, ngpts, nmaps, scale) BIND(C, name="pw_gpu_sfffc")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: zin
+            TYPE(C_PTR), VALUE                           :: dout
+            TYPE(C_PTR), INTENT(IN), VALUE               :: ghatmap
+            INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
+            INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: ngpts, nmaps
+            REAL(KIND=C_DOUBLE), INTENT(IN), VALUE       :: scale
+         END SUBROUTINE pw_gpu_sfffc_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -354,7 +203,12 @@ CONTAINS
       ptr_ghatmap => pw1%pw_grid%g_hatmap(1, 1)
 
       ! invoke the combined transformation
-      CALL pw_gpu_sfffc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
+#if defined(__PW_GPU)
+      CALL pw_gpu_sfffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
+#else
+      MARK_USED(scale)
+      CPABORT("Compiled without -D__PW_GPU")
+#endif
 
       pw2%in_space = REALSPACE
 
@@ -742,6 +596,14 @@ CONTAINS
       INTEGER                                            :: handle, l1, l2, l3
       INTEGER, DIMENSION(:), POINTER                     :: npts
       REAL(KIND=dp), POINTER                             :: ptr_pwin
+      INTERFACE
+         SUBROUTINE pw_gpu_cff_c(din, zout, npts) BIND(C, name="pw_gpu_cff")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: din
+            TYPE(C_PTR), VALUE                           :: zout
+            INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
+         END SUBROUTINE pw_gpu_cff_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -756,7 +618,11 @@ CONTAINS
       ptr_pwout => pwbuf(1, 1, 1)
 
       ! invoke the combined transformation
-      CALL pw_gpu_cff_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#if defined(__PW_GPU)
+      CALL pw_gpu_cff_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#else
+      CPABORT("Compiled without -D__PW_GPU")
+#endif
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_cff
@@ -778,6 +644,14 @@ CONTAINS
       INTEGER                                            :: handle, l1, l2, l3
       INTEGER, DIMENSION(:), POINTER                     :: npts
       REAL(KIND=dp), POINTER                             :: ptr_pwout
+      INTERFACE
+         SUBROUTINE pw_gpu_ffc_c(zin, dout, npts) BIND(C, name="pw_gpu_ffc")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: zin
+            TYPE(C_PTR), VALUE                           :: dout
+            INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
+         END SUBROUTINE pw_gpu_ffc_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -792,7 +666,11 @@ CONTAINS
       ptr_pwout => pw2%cr3d(l1, l2, l3)
 
       ! invoke the combined transformation
-      CALL pw_gpu_ffc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#if defined(__PW_GPU)
+      CALL pw_gpu_ffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#else
+      CPABORT("Compiled without -D__PW_GPU")
+#endif
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_ffc
@@ -814,6 +692,14 @@ CONTAINS
       INTEGER                                            :: handle, l1, l2, l3
       INTEGER, DIMENSION(:), POINTER                     :: npts
       REAL(KIND=dp), POINTER                             :: ptr_pwin
+      INTERFACE
+         SUBROUTINE pw_gpu_cf_c(din, zout, npts) BIND(C, name="pw_gpu_cf")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: din
+            TYPE(C_PTR), VALUE                           :: zout
+            INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
+         END SUBROUTINE pw_gpu_cf_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -828,8 +714,11 @@ CONTAINS
       ptr_pwout => pwbuf(1, 1)
 
       ! invoke the combined transformation
-      CALL pw_gpu_cf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
-
+#if defined(__PW_GPU)
+      CALL pw_gpu_cf_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#else
+      CPABORT("Compiled without -D__PW_GPU")
+#endif
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_cf
 
@@ -850,6 +739,14 @@ CONTAINS
       INTEGER                                            :: handle, l1, l2, l3
       INTEGER, DIMENSION(:), POINTER                     :: npts
       REAL(KIND=dp), POINTER                             :: ptr_pwout
+      INTERFACE
+         SUBROUTINE pw_gpu_fc_c(zin, dout, npts) BIND(C, name="pw_gpu_fc")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: zin
+            TYPE(C_PTR), VALUE                           :: dout
+            INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
+         END SUBROUTINE pw_gpu_fc_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -863,7 +760,11 @@ CONTAINS
       ptr_pwout => pw2%cr3d(l1, l2, l3)
 
       ! invoke the combined transformation
-      CALL pw_gpu_fc_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#if defined(__PW_GPU)
+      CALL pw_gpu_fc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
+#else
+      CPABORT("Compiled without -D__PW_GPU")
+#endif
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_fc
@@ -888,6 +789,14 @@ CONTAINS
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
       INTEGER                                            :: handle
+      INTERFACE
+         SUBROUTINE pw_gpu_f_c(zin, zout, dir, n, m) BIND(C, name="pw_gpu_f")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: zin
+            TYPE(C_PTR), VALUE                           :: zout
+            INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: dir, n, m
+         END SUBROUTINE pw_gpu_f_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -897,7 +806,12 @@ CONTAINS
          ptr_pwout => pwbuf2(1, 1)
 
          ! invoke the combined transformation
-         CALL pw_gpu_f_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+#if defined(__PW_GPU)
+         CALL pw_gpu_f_c(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+#else
+         MARK_USED(dir)
+         CPABORT("Compiled without -D__PW_GPU")
+#endif
       END IF
 
       CALL timestop(handle)
@@ -921,6 +835,18 @@ CONTAINS
       INTEGER                                            :: handle, mg, mmax, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
+      INTERFACE
+         SUBROUTINE pw_gpu_fg_c(zin, zout, ghatmap, npts, mmax, ngpts, scale) BIND(C, name="pw_gpu_fg")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: zin
+            TYPE(C_PTR), VALUE                           :: zout
+            TYPE(C_PTR), INTENT(IN), VALUE               :: ghatmap
+            INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
+            INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: mmax, ngpts
+            REAL(KIND=C_DOUBLE), INTENT(IN), VALUE       :: scale
+
+         END SUBROUTINE pw_gpu_fg_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -939,7 +865,12 @@ CONTAINS
          ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
 
          ! invoke the combined transformation
-         CALL pw_gpu_fg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
+#if defined(__PW_GPU)
+         CALL pw_gpu_fg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
+#else
+         MARK_USED(scale)
+         CPABORT("Compiled without -D__PW_GPU")
+#endif
       END IF
 
       CALL timestop(handle)
@@ -964,6 +895,18 @@ CONTAINS
       INTEGER                                            :: handle, mg, mmax, ngpts, nmaps
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
+      INTERFACE
+         SUBROUTINE pw_gpu_sf_c(zin, zout, ghatmap, npts, mmax, ngpts, nmaps, scale) BIND(C, name="pw_gpu_sf")
+            IMPORT
+            TYPE(C_PTR), INTENT(IN), VALUE               :: zin
+            TYPE(C_PTR), VALUE                           :: zout
+            TYPE(C_PTR), INTENT(IN), VALUE               :: ghatmap
+            INTEGER(KIND=C_INT), DIMENSION(*), INTENT(IN):: npts
+            INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: mmax, ngpts, nmaps
+            REAL(KIND=C_DOUBLE), INTENT(IN), VALUE       :: scale
+
+         END SUBROUTINE pw_gpu_sf_c
+      END INTERFACE
 
       CALL timeset(routineN, handle)
 
@@ -983,11 +926,16 @@ CONTAINS
          ptr_ghatmap => pw1%pw_grid%g_hatmap(1, 1)
 
          ! invoke the combined transformation
-         CALL pw_gpu_sf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
+#if defined(__PW_GPU)
+         CALL pw_gpu_sf_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
+#else
+         MARK_USED(scale)
+         CPABORT("Compiled without -D__PW_GPU")
+#endif
       END IF
 
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_sf
+
 END MODULE pw_gpu
 
-#endif

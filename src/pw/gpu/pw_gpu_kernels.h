@@ -29,20 +29,20 @@ void pw_gpu_launch_complex_to_real(const double *zin, double *dout,
                                    const int ngpts, offloadStream_t stream);
 
 /*******************************************************************************
- * \brief Launcher for pw_gather_z kernel.
+ * \brief Launcher for pw_gather kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void pw_gpu_launch_gather_z(double *pwcc, const double *c, const double scale,
-                            const int ngpts, const int *ghatmap,
-                            offloadStream_t stream);
+void pw_gpu_launch_gather(double *pwcc, const double *c, const double scale,
+                          const int ngpts, const int *ghatmap,
+                          offloadStream_t stream);
 
 /*******************************************************************************
- * \brief Launcher for pw_scatter_z kernel.
+ * \brief Launcher for pw_scatter kernel.
  * \author Ole Schuett
  ******************************************************************************/
-void pw_gpu_launch_scatter_z(double *c, const double *pwcc, const double scale,
-                             const int ngpts, const int nmaps,
-                             const int *ghatmap, offloadStream_t stream);
+void pw_gpu_launch_scatter(double *c, const double *pwcc, const double scale,
+                           const int ngpts, const int nmaps, const int *ghatmap,
+                           offloadStream_t stream);
 
 #ifdef __cplusplus
 }
