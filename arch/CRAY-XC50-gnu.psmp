@@ -114,9 +114,11 @@ endif
 
 ifeq ($(USE_ACC), yes)
    DFLAGS         += -D__DBCSR_ACC
+   DFLAGS         += -D__DBM_CUDA
    DFLAGS         += -D__GRID_CUDA
-# No performance gain with PW_CUDA currently
-#  DFLAGS         += -D__PW_CUDA 
+# Possibly no performance gain with PW_CUDA currently
+   DFLAGS         += -D__PW_CUDA 
+   DFLAGS         += -D__PW_GPU
 endif
 
 ifneq ($(USE_PLUMED),)
@@ -230,12 +232,20 @@ ifneq ($(USE_SIRIUS),)
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
    SPFFT_VER      := $(strip $(SPFFT_VER))
    SPFFT_INC      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/include
-   SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
    SPLA_VER       := $(strip $(SPLA_VER))
    SPLA_INC       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/include/spla
-   SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
-   SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
-   SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib
+   ifeq ($(USE_ACC), yes)
+      DFLAGS         += -D__OFFLOAD_GEMM
+      SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib/cuda
+      SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib/cuda
+      SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include/cuda
+      SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib/cuda
+   else
+      SPFFT_LIB      := $(INSTALL_PATH)/SpFFT-$(SPFFT_VER)/lib
+      SPLA_LIB       := $(INSTALL_PATH)/SpLA-$(SPLA_VER)/lib
+      SIRIUS_INC     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/include
+      SIRIUS_LIB     := $(INSTALL_PATH)/sirius-$(USE_SIRIUS)/lib
+   endif
    CFLAGS         += -I$(LIBVDWXC_INC)
    CFLAGS         += -I$(SPFFT_INC)
    CFLAGS         += -I$(SPLA_INC)
@@ -243,9 +253,6 @@ ifneq ($(USE_SIRIUS),)
    DFLAGS         += -D__HDF5
    DFLAGS         += -D__LIBVDWXC
    DFLAGS         += -D__SPFFT
-   ifeq ($(USE_ACC), yes)
-      DFLAGS         += -D__OFFLOAD_GEMM
-   endif
    DFLAGS         += -D__SPLA
    DFLAGS         += -D__SIRIUS
    LIBS           += $(SIRIUS_LIB)/libsirius.a
@@ -257,6 +264,9 @@ endif
 
 ifneq ($(USE_COSMA),)
    USE_COSMA      := $(strip $(USE_COSMA))
+   ifeq ($(USE_ACC), yes)
+      USE_COSMA      := $(USE_COSMA)-cuda
+   endif
    COSMA_INC      := $(INSTALL_PATH)/COSMA-$(USE_COSMA)/include
    COSMA_LIB      := $(INSTALL_PATH)/COSMA-$(USE_COSMA)/lib
    CFLAGS         += -I$(COSMA_INC)
@@ -265,6 +275,7 @@ ifneq ($(USE_COSMA),)
    LIBS           += $(COSMA_LIB)/libcosma.a
    LIBS           += $(COSMA_LIB)/libcosta_prefixed_scalapack.a
    LIBS           += $(COSMA_LIB)/libcosta.a
+   LIBS           += $(COSMA_LIB)/libTiled-MM.a
 endif
 
 ifneq ($(USE_GSL),)
@@ -299,7 +310,7 @@ else
    LDFLAGS        := $(FCFLAGS)
 endif
 
-LIBS           += -lcudart -lcublas -lcufft -lnvrtc -lrt
-LIBS           += -lz -ldl -lstdc++
+LIBS           += -lcusolver -lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt
+LIBS           += -lz -ldl -lpthread -lstdc++
 
 # End
