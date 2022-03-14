@@ -2959,13 +2959,13 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       rho_cutoff = EPSILON(0.0_dp)
 
       nspins = SIZE(rho_r)
 
-      NULLIFY (rho_set, xc_section)
+      NULLIFY (xc_section)
 
       CALL get_qs_env(qs_env=qs_env, &
                       pw_env=pw_env, &

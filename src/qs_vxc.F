@@ -78,7 +78,7 @@ CONTAINS
 !> \param vxc_rho will contain the v_xc part that depend on rho
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
-!> \param vxc_tau will contain the kinetic (tau) part of v_xc
+!> \param vxc_tau will contain the kinetic tau part of v_xc
 !>        (if one of the chosen xc functionals has it it is allocated and you
 !>        are responsible for it)
 !> \param exc ...

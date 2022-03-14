@@ -14,10 +14,7 @@ MODULE xc_derivative_types
    USE kinds,                           ONLY: dp
    USE pw_pool_types,                   ONLY: pw_pool_give_back_cr3d,&
                                               pw_pool_type
-   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
-                                              MAX_LABEL_LENGTH,&
-                                              create_split_derivative_desc,&
-                                              standardize_derivative_desc
+   USE xc_derivative_desc,              ONLY: create_split_desc
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -34,9 +31,8 @@ MODULE xc_derivative_types
 !> \brief represent a derivative of a functional
 ! **************************************************************************************************
    TYPE xc_derivative_type
-      CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH) :: desc
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), POINTER :: split_desc
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: deriv_data
+      INTEGER, DIMENSION(:), POINTER                :: split_desc => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: deriv_data => NULL()
    END TYPE xc_derivative_type
 
 ! **************************************************************************************************
@@ -62,14 +58,10 @@ CONTAINS
    SUBROUTINE xc_derivative_create(derivative, desc, cr3d_ptr)
 
       TYPE(xc_derivative_type)                           :: derivative
-      CHARACTER(len=*), INTENT(in)                       :: desc
+      INTEGER, DIMENSION(:), INTENT(in)                  :: desc
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d_ptr
 
-      CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)          :: my_desc
-
-      CALL standardize_derivative_desc(desc, my_desc)
-      CALL create_split_derivative_desc(my_desc, derivative%split_desc)
-      derivative%desc = my_desc
+      CALL create_split_desc(desc, derivative%split_desc)
       derivative%deriv_data => cr3d_ptr
 
    END SUBROUTINE xc_derivative_create
@@ -94,30 +86,23 @@ CONTAINS
       IF (ASSOCIATED(derivative%deriv_data)) THEN
          DEALLOCATE (derivative%deriv_data)
       END IF
-      DEALLOCATE (derivative%split_desc)
+      IF (ASSOCIATED(derivative%split_desc)) DEALLOCATE (derivative%split_desc)
 
    END SUBROUTINE xc_derivative_release
 
 ! **************************************************************************************************
 !> \brief returns various information on the given derivative
 !> \param deriv the derivative you want information about
-!> \param desc a string that describes the derivative (empty string
-!>        for the function itself, otherwise a string of the form
-!>        "(rho)(rho)(norm_drhoa)")
-!> \param split_desc the same as desc but with an array of strings,
-!>        and a derivative coordinate in each string (the previous
-!>        example would become (/"rho","rho","norm_drhoa"/)
+!> \param split_desc an array that describes the derivative (each position represents a variable,
+!>        see xc_derivative_desc.F)
 !> \param order the order of the derivative
 !> \param deriv_data the 3d real array with the derivative
 !> \param accept_null_data if deriv_data can be unassociated (defaults to no)
 ! **************************************************************************************************
-   SUBROUTINE xc_derivative_get(deriv, desc, split_desc, &
+   SUBROUTINE xc_derivative_get(deriv, split_desc, &
                                 order, deriv_data, accept_null_data)
       TYPE(xc_derivative_type), INTENT(IN)               :: deriv
-      CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH), &
-         INTENT(out), OPTIONAL                           :: desc
-      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: split_desc
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: split_desc
       INTEGER, INTENT(out), OPTIONAL                     :: order
       REAL(kind=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: deriv_data
@@ -128,7 +113,6 @@ CONTAINS
       my_accept_null_data = .FALSE.
       IF (PRESENT(accept_null_data)) my_accept_null_data = accept_null_data
 
-      IF (PRESENT(desc)) desc = deriv%desc
       IF (PRESENT(split_desc)) split_desc => deriv%split_desc
       IF (PRESENT(deriv_data)) THEN
          deriv_data => deriv%deriv_data

@@ -128,9 +128,9 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: my_rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       TYPE(section_vals_type), POINTER                   :: input, my_xc_section, xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set_h, rho_set_s
+      TYPE(xc_rho_set_type)                              :: rho_set_h, rho_set_s
 
 ! -------------------------------------------------------------------------
 
@@ -140,15 +140,12 @@ CONTAINS
       NULLIFY (my_kind_set)
       NULLIFY (atomic_kind_set)
       NULLIFY (qs_kind)
-      NULLIFY (deriv_set)
       NULLIFY (grid_atom)
       NULLIFY (harmonics)
       NULLIFY (input)
       NULLIFY (para_env)
       NULLIFY (rho_atom)
       NULLIFY (my_rho_atom_set)
-      NULLIFY (rho_set_h)
-      NULLIFY (rho_set_s)
 
       epr_xc = .FALSE.
       IF (PRESENT(gradient_atom_set)) THEN
@@ -203,7 +200,7 @@ CONTAINS
          nspins = dft_control%nspins
          needs = xc_functionals_get_needs(xc_fun_section, &
                                           lsd=lsd, &
-                                          add_basic_components=.TRUE.)
+                                          calc_potential=.TRUE.)
 
          ! whatever the xc, if epr_xc, drho_spin is needed
          IF (epr_xc) needs%drho_spin = .TRUE.
@@ -242,7 +239,6 @@ CONTAINS
             bounds(2, 2) = nr
 
             ! create a place where to put the derivatives
-            ALLOCATE (deriv_set)
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho_set_h, bounds, rho_cutoff=density_cut, &
@@ -395,7 +391,6 @@ CONTAINS
 
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
-            DEALLOCATE (deriv_set)
             CALL xc_rho_set_release(rho_set_h)
             CALL xc_rho_set_release(rho_set_s)
 
@@ -512,9 +507,9 @@ CONTAINS
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho1_atom, rho_atom
       TYPE(section_vals_type), POINTER                   :: input, xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set_h, rho1_set_s, rho_set_h, &
+      TYPE(xc_rho_set_type)                              :: rho1_set_h, rho1_set_s, rho_set_h, &
                                                             rho_set_s
 
 ! -------------------------------------------------------------------------
@@ -560,7 +555,7 @@ CONTAINS
          nspins = 1
       END IF
       needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, &
-                                       add_basic_components=.TRUE.)
+                                       calc_potential=.TRUE.)
       gradient_functional = needs%drho .OR. needs%drho_spin
       tau_f = (needs%tau .OR. needs%tau_spin)
       IF (tau_f) THEN
@@ -602,8 +597,6 @@ CONTAINS
          bounds(2, 1) = na
          bounds(2, 2) = nr
 
-         NULLIFY (deriv_set, rho_set_h, rho_set_s, rho1_set_h, rho1_set_s)
-         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
          CALL xc_rho_set_create(rho_set_h, bounds, rho_cutoff=density_cut, &
                                 drho_cutoff=gradient_cut, tau_cutoff=tau_cut)
@@ -740,7 +733,6 @@ CONTAINS
          DEALLOCATE (drho1_h, drho1_s)
 
          CALL xc_dset_release(deriv_set)
-         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set_h)
          CALL xc_rho_set_release(rho1_set_h)
          CALL xc_rho_set_release(rho_set_s)

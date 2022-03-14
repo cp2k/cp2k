@@ -20,6 +20,9 @@ MODULE xc_pade
    USE bibliography,                    ONLY: Goedecker1996,&
                                               cite_reference
    USE kinds,                           ONLY: dp
+   USE xc_derivative_desc,              ONLY: deriv_rho,&
+                                              deriv_rhoa,&
+                                              deriv_rhob
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -136,7 +139,7 @@ CONTAINS
    SUBROUTINE pade_lda_pw_eval(deriv_set, rho_set, order)
 
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
       INTEGER                                            :: n
@@ -154,32 +157,32 @@ CONTAINS
 
       CALL calc_rs_pw(rho_set%rho, rs, n)
       IF (calc(0) .AND. calc(1)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_r)
          CALL pade_lda_01(n, rho_set%rho, rs, e_0, e_r)
       ELSE IF (calc(0)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
          CALL pade_lda_0(n, rho_set%rho, rs, e_0)
       ELSE IF (calc(1)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_r)
          CALL pade_lda_1(n, rho_set%rho, rs, e_r)
       END IF
       IF (calc(2)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rr)
          CALL pade_lda_2(n, rho_set%rho, rs, e_rr)
       END IF
       IF (calc(3)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rrr)
          CALL pade_lda_3(n, rho_set%rho, rs, e_rrr)
@@ -198,7 +201,7 @@ CONTAINS
    SUBROUTINE pade_lsd_pw_eval(deriv_set, rho_set, order)
 
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       INTEGER, INTENT(IN), OPTIONAL                      :: order
 
       INTEGER                                            :: i, j, k
@@ -215,40 +218,40 @@ CONTAINS
       IF (order < 0) calc(-order) = .TRUE.
 
       IF (calc(0)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (calc(1)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ra)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rb)
       END IF
       IF (calc(2)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rara)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rarb)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rbrb)
       END IF
       IF (calc(3)) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rarara)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rararb)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob, deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rarbrb)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob, deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rbrbrb)
       END IF

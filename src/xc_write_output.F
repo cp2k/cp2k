@@ -56,12 +56,6 @@ CONTAINS
          IF (myfun /= xc_none) THEN
 
             !check if FUNCTIONAL_ROUTINE keyword present
-            !IF (section_get_keyword_index(xc_section%section, "FUNCTIONAL_ROUTINE") .NE. -2) THEN
-            !   CALL section_vals_val_get(xc_section, "FUNCTIONAL_ROUTINE", &
-            !                             c_val=tmpStr)
-            !   WRITE (iounit, fmt="(' FUNCTIONAL| ROUTINE=',a)") &
-            !      TRIM(tmpStr)
-            !END IF
 
             CALL xc_functionals_expand(xc_fun_section, xc_section)
             ifun = 0

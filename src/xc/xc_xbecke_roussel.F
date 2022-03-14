@@ -23,6 +23,10 @@ MODULE xc_xbecke_roussel
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
+   USE xc_derivative_desc,              ONLY: &
+        deriv_laplace_rho, deriv_laplace_rhoa, deriv_laplace_rhob, deriv_norm_drho, &
+        deriv_norm_drhoa, deriv_norm_drhob, deriv_rho, deriv_rhoa, deriv_rhob, deriv_tau, &
+        deriv_tau_a, deriv_tau_b
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -159,7 +163,7 @@ CONTAINS
 !> \author mguidon
 ! **************************************************************************************************
    SUBROUTINE xbecke_roussel_lda_eval(rho_set, deriv_set, grad_deriv, br_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: br_params
@@ -177,8 +181,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, norm_drho=norm_drho, &
                           tau=tau, laplace_rho=laplace_rho, local_bounds=bo, &
                           rho_cutoff=epsilon_rho)
@@ -193,21 +195,21 @@ CONTAINS
       e_laplace_rho => dummy
 
       IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
-         deriv => xc_dset_get_derivative(deriv_set, "(tau)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_tau], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_tau)
-         deriv => xc_dset_get_derivative(deriv_set, "(laplace_rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_laplace_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rho)
       END IF
@@ -357,7 +359,7 @@ CONTAINS
 !> \author mguidon
 ! **************************************************************************************************
    SUBROUTINE xbecke_roussel_lsd_eval(rho_set, deriv_set, grad_deriv, br_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: br_params
@@ -375,8 +377,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
                           norm_drhob=norm_drhob, tau_a=tau_a, tau_b=tau_b, laplace_rhoa=laplace_rhoa, &
                           laplace_rhob=laplace_rhob, local_bounds=bo, &
@@ -396,36 +396,36 @@ CONTAINS
       e_laplace_rhob => dummy
 
       IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhoa)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhob)
 
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrhoa)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrhob)
 
-         deriv => xc_dset_get_derivative(deriv_set, "(tau_a)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_tau_a], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_tau_a)
-         deriv => xc_dset_get_derivative(deriv_set, "(tau_b)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_tau_b], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_tau_b)
 
-         deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_laplace_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhoa)
-         deriv => xc_dset_get_derivative(deriv_set, "(laplace_rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_laplace_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhob)
       END IF

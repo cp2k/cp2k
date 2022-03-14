@@ -34,8 +34,6 @@ MODULE xc_rho_cflags_types
 !> \param norm_drho flag for norm_drho (the norm of the gradient of rho)
 !> \param norm_drho_spin flag for norm_drhoa, norm_drhob (the norm of the
 !>        gradient of the spin density)
-!> \param drhoa_drhob flag for drhoa_drhob (the scalar product of the
-!>        gradient of the two spin densities)
 !> \param rho_ 1_3: flag for rho**(1.0_dp/3.0_dp)
 !> \param rho_spin_ 1_3: flag for rhoa**(1.0_dp/3.0_dp) and rhob**(1.0_dp/3.0_dp)
 !> \param tau flags for the kinetic (KS) part of rho
@@ -49,7 +47,7 @@ MODULE xc_rho_cflags_types
 ! **************************************************************************************************
    TYPE xc_rho_cflags_type
       LOGICAL :: rho, rho_spin, drho, drho_spin, &
-                 norm_drho, norm_drho_spin, drhoa_drhob, &
+                 norm_drho, norm_drho_spin, &
                  rho_1_3, rho_spin_1_3, tau, tau_spin, laplace_rho, laplace_rho_spin
    END TYPE xc_rho_cflags_type
 
@@ -70,7 +68,6 @@ CONTAINS
       cflags%drho_spin = value
       cflags%norm_drho = value
       cflags%norm_drho_spin = value
-      cflags%drhoa_drhob = value
       cflags%rho_1_3 = value
       cflags%rho_spin_1_3 = value
       cflags%tau = value
@@ -95,7 +92,6 @@ CONTAINS
                (cflags1%drho_spin .EQV. cflags2%drho_spin) .AND. &
                (cflags1%norm_drho .EQV. cflags2%norm_drho) .AND. &
                (cflags1%norm_drho_spin .EQV. cflags2%norm_drho_spin) .AND. &
-               (cflags1%drhoa_drhob .EQV. cflags2%drhoa_drhob) .AND. &
                (cflags1%rho_1_3 .EQV. cflags2%rho_1_3) .AND. &
                (cflags1%rho_spin_1_3 .EQV. cflags2%rho_spin_1_3) .AND. &
                (cflags1%tau .EQV. cflags2%tau) .AND. &

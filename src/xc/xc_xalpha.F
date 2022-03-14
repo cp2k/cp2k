@@ -21,6 +21,9 @@ MODULE xc_xalpha
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
+   USE xc_derivative_desc,              ONLY: deriv_rho,&
+                                              deriv_rhoa,&
+                                              deriv_rhob
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -146,7 +149,7 @@ CONTAINS
 !> \param xa_parameter ...
 ! **************************************************************************************************
    SUBROUTINE xalpha_lda_eval(rho_set, deriv_set, order, xa_params, xa_parameter)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: xa_params
@@ -165,15 +168,13 @@ CONTAINS
 
       CALL section_vals_val_get(xa_params, "scale_x", r_val=sx)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=r13, rho=rho, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL xalpha_init(epsilon_rho, xa_parameter)
 
       IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
 
@@ -181,21 +182,21 @@ CONTAINS
 
       END IF
       IF (order >= 1 .OR. order == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
 
          CALL xalpha_lda_1(npoints, rho, r13, e_rho, sx)
       END IF
       IF (order >= 2 .OR. order == -2) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
 
          CALL xalpha_lda_2(npoints, rho, r13, e_rho_rho, sx)
       END IF
       IF (order >= 3 .OR. order == -3) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
 
@@ -217,14 +218,14 @@ CONTAINS
 !> \param xa_parameter ...
 ! **************************************************************************************************
    SUBROUTINE xalpha_lsd_eval(rho_set, deriv_set, order, xa_params, xa_parameter)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: order
       TYPE(section_vals_type), POINTER                   :: xa_params
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: xa_parameter
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xalpha_lsd_eval'
-      CHARACTER(len=6), DIMENSION(2), PARAMETER :: rho_spin_name = (/"(rhoa)", "(rhob)"/)
+      INTEGER, DIMENSION(2), PARAMETER :: rho_spin_name = [deriv_rhoa, deriv_rhob]
 
       INTEGER                                            :: handle, i, ispin, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -241,8 +242,6 @@ CONTAINS
 
       CALL section_vals_val_get(xa_params, "scale_x", r_val=sx)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rhoa_1_3=rho_1_3(1)%array, &
                           rhob_1_3=rho_1_3(2)%array, rhoa=rho(1)%array, &
                           rhob=rho(2)%array, rho_cutoff=epsilon_rho, &
@@ -252,7 +251,7 @@ CONTAINS
 
       DO ispin = 1, 2
          IF (order >= 0) THEN
-            deriv => xc_dset_get_derivative(deriv_set, "", &
+            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_0)
 
@@ -260,7 +259,7 @@ CONTAINS
                               e_0, sx)
          END IF
          IF (order >= 1 .OR. order == -1) THEN
-            deriv => xc_dset_get_derivative(deriv_set, rho_spin_name(ispin), &
+            deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho)
 
@@ -268,16 +267,16 @@ CONTAINS
                               e_rho, sx)
          END IF
          IF (order >= 2 .OR. order == -2) THEN
-            deriv => xc_dset_get_derivative(deriv_set, rho_spin_name(ispin)// &
-                                            rho_spin_name(ispin), allocate_deriv=.TRUE.)
+            deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin), &
+                                                        rho_spin_name(ispin)], allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
 
             CALL xalpha_lsd_2(npoints, rho(ispin)%array, rho_1_3(ispin)%array, &
                               e_rho_rho, sx)
          END IF
          IF (order >= 3 .OR. order == -3) THEN
-            deriv => xc_dset_get_derivative(deriv_set, rho_spin_name(ispin)// &
-                                            rho_spin_name(ispin)//rho_spin_name(ispin), &
+            deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin), &
+                                                        rho_spin_name(ispin), rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
 

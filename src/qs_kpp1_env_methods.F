@@ -743,7 +743,7 @@ CONTAINS
             xc_section => section_vals_get_subs_vals(input, "DFT%XC")
          END IF
 
-         ALLOCATE (kpp1_env%deriv_set)
+         ALLOCATE (kpp1_env%deriv_set, kpp1_env%rho_set)
          CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
                                 my_rho_r, auxbas_pw_pool, &
                                 xc_section=xc_section, tau_r=my_tau_r)
@@ -768,7 +768,7 @@ CONTAINS
                admm_xc_section => admm_env%xc_section_aux
                CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho)
                CALL qs_rho_get(rho, rho_r=rho_r)
-               ALLOCATE (kpp1_env%deriv_set_admm)
+               ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
                CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
                                       rho_r, auxbas_pw_pool, &
                                       xc_section=admm_xc_section)
@@ -793,7 +793,10 @@ CONTAINS
          DEALLOCATE (kpp1_env%deriv_set)
          NULLIFY (kpp1_env%deriv_set)
       END IF
-      CALL xc_rho_set_release(kpp1_env%rho_set)
+      IF (ASSOCIATED(kpp1_env%rho_set)) THEN
+         CALL xc_rho_set_release(kpp1_env%rho_set)
+         DEALLOCATE (kpp1_env%rho_set)
+      END IF
 
    END SUBROUTINE kpp1_did_change
 

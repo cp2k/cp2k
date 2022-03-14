@@ -43,7 +43,7 @@ MODULE qs_kernel_types
       ! response density
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho1_set => Null()
       !> first and second derivatives of exchange-correlation functional
-      TYPE(xc_derivative_set_type), POINTER              :: xc_deriv_set => Null()
+      TYPE(xc_derivative_set_type)              :: xc_deriv_set
       !> XC input section
       TYPE(section_vals_type), POINTER                   :: xc_section => Null()
       !> flags which indicate required components of the exchange-correlation functional
@@ -89,10 +89,15 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       IF (ASSOCIATED(kernel_env)) THEN
-         CALL xc_rho_set_release(kernel_env%xc_rho1_set)
+         IF (ASSOCIATED(kernel_env%xc_rho1_set)) THEN
+            CALL xc_rho_set_release(kernel_env%xc_rho1_set)
+            DEALLOCATE (kernel_env%xc_rho1_set)
+         END IF
          CALL xc_dset_release(kernel_env%xc_deriv_set)
-         DEALLOCATE (kernel_env%xc_deriv_set)
-         CALL xc_rho_set_release(kernel_env%xc_rho_set)
+         IF (ASSOCIATED(kernel_env%xc_rho_set)) THEN
+            CALL xc_rho_set_release(kernel_env%xc_rho_set)
+            DEALLOCATE (kernel_env%xc_rho_set)
+         END IF
       END IF
 
    END SUBROUTINE release_kernel_env

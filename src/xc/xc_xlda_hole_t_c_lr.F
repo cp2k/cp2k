@@ -20,6 +20,9 @@ MODULE xc_xlda_hole_t_c_lr
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE mathlib,                         ONLY: expint
+   USE xc_derivative_desc,              ONLY: deriv_rho,&
+                                              deriv_rhoa,&
+                                              deriv_rhob
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -122,7 +125,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xlda_hole_t_c_lr_lda_eval(rho_set, deriv_set, order, params)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: params
@@ -140,9 +143,6 @@ CONTAINS
       CALL section_vals_val_get(params, "SCALE_X", r_val=sx)
       CALL section_vals_val_get(params, "CUTOFF_RADIUS", r_val=R)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
-
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -153,12 +153,12 @@ CONTAINS
       e_rho => dummy
 
       IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (order >= 1 .OR. order == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
       END IF
@@ -305,7 +305,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xlda_hole_t_c_lr_lsd_eval(rho_set, deriv_set, order, params)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(IN)                                :: order
       TYPE(section_vals_type), POINTER                   :: params
@@ -323,9 +323,6 @@ CONTAINS
       CALL section_vals_val_get(params, "SCALE_X", r_val=sx)
       CALL section_vals_val_get(params, "CUTOFF_RADIUS", r_val=R)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
-
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, &
                           local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -337,15 +334,15 @@ CONTAINS
       e_rhob => dummy
 
       IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (order >= 1 .OR. order == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhoa)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhob)
       END IF

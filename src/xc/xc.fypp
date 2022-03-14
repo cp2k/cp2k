@@ -14,8 +14,8 @@
    #! elements 5+6: first and last indices of the potential arrays corresponding to the required spin channels
 
    #:set arguments_openshell = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drho", "", "dr1dr", "v_drho", 1, 2), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("tau_a", "a", "tau1a", "v_xc_tau", 1, 1), ("tau_b", "b", "tau1b", "v_xc_tau", 2, 2), ("laplace_rhoa", "a", "laplace1a", "v_laplace", 1, 1), ("laplace_rhob", "b", "laplace1b", "v_laplace", 2, 2)]
-   #:set arguments_triplet_outer = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("taua", "a", "tau1a", "v_xc_tau", 1, 1), ("laplace_rhoa", "a", "laplace1a", "v_laplace", 2, 2)]
-   #:set arguments_triplet_inner = arguments_triplet_outer + [("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("taub", "b", "tau1b", "v_xc_tau", 2, 2), ("laplace_rhob", "b", "laplace1b", "v_laplace", 2, 2)]
+   #:set arguments_triplet_outer = [("rhoa", "a", "rho1a", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("norm_drhoa", "a", "dra1dra", "v_drhoa", 1, 1), ("tau_a", "a", "tau1a", "v_xc_tau", 1, 1), ("laplace_rhoa", "a", "laplace1a", "v_laplace", 2, 2)]
+   #:set arguments_triplet_inner = arguments_triplet_outer + [("rhob", "b", "rho1b", "v_xc", 2, 2), ("norm_drhob", "b", "drb1drb", "v_drhob", 2, 2), ("tau_b", "b", "tau1b", "v_xc_tau", 2, 2), ("laplace_rhob", "b", "laplace1b", "v_laplace", 2, 2)]
    #:set arguments_closedshell = [("rho", "", "rho1", "v_xc", 1, 1), ("norm_drho", "", "dr1dr", "v_drho", 1, 1), ("tau", "", "tau1", "v_xc_tau", 1, 1), ("laplace_rho", "", "laplace1", "v_laplace", 1, 1)]
 
    #:def add_2nd_derivative_terms(outer_arguments, inner_arguments=[])
@@ -23,7 +23,7 @@
       #:for arg1, appendix1, darg1, v_arg1, start1, end1 in outer_arguments
          #! Code for the second order contributions
          #:for arg2, _, darg2, v_arg2, _, _ in my_inner_arguments
-            deriv_att => xc_dset_get_derivative(deriv_set, "(${arg1}$)(${arg2}$)")
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_${arg1}$, deriv_${arg2}$])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 !$OMP       PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE)&
@@ -43,7 +43,7 @@
 
          #! Extra code of the gradients
          #:if arg1.startswith("norm")
-            deriv_att => xc_dset_get_derivative(deriv_set, "(${arg1}$)")
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_${arg1}$])
             IF (ASSOCIATED(deriv_att)) THEN
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
                CALL xc_derivative_get(deriv_att, deriv_data=e_drho${appendix1}$)

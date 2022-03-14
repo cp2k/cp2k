@@ -33,6 +33,9 @@ MODULE atom_xc
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
    USE xc_atom,                         ONLY: xc_rho_set_atom_update
+   USE xc_derivative_desc,              ONLY: &
+        deriv_norm_drho, deriv_norm_drhoa, deriv_norm_drhob, deriv_rho, deriv_rhoa, deriv_rhob, &
+        deriv_tau, deriv_tau_a, deriv_tau_b
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_create,&
                                               xc_dset_get_derivative,&
@@ -208,10 +211,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
 
@@ -225,8 +228,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(xc_section)) THEN
-         NULLIFY (rho_set)
-
          xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
          CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
 
@@ -239,7 +240,7 @@ CONTAINS
 
             lsd = .FALSE.
             nspins = 1
-            needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+            needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.FALSE.)
 
             ! Prepare the structures needed to calculate and store the xc derivatives
 
@@ -251,8 +252,6 @@ CONTAINS
             bounds(2, 1) = nr
 
             ! create a place where to put the derivatives
-            NULLIFY (deriv_set)
-            ALLOCATE (deriv_set)
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -298,7 +297,7 @@ CONTAINS
                                      deriv_order=deriv_order)
 
             ! Integration to get the matrix elements and energy
-            deriv => xc_dset_get_derivative(deriv_set, "", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             atom%energy%exc = fourpi*integrate_grid(xcpot(:, 1, 1), atom%basis%grid)
 
@@ -312,7 +311,7 @@ CONTAINS
             END IF
 
             IF (needs%rho) THEN
-               deriv => xc_dset_get_derivative(deriv_set, "(rho)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmat%op, xcpot(:, 1, 1), atom%basis, 0)
                IF (.FALSE.) THEN
@@ -325,7 +324,7 @@ CONTAINS
                DEALLOCATE (rho)
             END IF
             IF (needs%norm_drho) THEN
-               deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmat%op, xcpot(:, 1, 1), atom%basis, 1)
                IF (.FALSE.) THEN
@@ -338,7 +337,7 @@ CONTAINS
                DEALLOCATE (drho)
             END IF
             IF (needs%tau) THEN
-               deriv => xc_dset_get_derivative(deriv_set, "(tau)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_tau], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                n1 = SIZE(xcmat%op, 1)
                n2 = SIZE(xcmat%op, 2)
@@ -365,7 +364,6 @@ CONTAINS
 
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
-            DEALLOCATE (deriv_set)
             CALL xc_rho_set_release(rho_set)
 
          END IF !xc_none
@@ -418,10 +416,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
 
@@ -437,7 +435,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(xc_section)) THEN
-         NULLIFY (rho_set)
          IF (nlcc) THEN
             nr = atom%basis%grid%nr
             ALLOCATE (xfun(nr))
@@ -455,7 +452,7 @@ CONTAINS
 
             lsd = .TRUE.
             nspins = 2
-            needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+            needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.FALSE.)
 
             ! Prepare the structures needed to calculate and store the xc derivatives
 
@@ -467,8 +464,6 @@ CONTAINS
             bounds(2, 1) = nr
 
             ! create a place where to put the derivatives
-            NULLIFY (deriv_set)
-            ALLOCATE (deriv_set)
             CALL xc_dset_create(deriv_set, local_bounds=bounds)
             ! create the place where to store the argument for the functionals
             CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -529,15 +524,15 @@ CONTAINS
                                      deriv_order=deriv_order)
 
             ! Integration to get the matrix elements and energy
-            deriv => xc_dset_get_derivative(deriv_set, "", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             atom%energy%exc = fourpi*integrate_grid(xcpot(:, 1, 1), atom%basis%grid)
 
             IF (needs%rho_spin) THEN
-               deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmata%op, xcpot(:, 1, 1), atom%basis, 0)
-               deriv => xc_dset_get_derivative(deriv_set, "(rhob)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmatb%op, xcpot(:, 1, 1), atom%basis, 0)
                DEALLOCATE (rho)
@@ -545,17 +540,17 @@ CONTAINS
             IF (needs%norm_drho_spin) THEN
                ! drhoa
                NULLIFY (deriv)
-               deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmata%op, xcpot(:, 1, 1), atom%basis, 1)
                ! drhob
                NULLIFY (deriv)
-               deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmatb%op, xcpot(:, 1, 1), atom%basis, 1)
                ! Cross Terms
                NULLIFY (deriv)
-               deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
                IF (ASSOCIATED(deriv)) THEN
                   CALL xc_derivative_get(deriv, deriv_data=xcpot)
                   CALL numpot_matrix(xcmata%op, xcpot(:, 1, 1), atom%basis, 1)
@@ -569,7 +564,7 @@ CONTAINS
                n3 = SIZE(xcmata%op, 3)
                ALLOCATE (taumat(n1, n2, 0:n3 - 1))
 
-               deriv => xc_dset_get_derivative(deriv_set, "(tau_a)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_tau_a], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                taumat = 0._dp
                xcpot(:, 1, 1) = 0.5_dp*xcpot(:, 1, 1)
@@ -580,7 +575,7 @@ CONTAINS
                   xcmata%op(:, :, l) = xcmata%op(:, :, l) + REAL(l*(l + 1), dp)*taumat(:, :, l)
                END DO
 
-               deriv => xc_dset_get_derivative(deriv_set, "(tau_b)", allocate_deriv=.FALSE.)
+               deriv => xc_dset_get_derivative(deriv_set, [deriv_tau_b], allocate_deriv=.FALSE.)
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                taumat = 0._dp
                xcpot(:, 1, 1) = 0.5_dp*xcpot(:, 1, 1)
@@ -602,7 +597,6 @@ CONTAINS
 
             ! Release the xc structure used to store the xc derivatives
             CALL xc_dset_release(deriv_set)
-            DEALLOCATE (deriv_set)
             CALL xc_rho_set_release(rho_set)
 
          END IF !xc_none
@@ -669,16 +663,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(xc_section))
-
-      NULLIFY (rho_set)
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
@@ -692,7 +684,7 @@ CONTAINS
 
          lsd = .FALSE.
          nspins = 1
-         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.FALSE.)
 
          ! Prepare the structures needed to calculate and store the xc derivatives
 
@@ -704,8 +696,6 @@ CONTAINS
          bounds(2, 1) = nr
 
          ! create a place where to put the derivatives
-         NULLIFY (deriv_set)
-         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -740,24 +730,24 @@ CONTAINS
                                   deriv_order=deriv_order)
 
          ! Integration to get the matrix elements and energy
-         deriv => xc_dset_get_derivative(deriv_set, "", allocate_deriv=.FALSE.)
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], allocate_deriv=.FALSE.)
          CALL xc_derivative_get(deriv, deriv_data=xcpot)
          fexc = fourpi*integrate_grid(xcpot(:, 1, 1), basis%grid)
 
          IF (needs%rho) THEN
-            deriv => xc_dset_get_derivative(deriv_set, "(rho)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             CALL numpot_matrix(xcmat, xcpot(:, 1, 1), basis, 0)
             DEALLOCATE (rho)
          END IF
          IF (needs%norm_drho) THEN
-            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             CALL numpot_matrix(xcmat, xcpot(:, 1, 1), basis, 1)
             DEALLOCATE (drho)
          END IF
          IF (needs%tau) THEN
-            deriv => xc_dset_get_derivative(deriv_set, "(tau)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_tau], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             n1 = SIZE(xcmat, 1)
             n2 = SIZE(xcmat, 2)
@@ -784,7 +774,6 @@ CONTAINS
 
          ! Release the xc structure used to store the xc derivatives
          CALL xc_dset_release(deriv_set)
-         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set)
 
       END IF !xc_none
@@ -825,16 +814,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: drho, lap, rho, tau
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: taumat, xcpot
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv
       TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(xc_section))
-
-      NULLIFY (rho_set)
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
@@ -848,7 +835,7 @@ CONTAINS
 
          lsd = .TRUE.
          nspins = 2
-         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, add_basic_components=.FALSE.)
+         needs = xc_functionals_get_needs(xc_fun_section, lsd=lsd, calc_potential=.FALSE.)
 
          ! Prepare the structures needed to calculate and store the xc derivatives
 
@@ -860,8 +847,6 @@ CONTAINS
          bounds(2, 1) = nr
 
          ! create a place where to put the derivatives
-         NULLIFY (deriv_set)
-         ALLOCATE (deriv_set)
          CALL xc_dset_create(deriv_set, local_bounds=bounds)
          ! create the place where to store the argument for the functionals
          CALL xc_rho_set_create(rho_set, bounds, rho_cutoff=density_cut, &
@@ -900,15 +885,15 @@ CONTAINS
                                   deriv_order=deriv_order)
 
          ! Integration to get the matrix elements and energy
-         deriv => xc_dset_get_derivative(deriv_set, "", allocate_deriv=.FALSE.)
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], allocate_deriv=.FALSE.)
          CALL xc_derivative_get(deriv, deriv_data=xcpot)
          fexc = fourpi*integrate_grid(xcpot(:, 1, 1), basis%grid)
 
          IF (needs%rho_spin) THEN
-            deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             CALL numpot_matrix(xcmata, xcpot(:, 1, 1), basis, 0)
-            deriv => xc_dset_get_derivative(deriv_set, "(rhob)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             CALL numpot_matrix(xcmatb, xcpot(:, 1, 1), basis, 0)
             DEALLOCATE (rho)
@@ -916,17 +901,17 @@ CONTAINS
          IF (needs%norm_drho_spin) THEN
             ! drhoa
             NULLIFY (deriv)
-            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             CALL numpot_matrix(xcmata, xcpot(:, 1, 1), basis, 1)
             ! drhob
             NULLIFY (deriv)
-            deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             CALL numpot_matrix(xcmatb, xcpot(:, 1, 1), basis, 1)
             ! Cross Terms
             NULLIFY (deriv)
-            deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)")
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
             IF (ASSOCIATED(deriv)) THEN
                CALL xc_derivative_get(deriv, deriv_data=xcpot)
                CALL numpot_matrix(xcmata, xcpot(:, 1, 1), basis, 1)
@@ -940,7 +925,7 @@ CONTAINS
             n3 = SIZE(xcmata, 3)
             ALLOCATE (taumat(n1, n2, 0:n3 - 1))
 
-            deriv => xc_dset_get_derivative(deriv_set, "(tau_a)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_tau_a], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             taumat = 0._dp
             xcpot(:, 1, 1) = 0.5_dp*xcpot(:, 1, 1)
@@ -951,7 +936,7 @@ CONTAINS
                xcmata(:, :, l) = xcmata(:, :, l) + REAL(l*(l + 1), dp)*taumat(:, :, l)
             END DO
 
-            deriv => xc_dset_get_derivative(deriv_set, "(tau_b)", allocate_deriv=.FALSE.)
+            deriv => xc_dset_get_derivative(deriv_set, [deriv_tau_b], allocate_deriv=.FALSE.)
             CALL xc_derivative_get(deriv, deriv_data=xcpot)
             taumat = 0._dp
             xcpot(:, 1, 1) = 0.5_dp*xcpot(:, 1, 1)
@@ -968,7 +953,6 @@ CONTAINS
 
          ! Release the xc structure used to store the xc derivatives
          CALL xc_dset_release(deriv_set)
-         DEALLOCATE (deriv_set)
          CALL xc_rho_set_release(rho_set)
 
       END IF !xc_none
@@ -1075,7 +1059,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_rho_set(rho_set, nspins, needs, rho, drho, tau, lap, na)
 
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho, drho, tau, lap
@@ -1090,7 +1074,6 @@ CONTAINS
          CPASSERT(.NOT. needs%rho_spin)
          CPASSERT(.NOT. needs%drho_spin)
          CPASSERT(.NOT. needs%norm_drho_spin)
-         CPASSERT(.NOT. needs%drhoa_drhob)
          CPASSERT(.NOT. needs%rho_spin_1_3)
          CPASSERT(.NOT. needs%tau_spin)
          CPASSERT(.NOT. needs%drho)
@@ -1121,7 +1104,6 @@ CONTAINS
       CASE (2)
          CPASSERT(.NOT. needs%drho)
          CPASSERT(.NOT. needs%drho_spin)
-         CPASSERT(.NOT. needs%drhoa_drhob)
          ! Give the total density
          IF (needs%rho) THEN
             DO ia = 1, na

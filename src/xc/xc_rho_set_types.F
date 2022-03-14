@@ -12,46 +12,43 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE xc_rho_set_types
-   USE cp_array_utils,                  ONLY: cp_3d_r_p_type
-   USE kinds,                           ONLY: dp
-   USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_derive,&
-                                              pw_transfer,&
-                                              pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
-                                              pw_pool_create_pw,&
-                                              pw_pool_give_back_cr3d,&
-                                              pw_pool_give_back_pw,&
-                                              pw_pool_type
-   USE pw_spline_utils,                 ONLY: &
-        nn10_coeffs, nn10_deriv_coeffs, nn50_coeffs, nn50_deriv_coeffs, pw_nn_deriv_r, &
-        pw_nn_smear_r, pw_spline2_deriv_g, pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
-        pw_spline3_interpolate_values_g, pw_spline_scale_deriv, spline2_coeffs, &
-        spline2_deriv_coeffs, spline3_coeffs, spline3_deriv_coeffs
-   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE,&
-                                              pw_p_type,&
-                                              pw_type
-   USE xc_input_constants,              ONLY: &
-        xc_deriv_collocate, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
-        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
-   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
-                                              xc_rho_cflags_setall,&
-                                              xc_rho_cflags_type
+   USE cp_array_utils, ONLY: cp_3d_r_p_type
+   USE kinds, ONLY: dp
+   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_methods, ONLY: pw_copy, &
+                         pw_transfer
+   USE pw_pool_types, ONLY: pw_pool_create_cr3d, &
+                            pw_pool_create_pw, &
+                            pw_pool_give_back_cr3d, &
+                            pw_pool_give_back_pw, &
+                            pw_pool_type
+   USE pw_spline_utils, ONLY: pw_spline_scale_deriv
+   USE pw_types, ONLY: COMPLEXDATA1D, &
+                       REALDATA3D, &
+                       REALSPACE, &
+                       RECIPROCALSPACE, &
+                       pw_p_type, &
+                       pw_type, pw_create
+   USE xc_input_constants, ONLY: xc_deriv_pw, &
+                                 xc_deriv_spline2, &
+                                 xc_deriv_spline3, &
+                                 xc_rho_no_smooth
+   USE xc_rho_cflags_types, ONLY: xc_rho_cflags_equal, &
+                                  xc_rho_cflags_setall, &
+                                  xc_rho_cflags_type
+   USE xc_util, ONLY: xc_pw_gradient, &
+                      xc_pw_laplace, &
+                      xc_pw_smooth
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_set_types'
-   INTEGER, SAVE :: last_rho_set_id = 0
 
    PUBLIC :: xc_rho_set_type
    PUBLIC :: xc_rho_set_create, xc_rho_set_release, &
-             xc_rho_set_update, xc_rho_set_get
+             xc_rho_set_update, xc_rho_set_get, xc_rho_set_recover_pw
 
 ! **************************************************************************************************
 !> \brief represent a density, with all the representation and data needed
@@ -70,8 +67,6 @@ MODULE xc_rho_set_types
 !> \param drhoa , drhob: gradient of the spin alpha and beta parts of the density
 !>        in the LSD case (x,y and z direction)
 !> \param norm_drhoa , norm_drhob: norm of the gradient of rhoa and rhob
-!> \param drhoa_drhob the scalar product between the gradient of rhoa and the
-!>        one of rhob
 !> \param rho_ 1_3: rho^(1.0_dp/3.0_dp)
 !> \param rhoa_ 1_3, rhob_1_3: rhoa^(1.0_dp/3.0_dp), rhob^(1.0_dp/3.0_dp)
 !> \param tau the kinetic (KohnSham) part of rho
@@ -89,7 +84,6 @@ MODULE xc_rho_set_types
 !> \author fawzi & thomas
 ! **************************************************************************************************
    TYPE xc_rho_set_type
-      INTEGER :: ref_count, id_nr
       INTEGER, DIMENSION(2, 3) :: local_bounds
       REAL(kind=dp) :: rho_cutoff, drho_cutoff, tau_cutoff
       TYPE(xc_rho_cflags_type) :: owns, has
@@ -103,7 +97,6 @@ MODULE xc_rho_set_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rhoa, rhob
       TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drhoa, drhob
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: norm_drhoa, norm_drhob
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: drhoa_drhob
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: rhoa_1_3, rhob_1_3
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: tau_a, tau_b
       REAL(kind=dp), DIMENSION(:, :, :), POINTER :: laplace_rho, laplace_rhoa, laplace_rhob
@@ -121,17 +114,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_create(rho_set, local_bounds, rho_cutoff, drho_cutoff, &
                                 tau_cutoff)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       INTEGER, DIMENSION(2, 3), INTENT(in)               :: local_bounds
       REAL(kind=dp), INTENT(in), OPTIONAL                :: rho_cutoff, drho_cutoff, tau_cutoff
 
       INTEGER                                            :: i
 
-      CPASSERT(.NOT. ASSOCIATED(rho_set))
-      ALLOCATE (rho_set)
-      rho_set%ref_count = 1
-      last_rho_set_id = last_rho_set_id + 1
-      rho_set%id_nr = last_rho_set_id
       rho_set%rho_cutoff = EPSILON(0.0_dp)
       IF (PRESENT(rho_cutoff)) rho_set%rho_cutoff = rho_cutoff
       rho_set%drho_cutoff = EPSILON(0.0_dp)
@@ -151,21 +139,10 @@ CONTAINS
          NULLIFY (rho_set%drhoa(i)%array, rho_set%drhob(i)%array)
       END DO
       NULLIFY (rho_set%norm_drhoa, rho_set%norm_drhob, &
-               rho_set%drhoa_drhob, rho_set%rhoa_1_3, rho_set%rhob_1_3, &
+               rho_set%rhoa_1_3, rho_set%rhob_1_3, &
                rho_set%tau, rho_set%tau_a, rho_set%tau_b, rho_set%laplace_rho, rho_set%laplace_rhoa, &
                rho_set%laplace_rhob)
    END SUBROUTINE xc_rho_set_create
-
-! **************************************************************************************************
-!> \brief retains the given rho_set
-!> \param rho_set the object to retain
-! **************************************************************************************************
-   SUBROUTINE xc_rho_set_retain(rho_set)
-      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
-
-      CPASSERT(rho_set%ref_count > 0)
-      rho_set%ref_count = rho_set%ref_count + 1
-   END SUBROUTINE xc_rho_set_retain
 
 ! **************************************************************************************************
 !> \brief releases the given rho_set
@@ -173,108 +150,95 @@ CONTAINS
 !> \param pw_pool the plae where to give back the arrays
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_release(rho_set, pw_pool)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(rho_set)) THEN
-         CPASSERT(rho_set%ref_count > 0)
-         rho_set%ref_count = rho_set%ref_count - 1
-         IF (rho_set%ref_count == 0) THEN
-            IF (PRESENT(pw_pool)) THEN
-               IF (ASSOCIATED(pw_pool)) THEN
-                  rho_set%ref_count = 1
-                  CALL xc_rho_set_clean(rho_set, pw_pool)
-                  rho_set%ref_count = 0
-               ELSE
-                  CPABORT("")
-               END IF
-            END IF
-
-            rho_set%local_bounds(1, :) = -HUGE(0) ! we want to crash...
-            rho_set%local_bounds(1, :) = HUGE(0)
-            IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
-               DEALLOCATE (rho_set%rho)
-            END IF
-            IF (rho_set%owns%rho_spin) THEN
-               IF (ASSOCIATED(rho_set%rhoa)) THEN
-                  DEALLOCATE (rho_set%rhoa)
-               END IF
-               IF (ASSOCIATED(rho_set%rhob)) THEN
-                  DEALLOCATE (rho_set%rhob)
-               END IF
-            END IF
-            IF (rho_set%owns%rho_1_3 .AND. ASSOCIATED(rho_set%rho_1_3)) THEN
-               DEALLOCATE (rho_set%rho_1_3)
-            END IF
-            IF (rho_set%owns%rho_spin) THEN
-               IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
-                  DEALLOCATE (rho_set%rhoa_1_3)
-               END IF
-               IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
-                  DEALLOCATE (rho_set%rhob_1_3)
-               END IF
-            END IF
-            IF (rho_set%owns%drho) THEN
-               DO i = 1, 3
-                  IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
-                     DEALLOCATE (rho_set%drho(i)%array)
-                  END IF
-               END DO
-            END IF
-            IF (rho_set%owns%drho_spin) THEN
-               DO i = 1, 3
-                  IF (ASSOCIATED(rho_set%drhoa(i)%array)) THEN
-                     DEALLOCATE (rho_set%drhoa(i)%array)
-                  END IF
-                  IF (ASSOCIATED(rho_set%drhob(i)%array)) THEN
-                     DEALLOCATE (rho_set%drhob(i)%array)
-                  END IF
-               END DO
-            END IF
-            IF (rho_set%owns%laplace_rho .AND. ASSOCIATED(rho_set%laplace_rho)) THEN
-               DEALLOCATE (rho_set%laplace_rho)
-            END IF
-
-            IF (rho_set%owns%norm_drho .AND. ASSOCIATED(rho_set%norm_drho)) THEN
-               DEALLOCATE (rho_set%norm_drho)
-            END IF
-            IF (rho_set%owns%laplace_rho_spin) THEN
-               IF (ASSOCIATED(rho_set%laplace_rhoa)) THEN
-                  DEALLOCATE (rho_set%laplace_rhoa)
-               END IF
-               IF (ASSOCIATED(rho_set%laplace_rhob)) THEN
-                  DEALLOCATE (rho_set%laplace_rhob)
-               END IF
-            END IF
-
-            IF (rho_set%owns%norm_drho_spin) THEN
-               IF (ASSOCIATED(rho_set%norm_drhoa)) THEN
-                  DEALLOCATE (rho_set%norm_drhoa)
-               END IF
-               IF (ASSOCIATED(rho_set%norm_drhob)) THEN
-                  DEALLOCATE (rho_set%norm_drhob)
-               END IF
-            END IF
-            IF (rho_set%owns%drhoa_drhob .AND. ASSOCIATED(rho_set%drhoa_drhob)) THEN
-               DEALLOCATE (rho_set%drhoa_drhob)
-            END IF
-            IF (rho_set%owns%tau .AND. ASSOCIATED(rho_set%tau)) THEN
-               DEALLOCATE (rho_set%tau)
-            END IF
-            IF (rho_set%owns%tau_spin) THEN
-               IF (ASSOCIATED(rho_set%tau_a)) THEN
-                  DEALLOCATE (rho_set%tau_a)
-               END IF
-               IF (ASSOCIATED(rho_set%tau_b)) THEN
-                  DEALLOCATE (rho_set%tau_b)
-               END IF
-            END IF
-            DEALLOCATE (rho_set)
+      IF (PRESENT(pw_pool)) THEN
+         IF (ASSOCIATED(pw_pool)) THEN
+            CALL xc_rho_set_clean(rho_set, pw_pool)
+         ELSE
+            CPABORT("pw_pool must be associated")
          END IF
       END IF
-      NULLIFY (rho_set)
+
+      rho_set%local_bounds(1, :) = -HUGE(0) ! we want to crash...
+      rho_set%local_bounds(1, :) = HUGE(0)
+      IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
+         DEALLOCATE (rho_set%rho)
+      END IF
+      IF (rho_set%owns%rho_spin) THEN
+         IF (ASSOCIATED(rho_set%rhoa)) THEN
+            DEALLOCATE (rho_set%rhoa)
+         END IF
+         IF (ASSOCIATED(rho_set%rhob)) THEN
+            DEALLOCATE (rho_set%rhob)
+         END IF
+      END IF
+      IF (rho_set%owns%rho_1_3 .AND. ASSOCIATED(rho_set%rho_1_3)) THEN
+         DEALLOCATE (rho_set%rho_1_3)
+      END IF
+      IF (rho_set%owns%rho_spin) THEN
+         IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
+            DEALLOCATE (rho_set%rhoa_1_3)
+         END IF
+         IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
+            DEALLOCATE (rho_set%rhob_1_3)
+         END IF
+      END IF
+      IF (rho_set%owns%drho) THEN
+         DO i = 1, 3
+            IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
+               DEALLOCATE (rho_set%drho(i)%array)
+            END IF
+         END DO
+      END IF
+      IF (rho_set%owns%drho_spin) THEN
+         DO i = 1, 3
+            IF (ASSOCIATED(rho_set%drhoa(i)%array)) THEN
+               DEALLOCATE (rho_set%drhoa(i)%array)
+            END IF
+            IF (ASSOCIATED(rho_set%drhob(i)%array)) THEN
+               DEALLOCATE (rho_set%drhob(i)%array)
+            END IF
+         END DO
+      END IF
+      IF (rho_set%owns%laplace_rho .AND. ASSOCIATED(rho_set%laplace_rho)) THEN
+         DEALLOCATE (rho_set%laplace_rho)
+      END IF
+
+      IF (rho_set%owns%norm_drho .AND. ASSOCIATED(rho_set%norm_drho)) THEN
+         DEALLOCATE (rho_set%norm_drho)
+      END IF
+      IF (rho_set%owns%laplace_rho_spin) THEN
+         IF (ASSOCIATED(rho_set%laplace_rhoa)) THEN
+            DEALLOCATE (rho_set%laplace_rhoa)
+         END IF
+         IF (ASSOCIATED(rho_set%laplace_rhob)) THEN
+            DEALLOCATE (rho_set%laplace_rhob)
+         END IF
+      END IF
+
+      IF (rho_set%owns%norm_drho_spin) THEN
+         IF (ASSOCIATED(rho_set%norm_drhoa)) THEN
+            DEALLOCATE (rho_set%norm_drhoa)
+         END IF
+         IF (ASSOCIATED(rho_set%norm_drhob)) THEN
+            DEALLOCATE (rho_set%norm_drhob)
+         END IF
+      END IF
+      IF (rho_set%owns%tau .AND. ASSOCIATED(rho_set%tau)) THEN
+         DEALLOCATE (rho_set%tau)
+      END IF
+      IF (rho_set%owns%tau_spin) THEN
+         IF (ASSOCIATED(rho_set%tau_a)) THEN
+            DEALLOCATE (rho_set%tau_a)
+         END IF
+         IF (ASSOCIATED(rho_set%tau_b)) THEN
+            DEALLOCATE (rho_set%tau_b)
+         END IF
+      END IF
    END SUBROUTINE xc_rho_set_release
 
 ! **************************************************************************************************
@@ -290,7 +254,6 @@ CONTAINS
 !> \param rhob ...
 !> \param norm_drhoa ...
 !> \param norm_drhob ...
-!> \param drhoa_drhob ...
 !> \param rho_1_3 ...
 !> \param rhoa_1_3 ...
 !> \param rhob_1_3 ...
@@ -308,20 +271,20 @@ CONTAINS
 !> \param local_bounds ...
 ! **************************************************************************************************
    SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho, &
-                             rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob, rho_1_3, rhoa_1_3, &
+                             rhoa, rhob, norm_drhoa, norm_drhob, rho_1_3, rhoa_1_3, &
                              rhob_1_3, laplace_rho, laplace_rhoa, laplace_rhob, drhoa, drhob, rho_cutoff, &
                              drho_cutoff, tau_cutoff, tau, tau_a, tau_b, local_bounds)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       LOGICAL, INTENT(in), OPTIONAL                      :: can_return_null
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: rho
-      TYPE(cp_3d_r_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: drho
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, POINTER :: norm_drho, rhoa, rhob, norm_drhoa, &
-         norm_drhob, drhoa_drhob, rho_1_3, rhoa_1_3, rhob_1_3, laplace_rho, laplace_rhoa, &
-         laplace_rhob
-      TYPE(cp_3d_r_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: drhoa, drhob
+      TYPE(cp_3d_r_p_type), DIMENSION(3), OPTIONAL       :: drho
+      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
+         POINTER                                         :: norm_drho, rhoa, rhob, norm_drhoa, &
+                                                            norm_drhob, rho_1_3, rhoa_1_3, &
+                                                            rhob_1_3, laplace_rho, laplace_rhoa, &
+                                                            laplace_rhob
+      TYPE(cp_3d_r_p_type), DIMENSION(3), OPTIONAL       :: drhoa, drhob
       REAL(kind=dp), INTENT(out), OPTIONAL               :: rho_cutoff, drho_cutoff, tau_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: tau, tau_a, tau_b
@@ -333,19 +296,15 @@ CONTAINS
       my_can_return_null = .FALSE.
       IF (PRESENT(can_return_null)) my_can_return_null = can_return_null
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       IF (PRESENT(rho)) THEN
          rho => rho_set%rho
          CPASSERT(my_can_return_null .OR. ASSOCIATED(rho))
       END IF
       IF (PRESENT(drho)) THEN
-         drho => rho_set%drho
-         IF (.NOT. my_can_return_null) THEN
-            DO i = 1, 3
-               CPASSERT(ASSOCIATED(rho_set%drho(i)%array))
-            END DO
-         END IF
+         DO i = 1, 3
+            drho(i)%array => rho_set%drho(i)%array
+            CPASSERT(my_can_return_null .OR. ASSOCIATED(rho_set%drho(i)%array))
+         END DO
       END IF
       IF (PRESENT(norm_drho)) THEN
          norm_drho => rho_set%norm_drho
@@ -364,20 +323,16 @@ CONTAINS
          CPASSERT(my_can_return_null .OR. ASSOCIATED(rhob))
       END IF
       IF (PRESENT(drhoa)) THEN
-         drhoa => rho_set%drhoa
-         IF (.NOT. my_can_return_null) THEN
-            DO i = 1, 3
-               CPASSERT(ASSOCIATED(rho_set%drhoa(i)%array))
-            END DO
-         END IF
+         DO i = 1, 3
+            drhoa(i)%array => rho_set%drhoa(i)%array
+            CPASSERT(my_can_return_null .OR. ASSOCIATED(rho_set%drhoa(i)%array))
+         END DO
       END IF
       IF (PRESENT(drhob)) THEN
-         drhob => rho_set%drhob
-         IF (.NOT. my_can_return_null) THEN
-            DO i = 1, 3
-               CPASSERT(ASSOCIATED(rho_set%drhob(i)%array))
-            END DO
-         END IF
+         DO i = 1, 3
+            drhob(i)%array => rho_set%drhob(i)%array
+            CPASSERT(my_can_return_null .OR. ASSOCIATED(rho_set%drhob(i)%array))
+         END DO
       END IF
       IF (PRESENT(laplace_rhoa)) THEN
          laplace_rhoa => rho_set%laplace_rhoa
@@ -394,10 +349,6 @@ CONTAINS
       IF (PRESENT(norm_drhob)) THEN
          norm_drhob => rho_set%norm_drhob
          CPASSERT(my_can_return_null .OR. ASSOCIATED(norm_drhob))
-      END IF
-      IF (PRESENT(drhoa_drhob)) THEN
-         drhoa_drhob => rho_set%drhoa_drhob
-         CPASSERT(my_can_return_null .OR. ASSOCIATED(drhoa_drhob))
       END IF
       IF (PRESENT(rho_1_3)) THEN
          rho_1_3 => rho_set%rho_1_3
@@ -429,6 +380,109 @@ CONTAINS
       IF (PRESENT(local_bounds)) local_bounds = rho_set%local_bounds
    END SUBROUTINE xc_rho_set_get
 
+   #:mute
+      #:def recover(variable)
+         #! Determine component of the actual data
+         #:set var_long_pw = (variable+"(i)%pw" if variable.startswith("drho") else variable)
+         #:set var_long_rho = (variable+"(i)%array" if variable.startswith("drho") else variable)
+         #! Determine the flag name
+         #! Remove spin states and potential underscore
+         #:set is_1_3 = variable.endswith("_1_3")
+         #:set var_base = variable.strip("_13")
+         #:set is_spin = var_base.endswith("a") or var_base.endswith("b")
+         #:set var_base = var_base.strip("ab_")
+         #:set var_cflags = (var_base if not is_spin else var_base+"_spin")
+         #:set var_cflags = (var_cflags if not is_1_3 else var_cflags+"_1_3")
+         IF (PRESENT(${variable}$)) THEN
+            #:if variable.startswith("drho")
+            DO i = 1, 3
+               #:endif
+               CALL xc_rho_set_recover_pw_low(${var_long_pw}$, rho_set%${var_long_rho}$, pw_grid, pw_pool#{if variable =="drho"}#, rho_set%drhoa(i)%array, rho_set%drhob(i)%array#{endif}#)
+               NULLIFY (rho_set%${var_long_rho}$)
+               #:if variable.startswith("drho")
+                  END DO
+               #:endif
+               owns_data = #{if variable =="drho"}#.TRUE.#{else}#rho_set%owns%${var_cflags}$#{endif}#
+            END IF
+            #:enddef
+         #:endmute
+
+! **************************************************************************************************
+!> \brief Shifts association of the requested array to a pw grid
+!>        Requires that the corresponding component of rho_set is associated
+!>        If owns_data returns TRUE, the caller has to allocate the data later
+!>        It is allowed to task for only one component per call.
+!>        In case of drho, the array is allocated if not internally available and calculated from drhoa and drhob.
+!> \param rho_set the object you want info about
+!> \param pw_grid ...
+!> \param pw_pool ...
+!> \param owns_data ...
+!> \param rho ...
+!> \param drho ...
+!> \param norm_drho ...
+!> \param rhoa ...
+!> \param rhob ...
+!> \param norm_drhoa ...
+!> \param norm_drhob ...
+!> \param rho_1_3 ...
+!> \param rhoa_1_3 ...
+!> \param rhob_1_3 ...
+!> \param laplace_rho ...
+!> \param laplace_rhoa ...
+!> \param laplace_rhob ...
+!> \param drhoa ...
+!> \param drhob ...
+!> \param tau ...
+!> \param tau_a ...
+!> \param tau_b ...
+! **************************************************************************************************
+         SUBROUTINE xc_rho_set_recover_pw(rho_set, pw_grid, pw_pool, owns_data, rho, drho, norm_drho, &
+                                          rhoa, rhob, norm_drhoa, norm_drhob, rho_1_3, rhoa_1_3, &
+                                          rhob_1_3, laplace_rho, laplace_rhoa, laplace_rhob, drhoa, drhob, &
+                                          tau, tau_a, tau_b)
+            TYPE(xc_rho_set_type)                              :: rho_set
+            TYPE(pw_p_type), DIMENSION(3), OPTIONAL            :: drho, drhoa, drhob
+            TYPE(pw_type), OPTIONAL, POINTER                   :: rho, norm_drho, rhoa, rhob, norm_drhoa, &
+                                                                  norm_drhob, rho_1_3, rhoa_1_3, &
+                                                                  rhob_1_3, laplace_rho, laplace_rhoa, &
+                                                                  laplace_rhob, tau, tau_a, tau_b
+            TYPE(pw_grid_type), POINTER, INTENT(IN) :: pw_grid
+            TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
+            LOGICAL, INTENT(OUT) :: owns_data
+
+            INTEGER                                            :: i
+
+            #:for variable in ["rho", "drho", "norm_drho", "rhoa", "rhob", "norm_drhoa", "norm_drhob", "rho_1_3", "rhoa_1_3", "rhob_1_3", "laplace_rho", "laplace_rhoa", "laplace_rhob", "drhoa", "drhob", "tau", "tau_a", "tau_b"]
+               $:recover(variable)
+            #:endfor
+
+         END SUBROUTINE
+
+         SUBROUTINE xc_rho_set_recover_pw_low(rho_pw, rho, pw_grid, pw_pool, rhoa, rhob)
+            TYPE(pw_type), POINTER :: rho_pw
+            REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rho
+            TYPE(pw_grid_type), POINTER, INTENT(IN) :: pw_grid
+            TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
+            REAL(KIND=dp), DIMENSION(:, :, :), POINTER, OPTIONAL :: rhoa, rhob
+
+            IF (ASSOCIATED(rho)) THEN
+               CALL pw_create(rho_pw, pw_grid=pw_grid, &
+                              cr3d_ptr=rho, &
+                              use_data=REALDATA3D, in_space=REALSPACE)
+               NULLIFY (rho)
+            ELSE IF (PRESENT(rhoa) .AND. PRESENT(rhob)) THEN
+               CALL pw_pool_create_pw(pw_pool, rho_pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(rho_pw,rhoa,rhob)
+               rho_pw%cr3d(:, :, :) = rhoa(:, :, :) + rhob(:, :, :)
+!$OMP END PARALLEL WORKSHARE
+            ELSE
+               CALL cp_abort(__LOCATION__, "Either component or its spin parts (if applicable) "// &
+                             "have to be associated in rho_set!")
+            END IF
+
+         END SUBROUTINE
+
 ! **************************************************************************************************
 !> \brief cleans (releases) most of the data stored in the rho_set giving back
 !>      what it can to the pw_pool
@@ -436,117 +490,109 @@ CONTAINS
 !> \param pw_pool place to give back 3d arrays,...
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE xc_rho_set_clean(rho_set, pw_pool)
-      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
-      TYPE(pw_pool_type), POINTER                        :: pw_pool
+         SUBROUTINE xc_rho_set_clean(rho_set, pw_pool)
+            TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
+            TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      INTEGER                                            :: idir
+            INTEGER                                            :: idir
 
-      CPASSERT(rho_set%ref_count > 0)
+            IF (rho_set%owns%rho) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rho, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%rho)
+            END IF
+            IF (rho_set%owns%rho_1_3) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rho_1_3, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%rho_1_3)
+            END IF
+            IF (rho_set%owns%drho) THEN
+               DO idir = 1, 3
+                  CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drho(idir)%array, &
+                                              accept_non_compatible=.TRUE.)
+               END DO
+            ELSE
+               DO idir = 1, 3
+                  NULLIFY (rho_set%drho(idir)%array)
+               END DO
+            END IF
+            IF (rho_set%owns%norm_drho) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%norm_drho, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%norm_drho)
+            END IF
+            IF (rho_set%owns%laplace_rho) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%laplace_rho, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%laplace_rho)
+            END IF
+            IF (rho_set%owns%tau) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%tau)
+            END IF
+            IF (rho_set%owns%rho_spin) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rhoa, &
+                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rhob, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%rhoa, rho_set%rhob)
+            END IF
+            IF (rho_set%owns%rho_spin_1_3) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rhoa_1_3, &
+                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rhob_1_3, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%rhoa_1_3, rho_set%rhob_1_3)
+            END IF
+            IF (rho_set%owns%drho_spin) THEN
+               DO idir = 1, 3
+                  CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa(idir)%array, &
+                                              accept_non_compatible=.TRUE.)
+                  CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhob(idir)%array, &
+                                              accept_non_compatible=.TRUE.)
+               END DO
+            ELSE
+               DO idir = 1, 3
+                  NULLIFY (rho_set%drhoa(idir)%array, rho_set%drhob(idir)%array)
+               END DO
+            END IF
+            IF (rho_set%owns%laplace_rho_spin) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%laplace_rhoa, &
+                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%laplace_rhob, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%laplace_rhoa, rho_set%laplace_rhob)
+            END IF
+            IF (rho_set%owns%norm_drho_spin) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%norm_drhoa, &
+                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%norm_drhob, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%norm_drhoa, rho_set%norm_drhob)
+            END IF
+            IF (rho_set%owns%tau_spin) THEN
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_a, &
+                                           accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_b, &
+                                           accept_non_compatible=.TRUE.)
+            ELSE
+               NULLIFY (rho_set%tau_a, rho_set%tau_b)
+            END IF
 
-      IF (rho_set%owns%rho) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rho, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%rho)
-      END IF
-      IF (rho_set%owns%rho_1_3) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rho_1_3, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%rho_1_3)
-      END IF
-      IF (rho_set%owns%drho) THEN
-         DO idir = 1, 3
-            CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drho(idir)%array, &
-                                        accept_non_compatible=.TRUE.)
-         END DO
-      ELSE
-         DO idir = 1, 3
-            NULLIFY (rho_set%drho(idir)%array)
-         END DO
-      END IF
-      IF (rho_set%owns%norm_drho) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%norm_drho, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%norm_drho)
-      END IF
-      IF (rho_set%owns%laplace_rho) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%laplace_rho, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%laplace_rho)
-      END IF
-      IF (rho_set%owns%tau) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%tau)
-      END IF
-      IF (rho_set%owns%rho_spin) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rhoa, &
-                                     accept_non_compatible=.TRUE.)
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rhob, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%rhoa, rho_set%rhob)
-      END IF
-      IF (rho_set%owns%rho_spin_1_3) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rhoa_1_3, &
-                                     accept_non_compatible=.TRUE.)
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%rhob_1_3, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%rhoa_1_3, rho_set%rhob_1_3)
-      END IF
-      IF (rho_set%owns%drho_spin) THEN
-         DO idir = 1, 3
-            CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa(idir)%array, &
-                                        accept_non_compatible=.TRUE.)
-            CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhob(idir)%array, &
-                                        accept_non_compatible=.TRUE.)
-         END DO
-      ELSE
-         DO idir = 1, 3
-            NULLIFY (rho_set%drhoa(idir)%array, rho_set%drhob(idir)%array)
-         END DO
-      END IF
-      IF (rho_set%owns%laplace_rho_spin) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%laplace_rhoa, &
-                                     accept_non_compatible=.TRUE.)
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%laplace_rhob, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%laplace_rhoa, rho_set%laplace_rhob)
-      END IF
-      IF (rho_set%owns%norm_drho_spin) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%norm_drhoa, &
-                                     accept_non_compatible=.TRUE.)
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%norm_drhob, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%norm_drhoa, rho_set%norm_drhob)
-      END IF
-      IF (rho_set%owns%drhoa_drhob) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa_drhob, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%drhoa_drhob)
-      END IF
-      IF (rho_set%owns%tau_spin) THEN
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_a, &
-                                     accept_non_compatible=.TRUE.)
-         CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_b, &
-                                     accept_non_compatible=.TRUE.)
-      ELSE
-         NULLIFY (rho_set%tau_a, rho_set%tau_b)
-      END IF
+            CALL xc_rho_cflags_setall(rho_set%has, .FALSE.)
+            CALL xc_rho_cflags_setall(rho_set%owns, .FALSE.)
 
-      CALL xc_rho_cflags_setall(rho_set%has, .FALSE.)
-      CALL xc_rho_cflags_setall(rho_set%owns, .FALSE.)
-
-   END SUBROUTINE xc_rho_set_clean
+         END SUBROUTINE xc_rho_set_clean
 
 ! **************************************************************************************************
 !> \brief updates the given rho set with the density given by
@@ -562,580 +608,350 @@ CONTAINS
 !> \param xc_rho_smooth_id ...
 !> \param pw_pool pool for the allocation of pw and cr3d
 ! **************************************************************************************************
-   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
-                                xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
-      TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: tau
-      TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
-      INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
-      TYPE(pw_pool_type), POINTER                        :: pw_pool
+         SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
+                                      xc_deriv_method_id, xc_rho_smooth_id, pw_pool)
+            TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
+            TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r
+            TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
+            TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: tau
+            TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
+            INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
+            TYPE(pw_pool_type), POINTER                        :: pw_pool
 
-      REAL(KIND=dp), PARAMETER                           :: f13 = (1.0_dp/3.0_dp)
+            REAL(KIND=dp), PARAMETER                           :: f13 = (1.0_dp/3.0_dp)
 
-      INTEGER                                            :: i, idir, ispin, j, k, nspins
-      INTEGER, DIMENSION(3, 3)                           :: nd, nd_laplace
-      LOGICAL                                            :: gradient_f, my_rho_g_local, &
-                                                            my_rho_r_local, needs_laplace, &
-                                                            needs_rho_g
-      REAL(kind=dp)                                      :: rho_cutoff
-      TYPE(pw_p_type), DIMENSION(2)                      :: my_rho_r
-      TYPE(pw_p_type), DIMENSION(3)                      :: drho_r_att
-      TYPE(pw_p_type), DIMENSION(3, 2)                   :: drho_r, laplace_rho_r
-      TYPE(pw_type), POINTER                             :: my_rho_g, tmp_g
+            INTEGER                                            :: i, idir, ispin, j, k, nspins
+            LOGICAL                                            :: gradient_f, my_rho_g_local, &
+                                                                  needs_laplace, needs_rho_g
+            REAL(kind=dp)                                      :: rho_cutoff
+            TYPE(pw_p_type), DIMENSION(2)                      :: laplace_rho_r, my_rho_r
+            TYPE(pw_p_type), DIMENSION(3, 2)                   :: drho_r
+            TYPE(pw_type), POINTER                             :: my_rho_g, tmp_g
 
-      DO ispin = 1, 2
-         NULLIFY (my_rho_r(ispin)%pw)
-         DO idir = 1, 3
-            NULLIFY (drho_r(idir, ispin)%pw)
-         END DO
-      END DO
-      DO idir = 1, 3
-         NULLIFY (drho_r_att(idir)%pw)
-      END DO
-      NULLIFY (tmp_g, my_rho_g)
-      nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
-      nd_laplace = RESHAPE((/2, 0, 0, 0, 2, 0, 0, 0, 2/), (/3, 3/))
+            DO ispin = 1, 2
+               NULLIFY (my_rho_r(ispin)%pw)
+               DO idir = 1, 3
+                  NULLIFY (drho_r(idir, ispin)%pw)
+               END DO
+            END DO
+            NULLIFY (tmp_g, my_rho_g)
 
-      CPASSERT(rho_set%ref_count > 0)
-      IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
-         CPABORT("pw_pool cr3d have different size than expected")
-      nspins = SIZE(rho_r)
-      rho_set%local_bounds = rho_r(1)%pw%pw_grid%bounds_local
-      rho_cutoff = 0.5*rho_set%rho_cutoff
+            IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
+               CPABORT("pw_pool cr3d have different size than expected")
+            nspins = SIZE(rho_r)
+            rho_set%local_bounds = rho_r(1)%pw%pw_grid%bounds_local
+            rho_cutoff = 0.5*rho_set%rho_cutoff
 
-      my_rho_g_local = .FALSE.
-      ! some checks
-      SELECT CASE (nspins)
-      CASE (1)
-         CPASSERT(SIZE(rho_r) == 1)
-         CPASSERT(ASSOCIATED(rho_r(1)%pw))
-         CPASSERT(rho_r(1)%pw%in_use == REALDATA3D)
-         CPASSERT(.NOT. needs%rho_spin)
-         CPASSERT(.NOT. needs%drho_spin)
-         CPASSERT(.NOT. needs%norm_drho_spin)
-         CPASSERT(.NOT. needs%drhoa_drhob)
-         CPASSERT(.NOT. needs%rho_spin_1_3)
-      CASE (2)
-         CPASSERT(SIZE(rho_r) == 2)
-         CPASSERT(ASSOCIATED(rho_r(1)%pw))
-         CPASSERT(ASSOCIATED(rho_r(2)%pw))
-         CPASSERT(rho_r(1)%pw%in_use == REALDATA3D)
-         CPASSERT(rho_r(2)%pw%in_use == REALDATA3D)
-      CASE default
-         CPABORT("")
-      END SELECT
+            my_rho_g_local = .FALSE.
+            ! some checks
+            SELECT CASE (nspins)
+            CASE (1)
+               CPASSERT(SIZE(rho_r) == 1)
+               CPASSERT(ASSOCIATED(rho_r(1)%pw))
+               CPASSERT(rho_r(1)%pw%in_use == REALDATA3D)
+               CPASSERT(.NOT. needs%rho_spin)
+               CPASSERT(.NOT. needs%drho_spin)
+               CPASSERT(.NOT. needs%norm_drho_spin)
+               CPASSERT(.NOT. needs%rho_spin_1_3)
+               CPASSERT(.NOT. needs%tau_spin)
+               CPASSERT(.NOT. needs%laplace_rho_spin)
+            CASE (2)
+               CPASSERT(SIZE(rho_r) == 2)
+               CPASSERT(ASSOCIATED(rho_r(1)%pw))
+               CPASSERT(ASSOCIATED(rho_r(2)%pw))
+               CPASSERT(rho_r(1)%pw%in_use == REALDATA3D)
+               CPASSERT(rho_r(2)%pw%in_use == REALDATA3D)
+               CPASSERT(.NOT. needs%rho)
+               CPASSERT(.NOT. needs%drho)
+               CPASSERT(.NOT. needs%rho_1_3)
+               CPASSERT(.NOT. needs%tau)
+               CPASSERT(.NOT. needs%laplace_rho)
+            CASE default
+               CPABORT("Unknown number of spin states")
+            END SELECT
 
-      CALL xc_rho_set_clean(rho_set, pw_pool=pw_pool)
+            CALL xc_rho_set_clean(rho_set, pw_pool=pw_pool)
 
-      needs_laplace = (needs%laplace_rho .OR. needs%laplace_rho_spin)
-      gradient_f = (needs%drho_spin .OR. needs%norm_drho_spin .OR. &
-                    needs%drhoa_drhob .OR. needs%drho .OR. needs%norm_drho .OR. &
-                    needs_laplace)
-      needs_rho_g = (xc_deriv_method_id == xc_deriv_spline3 .OR. &
-                     xc_deriv_method_id == xc_deriv_spline2 .OR. &
-                     xc_deriv_method_id == xc_deriv_pw)
-      IF ((gradient_f .AND. needs_laplace) .AND. &
-          (xc_deriv_method_id /= xc_deriv_pw)) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "MGGA functionals that require the Laplacian are "// &
-                       "only compatible with 'XC_DERIV PW' and 'XC_SMOOTH_RHO NONE'")
-      END IF
-      DO ispin = 1, nspins
-         ! introduce a smoothing kernel on the density
-         IF (xc_rho_smooth_id == xc_rho_no_smooth) THEN
-            my_rho_r_local = .FALSE.
-            my_rho_r(ispin)%pw => rho_r(ispin)%pw
-            IF (needs_rho_g) THEN
-               IF (ASSOCIATED(rho_g)) THEN
-                  my_rho_g_local = .FALSE.
-                  my_rho_g => rho_g(ispin)%pw
-               END IF
+            needs_laplace = (needs%laplace_rho .OR. needs%laplace_rho_spin)
+            gradient_f = (needs%drho_spin .OR. needs%norm_drho_spin .OR. &
+                          needs%drho .OR. needs%norm_drho .OR. &
+                          needs_laplace)
+            needs_rho_g = ((xc_deriv_method_id == xc_deriv_spline3 .OR. &
+                            xc_deriv_method_id == xc_deriv_spline2 .OR. &
+                            xc_deriv_method_id == xc_deriv_pw)) .AND. (gradient_f .OR. needs_laplace)
+            IF ((gradient_f .AND. needs_laplace) .AND. &
+                (xc_deriv_method_id /= xc_deriv_pw)) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "MGGA functionals that require the Laplacian are "// &
+                             "only compatible with 'XC_DERIV PW' and 'XC_SMOOTH_RHO NONE'")
             END IF
 
-            my_rho_r_local = .TRUE.
-            CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-            CALL pw_copy(rho_r(ispin)%pw, my_rho_r(ispin)%pw)
-         ELSE
-            my_rho_r_local = .TRUE.
-            CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE)
-
-            SELECT CASE (xc_rho_smooth_id)
-            CASE (xc_rho_no_smooth)
-               CALL pw_copy(rho_r(ispin)%pw, my_rho_r(ispin)%pw)
-            CASE (xc_rho_spline2_smooth)
-               CALL pw_zero(my_rho_r(ispin)%pw)
-               CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw, &
-                                  pw_out=my_rho_r(ispin)%pw, &
-                                  coeffs=spline2_coeffs)
-            CASE (xc_rho_spline3_smooth)
-               CALL pw_zero(my_rho_r(ispin)%pw)
-               CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw, &
-                                  pw_out=my_rho_r(ispin)%pw, &
-                                  coeffs=spline3_coeffs)
-            CASE (xc_rho_nn10)
-               CALL pw_zero(my_rho_r(ispin)%pw)
-               CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw, &
-                                  pw_out=my_rho_r(ispin)%pw, &
-                                  coeffs=nn10_coeffs)
-            CASE (xc_rho_nn50)
-               CALL pw_zero(my_rho_r(ispin)%pw)
-               CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw, &
-                                  pw_out=my_rho_r(ispin)%pw, &
-                                  coeffs=nn50_coeffs)
-            CASE default
-               CPABORT("")
-            END SELECT
-         END IF
-
-         IF (gradient_f) THEN ! calculate the grad of rho
-            ! normally when you need the gradient you need the whole gradient
-            ! (for the partial integration)
-            ! deriv rho
-            DO idir = 1, 3
-               NULLIFY (drho_r(idir, ispin)%pw)
-               CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin)%pw, &
-                                      use_data=REALDATA3D, in_space=REALSPACE)
-            END DO
             IF (needs_rho_g) THEN
-               IF (.NOT. ASSOCIATED(my_rho_g)) THEN
-                  my_rho_g_local = .TRUE.
-                  CALL pw_pool_create_pw(pw_pool, my_rho_g, &
-                                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-                  CALL pw_transfer(my_rho_r(ispin)%pw, my_rho_g)
-               END IF
                CALL pw_pool_create_pw(pw_pool, tmp_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               SELECT CASE (xc_deriv_method_id)
-               CASE (xc_deriv_pw)
-                  DO idir = 1, 3
-                     CALL pw_copy(my_rho_g, tmp_g)
-                     CALL pw_derive(tmp_g, nd(:, idir))
-                     CALL pw_transfer(tmp_g, drho_r(idir, ispin)%pw)
-                  END DO
-                  IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
-                     DO idir = 1, 3
-                        NULLIFY (laplace_rho_r(idir, ispin)%pw)
-                        CALL pw_pool_create_pw(pw_pool, laplace_rho_r(idir, ispin)%pw, &
-                                               use_data=REALDATA3D, in_space=REALSPACE)
-                        CALL pw_copy(my_rho_g, tmp_g)
-                        CALL pw_derive(tmp_g, nd_laplace(:, idir))
-                        CALL pw_transfer(tmp_g, laplace_rho_r(idir, ispin)%pw)
-                     END DO
+            END IF
+            DO ispin = 1, nspins
+               CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               ! introduce a smoothing kernel on the density
+               IF (xc_rho_smooth_id == xc_rho_no_smooth) THEN
+                  IF (needs_rho_g) THEN
+                     IF (ASSOCIATED(rho_g)) THEN
+                        my_rho_g_local = .FALSE.
+                        my_rho_g => rho_g(ispin)%pw
+                     END IF
                   END IF
-               CASE (xc_deriv_spline2)
-                  IF (.NOT. my_rho_g_local) THEN
-                     CALL pw_pool_create_pw(pw_pool, my_rho_g, &
-                                            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-                     my_rho_g_local = .TRUE.
-                     CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
-                  END IF
-                  CALL pw_spline2_interpolate_values_g(my_rho_g)
-                  DO idir = 1, 3
-                     CALL pw_copy(my_rho_g, tmp_g)
-                     CALL pw_spline2_deriv_g(tmp_g, idir=idir)
-                     CALL pw_transfer(tmp_g, drho_r(idir, ispin)%pw)
-                  END DO
-               CASE (xc_deriv_spline3)
-                  IF (.NOT. my_rho_g_local) THEN
-                     CALL pw_pool_create_pw(pw_pool, my_rho_g, &
-                                            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-                     CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
-                     my_rho_g_local = .TRUE.
-                  END IF
-                  CALL pw_spline3_interpolate_values_g(my_rho_g)
-                  DO idir = 1, 3
-                     CALL pw_copy(my_rho_g, tmp_g)
-                     CALL pw_spline3_deriv_g(tmp_g, idir=idir)
-                     CALL pw_transfer(tmp_g, drho_r(idir, ispin)%pw)
-                  END DO
-               CASE (xc_deriv_collocate)
-                  DO idir = 1, 3
-                     CALL pw_copy(my_rho_g, tmp_g)
-                     CALL pw_derive(tmp_g, nd(:, idir))
-                     CALL pw_transfer(tmp_g, drho_r(idir, ispin)%pw)
-                  END DO
-                  CPABORT("Drho collocation not implemented")
-               CASE default
-                  CPABORT("Derivatives using PW are not implemented for this 'XC_DERIV'")
-               END SELECT
-               CALL pw_pool_give_back_pw(pw_pool, tmp_g)
-               IF (my_rho_g_local) THEN
-                  my_rho_g_local = .FALSE.
-                  CALL pw_pool_give_back_pw(pw_pool, my_rho_g)
+
+                  CALL pw_copy(rho_r(ispin)%pw, my_rho_r(ispin)%pw)
+               ELSE
+                  CALL xc_pw_smooth(rho_r(ispin)%pw, my_rho_r(ispin)%pw, xc_rho_smooth_id)
                END IF
-            ELSE
-               SELECT CASE (xc_deriv_method_id)
-               CASE (xc_deriv_spline2_smooth)
+
+               IF (gradient_f) THEN ! calculate the grad of rho
+                  ! normally when you need the gradient you need the whole gradient
+                  ! (for the partial integration)
+                  ! deriv rho
                   DO idir = 1, 3
-                     CALL pw_zero(drho_r(idir, ispin)%pw)
-                     CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw, &
-                                        pw_out=drho_r(idir, ispin)%pw, &
-                                        coeffs=spline2_deriv_coeffs, idir=idir)
+                     NULLIFY (drho_r(idir, ispin)%pw)
+                     CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin)%pw, &
+                                            use_data=REALDATA3D, in_space=REALSPACE)
                   END DO
-               CASE (xc_deriv_spline3_smooth)
-                  DO idir = 1, 3
-                     CALL pw_zero(drho_r(idir, ispin)%pw)
-                     CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw, &
-                                        pw_out=drho_r(idir, ispin)%pw, &
-                                        coeffs=spline3_deriv_coeffs, idir=idir)
-                  END DO
-               CASE (xc_deriv_nn10_smooth)
-                  DO idir = 1, 3
-                     CALL pw_zero(drho_r(idir, ispin)%pw)
-                     CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw, &
-                                        pw_out=drho_r(idir, ispin)%pw, &
-                                        coeffs=nn10_deriv_coeffs, idir=idir)
-                  END DO
-               CASE (xc_deriv_nn50_smooth)
-                  DO idir = 1, 3
-                     CALL pw_zero(drho_r(idir, ispin)%pw)
-                     CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw, &
-                                        pw_out=drho_r(idir, ispin)%pw, &
-                                        coeffs=nn50_deriv_coeffs, idir=idir)
-                  END DO
-               CASE (xc_deriv_collocate)
-                  DO idir = 1, 3
-                     CALL pw_copy(my_rho_g, tmp_g)
-                     CALL pw_derive(tmp_g, nd(:, idir))
-                     CALL pw_transfer(tmp_g, drho_r(idir, ispin)%pw)
-                  END DO
-                  CPABORT("Drho collocation not implemented")
-               CASE default
-                  CPABORT("")
-               END SELECT
-            END IF
+                  IF (needs_rho_g) THEN
+                     IF (.NOT. ASSOCIATED(my_rho_g)) THEN
+                        my_rho_g_local = .TRUE.
+                        CALL pw_pool_create_pw(pw_pool, my_rho_g, &
+                                               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                        CALL pw_transfer(my_rho_r(ispin)%pw, my_rho_g)
+                     END IF
+                     IF (.NOT. my_rho_g_local .AND. (xc_deriv_method_id == xc_deriv_spline2 .OR. &
+                                                     xc_deriv_method_id == xc_deriv_spline3)) THEN
+                        CALL pw_pool_create_pw(pw_pool, my_rho_g, &
+                                               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                        my_rho_g_local = .TRUE.
+                        CALL pw_copy(rho_g(ispin)%pw, my_rho_g)
+                     END IF
+                  END IF
+                  IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
+                     NULLIFY (laplace_rho_r(ispin)%pw)
+                     CALL pw_pool_create_pw(pw_pool, laplace_rho_r(ispin)%pw, &
+                                            use_data=REALDATA3D, in_space=REALSPACE)
+                     CALL xc_pw_laplace(my_rho_g, pw_pool, xc_deriv_method_id, laplace_rho_r(ispin)%pw, tmp_g=tmp_g)
+                  END IF
+                  CALL xc_pw_gradient(my_rho_r(ispin)%pw, my_rho_g, tmp_g, drho_r(:, ispin), xc_deriv_method_id)
 
-            IF (xc_deriv_method_id /= xc_deriv_pw) THEN
-               DO idir = 1, 3
-                  drho_r_att(idir)%pw => drho_r(idir, ispin)%pw
-               END DO
-               CALL pw_spline_scale_deriv(drho_r_att)
-            END IF
+                  IF (needs_rho_g) THEN
+                     IF (my_rho_g_local) THEN
+                        my_rho_g_local = .FALSE.
+                        CALL pw_pool_give_back_pw(pw_pool, my_rho_g)
+                     END IF
+                  END IF
 
-         END IF
+                  IF (xc_deriv_method_id /= xc_deriv_pw) THEN
+                     CALL pw_spline_scale_deriv(drho_r(:, ispin))
+                  END IF
 
-      END DO
+               END IF
 
-      SELECT CASE (nspins)
-      CASE (1)
-         IF (needs%rho_1_3) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3)
+            END DO
+
+            IF (ASSOCIATED(tmp_g)) CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+
+            SELECT CASE (nspins)
+            CASE (1)
+               IF (needs%rho_1_3) THEN
+                  CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3)
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%rho_1_3(i, j, k) = MAX(my_rho_r(1)%pw%cr3d(i, j, k), 0.0_dp)**f13
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%rho_1_3 = .TRUE.
-            rho_set%has%rho_1_3 = .TRUE.
-         END IF
-         IF (needs%rho) THEN
-            rho_set%rho => my_rho_r(1)%pw%cr3d
-            IF (my_rho_r_local) NULLIFY (my_rho_r(1)%pw%cr3d)
-            rho_set%owns%rho = my_rho_r_local
-            rho_set%has%rho = .TRUE.
-         END IF
-         IF (needs%norm_drho) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%norm_drho(i, j, k) = SQRT( &
-                                                  drho_r(1, 1)%pw%cr3d(i, j, k)**2 + &
-                                                  drho_r(2, 1)%pw%cr3d(i, j, k)**2 + &
-                                                  drho_r(3, 1)%pw%cr3d(i, j, k)**2)
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%norm_drho = .TRUE.
-            rho_set%has%norm_drho = .TRUE.
-         END IF
-         IF (needs%laplace_rho) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rho)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,laplace_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%laplace_rho(i, j, k) = &
-                        laplace_rho_r(1, 1)%pw%cr3d(i, j, k) + &
-                        laplace_rho_r(2, 1)%pw%cr3d(i, j, k) + &
-                        laplace_rho_r(3, 1)%pw%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%laplace_rho = .TRUE.
-            rho_set%has%laplace_rho = .TRUE.
-         END IF
-
-         IF (needs%drho) THEN
-            DO idir = 1, 3
-               rho_set%drho(idir)%array => drho_r(idir, 1)%pw%cr3d
-               NULLIFY (drho_r(idir, 1)%pw%cr3d)
-            END DO
-            rho_set%owns%drho = .TRUE.
-            rho_set%has%drho = .TRUE.
-         END IF
-      CASE (2)
-         IF (needs%rho) THEN
-            ! this should basically never be the case unless you use LDA functionals
-            ! with LSD
-
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%rho)
-            !assume that the bounds are the same?
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%rho(i, j, k) = my_rho_r(1)%pw%cr3d(i, j, k) + &
-                                            my_rho_r(2)%pw%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%rho = .TRUE.
-            rho_set%has%rho = .TRUE.
-         END IF
-         IF (needs%rho_1_3) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3)
-            !assume that the bounds are the same?
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%rho_1_3(i, j, k) = MAX(my_rho_r(1)%pw%cr3d(i, j, k) + &
-                                                    my_rho_r(2)%pw%cr3d(i, j, k), 0.0_dp)**f13
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%rho_1_3 = .TRUE.
-            rho_set%has%rho_1_3 = .TRUE.
-         END IF
-         IF (needs%rho_spin_1_3) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%rhoa_1_3)
-            !assume that the bounds are the same?
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%rhoa_1_3(i, j, k) = MAX(my_rho_r(1)%pw%cr3d(i, j, k), 0.0_dp)**f13
-                  END DO
-               END DO
-            END DO
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%rhob_1_3)
-            !assume that the bounds are the same?
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%rhob_1_3(i, j, k) = MAX(my_rho_r(2)%pw%cr3d(i, j, k), 0.0_dp)**f13
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%rho_spin_1_3 = .TRUE.
-            rho_set%has%rho_spin_1_3 = .TRUE.
-         END IF
-         IF (needs%rho_spin) THEN
-
-            rho_set%rhoa => my_rho_r(1)%pw%cr3d
-            IF (my_rho_r_local) NULLIFY (my_rho_r(1)%pw%cr3d)
-
-            rho_set%rhob => my_rho_r(2)%pw%cr3d
-            IF (my_rho_r_local) NULLIFY (my_rho_r(2)%pw%cr3d)
-
-            rho_set%owns%rho_spin = my_rho_r_local
-            rho_set%has%rho_spin = .TRUE.
-         END IF
-         IF (needs%norm_drho) THEN
-
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%norm_drho(i, j, k) = SQRT( &
-                                                  (drho_r(1, 1)%pw%cr3d(i, j, k) + drho_r(1, 2)%pw%cr3d(i, j, k))**2 + &
-                                                  (drho_r(2, 1)%pw%cr3d(i, j, k) + drho_r(2, 2)%pw%cr3d(i, j, k))**2 + &
-                                                  (drho_r(3, 1)%pw%cr3d(i, j, k) + drho_r(3, 2)%pw%cr3d(i, j, k))**2)
-                  END DO
-               END DO
-            END DO
-
-            rho_set%owns%norm_drho = .TRUE.
-            rho_set%has%norm_drho = .TRUE.
-         END IF
-         IF (needs%norm_drho_spin) THEN
-
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhoa)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%norm_drhoa(i, j, k) = SQRT( &
-                                                   drho_r(1, 1)%pw%cr3d(i, j, k)**2 + &
-                                                   drho_r(2, 1)%pw%cr3d(i, j, k)**2 + &
-                                                   drho_r(3, 1)%pw%cr3d(i, j, k)**2)
-                  END DO
-               END DO
-            END DO
-
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhob)
-            rho_set%owns%norm_drho_spin = .TRUE.
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%norm_drhob(i, j, k) = SQRT( &
-                                                   drho_r(1, 2)%pw%cr3d(i, j, k)**2 + &
-                                                   drho_r(2, 2)%pw%cr3d(i, j, k)**2 + &
-                                                   drho_r(3, 2)%pw%cr3d(i, j, k)**2)
-                  END DO
-               END DO
-            END DO
-
-            rho_set%owns%norm_drho_spin = .TRUE.
-            rho_set%has%norm_drho_spin = .TRUE.
-         END IF
-         IF (needs%laplace_rho_spin) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rhoa)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,laplace_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%laplace_rhoa(i, j, k) = &
-                        laplace_rho_r(1, 1)%pw%cr3d(i, j, k) + &
-                        laplace_rho_r(2, 1)%pw%cr3d(i, j, k) + &
-                        laplace_rho_r(3, 1)%pw%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
-
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%laplace_rhob)
-            rho_set%owns%laplace_rho_spin = .TRUE.
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,laplace_rho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%laplace_rhob(i, j, k) = &
-                        laplace_rho_r(1, 2)%pw%cr3d(i, j, k) + &
-                        laplace_rho_r(2, 2)%pw%cr3d(i, j, k) + &
-                        laplace_rho_r(3, 2)%pw%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
-
-            rho_set%owns%laplace_rho_spin = .TRUE.
-            rho_set%has%laplace_rho_spin = .TRUE.
-         END IF
-         IF (needs%drhoa_drhob) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%drhoa_drhob)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                     rho_set%drhoa_drhob(i, j, k) = &
-                        drho_r(1, 1)%pw%cr3d(i, j, k)*drho_r(1, 2)%pw%cr3d(i, j, k) + &
-                        drho_r(2, 1)%pw%cr3d(i, j, k)*drho_r(2, 2)%pw%cr3d(i, j, k) + &
-                        drho_r(3, 1)%pw%cr3d(i, j, k)*drho_r(3, 2)%pw%cr3d(i, j, k)
-                  END DO
-               END DO
-            END DO
-            rho_set%owns%drhoa_drhob = .TRUE.
-            rho_set%has%drhoa_drhob = .TRUE.
-         END IF
-         IF (needs%drho) THEN
-            ! this should basically never be the case unless you use LDA functionals
-            ! with LSD
-            DO idir = 1, 3
-               CALL pw_pool_create_cr3d(pw_pool, rho_set%drho(idir)%array)
-               !assume that the bounds are the same?
-!$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r,idir)
-               DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-                  DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                     DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-                        rho_set%drho(idir)%array(i, j, k) = &
-                           drho_r(idir, 1)%pw%cr3d(i, j, k) + &
-                           drho_r(idir, 2)%pw%cr3d(i, j, k)
+                  DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
+                     DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
+                        DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
+                           rho_set%rho_1_3(i, j, k) = MAX(my_rho_r(1)%pw%cr3d(i, j, k), 0.0_dp)**f13
+                        END DO
                      END DO
                   END DO
-               END DO
-            END DO
-            rho_set%owns%drho = .TRUE.
-            rho_set%has%drho = .TRUE.
-         END IF
-         IF (needs%drho_spin) THEN
-            DO idir = 1, 3
-               rho_set%drhoa(idir)%array => drho_r(idir, 1)%pw%cr3d
-               NULLIFY (drho_r(idir, 1)%pw%cr3d)
-               rho_set%drhob(idir)%array => drho_r(idir, 2)%pw%cr3d
-               NULLIFY (drho_r(idir, 2)%pw%cr3d)
-            END DO
-            rho_set%owns%drho_spin = .TRUE.
-            rho_set%has%drho_spin = .TRUE.
-         END IF
-      END SELECT
-      ! post cleanup
-      DO ispin = 1, nspins
-         DO idir = 1, 3
-            IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
-               CALL pw_pool_give_back_pw(pw_pool, laplace_rho_r(idir, ispin)%pw, &
-                                         accept_non_compatible=.TRUE.)
-            END IF
-            CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw, &
-                                      accept_non_compatible=.TRUE.)
-         END DO
-      END DO
-      IF (my_rho_r_local) THEN
-         DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw, &
-                                      accept_non_compatible=.TRUE.)
-         END DO
-      END IF
-
-      ! tau part
-      IF (needs%tau .OR. needs%tau_spin) THEN
-         DO ispin = 1, nspins
-            CPASSERT(ASSOCIATED(tau(ispin)%pw))
-            CPASSERT(ASSOCIATED(tau(ispin)%pw%cr3d))
-         END DO
-      END IF
-      IF (needs%tau) THEN
-         IF (nspins == 2) THEN
-            CALL pw_pool_create_cr3d(pw_pool, rho_set%tau)
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,tau)
-            DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
-               DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
-                  DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
-
-                     rho_set%tau(i, j, k) = &
-                        tau(1)%pw%cr3d(i, j, k) + &
-                        tau(2)%pw%cr3d(i, j, k)
+                  rho_set%owns%rho_1_3 = .TRUE.
+                  rho_set%has%rho_1_3 = .TRUE.
+               END IF
+               IF (needs%rho) THEN
+                  rho_set%rho => my_rho_r(1)%pw%cr3d
+                  NULLIFY (my_rho_r(1)%pw%cr3d)
+                  rho_set%owns%rho = .TRUE.
+                  rho_set%has%rho = .TRUE.
+               END IF
+               IF (needs%norm_drho) THEN
+                  CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho)
+!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
+                  DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
+                     DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
+                        DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
+                           rho_set%norm_drho(i, j, k) = SQRT( &
+                                                        drho_r(1, 1)%pw%cr3d(i, j, k)**2 + &
+                                                        drho_r(2, 1)%pw%cr3d(i, j, k)**2 + &
+                                                        drho_r(3, 1)%pw%cr3d(i, j, k)**2)
+                        END DO
+                     END DO
                   END DO
+                  rho_set%owns%norm_drho = .TRUE.
+                  rho_set%has%norm_drho = .TRUE.
+               END IF
+               IF (needs%laplace_rho) THEN
+                  rho_set%laplace_rho => laplace_rho_r(1)%pw%cr3d
+                  NULLIFY (laplace_rho_r(1)%pw%cr3d)
+                  rho_set%owns%laplace_rho = .TRUE.
+                  rho_set%has%laplace_rho = .TRUE.
+               END IF
+
+               IF (needs%drho) THEN
+                  DO idir = 1, 3
+                     rho_set%drho(idir)%array => drho_r(idir, 1)%pw%cr3d
+                     NULLIFY (drho_r(idir, 1)%pw%cr3d)
+                  END DO
+                  rho_set%owns%drho = .TRUE.
+                  rho_set%has%drho = .TRUE.
+               END IF
+            CASE (2)
+               IF (needs%rho_spin_1_3) THEN
+                  CALL pw_pool_create_cr3d(pw_pool, rho_set%rhoa_1_3)
+                  !assume that the bounds are the same?
+!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
+                  DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
+                     DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
+                        DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
+                           rho_set%rhoa_1_3(i, j, k) = MAX(my_rho_r(1)%pw%cr3d(i, j, k), 0.0_dp)**f13
+                        END DO
+                     END DO
+                  END DO
+                  CALL pw_pool_create_cr3d(pw_pool, rho_set%rhob_1_3)
+                  !assume that the bounds are the same?
+!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,my_rho_r)
+                  DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
+                     DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
+                        DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
+                           rho_set%rhob_1_3(i, j, k) = MAX(my_rho_r(2)%pw%cr3d(i, j, k), 0.0_dp)**f13
+                        END DO
+                     END DO
+                  END DO
+                  rho_set%owns%rho_spin_1_3 = .TRUE.
+                  rho_set%has%rho_spin_1_3 = .TRUE.
+               END IF
+               IF (needs%norm_drho) THEN
+
+                  CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho)
+!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
+                  DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
+                     DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
+                        DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
+                           rho_set%norm_drho(i, j, k) = SQRT( &
+                                                        (drho_r(1, 1)%pw%cr3d(i, j, k) + drho_r(1, 2)%pw%cr3d(i, j, k))**2 + &
+                                                        (drho_r(2, 1)%pw%cr3d(i, j, k) + drho_r(2, 2)%pw%cr3d(i, j, k))**2 + &
+                                                        (drho_r(3, 1)%pw%cr3d(i, j, k) + drho_r(3, 2)%pw%cr3d(i, j, k))**2)
+                        END DO
+                     END DO
+                  END DO
+
+                  rho_set%owns%norm_drho = .TRUE.
+                  rho_set%has%norm_drho = .TRUE.
+               END IF
+               IF (needs%rho_spin) THEN
+
+                  rho_set%rhoa => my_rho_r(1)%pw%cr3d
+                  NULLIFY (my_rho_r(1)%pw%cr3d)
+
+                  rho_set%rhob => my_rho_r(2)%pw%cr3d
+                  NULLIFY (my_rho_r(2)%pw%cr3d)
+
+                  rho_set%owns%rho_spin = .TRUE.
+                  rho_set%has%rho_spin = .TRUE.
+               END IF
+               IF (needs%norm_drho_spin) THEN
+
+                  CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhoa)
+!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
+                  DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
+                     DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
+                        DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
+                           rho_set%norm_drhoa(i, j, k) = SQRT( &
+                                                         drho_r(1, 1)%pw%cr3d(i, j, k)**2 + &
+                                                         drho_r(2, 1)%pw%cr3d(i, j, k)**2 + &
+                                                         drho_r(3, 1)%pw%cr3d(i, j, k)**2)
+                        END DO
+                     END DO
+                  END DO
+
+                  CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhob)
+                  rho_set%owns%norm_drho_spin = .TRUE.
+!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(i,j,k) SHARED(rho_set,drho_r)
+                  DO k = rho_set%local_bounds(1, 3), rho_set%local_bounds(2, 3)
+                     DO j = rho_set%local_bounds(1, 2), rho_set%local_bounds(2, 2)
+                        DO i = rho_set%local_bounds(1, 1), rho_set%local_bounds(2, 1)
+                           rho_set%norm_drhob(i, j, k) = SQRT( &
+                                                         drho_r(1, 2)%pw%cr3d(i, j, k)**2 + &
+                                                         drho_r(2, 2)%pw%cr3d(i, j, k)**2 + &
+                                                         drho_r(3, 2)%pw%cr3d(i, j, k)**2)
+                        END DO
+                     END DO
+                  END DO
+
+                  rho_set%owns%norm_drho_spin = .TRUE.
+                  rho_set%has%norm_drho_spin = .TRUE.
+               END IF
+               IF (needs%laplace_rho_spin) THEN
+                  rho_set%laplace_rhoa => laplace_rho_r(1)%pw%cr3d
+                  NULLIFY (laplace_rho_r(1)%pw%cr3d)
+
+                  rho_set%laplace_rhob => laplace_rho_r(2)%pw%cr3d
+                  NULLIFY (laplace_rho_r(2)%pw%cr3d)
+
+                  rho_set%owns%laplace_rho_spin = .TRUE.
+                  rho_set%has%laplace_rho_spin = .TRUE.
+               END IF
+               IF (needs%drho_spin) THEN
+                  DO idir = 1, 3
+                     rho_set%drhoa(idir)%array => drho_r(idir, 1)%pw%cr3d
+                     NULLIFY (drho_r(idir, 1)%pw%cr3d)
+                     rho_set%drhob(idir)%array => drho_r(idir, 2)%pw%cr3d
+                     NULLIFY (drho_r(idir, 2)%pw%cr3d)
+                  END DO
+                  rho_set%owns%drho_spin = .TRUE.
+                  rho_set%has%drho_spin = .TRUE.
+               END IF
+            END SELECT
+            ! post cleanup
+            DO ispin = 1, nspins
+               IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
+                  CALL pw_pool_give_back_pw(pw_pool, laplace_rho_r(ispin)%pw, &
+                                            accept_non_compatible=.TRUE.)
+               END IF
+               DO idir = 1, 3
+                  CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw, &
+                                            accept_non_compatible=.TRUE.)
                END DO
             END DO
-            rho_set%owns%tau = .TRUE.
+            DO ispin = 1, nspins
+               CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw, &
+                                         accept_non_compatible=.TRUE.)
+            END DO
 
-         ELSE
-            rho_set%tau => tau(1)%pw%cr3d
-            rho_set%owns%tau = .FALSE.
-         END IF
-         rho_set%has%tau = .TRUE.
-      END IF
-      IF (needs%tau_spin) THEN
-         CPASSERT(nspins == 2)
-         rho_set%tau_a => tau(1)%pw%cr3d
-         rho_set%tau_b => tau(2)%pw%cr3d
-         rho_set%owns%tau_spin = .FALSE.
-         rho_set%has%tau_spin = .TRUE.
-      END IF
+            ! tau part
+            IF (needs%tau .OR. needs%tau_spin) THEN
+               DO ispin = 1, nspins
+                  CPASSERT(ASSOCIATED(tau(ispin)%pw))
+                  CPASSERT(ASSOCIATED(tau(ispin)%pw%cr3d))
+               END DO
+            END IF
+            IF (needs%tau) THEN
+               rho_set%tau => tau(1)%pw%cr3d
+               rho_set%owns%tau = .FALSE.
+               rho_set%has%tau = .TRUE.
+            END IF
+            IF (needs%tau_spin) THEN
+               rho_set%tau_a => tau(1)%pw%cr3d
+               rho_set%tau_b => tau(2)%pw%cr3d
+               rho_set%owns%tau_spin = .FALSE.
+               rho_set%has%tau_spin = .TRUE.
+            END IF
 
-      CPASSERT(xc_rho_cflags_equal(rho_set%has, needs))
+            CPASSERT(xc_rho_cflags_equal(rho_set%has, needs))
 
-   END SUBROUTINE xc_rho_set_update
+         END SUBROUTINE xc_rho_set_update
 
-END MODULE xc_rho_set_types
+      END MODULE xc_rho_set_types

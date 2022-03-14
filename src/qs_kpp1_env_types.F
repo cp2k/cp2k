@@ -76,6 +76,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(kpp1_env%rho_set)) THEN
          CALL xc_rho_set_release(kpp1_env%rho_set)
+         DEALLOCATE (kpp1_env%rho_set)
          NULLIFY (kpp1_env%rho_set)
       END IF
       IF (ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
@@ -85,6 +86,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(kpp1_env%rho_set_admm)) THEN
          CALL xc_rho_set_release(kpp1_env%rho_set_admm)
+         DEALLOCATE (kpp1_env%rho_set_admm)
          NULLIFY (kpp1_env%rho_set_admm)
       END IF
    END SUBROUTINE kpp1_release

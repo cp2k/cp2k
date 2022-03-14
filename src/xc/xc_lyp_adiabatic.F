@@ -23,6 +23,12 @@ MODULE xc_lyp_adiabatic
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
+   USE xc_derivative_desc,              ONLY: deriv_norm_drho,&
+                                              deriv_norm_drhoa,&
+                                              deriv_norm_drhob,&
+                                              deriv_rho,&
+                                              deriv_rhoa,&
+                                              deriv_rhob
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -116,7 +122,7 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE lyp_adiabatic_lda_eval(rho_set, deriv_set, grad_deriv, lyp_adiabatic_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: lyp_adiabatic_params
@@ -135,8 +141,6 @@ CONTAINS
       CALL section_vals_val_get(lyp_adiabatic_params, "LAMBDA", r_val=lambda)
       CALL cite_reference(Lee1988)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho_1_3=rho_1_3, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho, &
                           drho_cutoff=epsilon_norm_drho)
@@ -149,15 +153,15 @@ CONTAINS
       e_ndrho => dummy
 
       IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
@@ -319,7 +323,7 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE lyp_adiabatic_lsd_eval(rho_set, deriv_set, grad_deriv, lyp_adiabatic_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type)                              :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: lyp_adiabatic_params
@@ -341,8 +345,6 @@ CONTAINS
       CALL section_vals_val_get(lyp_adiabatic_params, "LAMBDA", r_val=lambda)
       CALL cite_reference(Lee1988)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, &
                           rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
                           norm_drhob=norm_drhob, norm_drho=norm_drho, &
@@ -371,24 +373,24 @@ CONTAINS
       e_ndr_rb => dummy
 
       IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (grad_deriv == 1 .OR. grad_deriv == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ra)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rb)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndr)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndra)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrb)
       END IF

@@ -26,6 +26,12 @@ MODULE xc_xbecke88_lr_adiabatic
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
                                               rootpi
+   USE xc_derivative_desc,              ONLY: deriv_norm_drho,&
+                                              deriv_norm_drhoa,&
+                                              deriv_norm_drhob,&
+                                              deriv_rho,&
+                                              deriv_rhoa,&
+                                              deriv_rhob
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                               xc_dset_get_derivative
    USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -121,7 +127,7 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE xb88_lr_adiabatic_lda_eval(rho_set, deriv_set, grad_deriv, xb88_lr_ad_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: xb88_lr_ad_params
@@ -144,8 +150,6 @@ CONTAINS
 
       CALL cite_reference(Becke1988)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, rho=rho, &
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
@@ -164,41 +168,41 @@ CONTAINS
       e_ndrho_ndrho_ndrho => dummy
 
       IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
       IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rho)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
       END IF
       IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)(rho)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drho)(rho)(rho)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drho, deriv_rho, deriv_rho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rho_rho)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drho)(norm_drho)(rho)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drho, deriv_norm_drho, deriv_rho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_rho)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drho, deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho)
       END IF
       IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
@@ -2843,7 +2847,7 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE xb88_lr_adiabatic_lsd_eval(rho_set, deriv_set, grad_deriv, xb88_lr_ad_params)
-      TYPE(xc_rho_set_type), POINTER                     :: rho_set
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, INTENT(in)                                :: grad_deriv
       TYPE(section_vals_type), POINTER                   :: xb88_lr_ad_params
@@ -2872,8 +2876,6 @@ CONTAINS
       CALL section_vals_val_get(xb88_lr_ad_params, "OMEGA", r_val=omega)
       CALL section_vals_val_get(xb88_lr_ad_params, "LAMBDA", r_val=lambda)
 
-      CPASSERT(ASSOCIATED(rho_set))
-      CPASSERT(rho_set%ref_count > 0)
       CALL xc_rho_set_get(rho_set, &
                           rhoa=rho(1)%array, &
                           rhob=rho(2)%array, norm_drhoa=norm_drho(1)%array, &
@@ -2897,68 +2899,68 @@ CONTAINS
       END DO
 
       IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "", &
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
       IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho(1)%array)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho(2)%array)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho(1)%array)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho(2)%array)
       END IF
       IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho(1)%array)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho(2)%array)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhoa)(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rho(1)%array)
-         deriv => xc_dset_get_derivative(deriv_set, "(norm_drhob)(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob, deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rho(2)%array)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drhoa, deriv_norm_drhoa], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho(1)%array)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho(2)%array)
       END IF
       IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
-         deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhoa)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho(1)%array)
-         deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)(rhob)", &
+         deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob, deriv_rhob], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho(2)%array)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhoa)(rhoa)(rhoa)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drhoa, deriv_rhoa, deriv_rhoa], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rho_rho(1)%array)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhob)(rhob)(rhob)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drhob, deriv_rhob, deriv_rhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_rho_rho(2)%array)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhoa)(norm_drhoa)(rhoa)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drhoa, deriv_norm_drhoa, deriv_rhoa], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_rho(1)%array)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhob)(norm_drhob)(rhob)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drhob, deriv_norm_drhob, deriv_rhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_rho(2)%array)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhoa)(norm_drhoa)(norm_drhoa)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drhoa, deriv_norm_drhoa, deriv_norm_drhoa], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho(1)%array)
          deriv => xc_dset_get_derivative(deriv_set, &
-                                         "(norm_drhob)(norm_drhob)(norm_drhob)", allocate_deriv=.TRUE.)
+                                         [deriv_norm_drhob, deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho(2)%array)
       END IF
       IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN

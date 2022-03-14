@@ -272,7 +272,7 @@ CONTAINS
       IF (tag(1:1) == "u" .OR. tag(1:1) == "U") fac = fac*(2.0_dp)**f13
       IF (tag(1:1) == "r" .OR. tag(1:1) == "R") fac = fac*(2.0_dp)**f13
 
-      n = SIZE(s) !FM it was size(rho)
+      n = SIZE(s) !FM it was sizederiv_rho
       !FM IF ( n > SIZE(s) ) &
       !FM   CPABORT("Incompatible array sizes.")
       !FM IF ( n > SIZE(grho) ) &
