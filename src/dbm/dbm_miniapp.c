@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
 
   const double t = time_diff(time_start, time_end);
   if (my_rank == 0) {
-    printf("matrix multiply: %.3f s, %.1f MFLOP/s \n", t, 1e-9 * flop / t);
+    printf("matrix multiply: %.3f s, %.1f MFLOP/s \n", t, 1e-6 * flop / t);
     printf("done :-)\n");
   }
 

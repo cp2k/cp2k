@@ -26,7 +26,7 @@ NVCC := $(shell which nvcc)
 ifneq ($(NVCC),)
 LIBS += -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
 CFLAGS += -I${CUDA_PATH}/include -D__DBM_CUDA
-ALL_OBJECTS += dbm_multiply_cuda.o
+ALL_OBJECTS += dbm_multiply_gpu.o
 
 %.o: %.cu $(ALL_HEADERS)
 	cd $(dir $<); $(NVCC) -c $(NVFLAGS) $(notdir $<)
