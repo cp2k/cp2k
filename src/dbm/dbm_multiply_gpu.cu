@@ -174,7 +174,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
   offloadEventRecord(batch_uploaded, shard_c_dev->stream);
 
   // Grow shard_c_dev->data if nessecary.
-  if (shard_c_dev->data_size != shard_c_host->data_promised) {
+  if (shard_c_dev->data_size < shard_c_host->data_promised) {
     // TODO experiment with over-allocation.
     double *old_data_dev = shard_c_dev->data;
     const size_t old_size = shard_c_dev->data_size * sizeof(double);
