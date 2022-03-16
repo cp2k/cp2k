@@ -148,10 +148,10 @@ CONTAINS
 
       CHARACTER(LEN=10*default_string_length)            :: cp_flags
       CHARACTER(LEN=default_string_length)               :: dev_flag
-      INTEGER                                            :: ilen, my_output_unit
+      INTEGER                                            :: i, ilen, my_output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 
-! create a timer_env
+      ! create a timer_env
 
       CALL add_timer_env()
 
@@ -193,8 +193,10 @@ CONTAINS
          WRITE (UNIT=my_output_unit, FMT="(T2,A)") &
             "CP2K| "//cp_flags(1:73)
          IF (ilen > 73) THEN
-            WRITE (UNIT=my_output_unit, FMT="(T2,A)") &
-               "CP2K|            "//TRIM(cp_flags(74:))
+            DO i = 0, (ilen - 75)/61
+               WRITE (UNIT=my_output_unit, FMT="(T2,A)") &
+                  "CP2K|            "//TRIM(cp_flags(74 + i*61:MIN(74 + (i + 1)*61, ilen)))
+            END DO
          END IF
          WRITE (UNIT=my_output_unit, FMT="(T2,A,T41,A40)") &
             "CP2K| is freely available from ", &
