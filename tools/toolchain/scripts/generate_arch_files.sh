@@ -194,7 +194,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
-      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)' # -D__DBCSR_ACC
+      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
       CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     *)
@@ -204,7 +204,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       check_lib -lcuda "cuda"
       check_lib -lcufft "cuda"
       check_lib -lcublas "cuda"
-      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__OFFLOAD_HIP |)" # -D__DBCSR_ACC
+      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__HIP_PLATFORM_NVCC__ -D__OFFLOAD_HIP |) -D__DBCSR_ACC"
       HIP_FLAGS=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
       add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
       HIP_INCLUDES+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
@@ -212,6 +212,8 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       CFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
       CXXFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
       # Set LD-flags
+      # Multiple definition because of hip/include/hip/nvidia_detail/nvidia_hiprtc.h
+      LDFLAGS+=" -Wl,--allow-multiple-definition"
       LIBS+=' -lhipfft -lhipblas -lhipfft -lnvrtc -lcudart -lcufft -lcublas -lcuda'
       add_lib_from_paths HIP_LDFLAGS "libcudart.*" $LIB_PATHS
       add_lib_from_paths HIP_LDFLAGS "libnvrtc.*" $LIB_PATHS
