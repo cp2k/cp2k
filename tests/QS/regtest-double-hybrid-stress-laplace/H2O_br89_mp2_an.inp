@@ -1,0 +1,90 @@
+&GLOBAL                                                                                           
+  PROJECT     H2O_br89_mp2
+  PRINT_LEVEL LOW
+  RUN_TYPE    ENERGY_FORCE
+&END GLOBAL
+&FORCE_EVAL
+  METHOD         Quickstep
+  STRESS_TENSOR  ANALYTICAL
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+     COMPONENTS
+    &END STRESS_TENSOR
+  &END
+  &DFT
+    BASIS_SET_FILE_NAME  GTH_BASIS_SETS
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    POTENTIAL_FILE_NAME  POTENTIAL
+    &MGRID
+      CUTOFF      200
+      REL_CUTOFF   30
+    &END MGRID
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-10
+    &END QS
+    &SCF
+      SCF_GUESS   ATOMIC
+      EPS_SCF     1.0E-6
+      MAX_SCF     100
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+    &END SCF
+    &XC
+      # Not a very useful functional, just for testing
+      &XC_FUNCTIONAL
+        &MGGA_X_BR89
+        &END
+      &END XC_FUNCTIONAL
+      &WF_CORRELATION
+        &RI_MP2
+          BLOCK_SIZE  1
+          EPS_CANONICAL 0.0001
+          FREE_HFX_BUFFER .TRUE.
+          &CPHF
+            EPS_CONV  1.0E-4
+            MAX_ITER  30
+          &END
+        &END
+        &INTEGRALS
+          &WFC_GPW
+            CUTOFF      25
+            REL_CUTOFF  10
+            EPS_FILTER  1.0E-6
+            EPS_GRID    1.0E-6
+          &END WFC_GPW
+        &END INTEGRALS
+        MEMORY       1.00
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  3.5 3.5 3.5
+    &END CELL
+    &KIND H
+      BASIS_SET         SZV-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL         GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET         SZV-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL         GTH-PBE-q6
+    &END KIND
+    &COORD
+      O       0.000000    0.000000    -0.211000
+      H       0.000000   -0.844000     0.495000
+      H       0.000000    0.744000     0.495000
+    &END
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

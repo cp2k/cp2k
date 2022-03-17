@@ -2728,10 +2728,6 @@ CONTAINS
       IF (laplace_f .AND. my_gapw) &
          CPABORT("Laplace-dependent functional not implemented with GAPW!")
 
-      IF (laplace_f .AND. my_compute_virial) THEN
-         CPABORT("Laplace-dependent functionals not implemented with stress tensors!")
-      END IF
-
       IF (my_compute_virial .AND. (gradient_f .OR. laplace_f)) CALL allocate_pw(virial_pw, pw_pool, bo)
 
       IF (lsd) THEN
@@ -2920,6 +2916,13 @@ CONTAINS
 
          END IF ! gradient_f
 
+         IF (laplace_f .AND. my_compute_virial) THEN
+            virial_pw%cr3d(:, :, :) = -rhoa(:, :, :)
+            CALL virial_laplace(virial_pw, pw_pool, virial_xc, v_laplace(1)%pw%cr3d)
+            virial_pw%cr3d(:, :, :) = -rhob(:, :, :)
+            CALL virial_laplace(virial_pw, pw_pool, virial_xc, v_laplace(2)%pw%cr3d)
+         END IF
+
       ELSE
 
          !-----------------!
@@ -2986,6 +2989,11 @@ CONTAINS
                CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 1), tmp_g, vxc_g, v_xc(1)%pw)
             END IF
 
+         END IF
+
+         IF (laplace_f .AND. my_compute_virial) THEN
+            virial_pw%cr3d(:, :, :) = -rho(:, :, :)
+            CALL virial_laplace(virial_pw, pw_pool, virial_xc, v_laplace(1)%pw%cr3d)
          END IF
 
       END IF
@@ -3153,23 +3161,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'virial_laplace'
 
       INTEGER :: handle, idir, jdir
-      TYPE(pw_type), POINTER :: virial_pw, tmp_g
+      TYPE(pw_type), POINTER :: virial_pw, tmp_g, rho_g
       INTEGER, DIMENSION(3) :: my_deriv
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (virial_pw, tmp_g)
+      NULLIFY (virial_pw, tmp_g, rho_g)
 
       CALL pw_pool_create_pw(pw_pool, virial_pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, tmp_g, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(pw_pool, rho_g, &
+                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_zero(virial_pw)
-
+      CALL pw_transfer(rho_r, rho_g)
       DO idir = 1, 3
          DO jdir = idir, 3
-            CALL pw_transfer(rho_r, tmp_g)
+            CALL pw_copy(rho_g, tmp_g)
 
             my_deriv = 0
             my_deriv(idir) = 1
@@ -3185,6 +3195,7 @@ CONTAINS
       END DO
       CALL pw_pool_give_back_pw(pw_pool, virial_pw)
       CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+      CALL pw_pool_give_back_pw(pw_pool, rho_g)
 
       CALL timestop(handle)
 
