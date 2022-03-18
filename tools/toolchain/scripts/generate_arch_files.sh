@@ -97,7 +97,8 @@ G_CFLAGS="$G_CFLAGS IF_COVERAGE($COVERAGE_FLAGS|IF_DEBUG($NOOPT_FLAGS|$OPT_FLAGS
 G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
 # FCFLAGS, for gfortran
-FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS) IF_MPI(-fallow-argument-mismatch|)"
+FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
+FCFLAGS+=" IF_MPI($(allowed_gfortran_flags "-fallow-argument-mismatch")|)"
 # CFLAGS, special flags for gcc
 
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
@@ -149,11 +150,6 @@ fi
 
 # HIP handling
 if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
-  #
-  # TODO: Make toolchain oblivious to HIP_PLATFORM, currently it only works for Nvidia.
-  #
-  # DBCSR suffers from https://github.com/ROCm-Developer-Tools/HIP/issues/268
-
   check_command hipcc "hip"
   check_lib -lhipblas "hip"
   add_lib_from_paths HIP_LDFLAGS "libhipblas.*" $LIB_PATHS

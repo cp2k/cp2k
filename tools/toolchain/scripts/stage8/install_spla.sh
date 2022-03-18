@@ -90,7 +90,6 @@ case "$with_spla" in
         install -d ${pkg_install_dir}/lib/cuda
         [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
         [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-        CP_DFLAGS+=' -D__OFFLOAD_GEMM'
       fi
 
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
@@ -140,7 +139,6 @@ case "$with_spla" in
             ;;
           *) ;;
         esac
-        CP_DFLAGS+=' -D__OFFLOAD_GEMM'
       fi
 
       # https://github.com/eth-cscs/spla/issues/17
@@ -197,7 +195,7 @@ export SPLA_CFLAGS="${SPLA_CFLAGS}"
 export SPLA_LDFLAGS="${SPLA_LDFLAGS}"
 export SPLA_CUDA_LDFLAGS="${SPLA_CUDA_LDFLAGS}"
 export SPLA_HIP_LDFLAGS="${SPLA_HIP_LDFLAGS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__SPLA|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_HIP(-D__OFFLOAD_GEMM|) IF_CUDA(-D__OFFLOAD_GEMM|) ${OFFLOAD_DFLAGS} IF_MPI(-D__SPLA|)"
 export CP_CFLAGS="\${CP_CFLAGS} ${SPLA_CFLAGS}"
 export SPLA_LIBRARY="-lspla"
 export SPLA_ROOT="$pkg_install_dir"
