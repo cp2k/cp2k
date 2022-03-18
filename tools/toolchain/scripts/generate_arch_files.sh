@@ -97,7 +97,7 @@ G_CFLAGS="$G_CFLAGS IF_COVERAGE($COVERAGE_FLAGS|IF_DEBUG($NOOPT_FLAGS|$OPT_FLAGS
 G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
 # FCFLAGS, for gfortran
-FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
+FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS) IF_MPI(-fallow-argument-mismatch|)"
 # CFLAGS, special flags for gcc
 
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
