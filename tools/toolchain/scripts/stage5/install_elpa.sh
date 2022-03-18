@@ -28,6 +28,7 @@ ELPA_LDFLAGS=''
 ELPA_LIBS=''
 # ELPA 2019.05.001 has a parallel build issue, restricting to -j1
 ELPA_MAKEOPTS='-j1'
+elpa_dir_openmp="_openmp"
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
@@ -138,7 +139,8 @@ case "$with_elpa" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage5/$(basename ${SCRIPT_NAME})"
     fi
-    ELPA_CFLAGS="-I'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa_openmp-${elpa_ver}/modules' -I'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa_openmp-${elpa_ver}/elpa'"
+    [ "$enable_openmp" != "yes" ] && elpa_dir_openmp=""
+    ELPA_CFLAGS="-I'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa${elpa_dir_openmp}-${elpa_ver}/modules' -I'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/include/elpa${elpa_dir_openmp}-${elpa_ver}/elpa'"
     ELPA_LDFLAGS="-L'${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib' -Wl,-rpath='${pkg_install_dir}/IF_CUDA(nvidia|cpu)/lib'"
     ;;
   __SYSTEM__)
@@ -177,7 +179,7 @@ case "$with_elpa" in
     ;;
 esac
 if [ "$with_elpa" != "__DONTUSE__" ]; then
-  ELPA_LIBS="-lelpa_openmp"
+  ELPA_LIBS="-lelpa${elpa_dir_openmp}"
   cat << EOF > "${BUILDDIR}/setup_elpa"
 prepend_path CPATH "$elpa_include"
 EOF
