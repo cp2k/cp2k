@@ -39,6 +39,7 @@
     &END SCF
     &XC
       2nd_DERIV_ANALYTICAL .FALSE.
+      NSTEPS 1
       &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
       &HF

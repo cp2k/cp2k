@@ -28,6 +28,7 @@
     &END SCF
     &XC
       2ND_DERIV_ANALYTICAL .FALSE.
+      NSTEPS 4
       # Not a very useful functional, just for testing
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL

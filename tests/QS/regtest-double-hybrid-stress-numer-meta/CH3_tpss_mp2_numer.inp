@@ -35,12 +35,12 @@
     &END SCF
     &XC
       2ND_DERIV_ANALYTICAL .FALSE.
+      STEP_SIZE 1.0E-2
+      NSTEPS 1
       # Not a very useful functional, just for testing
       &XC_FUNCTIONAL
         &MGGA_X_TPSS
         &END 
-        &MGGA_C_TPSS
-        &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         &RI_MP2
