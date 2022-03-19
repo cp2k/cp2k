@@ -68,6 +68,9 @@ def main() -> None:
                 + regtest_postponed("psmp", "local_hip")
             )
 
+        with OutputFile(f"Dockerfile.build_hip_rocm_{gpu_ver}", args.check) as f:
+            f.write(toolchain_hip_rocm(gpu_ver=gpu_ver) + build("psmp", "local_hip"))
+
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
         f.write(toolchain_full() + conventions())
 
@@ -116,6 +119,19 @@ CMD ["./test_regtest.sh", "{arch}", "{version}"]
 
 #EOF
 """
+    )
+
+
+# ======================================================================================
+def build(version: str, arch: str = "local") -> str:
+    return (
+        install_cp2k(version=version, arch=arch)
+        + fr"""
+# Run build test.
+COPY ./tools/docker/scripts/test_build.sh .
+RUN ./test_build.sh "{arch}" "{version}" 2>&1 | tee report.log
+"""
+        + print_cached_report()
     )
 
 
