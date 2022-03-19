@@ -14,9 +14,9 @@ extern "C" {
 #endif
 
 #include "../../offload/offload_buffer.h"
+#include "../../offload/offload_runtime.h"
 #include "../common/grid_basis_set.h"
 #include "../common/grid_constants.h"
-#include <cuda_runtime.h>
 #include <stdbool.h>
 
 /*******************************************************************************
@@ -111,8 +111,8 @@ typedef struct {
   int nblocks;
   grid_gpu_layout *layouts;
   int *tasks_per_level;
-  cudaStream_t *level_streams;
-  cudaStream_t main_stream;
+  offloadStream_t *level_streams;
+  offloadStream_t main_stream;
   int lmax;
   int stats[2][20]; // [has_border_mask][lp]
   // device pointers

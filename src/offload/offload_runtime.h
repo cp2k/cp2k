@@ -172,6 +172,20 @@ static inline void offloadMemcpyDtoH(void *ptr_device, const void *ptr_host,
 }
 
 /*******************************************************************************
+ * \brief Wrapper around cudaMemcpyToSymbol.
+ ******************************************************************************/
+static inline void offloadMemcpyToSymbol(const void *symbol, const void *src,
+                                         const size_t count) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(
+      cudaMemcpyToSymbol(symbol, src, count, 0, cudaMemcpyHostToDevice));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(
+      hipMemcpyToSymbol(symbol, src, count, 0, hipMemcpyHostToDevice));
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around cudaEventCreate.
  ******************************************************************************/
 static inline void offloadEventCreate(offloadEvent_t *event) {

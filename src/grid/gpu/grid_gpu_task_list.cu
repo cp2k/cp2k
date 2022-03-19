@@ -7,8 +7,6 @@
 
 #ifdef __GRID_CUDA
 
-#include <cuda_runtime.h>
-
 #include <assert.h>
 #include <omp.h>
 #include <stdint.h>
@@ -23,17 +21,6 @@
 #include "grid_gpu_collocate.h"
 #include "grid_gpu_integrate.h"
 #include "grid_gpu_task_list.h"
-
-/*******************************************************************************
- * \brief Check given Cuda status and upon failure abort with a nice message.
- * \author Ole Schuett
- ******************************************************************************/
-#define CHECK(status)                                                          \
-  if (status != cudaSuccess) {                                                 \
-    fprintf(stderr, "ERROR: %s %s %d\n", cudaGetErrorString(status), __FILE__, \
-            __LINE__);                                                         \
-    abort();                                                                   \
-  }
 
 /*******************************************************************************
  * \brief Create a single task and precompute as much as possible.
@@ -289,9 +276,8 @@ void grid_gpu_create_task_list(
   task_list->sphis_dev = (double **)malloc(nkinds * sizeof(double *));
   for (int i = 0; i < nkinds; i++) {
     size = basis_sets[i]->nsgf * basis_sets[i]->maxco * sizeof(double);
-    CHECK(cudaMalloc(&task_list->sphis_dev[i], size));
-    CHECK(cudaMemcpy(task_list->sphis_dev[i], basis_sets[i]->sphi, size,
-                     cudaMemcpyHostToDevice));
+    offloadMalloc((void **)&task_list->sphis_dev[i], size);
+    offloadMemcpyHtoD(task_list->sphis_dev[i], basis_sets[i]->sphi, size);
   }
 
   size = ntasks * sizeof(grid_gpu_task);
@@ -302,9 +288,8 @@ void grid_gpu_create_task_list(
                block_num_list, radius_list, rab_list, npts_local, shift_local,
                border_width, dh, dh_inv, (const double **)task_list->sphis_dev,
                tasks_host);
-  CHECK(cudaMalloc(&task_list->tasks_dev, size));
-  CHECK(cudaMemcpy(task_list->tasks_dev, tasks_host, size,
-                   cudaMemcpyHostToDevice));
+  offloadMalloc((void **)&task_list->tasks_dev, size);
+  offloadMemcpyHtoD(task_list->tasks_dev, tasks_host, size);
 
   free(tasks_host);
 
@@ -342,13 +327,13 @@ void grid_gpu_create_task_list(
   }
 
   // allocate main cuda stream
-  CHECK(cudaStreamCreate(&task_list->main_stream));
+  offloadStreamCreate(&task_list->main_stream);
 
   // allocate one cuda stream per grid level
-  size = nlevels * sizeof(cudaStream_t);
-  task_list->level_streams = (cudaStream_t *)malloc(size);
+  size = nlevels * sizeof(offloadStream_t);
+  task_list->level_streams = (offloadStream_t *)malloc(size);
   for (int i = 0; i < nlevels; i++) {
-    CHECK(cudaStreamCreate(&task_list->level_streams[i]));
+    offloadStreamCreate(&task_list->level_streams[i]);
   }
 
   // return newly created task list
@@ -361,17 +346,17 @@ void grid_gpu_create_task_list(
  ******************************************************************************/
 void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
 
-  CHECK(cudaFree(task_list->tasks_dev));
+  offloadFree(task_list->tasks_dev);
 
-  CHECK(cudaStreamDestroy(task_list->main_stream));
+  offloadStreamDestroy(task_list->main_stream);
 
   for (int i = 0; i < task_list->nlevels; i++) {
-    CHECK(cudaStreamDestroy(task_list->level_streams[i]));
+    offloadStreamDestroy(task_list->level_streams[i]);
   }
   free(task_list->level_streams);
 
   for (int i = 0; i < task_list->nkinds; i++) {
-    CHECK(cudaFree(task_list->sphis_dev[i]));
+    offloadFree(task_list->sphis_dev[i]);
   }
   free(task_list->sphis_dev);
 
@@ -394,29 +379,28 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
   offload_activate_chosen_device();
 
   // Upload blocks buffer using the main stream
-  CHECK(cudaMemcpyAsync(pab_blocks->device_buffer, pab_blocks->host_buffer,
-                        pab_blocks->size, cudaMemcpyHostToDevice,
-                        task_list->main_stream));
+  offloadMemcpyAsyncHtoD(pab_blocks->device_buffer, pab_blocks->host_buffer,
+                         pab_blocks->size, task_list->main_stream);
 
   // record an event so the level streams can wait for the blocks to be uploaded
-  cudaEvent_t input_ready_event;
-  CHECK(cudaEventCreate(&input_ready_event));
-  CHECK(cudaEventRecord(input_ready_event, task_list->main_stream));
+  offloadEvent_t input_ready_event;
+  offloadEventCreate(&input_ready_event);
+  offloadEventRecord(input_ready_event, task_list->main_stream);
 
   int lp_diff;
   int first_task = 0;
   assert(task_list->nlevels == nlevels);
   for (int level = 0; level < task_list->nlevels; level++) {
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
-    const cudaStream_t level_stream = task_list->level_streams[level];
+    const offloadStream_t level_stream = task_list->level_streams[level];
     const grid_gpu_layout *layout = &task_list->layouts[level];
     offload_buffer *grid = grids[level];
 
     // zero grid device buffer
-    CHECK(cudaMemsetAsync(grid->device_buffer, 0, grid->size, level_stream));
+    offloadMemsetAsync(grid->device_buffer, 0, grid->size, level_stream);
 
     // launch kernel, but only after blocks have arrived
-    CHECK(cudaStreamWaitEvent(level_stream, input_ready_event, 0));
+    offloadStreamWaitEvent(level_stream, input_ready_event, 0);
     grid_gpu_collocate_one_grid_level(
         task_list, first_task, last_task, func, layout, level_stream,
         pab_blocks->device_buffer, grid->device_buffer, &lp_diff);
@@ -441,16 +425,15 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
   // download result from device to host.
   for (int level = 0; level < task_list->nlevels; level++) {
     offload_buffer *grid = grids[level];
-    CHECK(cudaMemcpyAsync(grid->host_buffer, grid->device_buffer, grid->size,
-                          cudaMemcpyDeviceToHost,
-                          task_list->level_streams[level]));
+    offloadMemcpyAsyncDtoH(grid->host_buffer, grid->device_buffer, grid->size,
+                           task_list->level_streams[level]);
   }
 
   // clean up
-  CHECK(cudaEventDestroy(input_ready_event));
+  offloadEventDestroy(input_ready_event);
 
   // wait for all the streams to finish
-  CHECK(cudaDeviceSynchronize());
+  offloadDeviceSynchronize();
 }
 
 /*******************************************************************************
@@ -476,55 +459,54 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
   const size_t forces_size = 3 * natoms * sizeof(double);
   const size_t virial_size = 9 * sizeof(double);
   if (forces != NULL || virial != NULL) {
-    CHECK(cudaMemcpyAsync(pab_blocks->device_buffer, pab_blocks->host_buffer,
-                          pab_blocks->size, cudaMemcpyHostToDevice,
-                          task_list->main_stream));
+    offloadMemcpyAsyncHtoD(pab_blocks->device_buffer, pab_blocks->host_buffer,
+                           pab_blocks->size, task_list->main_stream);
     pab_blocks_dev = pab_blocks->device_buffer;
   }
   if (forces != NULL) {
-    CHECK(cudaMalloc(&forces_dev, forces_size));
-    CHECK(cudaMemsetAsync(forces_dev, 0, forces_size, task_list->main_stream));
+    offloadMalloc((void **)&forces_dev, forces_size);
+    offloadMemsetAsync(forces_dev, 0, forces_size, task_list->main_stream);
   }
   if (virial != NULL) {
-    CHECK(cudaMalloc(&virial_dev, virial_size));
-    CHECK(cudaMemsetAsync(virial_dev, 0, virial_size, task_list->main_stream));
+    offloadMalloc((void **)&virial_dev, virial_size);
+    offloadMemsetAsync(virial_dev, 0, virial_size, task_list->main_stream);
   }
 
   // zero device hab blocks buffers
-  CHECK(cudaMemsetAsync(hab_blocks->device_buffer, 0, hab_blocks->size,
-                        task_list->main_stream));
+  offloadMemsetAsync(hab_blocks->device_buffer, 0, hab_blocks->size,
+                     task_list->main_stream);
 
   // record event so other streams can wait for hab, pab, virial etc to be ready
-  cudaEvent_t input_ready_event;
-  CHECK(cudaEventCreate(&input_ready_event));
-  CHECK(cudaEventRecord(input_ready_event, task_list->main_stream));
+  offloadEvent_t input_ready_event;
+  offloadEventCreate(&input_ready_event);
+  offloadEventRecord(input_ready_event, task_list->main_stream);
 
   int lp_diff;
   int first_task = 0;
   assert(task_list->nlevels == nlevels);
   for (int level = 0; level < task_list->nlevels; level++) {
     const int last_task = first_task + task_list->tasks_per_level[level] - 1;
-    const cudaStream_t level_stream = task_list->level_streams[level];
+    const offloadStream_t level_stream = task_list->level_streams[level];
     const grid_gpu_layout *layout = &task_list->layouts[level];
     const offload_buffer *grid = grids[level];
 
     // upload grid
-    CHECK(cudaMemcpyAsync(grid->device_buffer, grid->host_buffer, grid->size,
-                          cudaMemcpyHostToDevice, level_stream));
+    offloadMemcpyAsyncHtoD(grid->device_buffer, grid->host_buffer, grid->size,
+                           level_stream);
 
     // launch kernel, but only after hab, pab, virial, etc are ready
-    CHECK(cudaStreamWaitEvent(level_stream, input_ready_event, 0));
+    offloadStreamWaitEvent(level_stream, input_ready_event, 0);
     grid_gpu_integrate_one_grid_level(
         task_list, first_task, last_task, compute_tau, layout, level_stream,
         pab_blocks_dev, grid->device_buffer, hab_blocks->device_buffer,
         forces_dev, virial_dev, &lp_diff);
 
     // Have main stream wait for level to complete before downloading results.
-    cudaEvent_t level_done_event;
-    CHECK(cudaEventCreate(&level_done_event));
-    CHECK(cudaEventRecord(level_done_event, level_stream));
-    CHECK(cudaStreamWaitEvent(task_list->main_stream, level_done_event, 0));
-    CHECK(cudaEventDestroy(level_done_event));
+    offloadEvent_t level_done_event;
+    offloadEventCreate(&level_done_event);
+    offloadEventRecord(level_done_event, level_stream);
+    offloadStreamWaitEvent(task_list->main_stream, level_done_event, 0);
+    offloadEventDestroy(level_done_event);
 
     first_task = last_task + 1;
   }
@@ -544,28 +526,27 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
   }
 
   // download result from device to host using main stream.
-  CHECK(cudaMemcpyAsync(hab_blocks->host_buffer, hab_blocks->device_buffer,
-                        hab_blocks->size, cudaMemcpyDeviceToHost,
-                        task_list->main_stream));
+  offloadMemcpyAsyncDtoH(hab_blocks->host_buffer, hab_blocks->device_buffer,
+                         hab_blocks->size, task_list->main_stream);
   if (forces != NULL) {
-    CHECK(cudaMemcpyAsync(forces, forces_dev, forces_size,
-                          cudaMemcpyDeviceToHost, task_list->main_stream));
+    offloadMemcpyAsyncDtoH(forces, forces_dev, forces_size,
+                           task_list->main_stream);
   }
   if (virial != NULL) {
-    CHECK(cudaMemcpyAsync(virial, virial_dev, virial_size,
-                          cudaMemcpyDeviceToHost, task_list->main_stream));
+    offloadMemcpyAsyncDtoH(virial, virial_dev, virial_size,
+                           task_list->main_stream);
   }
 
   // wait for all the streams to finish
-  CHECK(cudaDeviceSynchronize());
+  offloadDeviceSynchronize();
 
   // clean up
-  CHECK(cudaEventDestroy(input_ready_event));
+  offloadEventDestroy(input_ready_event);
   if (forces != NULL) {
-    CHECK(cudaFree(forces_dev));
+    offloadFree(forces_dev);
   }
   if (virial != NULL) {
-    CHECK(cudaFree(virial_dev));
+    offloadFree(virial_dev);
   }
 }
 

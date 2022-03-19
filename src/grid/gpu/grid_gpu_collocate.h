@@ -9,8 +9,8 @@
 
 #ifdef __GRID_CUDA
 
+#include "../../offload/offload_runtime.h"
 #include "grid_gpu_task_list.h"
-#include <cuda_runtime.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +23,7 @@ extern "C" {
 void grid_gpu_collocate_one_grid_level(
     const grid_gpu_task_list *task_list, const int first_task,
     const int last_task, const enum grid_func func,
-    const grid_gpu_layout *layout, const cudaStream_t stream,
+    const grid_gpu_layout *layout, const offloadStream_t stream,
     const double *pab_blocks_dev, double *grid_dev, int *lp_diff);
 
 #ifdef __cplusplus
