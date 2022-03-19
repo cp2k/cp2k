@@ -19,7 +19,7 @@ extern "C" {
 #include "../common/grid_basis_set.h"
 #include "../common/grid_constants.h"
 
-typedef void grid_gpu_task_list;
+typedef void grid_hip_task_list;
 /*******************************************************************************
  * \brief Allocates a task list for the GPU backend.
  *        See grid_task_list.h for details.

@@ -35,7 +35,7 @@
 #define GRID_PRAGMA_UNROLL_UP_TO(N) _Pragma("unroll")
 #endif
 
-#if defined(__CUDACC__)
+#if defined(__CUDACC__) || defined(__HIPCC__)
 #define GRID_HOST_DEVICE __host__ __device__
 #else
 #define GRID_HOST_DEVICE

@@ -408,10 +408,10 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
       for (int lp = 0; lp < 20; lp++) {
         const int count = ctx->stats[has_border_mask][lp];
         if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
-          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_HIP,
                                    GRID_COLLOCATE_ORTHO, count);
         } else {
-          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_HIP,
                                    GRID_COLLOCATE_GENERAL, count);
         }
       }
@@ -497,10 +497,10 @@ extern "C" void grid_hip_integrate_task_list(
       for (int lp = 0; lp < 20; lp++) {
         const int count = ctx->stats[has_border_mask][lp];
         if (ctx->grid_[0].is_orthorhombic() && !has_border_mask) {
-          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_HIP,
                                    GRID_INTEGRATE_ORTHO, count);
         } else {
-          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_GPU,
+          grid_library_counter_add(lp + lp_diff, GRID_BACKEND_HIP,
                                    GRID_INTEGRATE_GENERAL, count);
         }
       }

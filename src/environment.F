@@ -54,6 +54,7 @@ MODULE environment
    USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
                                               GRID_BACKEND_CPU,&
                                               GRID_BACKEND_GPU,&
+                                              GRID_BACKEND_HIP,&
                                               GRID_BACKEND_REF
    USE header,                          ONLY: cp2k_footer,&
                                               cp2k_header
@@ -829,6 +830,9 @@ CONTAINS
          CASE (GRID_BACKEND_GPU)
             WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
                start_section_label//"| Grid backend", "GPU"
+         CASE (GRID_BACKEND_HIP)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
+               start_section_label//"| Grid backend", "HIP"
          CASE (GRID_BACKEND_REF)
             WRITE (UNIT=output_unit, FMT="(T2,A,T75,A6)") &
                start_section_label//"| Grid backend", "REF"

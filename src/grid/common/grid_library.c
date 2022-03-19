@@ -17,7 +17,7 @@
 #include "grid_library.h"
 
 // counter dimensions
-#define GRID_NBACKENDS 3
+#define GRID_NBACKENDS 4
 #define GRID_NKERNELS 4
 #define GRID_MAX_LP 20
 
@@ -186,7 +186,7 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
 
   const char *kernel_names[] = {"collocate ortho", "integrate ortho",
                                 "collocate general", "integrate general"};
-  const char *backend_names[] = {"REF", "CPU", "GPU"};
+  const char *backend_names[] = {"REF", "CPU", "GPU", "HIP"};
 
   for (int i = 0; i < ncounters; i++) {
     if (counters[i][0] == 0)

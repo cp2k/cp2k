@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(__CUDACC__)
+#if defined(__CUDACC__) || defined(__HIPCC__)
 #define GRID_DEVICE __device__
 #else
 #define GRID_DEVICE

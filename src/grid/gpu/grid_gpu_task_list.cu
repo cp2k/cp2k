@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifdef __GRID_CUDA
+#if defined(__GRID_CUDA) || defined(__GRID_HIP)
 
 #include <assert.h>
 #include <omp.h>
@@ -550,5 +550,5 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
   }
 }
 
-#endif // __GRID_CUDA
+#endif // defined(__GRID_CUDA) || defined(__GRID_HIP)
 // EOF
