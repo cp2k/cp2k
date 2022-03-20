@@ -1,1 +1,0 @@
-dbm_multiply_gpu.cu

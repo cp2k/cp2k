@@ -26,7 +26,7 @@ extern "C" {
 #include "../common/grid_library.h"
 }
 
-#include "grid_hip_context.hpp"
+#include "grid_hip_context.h"
 #include "grid_hip_internal_header.h"
 
 #include "grid_hip_task_list.h"
