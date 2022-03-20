@@ -57,9 +57,6 @@ OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
 OBJEXTSDIR := $(OBJDIR)/$(EXTSDIR)
 OBJEXTSINCL := $(foreach dir,$(EXTSPACKAGES),-I'$(OBJEXTSDIR)/$(dir)')
 TSTDIR     := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
-ifeq ($(OFFLOAD_CC),)
-EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
-endif
 ifneq ($(LD_SHARED),)
 	ARCHIVE_EXT := .so
 else
@@ -87,22 +84,16 @@ endif
 # File type is derived from name. Only the following extensions are supported:
 #   .F    ->  Fortran
 #   .c    ->  C
-#   .cu   ->  CUDA
-#   .cc   ->  HIP
 #   .h    ->  C header
-#   .hpp  ->  CUDA or HIP header
+#   .cu   ->  CUDA or HIP kernel
 
 ALL_SRC_DIRS := $(shell find $(SRCDIR) -type d | awk '{printf("%s:",$$1)}')
 ALL_PKG_FILES  = $(shell find $(SRCDIR) -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . -name "*.F")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.c")
 
-ifneq (,$(findstring nvcc,$(OFFLOAD_CC)))
+ifneq ($(OFFLOAD_CC),)
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cu")
-endif
-
-ifneq (,$(findstring hipcc,$(OFFLOAD_CC)))
-OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cc")
 endif
 
 # Included files used by Fypp preprocessor
@@ -111,7 +102,6 @@ INCLUDED_SRC_FILES = $(notdir $(shell find $(SRCDIR) -name "*.fypp"))
 # Include also source files which won't compile into an object file
 ALL_SRC_FILES  = $(strip $(subst $(NULL) .,$(NULL) $(SRCDIR),$(NULL) $(OBJ_SRC_FILES)))
 ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.h")
-ALL_SRC_FILES += $(shell find $(SRCDIR) -name "*.hpp")
 
 ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
@@ -489,9 +479,6 @@ vpath %.h     $(ALL_SRC_DIRS)
 vpath %.f90   $(ALL_SRC_DIRS)
 vpath %.cu    $(ALL_SRC_DIRS)
 vpath %.c     $(ALL_SRC_DIRS)
-vpath %.cpp   $(ALL_SRC_DIRS)
-vpath %.cxx   $(ALL_SRC_DIRS)
-vpath %.cc    $(ALL_SRC_DIRS)
 
 #
 # Add additional dependency of cp2k_info.F to git-HEAD.
@@ -531,8 +518,15 @@ FYPPFLAGS ?= -n
 %.o: %.cu
 	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
 
+# Disable built-in rules for C++.
 %.o: %.cc
-	$(OFFLOAD_CC) -c $(OFFLOAD_FLAGS) $<
+	@echo "Error: C++ is not supported: $<"; false
+
+%.o: %.cpp
+	@echo "Error: C++ is not supported: $<"; false
+
+%.o: %.C
+	@echo "Error: C++ is not supported: $<"; false
 
 ifneq ($(LIBDIR),)
 $(LIBDIR)/%:

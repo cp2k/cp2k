@@ -187,11 +187,11 @@ def process_file(fn, allow_modifications):
         run_local_tool("./tools/doxify/doxify.sh", fn)
         run_prettify(fn)
 
-    if re.match(r".*\.(c|cu|cc|h|hpp)$", fn):
+    if re.match(r".*\.(c|cu|h)$", fn):
         run_remote_tool("clangformat", fn)
 
-    if re.match(r".*\.(cpp|cxx|hcc|hxx)$", fn):
-        raise Exception(f"File extension not supported by build system.")
+    if re.match(r".*\.(cc|cpp|cxx|hcc|hpp|hxx)$", fn):
+        raise Exception(f"C++ is not supported.")
 
     if re.match(r"(.*/PACKAGE)|(.*\.py)$", fn):
         ast.parse(orig_content, filename=fn)

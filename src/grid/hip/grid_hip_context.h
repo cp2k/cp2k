@@ -11,8 +11,8 @@
    - Advanced Micro Devices, Inc.
 */
 
-#ifndef GRID_HIP_CONTEXT_HPP
-#define GRID_HIP_CONTEXT_HPP
+#ifndef GRID_HIP_CONTEXT_H
+#define GRID_HIP_CONTEXT_H
 
 #include <hip/hip_runtime_api.h>
 #include <vector>

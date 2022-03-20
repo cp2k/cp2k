@@ -29,7 +29,7 @@ extern "C" {
 #include "../common/grid_constants.h"
 }
 
-#include "grid_hip_context.hpp"
+#include "grid_hip_context.h"
 
 namespace rocm_backend {
 
