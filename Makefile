@@ -92,7 +92,7 @@ ALL_PKG_FILES  = $(shell find $(SRCDIR) -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell cd $(SRCDIR); find . -name "*.F")
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.c")
 
-ifneq ($(OFFLOAD_CC),)
+ifneq ($(filter nvcc hipcc, $(notdir $(OFFLOAD_CC))),)
 OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -name "*.cu")
 endif
 
