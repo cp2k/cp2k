@@ -1683,7 +1683,8 @@ CONTAINS
                                                             norm_drho2b, norm_drhoa, norm_drhob, &
                                                             rho, rho1, rho1a, rho1b, rhoa, rhob, &
                                                             tau_a, tau_b, tau, tau1, tau1a, tau1b, laplace, laplace1, &
-                                                            laplacea, laplaceb, laplace1a, laplace1b, laplace2, laplace2a, laplace2b
+                                                            laplacea, laplaceb, laplace1a, laplace1b, &
+                                                            laplace2, laplace2a, laplace2b, deriv_data
       TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type)                                    :: v_drho, v_drhoa, v_drhob
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc_rho, &
@@ -1882,10 +1883,6 @@ CONTAINS
 
          CALL check_for_derivatives(deriv_set, (nspins == 2), rho_f, gradient_f, tau_f, laplace_f)
 
-         IF (laplace_f) THEN
-            CPABORT("Stress tensors with Laplace-dependent functionals not supported!")
-         END IF
-
          ! Calculate the virial terms
          ! Those arising from the first derivatives are treated like in xc_calc_2nd_deriv_analytical
          ! Those arising from the second derivatives are calculated numerically
@@ -1917,14 +1914,14 @@ CONTAINS
                CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob, norm_drho=norm_drho, &
                                    norm_drhoa=norm_drhoa, norm_drhob=norm_drhob, tau_a=tau_a, tau_b=tau_b, &
                                    laplace_rhoa=laplacea, laplace_rhob=laplaceb, can_return_null=.TRUE.)
-               CALL xc_rho_set_get(rho1_set, drhoa=drho1a, drhob=drho1b, laplace_rhoa=laplace1a, &
+               CALL xc_rho_set_get(rho1_set, rhoa=rho1a, rhob=rho1b, drhoa=drho1a, drhob=drho1b, laplace_rhoa=laplace1a, &
                                    laplace_rhob=laplace1b, can_return_null=.TRUE.)
 
                CALL calc_drho_from_ab(drho, drhoa, drhob)
                CALL calc_drho_from_ab(drho1, drho1a, drho1b)
             ELSE
                CALL xc_rho_set_get(rho_set, drho=drho, norm_drho=norm_drho, tau=tau, laplace_rho=laplace, can_return_null=.TRUE.)
-               CALL xc_rho_set_get(rho1_set, drho=drho1, laplace_rho=laplace1, can_return_null=.TRUE.)
+               CALL xc_rho_set_get(rho1_set, rho=rho1, drho=drho1, laplace_rho=laplace1, can_return_null=.TRUE.)
             END IF
 
             IF (laplace_f) THEN
@@ -1952,6 +1949,18 @@ CONTAINS
                                                            norm_drhob, gradient_cut, drb1drb, v_drhob%pw%cr3d)
                IF (ASSOCIATED(norm_drho)) CALL apply_drho(deriv_set, [deriv_norm_drho], virial_pw, drho, drho1, virial_xc, &
                                                           norm_drho, gradient_cut, dr1dr, v_drho%pw%cr3d)
+               IF (ASSOCIATED(laplacea)) THEN
+                  CALL xc_derivative_get(xc_dset_get_derivative(deriv_set, [deriv_laplace_rhoa]), deriv_data=deriv_data)
+                  CPASSERT(ASSOCIATED(deriv_data))
+                  virial_pw%cr3d(:, :, :) = -rho1a(:, :, :)
+                  CALL virial_laplace(virial_pw, pw_pool, virial_xc, deriv_data)
+               END IF
+               IF (ASSOCIATED(laplaceb)) THEN
+                  CALL xc_derivative_get(xc_dset_get_derivative(deriv_set, [deriv_laplace_rhob]), deriv_data=deriv_data)
+                  CPASSERT(ASSOCIATED(deriv_data))
+                  virial_pw%cr3d(:, :, :) = -rho1b(:, :, :)
+                  CALL virial_laplace(virial_pw, pw_pool, virial_xc, deriv_data)
+               END IF
 
             ELSE
 
@@ -1960,6 +1969,13 @@ CONTAINS
 
                CALL apply_drho(deriv_set, [deriv_norm_drho], virial_pw, drho, drho1, virial_xc, &
                                norm_drho, gradient_cut, dr1dr, v_drho%pw%cr3d)
+               IF (ASSOCIATED(laplace)) THEN
+                  CALL xc_derivative_get(xc_dset_get_derivative(deriv_set, [deriv_laplace_rho]), deriv_data=deriv_data)
+                  CPASSERT(ASSOCIATED(deriv_data))
+                  virial_pw%cr3d(:, :, :) = -rho1(:, :, :)
+                  CALL virial_laplace(virial_pw, pw_pool, virial_xc, deriv_data)
+               END IF
+
             END IF
 
             IF (lsd) THEN
@@ -2020,6 +2036,12 @@ CONTAINS
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_b], bo, &
                                               norm_drhoa, gradient_cut, weight, tau1b, v_drhoa%pw%cr3d)
                      END IF
+                     IF (ASSOCIATED(laplace1a) .AND. ASSOCIATED(laplace1b)) THEN
+                        CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhoa], bo, &
+                                              norm_drhoa, gradient_cut, weight, laplace1a, v_drhoa%pw%cr3d)
+                        CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhob], bo, &
+                                              norm_drhoa, gradient_cut, weight, laplace1b, v_drhoa%pw%cr3d)
+                     END IF
                   END IF
 
                   IF (ASSOCIATED(norm_drhob)) THEN
@@ -2040,6 +2062,12 @@ CONTAINS
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_b], bo, &
                                               norm_drhob, gradient_cut, weight, tau1b, v_drhob%pw%cr3d)
                      END IF
+                     IF (ASSOCIATED(laplace1a) .AND. ASSOCIATED(laplace1b)) THEN
+                        CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhoa], bo, &
+                                              norm_drhob, gradient_cut, weight, laplace1a, v_drhob%pw%cr3d)
+                        CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhob], bo, &
+                                              norm_drhob, gradient_cut, weight, laplace1b, v_drhob%pw%cr3d)
+                     END IF
                   END IF
 
                   IF (ASSOCIATED(norm_drho)) THEN
@@ -2059,6 +2087,12 @@ CONTAINS
                                               norm_drho, gradient_cut, weight, tau1a, v_drho%pw%cr3d)
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_b], bo, &
                                               norm_drho, gradient_cut, weight, tau1b, v_drho%pw%cr3d)
+                     END IF
+                     IF (ASSOCIATED(laplace1a) .AND. ASSOCIATED(laplace1b)) THEN
+                        CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhoa], bo, &
+                                              norm_drho, gradient_cut, weight, laplace1a, v_drho%pw%cr3d)
+                        CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhob], bo, &
+                                              norm_drho, gradient_cut, weight, laplace1b, v_drho%pw%cr3d)
                      END IF
                   END IF
                END DO
@@ -2097,6 +2131,10 @@ CONTAINS
                   IF (ASSOCIATED(tau1)) THEN
                      CALL update_deriv_rho(deriv_set1, [deriv_tau], bo, &
                                            norm_drho, gradient_cut, weight, tau1, v_drho%pw%cr3d)
+                  END IF
+                  IF (ASSOCIATED(laplace1)) THEN
+                     CALL update_deriv_rho(deriv_set1, [deriv_laplace_rho], bo, &
+                                           norm_drho, gradient_cut, weight, laplace1, v_drho%pw%cr3d)
                   END IF
                END DO
 
