@@ -4,6 +4,6 @@ CH-hfx-ri-mo.inp                                       11    1.0E-9             
 Ne-hfx-pbc-metric-rho.inp                              11    1.0E-9            -636.720103843241191
 Ne-hfx-pbc-metric-mo.inp                               11    1.0E-9            -635.511722336957519
 CH3-b3lyp-ADMM.inp                                     11    1.0E-9              -7.413742783908635
-H2O-pbe0-stress-truncated.inp                          31    1.0E-8               4.84584402773E-01
-H2O-hfx-stress-identity.inp                            31    1.0E-8               8.19144120830E-01
+H2O-pbe0-stress-truncated.inp                          31    1.0E-8               1.08502858250E+00
+H2O-hfx-stress-identity.inp                            31    1.0E-8               7.88736348016E-01
 #EOF

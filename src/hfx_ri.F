@@ -1637,8 +1637,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_forces_mo'
 
-      INTEGER :: handle, i_mem, i_xyz, ispin, j_mem, k_mem, n_mem, n_mem_input, n_mem_input_RI, &
-         n_mem_RI, n_mem_RI_fit, n_mos, natom, unit_nr_dbcsr
+      INTEGER :: handle, i_mem, i_xyz, ispin, j_mem, j_xyz, k_mem, k_xyz, n_mem, n_mem_input, &
+         n_mem_input_RI, n_mem_RI, n_mem_RI_fit, n_mos, natom, unit_nr_dbcsr
       INTEGER(int_8)                                     :: nflop
       INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_of_kind, batch_blk_end, batch_blk_start, &
          batch_end, batch_end_RI, batch_end_RI_fit, batch_ranges, batch_ranges_RI, &
@@ -1784,6 +1784,7 @@ CONTAINS
       DEALLOCATE (batch_blk_start, batch_blk_end)
 
       DO ispin = 1, nspins
+         work_virial = 0.0_dp
 
          ! 2 )Prepare the batches for this spin
          CALL dbcsr_get_info(mo_coeff(ispin), nfullcols_total=n_mos)
@@ -2223,6 +2224,17 @@ CONTAINS
                                      kind_of, idx_to_at_RI, pref)
             END IF
             CALL dbt_clear(t_2c_RI)
+         END IF
+
+         IF (use_virial_prv) THEN
+            DO k_xyz = 1, 3
+               DO j_xyz = 1, 3
+                  DO i_xyz = 1, 3
+                     virial%pv_fock_4c(i_xyz, j_xyz) = virial%pv_fock_4c(i_xyz, j_xyz) &
+                                                       + work_virial(i_xyz, k_xyz)*cell%hmat(j_xyz, k_xyz)
+                  END DO
+               END DO
+            END DO
          END IF
 
          CALL dbt_destroy(t_3c_0)
@@ -3329,7 +3341,7 @@ CONTAINS
                   CALL real_to_scaled(scoord, particle_set(jat)%r, cell)
 
                   DO j_xyz = 1, 3
-                     work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + new_force*scoord(j_xyz)
+                     work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) - new_force*scoord(j_xyz)
                   END DO
                END IF
 
