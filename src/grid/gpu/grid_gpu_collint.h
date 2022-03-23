@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#if defined(__GRID_CUDA) || defined(__GRID_HIP)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 
 #include <algorithm>
 #include <assert.h>
@@ -495,5 +495,5 @@ __device__ static void load_task(const kernel_params *params, smem_task *task) {
   __syncthreads(); // because of concurrent writes to task
 }
 
-#endif // defined(__GRID_CUDA) || defined(__GRID_HIP)
+#endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 // EOF

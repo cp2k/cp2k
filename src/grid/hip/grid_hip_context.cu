@@ -11,7 +11,7 @@
  - Advanced Micro Devices, Inc.
 */
 
-#ifdef __GRID_HIP
+#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -528,4 +528,4 @@ extern "C" void grid_hip_integrate_task_list(
   ctx->synchronize(ctx->main_stream);
 }
 
-#endif // __GRID_ROCM
+#endif // defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)

@@ -143,16 +143,6 @@ CONTAINS
       flags = TRIM(flags)//" quip"
 #endif
 
-#if defined(__PW_GPU)
-      flags = TRIM(flags)//" pw_gpu"
-#if defined(__PW_HIP)
-      flags = TRIM(flags)//" pw_hip"
-#endif
-#if defined(__PW_CUDA)
-      flags = TRIM(flags)//" pw_cuda"
-#endif
-#endif
-
 #if defined(__HAS_PATCHED_CUFFT_70)
       flags = TRIM(flags)//" patched_cufft_70"
 #endif
@@ -291,17 +281,20 @@ CONTAINS
 #if defined(__LIBMAXWELL)
       flags = TRIM(flags)//" libmaxwell"
 #endif
-#if defined(__GRID_CUDA)
-      flags = TRIM(flags)//" grid_cuda"
+#if defined(__OFFLOAD_CUDA)
+      flags = TRIM(flags)//" offload_cuda"
 #endif
-#if defined(__GRID_HIP)
-      flags = TRIM(flags)//" grid_hip"
+#if defined(__OFFLOAD_HIP)
+      flags = TRIM(flags)//" offload_hip"
 #endif
-#if defined(__DBM_CUDA)
-      flags = TRIM(flags)//" dbm_cuda"
+#if defined(__NO_OFFLOAD_GRID)
+      flags = TRIM(flags)//" no_offload_grid"
 #endif
-#if defined(__DBM_HIP)
-      flags = TRIM(flags)//" dbm_hip"
+#if defined(__NO_OFFLOAD_DBM)
+      flags = TRIM(flags)//" no_offload_dbm"
+#endif
+#if defined(__NO_OFFLOAD_PW)
+      flags = TRIM(flags)//" no_offload_pw"
 #endif
 #if defined(__OFFLOAD_PROFILING)
       flags = TRIM(flags)//" offload_profiling"

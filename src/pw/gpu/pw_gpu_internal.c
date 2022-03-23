@@ -4,7 +4,7 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
 
 #include <assert.h>
 #include <omp.h>
@@ -519,6 +519,6 @@ void pw_gpu_sf(const double *zin, double *zout, const int *ghatmap,
   offloadStreamSynchronize(stream);
 }
 
-#endif
+#endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
 
 // EOF

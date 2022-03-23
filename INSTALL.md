@@ -187,6 +187,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 - Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and
   OFFLOAD_FLAGS (e.g. `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables.
   Remember to include the support for the C++11 standard.
+- Use `-D__OFFLOAD_CUDA` to generally enable support for Nvidia GPUs
 - Use the `-D__DBCSR_ACC` and `OFFLOAD_TARGET = cuda` to enable
   accelerator support for matrix multiplications.
 - Add `-lstdc++ -lcudart -lnvrtc -lcuda -lcublas` to LIBS.
@@ -194,15 +195,16 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
   possible values are K20X, K40, K80, P100, V100.
 - Specify the C++ compiler (e.g. `CXX = g++`) and the CXXFLAGS to support
   the C++11 standard.
-- Use `-D__PW_CUDA` for CUDA support for PW (gather/scatter/fft) calculations.
 - CUFFT 7.0 has a known bug and is therefore disabled by default.
   NVIDIA's webpage list a patch (an upgraded version cufft i.e. >= 7.0.35) -
   use this together with `-D__HAS_PATCHED_CUFFT_70`.
 - Use `-D__OFFLOAD_PROFILING` to turn on Nvidia Tools Extensions.
   It requires to link `-lnvToolsExt`.
 - Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
-- Use the `-D__GRID_CUDA` to compile the GPU and HYBRID backends for the grid library.
-- Use the `-D__DBM_CUDA` to compile the GPU backend for the sparse tensor library.
+- Use `-D__NO_OFFLOAD_GRID` to disable the GPU backend of the grid library.
+- Use `-D__NO_OFFLOAD_DBM` to disable the GPU backend of the sparse tensor library.
+- Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs
+  and associated gather/scatter operations.
 
 ### 2k. LIBXC (optional, wider choice of xc functionals)
 
@@ -310,8 +312,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - Currently supported FFT3d sizes - 16^3, 32^3, 64^3.
 - Include aocl compile flags and `-D__PW_FPGA -D__PW_FPGA_SP` to `CFLAGS`,
   aocl linker flags to `LDFLAGS` and aocl libs to `LIBS`.
-- CUDA and FPGA are mutually exclusive. Building with both `__PW_CUDA` and
-  `__PW_FPGA` will throw a compilation error.
+- When building FPGA and OFFLOAD together then `-D__NO_OFFLOAD_PW` has to be used.
 
 ### 2s. COSMA (Distributed Communication-Optimal Matrix-Matrix Multiplication Algorithm)
 
@@ -338,9 +339,11 @@ SIRIUS is a domain specific library for electronic structure calculations.
 The code for the HIP based grid backend was developed and tested on Mi100 but
 should work out of the box on Nvidia hardware as well.
 
-- USE `-D__GRID_HIP` to enable AMD GPU support for collocate and integrate
-  routines.
-- Use the `-D__DBM_HIP` to compile the GPU backend for the sparse tensor library.
+- Use `-D__OFFLOAD_HIP` to generally enable support for AMD GPUs
+- Use `-D__NO_OFFLOAD_GRID` to disable the GPU backend of the grid library.
+- Use `-D__NO_OFFLOAD_DBM` to disable the GPU backend of the sparse tensor library.
+- Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs
+  and associated gather/scatter operations.
 - Add `GPUVER=Mi50, Mi60, Mi100`
 - Add `OFFLOAD_CC = hipcc`
 - Add  `-lamdhip64` to the `LIBS` variable
@@ -495,11 +498,6 @@ partially depending on installed libraries (see 2.)
 - `-D__LIBXC` use LIBXC
 - `-D__ELPA` use ELPA in place of SYEVD  to solve the eigenvalue problem
 - `-D__FFTW3` FFTW version 3 is recommended
-- `-D__PW_GPU` CUDA or hip FFT and associated gather/scatter on the GPU
-- `-D__PW_CUDA` CUDA FFT and associated gather/scatter on the GPU. `__PW_GPU`
-  needs to be set
-- `-D__PW_HIP` HIP FFT and associated gather/scatter on the GPU. `__PW_GPU`
-  needs to be set
 - `-D__MKL` link the MKL library for linear algebra and/or FFT
 - `-D__GRID_CORE=X` (with X=1..6) specific optimized core routines can be
   selected.  Reasonable defaults are [provided](./src/grid/collocate_fast.f90)

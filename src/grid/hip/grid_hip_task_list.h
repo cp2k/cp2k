@@ -7,7 +7,7 @@
 #ifndef GRID_HIP_TASK_LIST_H
 #define GRID_HIP_TASK_LIST_H
 
-#ifdef __GRID_HIP
+#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
 
 #include <stdbool.h>
 
@@ -63,5 +63,5 @@ void grid_hip_integrate_task_list(const void *ptr, const bool compute_tau,
 }
 #endif
 
-#endif
+#endif // defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
 #endif

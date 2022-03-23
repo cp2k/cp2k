@@ -69,10 +69,10 @@ CONTAINS
       END INTERFACE
 
       MARK_USED(dummy) ! TODO: fix fpretty
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_init_c()
 #else
-      CPABORT("Compiled without -D__PW_GPU")
+      ! Nothing to do.
 #endif
    END SUBROUTINE pw_gpu_init
 
@@ -88,10 +88,10 @@ CONTAINS
       END INTERFACE
 
       MARK_USED(dummy) ! TODO: fix fpretty
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_finalize_c()
 #else
-      CPABORT("Compiled without -D__PW_GPU")
+      ! Nothing to do.
 #endif
    END SUBROUTINE pw_gpu_finalize
 
@@ -143,11 +143,11 @@ CONTAINS
       ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
 
       ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_cfffg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, scale)
 #else
       MARK_USED(scale)
-      CPABORT("Compiled without -D__PW_GPU")
+      CPABORT("Compiled without pw offloading.")
 #endif
 
       pw2%in_space = RECIPROCALSPACE
@@ -203,11 +203,11 @@ CONTAINS
       ptr_ghatmap => pw1%pw_grid%g_hatmap(1, 1)
 
       ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_sfffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, ngpts, nmaps, scale)
 #else
       MARK_USED(scale)
-      CPABORT("Compiled without -D__PW_GPU")
+      CPABORT("Compiled without pw offloading")
 #endif
 
       pw2%in_space = REALSPACE
@@ -618,10 +618,10 @@ CONTAINS
       ptr_pwout => pwbuf(1, 1, 1)
 
       ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_cff_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 #else
-      CPABORT("Compiled without -D__PW_GPU")
+      CPABORT("Compiled without pw offloading")
 #endif
 
       CALL timestop(handle)
@@ -666,10 +666,10 @@ CONTAINS
       ptr_pwout => pw2%cr3d(l1, l2, l3)
 
       ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_ffc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 #else
-      CPABORT("Compiled without -D__PW_GPU")
+      CPABORT("Compiled without pw offloading")
 #endif
 
       CALL timestop(handle)
@@ -714,10 +714,10 @@ CONTAINS
       ptr_pwout => pwbuf(1, 1)
 
       ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_cf_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 #else
-      CPABORT("Compiled without -D__PW_GPU")
+      CPABORT("Compiled without pw offloading")
 #endif
       CALL timestop(handle)
    END SUBROUTINE pw_gpu_cf
@@ -760,10 +760,10 @@ CONTAINS
       ptr_pwout => pw2%cr3d(l1, l2, l3)
 
       ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       CALL pw_gpu_fc_c(c_loc(ptr_pwin), c_loc(ptr_pwout), npts)
 #else
-      CPABORT("Compiled without -D__PW_GPU")
+      CPABORT("Compiled without pw offloading")
 #endif
 
       CALL timestop(handle)
@@ -806,11 +806,11 @@ CONTAINS
          ptr_pwout => pwbuf2(1, 1)
 
          ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          CALL pw_gpu_f_c(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
 #else
          MARK_USED(dir)
-         CPABORT("Compiled without -D__PW_GPU")
+         CPABORT("Compiled without pw offloading")
 #endif
       END IF
 
@@ -865,11 +865,11 @@ CONTAINS
          ptr_ghatmap => pw2%pw_grid%g_hatmap(1, 1)
 
          ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          CALL pw_gpu_fg_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
 #else
          MARK_USED(scale)
-         CPABORT("Compiled without -D__PW_GPU")
+         CPABORT("Compiled without pw offloading")
 #endif
       END IF
 
@@ -926,11 +926,11 @@ CONTAINS
          ptr_ghatmap => pw1%pw_grid%g_hatmap(1, 1)
 
          ! invoke the combined transformation
-#if defined(__PW_GPU)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          CALL pw_gpu_sf_c(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
 #else
          MARK_USED(scale)
-         CPABORT("Compiled without -D__PW_GPU")
+         CPABORT("Compiled without pw offloading")
 #endif
       END IF
 

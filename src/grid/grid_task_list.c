@@ -47,10 +47,11 @@ void grid_create_task_list(
 
     // Resolve AUTO to a concrete backend.
     if (config.backend == GRID_BACKEND_AUTO) {
-#if defined(__GRID_CUDA)
-      task_list->backend = GRID_BACKEND_GPU;
-#elif defined(__GRID_HIP)
+
+#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
       task_list->backend = GRID_BACKEND_HIP;
+#elif defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
+      task_list->backend = GRID_BACKEND_GPU;
 #else
       task_list->backend = GRID_BACKEND_REF;
 #endif
@@ -91,7 +92,7 @@ void grid_create_task_list(
     break;
 
   case GRID_BACKEND_GPU:
-#if defined(__GRID_CUDA) || defined(__GRID_HIP)
+#if (defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID))
     grid_gpu_create_task_list(
         orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
         atom_positions, atom_kinds, basis_sets, level_list, iatom_list,
@@ -99,14 +100,15 @@ void grid_create_task_list(
         border_mask_list, block_num_list, radius_list, rab_list, npts_global,
         npts_local, shift_local, border_width, dh, dh_inv, &task_list->gpu);
 #else
-    fprintf(stderr, "Error: The GPU grid backend is not available. "
-                    "Please re-compile with -D__GRID_CUDA or -D__GRID_HIP");
+    fprintf(stderr,
+            "Error: The GPU grid backend is not available. "
+            "Please re-compile with -D__OFFLOAD_CUDA or -D__OFFLOAD_HIP");
     abort();
 #endif
     break;
 
   case GRID_BACKEND_HIP:
-#if defined(__GRID_HIP)
+#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
     grid_hip_create_task_list(
         orthorhombic, ntasks, nlevels, natoms, nkinds, nblocks, block_offsets,
         &atom_positions[0][0], atom_kinds, basis_sets, level_list, iatom_list,
@@ -116,7 +118,7 @@ void grid_create_task_list(
         &border_width[0][0], &dh[0][0][0], &dh_inv[0][0][0], &task_list->hip);
 #else
     fprintf(stderr, "Error: The HIP grid backend is not available. "
-                    "Please re-compile with -D__GRID_HIP");
+                    "Please re-compile with -D__OFFLOAD_HIP");
     abort();
 #endif
     break;
@@ -144,13 +146,13 @@ void grid_free_task_list(grid_task_list *task_list) {
     grid_cpu_free_task_list(task_list->cpu);
     task_list->cpu = NULL;
   }
-#if defined(__GRID_CUDA) || defined(__GRID_HIP)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   if (task_list->gpu != NULL) {
     grid_gpu_free_task_list(task_list->gpu);
     task_list->gpu = NULL;
   }
 #endif
-#if defined(__GRID_HIP)
+#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
   if (task_list->hip != NULL) {
     grid_hip_free_task_list(task_list->hip);
     task_list->hip = NULL;
@@ -189,13 +191,13 @@ void grid_collocate_task_list(const grid_task_list *task_list,
     grid_cpu_collocate_task_list(task_list->cpu, func, nlevels, pab_blocks,
                                  grids);
     break;
-#if defined(__GRID_CUDA) || defined(__GRID_HIP)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
     grid_gpu_collocate_task_list(task_list->gpu, func, nlevels, pab_blocks,
                                  grids);
     break;
 #endif
-#if defined(__GRID_HIP)
+#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_HIP:
     grid_hip_collocate_task_list(task_list->hip, func, nlevels, pab_blocks,
                                  grids);
@@ -277,13 +279,13 @@ void grid_integrate_task_list(
   assert(virial == NULL || pab_blocks != NULL);
 
   switch (task_list->backend) {
-#if defined(__GRID_CUDA) || defined(__GRID_HIP)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_GPU:
     grid_gpu_integrate_task_list(task_list->gpu, compute_tau, natoms, nlevels,
                                  pab_blocks, grids, hab_blocks, forces, virial);
     break;
 #endif
-#if defined(__GRID_HIP)
+#if defined(__OFFLOAD_HIP) && !defined(__NO_OFFLOAD_GRID)
   case GRID_BACKEND_HIP:
     grid_hip_integrate_task_list(task_list->hip, compute_tau, nlevels,
                                  pab_blocks, grids, hab_blocks, &forces[0][0],

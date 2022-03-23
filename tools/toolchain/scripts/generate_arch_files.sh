@@ -117,7 +117,7 @@ LIBS="${CP_LIBS} -lstdc++"
 CXXFLAGS+=" --std=c++11 \$(DFLAGS) -Wno-deprecated-declarations"
 # CUDA handling
 CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
-CUDA_DFLAGS="-D__GRID_CUDA -D__DBM_CUDA -D__PW_GPU -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__OFFLOAD_PROFILING|)"
+CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
   DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
@@ -177,7 +177,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__'
-      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__GRID_HIP -D__DBM_HIP -D__PW_HIP -D__PW_GPU IF_DEBUG(-D__OFFLOAD_PROFILING|)|)' # -D__DBCSR_ACC
+      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)' # -D__DBCSR_ACC
       CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     Mi100)
@@ -194,7 +194,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
-      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__GRID_HIP -D__DBM_HIP -D__PW_HIP -D__PW_GPU IF_DEBUG(-D__OFFLOAD_PROFILING|)|)' # -D__DBCSR_ACC
+      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)' # -D__DBCSR_ACC
       CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     *)
@@ -204,7 +204,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       check_lib -lcuda "cuda"
       check_lib -lcufft "cuda"
       check_lib -lcublas "cuda"
-      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__GRID_HIP -D__PW_HIP -D__PW_GPU |)" # -D__DBCSR_ACC
+      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__OFFLOAD_HIP |)" # -D__DBCSR_ACC
       HIP_FLAGS=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
       add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
       HIP_INCLUDES+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"

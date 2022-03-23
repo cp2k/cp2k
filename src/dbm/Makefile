@@ -6,7 +6,7 @@ clean:
 	rm -fv *.o */*.o *.x ../offload/*.o
 
 CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra
-NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__DBM_CUDA
+NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
 LIBS := -lm -lblas -lstdc++
 
 ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
@@ -25,7 +25,7 @@ ALL_OBJECTS := ../offload/offload_library.o \
 NVCC := $(shell which nvcc)
 ifneq ($(NVCC),)
 LIBS += -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
-CFLAGS += -I${CUDA_PATH}/include -D__DBM_CUDA
+CFLAGS += -I${CUDA_PATH}/include -D__OFFLOAD_CUDA
 ALL_OBJECTS += dbm_multiply_gpu.o
 
 %.o: %.cu $(ALL_HEADERS)
