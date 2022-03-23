@@ -3,14 +3,14 @@
 # CP2K (GNU aarch64) arch file for Linux clusters
 #
 # Tested with: GNU 11.2.0, MPICH 3.3.2,
-#              ScaLAPACK 2.1.0, OpenBLAS 0.3.19, FFTW 3.3.10, LIBINT 2.6.0,
+#              ScaLAPACK 2.1.0, OpenBLAS 0.3.20, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 5.2.2, ELPA 2021.11.002, PLUMED 2.7.3, SPGLIB 1.16.2,
 #              LIBVORI 210412, GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Author: Matthias Krack (11.03.2022)
+# Author: Matthias Krack (23.03.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -46,7 +46,7 @@ USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 210412
 USE_LIBXC      := 5.2.2
 #USE_LIBXSMM    := 1.17
-USE_OPENBLAS   := 0.3.19
+USE_OPENBLAS   := 0.3.20
 USE_PLUMED     := 2.7.3
 USE_QUIP       := b4336484fb65b0e73211a8f920ae4361c7c353fd
 USE_SCALAPACK  := 2.1.0
