@@ -90,7 +90,7 @@ CONTAINS
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       REAL(8), DIMENSION(*), INTENT(inout), TARGET ::C
 #else
-      REAL(8), DIMENSION(:, :), INTENT(in), TARGET :: C
+      REAL(8), DIMENSION(:, :), INTENT(inout), TARGET :: C
 #endif
       INTEGER, INTENT(in) :: ldc
       TYPE(C_ptr), OPTIONAL, INTENT(inout) :: ctx
