@@ -73,7 +73,7 @@ case "$with_gsl" in
     ;;
 esac
 if [ "$with_gsl" != "__DONTUSE__" ]; then
-  GSL_LIBS="-lgsl -lgslcblas"
+  GSL_LIBS="-lgsl"
   if [ "$with_gsl" != "__SYSTEM__" ]; then
     cat << EOF > "${BUILDDIR}/setup_gsl"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
@@ -82,7 +82,6 @@ prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 export GSL_INCLUDE_DIR="$pkg_install_dir/include"
 export GSL_LIBRARY="-lgsl"
-export GSL_CBLAS_LIBRARY="-lgslcblas"
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
 EOF
   fi
@@ -94,7 +93,6 @@ export CP_CFLAGS="\${CP_CFLAGS} ${GSL_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${GSL_LDFLAGS}"
 export GSL_LIBRARY="-lgsl"
 export GSL_ROOT="$pkg_install_dir"
-export GSL_CBLAS_LIBRARY="-lgslcblas"
 export GSL_INCLUDE_DIR="$pkg_install_dir/include"
 export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$pkg_install_dir/lib64/pkgconfig:$pkg_install_dir/lib/pkgconfig"
 

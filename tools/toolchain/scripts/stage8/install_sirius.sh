@@ -50,7 +50,6 @@ case "$with_sirius" in
     require_env GSL_LIBS
     require_env GSL_INCLUDE_DIR
     require_env GSL_LIBRARY
-    require_env GSL_CBLAS_LIBRARY
     require_env MATH_LIBS
     require_env MPI_LDFLAGS
     require_env MPI_LIBS
