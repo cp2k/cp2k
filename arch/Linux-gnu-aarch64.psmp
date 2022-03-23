@@ -322,6 +322,18 @@ ifneq ($(USE_SCALAPACK),)
    endif
 endif
 
+ifneq ($(USE_OPENBLAS),)
+   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
+   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
+   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
+   CFLAGS         += -I$(OPENBLAS_INC)
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(OPENBLAS_LIB) -L$(OPENBLAS_LIB) -lopenblas
+   else
+      LIBS           += $(OPENBLAS_LIB)/libopenblas.a
+   endif
+endif
+
 ifneq ($(USE_GSL),)
    USE_GSL        := $(strip $(USE_GSL))
    GSL_INC        := $(INSTALL_PATH)/gsl-$(USE_GSL)/include
@@ -333,18 +345,6 @@ ifneq ($(USE_GSL),)
    else
       LIBS           += $(GSL_LIB)/libgsl.a
       LIBS           += $(GSL_LIB)/libgslcblas.a
-   endif
-endif
-
-ifneq ($(USE_OPENBLAS),)
-   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
-   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
-   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
-   CFLAGS         += -I$(OPENBLAS_INC)
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(OPENBLAS_LIB) -L$(OPENBLAS_LIB) -lopenblas
-   else
-      LIBS           += $(OPENBLAS_LIB)/libopenblas.a
    endif
 endif
 
