@@ -22,7 +22,7 @@
 static void *actual_malloc(const size_t size, const bool on_device) {
   (void)on_device; // mark used
 
-#if defined(__DBM_CUDA) || defined(__DBM_HIP)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
   if (on_device) {
     void *memory;
     offload_activate_chosen_device();
@@ -48,7 +48,7 @@ static void actual_free(void *memory, const bool on_device) {
     return;
   }
 
-#if defined(__DBM_CUDA) || defined(__DBM_HIP)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
   if (on_device) {
     offload_activate_chosen_device();
     offloadFree(memory);

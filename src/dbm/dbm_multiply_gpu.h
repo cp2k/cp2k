@@ -8,7 +8,7 @@
 #ifndef DBM_MULTIPLY_GPU_H
 #define DBM_MULTIPLY_GPU_H
 
-#if defined(__DBM_CUDA) || defined(__DBM_HIP)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
 
 #include "../offload/offload_runtime.h"
 #include "dbm_multiply_internal.h"
@@ -87,7 +87,7 @@ void dbm_multiply_gpu_stop(dbm_multiply_gpu_context_t *ctx);
 }
 #endif
 
-#endif // (defined(__DBM_CUDA) || defined(__DBM_HIP))
+#endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
 #endif
 
 // EOF

@@ -5,7 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#if defined(__GRID_CUDA) || defined(__GRID_HIP)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 
 #include <algorithm>
 #include <assert.h>
@@ -516,5 +516,5 @@ void grid_gpu_integrate_one_grid_level(
   }
 }
 
-#endif // defined(__GRID_CUDA) || defined(__GRID_HIP)
+#endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 // EOF

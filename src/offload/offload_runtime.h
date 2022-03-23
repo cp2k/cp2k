@@ -8,13 +8,8 @@
 #ifndef OFFLOAD_RUNTIME_H
 #define OFFLOAD_RUNTIME_H
 
-#if defined(__GRID_CUDA) || defined(__DBM_CUDA) || defined(__PW_CUDA)
-#define __OFFLOAD_CUDA
-#elif defined(__GRID_HIP) || defined(__DBM_HIP) || defined(__PW_HIP)
-#define __OFFLOAD_HIP
-#endif
-
-#if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
+#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
+#define __OFFLOAD
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -334,6 +329,6 @@ static inline void offloadDeviceSynchronize(void) {
 }
 #endif
 
-#endif // #if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
+#endif // defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
 
 #endif

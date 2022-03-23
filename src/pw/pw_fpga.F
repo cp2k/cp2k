@@ -112,9 +112,9 @@ CONTAINS
 #if defined (__PW_FPGA)
       INTEGER :: stat
 
-#if defined (__PW_CUDA)
-#error "CUDA and FPGA cannot be configured concurrently!"
-      CPABORT("CUDA and FPGA cannot be configured concurrently!")
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#error "OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_PW."
+      CPABORT("OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_PW.")
 #endif
       stat = pw_fpga_initialize()
       IF (stat /= 0) &
