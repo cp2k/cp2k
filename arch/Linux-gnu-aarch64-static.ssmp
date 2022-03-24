@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# CP2K (GNU) arch file for a serial static ARM64 binary
+# CP2K (GNU aarch64) arch file for a serial static ARM64 binary
 #
 # Tested with: GNU 11.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBBVORI 210412,
 #              LIBXC 5.2.2, OpenBLAS 0.3.20, SPGLIB 1.16.2

@@ -269,6 +269,19 @@ ifneq ($(USE_COSMA),)
    endif
 endif
 
+ifneq ($(USE_GSL),)
+   USE_GSL        := $(strip $(USE_GSL))
+   GSL_INC        := $(INSTALL_PATH)/gsl-$(USE_GSL)/include
+   GSL_LIB        := $(INSTALL_PATH)/gsl-$(USE_GSL)/lib
+   CFLAGS         += -I$(GSL_INC)
+   DFLAGS         += -D__GSL
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl
+   else
+      LIBS           += $(GSL_LIB)/libgsl.a
+   endif
+endif
+
 ifeq ($(SHARED), yes)
    LIBS           += -Wl,-rpath=$(MKL_LIB) -L$(MKL_LIB) -lbmkl_scalapack_lp64
    LIBS           += -Wl,--start-group
@@ -285,20 +298,6 @@ else
    LIBS           += $(MKL_LIB)/libmkl_core.a
    LIBS           += $(MKL_LIB)/libmkl_blacs_intelmpi_lp64.a
    LIBS           += -Wl,--end-group
-endif
-
-ifneq ($(USE_GSL),)
-   USE_GSL        := $(strip $(USE_GSL))
-   GSL_INC        := $(INSTALL_PATH)/gsl-$(USE_GSL)/include
-   GSL_LIB        := $(INSTALL_PATH)/gsl-$(USE_GSL)/lib
-   CFLAGS         += -I$(GSL_INC)
-   DFLAGS         += -D__GSL
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl -lgslcblas
-   else
-      LIBS           += $(GSL_LIB)/libgsl.a
-      LIBS           += $(GSL_LIB)/libgslcblas.a
-   endif
 endif
 
 CFLAGS         += $(DFLAGS)
