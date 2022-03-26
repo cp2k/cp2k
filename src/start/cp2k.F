@@ -42,6 +42,7 @@
 PROGRAM cp2k
 
    USE OMP_LIB,                         ONLY: omp_get_max_threads,&
+                                              omp_set_max_active_levels,&
                                               omp_set_num_threads
    USE cp2k_info,                       ONLY: compile_revision,&
                                               cp2k_flags,&
@@ -161,6 +162,9 @@ PROGRAM cp2k
    IF (command(l - 4:l) == ".sopt" .OR. command(l - 4:l) == ".popt") THEN
       CALL omp_set_num_threads(1)
    END IF
+
+   ! Disable nested OpenMP parallelism, which would otherwise occur e.g. in OpenBLAS.
+   CALL omp_set_max_active_levels(1)
 
 #ifdef __ACCELERATE
    IF (omp_get_max_threads() > 1) THEN
