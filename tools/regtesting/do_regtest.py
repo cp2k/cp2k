@@ -43,6 +43,7 @@ async def main() -> None:
     parser.add_argument("--mpiranks", type=int, default=2)
     parser.add_argument("--ompthreads", type=int)
     parser.add_argument("--maxtasks", type=int, default=os.cpu_count())
+    parser.add_argument("--num_gpus", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=400)
     parser.add_argument("--maxerrors", type=int, default=50)
     parser.add_argument("--mpiexec", default="mpiexec")
@@ -217,12 +218,15 @@ class Config:
             # capture_output argument not available before Python 3.7
             return subprocess.run(cmd, shell=True, stdout=PIPE, stderr=DEVNULL).stdout
 
-        # Detect number of GPU devices.
-        nv_cmd = "nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l"
-        nv_gpus = int(run_with_capture_stdout(nv_cmd))
-        amd_cmd = "rocm-smi --showid --csv | grep card | wc -l"
-        amd_gpus = int(run_with_capture_stdout(amd_cmd))
-        self.num_gpus = nv_gpus + amd_gpus
+        # Detect number of GPU devices, if not specified by the user
+        if args.num_gpus > 0:
+            self.num_gpus = args.num_gpus
+        else:
+            nv_cmd = "nvidia-smi --query-gpu=gpu_name --format=csv,noheader | wc -l"
+            nv_gpus = int(run_with_capture_stdout(nv_cmd))
+            amd_cmd = "rocm-smi --showid --csv | grep card | wc -l"
+            amd_gpus = int(run_with_capture_stdout(amd_cmd))
+            self.num_gpus = nv_gpus + amd_gpus
         self.next_gpu = 0  # Used to assign devices round robin to processes.
 
     def launch_exe(
