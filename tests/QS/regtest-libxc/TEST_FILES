@@ -16,4 +16,7 @@ diamond_br89_libxc_uks.inp                             1      7e-14             
 diamond_br89_libxc.inp                                 1      7e-14             -11.06581270880638
 # tpss new input
 H2O-tpss_lsd.inp                                       1      3e-13             -34.34060245665712
+# wb97X2 functional parametrizations
+H2O-hybrid-wb97x2lp-libxc.inp                          1      3e-13             -16.89948102448515
+H2O-hybrid-wb97x2tqz-libxc.inp                         1      3e-13             -16.91940946181224
 #EOF
