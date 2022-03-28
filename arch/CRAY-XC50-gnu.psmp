@@ -114,11 +114,9 @@ endif
 
 ifeq ($(USE_ACC), yes)
    DFLAGS         += -D__DBCSR_ACC
-   DFLAGS         += -D__DBM_CUDA
-   DFLAGS         += -D__GRID_CUDA
+   DFLAGS         += -D__OFFLOAD_CUDA
 # Possibly no performance gain with PW_CUDA currently
-#  DFLAGS         += -D__PW_CUDA 
-#  DFLAGS         += -D__PW_GPU
+   DFLAGS         += -D__NO_OFFLOAD_PW
 endif
 
 ifneq ($(USE_PLUMED),)
