@@ -5,14 +5,16 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
+#include "../offload/offload_runtime.h"
 
-#include <assert.h>
-#include <stdio.h>
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
 
 #include "../offload/offload_library.h"
 #include "dbm_mempool.h"
 #include "dbm_multiply_gpu.h"
+
+#include <assert.h>
+#include <stdio.h>
 
 /*******************************************************************************
  * \brief Atomic add for doubles that also works prior to compute capability 6.

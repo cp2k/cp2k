@@ -8,9 +8,10 @@
 #ifndef DBM_MULTIPLY_GPU_H
 #define DBM_MULTIPLY_GPU_H
 
+#include "../offload/offload_runtime.h"
+
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
 
-#include "../offload/offload_runtime.h"
 #include "dbm_multiply_internal.h"
 #include "dbm_shard.h"
 

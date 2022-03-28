@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../offload/offload_runtime.h"
 #include "dbm_hyperparams.h"
 #include "dbm_library.h"
 #include "dbm_multiply.h"

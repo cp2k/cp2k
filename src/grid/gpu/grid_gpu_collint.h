@@ -5,6 +5,8 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "../../offload/offload_runtime.h"
+
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 
 #include <algorithm>
@@ -15,7 +17,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../offload/offload_runtime.h"
 #include "../common/grid_basis_set.h"
 #include "../common/grid_common.h"
 #include "grid_gpu_task_list.h"

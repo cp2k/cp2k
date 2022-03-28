@@ -12,6 +12,10 @@
                                              timeset,&
                                              timestop
 
+#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
+#define __OFFLOAD
+#endif
+
 ! Check for OpenMP early on - ideally before the compiler fails with a cryptic message.
 #if !defined(_OPENMP)
    "OpenMP is required. Please add the corresponding flag (eg. -fopenmp for GFortran) to your Fortran compiler flags."

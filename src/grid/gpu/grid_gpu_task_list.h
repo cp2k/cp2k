@@ -7,6 +7,7 @@
 #ifndef GRID_GPU_TASK_LIST_H
 #define GRID_GPU_TASK_LIST_H
 
+#include "../../offload/offload_runtime.h"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 
 #ifdef __cplusplus
@@ -14,7 +15,6 @@ extern "C" {
 #endif
 
 #include "../../offload/offload_buffer.h"
-#include "../../offload/offload_runtime.h"
 #include "../common/grid_basis_set.h"
 #include "../common/grid_constants.h"
 #include <stdbool.h>
