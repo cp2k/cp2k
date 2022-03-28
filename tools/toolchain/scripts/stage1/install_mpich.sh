@@ -52,7 +52,7 @@ case "${with_mpich}" in
       # workaround for compilation with GCC >= 10, until properly fixed:
       #   https://github.com/pmodels/mpich/issues/4300
       if ("${FC}" --version | grep -q 'GNU'); then
-        ("${FC}" --help -v 2>&1 | grep -q 'fallow-argument-mismatch') && compat_flag="-fallow-argument-mismatch" || compat_flag=""
+        compat_flag=$(allowed_gfortran_flags "-fallow-argument-mismatch")
       fi
       ./configure \
         --prefix="${pkg_install_dir}" \

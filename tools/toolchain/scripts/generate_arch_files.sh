@@ -98,6 +98,7 @@ G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
 G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
 # FCFLAGS, for gfortran
 FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
+FCFLAGS+=" IF_MPI($(allowed_gfortran_flags "-fallow-argument-mismatch")|)"
 # CFLAGS, special flags for gcc
 
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
@@ -149,11 +150,6 @@ fi
 
 # HIP handling
 if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
-  #
-  # TODO: Make toolchain oblivious to HIP_PLATFORM, currently it only works for Nvidia.
-  #
-  # DBCSR suffers from https://github.com/ROCm-Developer-Tools/HIP/issues/268
-
   check_command hipcc "hip"
   check_lib -lhipblas "hip"
   add_lib_from_paths HIP_LDFLAGS "libhipblas.*" $LIB_PATHS
@@ -177,7 +173,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__'
-      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)' # -D__DBCSR_ACC
+      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)  -D__DBCSR_ACC'
       CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     Mi100)
@@ -194,7 +190,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
-      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)' # -D__DBCSR_ACC
+      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
       CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     *)
@@ -204,7 +200,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       check_lib -lcuda "cuda"
       check_lib -lcufft "cuda"
       check_lib -lcublas "cuda"
-      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__OFFLOAD_HIP |)" # -D__DBCSR_ACC
+      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_NVIDIA__ -D__HIP_PLATFORM_NVCC__ -D__OFFLOAD_HIP |) -D__DBCSR_ACC"
       HIP_FLAGS=" -g -arch sm_${ARCH_NUM} -O3 -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
       add_include_from_paths CUDA_CFLAGS "cuda.h" $INCLUDE_PATHS
       HIP_INCLUDES+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
@@ -212,6 +208,8 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       CFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
       CXXFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
       # Set LD-flags
+      # Multiple definition because of hip/include/hip/nvidia_detail/nvidia_hiprtc.h
+      LDFLAGS+=" -Wl,--allow-multiple-definition"
       LIBS+=' -lhipfft -lhipblas -lhipfft -lnvrtc -lcudart -lcufft -lcublas -lcuda'
       add_lib_from_paths HIP_LDFLAGS "libcudart.*" $LIB_PATHS
       add_lib_from_paths HIP_LDFLAGS "libnvrtc.*" $LIB_PATHS
