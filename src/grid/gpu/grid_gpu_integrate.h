@@ -7,9 +7,9 @@
 #ifndef GRID_GPU_INTEGRATE_H
 #define GRID_GPU_INTEGRATE_H
 
+#include "../../offload/offload_runtime.h"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 
-#include "../../offload/offload_runtime.h"
 #include "grid_gpu_task_list.h"
 
 #ifdef __cplusplus

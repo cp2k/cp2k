@@ -5,6 +5,7 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "../../offload/offload_runtime.h"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 
 #include <assert.h>
