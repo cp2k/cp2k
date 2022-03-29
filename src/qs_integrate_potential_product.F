@@ -40,7 +40,6 @@ MODULE qs_integrate_potential_product
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
@@ -142,7 +141,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: vhxc_block
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
@@ -174,7 +172,6 @@ CONTAINS
 
       ! *** assign from pw_env
       gridlevel_info => pw_env%gridlevel_info
-      cube_info => pw_env%cube_info
 
       ! get all the general information on the system we are working on
       CALL get_qs_env(qs_env=qs_env, &
@@ -243,7 +240,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP SHARED(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
 !$OMP SHARED(maxpgf,my_gapw,matrix_vhxc_dbasis,deltap), &
-!$OMP SHARED(pab_required,ncoset,rs_rho,cube_info,my_compute_tau), &
+!$OMP SHARED(pab_required,ncoset,rs_rho,my_compute_tau), &
 !$OMP SHARED(eps_rho_rspace,force,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
 !$OMP SHARED(nimages,lambda, dh_duplicated), &
@@ -429,8 +426,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_rho(igrid_level)%rs_grid, cell, &
-                  cube_info(igrid_level), &
+                  ra, rab, rs_rho(igrid_level)%rs_grid, &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -441,8 +437,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
-                  ra, rab, rs_rho(igrid_level)%rs_grid, cell, &
-                  cube_info(igrid_level), &
+                  ra, rab, rs_rho(igrid_level)%rs_grid, &
                   hab, o1=na1 - 1, o2=nb1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -455,8 +450,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_rho(igrid_level)%rs_grid, cell, &
-                  cube_info(igrid_level), &
+                  rb, rab_inv, rs_rho(igrid_level)%rs_grid, &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -468,8 +462,7 @@ CONTAINS
                   CALL integrate_pgf_product( &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
-                  rb, rab_inv, rs_rho(igrid_level)%rs_grid, cell, &
-                  cube_info(igrid_level), &
+                  rb, rab_inv, rs_rho(igrid_level)%rs_grid, &
                   hab, o1=nb1 - 1, o2=na1 - 1, &
                   radius=radius, &
                   calculate_forces=.TRUE., &
@@ -626,7 +619,6 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap, dhmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
@@ -726,7 +718,6 @@ CONTAINS
 
       ! assign from pw_env
       gridlevel_info => pw_env%gridlevel_info
-      cube_info => pw_env%cube_info
 
       ! transform the potential on the rs_multigrids
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)

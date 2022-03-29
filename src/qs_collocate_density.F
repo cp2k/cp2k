@@ -49,7 +49,6 @@ MODULE qs_collocate_density
    USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                               cp_fm_get_info,&
                                               cp_fm_type
-   USE cube_utils,                      ONLY: cube_info_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
@@ -167,7 +166,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_nlcc, pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type)                               :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -190,7 +188,6 @@ CONTAINS
                       pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
                       auxbas_pw_pool=auxbas_pw_pool)
-      cube_info = pw_env%cube_info(1)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_retain(rs_rho)
       CALL rs_grid_zero(rs_rho)
@@ -305,7 +302,7 @@ CONTAINS
 
                CALL collocate_pgf_product(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, ga_gb_function=GRID_FUNC_AB, radius=radius, &
+                                          ga_gb_function=GRID_FUNC_AB, radius=radius, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
             END DO
@@ -349,7 +346,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type)                               :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -372,7 +368,6 @@ CONTAINS
                       pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
                       auxbas_pw_pool=auxbas_pw_pool)
-      cube_info = pw_env%cube_info(1)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_retain(rs_rho)
       CALL rs_grid_zero(rs_rho)
@@ -483,7 +478,7 @@ CONTAINS
 
                CALL collocate_pgf_product(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                          radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
             END DO
@@ -548,7 +543,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, pab, sphi_a, work, zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: lri_basis_set, orb_basis_set
@@ -561,7 +555,7 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
 
       NULLIFY (aci, atomic_kind_set, qs_kind_set, atom_list, cell, &
-               cube_info, dft_control, first_sgfa, gridlevel_info, la_max, &
+               dft_control, first_sgfa, gridlevel_info, la_max, &
                la_min, lri_basis_set, mgrid_gspace, mgrid_rspace, npgfa, nsgfa, &
                pab, particle_set, pw_env, pw_pools, rs_grid, rs_rho, sphi_a, &
                work, zeta)
@@ -578,7 +572,6 @@ CONTAINS
                       pw_env=pw_env, &
                       dft_control=dft_control)
 
-      cube_info => pw_env%cube_info
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
       gridlevel_info => pw_env%gridlevel_info
 
@@ -692,8 +685,7 @@ CONTAINS
                                                    ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                                    scale=1._dp, &
                                                    pab=pab, o1=na1, o2=0, &
-                                                   rsgrid=rs_grid, cell=cell, &
-                                                   cube_info=cube_info(igrid_level), &
+                                                   rsgrid=rs_grid, &
                                                    radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB)
                      END IF
@@ -802,7 +794,7 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, na1, nb1, &
-                                    rs_grid, cell, cube_info(igrid_level), &
+                                    rs_grid, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB)
                               END IF
                            END DO
@@ -870,7 +862,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type)                               :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -896,7 +887,6 @@ CONTAINS
                       pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
                       auxbas_pw_pool=auxbas_pw_pool)
-      cube_info = pw_env%cube_info(1)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_retain(rs_rho)
       CALL rs_grid_zero(rs_rho)
@@ -947,7 +937,7 @@ CONTAINS
 
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                          radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
             END DO
@@ -1003,7 +993,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type)                               :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -1026,7 +1015,6 @@ CONTAINS
                       pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
                       auxbas_pw_pool=auxbas_pw_pool)
-      cube_info = pw_env%cube_info(1)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_retain(rs_rho)
       CALL rs_grid_zero(rs_rho)
@@ -1087,7 +1075,7 @@ CONTAINS
 
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, radius=radius, ga_gb_function=dabqadb_func, &
+                                          radius=radius, ga_gb_function=dabqadb_func, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
             END DO
@@ -1185,7 +1173,7 @@ CONTAINS
 
          CALL collocate_pgf_product(0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
                                     0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                    cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                    radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
       END IF
 
@@ -1291,7 +1279,7 @@ CONTAINS
             CALL collocate_pgf_product( &
                0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
-               cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
+               radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
          END DO
       END IF
@@ -1388,7 +1376,7 @@ CONTAINS
 
          CALL collocate_pgf_product(0, eta, 0, 0, 0.0_dp, 0, ra, &
                                     (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                    cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                    radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
       END IF
 
@@ -1494,7 +1482,7 @@ CONTAINS
             CALL collocate_pgf_product( &
                0, eta, &
                0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
-               cell, pw_env%cube_info(1), radius=radius, ga_gb_function=GRID_FUNC_AB, &
+               radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
          END DO
       END IF
@@ -1739,7 +1727,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
@@ -1798,7 +1785,6 @@ CONTAINS
 
       ! *** assign from pw_env
       gridlevel_info => pw_env%gridlevel_info
-      cube_info => pw_env%cube_info
 
       !   *** Allocate work storage ***
       nthread = 1
@@ -2038,7 +2024,7 @@ CONTAINS
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-                  rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                  rs_rho(igrid_level)%rs_grid, &
                   radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
             ELSE
@@ -2047,7 +2033,7 @@ CONTAINS
                   lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                   la_max(iset), zeta(ipgf, iset), la_min(iset), &
                   rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-                  rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                  rs_rho(igrid_level)%rs_grid, &
                   radius=radius, ga_gb_function=dabqadb_func, &
                   use_subpatch=use_subpatch, subpatch_pattern=tasks(itask)%subpatch_pattern)
             END IF
@@ -2127,7 +2113,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pabt, workt
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
@@ -2183,7 +2168,6 @@ CONTAINS
 
       ! *** assign from pw_env
       gridlevel_info => pw_env%gridlevel_info
-      cube_info => pw_env%cube_info
 
       !   *** Allocate work storage ***
       nthread = 1
@@ -2422,7 +2406,7 @@ CONTAINS
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-               rsgrid=rs_rho(igrid_level)%rs_grid, cell=cell, cube_info=cube_info(igrid_level), &
+               rsgrid=rs_rho(igrid_level)%rs_grid, &
                ga_gb_function=dabqadb_func, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2431,7 +2415,7 @@ CONTAINS
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                ra, rab, scale, pab, na1 - 1, nb1 - 1, &
-               rsgrid=rs_rho(igrid_level)%rs_grid, cell=cell, cube_info=cube_info(igrid_level), &
+               rsgrid=rs_rho(igrid_level)%rs_grid, &
                ga_gb_function=dabqadb_func + 3, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2442,7 +2426,7 @@ CONTAINS
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-               rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+               rs_rho(igrid_level)%rs_grid, &
                ga_gb_function=dabqadb_func, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2451,7 +2435,7 @@ CONTAINS
                lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                la_max(iset), zeta(ipgf, iset), la_min(iset), &
                rb, rab_inv, scale, pab, nb1 - 1, na1 - 1, &
-               rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+               rs_rho(igrid_level)%rs_grid, &
                ga_gb_function=dabqadb_func + 3, radius=radius, &
                use_subpatch=use_subpatch, &
                subpatch_pattern=tasks(itask)%subpatch_pattern)
@@ -2538,7 +2522,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvector
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab, sphi_a, work, zeta
-      TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
@@ -2572,7 +2555,7 @@ CONTAINS
       ! *** set up the pw multi-grids
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
-                      cube_info=cube_info, gridlevel_info=gridlevel_info)
+                      gridlevel_info=gridlevel_info)
 
       CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
                                use_data=COMPLEXDATA1D, &
@@ -2678,7 +2661,6 @@ CONTAINS
                                              0, 0.0_dp, 0, &
                                              ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
                                              scale, pab, na1 - 1, 0, rs_rho(igrid_level)%rs_grid, &
-                                             cell, cube_info(igrid_level), &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB)
                END IF
 

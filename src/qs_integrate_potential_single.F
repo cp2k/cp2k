@@ -252,7 +252,7 @@ CONTAINS
 
             CALL integrate_pgf_product(ni, alpha, 0, &
                                        0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                       rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
+                                       rs_v, hab, pab=pab, o1=0, o2=0, &
                                        radius=radius, &
                                        calculate_forces=.TRUE., force_a=force_a, &
                                        force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -452,7 +452,7 @@ CONTAINS
 
                CALL integrate_pgf_product(ni, 1/(2*alpha**2), 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
+                                          rs_v, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -609,7 +609,7 @@ CONTAINS
 
                CALL integrate_pgf_product(0, alpha_core_charge, 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
+                                          rs_v, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
                                           force_b=force_b, use_virial=use_virial, my_virial_a=my_virial_a, &
@@ -830,8 +830,7 @@ CONTAINS
                                                       zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                      rsgrid=rs_grid, cell=cell, &
-                                                      cube_info=pw_env%cube_info(igrid_level), &
+                                                      rsgrid=rs_grid, &
                                                       hab=hab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces)
                         ELSE
@@ -839,8 +838,7 @@ CONTAINS
                                                       zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
                                                       ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                      rsgrid=rs_grid, cell=cell, &
-                                                      cube_info=pw_env%cube_info(igrid_level), &
+                                                      rsgrid=rs_grid, &
                                                       hab=hab, pab=pab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces, &
                                                       force_a=force_a, force_b=force_b, &
@@ -1070,8 +1068,7 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rsgrid=rs_v(igrid_level)%rs_grid, cell=cell, &
-                                    cube_info=pw_env%cube_info(igrid_level), &
+                                    rsgrid=rs_v(igrid_level)%rs_grid, &
                                     hab=hab, pab=pab, o1=na1, o2=nb1, &
                                     radius=radius, &
                                     calculate_forces=.TRUE., &
@@ -1082,8 +1079,7 @@ CONTAINS
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
                                     ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                    rsgrid=rs_v(igrid_level)%rs_grid, cell=cell, &
-                                    cube_info=pw_env%cube_info(igrid_level), &
+                                    rsgrid=rs_v(igrid_level)%rs_grid, &
                                     hab=hab, o1=na1, o2=nb1, &
                                     radius=radius, &
                                     calculate_forces=.FALSE.)

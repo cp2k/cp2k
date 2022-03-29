@@ -1142,7 +1142,7 @@ CONTAINS
          CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                     la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                     ra, rab, scale, jpab_a, na1 - 1, nb1 - 1, &
-                                    rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                    rs_current(igrid_level)%rs_grid, &
                                     radius=radius, ga_gb_function=adbmdab_func)
          IF (do_igaim) THEN
             ! here the decontracted mat_jb_{ab} is multiplied by
@@ -1151,7 +1151,7 @@ CONTAINS
                CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                           la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                           ra, rab, scale2, jpab_d, na1 - 1, nb1 - 1, &
-                                          rs_rho(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                          rs_rho(igrid_level)%rs_grid, &
                                           radius=radius, ga_gb_function=GRID_FUNC_AB)
             END IF !rm
             ! here the decontracted mat_jp_rii{ab} is multiplied by
@@ -1162,7 +1162,6 @@ CONTAINS
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
-                                       cell=cell, cube_info=cube_info(igrid_level), &
                                        radius=radius, &
                                        ga_gb_function=adbmdab_func, &
                                        rsgrid=current_env%rs_buf(igrid_level)%rs_grid)
@@ -1181,7 +1180,6 @@ CONTAINS
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
-                                       cell=cell, cube_info=cube_info(igrid_level), &
                                        radius=radius, &
                                        ga_gb_function=adbmdab_func, &
                                        rsgrid=current_env%rs_buf(igrid_level)%rs_grid)
@@ -1199,7 +1197,7 @@ CONTAINS
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_b, na1 - 1, nb1 - 1, &
-                                       rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                       rs_current(igrid_level)%rs_grid, &
                                        radius=radius, &
                                        ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiiB))
             ! here the decontracted mat_jp_riii{ab} is multiplied by
@@ -1209,7 +1207,7 @@ CONTAINS
             CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), &
                                        la_min(iset), lb_max(jset), zetb(jpgf, jset), lb_min(jset), &
                                        ra, rab, scale, jpab_c, na1 - 1, nb1 - 1, &
-                                       rs_current(igrid_level)%rs_grid, cell, cube_info(igrid_level), &
+                                       rs_current(igrid_level)%rs_grid, &
                                        radius=radius, &
                                        ga_gb_function=encode_ardbmdarb_func(idir=idir, ir=iiB))
          END IF

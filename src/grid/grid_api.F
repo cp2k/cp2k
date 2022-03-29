@@ -13,8 +13,6 @@ MODULE grid_api
    USE ISO_C_BINDING,                   ONLY: &
         C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_INT, C_LOC, C_LONG, &
         C_NULL_PTR, C_PTR
-   USE cell_types,                      ONLY: cell_type
-   USE cube_utils,                      ONLY: cube_info_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE offload_api,                     ONLY: offload_buffer_type
@@ -106,8 +104,6 @@ CONTAINS
 !> \param o1 ...
 !> \param o2 ...
 !> \param rsgrid ...
-!> \param cell ...
-!> \param cube_info ...
 !> \param ga_gb_function ...
 !> \param radius ...
 !> \param use_subpatch ...
@@ -117,7 +113,7 @@ CONTAINS
    SUBROUTINE collocate_pgf_product(la_max, zeta, la_min, &
                                     lb_max, zetb, lb_min, &
                                     ra, rab, scale, pab, o1, o2, &
-                                    rsgrid, cell, cube_info, &
+                                    rsgrid, &
                                     ga_gb_function, radius, &
                                     use_subpatch, subpatch_pattern)
 
@@ -131,8 +127,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       INTEGER, INTENT(IN)                                :: o1, o2
       TYPE(realspace_grid_type)                          :: rsgrid
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type), INTENT(IN)                   :: cube_info
       INTEGER, INTENT(IN)                                :: ga_gb_function
       REAL(KIND=dp), INTENT(IN)                          :: radius
       LOGICAL, OPTIONAL                                  :: use_subpatch
@@ -180,10 +174,6 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: grid
          END SUBROUTINE grid_ref_collocate_pgf_product_c
       END INTERFACE
-
-      !TODO remove unused dummy arguments
-      MARK_USED(cell)
-      MARK_USED(cube_info)
 
       border_mask = 0
       IF (PRESENT(use_subpatch)) THEN
@@ -259,8 +249,6 @@ CONTAINS
 !> \param ra ...
 !> \param rab ...
 !> \param rsgrid ...
-!> \param cell ...
-!> \param cube_info ...
 !> \param hab ...
 !> \param pab ...
 !> \param o1 ...
@@ -281,8 +269,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_pgf_product(la_max, zeta, la_min, &
                                     lb_max, zetb, lb_min, &
-                                    ra, rab, rsgrid, cell, &
-                                    cube_info, hab, pab, o1, o2, &
+                                    ra, rab, rsgrid, &
+                                    hab, pab, o1, o2, &
                                     radius, &
                                     calculate_forces, force_a, force_b, &
                                     compute_tau, &
@@ -296,8 +284,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), TARGET    :: ra, rab
       TYPE(realspace_grid_type), POINTER                 :: rsgrid
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type), INTENT(IN)                   :: cube_info
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: pab
       INTEGER, INTENT(IN)                                :: o1, o2
@@ -366,9 +352,6 @@ CONTAINS
             TYPE(C_PTR), VALUE                        :: a_hdab
          END SUBROUTINE grid_ref_integrate_pgf_product_c
       END INTERFACE
-
-      MARK_USED(cube_info)
-      MARK_USED(cell)
 
       IF (radius == 0.0_dp) THEN
          RETURN
