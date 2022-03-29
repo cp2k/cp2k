@@ -3,11 +3,27 @@
 all: dbm_miniapp.x
 
 clean:
-	rm -fv *.o */*.o *.x ../offload/*.o
+	rm -fv *.o */*.o ../offload/*.o
+
+realclean: clean
+	rm -fv *.x
 
 CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra
-NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
-LIBS := -lm -lblas -lstdc++
+NVARCH := sm_70
+NVFLAGS := -g -O3 -lineinfo -arch $(NVARCH) -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
+
+ifneq ($(MKLROOT),)
+LIBS += \
+        -Wl,--start-group \
+        $(MKLROOT)/lib/intel64/libmkl_gf_lp64.a \
+        $(MKLROOT)/lib/intel64/libmkl_core.a \
+        /opt/intel/oneapi_customer/mkl/2022.0.1/lib/intel64/libmkl_sequential.a \
+        -Wl,--end-group -ldl
+else
+LIBS += -lblas
+endif
+
+LIBS += -lstdc++ -lm
 
 ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
 ALL_OBJECTS := ../offload/offload_library.o \
