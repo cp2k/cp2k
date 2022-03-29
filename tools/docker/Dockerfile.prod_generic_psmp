@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.prod_pdbg ../../
+# Usage: docker build -f ./Dockerfile.prod_generic_psmp ../../
 #
 
 FROM ubuntu:20.04
@@ -23,6 +23,7 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --mpi-mode=mpich \
+    --generic \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
@@ -59,7 +60,7 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local.pdbg.
+# Install CP2K using local.psmp.
 WORKDIR /opt/cp2k
 ARG GIT_COMMIT_SHA
 COPY ./Makefile .
@@ -69,13 +70,13 @@ COPY ./tools/build_utils ./tools/build_utils
 RUN /bin/bash -c " \
     if [ -n "${GIT_COMMIT_SHA}" ] ; then echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi && \
     mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local.pdbg ./arch/ && \
+    ln -vs /opt/cp2k-toolchain/install/arch/local.psmp ./arch/ && \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
-    make -j ARCH=local VERSION=pdbg && \
-    ln -sf ./cp2k.pdbg ./exe/local/cp2k && \
-    ln -sf ./cp2k_shell.pdbg ./exe/local/cp2k_shell && \
-    rm -rf lib obj exe/local/libcp2k_unittest.pdbg"
+    make -j ARCH=local VERSION=psmp && \
+    ln -sf ./cp2k.psmp ./exe/local/cp2k && \
+    ln -sf ./cp2k_shell.psmp ./exe/local/cp2k_shell && \
+    rm -rf lib obj exe/local/libcp2k_unittest.psmp"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
@@ -84,13 +85,13 @@ COPY ./tools/regtesting ./tools/regtesting
 ARG TESTOPTS
 RUN /bin/bash -c " \
     source /opt/cp2k-toolchain/install/setup && \
-    ./tools/regtesting/do_regtest.py 'local' 'pdbg' "${TESTOPTS}" |& tee regtests.log && \
+    ./tools/regtesting/do_regtest.py 'local' 'psmp' "${TESTOPTS}" |& tee regtests.log && \
     rm -rf regtesting"
 
 # Setup entry point for production.
 COPY ./tools/docker/scripts/prod_entrypoint.sh ./
 WORKDIR /mnt
-ENTRYPOINT ["/opt/cp2k/prod_entrypoint.sh", "local", "pdbg"]
+ENTRYPOINT ["/opt/cp2k/prod_entrypoint.sh", "local", "psmp"]
 CMD ["cp2k", "--help"]
 
 #EOF
