@@ -85,6 +85,8 @@ RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
     make -j ARCH=local_cuda VERSION=psmp && \
+    ln -sf ./cp2k.psmp ./exe/local_cuda/cp2k && \
+    ln -sf ./cp2k_shell.psmp ./exe/local_cuda/cp2k_shell && \
     rm -rf lib obj exe/local_cuda/libcp2k_unittest.psmp"
 COPY ./data ./data
 COPY ./tests ./tests

@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.prod_pdbg ../../
+# Usage: docker build -f ./Dockerfile.prod_generic_pdbg ../../
 #
 
 FROM ubuntu:20.04
@@ -23,6 +23,7 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --mpi-mode=mpich \
+    --generic \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.

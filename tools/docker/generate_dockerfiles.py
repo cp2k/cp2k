@@ -20,6 +20,12 @@ def main() -> None:
         with OutputFile(f"Dockerfile.prod_{version}", args.check) as f:
             f.write(toolchain_full() + production(version))
 
+        with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
+            f.write(toolchain_full(generic=True) + regtest(version))
+
+        with OutputFile(f"Dockerfile.prod_generic_{version}", args.check) as f:
+            f.write(toolchain_full(generic=True) + production(version))
+
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
         f.write(toolchain_full(mpi_mode="openmpi") + regtest("psmp"))
 
@@ -323,6 +329,8 @@ def install_cp2k(
 
     if prod:
         run_lines.append(f"make -j ARCH={arch} VERSION={version}")
+        run_lines.append(f"ln -sf ./cp2k.{version} ./exe/{arch}/cp2k")
+        run_lines.append(f"ln -sf ./cp2k_shell.{version} ./exe/{arch}/cp2k_shell")
         run_lines.append(f"rm -rf lib obj exe/{arch}/libcp2k_unittest.{version}")
     else:
         run_lines.append(
@@ -345,10 +353,13 @@ COPY ./tools/regtesting ./tools/regtesting
 
 
 # ======================================================================================
-def toolchain_full(base_image: str = "ubuntu:20.04", mpi_mode: str = "mpich") -> str:
-    return f"\nFROM {base_image}\n\n" + install_toolchain(
-        base_image=base_image, install_all=None, mpi_mode=mpi_mode
-    )
+def toolchain_full(
+    base_image: str = "ubuntu:20.04", mpi_mode: str = "mpich", generic: bool = False
+) -> str:
+    args = dict(install_all=None, mpi_mode=mpi_mode)
+    if generic:
+        args["generic"] = None
+    return f"\nFROM {base_image}\n\n" + install_toolchain(base_image=base_image, **args)
 
 
 # ======================================================================================

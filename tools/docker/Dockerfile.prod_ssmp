@@ -73,6 +73,8 @@ RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
     make -j ARCH=local VERSION=ssmp && \
+    ln -sf ./cp2k.ssmp ./exe/local/cp2k && \
+    ln -sf ./cp2k_shell.ssmp ./exe/local/cp2k_shell && \
     rm -rf lib obj exe/local/libcp2k_unittest.ssmp"
 COPY ./data ./data
 COPY ./tests ./tests
