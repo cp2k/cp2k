@@ -25,7 +25,6 @@ MODULE qs_cdft_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
-   USE cube_utils,                      ONLY: cube_info_type
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
@@ -1168,7 +1167,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type)                               :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
@@ -1223,7 +1221,6 @@ CONTAINS
          IF (.NOT. ASSOCIATED(rs_rho_all)) THEN
             CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho_all, &
                             auxbas_pw_pool=auxbas_pw_pool)
-            cube_info = pw_env%cube_info(1)
             CALL rs_grid_retain(rs_rho_all)
             CALL rs_grid_zero(rs_rho_all)
          END IF
@@ -1285,7 +1282,7 @@ CONTAINS
 
                   CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                              (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                             rs_rho_all, cell, cube_info, radius=radius, &
+                                             rs_rho_all, radius=radius, &
                                              ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                              subpatch_pattern=subpatch_pattern)
                   IF (is_constraint(atom_a)) THEN
@@ -1297,7 +1294,7 @@ CONTAINS
 
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                 (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
-                                                pab, 0, 0, rs_rho_constr, cell, cube_info, &
+                                                pab, 0, 0, rs_rho_constr, &
                                                 radius=radius_constr, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
@@ -1310,7 +1307,7 @@ CONTAINS
                         CPASSERT(iatom <= cdft_control%natoms)
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                   rs_single(iatom)%rs_grid, cell, cube_info, radius=radius, &
+                                                   rs_single(iatom)%rs_grid, radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                    subpatch_pattern=subpatch_pattern)
                      END IF

@@ -21,7 +21,6 @@ MODULE hirshfeld_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_to_cp2k
-   USE cube_utils,                      ONLY: cube_info_type
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
                                               integrate_pgf_product
@@ -413,7 +412,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type)                               :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -428,7 +426,6 @@ CONTAINS
                       dft_control=dft_control, particle_set=particle_set, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho, &
                       auxbas_pw_pool=auxbas_pw_pool)
-      cube_info = pw_env%cube_info(1)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
       CALL rs_grid_retain(rs_rho)
       CALL rs_grid_zero(rs_rho)
@@ -477,7 +474,7 @@ CONTAINS
                ! la_max==0 so set lmax_global to 0
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
-                                          cell, cube_info, radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                          radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
             END DO
          END DO
@@ -605,7 +602,7 @@ CONTAINS
 
                CALL integrate_pgf_product(0, alpha, 0, &
                                           0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                          rs_v, cell, pw_env%cube_info(1), hab, pab=pab, o1=0, o2=0, &
+                                          rs_v, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, calculate_forces=do_force, &
                                           force_a=force_a, force_b=force_b, use_virial=.FALSE., &
                                           use_subpatch=.TRUE., subpatch_pattern=0)

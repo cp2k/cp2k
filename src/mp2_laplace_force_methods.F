@@ -1885,8 +1885,6 @@ CONTAINS
                            lb_max=0, zetb=0.0_dp, lb_min=0, &
                            ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                            rsgrid=rs_v(igrid_level)%rs_grid, &
-                           cell=cell, &
-                           cube_info=pw_env_ext%cube_info(igrid_level), &
                            hab=h_tmp, hdab=h_dtmp, pab=pab, &
                            o1=o1, &
                            o2=0, &

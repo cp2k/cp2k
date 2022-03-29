@@ -350,8 +350,6 @@ CONTAINS
                         lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                         ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                         rsgrid=rs_v(igrid_level)%rs_grid, &
-                        cell=cell, &
-                        cube_info=pw_env_sub%cube_info(igrid_level), &
                         hab=I_tmp2, &
                         o1=na1 - 1, &
                         o2=0, &
@@ -743,8 +741,6 @@ CONTAINS
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                              rsgrid=rs_v(igrid_level)%rs_grid, &
-                                             cell=cell, &
-                                             cube_info=pw_env_sub%cube_info(igrid_level), &
                                              hab=I_tmp2, &
                                              pab=pab, &
                                              o1=na1 - 1, &
@@ -1044,8 +1040,6 @@ CONTAINS
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
                                              ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                                              rsgrid=rs_v(igrid_level)%rs_grid, &
-                                             cell=cell, &
-                                             cube_info=pw_env_sub%cube_info(igrid_level), &
                                              hab=I_tmp2, &
                                              pab=pab, &
                                              o1=na1 - 1, &

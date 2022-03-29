@@ -14,7 +14,6 @@ MODULE qs_rho0_ggrid
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cube_utils,                      ONLY: cube_info_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
@@ -108,7 +107,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -139,7 +137,6 @@ CONTAINS
 
       NULLIFY (descs, pw_pools)
       CALL pw_env_get(pw_env=pw_env, rs_descs=descs, rs_grids=grids, pw_pools=pw_pools)
-      cube_info => pw_env%cube_info
       auxbas_grid = pw_env%auxbas_grid
 
       NULLIFY (rho0_s_gs, rho0_s_rs)
@@ -221,7 +218,7 @@ CONTAINS
             CALL collocate_pgf_product( &
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-               rs_grid, cell, cube_info(igrid), ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
+               rs_grid, ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
                use_subpatch=.TRUE., subpatch_pattern=0)
 
          END DO ! j
@@ -361,7 +358,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: a_hdab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cube_info_type), DIMENSION(:), POINTER        :: cube_info
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
@@ -435,7 +431,6 @@ CONTAINS
 
       ! Assign from pw_env
       auxbas_grid = pw_env%auxbas_grid
-      cube_info => pw_env%cube_info
 
       ! Get the potential on the right grid
       NULLIFY (rs_v, rs_desc, pw_pool, pw_aux, coeff_rspace, coeff_gspace)
@@ -565,8 +560,8 @@ CONTAINS
 
                CALL integrate_pgf_product( &
                   l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
-                  ra, (/0.0_dp, 0.0_dp, 0.0_dp/), rs_v, cell, &
-                  cube_info(igrid), hab, pab, o1=0, o2=0, &
+                  ra, (/0.0_dp, 0.0_dp, 0.0_dp/), rs_v, &
+                  hab, pab, o1=0, o2=0, &
                   radius=rpgf0, &
                   calculate_forces=calculate_forces, &
                   use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b, &
