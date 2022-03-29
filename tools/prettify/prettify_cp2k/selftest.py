@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 content = """
 MODULE prettify_selftest
    IMPLICIT NONE
