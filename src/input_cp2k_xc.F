@@ -1282,6 +1282,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="NSTEPS", &
+                          description="Number of steps to consider in each direction for the numerical "// &
+                          "evaluation of XC derivatives. Must be a value from 1 to 4 (Default: 3).", &
+                          usage="NSTEPS 4", default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

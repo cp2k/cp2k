@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  CH3_tpss_mp2_numer
+  PROJECT  CH3_br89_mp2_numer
   PRINT_LEVEL LOW
   RUN_TYPE ENERGY_FORCE
   &TIMINGS
@@ -39,7 +39,7 @@
       NSTEPS 1
       # Not a very useful functional, just for testing
       &XC_FUNCTIONAL
-        &MGGA_X_TPSS
+        &MGGA_X_BR89
         &END 
       &END XC_FUNCTIONAL
       &WF_CORRELATION

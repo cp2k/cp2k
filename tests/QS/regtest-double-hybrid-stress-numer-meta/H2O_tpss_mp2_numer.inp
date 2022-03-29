@@ -36,6 +36,8 @@
     &END SCF
     &XC
       2ND_DERIV_ANALYTICAL .FALSE.
+      # WIll be too large but stabilizes the regtests
+      STEP_SIZE 1.0E-2
       # Not a very useful functional, just for testing
       &XC_FUNCTIONAL 
         &MGGA_X_TPSS

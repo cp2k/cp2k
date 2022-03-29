@@ -1,5 +1,5 @@
 &GLOBAL                                                                                           
-  PROJECT  CH3_tpss_mp2_numer
+  PROJECT  CH3_br89_mp2
   PRINT_LEVEL LOW
   RUN_TYPE ENERGY_FORCE
   &TIMINGS
@@ -34,13 +34,10 @@
       MAX_SCF 100
     &END SCF
     &XC
-      2ND_DERIV_ANALYTICAL .FALSE.
-      STEP_SIZE 1.0E-2
-      NSTEPS 1
       # Not a very useful functional, just for testing
       &XC_FUNCTIONAL
-        &MGGA_X_TPSS
-        &END 
+        &MGGA_X_BR89
+        &END
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         &RI_MP2

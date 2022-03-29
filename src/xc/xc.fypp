@@ -62,6 +62,19 @@
 !$OMP       END PARALLEL WORKSHARE
             END IF
          #:endif
+
+         #! Extra code of the Laplacian of the densities
+         #:if arg1.startswith("laplace") and inner_arguments == []
+            IF (my_compute_virial) THEN
+               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_${arg1}$])
+               IF (ASSOCIATED(deriv_att)) THEN
+                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+
+                  virial_pw%cr3d(:, :, :) = -rho1${appendix1}$ (:, :, :)
+                  CALL virial_laplace(virial_pw, pw_pool, virial_xc, deriv_data)
+               END IF
+            END IF ! my_compute_virial
+         #:endif
       #:endfor
 
    #:enddef
