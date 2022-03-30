@@ -2321,6 +2321,7 @@ CONTAINS
                                                             batch_start, dist1, dist2, dist3, &
                                                             idx_to_at_AO, idx_to_at_RI, kind_of
       INTEGER, DIMENSION(2, 1)                           :: ibounds, jbounds
+      INTEGER, DIMENSION(2, 2)                           :: ijbounds
       INTEGER, DIMENSION(2, 3)                           :: bounds_cpy
       LOGICAL                                            :: do_resp, resp_only_prv, use_virial_prv
       REAL(dp)                                           :: pref, spin_fac, t1, t2
@@ -2349,7 +2350,6 @@ CONTAINS
       ! 4) From there, we can easily calculate the 2c contributions to the force:
       !    Potential: [S^-1*R*S^-1]_QR d/dx (Q|R)
       !    Metric:    [S^-1*R*S^-1*(Q|R)*S^-1]_UV d/dx S_UV
-      ! TODO: for now we assume that there is a metric. We need to generalize later
 
       NULLIFY (particle_set, virial, cell, force, atomic_kind_set)
 
@@ -2470,10 +2470,10 @@ CONTAINS
          CALL dbt_copy(ri_data%t_2c_inv(1, 1), t_SVS)
       END IF
 
-      CALL dbt_batched_contract_init(t_3c_int, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_int, batch_range_1=batch_ranges, batch_range_3=batch_ranges)
       CALL dbt_batched_contract_init(t_3c_int_2, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-      CALL dbt_batched_contract_init(t_3c_1, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
-      CALL dbt_batched_contract_init(t_3c_2, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_1, batch_range_1=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_2, batch_range_1=batch_ranges, batch_range_3=batch_ranges)
       CALL dbt_batched_contract_init(t_3c_3, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
       CALL dbt_batched_contract_init(t_3c_4, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
 
@@ -2559,16 +2559,20 @@ CONTAINS
 
                CALL dbt_copy(t_3c_4, t_3c_help_1, move_data=.TRUE., summation=.TRUE.)
 
+               ijbounds(:, 1) = ibounds(:, 1)
+               ijbounds(:, 2) = jbounds(:, 1)
+
                !Contract R_PS = (acP) M_acS
                CALL dbt_batched_contract_init(t_R)
                CALL dbt_contract(1.0_dp, t_3c_int_2, t_3c_3, 1.0_dp, t_R, &
                                  contract_1=[2, 3], notcontract_1=[1], &
                                  contract_2=[2, 3], notcontract_2=[1], &
                                  map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps, &
-                                 unit_nr=unit_nr_dbcsr, flop=nflop)
+                                 bounds_1=ijbounds, unit_nr=unit_nr_dbcsr, flop=nflop)
                ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
                CALL dbt_batched_contract_finalize(t_R)
 
+               CALL dbt_copy(t_3c_4, t_3c_3)
             END DO !j_mem
          END DO !i_mem
 
