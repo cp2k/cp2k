@@ -41,7 +41,8 @@ MODULE mp2_ri_gpw
                                               mp2_type,&
                                               three_dim_real_array,&
                                               two_dim_int_array
-   USE offload_gemm,                    ONLY: offload_dgemm
+   USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
+                                              offload_dgemm
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -143,6 +144,13 @@ CONTAINS
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
       CALL dgemm_counter_init(dgemm_counter, unit_nr, mp2_env%ri_mp2%print_dgemm_info)
+
+      ! offload_gemm_ctx has a very footprint the first time this routine is
+      ! called.
+      IF (mp2_env%offload_gemm_ctx .EQ. C_NULL_PTR) THEN
+         CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
+         CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
+      END IF
 
       ! We cannot fix the tag because of the recv routine
       tag = 42
@@ -697,6 +705,9 @@ CONTAINS
          DEALLOCATE (mp2_env%ri_grad%operator_half)
 
       CALL dgemm_counter_write(dgemm_counter, para_env)
+
+      ! release memory allocated by offload_dgemm when run on GPU. offload_gemm_ctx is null on cpu only runs
+      CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
 
       CALL timestop(handle)
 
