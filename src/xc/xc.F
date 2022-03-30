@@ -1667,7 +1667,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_numerical', &
                                      routineP = moduleN//':'//routineN
-      REAL(KIND=dp), DIMENSION(-4:4, 4) :: &
+      REAL(KIND=dp), DIMENSION(-4:4, 4), PARAMETER :: &
          weights = RESHAPE([0.0_dp, 0.0_dp, 0.0_dp, -0.5_dp, 0.0_dp, 0.5_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
                            0.0_dp, 0.0_dp, 1.0_dp/12.0_dp, -2.0_dp/3.0_dp, 0.0_dp, 2.0_dp/3.0_dp, -1.0_dp/12.0_dp, 0.0_dp, 0.0_dp, &
                             0.0_dp, -1.0_dp/60.0_dp, 0.15_dp, -0.75_dp, 0.0_dp, 0.75_dp, -0.15_dp, 1.0_dp/60.0_dp, 0.0_dp, &
