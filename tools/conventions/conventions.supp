@@ -73,6 +73,7 @@ et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
+fist_intra_force.F: 'pv_a.dim[0].stride' is used uninitialized [-Wuninitialized]
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low"
@@ -217,3 +218,9 @@ xyz2dcd.F: Found STOP statement in procedure "xyz2dcd"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd"
+xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&r_pbc].dim[0].ubound' is used uninitialized [-Wuninitialized]
+xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&r_pbc].dim[1].stride' is used uninitialized [-Wuninitialized]
+xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&s].dim[0].ubound' is used uninitialized [-Wuninitialized]
+xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&s_pbc].dim[0].ubound' is used uninitialized [-Wuninitialized]
+xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&s_pbc].dim[1].stride' is used uninitialized [-Wuninitialized]
+xyz2dcd.F: 's.dim[1].stride' is used uninitialized [-Wuninitialized]
