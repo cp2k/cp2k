@@ -21,6 +21,11 @@ if command -v ompi_info &> /dev/null; then
   export OMPI_MCA_plm_rsh_agent=/bin/false
 fi
 
+# Use keepalive mode for GPU tests.
+if [[ "${ARCH}" == *cuda* ]] || [[ "${ARCH}" == *hip* ]]; then
+  TESTOPTS="--keepalive ${TESTOPTS}"
+fi
+
 # Switch to stable DBCSR version if requested.
 if [ -n "${USE_STABLE_DBCSR}" ]; then
   echo "Switching to stable DBCSR version..."
