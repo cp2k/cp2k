@@ -6,7 +6,6 @@
 # shellcheck disable=SC2124,SC2129,SC2144,SC2153,SC2154,SC2155,SC2163,SC2164,SC2166
 # shellcheck disable=SC2235,SC2237
 
-./scripts/stage4/install_libsmm.sh
 ./scripts/stage4/install_libxsmm.sh
 ./scripts/stage4/install_scalapack.sh
 ./scripts/stage4/install_cosma.sh

@@ -161,20 +161,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 - `-D__MAX_CONTR=4` (default=2) can be used to compile efficient contraction
   kernels up to l=4, but the build time will increase accordingly.
 
-### 2h. LIBSMM (optional, improved performance for matrix multiplication)
-
-- A library for small matrix multiplies can be built from the included source
-  (see exts/dbcsr/tools/build_libsmm/README).  Usually only the double precision
-  real and perhaps complex types are needed.  Link to the generated libraries.
-  For a couple of architectures, prebuilt LIBSMMs are available at
-  <https://www.cp2k.org/static/downloads/libsmm/>.
-- Add `-D__HAS_smm_dnn` to the defines to enable using the double precision
-  real library.  Similarly use `-D__HAS_smm_snn` for single precision real and
-  `-D__HAS_smm_znn` / `-D__HAS_smm_cnn` for double / single precision complex.
-- Add `-D__HAS_smm_vec` to enable the new vectorized interfaces of LIBSMM.
-- If LIBXSMM is available, LIBSMM is not necessary or used (see LIBXSMM section).
-
-### 2i. LIBXSMM (optional, improved performance for matrix multiplication)
+### 2h. LIBXSMM (optional, improved performance for matrix multiplication)
 
 - A library for matrix operations and deep learning primitives: <https://github.com/hfp/libxsmm/>.
 - Add `-D__LIBXSMM` to enable it, with suitable include and library paths,
@@ -182,7 +169,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
   and `LIBS += -L${LIBXSMM_DIR}/lib -lxsmmf -lxsmm -ldl`
 - LIBSMM is not used if LIBXSMM is enabled.
 
-### 2j. CUDA (optional, improved performance on GPU systems)
+### 2i. CUDA (optional, improved performance on GPU systems)
 
 - Specify OFFLOAD_CC (e.g. `OFFLOAD_CC = nvcc`) and
   OFFLOAD_FLAGS (e.g. `OFFLOAD_FLAGS = -O3 -g -w --std=c++11`) variables.
@@ -206,7 +193,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 - Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs
   and associated gather/scatter operations.
 
-### 2k. LIBXC (optional, wider choice of xc functionals)
+### 2j. LIBXC (optional, wider choice of xc functionals)
 
 - The version 5.1.0 (or later) of LIBXC can be downloaded from <https://www.tddft.org/programs/libxc>
 - CP2K does not make use of fourth derivates such that LIBXC may be configured
@@ -217,7 +204,7 @@ the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
   and `-L$(LIBXC_DIR)/lib -lxcf03 -lxc` to LIBS.
 - :warning: Note that the deprecated flags `-D__LIBXC2` and `-D__LIBXC3` are ignored.
 
-### 2l. ELPA (optional, improved performance for diagonalization)
+### 2k. ELPA (optional, improved performance for diagonalization)
 
 Library ELPA for the solution of the eigenvalue problem
 
@@ -235,7 +222,7 @@ Library ELPA for the solution of the eigenvalue problem
 - For specific architectures it can be better to install specifically optimized
   kernels (see BG) and/or employ a higher optimization level to compile it.
 
-### 2m. PEXSI (optional, low scaling SCF method)
+### 2l. PEXSI (optional, low scaling SCF method)
 
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI
 library and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
@@ -267,27 +254,27 @@ METISLIB = -lscotchmetis -lscotch -lscotcherr
 PARMETISLIB = -lptscotchparmetis -lptscotch -lptscotcherr
 ```
 
-### 2n. QUIP (optional, wider range of interaction potentials)
+### 2m. QUIP (optional, wider range of interaction potentials)
 
 QUIP - QUantum mechanics and Interatomic Potentials Support for QUIP can be
 enabled via the flag `-D__QUIP`.
 
 For more information see <http://www.libatoms.org>.
 
-### 2o. PLUMED (optional, enables various enhanced sampling methods)
+### 2n. PLUMED (optional, enables various enhanced sampling methods)
 
 CP2K can be compiled with PLUMED 2.x (`-D__PLUMED2`).
 
 See <https://cp2k.org/howto:install_with_plumed> for full instructions.
 
-### 2p. spglib (optional, crystal symmetries tools)
+### 2o. spglib (optional, crystal symmetries tools)
 
 A library for finding and handling crystal symmetries
 
 - The spglib can be downloaded from <https://github.com/atztogo/spglib>
 - For building CP2K with the spglib add `-D__SPGLIB` to DFLAGS
 
-### 2q. SIRIUS (optional, plane wave calculations)
+### 2p. SIRIUS (optional, plane wave calculations)
 
 SIRIUS is a domain specific library for electronic structure calculations.
 
@@ -295,7 +282,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - For building CP2K with SIRIUS add `-D__SIRIUS` to DFLAGS.
 - See <https://electronic-structure.github.io/SIRIUS-doc/> for more information.
 
-### 2r. FPGA (optional, plane wave FFT calculations)
+### 2q. FPGA (optional, plane wave FFT calculations)
 
 - Use `-D__PW_FPGA` to enable FPGA support for PW (fft) calculations.
   Currently tested only for Intel Stratix 10 and Arria 10 GX1150 FPGAs.
@@ -314,14 +301,14 @@ SIRIUS is a domain specific library for electronic structure calculations.
   aocl linker flags to `LDFLAGS` and aocl libs to `LIBS`.
 - When building FPGA and OFFLOAD together then `-D__NO_OFFLOAD_PW` has to be used.
 
-### 2s. COSMA (Distributed Communication-Optimal Matrix-Matrix Multiplication Algorithm)
+### 2r. COSMA (Distributed Communication-Optimal Matrix-Matrix Multiplication Algorithm)
 
 - COSMA is an alternative for the pdgemm routine included in ScaLAPACK.
   The library supports both CPU and GPUs.
 - Add `-D__COSMA` to the DFLAGS to enable support for COSMA.
 - See <https://github.com/eth-cscs/COSMA> for more information.
 
-### 2t. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
+### 2s. LibVori (Voronoi Integration for Electrostatic Properties from Electron Density)
 
 - LibVori is a library which enables the calculation of electrostatic properties
   (charge, dipole vector, quadrupole tensor, etc.) via integration of the total
@@ -332,7 +319,7 @@ SIRIUS is a domain specific library for electronic structure calculations.
   please see <https://brehm-research.de/bqb> for more information as well as
   the `bqbtool` to inspect BQB files.
 
-### 2u. ROCM/HIP (Support for AMD GPU)
+### 2t. ROCM/HIP (Support for AMD GPU)
 
 :warning: **Experimental**, please report any problem.
 
@@ -363,7 +350,7 @@ should work out of the box on Nvidia hardware as well.
 - Use `-D__OFFLOAD_PROFILING` to turn on the AMD ROC TX and Tracer libray.
   It requires to link `-lroctx64 -lroctracer64`.
 
-### 2v. OpenCL Devices
+### 2u. OpenCL Devices
 
 :warning: **Experimental**, please report any problem.
 
@@ -397,7 +384,7 @@ CP2K's grid backend does not yet support OpenCL devices.
 - Refer to <https://cp2k.github.io/dbcsr/> for more information, e.g.,
   environment variables or how to tune kernels (auto tuned parameters).
 
-### 2w. matrix-matrix multiplication offloading on GPU using SPLA
+### 2v. matrix-matrix multiplication offloading on GPU using SPLA
 
 The SPLA library is a hard dependency of SIRIUS but can also be used as a
 standalone library. It provides a generic interface to the blas gemm family with
