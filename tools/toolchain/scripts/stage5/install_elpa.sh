@@ -103,7 +103,7 @@ case "$with_elpa" in
         grep '\bavx512dq\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512dq"
         grep '\bavx512cd\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512cd"
         grep '\bavx512bw\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512bw"
-        grep '\bavx512v1\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512v1"
+        grep '\bavx512vl\b' /proc/cpuinfo 1> /dev/null && AVX512_flags+=" -mavx512vl"
         config_flags="--enable-avx=${has_AVX} --enable-avx2=${has_AVX2} --enable-avx512=${has_AVX512}"
       fi
       for TARGET in "cpu" "nvidia"; do
