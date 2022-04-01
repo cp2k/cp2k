@@ -154,61 +154,6 @@ CONTAINS
       flags = TRIM(flags)//" pw_fpga_sp"
 #endif
 
-#if defined(__HAS_smm_vec)
-      flags = TRIM(flags)//" smm_vec"
-#endif
-#if defined(__HAS_smm_snn)
-      flags = TRIM(flags)//" smm_snn"
-#endif
-#if defined(__HAS_smm_snt)
-      flags = TRIM(flags)//" smm_snt"
-#endif
-#if defined(__HAS_smm_stn)
-      flags = TRIM(flags)//" smm_stn"
-#endif
-#if defined(__HAS_smm_stt)
-      flags = TRIM(flags)//" smm_stt"
-#endif
-#if defined(__HAS_smm_znn)
-      flags = TRIM(flags)//" smm_znn"
-#endif
-#if defined(__HAS_smm_znt)
-      flags = TRIM(flags)//" smm_znt"
-#endif
-#if defined(__HAS_smm_ztn)
-      flags = TRIM(flags)//" smm_ztn"
-#endif
-#if defined(__HAS_smm_ztt)
-      flags = TRIM(flags)//" smm_ztt"
-#endif
-#if defined(__HAS_smm_cnn)
-      flags = TRIM(flags)//" smm_cnn"
-#endif
-#if defined(__HAS_smm_cnt)
-      flags = TRIM(flags)//" smm_cnt"
-#endif
-#if defined(__HAS_smm_ctn)
-      flags = TRIM(flags)//" smm_ctn"
-#endif
-#if defined(__HAS_smm_ctt)
-      flags = TRIM(flags)//" smm_ctt"
-#endif
-#if defined(__HAS_smm_dnn)
-      flags = TRIM(flags)//" smm_dnn"
-#endif
-#if defined(__HAS_smm_dnt)
-      flags = TRIM(flags)//" smm_dnt"
-#endif
-#if defined(__HAS_smm_dtn)
-      flags = TRIM(flags)//" smm_dtn"
-#endif
-#if defined(__HAS_smm_dtt)
-      flags = TRIM(flags)//" smm_dtt"
-#endif
-      IF (INDEX(flags, " smm_") > 0) THEN
-         flags = TRIM(flags)//" smm"
-      END IF
-
 #if defined(__LIBXSMM)
       flags = TRIM(flags)//" xsmm"
 #endif

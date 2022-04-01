@@ -186,15 +186,7 @@ The --with-PKG options follow the rules:
   --with-scalapack        Parallel linear algebra library, needed for parallel
                           calculations.
                           Default = install
-  --with-libsmm           CP2K's own small matrix multiplication library. An optimised
-                          libsmm should increase the code performance. If you set
-                          --with-libsmm=install, then instead of actually compiling
-                          the library (which may take a long time), the script will
-                          try to download a preexisting version from the CP2K website
-                          that is compatible with your system.
-                          Default = no
-  --with-libxsmm          Small matrix multiplication library. If the system architecture
-                          is x86_64, then LIBXSMM can be used instead of libsmm.
+  --with-libxsmm          Small matrix multiplication library.
                           Default = install
   --with-elpa             Eigenvalue SoLvers for Petaflop-Applications library.
                           Fast library for large parallel jobs.
@@ -264,7 +256,7 @@ EOF
 tool_list="gcc intel cmake"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
-lib_list="fftw libint libxc libsmm libxsmm cosma scalapack elpa plumed \
+lib_list="fftw libint libxc libxsmm cosma scalapack elpa plumed \
           spfft spla ptscotch superlu pexsi quip gsl spglib hdf5 libvdwxc sirius
           libvori"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
@@ -567,9 +559,6 @@ while [ $# -ge 1 ]; do
       ;;
     --with-scalapack*)
       with_scalapack=$(read_with "${1}")
-      ;;
-    --with-libsmm*)
-      with_libsmm=$(read_with "${1}")
       ;;
     --with-libxsmm*)
       with_libxsmm=$(read_with "${1}")
