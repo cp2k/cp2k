@@ -49,6 +49,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   Calculation of the overlap matrix Condition Number
 !> \param   matrixkp_s The overlap matrices to be calculated (kpoints, optional)
+!> \param   condnum Condition numbers for 1 and 2 norm
 !> \param   iunit  output unit
 !> \param   norml1 logical: calculate estimate to 1-norm
 !> \param   norml2 logical: calculate estimate to 1-norm and 2-norm condition number
@@ -59,10 +60,10 @@ CONTAINS
 !> \author  JHU
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE overlap_condnum(matrixkp_s, iunit, norml1, norml2, use_arnoldi, blacs_env)
+   SUBROUTINE overlap_condnum(matrixkp_s, condnum, iunit, norml1, norml2, use_arnoldi, blacs_env)
 
-      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: matrixkp_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_s
+      REAL(KIND=dp), DIMENSION(2), INTENT(INOUT)         :: condnum
       INTEGER, INTENT(IN)                                :: iunit
       LOGICAL, INTENT(IN)                                :: norml1, norml2, use_arnoldi
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -81,6 +82,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      condnum(1:2) = 0.0_dp
       NULLIFY (smat)
       IF (SIZE(matrixkp_s, 2) == 1) THEN
          IF (iunit > 0) WRITE (iunit, '(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
@@ -106,9 +108,9 @@ CONTAINS
                WRITE (iunit, '(T4,A,ES11.3E3,T32,A,ES11.3E3,A4,ES11.3E3,T63,A,F8.4)') &
                   "CN : |A|*|A^-1|: ", anorm, " * ", amnorm, "=", anorm*amnorm, "Log(1-CN):", LOG10(anorm*amnorm)
             END IF
+            condnum(1) = anorm*amnorm
          END IF
          IF (norml2) THEN
-
             eps_ev = 1.0E-14_dp
             ! diagonalization
             CALL dbcsr_get_info(smat, nfullrows_total=nbas)
@@ -145,6 +147,12 @@ CONTAINS
                      "CN : max/min EV: ", max_ev, " / ", min_ev, "Log(CN): infinity"
                END IF
             END IF
+            IF (min_ev > 0) THEN
+               condnum(1) = anorm*amnorm
+               condnum(2) = max_ev/min_ev
+            ELSE
+               condnum(1:2) = 0.0_dp
+            END IF
          END IF
          IF (use_arnoldi) THEN
             ! parameters for matrix condition test
@@ -163,7 +171,11 @@ CONTAINS
                      "CN : max/min ev: ", max_ev, " / ", min_ev, "Log(CN): infinity"
                END IF
             END IF
-
+            IF (min_ev > 0) THEN
+               condnum(2) = max_ev/min_ev
+            ELSE
+               condnum(2) = 0.0_dp
+            END IF
             IF (converged) THEN
                IF (min_ev == 0) THEN
                   CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")

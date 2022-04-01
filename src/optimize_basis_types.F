@@ -100,6 +100,8 @@ MODULE optimize_basis_types
       INTEGER :: ncombinations
       LOGICAL :: use_condition_number
       INTEGER, DIMENSION(:), POINTER   :: group_partition
+      INTEGER :: n_groups_created
+      INTEGER, DIMENSION(:), ALLOCATABLE :: sub_sources
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: combination
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: fval_weight
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: condition_weight
@@ -133,6 +135,7 @@ CONTAINS
       INTEGER                                            :: igroup, ikind
 
       IF (ASSOCIATED(opt_bas%group_partition)) DEALLOCATE (opt_bas%group_partition)
+      IF (ALLOCATED(opt_bas%sub_sources)) DEALLOCATE (opt_bas%sub_sources)
       IF (ALLOCATED(opt_bas%combination)) DEALLOCATE (opt_bas%combination)
       IF (ALLOCATED(opt_bas%x_opt)) DEALLOCATE (opt_bas%x_opt)
       IF (ALLOCATED(opt_bas%training_input)) DEALLOCATE (opt_bas%training_input)

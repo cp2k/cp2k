@@ -165,6 +165,7 @@ CONTAINS
       LOGICAL                                            :: norml1, norml2, ofdft, use_arnoldi, &
                                                             use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit
+      REAL(KIND=dp), DIMENSION(2)                        :: condnum
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -422,7 +423,7 @@ CONTAINS
             CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%DIAGONALIZATION", l_val=norml2)
             CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%ARNOLDI", l_val=use_arnoldi)
             CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env)
-            CALL overlap_condnum(matrix_s, iw, norml1, norml2, use_arnoldi, blacs_env)
+            CALL overlap_condnum(matrix_s, condnum, iw, norml1, norml2, use_arnoldi, blacs_env)
          END IF
       END IF
 

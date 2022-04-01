@@ -5,7 +5,6 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE optimize_basis
-   USE admm_methods,                    ONLY: admm_fit_mo_coeffs
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_release
@@ -34,7 +33,8 @@ MODULE optimize_basis
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_bcast,&
+   USE message_passing,                 ONLY: mp_allgather,&
+                                              mp_bcast,&
                                               mp_comm_free,&
                                               mp_comm_split,&
                                               mp_sum,&
@@ -46,8 +46,9 @@ MODULE optimize_basis
                                               create_opt_admm_env,&
                                               modify_input_settings,&
                                               update_basis_set
-   USE optbas_opt_utils,                ONLY: evaluate_energy,&
-                                              evaluate_fval
+   USE optbas_opt_utils,                ONLY: evaluate_optvals,&
+                                              fit_mo_coeffs,&
+                                              optbas_build_neighborlist
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               deallocate_basis_optimization_type,&
                                               subset_type
@@ -122,6 +123,8 @@ CONTAINS
       CALL mp_comm_split(para_env%group, opt_group, n_groups_created, group_distribution_p, &
                          n_subgroups=SIZE(opt_bas%group_partition), group_partition=opt_bas%group_partition)
       opt_bas%opt_id = group_distribution(para_env%mepos) + 1
+      opt_bas%n_groups_created = n_groups_created
+      ALLOCATE (opt_bas%sub_sources(0:para_env%num_pe - 1))
 
       CALL driver_optimization_para_low(opt_bas, input_declaration, para_env, opt_group)
 
@@ -148,7 +151,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low'
 
-      INTEGER                                            :: handle, icalc, iopt, mp_id, stat
+      INTEGER                                            :: handle, icalc, iopt, is, mp_id, stat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       LOGICAL                                            :: write_basis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tot_time
@@ -167,8 +170,11 @@ CONTAINS
       ALLOCATE (tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
       ALLOCATE (matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
-      CALL cp_para_env_create(para_env, group=mpi_comm_opt, &
-                              owns_group=.FALSE.)
+      CALL cp_para_env_create(para_env, group=mpi_comm_opt, owns_group=.FALSE.)
+
+      is = -1
+      IF (para_env%ionode) is = para_env_top%mepos
+      CALL mp_allgather(is, opt_bas%sub_sources, para_env_top%group)
 
       CALL init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, para_env, mpi_comm_opt)
 
@@ -181,9 +187,8 @@ CONTAINS
                                        para_env_top, para_env, iopt)
          IF (para_env_top%ionode) &
             CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
-         IF (.NOT. para_env_top%ionode) opt_bas%x_opt = 0.0_dp
          CALL mp_bcast(opt_bas%powell_param%state, para_env_top%source, para_env_top%group)
-         CALL mp_sum(opt_bas%x_opt, para_env_top%group)
+         CALL mp_bcast(opt_bas%x_opt, para_env_top%source, para_env_top%group)
          CALL update_free_vars(opt_bas)
          write_basis = MOD(iopt, opt_bas%write_frequency) == 0
          CALL update_derived_basis_sets(opt_bas, write_basis, opt_bas%output_basis_file, &
@@ -197,8 +202,7 @@ CONTAINS
          CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
       END IF
 
-      IF (.NOT. para_env_top%ionode) opt_bas%x_opt = 0.0_dp
-      CALL mp_sum(opt_bas%x_opt, para_env_top%group)
+      CALL mp_bcast(opt_bas%x_opt, para_env_top%source, para_env_top%group)
       CALL update_free_vars(opt_bas)
       CALL update_derived_basis_sets(opt_bas, .TRUE., opt_bas%output_basis_file, &
                                      para_env_top)
@@ -242,8 +246,9 @@ CONTAINS
 
       INTEGER                                            :: bas_id, handle, icalc, icomb, mp_id, &
                                                             my_id, ncalc, set_id
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cond_vec, energy, f_vec, my_time, &
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cond_vec, energy, f_vec, my_time, &
                                                             start_time
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gdata
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s_aux_fit, &
                                                             matrix_s_aux_fit_vs_orb
       TYPE(f_env_type), POINTER                          :: f_env
@@ -256,7 +261,12 @@ CONTAINS
       NULLIFY (matrix_ks, matrix_s_aux_fit_vs_orb, matrix_s_aux_fit, ks_env)
 
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
-      ALLOCATE (f_vec(ncalc)); ALLOCATE (my_time(ncalc)); ALLOCATE (cond_vec(ncalc)); ALLOCATE (energy(ncalc))
+      ALLOCATE (gdata(ncalc, 4))
+      f_vec => gdata(:, 1)
+      my_time => gdata(:, 2)
+      cond_vec => gdata(:, 3)
+      energy => gdata(:, 4)
+      !
       f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
       mp_id = opt_bas%opt_id
       ALLOCATE (start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
@@ -272,47 +282,47 @@ CONTAINS
          CALL force_env_get(force_env, qs_env=qs_env)
          CALL get_qs_env(qs_env, ks_env=ks_env)
          CALL update_basis_set(opt_bas, bas_id, qs_env)
-         CALL build_qs_neighbor_lists(qs_env, para_env, molecular=.FALSE., force_env_section=qs_env%input)
+         CALL optbas_build_neighborlist(qs_env)
          CALL calculate_overlap(ks_env, "S_AB_AUX")
          CALL get_qs_env(qs_env, &
                          matrix_ks=matrix_ks, &
                          matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
                          matrix_s_aux_fit=matrix_s_aux_fit)
-         CALL admm_fit_mo_coeffs(qs_env%admm_env, matrix_s_aux_fit, &
-                                 matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit, &
-                                 geometry_did_change=.TRUE.)
-         CALL evaluate_fval(qs_env%mos, qs_env%mos_aux_fit, matrix_s_aux_fit_vs_orb(1)%matrix, &
-                            matrix_s_aux_fit(1)%matrix, qs_env%admm_env, f_vec(my_id), cond_vec(my_id))
-         CALL evaluate_energy(qs_env%mos_aux_fit, matrix_ks, matrix_s_inv(icalc)%matrix, qs_env%admm_env%Q, &
-                              qs_env%admm_env%work_aux_aux, energy(my_id))
-
+         CALL fit_mo_coeffs(matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit)
+         CALL evaluate_optvals(qs_env%mos, qs_env%mos_aux_fit, matrix_ks, &
+                               matrix_s_aux_fit_vs_orb(1)%matrix, matrix_s_aux_fit(1)%matrix, matrix_S_inv(1)%matrix, &
+                               f_vec(my_id), energy(my_id), cond_vec(my_id))
          my_time(my_id) = m_walltime() - start_time(icalc)
       END DO
-      IF (.NOT. para_env%ionode) THEN
-         f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
-      END IF
 
       DEALLOCATE (start_time)
 
-      CALL mp_sum(f_vec, para_env_top%group)
-      CALL mp_sum(cond_vec, para_env_top%group)
-      CALL mp_sum(my_time, para_env_top%group)
-      CALL mp_sum(energy, para_env_top%group)
-      opt_bas%powell_param%f = 0.0_dp
-      DO icalc = 1, SIZE(f_vec)
-         icomb = MOD(icalc - 1, opt_bas%ncombinations)
-         opt_bas%powell_param%f = opt_bas%powell_param%f + &
-                                  (f_vec(icalc) + energy(icalc))*opt_bas%fval_weight(icomb)
-         IF (opt_bas%use_condition_number) &
-            opt_bas%powell_param%f = opt_bas%powell_param%f + &
-                                     LOG(cond_vec(icalc))*opt_bas%condition_weight(icomb)
-      END DO
+      IF (.NOT. para_env%ionode) THEN
+         f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
+      END IF
+      ! collect date from all subgroup ionodes on the main ionode
+      CALL mp_sum(gdata, para_env_top%group)
 
-      CALL mp_sync(para_env_top%group)
+      opt_bas%powell_param%f = 0.0_dp
+      IF (para_env_top%ionode) THEN
+         DO icalc = 1, SIZE(f_vec)
+            icomb = MOD(icalc - 1, opt_bas%ncombinations)
+            opt_bas%powell_param%f = opt_bas%powell_param%f + &
+                                     (f_vec(icalc) + energy(icalc))*opt_bas%fval_weight(icomb)
+            IF (opt_bas%use_condition_number) &
+               opt_bas%powell_param%f = opt_bas%powell_param%f + &
+                                        LOG(cond_vec(icalc))*opt_bas%condition_weight(icomb)
+         END DO
+      ELSE
+         f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
+      END IF
+      CALL mp_bcast(opt_bas%powell_param%f, para_env_top%source, para_env_top%group)
 
       ! output info if required
       CALL output_opt_info(f_vec, cond_vec, my_time, tot_time, opt_bas, iopt, para_env_top)
-      DEALLOCATE (f_vec); DEALLOCATE (my_time); DEALLOCATE (cond_vec); DEALLOCATE (energy)
+      DEALLOCATE (gdata)
+
+      CALL mp_sync(para_env_top%group)
 
       CALL timestop(handle)
 
@@ -600,7 +610,7 @@ CONTAINS
          DO iset = 1, opt_bas%ntraining_sets
             DO ibasis = 1, opt_bas%ncombinations
                icalc = icalc + 1
-               WRITE (unit_nr, '(1X,A,2(5X,I3,5X,A),2(1X,E14.8,1X,A),1X,F8.3)') &
+               WRITE (unit_nr, '(1X,A,2(5X,I3,5X,A),2(1X,E14.8,1X,A),1X,F8.1)') &
                   'BASOPT| ', iset, "|", ibasis, "|", f_vec(icalc), "|", cond_vec(icalc), "|", tot_time(icalc)
             END DO
          END DO
