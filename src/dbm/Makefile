@@ -17,7 +17,7 @@ LIBS += \
         -Wl,--start-group \
         $(MKLROOT)/lib/intel64/libmkl_gf_lp64.a \
         $(MKLROOT)/lib/intel64/libmkl_core.a \
-        /opt/intel/oneapi_customer/mkl/2022.0.1/lib/intel64/libmkl_sequential.a \
+        $(MKLROOT)/lib/intel64/libmkl_sequential.a \
         -Wl,--end-group -ldl
 else
 LIBS += -lblas
