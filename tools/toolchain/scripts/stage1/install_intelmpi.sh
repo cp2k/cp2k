@@ -33,15 +33,15 @@ case "${with_intelmpi}" in
   __SYSTEM__)
     echo "==================== Finding Intel MPI from system paths ===================="
     check_command mpirun "intelmpi" && MPIRUN="$(command -v mpirun)" || exit 1
-    check_command mpiicc "intelmpi" && MPICC="$(command -v mpiicc)" || exit 1
-    if [ $(command -v mpiicpc) ]; then
-      check_command mpiicpc "intelmpi" && MPICXX="$(command -v mpiicpc)"
-    elif [ $(command -v mpic++) ]; then
-      check_command mpic++ "intelmpi" && MPICXX="$(command -v mpic++)"
+    if [ "${with_intel}" != "__DONTUSE__" ]; then
+      check_command mpiicc "intelmpi" && MPICC="$(command -v mpiicc)" || exit 1
+      check_command mpiicpc "intelmpi" && MPICXX="$(command -v mpiicpc)" || exit 1
+      check_command mpiifort "intelmpi" && MPIFC="$(command -v mpiifort)" || exit 1
     else
+      check_command mpicc "intelmpi" && MPICC="$(command -v mpicc)" || exit 1
       check_command mpicxx "intelmpi" && MPICXX="$(command -v mpicxx)" || exit 1
+      check_command mpif90 "intelmpi" && MPIFC="$(command -v mpif90)" || exit 1
     fi
-    check_command mpiifort "intelmpi" && MPIFC="$(command -v mpiifort)" || exit 1
     MPIF90="${MPIFC}"
     MPIF77="${MPIFC}"
     add_include_from_paths INTELMPI_CFLAGS "mpi.h" $INCLUDE_PATHS
@@ -59,9 +59,15 @@ case "${with_intelmpi}" in
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
     check_command ${pkg_install_dir}/bin/mpirun "intel" && MPIRUN="${pkg_install_dir}/bin/mpirun" || exit 1
-    check_command ${pkg_install_dir}/bin/mpiicc "intel" && MPICC="${pkg_install_dir}/bin/mpiicc" || exit 1
-    check_command ${pkg_install_dir}/bin/mpiicpc "intel" && MPICXX="${pkg_install_dir}/bin/mpiicpc" || exit 1
-    check_command ${pkg_install_dir}/bin/mpiifort "intel" && MPIFC="${pkg_install_dir}/bin/mpiifort" || exit 1
+    if [ "${with_intel}" != "__DONTUSE__" ]; then
+      check_command ${pkg_install_dir}/bin/mpiicc "intel" && MPICC="${pkg_install_dir}/bin/mpiicc" || exit 1
+      check_command ${pkg_install_dir}/bin/mpiicpc "intel" && MPICXX="${pkg_install_dir}/bin/mpiicpc" || exit 1
+      check_command ${pkg_install_dir}/bin/mpiifort "intel" && MPIFC="${pkg_install_dir}/bin/mpiifort" || exit 1
+    else
+      check_command ${pkg_install_dir}/bin/mpicc "intel" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
+      check_command ${pkg_install_dir}/bin/mpicxx "intel" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
+      check_command ${pkg_install_dir}/bin/mpif90 "intel" && MPIFC="${pkg_install_dir}/bin/mpif90" || exit 1
+    fi
     MPIF90="${MPIFC}"
     MPIF77="${MPIFC}"
     INTELMPI_CFLAGS="-I'${pkg_install_dir}/include'"
