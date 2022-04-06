@@ -1941,7 +1941,7 @@ CONTAINS
       END DO
       CALL dbcsr_release(dbcsr_work)
 
-      CALL cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, pw_env_ext, &
+      CALL cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_ext, pw_env_ext, &
                        task_list_ext, auxbas_pw_pool, rho_r, rho_g, pot_g, psi_L)
 
       CALL dbcsr_distribution_release(dbcsr_dist)

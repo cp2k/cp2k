@@ -426,7 +426,6 @@ CONTAINS
          free_hfx_buffer = .TRUE.
          IF (calc_forces .AND. (.NOT. mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer = .FALSE.
          IF (qs_env%x_data(1, 1)%do_hfx_ri) free_hfx_buffer = .FALSE.
-         !TODO: look deeper into this, currently necessary to run
          IF (calc_forces .AND. mp2_env%method == ri_mp2_laplace) free_hfx_buffer = .FALSE.
       END IF
 

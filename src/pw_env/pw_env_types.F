@@ -12,6 +12,7 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE pw_env_types
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE cube_utils,                      ONLY: cube_info_type,&
                                               destroy_cube_info
    USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
@@ -172,13 +173,15 @@ CONTAINS
 !> \brief releases the given pw_env (see doc/ReferenceCounting.html)
 !> \param pw_env the pw_env to release
 !> \param kg ...
+!> \param para_env ...
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE pw_env_release(pw_env, kg)
+   SUBROUTINE pw_env_release(pw_env, kg, para_env)
       TYPE(pw_env_type), POINTER                         :: pw_env
       LOGICAL, OPTIONAL                                  :: kg
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       INTEGER                                            :: i, igrid_level
       LOGICAL                                            :: my_kg
@@ -197,7 +200,7 @@ CONTAINS
                   CALL section_vals_release(pw_env%gridlevel_info%print_section)
                   DEALLOCATE (pw_env%gridlevel_info%count)
                ELSE
-                  CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
+                  CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info, para_env)
                END IF
                DEALLOCATE (pw_env%gridlevel_info)
             END IF

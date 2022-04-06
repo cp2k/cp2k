@@ -383,7 +383,7 @@ CONTAINS
 
       CALL mp_sum(L_local_col, para_env_sub%group)
 
-      CALL cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, pw_env_sub, &
+      CALL cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                        task_list_sub, auxbas_pw_pool, rho_r, rho_g, pot_g, psi_L)
 
       CALL timestop(handle)
@@ -1182,6 +1182,7 @@ CONTAINS
 !> \param e_cutoff_old ...
 !> \param cutoff_old ...
 !> \param relative_cutoff_old ...
+!> \param para_env_sub ...
 !> \param pw_env_sub ...
 !> \param task_list_sub ...
 !> \param auxbas_pw_pool ...
@@ -1190,12 +1191,13 @@ CONTAINS
 !> \param pot_g ...
 !> \param psi_L ...
 ! **************************************************************************************************
-   SUBROUTINE cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, pw_env_sub, &
+   SUBROUTINE cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                           task_list_sub, auxbas_pw_pool, rho_r, rho_g, pot_g, psi_L)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: e_cutoff_old
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_old, relative_cutoff_old
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
@@ -1215,7 +1217,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
 
       CALL deallocate_task_list(task_list_sub)
-      CALL pw_env_release(pw_env_sub)
+      CALL pw_env_release(pw_env_sub, para_env=para_env_sub)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
 

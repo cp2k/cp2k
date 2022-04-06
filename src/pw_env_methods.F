@@ -159,10 +159,8 @@ CONTAINS
          igrid_level, iounit, ncommensurate, ngrid_level, xc_deriv_method_id, xc_smooth_method_id
       INTEGER, DIMENSION(2)                              :: distribution_layout
       INTEGER, DIMENSION(3)                              :: higher_grid_layout
-      LOGICAL                                            :: efg_present, linres_present, odd, &
-                                                            set_vdw_pool, should_output, &
-                                                            smooth_required, spherical, uf_grid, &
-                                                            use_ref_cell
+      LOGICAL :: do_io, efg_present, linres_present, odd, set_vdw_pool, should_output, &
+         smooth_required, spherical, uf_grid, use_ref_cell
       REAL(KIND=dp)                                      :: cutilev, rel_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radius
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoff
@@ -248,9 +246,11 @@ CONTAINS
       !
       !
 
+      do_io = .TRUE.
       IF (PRESENT(external_para_env)) THEN
          para_env => external_para_env
          CPASSERT(ASSOCIATED(para_env))
+         do_io = .FALSE. !multiple MPI subgroups mess-up the output file
       END IF
       ! interpolation section
       pw_env%interp_section => section_vals_get_subs_vals(input, "DFT%MGRID%INTERPOLATOR")
@@ -306,8 +306,13 @@ CONTAINS
       !
       ! Setup of the multi-grid pw_grid and pw_pools
       !
-      logger => cp_get_default_logger()
-      iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.Log')
+
+      IF (do_io) THEN
+         logger => cp_get_default_logger()
+         iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.Log')
+      ELSE
+         iounit = 0
+      END IF
 
       IF (dft_control%qs_control%pw_grid_opt%spherical) THEN
          grid_span = HALFSPACE
@@ -472,7 +477,7 @@ CONTAINS
          CALL pw_pool_retain(pw_env%vdw_pw_pool)
       END IF
 
-      CALL cp_print_key_finished_output(iounit, logger, print_section, '')
+      IF (do_io) CALL cp_print_key_finished_output(iounit, logger, print_section, '')
 
       ! complete init of the poisson_env
       IF (.NOT. ASSOCIATED(pw_env%poisson_env)) THEN
@@ -585,9 +590,10 @@ CONTAINS
 
       ! Print grid information
 
-      logger => cp_get_default_logger()
-      iounit = cp_print_key_unit_nr(logger, print_section, '', &
-                                    extension='.Log')
+      IF (do_io) THEN
+         logger => cp_get_default_logger()
+         iounit = cp_print_key_unit_nr(logger, print_section, '', extension='.Log')
+      END IF
       IF (iounit > 0) THEN
          SELECT CASE (poisson_params%solver)
          CASE (pw_poisson_periodic)
@@ -713,14 +719,17 @@ CONTAINS
             END IF
          END IF
       END IF
-      should_output = BTEST(cp_print_key_should_output(logger%iter_info, &
-                                                       print_section, ''), cp_p_file)
-      IF (should_output) THEN
-         DO igrid_level = 1, ngrid_level
-            CALL rs_grid_print(rs_grids(igrid_level)%rs_grid, iounit)
-         END DO
+
+      IF (do_io) THEN
+         should_output = BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                          print_section, ''), cp_p_file)
+         IF (should_output) THEN
+            DO igrid_level = 1, ngrid_level
+               CALL rs_grid_print(rs_grids(igrid_level)%rs_grid, iounit)
+            END DO
+         END IF
+         CALL cp_print_key_finished_output(iounit, logger, print_section, "")
       END IF
-      CALL cp_print_key_finished_output(iounit, logger, print_section, "")
 
       CALL timestop(handle)
 

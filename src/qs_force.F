@@ -319,13 +319,12 @@ CONTAINS
       END IF
 
       ! MP2 Code
-      ! TODO: unify all this such that a single call can be done
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          IF (.NOT. qs_env%mp2_env%method == ri_mp2_laplace) THEN
             NULLIFY (energy)
             CALL get_qs_env(qs_env, energy=energy)
             CALL qs_scf_compute_properties(qs_env, wf_type='MP2   ', do_mp2=.TRUE.)
-            CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.) !TODO: necessary at all to recompute energy ?
+            CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.)
             energy%total = energy%total + energy%mp2
          ELSE
             NULLIFY (energy)
