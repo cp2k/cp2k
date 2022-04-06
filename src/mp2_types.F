@@ -127,6 +127,7 @@ MODULE mp2_types
       INTEGER                  :: block_size
       REAL(dp)                 :: eps_canonical
       LOGICAL                  :: free_hfx_buffer
+      LOGICAL                  :: print_dgemm_info
       LOGICAL                  :: use_old_grad
    END TYPE
 
@@ -141,6 +142,7 @@ MODULE mp2_types
       LOGICAL                  :: do_admm
       LOGICAL                  :: do_ri_axk
       LOGICAL                  :: do_rse
+      LOGICAL                  :: print_dgemm_info
       TYPE(dbcsr_type), POINTER             :: mo_coeff_o, &
                                                mo_coeff_v
       REAL(KIND=dp)            :: ener_axk
@@ -281,6 +283,7 @@ MODULE mp2_types
       REAL(KIND=dp) :: flop_rate, t_start
       INTEGER :: num_dgemm_call
       INTEGER :: unit_nr
+      LOGICAL :: print_info
    END TYPE
 
 CONTAINS
@@ -347,14 +350,17 @@ CONTAINS
 !> \brief Initialize a dgemm_counter
 !> \param dgemm_counter ...
 !> \param unit_nr ...
+!> \param print_info ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE dgemm_counter_init(dgemm_counter, unit_nr)
+   ELEMENTAL SUBROUTINE dgemm_counter_init(dgemm_counter, unit_nr, print_info)
       TYPE(dgemm_counter_type), INTENT(OUT)              :: dgemm_counter
       INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN)                                :: print_info
 
       dgemm_counter%num_dgemm_call = 0
       dgemm_counter%flop_rate = 0.0
       dgemm_counter%unit_nr = unit_nr
+      dgemm_counter%print_info = print_info
 
    END SUBROUTINE dgemm_counter_init
 
@@ -385,7 +391,7 @@ CONTAINS
       t_end = m_walltime()
       flop_rate = 2.0_dp*REAL(size1, dp)*REAL(size2, dp)*REAL(size3, dp)/MAX(0.001_dp, t_end - dgemm_counter%t_start)
       dgemm_counter%num_dgemm_call = dgemm_counter%num_dgemm_call + 1
-      IF (dgemm_counter%unit_nr > 0) THEN
+      IF (dgemm_counter%unit_nr > 0 .AND. dgemm_counter%print_info) THEN
          WRITE (UNIT=dgemm_counter%unit_nr, FMT="(T3,A,I10)") &
             "PERFORMANCE| DGEMM call #", dgemm_counter%num_dgemm_call
          WRITE (UNIT=dgemm_counter%unit_nr, FMT="(T3,A,I12,A,I12,A,I12)") &

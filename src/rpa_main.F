@@ -1601,7 +1601,7 @@ CONTAINS
       IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
       first_cycle = .TRUE.
       omega_old = 0.0_dp
-      CALL dgemm_counter_init(dgemm_counter, unit_nr)
+      CALL dgemm_counter_init(dgemm_counter, unit_nr, mp2_env%ri_rpa%print_dgemm_info)
 
       DO count_ev_sc_GW = 1, iter_evGW
 

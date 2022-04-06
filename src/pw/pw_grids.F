@@ -669,7 +669,7 @@ CONTAINS
 !
 
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
-         IF (info >= 0) THEN
+         IF (info > 0) THEN
             WRITE (info, '(/,A,T71,I10)') &
                " PW_GRID| Information for grid number ", pw_grid%id_nr
             IF (pw_grid%reference > 0) THEN
@@ -716,7 +716,7 @@ CONTAINS
          n(3) = MINVAL(pw_grid%para%nyzray)
          rv(:, 3) = REAL(n, KIND=dp)
 
-         IF (pw_grid%para%group_head .AND. info >= 0) THEN
+         IF (pw_grid%para%group_head .AND. info > 0) THEN
             WRITE (info, '(/,A,T71,I10)') &
                " PW_GRID| Information for grid number ", pw_grid%id_nr
             IF (pw_grid%reference > 0) THEN

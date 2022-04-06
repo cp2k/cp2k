@@ -284,6 +284,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="PRINT_DGEMM_INFO", &
+         description="Print details about all DGEMM calls.", &
+         lone_keyword_l_val=.TRUE., &
+         default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_ri_mp2
 
 ! **************************************************************************************************
@@ -524,6 +533,15 @@ CONTAINS
          description="Scales RPA energy contributions (RPA, AXK).", &
          usage="SCALE_RPA 1.0", &
          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="PRINT_DGEMM_INFO", &
+         description="Print details about all DGEMM calls.", &
+         lone_keyword_l_val=.TRUE., &
+         default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

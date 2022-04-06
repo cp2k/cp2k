@@ -142,7 +142,7 @@ CONTAINS
 
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
-      CALL dgemm_counter_init(dgemm_counter, unit_nr)
+      CALL dgemm_counter_init(dgemm_counter, unit_nr, mp2_env%ri_mp2%print_dgemm_info)
 
       ! We cannot fix the tag because of the recv routine
       tag = 42
