@@ -44,9 +44,7 @@ MODULE optbas_opt_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_env_type,&
-                                              set_ks_env
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -215,6 +213,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief rebuilds neighborlist for absis sets
 !> \param qs_env ...
+!> \param sab_aux ...
+!> \param sab_aux_orb ...
 !> \par History
 !>       adapted from kg_build_neighborlist
 ! **************************************************************************************************

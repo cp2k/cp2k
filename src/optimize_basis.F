@@ -7,12 +7,12 @@
 MODULE optimize_basis
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_type,&
-                                              cp_fm_release
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -62,21 +62,19 @@ MODULE optimize_basis
    USE powell,                          ONLY: powell_optimize
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_did_change,&
                                               qs_ks_env_type,&
                                               set_ks_env
-   USE qs_kind_types,                   ONLY: &
-        check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, &
-        init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
-   USE qs_mo_types,                     ONLY: init_mo_set,&
-                                              get_mo_set,&
-                                              allocate_mo_set,&
+   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
+                                              get_mo_set,&
+                                              init_mo_set,&
                                               mo_set_p_type
-   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
+   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
    USE qs_overlap,                      ONLY: build_overlap_matrix
 #include "./base/base_uses.f90"
 
@@ -262,25 +260,24 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_residuum_vectors'
 
-      INTEGER                                            :: bas_id, handle, icalc, icomb, mp_id, &
-                                                            my_id, ncalc, set_id, nao, nmo, nelectron, &
-                                                            ispin, nspins
-      REAL(KIND=dp)                                      :: n_el_f, maxocc, flexible_electron_count
+      INTEGER                                            :: bas_id, handle, icalc, icomb, ispin, &
+                                                            mp_id, my_id, nao, ncalc, nelectron, &
+                                                            nmo, nspins, set_id
+      REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cond_vec, energy, f_vec, my_time, &
                                                             start_time
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gdata
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux, matrix_s_aux_orb
-      TYPE(f_env_type), POINTER                          :: f_env
-      TYPE(force_env_type), POINTER                      :: force_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s_aux, matrix_s_aux_orb
+      TYPE(f_env_type), POINTER                          :: f_env
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux, sab_aux_orb
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
 
@@ -321,13 +318,13 @@ CONTAINS
          CALL release_neighbor_list_sets(sab_aux)
          CALL release_neighbor_list_sets(sab_aux_orb)
          CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks)
- 
+
          nspins = SIZE(mos)
-         ALLOCATE(mos_aux(nspins))
+         ALLOCATE (mos_aux(nspins))
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
          CALL get_qs_kind_set(qs_kind_set, nsgf=nao, basis_type="AUX_FIT")   !!! AUX_FIT
          DO ispin = 1, nspins
-            NULLIFY(mos_aux(ispin)%mo_set)
+            NULLIFY (mos_aux(ispin)%mo_set)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nelectron=nelectron, &
                             n_el_f=n_el_f, nmo=nmo, flexible_electron_count=flexible_electron_count)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, &
@@ -338,22 +335,22 @@ CONTAINS
             CALL init_mo_set(mo_set=mos_aux(ispin)%mo_set, fm_struct=fm_struct, name="MO_AUX")
             CALL cp_fm_struct_release(fm_struct)
          END DO
- 
+
          CALL fit_mo_coeffs(matrix_s_aux, matrix_s_aux_orb, mos, mos_aux)
          CALL evaluate_optvals(mos, mos_aux, matrix_ks, matrix_s_aux_orb(1)%matrix, &
                                matrix_s_aux(1)%matrix, matrix_S_inv(1)%matrix, &
                                f_vec(my_id), energy(my_id), cond_vec(my_id))
- 
+
          DO ispin = 1, nspins
             CALL deallocate_mo_set(mos_aux(ispin)%mo_set)
          END DO
-         DEALLOCATE(mos_aux)
+         DEALLOCATE (mos_aux)
 
          my_time(my_id) = m_walltime() - start_time(icalc)
       END DO
 
-      IF(ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
-      IF(ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
+      IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
+      IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
 
       DEALLOCATE (start_time)
 
@@ -416,11 +413,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: input_file
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
 
       CALL timeset(routineN, handle)
 
