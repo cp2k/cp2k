@@ -279,6 +279,10 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux, sab_aux_orb
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
@@ -338,7 +342,7 @@ CONTAINS
             CALL init_mo_set(mo_set=mos_aux(ispin)%mo_set, fm_struct=fm_struct, name="MO_AUX")
             CALL cp_fm_struct_release(fm_struct)
          END DO
-
+ 
          CALL fit_mo_coeffs(matrix_s_aux, matrix_s_aux_orb, mos, mos_aux)
          CALL evaluate_optvals(mos, mos_aux, matrix_ks, matrix_s_aux_orb(1)%matrix, &
                                matrix_s_aux(1)%matrix, matrix_S_inv(1)%matrix, &
@@ -421,6 +425,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: input_file
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
 
       CALL timeset(routineN, handle)
 
