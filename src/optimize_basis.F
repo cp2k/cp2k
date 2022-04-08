@@ -6,8 +6,13 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE optimize_basis
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                              cp_fm_type,&
                                               cp_fm_release
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -41,7 +46,6 @@ MODULE optimize_basis
                                               mp_sync
    USE optbas_fenv_manipulation,        ONLY: allocate_mo_sets,&
                                               calculate_ks_matrix,&
-                                              calculate_overlap,&
                                               calculate_overlap_inverse,&
                                               create_opt_admm_env,&
                                               modify_input_settings,&
@@ -58,8 +62,22 @@ MODULE optimize_basis
    USE powell,                          ONLY: powell_optimize
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_did_change,&
+                                              qs_ks_env_type,&
+                                              set_ks_env
+   USE qs_kind_types,                   ONLY: &
+        check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, &
+        init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
+   USE qs_mo_types,                     ONLY: init_mo_set,&
+                                              get_mo_set,&
+                                              allocate_mo_set,&
+                                              deallocate_mo_set,&
+                                              mo_set_p_type
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
+   USE qs_overlap,                      ONLY: build_overlap_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -245,20 +263,26 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_residuum_vectors'
 
       INTEGER                                            :: bas_id, handle, icalc, icomb, mp_id, &
-                                                            my_id, ncalc, set_id
+                                                            my_id, ncalc, set_id, nao, nmo, nelectron, &
+                                                            ispin, nspins
+      REAL(KIND=dp)                                      :: n_el_f, maxocc, flexible_electron_count
       REAL(KIND=dp), DIMENSION(:), POINTER               :: cond_vec, energy, f_vec, my_time, &
                                                             start_time
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gdata
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s_aux_fit, &
-                                                            matrix_s_aux_fit_vs_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux, matrix_s_aux_orb
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux, sab_aux_orb
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
-
-      NULLIFY (matrix_ks, matrix_s_aux_fit_vs_orb, matrix_s_aux_fit, ks_env)
 
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
       ALLOCATE (gdata(ncalc, 4))
@@ -270,6 +294,8 @@ CONTAINS
       f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
       mp_id = opt_bas%opt_id
       ALLOCATE (start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+      !
+      NULLIFY (matrix_s_aux_orb, matrix_s_aux)
 
       DO icalc = 1, SIZE(opt_bas%comp_group(mp_id)%member_list)
          my_id = opt_bas%comp_group(mp_id)%member_list(icalc) + 1
@@ -281,19 +307,53 @@ CONTAINS
          force_env => f_env%force_env
          CALL force_env_get(force_env, qs_env=qs_env)
          CALL get_qs_env(qs_env, ks_env=ks_env)
-         CALL update_basis_set(opt_bas, bas_id, qs_env)
-         CALL optbas_build_neighborlist(qs_env)
-         CALL calculate_overlap(ks_env, "S_AB_AUX")
-         CALL get_qs_env(qs_env, &
-                         matrix_ks=matrix_ks, &
-                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                         matrix_s_aux_fit=matrix_s_aux_fit)
-         CALL fit_mo_coeffs(matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit)
-         CALL evaluate_optvals(qs_env%mos, qs_env%mos_aux_fit, matrix_ks, &
-                               matrix_s_aux_fit_vs_orb(1)%matrix, matrix_s_aux_fit(1)%matrix, matrix_S_inv(1)%matrix, &
+         CALL update_basis_set(opt_bas, bas_id, qs_env)                       !!! AUX_FIT
+         NULLIFY (sab_aux, sab_aux_orb)
+         CALL optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb)         !!! AUX_FIT
+         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux, &
+                                   basis_type_a="AUX_FIT", &                  !!! AUX_FIT
+                                   basis_type_b="AUX_FIT", &                  !!! AUX_FIT
+                                   sab_nl=sab_aux)
+         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_orb, &
+                                   basis_type_a="AUX_FIT", &                  !!! AUX_FIT
+                                   basis_type_b="ORB", &
+                                   sab_nl=sab_aux_orb)
+         CALL release_neighbor_list_sets(sab_aux)
+         CALL release_neighbor_list_sets(sab_aux_orb)
+         CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks)
+ 
+         nspins = SIZE(mos)
+         ALLOCATE(mos_aux(nspins))
+         CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+         CALL get_qs_kind_set(qs_kind_set, nsgf=nao, basis_type="AUX_FIT")   !!! AUX_FIT
+         DO ispin = 1, nspins
+            NULLIFY(mos_aux(ispin)%mo_set)
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nelectron=nelectron, &
+                            n_el_f=n_el_f, nmo=nmo, flexible_electron_count=flexible_electron_count)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, &
+                                     context=mo_coeff%matrix_struct%context, &
+                                     para_env=mo_coeff%matrix_struct%para_env)
+            CALL allocate_mo_set(mos_aux(ispin)%mo_set, nao, nmo, nelectron, &
+                                 n_el_f, maxocc, flexible_electron_count)
+            CALL init_mo_set(mo_set=mos_aux(ispin)%mo_set, fm_struct=fm_struct, name="MO_AUX")
+            CALL cp_fm_struct_release(fm_struct)
+         END DO
+ 
+         CALL fit_mo_coeffs(matrix_s_aux, matrix_s_aux_orb, mos, mos_aux)
+         CALL evaluate_optvals(mos, mos_aux, matrix_ks, matrix_s_aux_orb(1)%matrix, &
+                               matrix_s_aux(1)%matrix, matrix_S_inv(1)%matrix, &
                                f_vec(my_id), energy(my_id), cond_vec(my_id))
+ 
+         DO ispin = 1, nspins
+            CALL deallocate_mo_set(mos_aux(ispin)%mo_set)
+         END DO
+         DEALLOCATE(mos_aux)
+
          my_time(my_id) = m_walltime() - start_time(icalc)
       END DO
+
+      IF(ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
+      IF(ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
 
       DEALLOCATE (start_time)
 
@@ -359,6 +419,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: input_file
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
 
       CALL timeset(routineN, handle)
 
@@ -398,7 +460,15 @@ CONTAINS
          CALL get_qs_env(qs_env, ks_env=ks_env)
          CALL build_qs_neighbor_lists(qs_env, para_env, molecular=.FALSE., &
                                       force_env_section=qs_env%input)
-         CALL calculate_overlap(ks_env, "S_AB")
+         CALL get_ks_env(ks_env, &
+                         matrix_s=matrix_s, &
+                         sab_orb=sab_orb)
+         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s, &
+                                   matrix_name="OVERLAP", &
+                                   basis_type_a="ORB", &
+                                   basis_type_b="ORB", &
+                                   sab_nl=sab_orb)
+         CALL set_ks_env(ks_env, matrix_s=matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
          CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc)%matrix, &
                                         para_env, blacs_env)

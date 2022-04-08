@@ -72,7 +72,6 @@ MODULE optbas_fenv_manipulation
 
    PUBLIC :: modify_input_settings, &
              allocate_mo_sets, &
-             calculate_overlap, &
              create_opt_admm_env, &
              update_basis_set, &
              calculate_ks_matrix, &
@@ -290,52 +289,6 @@ CONTAINS
       CALL cp_fm_release(work1)
 
    END SUBROUTINE calculate_overlap_inverse
-
-! **************************************************************************************************
-!> \brief ...
-!> \param ks_env ...
-!> \param S_type ...
-! **************************************************************************************************
-   SUBROUTINE calculate_overlap(ks_env, S_type)
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      CHARACTER(LEN=*)                                   :: S_type
-
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, &
-                                                            matrix_s_aux_fit_vs_orb
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux_fit, sab_aux_fit_vs_orb, sab_orb
-
-      IF (S_type == "S_AB") THEN
-         CALL get_ks_env(ks_env, &
-                         matrix_s=matrix_s, &
-                         sab_orb=sab_orb)
-         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s, &
-                                   matrix_name="OVERLAP", &
-                                   basis_type_a="ORB", &
-                                   basis_type_b="ORB", &
-                                   sab_nl=sab_orb)
-         CALL set_ks_env(ks_env, matrix_s=matrix_s)
-      ELSE IF (S_type == "S_AB_AUX") THEN
-         CALL get_ks_env(ks_env, &
-                         matrix_s_aux_fit=matrix_s_aux_fit, &
-                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                         sab_aux_fit=sab_aux_fit, &
-                         sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
-         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_fit, &
-                                   matrix_name="AUX_FIT_OVERLAP", &
-                                   basis_type_a="AUX_FIT", &
-                                   basis_type_b="AUX_FIT", &
-                                   sab_nl=sab_aux_fit)
-         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_fit_vs_orb, &
-                                   matrix_name="MIXED_OVERLAP", &
-                                   basis_type_a="AUX_FIT", &
-                                   basis_type_b="ORB", &
-                                   sab_nl=sab_aux_fit_vs_orb)
-         CALL set_ks_env(ks_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                         matrix_s_aux_fit=matrix_s_aux_fit)
-      END IF
-
-   END SUBROUTINE calculate_overlap
 
 ! **************************************************************************************************
 !> \brief ...

@@ -218,8 +218,10 @@ CONTAINS
 !> \par History
 !>       adapted from kg_build_neighborlist
 ! **************************************************************************************************
-   SUBROUTINE optbas_build_neighborlist(qs_env)
+   SUBROUTINE optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux, sab_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'optbas_build_neighborlist'
 
@@ -237,8 +239,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: aux_fit_basis_set, orb_basis_set
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux, sab_aux_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -261,10 +261,6 @@ CONTAINS
                       particle_set=particle_set, &
                       para_env=para_env)
 
-      CALL get_ks_env(ks_env=ks_env, &
-                      sab_aux_fit=sab_aux, &
-                      sab_aux_fit_vs_orb=sab_aux_orb)
-
       CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
 
       ! Allocate work storage
@@ -281,7 +277,7 @@ CONTAINS
 
       DO ikind = 1, nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom2d(ikind)%list)
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
          IF (ASSOCIATED(orb_basis_set)) THEN
             orb_present(ikind) = .TRUE.
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
@@ -289,7 +285,7 @@ CONTAINS
             orb_present(ikind) = .FALSE.
             orb_radius(ikind) = 0.0_dp
          END IF
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type="AUX_FIT")
          IF (ASSOCIATED(aux_fit_basis_set)) THEN
             aux_fit_present(ikind) = .TRUE.
             CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set, kind_radius=aux_fit_radius(ikind))
@@ -306,9 +302,6 @@ CONTAINS
       CALL build_neighbor_lists(sab_aux_orb, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, symmetric=.FALSE., molecular=molecule_only, subcells=subcells, &
                                 nlname="sab_aux_fit_vs_orb")
-
-      CALL set_ks_env(ks_env=ks_env, sab_aux_fit=sab_aux)
-      CALL set_ks_env(ks_env=ks_env, sab_aux_fit_vs_orb=sab_aux_orb)
 
       ! Release work storage
       CALL atom2d_cleanup(atom2d)
