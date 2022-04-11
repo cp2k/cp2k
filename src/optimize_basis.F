@@ -60,6 +60,7 @@ MODULE optimize_basis
                                               update_derived_basis_sets
    USE powell,                          ONLY: powell_optimize
    USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_env_part_release,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
@@ -475,6 +476,9 @@ CONTAINS
          CALL calculate_ks_matrix(qs_env)
 
          CALL section_vals_release(input_file)
+!deb
+         CALL qs_env_part_release(qs_env)
+!deb
          CALL m_chdir(TRIM(ADJUSTL(main_dir)), ierr)
       END DO
 
