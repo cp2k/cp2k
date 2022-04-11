@@ -36,7 +36,11 @@ EndOfMessage
 chmod +x /usr/bin/cp2k
 
 mkdir -p ~/.config/ase
-echo -e "[executables]\ncp2k = /usr/bin/cp2k_shell\n" > ~/.config/ase/ase.conf
+cat > ~/.config/ase/ase.conf << EndOfMessage
+[executables]
+cp2k = /usr/bin/cp2k_shell
+cp2k_main = /usr/bin/cp2k
+EndOfMessage
 
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
