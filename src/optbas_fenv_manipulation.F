@@ -31,10 +31,7 @@ MODULE optbas_fenv_manipulation
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE input_constants,                 ONLY: do_admm_basis_projection,&
-                                              do_admm_purify_mo_diag
-   USE input_section_types,             ONLY: section_vals_add_values,&
-                                              section_vals_get,&
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get,&
@@ -109,10 +106,6 @@ CONTAINS
                                 i_val=debug_print_level)
       CALL section_vals_val_set(dft_section, "SCF%PRINT%DETAILED_ENERGY%_SECTION_PARAMETERS_", &
                                 i_val=debug_print_level)
-      CALL section_vals_add_values(admm_section)
-      CALL section_vals_val_set(admm_section, "ADMM_PURIFICATION_METHOD", &
-                                i_val=do_admm_purify_mo_diag)
-      CALL section_vals_val_set(admm_section, "METHOD", i_val=do_admm_basis_projection)
 
       ! add the new basis file containing the templates to the basis file list
       CALL section_vals_val_get(dft_section, "BASIS_SET_FILE_NAME", n_rep_val=nbasis)
@@ -133,7 +126,7 @@ CONTAINS
          CALL section_vals_val_get(kind_section, "BASIS_SET", &
                                    c_vals=obasinfo, i_rep_val=1, i_rep_section=ikind)
          ALLOCATE (abasinfo(2))
-         abasinfo(1) = "AUX_FIT"
+         abasinfo(1) = "AUX_OPT"
          IF (SIZE(obasinfo) == 1) THEN
             abasinfo(2) = obasinfo(1)
          ELSE
@@ -152,7 +145,7 @@ CONTAINS
                                          c_vals=abasinfo, i_rep_val=2, i_rep_section=ikind)
                ibasis = basis_optimization%combination(bas_id, jkind)
                CPASSERT(SIZE(abasinfo) == 2)
-               CPASSERT(abasinfo(1) == "AUX_FIT")
+               CPASSERT(abasinfo(1) == "AUX_OPT")
                abasinfo(2) = TRIM(ADJUSTL(basis_optimization%kind_basis(jkind)%flex_basis(ibasis)%basis_name))
                EXIT
             END IF
@@ -173,7 +166,7 @@ CONTAINS
       LOGICAL                                            :: natom_mismatch
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools, ao_mo_fm_pools_aux_fit
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
@@ -209,16 +202,6 @@ CONTAINS
                                     id_nr=0, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
                                     natom_mismatch=natom_mismatch)
 
-      CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
-      DO ispin = 1, dft_control%nspins
-         IF (.NOT. ASSOCIATED(mos_aux_fit(ispin)%mo_set%mo_coeff)) THEN
-            CALL init_mo_set(mos_aux_fit(ispin)%mo_set, &
-                             fm_pool=ao_mo_fm_pools_aux_fit(ispin)%pool, &
-                             name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                             "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
-         END IF
-      END DO
-
    END SUBROUTINE allocate_mo_sets
 
 ! **************************************************************************************************
@@ -244,11 +227,7 @@ CONTAINS
       CALL qs_rho_update_rho(rho, qs_env)
       CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       qs_env%requires_mo_derivs = .FALSE.
-      dft_control%do_admm = .FALSE.
-      dft_control%do_admm_mo = .FALSE.
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.)
-      dft_control%do_admm = .TRUE.
-      dft_control%do_admm_mo = .TRUE.
 
    END SUBROUTINE calculate_ks_matrix
 
@@ -317,11 +296,13 @@ CONTAINS
 !> \brief ...
 !> \param opt_bas ...
 !> \param bas_id ...
+!> \param basis_type ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE update_basis_set(opt_bas, bas_id, qs_env)
+   SUBROUTINE update_basis_set(opt_bas, bas_id, basis_type, qs_env)
       TYPE(basis_optimization_type)                      :: opt_bas
       INTEGER                                            :: bas_id
+      CHARACTER(*)                                       :: basis_type
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(default_string_length)                   :: elem
@@ -340,7 +321,7 @@ CONTAINS
             IF (elem == opt_bas%kind_basis(jkind)%element) THEN
                ibasis = opt_bas%combination(bas_id, jkind)
                CALL get_basis_from_container(qs_kind_set(ikind)%basis_sets, basis_set=gto_basis, &
-                                             basis_type="AUX_FIT")
+                                             basis_type=basis_type)
                CALL transfer_data_to_gto(gto_basis, opt_bas%kind_basis(jkind)%flex_basis(ibasis))
                CALL init_orb_basis_set(gto_basis)
             END IF

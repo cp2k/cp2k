@@ -215,13 +215,15 @@ CONTAINS
 !> \param qs_env ...
 !> \param sab_aux ...
 !> \param sab_aux_orb ...
+!> \param basis_type ...
 !> \par History
 !>       adapted from kg_build_neighborlist
 ! **************************************************************************************************
-   SUBROUTINE optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb)
+   SUBROUTINE optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb, basis_type)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux, sab_aux_orb
+      CHARACTER(*)                                       :: basis_type
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'optbas_build_neighborlist'
 
@@ -285,7 +287,7 @@ CONTAINS
             orb_present(ikind) = .FALSE.
             orb_radius(ikind) = 0.0_dp
          END IF
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type="AUX_FIT")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type=basis_type)
          IF (ASSOCIATED(aux_fit_basis_set)) THEN
             aux_fit_present(ikind) = .TRUE.
             CALL get_gto_basis_set(gto_basis_set=aux_fit_basis_set, kind_radius=aux_fit_radius(ikind))
@@ -297,11 +299,11 @@ CONTAINS
       !
       CALL pair_radius_setup(aux_fit_present, aux_fit_present, aux_fit_radius, aux_fit_radius, pair_radius)
       CALL build_neighbor_lists(sab_aux, particle_set, atom2d, cell, pair_radius, &
-                                mic=mic, molecular=molecule_only, subcells=subcells, nlname="sab_aux_fit")
+                                mic=mic, molecular=molecule_only, subcells=subcells, nlname="sab_aux")
       CALL pair_radius_setup(aux_fit_present, orb_present, aux_fit_radius, orb_radius, pair_radius)
       CALL build_neighbor_lists(sab_aux_orb, particle_set, atom2d, cell, pair_radius, &
                                 mic=mic, symmetric=.FALSE., molecular=molecule_only, subcells=subcells, &
-                                nlname="sab_aux_fit_vs_orb")
+                                nlname="sab_aux_orb")
 
       ! Release work storage
       CALL atom2d_cleanup(atom2d)

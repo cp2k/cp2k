@@ -47,7 +47,6 @@ MODULE optimize_basis
    USE optbas_fenv_manipulation,        ONLY: allocate_mo_sets,&
                                               calculate_ks_matrix,&
                                               calculate_overlap_inverse,&
-                                              create_opt_admm_env,&
                                               modify_input_settings,&
                                               update_basis_set
    USE optbas_opt_utils,                ONLY: evaluate_optvals,&
@@ -260,6 +259,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_residuum_vectors'
 
+      CHARACTER(len=8)                                   :: basis_type
       INTEGER                                            :: bas_id, handle, icalc, icomb, ispin, &
                                                             mp_id, my_id, nao, ncalc, nelectron, &
                                                             nmo, nspins, set_id
@@ -281,6 +281,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+!     basis_type = "AUX_FIT"                                                   !!! AUX_FIT
+      basis_type = "AUX_OPT"                                                   !!! AUX_FIT
+      !
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
       ALLOCATE (gdata(ncalc, 4))
       f_vec => gdata(:, 1)
@@ -304,15 +307,15 @@ CONTAINS
          force_env => f_env%force_env
          CALL force_env_get(force_env, qs_env=qs_env)
          CALL get_qs_env(qs_env, ks_env=ks_env)
-         CALL update_basis_set(opt_bas, bas_id, qs_env)                       !!! AUX_FIT
+         CALL update_basis_set(opt_bas, bas_id, basis_type, qs_env)
          NULLIFY (sab_aux, sab_aux_orb)
-         CALL optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb)         !!! AUX_FIT
+         CALL optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb, basis_type)
          CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux, &
-                                   basis_type_a="AUX_FIT", &                  !!! AUX_FIT
-                                   basis_type_b="AUX_FIT", &                  !!! AUX_FIT
+                                   basis_type_a=basis_type, &
+                                   basis_type_b=basis_type, &
                                    sab_nl=sab_aux)
          CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_orb, &
-                                   basis_type_a="AUX_FIT", &                  !!! AUX_FIT
+                                   basis_type_a=basis_type, &
                                    basis_type_b="ORB", &
                                    sab_nl=sab_aux_orb)
          CALL release_neighbor_list_sets(sab_aux)
@@ -322,7 +325,7 @@ CONTAINS
          nspins = SIZE(mos)
          ALLOCATE (mos_aux(nspins))
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
-         CALL get_qs_kind_set(qs_kind_set, nsgf=nao, basis_type="AUX_FIT")   !!! AUX_FIT
+         CALL get_qs_kind_set(qs_kind_set, nsgf=nao, basis_type=basis_type)
          DO ispin = 1, nspins
             NULLIFY (mos_aux(ispin)%mo_set)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nelectron=nelectron, &
@@ -471,7 +474,6 @@ CONTAINS
                                         para_env, blacs_env)
          CALL calculate_ks_matrix(qs_env)
 
-         CALL create_opt_admm_env(qs_env)
          CALL section_vals_release(input_file)
          CALL m_chdir(TRIM(ADJUSTL(main_dir)), ierr)
       END DO

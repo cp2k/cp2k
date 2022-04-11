@@ -96,15 +96,17 @@ CONTAINS
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
-         harris_basis, lri_basis, mao_basis, orb_basis_set, p_lri_basis, ri_aux_basis_set, &
-         ri_basis, ri_xas_basis, soft_basis
+         aux_opt_basis_set, harris_basis, lri_basis, mao_basis, orb_basis_set, p_lri_basis, &
+         ri_aux_basis_set, ri_basis, ri_xas_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (all_potential, gth_potential, sgp_potential, orb_basis_set, aux_basis_set, soft_basis, &
-               lri_basis, p_lri_basis, mao_basis, paw_proj_set, harris_basis, ri_xas_basis)
+      NULLIFY (all_potential, gth_potential, sgp_potential)
+      NULLIFY (aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
+               harris_basis, lri_basis, mao_basis, orb_basis_set, p_lri_basis, ri_aux_basis_set, &
+               ri_basis, ri_xas_basis, soft_basis, aux_opt_basis_set)
       NULLIFY (nprj_ppnl, nprj)
       NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
 
@@ -116,6 +118,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis_set, basis_type="AUX_FIT")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_opt_basis_set, basis_type="AUX_OPT")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis, basis_type="LRI_AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=p_lri_basis, basis_type="P_LRI_AUX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_basis, basis_type="RI_HXC")
@@ -290,6 +293,11 @@ CONTAINS
          IF (ASSOCIATED(aux_fit_basis_set)) THEN
             CALL init_interaction_radii_orb_basis(aux_fit_basis_set, qs_control%eps_pgf_orb, &
                                                   qs_control%eps_kg_orb)
+         END IF
+
+         ! Calculate the aux opt orbital basis function radii
+         IF (ASSOCIATED(aux_opt_basis_set)) THEN
+            CALL init_interaction_radii_orb_basis(aux_opt_basis_set, qs_control%eps_pgf_orb)
          END IF
 
          ! Calculate the aux orbital basis function radii
