@@ -889,7 +889,7 @@ CONTAINS
    END SUBROUTINE qs_ks_release
 
 ! **************************************************************************************************
-!> \brief releases part of the ks_env 
+!> \brief releases part of the ks_env
 !> \param ks_env the ks_env to be released
 !> \par History
 !>      04.2022 created [JGH]

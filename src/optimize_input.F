@@ -197,6 +197,7 @@ CONTAINS
       END IF
 
       ! do IO of ref traj / frc / cell
+      NULLIFY (cell_traj)
       NULLIFY (cell_traj_read, force_traj_read, pos_traj_read, energy_traj_read)
       CALL read_reference_data(oi_env, para_env, force_traj_read, pos_traj_read, energy_traj_read, cell_traj_read)
       n_atom = SIZE(pos_traj_read, 2)

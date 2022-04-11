@@ -90,9 +90,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: abasinfo, obasinfo
       INTEGER                                            :: ibasis, ikind, jkind, nbasis, nkind
-      TYPE(section_vals_type), POINTER                   :: dft_section, &
-                                                            feval_section, kind_section, &
-                                                            subsys_section
+      TYPE(section_vals_type), POINTER                   :: dft_section, feval_section, &
+                                                            kind_section, subsys_section
 
       feval_section => section_vals_get_subs_vals(input_file, "FORCE_EVAL")
       dft_section => section_vals_get_subs_vals(feval_section, "DFT")
