@@ -110,6 +110,7 @@ MODULE qs_environment_types
                                               qs_ks_env_type,&
                                               qs_ks_part_release,&
                                               qs_ks_release,&
+                                              qs_ks_part_release,&
                                               qs_ks_retain,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_release,&
