@@ -287,7 +287,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      basis_type = "AUX_OPT"                                                   !!! AUX_FIT
+      basis_type = "AUX_OPT"
       !
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
       ALLOCATE (gdata(ncalc, 4))
