@@ -5,10 +5,14 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE optimize_basis
-   USE admm_methods,                    ONLY: admm_fit_mo_coeffs
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -34,20 +38,20 @@ MODULE optimize_basis
    USE machine,                         ONLY: m_chdir,&
                                               m_getcwd,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_bcast,&
+   USE message_passing,                 ONLY: mp_allgather,&
+                                              mp_bcast,&
                                               mp_comm_free,&
                                               mp_comm_split,&
                                               mp_sum,&
                                               mp_sync
    USE optbas_fenv_manipulation,        ONLY: allocate_mo_sets,&
                                               calculate_ks_matrix,&
-                                              calculate_overlap,&
                                               calculate_overlap_inverse,&
-                                              create_opt_admm_env,&
                                               modify_input_settings,&
                                               update_basis_set
-   USE optbas_opt_utils,                ONLY: evaluate_energy,&
-                                              evaluate_fval
+   USE optbas_opt_utils,                ONLY: evaluate_optvals,&
+                                              fit_mo_coeffs,&
+                                              optbas_build_neighborlist
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               deallocate_basis_optimization_type,&
                                               subset_type
@@ -56,9 +60,22 @@ MODULE optimize_basis
                                               update_derived_basis_sets
    USE powell,                          ONLY: powell_optimize
    USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_env_part_release,&
                                               qs_environment_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                              qs_kind_type
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type,&
+                                              set_ks_env
+   USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                              deallocate_mo_set,&
+                                              get_mo_set,&
+                                              init_mo_set,&
+                                              mo_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
+   USE qs_overlap,                      ONLY: build_overlap_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -122,6 +139,8 @@ CONTAINS
       CALL mp_comm_split(para_env%group, opt_group, n_groups_created, group_distribution_p, &
                          n_subgroups=SIZE(opt_bas%group_partition), group_partition=opt_bas%group_partition)
       opt_bas%opt_id = group_distribution(para_env%mepos) + 1
+      opt_bas%n_groups_created = n_groups_created
+      ALLOCATE (opt_bas%sub_sources(0:para_env%num_pe - 1))
 
       CALL driver_optimization_para_low(opt_bas, input_declaration, para_env, opt_group)
 
@@ -148,7 +167,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'driver_optimization_para_low'
 
-      INTEGER                                            :: handle, icalc, iopt, mp_id, stat
+      INTEGER                                            :: handle, icalc, iopt, is, mp_id, stat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: f_env_id
       LOGICAL                                            :: write_basis
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tot_time
@@ -167,8 +186,11 @@ CONTAINS
       ALLOCATE (tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
       ALLOCATE (matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
-      CALL cp_para_env_create(para_env, group=mpi_comm_opt, &
-                              owns_group=.FALSE.)
+      CALL cp_para_env_create(para_env, group=mpi_comm_opt, owns_group=.FALSE.)
+
+      is = -1
+      IF (para_env%ionode) is = para_env_top%mepos
+      CALL mp_allgather(is, opt_bas%sub_sources, para_env_top%group)
 
       CALL init_training_force_envs(opt_bas, f_env_id, input_declaration, matrix_s_inv, para_env, mpi_comm_opt)
 
@@ -181,9 +203,8 @@ CONTAINS
                                        para_env_top, para_env, iopt)
          IF (para_env_top%ionode) &
             CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
-         IF (.NOT. para_env_top%ionode) opt_bas%x_opt = 0.0_dp
          CALL mp_bcast(opt_bas%powell_param%state, para_env_top%source, para_env_top%group)
-         CALL mp_sum(opt_bas%x_opt, para_env_top%group)
+         CALL mp_bcast(opt_bas%x_opt, para_env_top%source, para_env_top%group)
          CALL update_free_vars(opt_bas)
          write_basis = MOD(iopt, opt_bas%write_frequency) == 0
          CALL update_derived_basis_sets(opt_bas, write_basis, opt_bas%output_basis_file, &
@@ -197,8 +218,7 @@ CONTAINS
          CALL powell_optimize(opt_bas%powell_param%nvar, opt_bas%x_opt, opt_bas%powell_param)
       END IF
 
-      IF (.NOT. para_env_top%ionode) opt_bas%x_opt = 0.0_dp
-      CALL mp_sum(opt_bas%x_opt, para_env_top%group)
+      CALL mp_bcast(opt_bas%x_opt, para_env_top%source, para_env_top%group)
       CALL update_free_vars(opt_bas)
       CALL update_derived_basis_sets(opt_bas, .TRUE., opt_bas%output_basis_file, &
                                      para_env_top)
@@ -240,26 +260,43 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_residuum_vectors'
 
-      INTEGER                                            :: bas_id, handle, icalc, icomb, mp_id, &
-                                                            my_id, ncalc, set_id
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cond_vec, energy, f_vec, my_time, &
+      CHARACTER(len=8)                                   :: basis_type
+      INTEGER                                            :: bas_id, handle, icalc, icomb, ispin, &
+                                                            mp_id, my_id, nao, ncalc, nelectron, &
+                                                            nmo, nspins, set_id
+      REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cond_vec, energy, f_vec, my_time, &
                                                             start_time
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s_aux_fit, &
-                                                            matrix_s_aux_fit_vs_orb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gdata
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s_aux, matrix_s_aux_orb
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux, sab_aux_orb
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (matrix_ks, matrix_s_aux_fit_vs_orb, matrix_s_aux_fit, ks_env)
-
+!     basis_type = "AUX_FIT"                                                   !!! AUX_FIT
+      basis_type = "AUX_OPT"                                                   !!! AUX_FIT
+      !
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
-      ALLOCATE (f_vec(ncalc)); ALLOCATE (my_time(ncalc)); ALLOCATE (cond_vec(ncalc)); ALLOCATE (energy(ncalc))
+      ALLOCATE (gdata(ncalc, 4))
+      f_vec => gdata(:, 1)
+      my_time => gdata(:, 2)
+      cond_vec => gdata(:, 3)
+      energy => gdata(:, 4)
+      !
       f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
       mp_id = opt_bas%opt_id
       ALLOCATE (start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
+      !
+      NULLIFY (matrix_s_aux_orb, matrix_s_aux)
 
       DO icalc = 1, SIZE(opt_bas%comp_group(mp_id)%member_list)
          my_id = opt_bas%comp_group(mp_id)%member_list(icalc) + 1
@@ -271,48 +308,82 @@ CONTAINS
          force_env => f_env%force_env
          CALL force_env_get(force_env, qs_env=qs_env)
          CALL get_qs_env(qs_env, ks_env=ks_env)
-         CALL update_basis_set(opt_bas, bas_id, qs_env)
-         CALL build_qs_neighbor_lists(qs_env, para_env, molecular=.FALSE., force_env_section=qs_env%input)
-         CALL calculate_overlap(ks_env, "S_AB_AUX")
-         CALL get_qs_env(qs_env, &
-                         matrix_ks=matrix_ks, &
-                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                         matrix_s_aux_fit=matrix_s_aux_fit)
-         CALL admm_fit_mo_coeffs(qs_env%admm_env, matrix_s_aux_fit, &
-                                 matrix_s_aux_fit_vs_orb, qs_env%mos, qs_env%mos_aux_fit, &
-                                 geometry_did_change=.TRUE.)
-         CALL evaluate_fval(qs_env%mos, qs_env%mos_aux_fit, matrix_s_aux_fit_vs_orb(1)%matrix, &
-                            matrix_s_aux_fit(1)%matrix, qs_env%admm_env, f_vec(my_id), cond_vec(my_id))
-         CALL evaluate_energy(qs_env%mos_aux_fit, matrix_ks, matrix_s_inv(icalc)%matrix, qs_env%admm_env%Q, &
-                              qs_env%admm_env%work_aux_aux, energy(my_id))
+         CALL update_basis_set(opt_bas, bas_id, basis_type, qs_env)
+         NULLIFY (sab_aux, sab_aux_orb)
+         CALL optbas_build_neighborlist(qs_env, sab_aux, sab_aux_orb, basis_type)
+         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux, &
+                                   basis_type_a=basis_type, &
+                                   basis_type_b=basis_type, &
+                                   sab_nl=sab_aux)
+         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_orb, &
+                                   basis_type_a=basis_type, &
+                                   basis_type_b="ORB", &
+                                   sab_nl=sab_aux_orb)
+         CALL release_neighbor_list_sets(sab_aux)
+         CALL release_neighbor_list_sets(sab_aux_orb)
+         CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks)
+
+         nspins = SIZE(mos)
+         ALLOCATE (mos_aux(nspins))
+         CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+         CALL get_qs_kind_set(qs_kind_set, nsgf=nao, basis_type=basis_type)
+         DO ispin = 1, nspins
+            NULLIFY (mos_aux(ispin)%mo_set)
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nelectron=nelectron, &
+                            n_el_f=n_el_f, nmo=nmo, flexible_electron_count=flexible_electron_count)
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo, &
+                                     context=mo_coeff%matrix_struct%context, &
+                                     para_env=mo_coeff%matrix_struct%para_env)
+            CALL allocate_mo_set(mos_aux(ispin)%mo_set, nao, nmo, nelectron, &
+                                 n_el_f, maxocc, flexible_electron_count)
+            CALL init_mo_set(mo_set=mos_aux(ispin)%mo_set, fm_struct=fm_struct, name="MO_AUX")
+            CALL cp_fm_struct_release(fm_struct)
+         END DO
+
+         CALL fit_mo_coeffs(matrix_s_aux, matrix_s_aux_orb, mos, mos_aux)
+         CALL evaluate_optvals(mos, mos_aux, matrix_ks, matrix_s_aux_orb(1)%matrix, &
+                               matrix_s_aux(1)%matrix, matrix_S_inv(1)%matrix, &
+                               f_vec(my_id), energy(my_id), cond_vec(my_id))
+
+         DO ispin = 1, nspins
+            CALL deallocate_mo_set(mos_aux(ispin)%mo_set)
+         END DO
+         DEALLOCATE (mos_aux)
 
          my_time(my_id) = m_walltime() - start_time(icalc)
       END DO
-      IF (.NOT. para_env%ionode) THEN
-         f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
-      END IF
+
+      IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
+      IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
 
       DEALLOCATE (start_time)
 
-      CALL mp_sum(f_vec, para_env_top%group)
-      CALL mp_sum(cond_vec, para_env_top%group)
-      CALL mp_sum(my_time, para_env_top%group)
-      CALL mp_sum(energy, para_env_top%group)
-      opt_bas%powell_param%f = 0.0_dp
-      DO icalc = 1, SIZE(f_vec)
-         icomb = MOD(icalc - 1, opt_bas%ncombinations)
-         opt_bas%powell_param%f = opt_bas%powell_param%f + &
-                                  (f_vec(icalc) + energy(icalc))*opt_bas%fval_weight(icomb)
-         IF (opt_bas%use_condition_number) &
-            opt_bas%powell_param%f = opt_bas%powell_param%f + &
-                                     LOG(cond_vec(icalc))*opt_bas%condition_weight(icomb)
-      END DO
+      IF (.NOT. para_env%ionode) THEN
+         f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
+      END IF
+      ! collect date from all subgroup ionodes on the main ionode
+      CALL mp_sum(gdata, para_env_top%group)
 
-      CALL mp_sync(para_env_top%group)
+      opt_bas%powell_param%f = 0.0_dp
+      IF (para_env_top%ionode) THEN
+         DO icalc = 1, SIZE(f_vec)
+            icomb = MOD(icalc - 1, opt_bas%ncombinations)
+            opt_bas%powell_param%f = opt_bas%powell_param%f + &
+                                     (f_vec(icalc) + energy(icalc))*opt_bas%fval_weight(icomb)
+            IF (opt_bas%use_condition_number) &
+               opt_bas%powell_param%f = opt_bas%powell_param%f + &
+                                        LOG(cond_vec(icalc))*opt_bas%condition_weight(icomb)
+         END DO
+      ELSE
+         f_vec = 0.0_dp; cond_vec = 0.0_dp; my_time = 0.0_dp; energy = 0.0_dp
+      END IF
+      CALL mp_bcast(opt_bas%powell_param%f, para_env_top%source, para_env_top%group)
 
       ! output info if required
       CALL output_opt_info(f_vec, cond_vec, my_time, tot_time, opt_bas, iopt, para_env_top)
-      DEALLOCATE (f_vec); DEALLOCATE (my_time); DEALLOCATE (cond_vec); DEALLOCATE (energy)
+      DEALLOCATE (gdata)
+
+      CALL mp_sync(para_env_top%group)
 
       CALL timestop(handle)
 
@@ -346,6 +417,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(section_vals_type), POINTER                   :: input_file
@@ -388,14 +461,24 @@ CONTAINS
          CALL get_qs_env(qs_env, ks_env=ks_env)
          CALL build_qs_neighbor_lists(qs_env, para_env, molecular=.FALSE., &
                                       force_env_section=qs_env%input)
-         CALL calculate_overlap(ks_env, "S_AB")
+         CALL get_ks_env(ks_env, &
+                         matrix_s=matrix_s, &
+                         sab_orb=sab_orb)
+         CALL build_overlap_matrix(ks_env, matrix_s=matrix_s, &
+                                   matrix_name="OVERLAP", &
+                                   basis_type_a="ORB", &
+                                   basis_type_b="ORB", &
+                                   sab_nl=sab_orb)
+         CALL set_ks_env(ks_env, matrix_s=matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
          CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc)%matrix, &
                                         para_env, blacs_env)
          CALL calculate_ks_matrix(qs_env)
 
-         CALL create_opt_admm_env(qs_env)
          CALL section_vals_release(input_file)
+!deb
+         CALL qs_env_part_release(qs_env)
+!deb
          CALL m_chdir(TRIM(ADJUSTL(main_dir)), ierr)
       END DO
 
@@ -600,7 +683,7 @@ CONTAINS
          DO iset = 1, opt_bas%ntraining_sets
             DO ibasis = 1, opt_bas%ncombinations
                icalc = icalc + 1
-               WRITE (unit_nr, '(1X,A,2(5X,I3,5X,A),2(1X,E14.8,1X,A),1X,F8.3)') &
+               WRITE (unit_nr, '(1X,A,2(5X,I3,5X,A),2(1X,E14.8,1X,A),1X,F8.1)') &
                   'BASOPT| ', iset, "|", ibasis, "|", f_vec(icalc), "|", cond_vec(icalc), "|", tot_time(icalc)
             END DO
          END DO

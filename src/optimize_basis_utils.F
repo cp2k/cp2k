@@ -327,6 +327,7 @@ CONTAINS
             END DO
          END IF
       END IF
+
    END SUBROUTINE generate_computation_groups
 
 ! **************************************************************************************************
