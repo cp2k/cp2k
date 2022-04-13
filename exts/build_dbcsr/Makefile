@@ -74,10 +74,7 @@ ifeq (, $(wildcard $(ARCHFILE)))
 endif
 include $(ARCHFILE)
 
-# Set the compute version and ACCFLAGS =======================================
-ifneq ($(ACC),)
-
-# Set ARCH version
+# Set the ARCH version ======================================================
 ifeq ($(GPUVER),K20X)
   ARCH_NUMBER = 35
 else ifeq ($(GPUVER),K40)
@@ -101,6 +98,8 @@ ifneq (opencl,$(USE_ACCEL))
   $(error Unknown ARCH_NUMBER since GPUVER="$(GPUVER)" is not recognized)
 endif
 endif
+
+# Set ACCFLAGS ==============================================================
 
 # If compiling with nvcc
 ifeq (cuda,$(USE_ACCEL))
@@ -130,10 +129,7 @@ else ifeq (opencl,$(USE_ACCEL))
   endif
 endif
 
-endif # ACC
-
-# Set the configuration ============================================
-#
+# Set the configuration =====================================================
 ifneq ($(LD_SHARED),)
   ARCHIVE_EXT := .so
 else
@@ -159,18 +155,18 @@ ACC_MAKEDEP := $(wildcard $(LIBSMM_ACC_ABS_DIR)/../acc_makedep.sh)
 
 # if compiling with GPU acceleration
 ifneq ($(ACC),)
-  ifeq (cuda,$(USE_ACCEL))
-    # All *.cpp files belong to the accelerator backend common between CUDA/HIP
-    OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -type f ! -name "acc_cuda.cpp" ! -name "acc_hip.cpp" -name "*.cpp")
-    OBJ_SRC_FILES += $(LIBSMM_ACC_DIR)/../cuda/acc_cuda.cpp
-    # Exclude autotuning files
-    OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -type f ! -name "tune_*_exe*_part*.cu" ! -name "tune_*_exe*_main*.cu"  -name "*.cu")
-  else ifeq (hip,$(USE_ACCEL))
-    # All *.cpp files belong to the accelerator backend common between CUDA/HIP
-    OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -type f ! -name "acc_cuda.cpp" ! -name "acc_hip.cpp" -name "*.cpp")
-    OBJ_SRC_FILES += $(LIBSMM_ACC_DIR)/../hip/acc_hip.cpp
-  # OpenCL backend: OBJ_SRC_FILES already includes all *.c files
-  endif
+ifeq (cuda,$(USE_ACCEL))
+  # All *.cpp files belong to the accelerator backend common between CUDA/HIP
+  OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -type f ! -name "acc_cuda.cpp" ! -name "acc_hip.cpp" -name "*.cpp")
+  OBJ_SRC_FILES += $(LIBSMM_ACC_DIR)/../cuda/acc_cuda.cpp
+  # Exclude autotuning files
+  OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -type f ! -name "tune_*_exe*_part*.cu" ! -name "tune_*_exe*_main*.cu"  -name "*.cu")
+else ifeq (hip,$(USE_ACCEL))
+  # All *.cpp files belong to the accelerator backend common between CUDA/HIP
+  OBJ_SRC_FILES += $(shell cd $(SRCDIR); find . -type f ! -name "acc_cuda.cpp" ! -name "acc_hip.cpp" -name "*.cpp")
+  OBJ_SRC_FILES += $(LIBSMM_ACC_DIR)/../hip/acc_hip.cpp
+# OpenCL backend: OBJ_SRC_FILES already includes all *.c files
+endif
 endif
 
 # Include also source files which won't compile into an object file
@@ -286,6 +282,7 @@ endif
 
 # if compiling CUDA backend
 ifeq (cuda,$(USE_ACCEL))
+ifneq ($(ACC),)
 %.o: %.cpp
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 acc_cuda.o: acc_cuda.cpp acc_cuda.h
@@ -298,6 +295,7 @@ else ifeq (hip,$(USE_ACCEL))
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
 acc_hip.o: acc_hip.cpp acc_hip.h
 	$(ACC) -c $(ACCFLAGS) -I'$(SRCDIR)' $<
+endif
 # if compiling OpenCL backend
 else ifeq (opencl,$(USE_ACCEL))
 OPENCL_KRNLGEN := $(LIBSMM_ACC_ABS_DIR)/../opencl/acc_opencl.sh

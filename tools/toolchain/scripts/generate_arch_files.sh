@@ -269,6 +269,13 @@ OFFLOAD_TARGET = hip
 EOF
   fi
 
+  if [ "$__OPENCL" = "on" ]; then
+    cat << EOF >> $__filename
+#
+override DBCSR_USE_ACCEL = opencl
+EOF
+  fi
+
   if [ "$__WARNALL" = "on" ]; then
     cat << EOF >> $__filename
 #
@@ -311,15 +318,28 @@ if [ "$MPI_MODE" != no ]; then
   arch_vers="${arch_vers} psmp pdbg"
 fi
 
+# opencl enabled arch files
+if [ "$ENABLE_OPENCL" = __TRUE__ ]; then
+  gen_arch_file "local_opencl.ssmp" OPENCL
+  gen_arch_file "local_opencl.sdbg" OPENCL DEBUG
+  if [ "$MPI_MODE" != no ]; then
+    gen_arch_file "local_opencl.psmp" OPENCL MPI
+    gen_arch_file "local_opencl.pdbg" OPENCL MPI DEBUG
+    gen_arch_file "local_opencl_warn.psmp" OPENCL MPI WARNALL
+    gen_arch_file "local_coverage_opencl.pdbg" OPENCL MPI COVERAGE
+  fi
+  DBCSR_OPENCL=OPENCL
+fi
+
 # cuda enabled arch files
 if [ "$ENABLE_CUDA" = __TRUE__ ]; then
-  gen_arch_file "local_cuda.ssmp" CUDA
-  gen_arch_file "local_cuda.sdbg" CUDA DEBUG
+  gen_arch_file "local_cuda.ssmp" CUDA ${DBCSR_OPENCL}
+  gen_arch_file "local_cuda.sdbg" CUDA ${DBCSR_OPENCL} DEBUG
   if [ "$MPI_MODE" != no ]; then
-    gen_arch_file "local_cuda.psmp" CUDA MPI
-    gen_arch_file "local_cuda.pdbg" CUDA MPI DEBUG
-    gen_arch_file "local_cuda_warn.psmp" CUDA MPI WARNALL
-    gen_arch_file "local_coverage_cuda.pdbg" CUDA MPI COVERAGE
+    gen_arch_file "local_cuda.psmp" CUDA ${DBCSR_OPENCL} MPI
+    gen_arch_file "local_cuda.pdbg" CUDA ${DBCSR_OPENCL} MPI DEBUG
+    gen_arch_file "local_cuda_warn.psmp" CUDA ${DBCSR_OPENCL} MPI WARNALL
+    gen_arch_file "local_coverage_cuda.pdbg" CUDA ${DBCSR_OPENCL} MPI COVERAGE
   fi
 fi
 
@@ -355,6 +375,7 @@ To build CP2K you should change directory:
 
 arch files for GPU enabled CUDA versions are named "local_cuda.*"
 arch files for GPU enabled HIP versions are named "local_hip.*"
+arch files for OpenCL (GPU) versions are named "local_opencl.*"
 arch files for coverage versions are named "local_coverage.*"
 
 Note that these pre-built arch files are for the GNU compiler, users have to adapt them for other compilers.
