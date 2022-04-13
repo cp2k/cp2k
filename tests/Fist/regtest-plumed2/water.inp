@@ -13,7 +13,7 @@
 
     &MD
         ENSEMBLE NVT
-        STEPS 20
+        STEPS 5
         TIMESTEP 2.5
         TEMPERATURE 298
 
