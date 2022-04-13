@@ -260,8 +260,7 @@ __device__ static void grid_to_cxyz(const kernel_params *params,
  * \author Ole Schuett
  ******************************************************************************/
 template <bool COMPUTE_TAU>
-__device__ static void store_hab(const kernel_params *params,
-                                 const smem_task *task, const double *cab) {
+__device__ static void store_hab(const smem_task *task, const double *cab) {
 
   // The spherical index runs over angular momentum and then over contractions.
   // The carthesian index runs over exponents and then over angular momentum.
@@ -386,10 +385,10 @@ __device__ static void integrate_kernel(const kernel_params *params) {
   grid_to_cxyz(params, &task, params->grid, smem_cxyz);
 
   zero_cab(&task, smem_cab);
-  compute_alpha(params, &task, smem_alpha);
-  cab_to_cxyz(params, &task, smem_alpha, smem_cab, smem_cxyz);
+  compute_alpha(&task, smem_alpha);
+  cab_to_cxyz(&task, smem_alpha, smem_cab, smem_cxyz);
 
-  store_hab<COMPUTE_TAU>(params, &task, smem_cab);
+  store_hab<COMPUTE_TAU>(&task, smem_cab);
 
   if (CALCULATE_FORCES) {
     store_forces_and_virial<COMPUTE_TAU>(params, &task, smem_cab);

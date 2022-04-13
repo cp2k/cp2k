@@ -322,8 +322,7 @@ __inline__ __device__ float3 compute_coordinates(const float *__restrict__ dh_,
  *        (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
  ******************************************************************************/
 template <typename T>
-__inline__ __device__ void compute_alpha(const kernel_params &params,
-                                         const smem_task<T> &task,
+__inline__ __device__ void compute_alpha(const smem_task<T> &task,
                                          T *__restrict__ alpha) {
   // strides for accessing alpha
   const int s3 = (task.lp + 1);
@@ -529,11 +528,11 @@ __inline__ T compute_cube_properties(
   }
 }
 
-__inline__ __device__ void
-compute_window_size(const int *const grid_size, const int *const lower_corner_,
-                    const int *const period_, /* also full size of the grid */
-                    const int border_mask, const int *border_width,
-                    int3 *const window_size, int3 *const window_shift) {
+__inline__ __device__ void compute_window_size(const int *const grid_size,
+                                               const int border_mask,
+                                               const int *border_width,
+                                               int3 *const window_size,
+                                               int3 *const window_shift) {
   window_shift->x = 0;
   window_shift->y = 0;
   window_shift->z = 0;
@@ -561,9 +560,8 @@ compute_window_size(const int *const grid_size, const int *const lower_corner_,
  ******************************************************************************/
 template <typename T>
 __device__ __inline__ static void
-cab_to_cxyz(const kernel_params &params, const smem_task<T> &task,
-            const T *__restrict__ alpha, const T *__restrict__ cab,
-            T *__restrict__ cxyz) {
+cab_to_cxyz(const smem_task<T> &task, const T *__restrict__ alpha,
+            const T *__restrict__ cab, T *__restrict__ cxyz) {
 
   //   *** initialise the coefficient matrix, we transform the sum
   //
@@ -613,9 +611,8 @@ cab_to_cxyz(const kernel_params &params, const smem_task<T> &task,
  ******************************************************************************/
 template <typename T>
 __device__ __inline__ static void
-cxyz_to_cab(const kernel_params &params, const smem_task<T> &task,
-            const T *__restrict__ alpha, const T *__restrict__ cxyz,
-            T *__restrict__ cab) {
+cxyz_to_cab(const smem_task<T> &task, const T *__restrict__ alpha,
+            const T *__restrict__ cxyz, T *__restrict__ cab) {
 
   //   *** initialise the coefficient matrix, we transform the sum
   //
@@ -792,8 +789,6 @@ class smem_parameters {
 private:
   int la_max_{-1};
   int lb_max_{-1};
-  int la_min_{-1};
-  int lb_min_{-1};
   int smem_per_block_{0};
   int cxyz_len_{-1};
   int alpha_len_{-1};

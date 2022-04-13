@@ -97,9 +97,9 @@ __global__ void calculate_coefficients(const kernel_params dev_) {
   __syncthreads();
   block_to_cab<T, IS_FUNC_AB>(dev_, task, smem_cab);
   __syncthreads();
-  compute_alpha(dev_, task, smem_alpha);
+  compute_alpha(task, smem_alpha);
   __syncthreads();
-  cab_to_cxyz(dev_, task, smem_alpha, smem_cab, coefs_);
+  cab_to_cxyz(task, smem_alpha, smem_cab, coefs_);
   __syncthreads();
 
   for (int z = tid; z < ncoset(task.lp);
@@ -182,8 +182,7 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
     if (distributed__) {
       if (task.apply_border_mask) {
         compute_window_size(
-            dev_.grid_local_size_, dev_.grid_lower_corner_,
-            dev_.grid_full_size_, // also full size of the grid
+            dev_.grid_local_size_,
             dev_.tasks[dev_.first_task + blockIdx.x].border_mask,
             dev_.grid_border_width_, &task.window_size, &task.window_shift);
       }

@@ -278,8 +278,8 @@ __device__ static void collocate_kernel(const kernel_params *params) {
   zero_cab(&task, smem_cab);
   block_to_cab<IS_FUNC_AB>(params, &task, smem_cab);
 
-  compute_alpha(params, &task, smem_alpha);
-  cab_to_cxyz(params, &task, smem_alpha, smem_cab, smem_cxyz);
+  compute_alpha(&task, smem_alpha);
+  cab_to_cxyz(&task, smem_alpha, smem_cab, smem_cxyz);
 
   cxyz_to_grid(params, &task, smem_cxyz, params->grid);
 }

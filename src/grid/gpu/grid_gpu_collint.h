@@ -118,7 +118,7 @@ typedef struct {
  * \brief Shared memory representation of a task.
  * \author Ole Schuett
  ******************************************************************************/
-typedef struct : grid_gpu_task_struct {
+typedef struct smem_task_struct : grid_gpu_task_struct {
   // angular momentum range of actual collocate / integrate operation
   int la_max;
   int lb_max;
@@ -323,8 +323,7 @@ general_cxyz_to_grid(const kernel_params *params, const smem_task *task,
  *        (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls
  * \author Ole Schuett
  ******************************************************************************/
-__device__ static void compute_alpha(const kernel_params *params,
-                                     const smem_task *task, double *alpha) {
+__device__ static void compute_alpha(const smem_task *task, double *alpha) {
   // strides for accessing alpha
   const int s3 = (task->lp + 1);
   const int s2 = (task->la_max + 1) * s3;
@@ -360,8 +359,7 @@ __device__ static void compute_alpha(const kernel_params *params,
  * \brief Transforms coefficients C_ab into C_xyz.
  * \author Ole Schuett
  ******************************************************************************/
-__device__ static void cab_to_cxyz(const kernel_params *params,
-                                   const smem_task *task, const double *alpha,
+__device__ static void cab_to_cxyz(const smem_task *task, const double *alpha,
                                    GRID_CONST_WHEN_COLLOCATE double *cab,
                                    GRID_CONST_WHEN_INTEGRATE double *cxyz) {
 
@@ -464,7 +462,7 @@ __device__ static void load_task(const kernel_params *params, smem_task *task) {
     const int itask = params->first_task + blockIdx.x;
     const grid_gpu_task *src_task = &params->tasks[itask];
     grid_gpu_task *dest_task = task; // Upcast to base struct.
-    for (int i = threadIdx.x; i < sizeof(grid_gpu_task); i += blockDim.x) {
+    for (int i = threadIdx.x; i < (int)sizeof(grid_gpu_task); i += blockDim.x) {
       ((char *)dest_task)[i] = ((const char *)src_task)[i];
     }
   }

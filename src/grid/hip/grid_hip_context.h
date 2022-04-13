@@ -401,7 +401,7 @@ public:
   void initialize_basis_sets(const grid_basis_set **basis_sets,
                              const int nkinds__) {
     nkinds = nkinds__;
-    if (nkinds__ > sphi.size()) {
+    if (nkinds__ > (int)sphi.size()) {
       for (auto &phi : sphi)
         if (phi != nullptr) {
           offloadFree(phi);
@@ -442,7 +442,7 @@ public:
     offloadStreamCreate(&main_stream);
 
     // allocate one hip stream per grid level
-    if (level_streams.size() < nlevels) {
+    if ((int)level_streams.size() < nlevels) {
       level_streams.resize(nlevels);
       for (auto &stream : level_streams) {
         offloadStreamCreate(&stream);
