@@ -5,6 +5,9 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+// needed for struct timespec
+#define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
 #include <omp.h>
 #include <stdint.h>
