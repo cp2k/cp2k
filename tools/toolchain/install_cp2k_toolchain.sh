@@ -726,6 +726,14 @@ if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
   fi
 fi
 
+# If OpenCL is enabled, make sure LIBXSMM is enabled as well.
+if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
+  if [ "${with_libxsmm}" = "__DONTUSE__" ]; then
+    report_error "LIBXSMM is necessary for the OpenCL backend (--with-libxsmm)"
+    exit 1
+  fi
+fi
+
 # PEXSI and its dependencies
 if [ "${with_pexsi}" = "__DONTUSE__" ]; then
   if [ "${with_ptscotch}" != "__DONTUSE__" ]; then
