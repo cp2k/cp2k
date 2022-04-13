@@ -224,6 +224,29 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CXXFLAGS+=" ${HIP_INCLUDES}"
 fi
 
+# OpenCL handling (GPUVER is not a prerequisite)
+if [ "${ENABLE_OPENCL}" = __TRUE__ ]; then
+  OPENCL_DFLAGS="-D__DBCSR_ACC"
+  # avoid duplicating OPENCL_DFLAGS into DFLAGS
+  if [[ "${GPUVER}" == no || ("${ENABLE_CUDA}" != __TRUE__ && "${ENABLE_HIP}" != __TRUE__) ]]; then
+    DFLAGS="IF_OPENCL(${OPENCL_DFLAGS}|) ${DFLAGS}"
+  fi
+
+  # Set include flags
+  OPENCL_FLAGS=""
+  add_include_from_paths OPENCL_FLAGS "CL/cl.h" $INCLUDE_PATHS
+
+  # Set LD-flags
+  OPENCL_LDFLAGS=""
+  LIBOPENCL=$(ldconfig -p 2>/dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
+  if [ "${LIBOPENCL}" ]; then
+    echo "Found library ${LIBOPENCL}"
+    LIBS+=" IF_OPENCL(${LIBOPENCL}|)"
+  else
+    LIBS+=" IF_OPENCL(-lOpenCL|)"
+  fi
+fi
+
 # -------------------------
 # generate the arch files
 # -------------------------
