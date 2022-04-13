@@ -238,7 +238,7 @@ if [ "${ENABLE_OPENCL}" = __TRUE__ ]; then
 
   # Set LD-flags
   OPENCL_LDFLAGS=""
-  LIBOPENCL=$(ldconfig -p 2>/dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
+  LIBOPENCL=$(ldconfig -p 2> /dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
   if [ "${LIBOPENCL}" ]; then
     echo "Found library ${LIBOPENCL}"
     LIBS+=" IF_OPENCL(${LIBOPENCL}|)"
