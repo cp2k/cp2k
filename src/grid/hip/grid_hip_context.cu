@@ -250,7 +250,8 @@ extern "C" void grid_hip_create_task_list(
     });
   */
   // it is a exclusive scan actually
-  for (int level = 1; level < ctx->number_of_tasks_per_level_.size(); level++) {
+  for (int level = 1; level < (int)ctx->number_of_tasks_per_level_.size();
+       level++) {
     ctx->first_task_per_level_[level] =
         ctx->first_task_per_level_[level - 1] +
         ctx->number_of_tasks_per_level_[level - 1];
@@ -275,7 +276,7 @@ extern "C" void grid_hip_create_task_list(
 
   int offset = 0;
   // flatten the task_sorted_by_block and compute the offsets
-  for (int i = 0; i < task_sorted_by_block.size(); i++) {
+  for (int i = 0; i < (int)task_sorted_by_block.size(); i++) {
     auto &task_list = task_sorted_by_block[i];
 
     // take care of the case where the blocks are not associated to a given
@@ -296,9 +297,9 @@ extern "C" void grid_hip_create_task_list(
   ctx->task_sorted_by_blocks_dev.resize(sorted_blocks.size());
   ctx->task_sorted_by_blocks_dev.copy_to_gpu(sorted_blocks);
 
-  for (int i = 0; i < sorted_blocks_offset.size(); i++) {
+  for (int i = 0; i < (int)sorted_blocks_offset.size(); i++) {
     int num_tasks = 0;
-    if (i == sorted_blocks_offset.size() - 1)
+    if (i == (int)sorted_blocks_offset.size() - 1)
       num_tasks = ntasks - sorted_blocks_offset[i];
     else
       num_tasks = sorted_blocks_offset[i + 1] - sorted_blocks_offset[i];

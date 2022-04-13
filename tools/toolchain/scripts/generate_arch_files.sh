@@ -277,7 +277,7 @@ gen_arch_file() {
 #
 GPUVER        = \${GPUVER}
 OFFLOAD_CC    = \${NVCC}
-OFFLOAD_FLAGS = \${NVFLAGS}
+OFFLOAD_FLAGS = \${NVFLAGS} -Xcompiler='-Wall -Wextra -Werror'
 OFFLOAD_TARGET = cuda
 EOF
   fi
@@ -287,7 +287,7 @@ EOF
 #
 GPUVER        = \${GPUVER}
 OFFLOAD_CC    = \${ROCM_PATH}/hip/bin/hipcc
-OFFLOAD_FLAGS = \${HIP_FLAGS} \${HIP_INCLUDES}
+OFFLOAD_FLAGS = \${HIP_FLAGS} \${HIP_INCLUDES} -Wall -Wextra -Werror
 OFFLOAD_TARGET = hip
 EOF
   fi
