@@ -103,7 +103,8 @@ FCFLAGS+=" IF_MPI($(allowed_gfortran_flags "-fallow-argument-mismatch")|)"
 
 # TODO: Remove -Wno-vla-parameter after upgrade to gcc 11.3.
 # https://gcc.gnu.org/bugzilla//show_bug.cgi?id=101289
-CFLAGS="$G_CFLAGS -std=c11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
+# Note: c11 vs gnu11 drops certain prototypes and definitions like CLOCK_REALTIME, etc.
+CFLAGS="$G_CFLAGS -std=gnu11 -Wall -Wextra -Werror -Wno-vla-parameter -Wno-deprecated-declarations \$(DFLAGS)"
 
 # Linker flags
 # About --whole-archive see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52590
