@@ -134,20 +134,20 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CUDA_FLAGS=""
   add_include_from_paths CUDA_FLAGS "cuda.h" $INCLUDE_PATHS
   NVFLAGS+=" ${CUDA_FLAGS}"
-  NVCC_PATH="$(dirname $(command -v nvcc))"
-  CUDA_PATH="${CUDA_PATH:-${CUDA_HOME:-${NVCC_PATH/..:-/CUDA_HOME-notset}}}"
-  CFLAGS+=" -I${CUDA_PATH}/include"
-  CXXFLAGS+=" -I${CUDA_PATH}/include"
+  NVCC_TOPDIR="$(dirname $(command -v nvcc))/.."
+  CUDA_PATH="${CUDA_PATH:-${CUDA_HOME:-${NVCC_TOPDIR:-/CUDA_HOME-notset}}}"
+  CFLAGS+=" IF_CUDA(-I${CUDA_PATH}/include|)"
+  CXXFLAGS+=" IF_CUDA(-I${CUDA_PATH}/include|)"
 
   # Set LD-flags
-  CUDA_LDFLAGS=''
+  CUDA_LDFLAGS=""
   add_lib_from_paths CUDA_LDFLAGS "libcudart.*" $LIB_PATHS
   add_lib_from_paths CUDA_LDFLAGS "libnvrtc.*" $LIB_PATHS
   add_lib_from_paths CUDA_LDFLAGS "libcuda.*" $LIB_PATHS
   add_lib_from_paths CUDA_LDFLAGS "libcufft.*" $LIB_PATHS
   add_lib_from_paths CUDA_LDFLAGS "libcublas.*" $LIB_PATHS
   export CUDA_LDFLAGS="${CUDA_LDFLAGS}"
-  LDFLAGS+=" ${CUDA_LDFLAGS}"
+  LDFLAGS+=" IF_CUDA(${CUDA_LDFLAGS}|)"
 fi
 
 # HIP handling
@@ -158,7 +158,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   check_lib -lhipfft "hip"
   add_lib_from_paths HIP_LDFLAGS "libhipfft.*" $LIB_PATHS
 
-  PLATFORM_FLAGS=''
+  PLATFORM_FLAGS=""
   HIP_INCLUDES="-I${ROCM_PATH}/include"
   case "${GPUVER}" in
     Mi50)
@@ -229,19 +229,20 @@ fi
 # OpenCL handling (GPUVER is not a prerequisite)
 if [ "${ENABLE_OPENCL}" = __TRUE__ ]; then
   OPENCL_DFLAGS="-D__DBCSR_ACC"
-  # avoid duplicating OPENCL_DFLAGS into DFLAGS
+  # avoid duplicating FLAGS
   if [[ "${GPUVER}" == no || ("${ENABLE_CUDA}" != __TRUE__ && "${ENABLE_HIP}" != __TRUE__) ]]; then
-    DFLAGS="IF_OPENCL(${OPENCL_DFLAGS}|) ${DFLAGS}"
+    OPENCL_FLAGS="${CFLAGS} ${OPENCL_DFLAGS} ${DFLAGS}"
+    DFLAGS="IF_OPENCL(${OPENCL_DFLAGS} ${DFLAGS}|)"
+    # Set include flags
+    OPENCL_INCLUDES=""
+    add_include_from_paths -p OPENCL_INCLUDES "CL" $INCLUDE_PATHS
+    if [ -e "${OPENCL_INCLUDES}/CL/cl.h" ]; then
+      OPENCL_FLAGS+=" ${OPENCL_INCLUDES}"
+    fi
   fi
-
-  # Set include flags
-  OPENCL_FLAGS=""
-  add_include_from_paths OPENCL_FLAGS "CL/cl.h" $INCLUDE_PATHS
-
-  # Set LD-flags
-  OPENCL_LDFLAGS=""
+  # Append OpenCL library to LIBS
   LIBOPENCL=$(ldconfig -p 2> /dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
-  if [ "${LIBOPENCL}" ]; then
+  if [ -e "${LIBOPENCL}" ]; then
     echo "Found library ${LIBOPENCL}"
     LIBS+=" IF_OPENCL(${LIBOPENCL}|)"
   else
@@ -264,7 +265,7 @@ gen_arch_file() {
   shift
   local __flags=$@
   local __full_flag_list="MPI DEBUG CUDA WARNALL COVERAGE"
-  local __flag=''
+  local __flag=""
   for __flag in $__full_flag_list; do
     eval "local __${__flag}=off"
   done
@@ -299,6 +300,11 @@ EOF
 #
 override DBCSR_USE_ACCEL = opencl
 EOF
+    if [ "${OPENCL_FLAGS}" ]; then
+      cat << EOF >> $__filename
+OFFLOAD_FLAGS = \${OPENCL_FLAGS}
+EOF
+    fi
   fi
 
   if [ "$__WARNALL" = "on" ]; then
