@@ -117,9 +117,9 @@ LIBS="${CP_LIBS} -lstdc++"
 
 CXXFLAGS+=" --std=c++11 \$(DFLAGS) -Wno-deprecated-declarations"
 # CUDA handling
-CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
-CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
+  CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
+  CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
   LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
   DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
   NVFLAGS="-g -arch sm_${ARCH_NUM} -O3 -allow-unsupported-compiler -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
@@ -134,8 +134,10 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CUDA_FLAGS=""
   add_include_from_paths CUDA_FLAGS "cuda.h" $INCLUDE_PATHS
   NVFLAGS+=" ${CUDA_FLAGS}"
-  CFLAGS+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
-  CXXFLAGS+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
+  NVCC_PATH="$(dirname $(command -v nvcc))"
+  CUDA_PATH="${CUDA_PATH:-${CUDA_HOME:-${NVCC_PATH/..:-/CUDA_HOME-notset}}}"
+  CFLAGS+=" -I${CUDA_PATH}/include"
+  CXXFLAGS+=" -I${CUDA_PATH}/include"
 
   # Set LD-flags
   CUDA_LDFLAGS=''
