@@ -341,7 +341,7 @@ check_command() {
     local __package=${2}
   fi
   if $(command -v ${__command} >&- 2>&-); then
-    echo "path to ${__command} is " $(command -v ${__command})
+    echo "path to ${__command} is $(command -v ${__command})"
   else
     report_error "Cannot find ${__command}, please check if the package ${__package} is installed or in system search path"
     return 1
