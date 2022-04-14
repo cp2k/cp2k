@@ -1394,7 +1394,6 @@ CONTAINS
       DEALLOCATE (index_list)
       DEALLOCATE (r_pbc)
 
-!deb
       nentry = 0
       CALL neighbor_list_iterator_create(nl_iterator, ab_list)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -1426,7 +1425,6 @@ CONTAINS
          END IF
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
-!deb
 
       CALL timestop(handle)
 

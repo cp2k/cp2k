@@ -17,8 +17,7 @@ MODULE pw_env_types
                                               destroy_cube_info
    USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                               gridlevel_info_type
-   USE input_section_types,             ONLY: section_vals_release,&
-                                              section_vals_type
+   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_poisson_types,                ONLY: pw_poisson_release,&
                                               pw_poisson_type
@@ -172,22 +171,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief releases the given pw_env (see doc/ReferenceCounting.html)
 !> \param pw_env the pw_env to release
-!> \param kg ...
 !> \param para_env ...
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE pw_env_release(pw_env, kg, para_env)
+   SUBROUTINE pw_env_release(pw_env, para_env)
       TYPE(pw_env_type), POINTER                         :: pw_env
-      LOGICAL, OPTIONAL                                  :: kg
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       INTEGER                                            :: i, igrid_level
-      LOGICAL                                            :: my_kg
 
-      my_kg = .FALSE.
-      IF (PRESENT(kg)) my_kg = kg
       IF (ASSOCIATED(pw_env)) THEN
          CPASSERT(pw_env%ref_count > 0)
          pw_env%ref_count = pw_env%ref_count - 1
@@ -195,13 +189,7 @@ CONTAINS
             CALL pw_poisson_release(pw_env%poisson_env)
             CALL pw_pools_dealloc(pw_env%pw_pools)
             IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
-               IF (my_kg) THEN
-                  DEALLOCATE (pw_env%gridlevel_info%cutoff)
-                  CALL section_vals_release(pw_env%gridlevel_info%print_section)
-                  DEALLOCATE (pw_env%gridlevel_info%count)
-               ELSE
-                  CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info, para_env)
-               END IF
+               CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info, para_env)
                DEALLOCATE (pw_env%gridlevel_info)
             END IF
             IF (ASSOCIATED(pw_env%cube_info)) THEN

@@ -282,8 +282,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-!     basis_type = "AUX_FIT"                                                   !!! AUX_FIT
-      basis_type = "AUX_OPT"                                                   !!! AUX_FIT
+      basis_type = "AUX_OPT"
       !
       ncalc = opt_bas%ncombinations*opt_bas%ntraining_sets
       ALLOCATE (gdata(ncalc, 4))
@@ -476,9 +475,9 @@ CONTAINS
          CALL calculate_ks_matrix(qs_env)
 
          CALL section_vals_release(input_file)
-!deb
+
          CALL qs_env_part_release(qs_env)
-!deb
+
          CALL m_chdir(TRIM(ADJUSTL(main_dir)), ierr)
       END DO
 

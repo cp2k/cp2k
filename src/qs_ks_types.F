@@ -986,7 +986,7 @@ CONTAINS
             CALL release_neighbor_list_sets(ks_env%sab_almo)
             CALL release_neighbor_list_sets(ks_env%sab_kp)
             CALL kpoint_release(ks_env%kpoints)
-            CALL pw_env_release(ks_env%pw_env)
+            CALL pw_env_release(ks_env%pw_env, ks_env%para_env)
             CALL admm_dm_release(ks_env%admm_dm)
 
          END IF
