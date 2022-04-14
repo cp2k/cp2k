@@ -2533,7 +2533,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_integrals'
 
       INTEGER :: handle, iatom, ibasis, icol, ikind, imax, img, irow, iset, jatom, jkind, jset, &
-         m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, unit_id
+         m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, unit_id, i_diag
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
                                                             npgfj, nsgfi, nsgfj
@@ -2541,7 +2541,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_kpoints_prv, do_symmetric, found, &
                                                             trans
-      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp)                                      :: dab, regularization_RI
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sij, sij_contr, sij_rs
       REAL(KIND=dp), DIMENSION(3)                        :: ri, rij, rj
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_i, set_radius_j
@@ -2576,6 +2576,7 @@ CONTAINS
       IF (do_kpoints_prv) THEN
          nimg = dft_control%nimages
          CALL get_kpoint_info(kpoints, cell_to_index=cell_to_index)
+         regularization_RI = qs_env%mp2_env%ri_rpa_im_time%regularization_RI
       ELSE
          nimg = 1
       END IF
@@ -2710,6 +2711,15 @@ CONTAINS
                   END IF
 
                   DEALLOCATE (sij_contr)
+
+                  ! RI regularization
+                  IF (do_kpoints_prv .AND. cell(1) == 0 .AND. cell(2) == 0 .AND. cell(3) == 0 .AND. &
+                      iatom == jatom .AND. iset == jset) THEN
+                      DO i_diag = 1, nsgfi(iset)
+                         sij_rs(i_diag, i_diag) = sij_rs(i_diag, i_diag) + &
+                                                  regularization_RI*MAX(1.0_dp, 1.0_dp/MINVAL(zeti(:, iset)))
+                      END DO
+                  END IF
 
                   CALL block_add("IN", sij_rs, &
                                  nsgfi(iset), nsgfj(jset), block_t%block, &

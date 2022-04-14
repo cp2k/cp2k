@@ -65,7 +65,7 @@ MODULE rpa_kpoints
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_kpoints'
 
-   PUBLIC :: RPA_postprocessing_kp, cp_cfm_robust_cholesky
+   PUBLIC :: RPA_postprocessing_kp, cp_cfm_robust_cholesky, real_space_to_kpoint_transform_rpa, get_mat_cell_T_from_mat_gamma
 
 CONTAINS
 
@@ -108,7 +108,7 @@ CONTAINS
                                     do_ri_Sigma_x, do_kpoints_from_Gamma, do_kpoints_cubic_RPA, &
                                     cfm_mat_W_kp_tau, cfm_mat_Q, ikp_local, mat_P_omega, mat_P_omega_kp, &
                                     qs_env, eps_filter_im_time, unit_nr, kpoints, fm_mat_L, fm_mat_W, &
-                                    fm_mat_RI_global_work, mat_SinvVSinv)
+                                    fm_mat_RI_global_work, mat_SinvVSinv, fm_mat_SiVtrSi)
 
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, nkp, &
                                                             count_ev_sc_GW
@@ -133,7 +133,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_mat_SiVtrSi
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
@@ -152,7 +152,7 @@ CONTAINS
       END IF
 
       IF (do_kpoints_from_Gamma) THEN
-         CALL get_P_cell_T_from_P_gamma(mat_P_omega, qs_env, kpoints, jquad, unit_nr)
+         CALL get_mat_cell_T_from_mat_gamma(mat_P_omega(jquad,:), qs_env, kpoints, jquad, unit_nr)
       END IF
 
       CALL transform_P_from_real_space_to_kpoints(mat_P_omega, mat_P_omega_kp, &
@@ -198,7 +198,9 @@ CONTAINS
                                                  dimen_RI, 1, 1, &
                                                  ikp, tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy, &
                                                  ikp_local, para_env, kpoints, qs_env, wkp_V, &
-                                                 mat_SinvVSinv, do_W_and_not_V=.FALSE.)
+                                                 mat_SinvVSinv, do_W_and_not_V=.FALSE., &
+                                                 fm_mat_SiVtrSi_re=fm_mat_SiVtrSi(ikp, 1)%matrix, &
+                                                 fm_mat_SiVtrSi_im=fm_mat_SiVtrSi(ikp, 2)%matrix)
 
                CALL release_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
 
@@ -696,13 +698,13 @@ CONTAINS
 !> \param jquad ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE get_P_cell_T_from_P_gamma(mat_P_omega, qs_env, kpoints, jquad, unit_nr)
-      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
+   SUBROUTINE get_mat_cell_T_from_mat_gamma(mat_P_omega, qs_env, kpoints, jquad, unit_nr)
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)    :: mat_P_omega
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: jquad, unit_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_P_cell_T_from_P_gamma'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_cell_T_from_mat_gamma'
 
       INTEGER                                            :: col, handle, i_cell, i_dim, num_cells_P, &
                                                             num_integ_points, row
@@ -746,8 +748,8 @@ CONTAINS
       ! first, copy the Gamma-only result from mat_P_omega(1) into all other matrices and
       ! remove the blocks later which do not belong to the cell index
       DO i_cell = 2, num_cells_P
-         CALL dbcsr_copy(mat_P_omega(jquad, i_cell)%matrix, &
-                         mat_P_omega(jquad, 1)%matrix)
+         CALL dbcsr_copy(mat_P_omega(i_cell)%matrix, &
+                         mat_P_omega(1)%matrix)
       END DO
 
       first_cutoff = qs_env%mp2_env%ri_rpa_im_time%abs_cutoffs_chi_W(1)
@@ -778,7 +780,7 @@ CONTAINS
 
       DO i_cell = 1, num_cells_P
 
-         CALL dbcsr_iterator_start(iter, mat_P_omega(jquad, i_cell)%matrix)
+         CALL dbcsr_iterator_start(iter, mat_P_omega(i_cell)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col, data_block)
 
@@ -807,7 +809,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE get_P_cell_T_from_P_gamma
+   END SUBROUTINE get_mat_cell_T_from_mat_gamma
 
 ! **************************************************************************************************
 !> \brief ...
@@ -834,10 +836,9 @@ CONTAINS
 
       num_integ_points = SIZE(mat_P_omega, 1)
       nkp = SIZE(mat_P_omega, 2)
-      index_to_cell_dm => kpoints%index_to_cell
 
       CALL real_space_to_kpoint_transform_rpa(mat_P_omega_kp(1, :), mat_P_omega_kp(2, :), mat_P_omega(jquad, :), &
-                                              kpoints, index_to_cell_dm, eps_filter_im_time)
+                                              kpoints, eps_filter_im_time)
 
       DO icell = 1, SIZE(mat_P_omega, 2)
          CALL dbcsr_set(mat_P_omega(jquad, icell)%matrix, 0.0_dp)
@@ -858,7 +859,7 @@ CONTAINS
 !> \param eps_filter_im_time ...
 ! **************************************************************************************************
    SUBROUTINE real_space_to_kpoint_transform_rpa(real_mat_kp, imag_mat_kp, mat_real_space, &
-                                                 kpoints, index_to_cell, eps_filter_im_time)
+                                                 kpoints, eps_filter_im_time)
 
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: real_mat_kp, imag_mat_kp, mat_real_space
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -883,6 +884,9 @@ CONTAINS
 
       ! this kpoint environme t should be the kpoints for D(it) and X(it) created in init_cell_index_rpa
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp)
+
+      NULLIFY(index_to_cell)
+      index_to_cell => kpoints%index_to_cell
 
       num_cells = SIZE(index_to_cell, 2)
 
@@ -962,6 +966,6 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-   END SUBROUTINE
+   END SUBROUTINE dbcsr_add_local
 
 END MODULE rpa_kpoints

@@ -38,12 +38,14 @@ MODULE mp2_integrals
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
-   USE dbt_api,                         ONLY: &
-        dbt_clear, dbt_contract, dbt_copy, dbt_create, dbt_destroy, dbt_distribution_destroy, &
-        dbt_distribution_new, dbt_distribution_type, dbt_filter, dbt_get_block, dbt_get_info, &
-        dbt_get_stored_coordinates, dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, &
-        dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_split_blocks, dbt_type
+        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_scalar, dbcsr_type_real_8
+   USE dbt_api,                ONLY: &
+        dbt_clear, dbt_contract, dbt_copy, dbt_create, dbt_destroy, &
+        dbt_distribution_destroy, dbt_distribution_new, dbt_distribution_type, &
+        dbt_filter, dbt_get_block, dbt_get_info, dbt_get_num_blocks, &
+        dbt_get_stored_coordinates, dbt_mp_environ_pgrid, dbt_pgrid_create, &
+        dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, &
+        dbt_reserved_block_indices, dbt_split_blocks, dbt_type, dbt_write_blocks
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type
@@ -109,7 +111,7 @@ MODULE mp2_integrals
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_integrals'
 
-   PUBLIC :: mp2_ri_gpw_compute_in
+   PUBLIC :: mp2_ri_gpw_compute_in, compute_kpoints
 
    TYPE intermediate_matrix_type
       TYPE(dbcsr_type) :: matrix_ia_jnu, matrix_ia_jb
@@ -179,7 +181,7 @@ CONTAINS
    SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
                                     dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, color_sub, &
                                     cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, &
-                                    fm_matrix_L_RI_metric, nmo, homo, &
+                                    fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, nmo, homo, &
                                     mat_munu, &
                                     sab_orb_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                     mo_coeff_gw, eps_filter, unit_nr, &
@@ -207,7 +209,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
@@ -348,7 +350,7 @@ CONTAINS
                             my_group_L_size, my_group_L_start, my_group_L_end, &
                             gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, &
                             num_small_eigen, qs_env%mp2_env%potential_parameter, ri_metric, &
-                            fm_matrix_L_RI_metric, &
+                            fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                             qs_kind_set, sab_orb_sub, calc_forces)
 
@@ -708,6 +710,8 @@ CONTAINS
          CALL create_tensor_batches(sizes_AO, cut_memory_int, starts_array_mc_int, ends_array_mc_int, &
                                     starts_array_mc_block_int, ends_array_mc_block_int)
 
+!JW          PRINT *, 'sizes_AO (THAT ARE PROBABLY ATOMIC BLOCK SIZES) =', sizes_AO, 'from cut memory =', cut_memory_int
+
          DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
 
          CALL create_3c_tensor(t_3c_overl_int_template, dist_RI, dist_AO_1, dist_AO_2, pgrid_t3c_overl, &
@@ -760,6 +764,12 @@ CONTAINS
          ASSOCIATE (cut_memory => qs_env%mp2_env%ri_rpa_im_time%cut_memory)
             CALL create_tensor_batches(sizes_AO_split, cut_memory, starts_array_mc, ends_array_mc, &
                                        starts_array_mc_block, ends_array_mc_block)
+            CALL create_tensor_batches(sizes_RI_split, cut_memory, &
+                                       qs_env%mp2_env%ri_rpa_im_time%starts_array_mc_RI, &
+                                       qs_env%mp2_env%ri_rpa_im_time%ends_array_mc_RI, &
+                                       qs_env%mp2_env%ri_rpa_im_time%starts_array_mc_block_RI, &
+                                       qs_env%mp2_env%ri_rpa_im_time%ends_array_mc_block_RI)
+
          END ASSOCIATE
          cut_memory = qs_env%mp2_env%ri_rpa_im_time%cut_memory
 
@@ -767,9 +777,7 @@ CONTAINS
                                sizes_RI_split, sizes_AO_split, sizes_AO_split, &
                                map1=[1], map2=[2, 3], &
                                name="M (RI | AO AO)")
-
          DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
-
          CALL dbt_pgrid_destroy(pgrid_t3c_M)
 
          ALLOCATE (t_3c_O(SIZE(t_3c_overl_int, 1), SIZE(t_3c_overl_int, 2)))
@@ -780,8 +788,8 @@ CONTAINS
                                map1=[1, 2], map2=[3], &
                                name="O (RI AO | AO)")
          DEALLOCATE (dist_RI, dist_AO_1, dist_AO_2)
-
          CALL dbt_pgrid_destroy(pgrid_t3c_overl)
+
          DO i = 1, SIZE(t_3c_O, 1)
             DO j = 1, SIZE(t_3c_O, 2)
                IF (i > 1 .OR. j > 1) CALL dbt_create(t_3c_O(1, 1), t_3c_O(i, j))
@@ -1238,10 +1246,9 @@ CONTAINS
       kpoints%kp_scheme = "GENERAL"
       kpoints%symmetry = .FALSE.
       kpoints%verbose = .FALSE.
-      kpoints%full_grid = .FALSE.
+      kpoints%full_grid = .TRUE.
       kpoints%use_real_wfn = .FALSE.
       kpoints%eps_geo = 1.e-6_dp
-      kpoints%full_grid = .TRUE.
       nkp_grid(1:3) = qs_env%mp2_env%ri_rpa_im_time%kp_grid(1:3)
       num_dim = periodic(1) + periodic(2) + periodic(3)
 

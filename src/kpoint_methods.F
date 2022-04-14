@@ -400,7 +400,8 @@ CONTAINS
          kpoint%kp_env => kp_env
 
          unit_nr = cp_logger_get_default_io_unit()
-         IF (unit_nr > 0) THEN
+
+         IF (unit_nr > 0 .AND. kpoint%verbose) THEN
             WRITE (unit_nr, *)
             WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoint groups ", nkp_grp
             WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Size of each kpoint group", ngr

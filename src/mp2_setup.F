@@ -201,14 +201,22 @@ CONTAINS
       DO i_special_kp = 1, mp2_env%ri_g0w0%n_special_kp
          CALL section_vals_val_get(mp2_section, "RI_RPA%GW%KPOINT_SET%SPECIAL_POINT", &
                                    i_rep_val=i_special_kp, c_vals=string_pointer)
-         CPASSERT(SIZE(string_pointer(:), 1) == 4)
+         CPASSERT(SIZE(string_pointer(:), 1) == 3)
          DO i = 1, 3
-            CALL read_float_object(string_pointer(i + 1), &
+            CALL read_float_object(string_pointer(i), &
                                    mp2_env%ri_g0w0%xkp_special_kp(i, i_special_kp), &
                                    error_message)
             IF (LEN_TRIM(error_message) > 0) CPABORT(TRIM(error_message))
          END DO
       END DO
+
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%KPOINTS_SELF_ENERGY", &
+                                i_vals=mp2_env%ri_g0w0%kp_grid_Sigma)
+
+      mp2_env%ri_g0w0%do_kpoints_Sigma = mp2_env%ri_g0w0%n_special_kp > 0 .OR. &
+                                         mp2_env%ri_g0w0%kp_grid_Sigma(1) * &
+                                         mp2_env%ri_g0w0%kp_grid_Sigma(2) * &
+                                         mp2_env%ri_g0w0%kp_grid_Sigma(3) > 0
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%SELF_ENERGY", &
                                 l_val=mp2_env%ri_g0w0%print_self_energy)
@@ -240,8 +248,13 @@ CONTAINS
                                 r_val=mp2_env%ri_rpa_im_time%regularization_RI)
       CALL section_vals_val_get(low_scaling_section, "MAKE_CHI_POS_DEFINITE", &
                                 l_val=mp2_env%ri_rpa_im_time%make_chi_pos_definite)
+      CALL section_vals_val_get(low_scaling_section, "TRUNC_COLOUMB_RI_X", &
+                                l_val=mp2_env%ri_rpa_im_time%trunc_coulomb_ri_x)
       CALL section_vals_val_get(low_scaling_section, "K_MESH_G_FACTOR", &
                                 i_val=mp2_env%ri_rpa_im_time%k_mesh_g_factor)
+      CALL section_vals_val_get(low_scaling_section, "GREENS_FUNCTION", &
+                                i_val=mp2_env%ri_rpa_im_time%periodic_gf)
+
 
       CALL section_vals_val_get(low_scaling_section, "KEEP_QUADRATURE", &
                                 l_val=mp2_env%ri_rpa_im_time%keep_quad)

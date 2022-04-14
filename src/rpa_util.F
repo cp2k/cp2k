@@ -125,7 +125,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, num_integ_points, &
                             fm_mat_Q, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                            fm_matrix_L_RI_metric, mat_P_global, &
+                            fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, mat_P_global, &
                             t_3c_O, matrix_s, kpoints, eps_filter_im_time, &
                             do_ri_sos_laplace_mp2, cut_memory, nkp, num_cells_dm, num_3c_repl, &
                             size_P, ikp_local, &
@@ -135,7 +135,7 @@ CONTAINS
                             do_ic_model, do_kpoints_cubic_RPA, &
                             do_kpoints_from_Gamma, do_ri_Sigma_x, my_open_shell, &
                             has_mat_P_blocks, wkp_W, wkp_V, &
-                            cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, &
+                            cfm_mat_Q, fm_mat_L, fm_mat_SiVtrSi, fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, &
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
                             mat_work)
@@ -145,7 +145,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, num_integ_points
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mo_coeff_occ, &
                                                             fm_mo_coeff_virt
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_P_global
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_O
@@ -168,7 +168,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: wkp_W, wkp_V
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_mat_SiVtrSi
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work, &
                                                             fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
@@ -295,12 +295,15 @@ CONTAINS
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          CALL reorder_mat_L(fm_mat_L, fm_matrix_L_RI_metric, fm_mat_Q%matrix_struct, para_env, mat_L, &
-                            mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local, ikp_local, fm_struct_sub_kp)
+                            mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local, .FALSE., ikp_local, fm_struct_sub_kp)
+
+         CALL reorder_mat_L(fm_mat_SiVtrSi, fm_matrix_Sinv_Vtrunc_Sinv, fm_mat_Q%matrix_struct, para_env, mat_L, &
+                            mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local, .TRUE., ikp_local, fm_struct_sub_kp)
 
          CALL cp_fm_struct_release(fm_struct_sub_kp)
       ELSE
          CALL reorder_mat_L(fm_mat_L, fm_matrix_L_RI_metric, fm_mat_Q%matrix_struct, para_env, mat_L, &
-                            mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local)
+                            mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local, .TRUE.)
       END IF
 
       ! Create Scalapack working matrix for the contraction with the metric
@@ -411,7 +414,7 @@ CONTAINS
 !> \param fm_struct_sub_kp ...
 ! **************************************************************************************************
    SUBROUTINE reorder_mat_L(fm_mat_L, fm_matrix_L_RI_metric, fm_struct_template, para_env, mat_L, mat_template, &
-                            dimen_RI, dimen_RI_red, first_ikp_local, ikp_local, fm_struct_sub_kp)
+                            dimen_RI, dimen_RI_red, first_ikp_local, allocate_dbcsr_L, ikp_local, fm_struct_sub_kp)
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_matrix_L_RI_metric
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_template
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -420,6 +423,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, first_ikp_local
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ikp_local
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct_sub_kp
+      LOGICAL :: allocate_dbcsr_L
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reorder_mat_L'
 
@@ -513,20 +517,24 @@ CONTAINS
       ! Release buffer
       CALL cp_fm_release(fm_mat_L_transposed)
 
-      ! Create sparse variant of L
-      NULLIFY (mat_L%matrix)
-      ALLOCATE (mat_L%matrix)
-      IF (dimen_RI == dimen_RI_red) THEN
-         CALL dbcsr_create(mat_L%matrix, template=mat_template)
-      ELSE
-         CALL dbcsr_get_info(mat_template, nblkrows_total=nblk, col_blk_size=col_blk_size)
+      IF(allocate_dbcsr_L) THEN
 
-         CALL calculate_equal_blk_size(row_blk_size, dimen_RI_red, nblk)
-
-         CALL dbcsr_create(mat_L%matrix, template=mat_template, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-
-         DEALLOCATE (row_blk_size)
+         ! Create sparse variant of L
+         NULLIFY (mat_L%matrix)
+         ALLOCATE (mat_L%matrix)
+         IF (dimen_RI == dimen_RI_red) THEN
+            CALL dbcsr_create(mat_L%matrix, template=mat_template)
+         ELSE
+            CALL dbcsr_get_info(mat_template, nblkrows_total=nblk, col_blk_size=col_blk_size)
+   
+            CALL calculate_equal_blk_size(row_blk_size, dimen_RI_red, nblk)
+   
+            CALL dbcsr_create(mat_L%matrix, template=mat_template, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
+   
+            DEALLOCATE (row_blk_size)
+         END IF
       END IF
+
       IF (.NOT. (do_kpoints)) THEN
          CALL copy_fm_to_dbcsr(fm_mat_L(1, 1)%matrix, mat_L%matrix)
       END IF
@@ -1004,11 +1012,12 @@ CONTAINS
                               cell_to_index_3c, do_ic_model, &
                               do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
                               has_mat_P_blocks, &
-                              wkp_W, wkp_V, cfm_mat_Q, fm_mat_L, fm_mat_RI_global_work, fm_mat_work, &
+                              wkp_W, wkp_V, cfm_mat_Q, fm_mat_L, fm_mat_SiVtrSi, &
+                              fm_mat_RI_global_work, fm_mat_work, &
                               fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm, mat_L, &
                               mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, &
                               t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                              mat_work, kpoints_G, kpoints_Sigma, kpoints_Sigma_no_xc)
+                              mat_work, qs_env)
 
       TYPE(cp_fm_p_type), DIMENSION(:)                   :: fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
@@ -1025,7 +1034,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: wkp_W, wkp_V
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_mat_SiVtrSi
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work, &
                                                             fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
@@ -1042,6 +1051,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mat_work
       TYPE(kpoint_type), POINTER                         :: kpoints_G, kpoints_Sigma, &
                                                             kpoints_Sigma_no_xc
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dealloc_im_time'
 
@@ -1068,6 +1078,7 @@ CONTAINS
             IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                IF (ANY(ikp_local(:) == i_size)) THEN
                   CALL cp_fm_release(fm_mat_L(i_size, j_size)%matrix)
+                  CALL cp_fm_release(fm_mat_SiVtrSi(i_size, j_size)%matrix)
                END IF
             ELSE
                CALL cp_fm_release(fm_mat_L(i_size, j_size)%matrix)
@@ -1075,6 +1086,7 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (fm_mat_L)
+      IF(do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) DEALLOCATE(fm_mat_SiVtrSi)
       CALL cp_fm_release(fm_mat_work)
 
       IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
@@ -1083,6 +1095,7 @@ CONTAINS
       END IF
 
       CALL dbcsr_release(mat_L%matrix)
+
       DEALLOCATE (mat_L%matrix)
       IF (do_ri_Sigma_x .OR. do_ic_model) THEN
          CALL dbcsr_release(mat_SinvVSinv%matrix)
@@ -1136,11 +1149,10 @@ CONTAINS
       DEALLOCATE (t_3c_O_compressed)
 
       IF (do_kpoints_from_Gamma) THEN
-         IF (ASSOCIATED(kpoints_G)) CALL kpoint_release(kpoints_G)
-         ! JW later for band structures from GW
-         IF (.NOT. do_kpoints_from_Gamma) THEN
-            IF (ASSOCIATED(kpoints_Sigma)) CALL kpoint_release(kpoints_Sigma)
-            IF (ASSOCIATED(kpoints_Sigma_no_xc)) CALL kpoint_release(kpoints_Sigma_no_xc)
+         CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_G)
+         IF(qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
+            CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma)
+            CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc)
          END IF
       END IF
 

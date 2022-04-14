@@ -17,7 +17,7 @@ MODULE mp2_ri_2c
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
-                                              get_cell
+                                              get_cell, plane_distance
    USE constants_operator,              ONLY: operator_coulomb
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -54,7 +54,7 @@ MODULE mp2_ri_2c
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, dbcsr_release, &
         dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_release
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
@@ -65,7 +65,8 @@ MODULE mp2_ri_2c
                                               do_eri_os,&
                                               do_potential_coulomb,&
                                               do_potential_id,&
-                                              do_potential_long
+                                              do_potential_long, &
+                                              do_potential_truncated
    USE kinds,                           ONLY: dp
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE kpoint_methods,                  ONLY: rskp_transform
@@ -107,7 +108,7 @@ MODULE mp2_ri_2c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_2c'
 
-   PUBLIC :: get_2c_integrals
+   PUBLIC :: get_2c_integrals, setup_abs_cutoffs_chi_and_trunc_coulomb_potential
 
 CONTAINS
 
@@ -151,9 +152,8 @@ CONTAINS
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                gd_array, calc_PQ_cond_num, cond_num, do_svd, &
                                num_small_eigen, potential, ri_metric, &
-                               fm_matrix_L_RI_metric, &
-                               do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub, &
-                               calc_forces)
+                               fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
+                               do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub, calc_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
@@ -172,8 +172,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       LOGICAL, INTENT(IN)                                :: do_svd
       INTEGER, INTENT(OUT)                               :: num_small_eigen
-      TYPE(libint_potential_type)                        :: potential, ri_metric
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
+      TYPE(libint_potential_type)                        :: potential, ri_metric, trunc_coulomb
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints
       REAL(KIND=dp), INTENT(IN)                          :: mp2_eps_pgf_orb_S
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -215,7 +215,7 @@ CONTAINS
             CALL init_interaction_radii(dft_control%qs_control, qs_kind_set)
 
             CALL RI_2c_integral_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, ri_metric, &
-                                    do_kpoints, kpoints)
+                                    do_kpoints, kpoints, put_mat_KS_env=.TRUE.)
 
             ! re-init the radii to previous values
             dft_control%qs_control%eps_pgf_orb = eps_pgf_orb_old
@@ -243,10 +243,13 @@ CONTAINS
 
             CALL compute_V_by_lattice_sum(qs_env, fm_matrix_L_kpoints, fm_matrix_L_RI_metric, kpoints)
 
-            CALL regularize_RI_expansion(fm_matrix_L_RI_metric, qs_env%mp2_env%ri_rpa_im_time%regularization_RI)
+            CALL setup_abs_cutoffs_chi_and_trunc_coulomb_potential(qs_env, kpoints, trunc_coulomb)
+            CALL RI_2c_integral_mat(qs_env, fm_matrix_Sinv_Vtrunc_Sinv, fm_matrix_L, dimen_RI, trunc_coulomb, &
+                                    do_kpoints, kpoints, put_mat_KS_env=.FALSE.)
 
             CALL inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
-                                                            dimen_RI, kpoints)
+                                                            fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints, para_env)
+
 
          ELSE
             IF (calc_forces .AND. (.NOT. do_im_time)) THEN
@@ -471,7 +474,7 @@ CONTAINS
 !> \param kpoints ...
 ! **************************************************************************************************
    SUBROUTINE RI_2c_integral_mat(qs_env, fm_matrix_L_RI_metric, fm_matrix_L, dimen_RI, &
-                                 ri_metric, do_kpoints, kpoints)
+                                 ri_metric, do_kpoints, kpoints, put_mat_KS_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
@@ -480,6 +483,7 @@ CONTAINS
       TYPE(libint_potential_type)                        :: ri_metric
       LOGICAL, INTENT(IN)                                :: do_kpoints
       TYPE(kpoint_type), POINTER                         :: kpoints
+      LOGICAL :: put_mat_KS_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'RI_2c_integral_mat'
 
@@ -565,7 +569,9 @@ CONTAINS
          CALL dbcsr_release(mat_2c(img))
       END DO
 
+      IF(put_mat_KS_env) THEN
       CALL set_ks_env(qs_env%ks_env, matrix_s_RI_aux_kp=matrix_s_RI_aux_transl)
+      END IF
 
       IF (do_kpoints) THEN
          CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, &
@@ -656,6 +662,17 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
 
       CALL cp_fm_release(fm_matrix_S_global)
+
+      IF (.NOT. put_mat_KS_env) THEN
+         CALL dbcsr_deallocate_matrix_set(matrix_s_RI_aux_transl)
+      END IF
+
+      ! JW 2del
+!
+!      DO img = 1, nimg
+!         CALL dbcsr_release(mat_2c(img))
+!      END DO
+!      DEALLOCATE(mat_2c)
 
       CALL timestop(handle)
 
@@ -1376,61 +1393,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_matrix_L_RI_metric ...
-!> \param regularization_RI ...
-! **************************************************************************************************
-   SUBROUTINE regularize_RI_expansion(fm_matrix_L_RI_metric, regularization_RI)
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
-      REAL(KIND=dp)                                      :: regularization_RI
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'regularize_RI_expansion'
-
-      INTEGER                                            :: handle, i_global, iiB, ikp, j_global, &
-                                                            jjB, ncol_local, nkp, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL timeset(routineN, handle)
-
-      nkp = SIZE(fm_matrix_L_RI_metric, 1)
-
-      CALL cp_fm_get_info(matrix=fm_matrix_L_RI_metric(1, 1)%matrix, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      DO ikp = 1, nkp
-
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global == i_global) THEN
-                  fm_matrix_L_RI_metric(ikp, 1)%matrix%local_data(iiB, jjB) = &
-                     fm_matrix_L_RI_metric(ikp, 1)%matrix%local_data(iiB, jjB) + regularization_RI
-               END IF
-            END DO
-         END DO
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE regularize_RI_expansion
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_matrix_L_RI_metric ...
 !> \param fm_matrix_L_kpoints ...
 !> \param dimen_RI ...
 !> \param kpoints ...
 ! **************************************************************************************************
    SUBROUTINE inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
-                                                         dimen_RI, kpoints)
+                                                         fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints, para_env)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
-                                                            fm_matrix_L_kpoints
+                                                            fm_matrix_L_kpoints, fm_matrix_Sinv_Vtrunc_Sinv
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'inversion_of_S_and_mult_with_chol_dec_of_V'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
@@ -1438,12 +1412,13 @@ CONTAINS
 
       INTEGER                                            :: handle, ikp, nkp
       TYPE(cp_cfm_type), POINTER                         :: cfm_matrix_K_tmp, cfm_matrix_L_tmp, &
-                                                            cfm_matrix_S_inv_tmp, cfm_matrix_S_tmp
+                                                            cfm_matrix_S_inv_tmp, cfm_matrix_S_tmp, &
+                                                            cfm_matrix_Vtrunc_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, cfm_matrix_L_tmp, cfm_matrix_K_tmp)
+      NULLIFY (cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, cfm_matrix_L_tmp, cfm_matrix_K_tmp, cfm_matrix_Vtrunc_tmp)
 
       CALL cp_fm_get_info(fm_matrix_L_RI_metric(1, 1)%matrix, matrix_struct=matrix_struct)
 
@@ -1451,6 +1426,7 @@ CONTAINS
       CALL cp_cfm_create(cfm_matrix_S_inv_tmp, matrix_struct)
       CALL cp_cfm_create(cfm_matrix_L_tmp, matrix_struct)
       CALL cp_cfm_create(cfm_matrix_K_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_matrix_Vtrunc_tmp, matrix_struct)
 
       CALL get_kpoint_info(kpoints, nkp=nkp)
 
@@ -1461,6 +1437,9 @@ CONTAINS
 
          CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_L_tmp, cone, fm_matrix_L_kpoints(ikp, 1)%matrix)
          CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_L_tmp, ione, fm_matrix_L_kpoints(ikp, 2)%matrix)
+
+         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_Vtrunc_tmp, cone, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1)%matrix)
+         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_Vtrunc_tmp, ione, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2)%matrix)
 
          CALL cp_cfm_robust_cholesky(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=1.0E-12_dp, exponent=-0.5_dp)
 
@@ -1477,16 +1456,87 @@ CONTAINS
          ! move
          CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_L_RI_metric(ikp, 1)%matrix, fm_matrix_L_RI_metric(ikp, 2)%matrix)
 
+         ! S^(-1)*V_trunc
+         CALL cp_cfm_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_Vtrunc_tmp, cfm_matrix_S_inv_tmp, &
+                          czero, cfm_matrix_K_tmp)
+
+         ! S^(-1)*V_trunc*S^{-1}
+         CALL cp_cfm_gemm("N", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_K_tmp, &
+                          czero, cfm_matrix_Vtrunc_tmp)
+
+         ! move
+         CALL cp_cfm_to_fm(cfm_matrix_Vtrunc_tmp, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1)%matrix, &
+                           fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2)%matrix)
+
       END DO
 
       CALL cp_cfm_release(cfm_matrix_S_tmp)
       CALL cp_cfm_release(cfm_matrix_S_inv_tmp)
       CALL cp_cfm_release(cfm_matrix_L_tmp)
       CALL cp_cfm_release(cfm_matrix_K_tmp)
+      CALL cp_cfm_release(cfm_matrix_Vtrunc_tmp)
 
       CALL timestop(handle)
 
    END SUBROUTINE inversion_of_S_and_mult_with_chol_dec_of_V
+
+
+   SUBROUTINE  setup_abs_cutoffs_chi_and_trunc_coulomb_potential(qs_env, kpoints, trunc_coulomb)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(libint_potential_type), OPTIONAL              :: trunc_coulomb
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_abs_cutoffs_chi_and_trunc_coulomb_potential'
+
+      INTEGER                                            :: handle, num_cells
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp)                                      :: contribution, shortest_dist_cell_planes
+      REAL(KIND=dp), DIMENSION(2)                        :: abs_cutoffs_chi_W
+      INTEGER, DIMENSION(3)                              :: periodic
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (cell)
+      CALL get_qs_env(qs_env, cell=cell)
+
+      CALL get_cell(cell=cell, periodic=periodic)
+
+      shortest_dist_cell_planes = 1.0E10_dp
+      IF(periodic(1) == 1) THEN
+         IF(shortest_dist_cell_planes > plane_distance(1, 0, 0, cell)) THEN
+           shortest_dist_cell_planes = plane_distance(1, 0, 0, cell)
+         END IF
+      END IF
+      IF(periodic(2) == 1) THEN
+         IF(shortest_dist_cell_planes > plane_distance(0, 1, 0, cell)) THEN
+           shortest_dist_cell_planes = plane_distance(0, 1, 0, cell)
+         END IF
+      END IF
+      IF(periodic(3) == 1) THEN
+         IF(shortest_dist_cell_planes > plane_distance(0, 0, 1, cell)) THEN
+           shortest_dist_cell_planes = plane_distance(0, 0, 1, cell)
+         END IF
+      END IF
+
+      abs_cutoffs_chi_W(1:2) = qs_env%mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W(1:2)* &
+                               shortest_dist_cell_planes
+
+      qs_env%mp2_env%ri_rpa_im_time%abs_cutoffs_chi_W(1:2) = abs_cutoffs_chi_W(1:2)
+
+      IF(PRESENT(trunc_coulomb)) THEN
+      trunc_coulomb%potential_type = do_potential_truncated
+      trunc_coulomb%cutoff_radius = (abs_cutoffs_chi_W(1) + abs_cutoffs_chi_W(2))*0.5_dp
+      trunc_coulomb%filename = "t_c_g.dat"
+      ! dummy
+      trunc_coulomb%omega = 0.0_dp
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE setup_abs_cutoffs_chi_and_trunc_coulomb_potential
+
 
 ! **************************************************************************************************
 !> \brief ...

@@ -29,7 +29,7 @@
         &RESTART ON
         &END
       &END
-      ADDED_MOS 10000000
+      ADDED_MOS -1
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE

@@ -23,7 +23,7 @@ MODULE rpa_gw_kpoints
                                               cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
-                                              cp_cfm_type
+                                              cp_cfm_type, cp_cfm_to_cfm
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
@@ -89,7 +89,8 @@ CONTAINS
    SUBROUTINE compute_Wc_real_space_tau_GW(fm_mat_W_tau, cfm_mat_Q, fm_mat_L_re, fm_mat_L_im, &
                                            dimen_RI, num_integ_points, jquad, &
                                            ikp, tj, tau_tj, weights_cos_tf_w_to_t, ikp_local, &
-                                           para_env, kpoints, qs_env, wkp_W, mat_SinvVSinv, do_W_and_not_V)
+                                           para_env, kpoints, qs_env, wkp_W, mat_SinvVSinv, do_W_and_not_V, &
+                                           fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im)
 
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W_tau
       TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q
@@ -106,6 +107,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
       LOGICAL, INTENT(IN)                                :: do_W_and_not_V
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, POINTER              :: fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_real_space_tau_GW'
 
@@ -200,9 +202,18 @@ CONTAINS
 
       ELSE
 
-         ! S^-1(k)V(k)S^-1(k) = L(k)*L(k)^H
-         CALL cp_cfm_gemm('N', 'C', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_L, &
-                          z_zero, cfm_mat_work_2)
+         IF(qs_env%mp2_env%ri_rpa_im_time%trunc_coulomb_ri_x) THEN
+
+           ! Copy fm_mat_L_re and fm_mat_L_re to cfm_mat_L
+           CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_work_2, z_one, fm_mat_SiVtrSi_re)
+           CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_work_2, gaussi, fm_mat_SiVtrSi_im)
+
+         ELSE
+
+            ! S^-1(k)V(k)S^-1(k) = L(k)*L(k)^H
+            CALL cp_cfm_gemm('N', 'C', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_L, &
+                             z_zero, cfm_mat_work_2)
+         END IF
 
       END IF
 
@@ -239,9 +250,11 @@ CONTAINS
 
             IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
 
+               ! symmetrize=.FALSE. necessary since we already have a symmetrized index_to_cell
                CALL compute_weight_re_im(weight_re, weight_im, &
                                          num_cells, iatom, jatom, xkp(1:3, ikp), wkp_W(ikp), &
-                                         cell, index_to_cell, hmat, particle_set, abs_cutoffs_chi_W)
+                                         cell, index_to_cell, hmat, particle_set, abs_cutoffs_chi_W, &
+                                         symmetrize=.FALSE., gamma_only=.FALSE.)
 
                iatom_old = iatom
                jatom_old = jatom

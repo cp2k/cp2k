@@ -38,7 +38,7 @@ MODULE rpa_gw_sigma
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_get_diag, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_symmetric
+        dbcsr_type_antisymmetric, dbcsr_type_symmetric, dbcsr_print
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_ri,                          ONLY: hfx_ri_update_ks
    USE input_constants,                 ONLY: do_admm_basis_projection,&
@@ -60,7 +60,7 @@ MODULE rpa_gw_sigma
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
-   USE message_passing,                 ONLY: mp_sum
+   USE message_passing,                 ONLY: mp_sum, mp_sync
    USE mp2_types,                       ONLY: mp2_type
    USE physcon,                         ONLY: evolt
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -74,6 +74,10 @@ MODULE rpa_gw_sigma
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+                                      USE rpa_gw, ONLY: compute_minus_vxc_kpoints, trafo_to_mo_and_kpoints
+                                      USE rpa_main, ONLY: get_bandstruc_and_k_dependent_MOs
+USE mp2_integrals, ONLY: compute_kpoints
+USE mp2_ri_2c, ONLY: setup_abs_cutoffs_chi_and_trunc_coulomb_potential
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -115,12 +119,14 @@ CONTAINS
       CHARACTER(LEN=40)                                  :: line
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_virt, handle, homo, i_img, ikp, irep, ispin, &
          iunit, myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, nkp, nmo, ns, &
-         nspins, print_exx
+         nspins, print_exx, gw_corr_lev_tot, virtual, nkp_Sigma
       LOGICAL                                            :: charge_constrain_tmp, do_admm_rpa, &
                                                             do_hfx, do_kpoints_cubic_RPA, &
-                                                            do_ri_Sigma_x, really_read_line
+                                                            do_ri_Sigma_x, really_read_line, do_kpoints_from_Gamma
       REAL(KIND=dp) :: eh1, ehfx, energy_exc, energy_exc1, energy_exc1_aux_fit, &
-         energy_exc_aux_fit, energy_total, exx_minus_vxc, hfx_fraction, t1, t2, tmp
+         energy_exc_aux_fit, energy_total, exx_minus_vxc, hfx_fraction, t1, t2, tmp, eigval_dft, &
+         E_HOMO_GW, E_LUMO_GW, E_GAP_GW, eigval_hf_at_dft
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) ::  vec_Sigma_x, Eigenval_kp_HF_at_DFT
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: vec_Sigma_x_minus_vxc_gw, &
                                                             vec_Sigma_x_minus_vxc_gw_im
       TYPE(admm_type), POINTER                           :: admm_env
@@ -133,13 +139,14 @@ CONTAINS
          rho_ao_2d
       TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_tmp_2, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_Sigma
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, xc_section, &
                                                             xc_section_admm_aux, &
                                                             xc_section_admm_prim
+      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: Eigenval_kp
 
       NULLIFY (admm_env, matrix_ks, matrix_ks_aux_fit, rho_ao, matrix_sigma_x_minus_vxc, input, &
                xc_section, xc_section_admm_aux, xc_section_admm_prim, hfx_sections, rho, &
@@ -152,6 +159,7 @@ CONTAINS
       do_admm_rpa = mp2_env%ri_rpa%do_admm
       do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x
       do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
+      do_kpoints_from_Gamma = SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
 
       IF (do_kpoints_cubic_RPA) THEN
          CPASSERT(do_ri_Sigma_x)
@@ -453,6 +461,20 @@ CONTAINS
                   ehfx = ehfx + eh1
                END IF
             END DO
+
+            IF(do_kpoints_from_Gamma) THEN
+              ! not yet there: open shell
+              ALLOCATE(qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(1))
+              DO ispin = 1, 1
+                 NULLIFY(qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(ispin)%matrix)
+                 ALLOCATE(qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(ispin)%matrix)
+                 CALL dbcsr_create(qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(ispin)%matrix, &
+                                   template=matrix_ks(ispin)%matrix)
+                 CALL dbcsr_desymmetrize(matrix_ks(ispin)%matrix, &
+                         qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(ispin)%matrix)
+              END DO
+            END IF
+
          END IF
          energy_ex = ehfx
 
@@ -561,33 +583,103 @@ CONTAINS
 
       IF (print_exx == gw_print_exx) THEN
 
-         IF (unit_nr > 0) THEN
+         IF(do_kpoints_from_Gamma) THEN
 
+           gw_corr_lev_tot = gw_corr_lev_occ+gw_corr_lev_virt
+           virtual = nmo - homo
+
+           CALL get_qs_env(qs_env=qs_env, &
+                           kpoints=kpoints)
+
+           CALL compute_kpoints(qs_env, kpoints, unit_nr)
+
+           ALLOCATE(Eigenval_kp(nmo,1,nspins))
+
+           CALL get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual, Eigenval_kp, &
+                                                  gw_corr_lev_occ, gw_corr_lev_virt, homo)
+
+           CALL compute_minus_vxc_kpoints(qs_env, homo, gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt)
+
+           nkp_Sigma = SIZE(Eigenval_kp, 2)
+
+           ALLOCATE(vec_Sigma_x(nmo,nkp_Sigma))
+           vec_Sigma_x(:,:) = 0.0_dp
+
+           CALL setup_abs_cutoffs_chi_and_trunc_coulomb_potential(qs_env, kpoints)
+
+           CALL trafo_to_mo_and_kpoints(qs_env, &
+                                        qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(1)%matrix, &
+                                        vec_Sigma_x(homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt,:), &
+                                        homo, gw_corr_lev_occ, gw_corr_lev_virt, unit_nr)
+
+           DEALLOCATE (vec_Sigma_x_minus_vxc_gw)
+
+           ALLOCATE (vec_Sigma_x_minus_vxc_gw(nmo, nspins, nkp_Sigma))
+
+           vec_Sigma_x_minus_vxc_gw(:,1,:) = vec_Sigma_x(:,:) + &
+                                             qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1,:)
+
+           kpoints_Sigma => qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma
+
+         ELSE
+
+           nkp_Sigma = 1
+
+         END IF
+
+         IF (unit_nr > 0) THEN
+  
+            ALLOCATE (Eigenval_kp_HF_at_DFT(nmo, nkp_Sigma))
+            Eigenval_kp_HF_at_DFT(:,:) = Eigenval_kp(:,:,1) + vec_Sigma_x_minus_vxc_gw(:,1,:)
+
+            WRITE (unit_nr, '(T3,A)') ''
             WRITE (unit_nr, '(T3,A)') 'Exchange energies'
             WRITE (unit_nr, '(T3,A)') '-----------------'
             WRITE (unit_nr, '(T3,A)') ''
-            WRITE (unit_nr, '(T6,2A)') 'MO                    Sigma_x-vxc'
-            DO n_level_gw = 1, gw_corr_lev_occ + gw_corr_lev_virt
-
-               n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-               IF (n_level_gw <= gw_corr_lev_occ) THEN
-                  occ_virt = 'occ'
-               ELSE
-                  occ_virt = 'vir'
+            WRITE (unit_nr, '(T6,2A)') 'MO                        e_n^DFT          Sigma_x-vxc           e_n^HF@DFT'
+            DO ikp = 1, nkp_Sigma
+               IF(nkp_Sigma > 1) THEN
+                  WRITE (unit_nr, '(T3,A)') ''
+                  WRITE (unit_nr, '(T3,A7,I3,A3,I3,A8,3F7.3,A12,3F7.3)') 'Kpoint ', ikp, '  /', nkp_Sigma, &
+                     '   xkp =', kpoints_Sigma%xkp(1, ikp), kpoints_Sigma%xkp(2, ikp), &
+                     kpoints_Sigma%xkp(3, ikp), '  and  xkp =', -kpoints_Sigma%xkp(1, ikp), &
+                     -kpoints_Sigma%xkp(2, ikp), -kpoints_Sigma%xkp(3, ikp)
+                  WRITE (unit_nr, '(T3,A)') ''
                END IF
+               DO n_level_gw = 1, gw_corr_lev_occ + gw_corr_lev_virt
+      
+                  n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
+                  IF (n_level_gw <= gw_corr_lev_occ) THEN
+                     occ_virt = 'occ'
+                  ELSE
+                     occ_virt = 'vir'
+                  END IF
+     
+                  eigval_dft       = Eigenval_kp(n_level_gw_ref, ikp, 1)*evolt
+                  exx_minus_vxc    = REAL(vec_Sigma_x_minus_vxc_gw(n_level_gw_ref, 1, ikp)*evolt, kind=dp)
+                  eigval_hf_at_dft = Eigenval_kp_HF_at_DFT(n_level_gw_ref, ikp)*evolt
 
-               exx_minus_vxc = REAL(vec_Sigma_x_minus_vxc_gw(n_level_gw_ref, 1, 1)*evolt, kind=dp)
-
-               WRITE (unit_nr, '(T4,I4,3A,3F21.3)') &
-                  n_level_gw_ref, ' ( ', occ_virt, ')  ', exx_minus_vxc
-
+                  WRITE (unit_nr, '(T4,I4,3A,3F21.3,3F21.3,3F21.3)') &
+                     n_level_gw_ref, ' ( ', occ_virt, ')  ', eigval_dft, exx_minus_vxc, eigval_hf_at_dft
+      
+               END DO
+               E_HOMO_GW = MAXVAL(Eigenval_kp_HF_at_DFT(homo - gw_corr_lev_occ + 1:homo, ikp))
+               E_LUMO_GW = MINVAL(Eigenval_kp_HF_at_DFT(homo + 1:homo + gw_corr_lev_virt, ikp))
+               E_GAP_GW = E_LUMO_GW - E_HOMO_GW
+               WRITE (unit_nr, '(T3,A)') ''
+               WRITE (unit_nr, '(T3,A,F53.2)') 'HF@PBE HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A)') ''
             END DO
+
+            WRITE (unit_nr, '(T3,A)') ''
             WRITE (unit_nr, '(T3,A)') 'End of exchange energies'
             WRITE (unit_nr, '(T3,A)') '------------------------'
             WRITE (unit_nr, '(T3,A)') ''
          END IF
 
       END IF
+
+      CALL mp_sync(para_env%group)
 
       IF (print_exx == gw_read_exx) THEN
 
