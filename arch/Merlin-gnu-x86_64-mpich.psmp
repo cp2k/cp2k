@@ -2,7 +2,7 @@
 #
 # CP2K (GNU x86_64) arch file for Linux clusters
 #
-# Tested with: GNU 10.3.0 (and 11.2.0), MPICH 3.3.2 (and OpenMPI 4.1.1),
+# Tested with: GNU 11.2.0, MPICH 3.4.3,
 #              ScaLAPACK 2.1.0, OpenBLAS 0.3.20, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 5.2.2, ELPA 2021.11.002, PLUMED 2.8.0, SPGLIB 1.16.2,
 #              LIBVORI 210412, GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.1
@@ -10,8 +10,6 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
-#        Optionally, GNU compiler and MPICH version can be specified as arguments.
-#        Replace or adapt the "module add" commands below if needed.
 #
 # Author: Matthias Krack (14.04.2022)
 #
@@ -23,14 +21,9 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
-   if [[ -n "${1}" ]]; then \
-      module add ${1}; \
-      [[ -n "${2}" ]] && module add ${2}; \
-      module list; \
-      ./install_cp2k_toolchain.sh --install-all --with-gcc=system --with-mpich=system; \
-   else \
-      ./install_cp2k_toolchain.sh --install-all --with-gcc --with-mpich; \
-   fi; \
+   module use unstable; \
+   module add gcc/11.2.0 mpich/3.4.3_merlin; \
+   ./install_cp2k_toolchain.sh -j24 --install-all --with-gcc=system --with-mpich=system --with-elpa=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -56,6 +49,7 @@ USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 210412
 USE_LIBXC      := 5.2.2
 USE_LIBXSMM    := 1.17
+#USE_MKL        := /opt/psi/Programming/intel/22.1/mkl/2022.0.1
 USE_OPENBLAS   := 0.3.20
 USE_PLUMED     := 2.8.0
 USE_QUIP       := b4336484fb65b0e73211a8f920ae4361c7c353fd
@@ -239,20 +233,6 @@ ifneq ($(USE_SPGLIB),)
    endif
 endif
 
-ifneq ($(USE_LIBXSMM),)
-   USE_LIBXSMM    := $(strip $(USE_LIBXSMM))
-   LIBXSMM_INC    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/include
-   LIBXSMM_LIB    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/lib
-   CFLAGS         += -I$(LIBXSMM_INC)
-   DFLAGS         += -D__LIBXSMM
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(LIBXSMM_LIB) -L$(LIBXSMM_LIB) -lxsmmf -lxsmm
-   else
-      LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
-      LIBS           += $(LIBXSMM_LIB)/libxsmm.a
-   endif
-endif
-
 ifneq ($(USE_SIRIUS),)
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
    HDF5_VER       := $(strip $(HDF5_VER))
@@ -308,21 +288,6 @@ ifneq ($(USE_COSMA),)
    endif
 endif
 
-ifneq ($(USE_FFTW),)
-   USE_FFTW       := $(strip $(USE_FFTW))
-   FFTW_INC       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/include
-   FFTW_LIB       := $(INSTALL_PATH)/fftw-$(USE_FFTW)/lib
-   CFLAGS         += -I$(FFTW_INC)
-   DFLAGS         += -D__FFTW3
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(FFTW_LIB) -L$(FFTW_LIB) -lfftw3_mpi -lfftw3_omp -lfftw3
-   else
-      LIBS           += $(FFTW_LIB)/libfftw3_mpi.a
-      LIBS           += $(FFTW_LIB)/libfftw3_omp.a
-      LIBS           += $(FFTW_LIB)/libfftw3.a
-   endif
-endif
-
 ifneq ($(USE_SCALAPACK),)
    SCALAPACK_LIB  := $(INSTALL_PATH)/scalapack-$(USE_SCALAPACK)/lib
    ifeq ($(SHARED), yes)
@@ -342,6 +307,50 @@ ifneq ($(USE_GSL),)
       LIBS           += -Wl,-rpath=$(GSL_LIB) -L$(GSL_LIB) -lgsl
    else
       LIBS           += $(GSL_LIB)/libgsl.a
+   endif
+endif
+
+ifneq ($(USE_LIBXSMM),)
+   USE_LIBXSMM    := $(strip $(USE_LIBXSMM))
+   LIBXSMM_INC    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/include
+   LIBXSMM_LIB    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/lib
+   CFLAGS         += -I$(LIBXSMM_INC)
+   DFLAGS         += -D__LIBXSMM
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(LIBXSMM_LIB) -L$(LIBXSMM_LIB) -lxsmmf -lxsmm
+   else
+      LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
+      LIBS           += $(LIBXSMM_LIB)/libxsmm.a
+   endif
+endif
+
+ifneq ($(USE_MKL),)
+   MKLROOT        := $(strip $(USE_MKL))
+   CFLAGS         += -I$(MKLROOT)/include
+   CFLAGS         += -I$(MKLROOT)/include/fftw
+   DFLAGS         += -D__MKL
+   DFLAGS         += -D__FFTW3
+   LIBS           += $(MKLROOT)/lib/intel64/libmkl_scalapack_lp64.a
+   LIBS           += -Wl,--start-group
+   LIBS           += $(MKLROOT)/lib/intel64/libmkl_gf_lp64.a
+   LIBS           += $(MKLROOT)/lib/intel64/libmkl_gnu_thread.a
+   LIBS           += $(MKLROOT)/lib/intel64/libmkl_core.a
+   LIBS           += ${MKLROOT}/lib/intel64/libmkl_blacs_intelmpi_lp64.a
+   LIBS           += -Wl,--end-group
+endif
+
+ifneq ($(USE_FFTW),)
+   USE_FFTW       := $(strip $(USE_FFTW))
+   FFTW_INC       := $(FFTW_ROOT)/include
+   FFTW_LIB       := $(FFTW_ROOT)/lib
+   CFLAGS         += -I$(FFTW_INC)
+   DFLAGS         += -D__FFTW3
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(FFTW_LIB) -L$(FFTW_LIB) -lfftw3_mpi -lfftw3_omp -lfftw3
+   else
+      LIBS           += $(FFTW_LIB)/libfftw3_mpi.a
+      LIBS           += $(FFTW_LIB)/libfftw3_omp.a
+      LIBS           += $(FFTW_LIB)/libfftw3.a
    endif
 endif
 
