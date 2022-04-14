@@ -275,15 +275,11 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux, sab_aux_orb
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux, sab_aux_orb
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+         POINTER                                         :: sab_aux, sab_aux, sab_aux_orb, &
+                                                            sab_aux_orb
+      TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set, qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env, ks_env
 
       CALL timeset(routineN, handle)
 
