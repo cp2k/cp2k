@@ -396,7 +396,7 @@ check_lib() {
   # instead of ld for linker then we can use LIBRARY_PATH, which IS
   # used during link stage. However, I think using ld is more
   # general, as in most systems LIBRARY_PATH is rarely defined, and
-  # we would have to reply on gcc.
+  # we would have to rely on gcc.
   local __search_engine="ld -o /dev/null"
   local __search_paths="$LIB_PATHS"
   # convert a list of paths to -L<dir> list used by ld
