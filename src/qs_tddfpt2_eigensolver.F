@@ -397,8 +397,11 @@ CONTAINS
             IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
                ! full TDDFPT kernel
                CALL tddfpt_apply_hfx(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, do_admm=do_admm, &
-                                     qs_env=qs_env, work_rho_ia_ao=work_matrices%hfx_rho_ao, &
-                                     work_hmat=work_matrices%hfx_hmat, wfm_rho_orb=work_matrices%hfx_fm_ao_ao)
+                                     qs_env=qs_env, wfm_rho_orb=work_matrices%hfx_fm_ao_ao, &
+                                     work_hmat_symm=work_matrices%hfx_hmat_symm, &
+                                     work_hmat_asymm=work_matrices%hfx_hmat_asymm, &
+                                     work_rho_ia_ao_symm=work_matrices%hfx_rho_ao_symm, &
+                                     work_rho_ia_ao_asymm=work_matrices%hfx_rho_ao_asymm)
             ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
                ! sTDA kernel
                ! special treatment of HFX term

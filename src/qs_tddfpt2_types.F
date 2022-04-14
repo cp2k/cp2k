@@ -27,14 +27,10 @@ MODULE qs_tddfpt2_types
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_create,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_distribution_type,&
-                                              dbcsr_get_info,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release_p,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_complete_redistribute, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_distribution_type, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, &
+        dbcsr_type, dbcsr_type_antisymmetric
    USE ewald_environment_types,         ONLY: ewald_env_release,&
                                               ewald_environment_type
    USE ewald_pw_types,                  ONLY: ewald_pw_release,&
@@ -163,9 +159,9 @@ MODULE qs_tddfpt2_types
       TYPE(cp_fm_type), POINTER                          :: hfx_fm_ao_ao
       !> sparse matrix to store the electron density in terms of auxiliary (ADMM calculation)
       !> or primary (regular calculation) basis set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_rho_ao_symm, hfx_rho_ao_asymm
       !> exact exchange expressed in terms of auxiliary or primary basis set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_hmat
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: hfx_hmat_symm, hfx_hmat_asymm
       !
       ! *** matrices required for sTDA kernel, all matrices are within subgroups
       !
@@ -389,7 +385,8 @@ CONTAINS
       END DO
 
       ! HFX-related globally distributed matrices
-      NULLIFY (work_matrices%hfx_fm_ao_ao, work_matrices%hfx_rho_ao, work_matrices%hfx_hmat)
+      NULLIFY (work_matrices%hfx_fm_ao_ao, work_matrices%hfx_rho_ao_symm, work_matrices%hfx_hmat_symm, &
+               work_matrices%hfx_rho_ao_asymm, work_matrices%hfx_hmat_asymm)
       IF (do_hfx) THEN
          IF (do_admm) THEN
             CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist, sab_aux_fit=sab_hfx)
@@ -403,18 +400,32 @@ CONTAINS
          CALL cp_fm_create(work_matrices%hfx_fm_ao_ao, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
-         CALL dbcsr_allocate_matrix_set(work_matrices%hfx_rho_ao, nspins)
+         CALL dbcsr_allocate_matrix_set(work_matrices%hfx_rho_ao_symm, nspins)
+         CALL dbcsr_allocate_matrix_set(work_matrices%hfx_rho_ao_asymm, nspins)
          DO ispin = 1, nspins
-            CALL dbcsr_init_p(work_matrices%hfx_rho_ao(ispin)%matrix)
-            CALL tddfpt_dbcsr_create_by_dist(work_matrices%hfx_rho_ao(ispin)%matrix, &
+            CALL dbcsr_init_p(work_matrices%hfx_rho_ao_symm(ispin)%matrix)
+            CALL tddfpt_dbcsr_create_by_dist(work_matrices%hfx_rho_ao_symm(ispin)%matrix, &
                                              template=dbcsr_template_hfx, dbcsr_dist=dbcsr_dist, sab=sab_hfx)
+
+            CALL dbcsr_init_p(work_matrices%hfx_rho_ao_asymm(ispin)%matrix)
+            CALL dbcsr_create(work_matrices%hfx_rho_ao_asymm(ispin)%matrix, matrix_type=dbcsr_type_antisymmetric, &
+                              template=work_matrices%hfx_rho_ao_symm(ispin)%matrix)
+            CALL dbcsr_complete_redistribute(work_matrices%hfx_rho_ao_symm(ispin)%matrix, &
+                                             work_matrices%hfx_rho_ao_asymm(ispin)%matrix)
          END DO
 
-         CALL dbcsr_allocate_matrix_set(work_matrices%hfx_hmat, nspins)
+         CALL dbcsr_allocate_matrix_set(work_matrices%hfx_hmat_symm, nspins)
+         CALL dbcsr_allocate_matrix_set(work_matrices%hfx_hmat_asymm, nspins)
          DO ispin = 1, nspins
-            CALL dbcsr_init_p(work_matrices%hfx_hmat(ispin)%matrix)
-            CALL tddfpt_dbcsr_create_by_dist(work_matrices%hfx_hmat(ispin)%matrix, &
+            CALL dbcsr_init_p(work_matrices%hfx_hmat_symm(ispin)%matrix)
+            CALL tddfpt_dbcsr_create_by_dist(work_matrices%hfx_hmat_symm(ispin)%matrix, &
                                              template=dbcsr_template_hfx, dbcsr_dist=dbcsr_dist, sab=sab_hfx)
+
+            CALL dbcsr_init_p(work_matrices%hfx_hmat_asymm(ispin)%matrix)
+            CALL dbcsr_create(work_matrices%hfx_hmat_asymm(ispin)%matrix, matrix_type=dbcsr_type_antisymmetric, &
+                              template=work_matrices%hfx_hmat_symm(ispin)%matrix)
+            CALL dbcsr_complete_redistribute(work_matrices%hfx_hmat_symm(ispin)%matrix, &
+                                             work_matrices%hfx_hmat_asymm(ispin)%matrix)
          END DO
       END IF
 
@@ -544,7 +555,8 @@ CONTAINS
       NULLIFY (work_matrices%rho_ao_aux_fit_fm_sub, work_matrices%wfm_aux_orb_sub)
       NULLIFY (work_matrices%rho_aux_fit_struct_sub)
       NULLIFY (work_matrices%rho_orb_struct_sub)
-      NULLIFY (work_matrices%hfx_fm_ao_ao, work_matrices%hfx_rho_ao, work_matrices%hfx_hmat)
+      NULLIFY (work_matrices%hfx_fm_ao_ao, work_matrices%hfx_rho_ao_symm, work_matrices%hfx_hmat_symm, &
+               work_matrices%hfx_rho_ao_asymm, work_matrices%hfx_hmat_asymm)
       NULLIFY (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
                work_matrices%wpw_rspace_sub)
       NULLIFY (work_matrices%A_ia_munu_sub)
@@ -575,18 +587,32 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! HFX-related matrices
-      IF (ASSOCIATED(work_matrices%hfx_hmat)) THEN
-         DO ispin = SIZE(work_matrices%hfx_hmat), 1, -1
-            CALL dbcsr_deallocate_matrix(work_matrices%hfx_hmat(ispin)%matrix)
+      IF (ASSOCIATED(work_matrices%hfx_hmat_symm)) THEN
+         DO ispin = SIZE(work_matrices%hfx_hmat_symm), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%hfx_hmat_symm(ispin)%matrix)
          END DO
-         DEALLOCATE (work_matrices%hfx_hmat)
+         DEALLOCATE (work_matrices%hfx_hmat_symm)
       END IF
 
-      IF (ASSOCIATED(work_matrices%hfx_rho_ao)) THEN
-         DO ispin = SIZE(work_matrices%hfx_rho_ao), 1, -1
-            CALL dbcsr_deallocate_matrix(work_matrices%hfx_rho_ao(ispin)%matrix)
+      IF (ASSOCIATED(work_matrices%hfx_hmat_asymm)) THEN
+         DO ispin = SIZE(work_matrices%hfx_hmat_asymm), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%hfx_hmat_asymm(ispin)%matrix)
          END DO
-         DEALLOCATE (work_matrices%hfx_rho_ao)
+         DEALLOCATE (work_matrices%hfx_hmat_asymm)
+      END IF
+
+      IF (ASSOCIATED(work_matrices%hfx_rho_ao_symm)) THEN
+         DO ispin = SIZE(work_matrices%hfx_rho_ao_symm), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%hfx_rho_ao_symm(ispin)%matrix)
+         END DO
+         DEALLOCATE (work_matrices%hfx_rho_ao_symm)
+      END IF
+
+      IF (ASSOCIATED(work_matrices%hfx_rho_ao_asymm)) THEN
+         DO ispin = SIZE(work_matrices%hfx_rho_ao_asymm), 1, -1
+            CALL dbcsr_deallocate_matrix(work_matrices%hfx_rho_ao_asymm(ispin)%matrix)
+         END DO
+         DEALLOCATE (work_matrices%hfx_rho_ao_asymm)
       END IF
 
       IF (ASSOCIATED(work_matrices%hfx_fm_ao_ao)) &

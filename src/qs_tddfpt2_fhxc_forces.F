@@ -42,10 +42,11 @@ MODULE qs_tddfpt2_fhxc_forces
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, &
-        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_filter, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE ewald_environment_types,         ONLY: ewald_env_get,&
                                               ewald_environment_type
    USE ewald_methods_tb,                ONLY: tb_ewald_overlap,&
@@ -164,10 +165,11 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_fx, matrix_gx, matrix_hfx, &
-         matrix_hfx_admm, matrix_hx, matrix_p, matrix_p_admm, matrix_px1, matrix_px1_admm, &
+         matrix_hfx_admm, matrix_hfx_admm_asymm, matrix_hfx_asymm, matrix_hx, matrix_p, &
+         matrix_p_admm, matrix_px1, matrix_px1_admm, matrix_px1_admm_asymm, matrix_px1_asymm, &
          matrix_s, matrix_s_aux_fit, matrix_wx1, mdum, mfx, mgx
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mhe, mpe
-      TYPE(dbcsr_type), POINTER                          :: dbwork
+      TYPE(dbcsr_type), POINTER                          :: dbwork, dbwork_asymm
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -208,6 +210,8 @@ CONTAINS
       evect => ex_env%evect
       matrix_px1 => ex_env%matrix_px1
       matrix_px1_admm => ex_env%matrix_px1_admm
+      matrix_px1_asymm => ex_env%matrix_px1_asymm
+      matrix_px1_admm_asymm => ex_env%matrix_px1_admm_asymm
 
       focc = 1.0_dp
       IF (nspins == 2) focc = 0.5_dp
@@ -215,12 +219,23 @@ CONTAINS
          CALL dbcsr_set(matrix_px1(ispin)%matrix, 0.0_dp)
          CALL cp_fm_get_info(evect(ispin)%matrix, ncol_global=norb)
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1(ispin)%matrix, &
+                                    matrix_v=evect(ispin)%matrix, &
+                                    matrix_g=gs_mos(ispin)%mos_occ, &
+                                    ncol=norb, alpha=focc)
+         CALL cp_dbcsr_plus_fm_fm_t(matrix_px1(ispin)%matrix, &
                                     matrix_v=gs_mos(ispin)%mos_occ, &
                                     matrix_g=evect(ispin)%matrix, &
                                     ncol=norb, alpha=focc)
-         CALL cp_dbcsr_plus_fm_fm_t(matrix_px1(ispin)%matrix, &
+
+         CALL dbcsr_set(matrix_px1_asymm(ispin)%matrix, 0.0_dp)
+         CALL cp_fm_get_info(evect(ispin)%matrix, ncol_global=norb)
+         CALL cp_dbcsr_plus_fm_fm_t(matrix_px1_asymm(ispin)%matrix, &
                                     matrix_v=evect(ispin)%matrix, &
                                     matrix_g=gs_mos(ispin)%mos_occ, &
+                                    ncol=norb, alpha=-focc)
+         CALL cp_dbcsr_plus_fm_fm_t(matrix_px1_asymm(ispin)%matrix, &
+                                    matrix_v=gs_mos(ispin)%mos_occ, &
+                                    matrix_g=evect(ispin)%matrix, &
                                     ncol=norb, alpha=focc)
       END DO
       !
@@ -238,6 +253,16 @@ CONTAINS
                          1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
                          admm_env%work_aux_aux)
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_px1_admm(ispin)%matrix, &
+                                  keep_sparsity=.TRUE.)
+
+            CALL copy_dbcsr_to_fm(matrix_px1_asymm(ispin)%matrix, admm_env%work_orb_orb)
+            CALL cp_gemm('N', 'N', nao_aux, nao, nao, &
+                         1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
+                         admm_env%work_aux_orb)
+            CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, &
+                         1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
+                         admm_env%work_aux_aux)
+            CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_px1_admm_asymm(ispin)%matrix, &
                                   keep_sparsity=.TRUE.)
          END DO
       END IF
@@ -553,13 +578,19 @@ CONTAINS
 
       ! HFX
       IF (do_hfx) THEN
-         NULLIFY (matrix_hfx)
+         NULLIFY (matrix_hfx, matrix_hfx_asymm)
          CALL dbcsr_allocate_matrix_set(matrix_hfx, nspins)
+         CALL dbcsr_allocate_matrix_set(matrix_hfx_asymm, nspins)
          DO ispin = 1, nspins
             ALLOCATE (matrix_hfx(ispin)%matrix)
             CALL dbcsr_create(matrix_hfx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_hfx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_hfx(ispin)%matrix, 0.0_dp)
+
+            ALLOCATE (matrix_hfx_asymm(ispin)%matrix)
+            CALL dbcsr_create(matrix_hfx_asymm(ispin)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL dbcsr_complete_redistribute(matrix_hfx(ispin)%matrix, matrix_hfx_asymm(ispin)%matrix)
          END DO
          !
          xc_section => full_kernel%xc_section
@@ -576,13 +607,19 @@ CONTAINS
          !
          IF (do_admm) THEN
             CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit)
-            NULLIFY (matrix_hfx_admm)
+            NULLIFY (matrix_hfx_admm, matrix_hfx_admm_asymm)
             CALL dbcsr_allocate_matrix_set(matrix_hfx_admm, nspins)
+            CALL dbcsr_allocate_matrix_set(matrix_hfx_admm_asymm, nspins)
             DO ispin = 1, nspins
                ALLOCATE (matrix_hfx_admm(ispin)%matrix)
                CALL dbcsr_create(matrix_hfx_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
                CALL dbcsr_copy(matrix_hfx_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
                CALL dbcsr_set(matrix_hfx_admm(ispin)%matrix, 0.0_dp)
+
+               ALLOCATE (matrix_hfx_admm_asymm(ispin)%matrix)
+               CALL dbcsr_create(matrix_hfx_admm_asymm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix, &
+                                 matrix_type=dbcsr_type_antisymmetric)
+               CALL dbcsr_complete_redistribute(matrix_hfx_admm(ispin)%matrix, matrix_hfx_admm_asymm(ispin)%matrix)
             END DO
             !
             NULLIFY (mpe, mhe)
@@ -604,11 +641,30 @@ CONTAINS
                                              ispin=ispin)
                END DO
             END IF
+            !anti-symmetric density
+            DO ispin = 1, nspins
+               mhe(ispin, 1)%matrix => matrix_hfx_admm_asymm(ispin)%matrix
+               mpe(ispin, 1)%matrix => matrix_px1_admm_asymm(ispin)%matrix
+            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhe, eh1, rho_ao=mpe, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+            ELSE
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+            END IF
             !
             nao = admm_env%nao_orb
             nao_aux = admm_env%nao_aux_fit
-            ALLOCATE (dbwork)
+            ALLOCATE (dbwork, dbwork_asymm)
             CALL dbcsr_create(dbwork, template=matrix_hfx(1)%matrix)
+            CALL dbcsr_create(dbwork_asymm, template=matrix_hfx(1)%matrix, matrix_type=dbcsr_type_antisymmetric)
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_admm(ispin)%matrix, admm_env%A, &
                                             admm_env%work_aux_orb, nao)
@@ -619,14 +675,26 @@ CONTAINS
                CALL dbcsr_set(dbwork, 0.0_dp)
                CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbwork, keep_sparsity=.TRUE.)
                CALL dbcsr_add(matrix_hfx(ispin)%matrix, dbwork, 1.0_dp, 1.0_dp)
+               !anti-symmetric case
+               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_admm_asymm(ispin)%matrix, admm_env%A, &
+                                            admm_env%work_aux_orb, nao)
+               CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
+                            1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                            admm_env%work_orb_orb)
+               CALL dbcsr_copy(dbwork_asymm, matrix_hfx_asymm(1)%matrix)
+               CALL dbcsr_set(dbwork_asymm, 0.0_dp)
+               CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbwork_asymm, keep_sparsity=.TRUE.)
+               CALL dbcsr_add(matrix_hfx_asymm(ispin)%matrix, dbwork_asymm, 1.0_dp, 1.0_dp)
             END DO
             CALL dbcsr_release(dbwork)
-            DEALLOCATE (dbwork)
+            CALL dbcsr_release(dbwork_asymm)
+            DEALLOCATE (dbwork, dbwork_asymm)
             ! forces
             ! ADMM Projection force
             IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
-            fval = 4.0_dp*REAL(nspins, KIND=dp)
+            fval = 4.0_dp*REAL(nspins, KIND=dp)*0.5_dp !0.5 for symm/anti-symm
             CALL admm_projection_derivative(qs_env, admm_env, matrix_hfx_admm, matrix_px1, fval)
+            CALL admm_projection_derivative(qs_env, admm_env, matrix_hfx_admm_asymm, matrix_px1_asymm, fval)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
@@ -635,8 +703,23 @@ CONTAINS
             !
             use_virial = .FALSE.
             NULLIFY (mdum)
-            fval = 2.0_dp*REAL(nspins, KIND=dp)
+            fval = 2.0_dp*REAL(nspins, KIND=dp)*0.5_dp !0.5 factor because of symemtry/anti-symmetry
             IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
+            DO ispin = 1, nspins
+               mpe(ispin, 1)%matrix => matrix_px1_admm(ispin)%matrix
+            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
+                                         x_data(1, 1)%general_parameter%fraction, &
+                                         rho_ao=mpe, rho_ao_resp=mdum, &
+                                         use_virial=use_virial, rescale_factor=fval)
+            ELSE
+               CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
+                                            adiabatic_rescale_factor=fval)
+            END IF
+            DO ispin = 1, nspins
+               mpe(ispin, 1)%matrix => matrix_px1_admm_asymm(ispin)%matrix
+            END DO
             IF (x_data(1, 1)%do_hfx_ri) THEN
                CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
                                          x_data(1, 1)%general_parameter%fraction, &
@@ -655,6 +738,7 @@ CONTAINS
             DEALLOCATE (mpe, mhe)
             !
             CALL dbcsr_deallocate_matrix_set(matrix_hfx_admm)
+            CALL dbcsr_deallocate_matrix_set(matrix_hfx_admm_asymm)
          ELSE
             NULLIFY (mpe, mhe)
             ALLOCATE (mpe(nspins, 1), mhe(nspins, 1))
@@ -675,11 +759,45 @@ CONTAINS
                                              ispin=ispin)
                END DO
             END IF
+
+            !anti-symmetric density matrix
+            DO ispin = 1, nspins
+               mhe(ispin, 1)%matrix => matrix_hfx_asymm(ispin)%matrix
+               mpe(ispin, 1)%matrix => matrix_px1_asymm(ispin)%matrix
+            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               eh1 = 0.0_dp
+               CALL hfx_ri_update_ks(qs_env, x_data(1, 1)%ri_data, mhe, eh1, rho_ao=mpe, &
+                                     geometry_did_change=s_mstruct_changed, nspins=nspins, &
+                                     hf_fraction=x_data(1, 1)%general_parameter%fraction)
+            ELSE
+               DO ispin = 1, mspin
+                  eh1 = 0.0
+                  CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
+                                             para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
+                                             ispin=ispin)
+               END DO
+            END IF
             ! forces
             use_virial = .FALSE.
             NULLIFY (mdum)
-            fval = 2.0_dp*REAL(nspins, KIND=dp)
+            fval = 2.0_dp*REAL(nspins, KIND=dp)*0.5_dp !extra 0.5 factor because of symmetry/antisymemtry
             IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
+            DO ispin = 1, nspins
+               mpe(ispin, 1)%matrix => matrix_px1(ispin)%matrix
+            END DO
+            IF (x_data(1, 1)%do_hfx_ri) THEN
+               CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
+                                         x_data(1, 1)%general_parameter%fraction, &
+                                         rho_ao=mpe, rho_ao_resp=mdum, &
+                                         use_virial=use_virial, rescale_factor=fval)
+            ELSE
+               CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
+                                            adiabatic_rescale_factor=fval)
+            END IF
+            DO ispin = 1, nspins
+               mpe(ispin, 1)%matrix => matrix_px1_asymm(ispin)%matrix
+            END DO
             IF (x_data(1, 1)%do_hfx_ri) THEN
                CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
                                          x_data(1, 1)%general_parameter%fraction, &
@@ -697,9 +815,10 @@ CONTAINS
             !
             DEALLOCATE (mpe, mhe)
          END IF
-         fval = 2.0_dp*REAL(nspins, KIND=dp)
+         fval = 2.0_dp*REAL(nspins, KIND=dp)*0.5_dp !extra 0.5 because of symm/antisymm
          DO ispin = 1, nspins
             CALL dbcsr_scale(matrix_hfx(ispin)%matrix, fval)
+            CALL dbcsr_scale(matrix_hfx_asymm(ispin)%matrix, fval)
          END DO
       END IF
 
@@ -769,6 +888,10 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(ispin)%matrix, evect(ispin)%matrix, &
                                          cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(ispin)%matrix, evect(ispin)%matrix, &
+                                         cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=1.0_dp)
+            !
             CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
             CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
@@ -795,6 +918,7 @@ CONTAINS
       END IF
       IF (do_hfx) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_hfx)
+         CALL dbcsr_deallocate_matrix_set(matrix_hfx_asymm)
       END IF
 
       CALL timestop(handle)
@@ -862,7 +986,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL copy_dbcsr_to_fm(matrix_hfx(ispin)%matrix, admm_env%work_aux_aux)
 
-         CALL cp_gemm("N", "N", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
+         CALL cp_gemm("N", "T", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
                       admm_env%work_aux_aux, 0.0_dp, admm_env%work_aux_aux2)
          CALL cp_gemm("N", "N", naux, nao, naux, 1.0_dp, admm_env%work_aux_aux2, &
                       admm_env%A, 0.0_dp, admm_env%work_aux_orb)
