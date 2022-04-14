@@ -26,7 +26,8 @@ MODULE hfx_ri
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_power
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
-                                              cp_dbcsr_dist2d_to_dist
+                                              cp_dbcsr_dist2d_to_dist,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
@@ -34,11 +35,11 @@ MODULE hfx_ri
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, &
-        dbcsr_frobenius_norm, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_get_info, &
+        dbcsr_get_num_blocks, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbt_api,                         ONLY: &
         dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_clear, dbt_contract, &
         dbt_copy, dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, dbt_create, dbt_destroy, &
@@ -884,20 +885,22 @@ CONTAINS
                                geometry_did_change, nspins, hf_fraction)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
-      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: ks_matrix
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       REAL(KIND=dp), INTENT(OUT)                         :: ehfx
       TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mos
-      TYPE(dbcsr_p_type), DIMENSION(:, :)                :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       LOGICAL, INTENT(IN)                                :: geometry_did_change
       INTEGER, INTENT(IN)                                :: nspins
       REAL(KIND=dp), INTENT(IN)                          :: hf_fraction
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ri_update_ks'
 
-      INTEGER                                            :: handle, handle2, ispin
+      CHARACTER(1)                                       :: mtype
+      INTEGER                                            :: handle, handle2, i, ispin, j
       INTEGER(int_8)                                     :: nblks
       INTEGER, DIMENSION(2)                              :: homo
+      LOGICAL                                            :: is_antisymmetric
       REAL(dp)                                           :: etmp, fac
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals
@@ -905,6 +908,7 @@ CONTAINS
                                                             occupied_orbs
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_ks_matrix, my_rho_ao
       TYPE(dbcsr_type), DIMENSION(2)                     :: mo_coeff_b
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b_tmp
       TYPE(mo_set_type), POINTER                         :: mo_set
@@ -915,6 +919,30 @@ CONTAINS
          fac = 0.5_dp*hf_fraction
       ELSE
          fac = 1.0_dp*hf_fraction
+      END IF
+
+      !If incoming assymetric matrices, need to convert to normal
+      NULLIFY (my_ks_matrix, my_rho_ao)
+      CALL dbcsr_get_info(ks_matrix(1, 1)%matrix, matrix_type=mtype)
+      is_antisymmetric = mtype == dbcsr_type_antisymmetric
+      IF (is_antisymmetric) THEN
+         ALLOCATE (my_ks_matrix(SIZE(ks_matrix, 1), SIZE(ks_matrix, 2)))
+         ALLOCATE (my_rho_ao(SIZE(rho_ao, 1), SIZE(rho_ao, 2)))
+
+         DO i = 1, SIZE(ks_matrix, 1)
+            DO j = 1, SIZE(ks_matrix, 2)
+               ALLOCATE (my_ks_matrix(i, j)%matrix, my_rho_ao(i, j)%matrix)
+               CALL dbcsr_create(my_ks_matrix(i, j)%matrix, template=ks_matrix(i, j)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_desymmetrize(ks_matrix(i, j)%matrix, my_ks_matrix(i, j)%matrix)
+               CALL dbcsr_create(my_rho_ao(i, j)%matrix, template=rho_ao(i, j)%matrix, &
+                                 matrix_type=dbcsr_type_no_symmetry)
+               CALL dbcsr_desymmetrize(rho_ao(i, j)%matrix, my_rho_ao(i, j)%matrix)
+            END DO
+         END DO
+      ELSE
+         my_ks_matrix => ks_matrix
+         my_rho_ao => rho_ao
       END IF
 
       !Case analysis on RI_FLAVOR: we switch if the input flavor is MO, there is no provided MO, and
@@ -987,21 +1015,21 @@ CONTAINS
          IF (ri_data%do_loc) CALL qs_loc_env_release(ri_data%qs_loc_env)
          CALL timestop(handle2)
 
-         CALL hfx_ri_update_ks_mo(qs_env, ri_data, ks_matrix, mo_coeff_b, homo, &
+         CALL hfx_ri_update_ks_mo(qs_env, ri_data, my_ks_matrix, mo_coeff_b, homo, &
                                   geometry_did_change, nspins, fac)
       CASE (ri_pmat)
 
          NULLIFY (para_env)
          CALL get_qs_env(qs_env, para_env=para_env)
-         DO ispin = 1, SIZE(rho_ao, 1)
-            nblks = dbcsr_get_num_blocks(rho_ao(ispin, 1)%matrix)
+         DO ispin = 1, SIZE(my_rho_ao, 1)
+            nblks = dbcsr_get_num_blocks(my_rho_ao(ispin, 1)%matrix)
             CALL mp_sum(nblks, para_env%group)
             IF (nblks == 0) THEN
                CPABORT("received empty density matrix")
             END IF
          END DO
 
-         CALL hfx_ri_update_ks_pmat(qs_env, ri_data, ks_matrix, rho_ao, &
+         CALL hfx_ri_update_ks_pmat(qs_env, ri_data, my_ks_matrix, my_rho_ao, &
                                     geometry_did_change, nspins, fac)
 
       END SELECT
@@ -1011,19 +1039,31 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL dbcsr_filter(ks_matrix(ispin, 1)%matrix, ri_data%filter_eps)
+         CALL dbcsr_filter(my_ks_matrix(ispin, 1)%matrix, ri_data%filter_eps)
       END DO
 
       CALL timeset(routineN//"_energy", handle2)
       ! Calculate the exchange energy
       ehfx = 0.0_dp
       DO ispin = 1, nspins
-         CALL dbcsr_dot(ks_matrix(ispin, 1)%matrix, rho_ao(ispin, 1)%matrix, &
+         CALL dbcsr_dot(my_ks_matrix(ispin, 1)%matrix, my_rho_ao(ispin, 1)%matrix, &
                         etmp)
          ehfx = ehfx + 0.5_dp*etmp
 
       END DO
       CALL timestop(handle2)
+
+      !Anti-symmetric case
+      IF (is_antisymmetric) THEN
+         DO i = 1, SIZE(ks_matrix, 1)
+            DO j = 1, SIZE(ks_matrix, 2)
+               CALL dbcsr_complete_redistribute(my_ks_matrix(i, j)%matrix, ks_matrix(i, j)%matrix)
+               CALL dbcsr_complete_redistribute(my_rho_ao(i, j)%matrix, rho_ao(i, j)%matrix)
+            END DO
+         END DO
+         CALL dbcsr_deallocate_matrix_set(my_ks_matrix)
+         CALL dbcsr_deallocate_matrix_set(my_rho_ao)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE

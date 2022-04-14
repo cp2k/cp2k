@@ -397,12 +397,11 @@ CONTAINS
 !>                        molecular orbitals [component %mos_occ] are needed)
 !> \param do_admm         perform auxiliary density matrix method calculations
 !> \param qs_env          Quickstep environment
-!> \param work_rho_ia_ao  work sparse matrix with shape [nao x nao] distributed globally
-!>                        to store response density (modified on exit)
-!> \param work_hmat       work sparse matrix with shape [nao x nao] distributed globally
-!>                        (modified on exit)
-!> \param wfm_rho_orb     work dense matrix with shape [nao x nao] distributed globally
-!>                        (modified on exit)
+!> \param work_rho_ia_ao_symm ...
+!> \param work_hmat_symm ...
+!> \param work_rho_ia_ao_asymm ...
+!> \param work_hmat_asymm ...
+!> \param wfm_rho_orb ...
 !> \par History
 !>    * 05.2016 compute all exact-exchange terms in one go [Sergey Chulkov]
 !>    * 03.2017 code related to ADMM correction is now moved to tddfpt_apply_admm_correction()
@@ -411,15 +410,19 @@ CONTAINS
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, do_admm, qs_env, &
-                               work_rho_ia_ao, work_hmat, wfm_rho_orb)
+                               work_rho_ia_ao_symm, work_hmat_symm, work_rho_ia_ao_asymm, &
+                               work_hmat_asymm, wfm_rho_orb)
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(in)    :: Aop_evects, evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao_symm
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
-         TARGET                                          :: work_hmat
+         TARGET                                          :: work_hmat_symm
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao_asymm
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
+         TARGET                                          :: work_hmat_asymm
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: wfm_rho_orb
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_apply_hfx'
@@ -459,32 +462,39 @@ CONTAINS
             CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux)
          END IF
 
+         !Note: the symmetrized transition density matrix is P = 0.5*(C*evect^T + evect*C^T)
+         !      in the end, we only want evect*C^T for consistency with the MO formulation of TDDFT
+         !      therefore, we go in 2 steps: with the symmetric 0.5*(C*evect^T + evect*C^T) and
+         !      the antisymemtric 0.5*(C*evect^T - evect*C^T)
+
          ! some stuff from qs_ks_build_kohn_sham_matrix
          ! TO DO: add SIC support
          DO ivect = 1, nvects
             DO ispin = 1, nspins
-               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 1.0_dp, gs_mos(ispin)%mos_occ, &
-                            evects(ispin, ivect)%matrix, 0.0_dp, wfm_rho_orb)
-               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 1.0_dp, evects(ispin, ivect)%matrix, &
-                            gs_mos(ispin)%mos_occ, 1.0_dp, wfm_rho_orb)
 
-               CALL dbcsr_set(work_hmat(ispin)%matrix, 0.0_dp)
+               !The symmetric density matrix
+               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
+                            gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
+               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, gs_mos(ispin)%mos_occ, &
+                            evects(ispin, ivect)%matrix, 1.0_dp, wfm_rho_orb)
+
+               CALL dbcsr_set(work_hmat_symm(ispin)%matrix, 0.0_dp)
                IF (do_admm) THEN
                   CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
                                wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
-                  CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
+                  CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
                                0.0_dp, admm_env%work_aux_aux)
-                  CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
+                  CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao_symm(ispin)%matrix, keep_sparsity=.TRUE.)
                ELSE
-                  CALL copy_fm_to_dbcsr(wfm_rho_orb, work_rho_ia_ao(ispin)%matrix, keep_sparsity=.TRUE.)
+                  CALL copy_fm_to_dbcsr(wfm_rho_orb, work_rho_ia_ao_symm(ispin)%matrix, keep_sparsity=.TRUE.)
                END IF
             END DO
 
-            CALL tddft_hfx_matrix(work_hmat, work_rho_ia_ao, qs_env)
+            CALL tddft_hfx_matrix(work_hmat_symm, work_rho_ia_ao_symm, qs_env)
 
             IF (do_admm) THEN
                DO ispin = 1, nspins
-                  CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
+                  CALL cp_dbcsr_sm_fm_multiply(work_hmat_symm(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
                                                ncol=nao, alpha=1.0_dp, beta=0.0_dp)
 
                   CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
@@ -495,7 +505,49 @@ CONTAINS
                END DO
             ELSE
                DO ispin = 1, nspins
-                  CALL cp_dbcsr_sm_fm_multiply(work_hmat(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                  CALL cp_dbcsr_sm_fm_multiply(work_hmat_symm(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                                               Aop_evects(ispin, ivect)%matrix, ncol=nactive(ispin), &
+                                               alpha=alpha, beta=1.0_dp)
+               END DO
+            END IF
+
+            !The anti-symmetric density matrix
+            DO ispin = 1, nspins
+
+               !The symmetric density matrix
+               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
+                            gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
+               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), -0.5_dp, gs_mos(ispin)%mos_occ, &
+                            evects(ispin, ivect)%matrix, 1.0_dp, wfm_rho_orb)
+
+               CALL dbcsr_set(work_hmat_asymm(ispin)%matrix, 0.0_dp)
+               IF (do_admm) THEN
+                  CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
+                               wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
+                  CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
+                               0.0_dp, admm_env%work_aux_aux)
+                  CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao_asymm(ispin)%matrix, keep_sparsity=.TRUE.)
+               ELSE
+                  CALL copy_fm_to_dbcsr(wfm_rho_orb, work_rho_ia_ao_asymm(ispin)%matrix, keep_sparsity=.TRUE.)
+               END IF
+            END DO
+
+            CALL tddft_hfx_matrix(work_hmat_asymm, work_rho_ia_ao_asymm, qs_env)
+
+            IF (do_admm) THEN
+               DO ispin = 1, nspins
+                  CALL cp_dbcsr_sm_fm_multiply(work_hmat_asymm(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
+                                               ncol=nao, alpha=1.0_dp, beta=0.0_dp)
+
+                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
+                               admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
+
+                  CALL cp_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
+                               gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+               END DO
+            ELSE
+               DO ispin = 1, nspins
+                  CALL cp_dbcsr_sm_fm_multiply(work_hmat_asymm(ispin)%matrix, gs_mos(ispin)%mos_occ, &
                                                Aop_evects(ispin, ivect)%matrix, ncol=nactive(ispin), &
                                                alpha=alpha, beta=1.0_dp)
                END DO

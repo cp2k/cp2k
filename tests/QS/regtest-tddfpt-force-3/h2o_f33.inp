@@ -36,11 +36,12 @@
       &HF
         FRACTION 1.0
         &RI
+           EPS_FILTER 1.0E-12
         &END
       &END
     &END XC
     &MGRID
-       CUTOFF  280
+       CUTOFF  360
        REL_CUTOFF  60
     &END
     &POISSON
