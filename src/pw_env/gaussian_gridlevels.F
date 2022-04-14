@@ -100,10 +100,11 @@ CONTAINS
          do_io = .TRUE.
       END IF
 
-      CALL mp_sum(gridlevel_info%total_count, group)
-      CALL mp_sum(gridlevel_info%count, group)
-
       IF (do_io) THEN
+
+         CALL mp_sum(gridlevel_info%total_count, group)
+         CALL mp_sum(gridlevel_info%count, group)
+
          output_unit = cp_print_key_unit_nr(logger, gridlevel_info%print_section, &
                                             "", extension=".Log")
 

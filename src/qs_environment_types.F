@@ -1813,7 +1813,6 @@ CONTAINS
             END IF
             ! Resp charges
             IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
-            ! now we are ready to deallocate the full structure
          END IF
       END IF
 

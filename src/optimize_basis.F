@@ -480,9 +480,9 @@ CONTAINS
          CALL calculate_ks_matrix(qs_env)
 
          CALL section_vals_release(input_file)
-!deb
+
          CALL qs_env_part_release(qs_env)
-!deb
+
          CALL m_chdir(TRIM(ADJUSTL(main_dir)), ierr)
       END DO
 

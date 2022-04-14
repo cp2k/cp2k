@@ -5,8 +5,6 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE optbas_fenv_manipulation
-   USE admm_types,                      ONLY: admm_env_create,&
-                                              admm_type
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_container_types,       ONLY: get_basis_from_container
@@ -55,7 +53,6 @@ MODULE optbas_fenv_manipulation
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE scf_control_types,               ONLY: scf_control_type
    USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
@@ -64,7 +61,6 @@ MODULE optbas_fenv_manipulation
 
    PUBLIC :: modify_input_settings, &
              allocate_mo_sets, &
-             create_opt_admm_env, &
              update_basis_set, &
              calculate_ks_matrix, &
              calculate_overlap_inverse
@@ -162,27 +158,22 @@ CONTAINS
       INTEGER                                            :: ispin
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       LOGICAL                                            :: natom_mismatch
-      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
       NULLIFY (para_env)
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       mos=mos, nelectron_spin=nelectron_spin, &
-                      mos_aux_fit=mos_aux_fit, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
-                      scf_control=scf_control, &
                       particle_set=particle_set, &
-                      admm_env=admm_env, &
                       para_env=para_env)
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
 
@@ -261,34 +252,6 @@ CONTAINS
       CALL cp_fm_release(work1)
 
    END SUBROUTINE calculate_overlap_inverse
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-! **************************************************************************************************
-   SUBROUTINE create_opt_admm_env(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      INTEGER                                            :: natoms
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      NULLIFY (admm_env, dft_control, mos, mos_aux_fit, particle_set, para_env)
-      CALL get_qs_env(qs_env, &
-                      admm_env=admm_env, &
-                      dft_control=dft_control, &
-                      mos=mos, &
-                      mos_aux_fit=mos_aux_fit, &
-                      particle_set=particle_set, &
-                      para_env=para_env)
-      natoms = SIZE(particle_set, 1)
-      CALL admm_env_create(qs_env%admm_env, dft_control%admm_control, mos, mos_aux_fit, &
-                           para_env, natoms)
-
-   END SUBROUTINE create_opt_admm_env
 
 ! **************************************************************************************************
 !> \brief ...

@@ -734,9 +734,6 @@ CONTAINS
                ria = pbc(ria, cell)
                via = particle_set(iat)%v(:)
                q = charges(iat)
-!deb
-! WRITE(6,*) "DEBUG ",q,particle_set(iat)%r(2),ria(2)
-!deb
                DO j = 1, 3
                   gvec = twopi*cell%h_inv(j, :)
                   theta = SUM(ria(:)*gvec(:))
@@ -745,22 +742,11 @@ CONTAINS
                   dzeta = -q*CMPLX(-SIN(theta), COS(theta), KIND=dp)**(-q - 1.0_dp)*dtheta
                   dggamma(j) = dggamma(j)*zeta + ggamma(j)*dzeta
                   ggamma(j) = ggamma(j)*zeta
-!deb
-! if(j==2) then
-!     WRITE(6,*) "DEBUG ",iat,gvec(:)
-!     WRITE(6,*) "DEBUG ",iat,theta,zeta,ggamma(j)
-! endif
-!deb
                END DO
             END DO
          END DO
          dggamma = dggamma*zphase + ggamma*dzphase
          ggamma = ggamma*zphase
-!deb
-! WRITE(6,*) "DEBUG 1  ",ggamma(1)
-! WRITE(6,*) "DEBUG 2  ",ggamma(2)
-! WRITE(6,*) "DEBUG 3  ",ggamma(3)
-!deb
          IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
             tmp = AIMAG(ggamma)/REAL(ggamma, KIND=dp)
             ci = -ATAN(tmp)
@@ -769,24 +755,6 @@ CONTAINS
             dipole = MATMUL(cell%hmat, ci)/twopi
             dipole_deriv = MATMUL(cell%hmat, dci)/twopi
          END IF
-!deb
-! WRITE(6,*) "DIPOLE   ",dipole
-!deb
-
-!           zi(:) = CMPLX(1._dp, 0._dp, dp)
-!           DO ia = 1, SIZE(particle_set)
-!              ria = particle_set(ia)%r
-!              ria = pbc(ria, cell)
-!              DO i = 1, 3
-!                 gvec(:) = twopi*cell%h_inv(i, :)
-!                 dd = SUM(gvec(:)*ria(:))
-!                 zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)**charge
-!                 zi(i) = zi(i)*zdeta
-!              END DO
-!           END DO
-!           zi = zi*zphase
-!           ci = AIMAG(LOG(zi))/twopi
-
       ELSE
          dipole_type = "non-periodic"
          DO i = 1, SIZE(particle_set)
