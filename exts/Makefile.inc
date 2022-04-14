@@ -23,7 +23,7 @@ DBCSR_ACC      := $(CXX)
 DBCSR_ACCFLAGS := $(CXXFLAGS)
 else ifeq (opencl,$(DBCSR_USE_ACCEL))
 DBCSR_ACC      := $(CC)
-DBCSR_ACCFLAGS := $(CFLAGS) $(DFLAGS)
+DBCSR_ACCFLAGS := $(CFLAGS)
 else
 $(error "Invalid OFFLOAD_TARGET=$(OFFLOAD_TARGET)")
 endif
