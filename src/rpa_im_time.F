@@ -18,7 +18,6 @@ MODULE rpa_im_time
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale
-   USE input_constants, ONLY: gw_gf_mic, gw_gf_gamma
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
@@ -31,15 +30,16 @@ MODULE rpa_im_time
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, &
-        dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scalar, dbcsr_scale, dbcsr_set, &
-       dbcsr_type, dbcsr_type_no_symmetry, dbcsr_print
-   USE dbt_api,                ONLY: &
-        dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_contract, &
-        dbt_copy, dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, &
-        dbt_create, dbt_destroy, dbt_filter, dbt_get_info, dbt_nblks_total, &
-        dbt_nd_mp_comm, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
+        dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
+   USE dbt_api,                         ONLY: &
+        dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_contract, dbt_copy, &
+        dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, dbt_create, dbt_destroy, dbt_filter, &
+        dbt_get_info, dbt_nblks_total, dbt_nd_mp_comm, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
+   USE input_constants,                 ONLY: gw_gf_gamma,&
+                                              gw_gf_mic
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -58,7 +58,7 @@ MODULE rpa_im_time
    USE qs_tensors,                      ONLY: decompress_tensor,&
                                               get_tensor_occupancy
    USE qs_tensors_types,                ONLY: create_2c_tensor
-   USE rpa_gw_im_time_util,             ONLY:     compute_weight_re_im,&
+   USE rpa_gw_im_time_util,             ONLY: compute_weight_re_im,&
                                               get_atom_index_from_basis_function_index
 #include "./base/base_uses.f90"
 
@@ -716,14 +716,14 @@ CONTAINS
       ELSE IF (do_kpoints_from_Gamma) THEN
 
          CALL compute_periodic_dm(mat_dm_occ_global, qs_env, &
-                             ispin, num_integ_points, jquad, e_fermi, tau, &
-                             remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=1, &
-                             symmetrize=.FALSE.)
+                                  ispin, num_integ_points, jquad, e_fermi, tau, &
+                                  remove_occ=.FALSE., remove_virt=.TRUE., first_jquad=1, &
+                                  symmetrize=.FALSE.)
 
          CALL compute_periodic_dm(mat_dm_virt_global, qs_env, &
-                             ispin, num_integ_points, jquad, e_fermi, tau, &
-                             remove_occ=.TRUE., remove_virt=.FALSE., first_jquad=1, &
-                             symmetrize=.FALSE.)
+                                  ispin, num_integ_points, jquad, e_fermi, tau, &
+                                  remove_occ=.TRUE., remove_virt=.FALSE., first_jquad=1, &
+                                  symmetrize=.FALSE.)
 
          num_cells_dm = 1
 
@@ -1122,24 +1122,24 @@ CONTAINS
 !> \param jquad ...
 !> \param e_fermi ...
 !> \param tau ...
-!> \param num_cells_dm ...
 !> \param remove_occ ...
 !> \param remove_virt ...
 !> \param first_jquad ...
+!> \param symmetrize ...
 ! **************************************************************************************************
    SUBROUTINE compute_periodic_dm(mat_dm_global, qs_env, ispin, num_integ_points, jquad, e_fermi, tau, &
-                             remove_occ, remove_virt, first_jquad, symmetrize)
+                                  remove_occ, remove_virt, first_jquad, symmetrize)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: ispin, num_integ_points, jquad
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, tau
-      INTEGER                             :: num_cells_dm
-      LOGICAL, INTENT(IN)                                :: remove_occ, remove_virt, symmetrize
+      LOGICAL, INTENT(IN)                                :: remove_occ, remove_virt
       INTEGER, INTENT(IN)                                :: first_jquad
+      LOGICAL, INTENT(IN)                                :: symmetrize
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_periodic_dm'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_periodic_dm'
 
-      INTEGER                                            :: handle, iquad, jspin, nspin
+      INTEGER                                            :: handle, iquad, jspin, nspin, num_cells_dm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work, matrix_s_kp
       TYPE(kpoint_type), POINTER                         :: kpoints_G
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -1202,18 +1202,8 @@ CONTAINS
          CALL density_matrix_from_kp_to_mic(kpoints_G, mat_dm_global_work, qs_env, symmetrize, gamma_only=.FALSE.)
       CASE (gw_gf_gamma)
          ! Gamma-only: take Gamma-k-point matrix
-!         CALL copy_fm_to_dbcsr(kpoints_G%kp_env(1)%kpoint_env%wmat(1, ispin)%matrix, &
-!                               mat_dm_global_work(ispin, 1)%matrix, keep_sparsity=.FALSE.)
          CALL density_matrix_from_kp_to_mic(kpoints_G, mat_dm_global_work, qs_env, symmetrize, gamma_only=.TRUE.)
-
-!JW 2del        PRINT *, '(kpoints_G%kp_env(1)%kpoint_env%wmat(1, ispin)%matrix', &
-!                kpoints_G%kp_env(1)%kpoint_env%wmat(1, ispin)%matrix%local_data
       END SELECT
-
-!        PRINT *, ''
-!        PRINT *, 'dbcsr Greens function:'
-!        CALL dbcsr_print(mat_dm_global_work(ispin, 1)%matrix)
-
 
       CALL dbcsr_copy(mat_dm_global(jquad, 1)%matrix, &
                       mat_dm_global_work(ispin, 1)%matrix)
@@ -1229,13 +1219,15 @@ CONTAINS
 !> \param kpoints_G ...
 !> \param mat_dm_global_work ...
 !> \param qs_env ...
+!> \param symmetrize ...
+!> \param gamma_only ...
 ! **************************************************************************************************
    SUBROUTINE density_matrix_from_kp_to_mic(kpoints_G, mat_dm_global_work, qs_env, symmetrize, gamma_only)
 
       TYPE(kpoint_type), POINTER                         :: kpoints_G
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL :: symmetrize, gamma_only
+      LOGICAL                                            :: symmetrize, gamma_only
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_from_kp_to_mic'
 
@@ -1246,8 +1238,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_ao_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      REAL(KIND=dp)                                      :: contribution, shortest_lattice_vector, &
-                                                            weight_im, weight_re
+      REAL(KIND=dp)                                      :: contribution, weight_im, weight_re
       REAL(KIND=dp), DIMENSION(2)                        :: abs_cutoffs_chi_W
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp

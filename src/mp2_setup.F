@@ -214,8 +214,8 @@ CONTAINS
                                 i_vals=mp2_env%ri_g0w0%kp_grid_Sigma)
 
       mp2_env%ri_g0w0%do_kpoints_Sigma = mp2_env%ri_g0w0%n_special_kp > 0 .OR. &
-                                         mp2_env%ri_g0w0%kp_grid_Sigma(1) * &
-                                         mp2_env%ri_g0w0%kp_grid_Sigma(2) * &
+                                         mp2_env%ri_g0w0%kp_grid_Sigma(1)* &
+                                         mp2_env%ri_g0w0%kp_grid_Sigma(2)* &
                                          mp2_env%ri_g0w0%kp_grid_Sigma(3) > 0
 
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%PRINT%SELF_ENERGY", &
@@ -254,7 +254,6 @@ CONTAINS
                                 i_val=mp2_env%ri_rpa_im_time%k_mesh_g_factor)
       CALL section_vals_val_get(low_scaling_section, "GREENS_FUNCTION", &
                                 i_val=mp2_env%ri_rpa_im_time%periodic_gf)
-
 
       CALL section_vals_val_get(low_scaling_section, "KEEP_QUADRATURE", &
                                 l_val=mp2_env%ri_rpa_im_time%keep_quad)

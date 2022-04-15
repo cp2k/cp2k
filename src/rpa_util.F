@@ -84,6 +84,7 @@ CONTAINS
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
 !> \param fm_matrix_L_RI_metric ...
+!> \param fm_matrix_Sinv_Vtrunc_Sinv ...
 !> \param mat_P_global ...
 !> \param t_3c_O ...
 !> \param matrix_s ...
@@ -109,6 +110,7 @@ CONTAINS
 !> \param wkp_V ...
 !> \param cfm_mat_Q ...
 !> \param fm_mat_L ...
+!> \param fm_mat_SiVtrSi ...
 !> \param fm_mat_RI_global_work ...
 !> \param fm_mat_work ...
 !> \param fm_mo_coeff_occ_scaled ...
@@ -145,7 +147,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, num_integ_points
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mo_coeff_occ, &
                                                             fm_mo_coeff_virt
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+                                                            fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_P_global
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_O
@@ -410,6 +413,7 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param dimen_RI_red ...
 !> \param first_ikp_local ...
+!> \param allocate_dbcsr_L ...
 !> \param ikp_local ...
 !> \param fm_struct_sub_kp ...
 ! **************************************************************************************************
@@ -421,9 +425,9 @@ CONTAINS
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_L
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_template
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, first_ikp_local
+      LOGICAL                                            :: allocate_dbcsr_L
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: ikp_local
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct_sub_kp
-      LOGICAL :: allocate_dbcsr_L
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reorder_mat_L'
 
@@ -517,7 +521,7 @@ CONTAINS
       ! Release buffer
       CALL cp_fm_release(fm_mat_L_transposed)
 
-      IF(allocate_dbcsr_L) THEN
+      IF (allocate_dbcsr_L) THEN
 
          ! Create sparse variant of L
          NULLIFY (mat_L%matrix)
@@ -526,11 +530,11 @@ CONTAINS
             CALL dbcsr_create(mat_L%matrix, template=mat_template)
          ELSE
             CALL dbcsr_get_info(mat_template, nblkrows_total=nblk, col_blk_size=col_blk_size)
-   
+
             CALL calculate_equal_blk_size(row_blk_size, dimen_RI_red, nblk)
-   
+
             CALL dbcsr_create(mat_L%matrix, template=mat_template, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-   
+
             DEALLOCATE (row_blk_size)
          END IF
       END IF
@@ -942,7 +946,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! JW we use all processors for every k-point, a subgroup does not improve the
+      ! we use all processors for every k-point, a subgroup does not improve the
       ! performance substantially
       num_proc_per_kp = para_env%num_pe
 
@@ -989,6 +993,7 @@ CONTAINS
 !> \param wkp_V ...
 !> \param cfm_mat_Q ...
 !> \param fm_mat_L ...
+!> \param fm_mat_SiVtrSi ...
 !> \param fm_mat_RI_global_work ...
 !> \param fm_mat_work ...
 !> \param fm_mo_coeff_occ_scaled ...
@@ -1003,9 +1008,7 @@ CONTAINS
 !> \param t_3c_O_compressed ...
 !> \param t_3c_O_ind ...
 !> \param mat_work ...
-!> \param kpoints_G ...
-!> \param kpoints_Sigma ...
-!> \param kpoints_Sigma_no_xc ...
+!> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE dealloc_im_time(fm_mo_coeff_occ, fm_mo_coeff_virt, &
                               fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, ikp_local, index_to_cell_3c, &
@@ -1049,8 +1052,6 @@ CONTAINS
       TYPE(block_ind_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_ind
       TYPE(dbcsr_type), POINTER                          :: mat_work
-      TYPE(kpoint_type), POINTER                         :: kpoints_G, kpoints_Sigma, &
-                                                            kpoints_Sigma_no_xc
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dealloc_im_time'
@@ -1086,7 +1087,7 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (fm_mat_L)
-      IF(do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) DEALLOCATE(fm_mat_SiVtrSi)
+      IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) DEALLOCATE (fm_mat_SiVtrSi)
       CALL cp_fm_release(fm_mat_work)
 
       IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
@@ -1150,7 +1151,7 @@ CONTAINS
 
       IF (do_kpoints_from_Gamma) THEN
          CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_G)
-         IF(qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
+         IF (qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
             CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma)
             CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc)
          END IF

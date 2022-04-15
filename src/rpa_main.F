@@ -1,4 +1,4 @@
-!--------------------------------------------------------------------------------------------------!, 
+!--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
 !   Copyright 2000-2022 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
@@ -15,10 +15,6 @@
 !>      03.2019 Refactoring [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_main
-           USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-           USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE kpoint_methods,                  ONLY: rskp_transform
-           USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE bibliography,                    ONLY: &
         Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
         Wilhelm2017, Wilhelm2018, cite_reference
@@ -29,6 +25,8 @@ MODULE rpa_main
                                               cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_p_type,&
                                               cp_cfm_type
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -43,11 +41,11 @@ MODULE rpa_main
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_get_info,dbcsr_type_symmetric, dbcsr_type_antisymmetric,&
-                                              dbcsr_p_type,dbcsr_create,dbcsr_set, dbcsr_print, &
-                                              dbcsr_release,dbcsr_desymmetrize, dbcsr_deallocate_matrix, &
-                                              dbcsr_type, dbcsr_type_no_symmetry, dbcsr_reserve_all_blocks
-   USE dbt_api,                ONLY: dbt_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_get_info, dbcsr_p_type, &
+        dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE dbt_api,                         ONLY: dbt_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -55,10 +53,14 @@ MODULE rpa_main
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: wfc_mm_style_gemm, gw_gf_mic, gw_gf_gamma
+   USE input_constants,                 ONLY: gw_gf_gamma,&
+                                              gw_gf_mic,&
+                                              wfc_mm_style_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_types,                    ONLY: kpoint_type, get_kpoint_info
+   USE kpoint_methods,                  ONLY: rskp_transform
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_memory
    USE mathconstants,                   ONLY: pi,&
@@ -90,6 +92,7 @@ MODULE rpa_main
                                               qs_env_release,&
                                               qs_environment_type
    USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE rpa_axk,                         ONLY: compute_axk_ener
    USE rpa_gw,                          ONLY: GW_matrix_operations,&
                                               allocate_matrices_gw,&
@@ -139,6 +142,7 @@ CONTAINS
 !> \param gd_B_virt_bse ...
 !> \param mo_coeff ...
 !> \param fm_matrix_L_RI_metric ...
+!> \param fm_matrix_Sinv_Vtrunc_Sinv ...
 !> \param kpoints ...
 !> \param Eigenval ...
 !> \param nmo ...
@@ -190,10 +194,11 @@ CONTAINS
          INTENT(INOUT)                                   :: gd_B_virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all, gd_B_occ_bse, gd_B_virt_bse
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+                                                            fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(kpoint_type), POINTER                         :: kpoints
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, INTENT(INOUT)      :: Eigenval
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: Eigenval_kp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
@@ -232,6 +237,7 @@ CONTAINS
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
          mem_min, mem_per_group, mem_real, needed_mem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
                                                             fm_mat_S_gw, fm_mo_coeff_occ, &
                                                             fm_mo_coeff_virt
@@ -271,8 +277,8 @@ CONTAINS
       virtual(:) = nmo - homo(:)
       dimen_ia(:) = virtual(:)*homo(:)
 
-      ALLOCATE(Eigenval_kp(nmo,1,nspins))
-      Eigenval_kp(:,1,:) = Eigenval(:,:)
+      ALLOCATE (Eigenval_kp(nmo, 1, nspins))
+      Eigenval_kp(:, 1, :) = Eigenval(:, :)
 
       IF (do_im_time) mp2_env%ri_rpa%minimax_quad = .TRUE.
       do_minimax_quad = mp2_env%ri_rpa%minimax_quad
@@ -648,8 +654,7 @@ CONTAINS
 
       do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
       IF (do_kpoints_from_Gamma) THEN
-         CALL get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual(1), Eigenval_kp, &
-                                                gw_corr_lev_occ(1), gw_corr_lev_virt(1), homo(1))
+         CALL get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual(1), Eigenval_kp)
       END IF
 
       ! Now start the RPA calculation
@@ -718,22 +723,23 @@ CONTAINS
 !> \param qs_env ...
 !> \param kpoints ...
 !> \param virtual ...
+!> \param Eigenval_kp ...
 ! **************************************************************************************************
-   SUBROUTINE get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual, Eigenval_kp, &
-                   gw_corr_lev_occ, gw_corr_lev_virt, homo)
+   SUBROUTINE get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual, Eigenval_kp)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: virtual, gw_corr_lev_occ, gw_corr_lev_virt, homo
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: Eigenval_kp
+      INTEGER                                            :: virtual
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_bandstruc_and_k_dependent_MOs'
 
-      INTEGER                                            :: handle, i_dim, n_spins, n_level_gw, ikp, nmo
+      INTEGER                                            :: handle, i_dim, ikp, n_spins, nmo
       INTEGER, DIMENSION(3)                              :: nkp_grid_G, nkp_grid_W
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: ev
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: kpgeneral
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma
-      REAL(KIND=dp), DIMENSION(:), POINTER :: ev
+
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_env%mp2_env%ri_rpa_im_time%kpoints_G, &
@@ -742,7 +748,7 @@ CONTAINS
                para_env)
 
       nkp_grid_W(1:3) = kpoints%nkp_grid(1:3)
-      SELECT CASE (qs_env%mp2_env%ri_rpa_im_time%periodic_gf) 
+      SELECT CASE (qs_env%mp2_env%ri_rpa_im_time%periodic_gf)
       CASE (gw_gf_mic)
          DO i_dim = 1, 3
             IF (nkp_grid_W(i_dim) == 1) THEN
@@ -763,15 +769,15 @@ CONTAINS
                                           "MONKHORST-PACK", virtual, para_env%num_pe, &
                                           mp_grid=nkp_grid_G(1:3))
 
-      IF(qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
+      IF (qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
 
          ! set up k-points for GW band structure calculation, will be completed later
          CALL get_kpgeneral_for_Sigma_kpoints(qs_env, kpgeneral)
- 
+
          CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma, &
                                              "GENERAL", virtual, para_env%num_pe, &
                                              kpgeneral=kpgeneral)
-  
+
          CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc, &
                                              "GENERAL", virtual, para_env%num_pe, &
                                              kpgeneral=kpgeneral, with_xc_terms=.FALSE.)
@@ -780,27 +786,24 @@ CONTAINS
          nmo = SIZE(Eigenval_kp, 1)
          n_spins = SIZE(Eigenval_kp, 3)
 
-         ALLOCATE(qs_env%mp2_env%ri_rpa_im_time%Eigenval_Gamma(nmo))
-         qs_env%mp2_env%ri_rpa_im_time%Eigenval_Gamma(:) = Eigenval_kp(:,1,1)
+         ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%Eigenval_Gamma(nmo))
+         qs_env%mp2_env%ri_rpa_im_time%Eigenval_Gamma(:) = Eigenval_kp(:, 1, 1)
 
-         DEALLOCATE(Eigenval_kp)
+         DEALLOCATE (Eigenval_kp)
 
-         ALLOCATE(Eigenval_kp(nmo, kpoints_Sigma%nkp, n_spins))
+         ALLOCATE (Eigenval_kp(nmo, kpoints_Sigma%nkp, n_spins))
 
          DO ikp = 1, kpoints_Sigma%nkp
 
-            ev => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1,1)%mo_set%eigenvalues
+            ev => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_set%eigenvalues
 
             Eigenval_kp(:, ikp, 1) = ev(:)
 
          END DO
 
-         DEALLOCATE(kpgeneral)
+         DEALLOCATE (kpgeneral)
 
-! JW HACK PRINT HERE ALREADY THE DFT EIGENVALUES AND THE HF@GW RESULTS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! (exchange matrix written in mp2_env!!!)
-
-      END IF 
+      END IF
 
       CALL timestop(handle)
 
@@ -831,15 +834,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kp_and_calc_kp_orbitals'
 
-      INTEGER                                            :: handle, nkp, ikp
+      INTEGER                                            :: handle, ikp, nkp
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_with_xc_terms
-      TYPE(qs_environment_type), POINTER                 :: qs_env_kp_from_Gamma
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
+      TYPE(dbcsr_type), POINTER                          :: cmat, rmat, tmpmat
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(dbcsr_type), POINTER                          ::rmat, cmat, tmpmat
+      TYPE(qs_environment_type), POINTER                 :: qs_env_kp_from_Gamma
+
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_env_kp_from_Gamma)
@@ -856,38 +860,38 @@ CONTAINS
       ! Save k-dependent KS-matrix into wmatrix of kpoints
       CALL get_qs_env(qs_env_kp_from_Gamma, matrix_ks_kp=matrix_ks_kp)
 
-      NULLIFY(xkp, sab_nl, cell_to_index)
+      NULLIFY (xkp, sab_nl, cell_to_index)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, sab_nl=sab_nl, cell_to_index=cell_to_index)
 
-      ALLOCATE(rmat, cmat, tmpmat)
-      CALL dbcsr_create(rmat, template=matrix_ks_kp(1,1)%matrix, matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmat, template=matrix_ks_kp(1,1)%matrix, matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(tmpmat, template=matrix_ks_kp(1,1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      ALLOCATE (rmat, cmat, tmpmat)
+      CALL dbcsr_create(rmat, template=matrix_ks_kp(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(cmat, template=matrix_ks_kp(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_create(tmpmat, template=matrix_ks_kp(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL cp_dbcsr_alloc_block_from_nbl(rmat, sab_nl)
       CALL cp_dbcsr_alloc_block_from_nbl(cmat, sab_nl)
       CALL dbcsr_reserve_all_blocks(tmpmat)
 
       DO ikp = 1, nkp
 
-          CALL dbcsr_set(rmat, 0.0_dp)
-          CALL dbcsr_set(cmat, 0.0_dp)
+         CALL dbcsr_set(rmat, 0.0_dp)
+         CALL dbcsr_set(cmat, 0.0_dp)
 
-          ! trafo matrix_ks from real space to k-space and write into wmat
-          CALL rskp_transform(rmatrix=rmat, cmatrix=cmat, &
-                              rsmat=matrix_ks_kp, ispin=1, xkp=xkp(1:3, ikp), &
-                              cell_to_index=cell_to_index, sab_nl=sab_nl)
+         ! trafo matrix_ks from real space to k-space and write into wmat
+         CALL rskp_transform(rmatrix=rmat, cmatrix=cmat, &
+                             rsmat=matrix_ks_kp, ispin=1, xkp=xkp(1:3, ikp), &
+                             cell_to_index=cell_to_index, sab_nl=sab_nl)
 
-          CALL dbcsr_set(tmpmat, 0.0_dp)
-          CALL dbcsr_desymmetrize(rmat, tmpmat)
+         CALL dbcsr_set(tmpmat, 0.0_dp)
+         CALL dbcsr_desymmetrize(rmat, tmpmat)
 
-          CALL cp_fm_set_all(kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, 0.0_dp)
-          CALL copy_dbcsr_to_fm(tmpmat, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix)
+         CALL cp_fm_set_all(kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, 0.0_dp)
+         CALL copy_dbcsr_to_fm(tmpmat, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix)
 
-          CALL dbcsr_set(tmpmat, 0.0_dp)
-          CALL dbcsr_desymmetrize(cmat, tmpmat)
+         CALL dbcsr_set(tmpmat, 0.0_dp)
+         CALL dbcsr_desymmetrize(cmat, tmpmat)
 
-          CALL cp_fm_set_all(kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, 0.0_dp)
-          CALL copy_dbcsr_to_fm(tmpmat, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix)
+         CALL cp_fm_set_all(kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, 0.0_dp)
+         CALL copy_dbcsr_to_fm(tmpmat, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix)
 
       END DO
 
@@ -913,23 +917,22 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kpgeneral_for_Sigma_kpoints'
 
       INTEGER                                            :: handle, i_kp_in_kp_line, i_special_kp, &
-                                                            ikk, n_kp_in_kp_line, n_special_kp, &
-                                                            nkp_self_energy, nkp_self_energy_special_kp, &
-                                                            i_x, j_y, k_z
-      INTEGER, DIMENSION(:), POINTER :: nkp_grid
+                                                            i_x, ikk, j_y, k_z, n_kp_in_kp_line, &
+                                                            n_special_kp
+      INTEGER, DIMENSION(:), POINTER                     :: nkp_grid
 
       CALL timeset(routineN, handle)
 
       n_special_kp = qs_env%mp2_env%ri_g0w0%n_special_kp
       n_kp_in_kp_line = qs_env%mp2_env%ri_g0w0%n_kp_in_kp_line
-      IF(n_special_kp > 0) THEN
-        qs_env%mp2_env%ri_g0w0%nkp_self_energy_special_kp = n_kp_in_kp_line*(n_special_kp - 1) + 1
+      IF (n_special_kp > 0) THEN
+         qs_env%mp2_env%ri_g0w0%nkp_self_energy_special_kp = n_kp_in_kp_line*(n_special_kp - 1) + 1
       ELSE
-        qs_env%mp2_env%ri_g0w0%nkp_self_energy_special_kp = 0 
+         qs_env%mp2_env%ri_g0w0%nkp_self_energy_special_kp = 0
       END IF
 
-      qs_env%mp2_env%ri_g0w0%nkp_self_energy_monkh_pack = qs_env%mp2_env%ri_g0w0%kp_grid_Sigma(1) * &
-                                                          qs_env%mp2_env%ri_g0w0%kp_grid_Sigma(2) * &
+      qs_env%mp2_env%ri_g0w0%nkp_self_energy_monkh_pack = qs_env%mp2_env%ri_g0w0%kp_grid_Sigma(1)* &
+                                                          qs_env%mp2_env%ri_g0w0%kp_grid_Sigma(2)* &
                                                           qs_env%mp2_env%ri_g0w0%kp_grid_Sigma(3)
 
       qs_env%mp2_env%ri_g0w0%nkp_self_energy = qs_env%mp2_env%ri_g0w0%nkp_self_energy_special_kp + &
@@ -937,7 +940,7 @@ CONTAINS
 
       ALLOCATE (kpgeneral(3, qs_env%mp2_env%ri_g0w0%nkp_self_energy))
 
-      IF(n_special_kp > 0) THEN
+      IF (n_special_kp > 0) THEN
 
          kpgeneral(1:3, 1) = qs_env%mp2_env%ri_g0w0%xkp_special_kp(1:3, 1)
 
@@ -945,33 +948,33 @@ CONTAINS
 
          DO i_special_kp = 2, n_special_kp
             DO i_kp_in_kp_line = 1, n_kp_in_kp_line
-   
+
                ikk = ikk + 1
                kpgeneral(1:3, ikk) = qs_env%mp2_env%ri_g0w0%xkp_special_kp(1:3, i_special_kp - 1) + &
                                      REAL(i_kp_in_kp_line, KIND=dp)/REAL(n_kp_in_kp_line, KIND=dp)* &
                                      (qs_env%mp2_env%ri_g0w0%xkp_special_kp(1:3, i_special_kp) - &
                                       qs_env%mp2_env%ri_g0w0%xkp_special_kp(1:3, i_special_kp - 1))
-   
+
             END DO
          END DO
 
       ELSE
 
-        ikk = 0
+         ikk = 0
 
       END IF
 
       nkp_grid => qs_env%mp2_env%ri_g0w0%kp_grid_Sigma
 
       DO i_x = 1, nkp_grid(1)
-        DO j_y = 1, nkp_grid(2)
-          DO k_z = 1, nkp_grid(3)
-            ikk = ikk + 1
-            kpgeneral(1, ikk) = REAL(2*i_x - nkp_grid(1) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(1), KIND=dp))
-            kpgeneral(2, ikk) = REAL(2*j_y - nkp_grid(2) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(2), KIND=dp))
-            kpgeneral(3, ikk) = REAL(2*k_z - nkp_grid(3) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(3), KIND=dp))
-          END DO
-        END DO
+         DO j_y = 1, nkp_grid(2)
+            DO k_z = 1, nkp_grid(3)
+               ikk = ikk + 1
+               kpgeneral(1, ikk) = REAL(2*i_x - nkp_grid(1) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(1), KIND=dp))
+               kpgeneral(2, ikk) = REAL(2*j_y - nkp_grid(2) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(2), KIND=dp))
+               kpgeneral(3, ikk) = REAL(2*k_z - nkp_grid(3) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(3), KIND=dp))
+            END DO
+         END DO
       END DO
 
       CALL timestop(handle)
@@ -1432,6 +1435,7 @@ CONTAINS
 !> \param fm_mo_coeff_virt ...
 !> \param mo_coeff ...
 !> \param fm_matrix_L_RI_metric ...
+!> \param fm_matrix_Sinv_Vtrunc_Sinv ...
 !> \param fm_scaled_dm_occ_tau ...
 !> \param fm_scaled_dm_virt_tau ...
 !> \param mat_munu ...
@@ -1478,7 +1482,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia
       INTEGER, INTENT(IN)                                :: dimen_nm_gw
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, INTENT(INOUT)      :: Eigenval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
@@ -1490,7 +1495,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_im_time
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                                             mo_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+                                                            fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
@@ -1537,13 +1543,11 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_V, wkp_W
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: Eigenval_last, Eigenval_scf, Eigenval_kp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: &
-         vec_W_gw, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, &
-         weights_sin_tf_t_to_w
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                            B_bar_ijQ_bse_local, B_iaQ_bse_local, &
-                                                            vec_Sigma_x_gw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_W_gw, weights_cos_tf_t_to_w, &
+                                                            weights_cos_tf_w_to_t, &
+                                                            weights_sin_tf_t_to_w
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
+         B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: cfm_mat_W_kp_tau
       TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_S_gw_work, fm_mat_W
@@ -1764,7 +1768,7 @@ CONTAINS
 
             IF (.NOT. do_kpoints_cubic_RPA) THEN
                DO ispin = 1, nspins
-                  e_fermi(ispin) = (Eigenval(homo(ispin), 1,ispin) + Eigenval(homo(ispin) + 1, 1,ispin))*0.5_dp
+                  e_fermi(ispin) = (Eigenval(homo(ispin), 1, ispin) + Eigenval(homo(ispin) + 1, 1, ispin))*0.5_dp
                END DO
             END IF
 
@@ -1796,7 +1800,7 @@ CONTAINS
                                      starts_array_mc, ends_array_mc, &
                                      starts_array_mc_block, ends_array_mc_block, &
                                      weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(1), eps_filter, alpha, &
-                                     eps_filter_im_time, Eigenval(:, 1,1), nmo, &
+                                     eps_filter_im_time, Eigenval(:, 1, 1), nmo, &
                                      num_integ_points, cut_memory, &
                                      unit_nr, mp2_env, para_env, &
                                      qs_env, do_kpoints_from_Gamma, &
@@ -1820,7 +1824,7 @@ CONTAINS
                                            starts_array_mc, ends_array_mc, &
                                            starts_array_mc_block, ends_array_mc_block, &
                                            weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(2), eps_filter, alpha, &
-                                           eps_filter_im_time, Eigenval(:, 1,2), nmo, &
+                                           eps_filter_im_time, Eigenval(:, 1, 2), nmo, &
                                            num_integ_points, cut_memory, &
                                            unit_nr, mp2_env, para_env, &
                                            qs_env, do_kpoints_from_Gamma, &
@@ -1838,7 +1842,7 @@ CONTAINS
                                            starts_array_mc, ends_array_mc, &
                                            starts_array_mc_block, ends_array_mc_block, &
                                            weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(2), eps_filter, alpha, &
-                                           eps_filter_im_time, Eigenval(:, 1,2), nmo, &
+                                           eps_filter_im_time, Eigenval(:, 1, 2), nmo, &
                                            num_integ_points, cut_memory, &
                                            unit_nr, mp2_env, para_env, &
                                            qs_env, do_kpoints_from_Gamma, &
@@ -1885,13 +1889,13 @@ CONTAINS
                   "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
 
                CALL calc_mat_Q(fm_mat_S(1)%matrix, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual(1), &
-                               Eigenval(:, 1,1), Eigenval_last(:, 1,1), Eigenval_scf(:, 1,1), &
+                               Eigenval(:, 1, 1), Eigenval_last(:, 1, 1), Eigenval_scf(:, 1, 1), &
                                homo(1), omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(1), alpha, fm_mat_Q(1)%matrix, &
                                fm_mat_Q_gemm(1)%matrix, do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
 
                IF (my_open_shell) THEN
                   CALL calc_mat_Q(fm_mat_S(2)%matrix, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual(2), &
-                                  Eigenval(:, 1,2), Eigenval_last(:, 1,2), Eigenval_scf(:, 1,2), &
+                                  Eigenval(:, 1, 2), Eigenval_last(:, 1, 2), Eigenval_scf(:, 1, 2), &
                                   homo(2), omega, omega_old, jquad, mm_style, &
                                   dimen_RI_red, dimen_ia(2), alpha, fm_mat_Q(2)%matrix, fm_mat_Q_gemm(2)%matrix, do_bse, &
                                   fm_mat_Q_static_bse_gemm, dgemm_counter)
@@ -1908,7 +1912,7 @@ CONTAINS
             ! Calculate AXK energy correction
             IF (mp2_env%ri_rpa%do_ri_axk) THEN
                CALL compute_axk_ener(qs_env, fm_mat_Q(1)%matrix, fm_mat_Q_gemm(1)%matrix, dimen_RI_red, dimen_ia(1), para_env_sub, &
-                                     para_env_RPA, Eigenval(:, 1,1), fm_mat_S(1)%matrix, homo(1), virtual(1), omega, &
+                                     para_env_RPA, Eigenval(:, 1, 1), fm_mat_S(1)%matrix, homo(1), virtual(1), omega, &
                                      mp2_env, mat_munu, unit_nr, e_axk_corr)
 
                ! Evaluate the final AXK energy correction
@@ -1943,7 +1947,7 @@ CONTAINS
                                          gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
                                          do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
                                          fermi_level_offset, fermi_level_offset_input, &
-                                         omega, Eigenval(:,1,:), delta_corr, tau_tj, tj, vec_omega_fit_gw, &
+                                         omega, Eigenval(:, 1, :), delta_corr, tau_tj, tj, vec_omega_fit_gw, &
                                          vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W, fm_mat_L, &
                                          fm_mat_Q(1)%matrix, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
                                          fm_mat_S_gw_work, fm_mat_work, mo_coeff(1)%matrix, para_env, &
@@ -1980,7 +1984,7 @@ CONTAINS
                                              fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                              fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
-                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:,1,:), &
+                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
                                              tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
                                              unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
                Pspin = 2
@@ -1990,7 +1994,7 @@ CONTAINS
                                              fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                              fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
-                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:,1,:), &
+                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
                                              tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
                                              unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
 
@@ -2003,7 +2007,7 @@ CONTAINS
                                              fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                              fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
-                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:,1,:), &
+                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
                                              tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
                                              unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
             END IF
@@ -2048,7 +2052,7 @@ CONTAINS
                                         t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                         matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, mat_W, matrix_s, &
                                         kpoints, mp2_env, qs_env, nkp_self_energy, do_kpoints_cubic_RPA, &
-                                        starts_array_mc, ends_array_mc, starts_array_mc_block, ends_array_mc_block)
+                                        starts_array_mc, ends_array_mc)
             ELSE
                CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                         gw_corr_lev_tot, gw_corr_lev_virt, homo, &
@@ -2068,7 +2072,7 @@ CONTAINS
                                         t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, matrix_berry_im_mo_mo, &
                                         matrix_berry_re_mo_mo, mat_W, matrix_s, &
                                         kpoints, mp2_env, qs_env, nkp_self_energy, do_kpoints_cubic_RPA, &
-                                        starts_array_mc, ends_array_mc, starts_array_mc_block, ends_array_mc_block)
+                                        starts_array_mc, ends_array_mc)
             END IF
 
             ! if HOMO-LUMO gap differs by less than mp2_env%ri_g0w0%eps_ev_sc_iter, exit ev sc GW loop
@@ -2082,13 +2086,13 @@ CONTAINS
 
          IF (my_open_shell) THEN
 
-            CALL calculate_ic_correction(Eigenval(:, 1,1), mat_SinvVSinv%matrix, &
+            CALL calculate_ic_correction(Eigenval(:, 1, 1), mat_SinvVSinv%matrix, &
                                          t_3c_overl_nnP_ic(1), t_3c_overl_nnP_ic_reflected(1), &
                                          gw_corr_lev_tot, &
                                          gw_corr_lev_occ(1), gw_corr_lev_virt(1), homo(1), unit_nr, &
                                          print_ic_values, para_env, do_alpha=.TRUE.)
 
-            CALL calculate_ic_correction(Eigenval(:, 1,2), mat_SinvVSinv%matrix, &
+            CALL calculate_ic_correction(Eigenval(:, 1, 2), mat_SinvVSinv%matrix, &
                                          t_3c_overl_nnP_ic(2), t_3c_overl_nnP_ic_reflected(2), &
                                          gw_corr_lev_tot, &
                                          gw_corr_lev_occ(2), gw_corr_lev_virt(2), homo(2), unit_nr, &
@@ -2096,7 +2100,7 @@ CONTAINS
 
          ELSE
 
-            CALL calculate_ic_correction(Eigenval(:, 1,1), mat_SinvVSinv%matrix, &
+            CALL calculate_ic_correction(Eigenval(:, 1, 1), mat_SinvVSinv%matrix, &
                                          t_3c_overl_nnP_ic(1), t_3c_overl_nnP_ic_reflected(1), &
                                          gw_corr_lev_tot, &
                                          gw_corr_lev_occ(1), gw_corr_lev_virt(1), homo(1), unit_nr, &
@@ -2116,7 +2120,7 @@ CONTAINS
 
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
                                      B_iaQ_bse_local, homo(1), virtual(1), num_Z_vectors, &
-                                     max_iter_bse, eps_min_trans, Eigenval(:, 1,1), para_env)
+                                     max_iter_bse, eps_min_trans, Eigenval(:, 1, 1), para_env)
 
       END IF
 
@@ -2125,12 +2129,12 @@ CONTAINS
             CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                         mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time)
+                                        kpoints, vec_Sigma_x_gw,.NOT. do_im_time)
          ELSE
             CALL deallocate_matrices_gw(fm_mat_S_gw_work, vec_W_gw, vec_Sigma_c_gw, vec_omega_fit_gw, &
                                         mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw, &
                                         Eigenval_last, Eigenval_scf, do_periodic, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                        kpoints, do_ri_Sigma_x, vec_Sigma_x_gw,.NOT. do_im_time)
+                                        kpoints, vec_Sigma_x_gw,.NOT. do_im_time)
          END IF
       END IF
 

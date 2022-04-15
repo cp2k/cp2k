@@ -23,7 +23,7 @@ MODULE rpa_gw_kpoints
                                               cp_cfm_p_type,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
-                                              cp_cfm_type, cp_cfm_to_cfm
+                                              cp_cfm_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
@@ -85,6 +85,8 @@ CONTAINS
 !> \param wkp_W ...
 !> \param mat_SinvVSinv ...
 !> \param do_W_and_not_V ...
+!> \param fm_mat_SiVtrSi_re ...
+!> \param fm_mat_SiVtrSi_im ...
 ! **************************************************************************************************
    SUBROUTINE compute_Wc_real_space_tau_GW(fm_mat_W_tau, cfm_mat_Q, fm_mat_L_re, fm_mat_L_im, &
                                            dimen_RI, num_integ_points, jquad, &
@@ -107,7 +109,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
       LOGICAL, INTENT(IN)                                :: do_W_and_not_V
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, POINTER              :: fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, POINTER    :: fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_real_space_tau_GW'
 
@@ -202,11 +204,11 @@ CONTAINS
 
       ELSE
 
-         IF(qs_env%mp2_env%ri_rpa_im_time%trunc_coulomb_ri_x) THEN
+         IF (qs_env%mp2_env%ri_rpa_im_time%trunc_coulomb_ri_x) THEN
 
-           ! Copy fm_mat_L_re and fm_mat_L_re to cfm_mat_L
-           CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_work_2, z_one, fm_mat_SiVtrSi_re)
-           CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_work_2, gaussi, fm_mat_SiVtrSi_im)
+            ! Copy fm_mat_L_re and fm_mat_L_re to cfm_mat_L
+            CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_work_2, z_one, fm_mat_SiVtrSi_re)
+            CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_work_2, gaussi, fm_mat_SiVtrSi_im)
 
          ELSE
 

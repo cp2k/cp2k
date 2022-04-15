@@ -163,7 +163,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_mat_munu
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+                                                            fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_P_global

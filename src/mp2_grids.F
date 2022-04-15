@@ -77,7 +77,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
-      REAL(KIND=dp), DIMENSION(:, :,:), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: do_im_time, do_ri_sos_laplace_mp2, &
                                                             do_print
@@ -292,7 +292,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      REAL(KIND=dp), DIMENSION(:, :,:), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
@@ -364,7 +364,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: a_scaling_ext
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      REAL(KIND=dp), DIMENSION(:, :,:), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -396,13 +396,13 @@ CONTAINS
          cottj(jquad) = 1.0_dp/TAN(tj_ext(jquad))
       END DO
 
-      CALL calc_ia_ia_integrals(para_env_RPA, homo(1), virtual(1), nrow_local, right_term_ref, Eigenval(:, 1,1), &
+      CALL calc_ia_ia_integrals(para_env_RPA, homo(1), virtual(1), nrow_local, right_term_ref, Eigenval(:, 1, 1), &
                                 D_ia, iaia_RI, M_ia, fm_mat_S(1)%matrix, &
                                 para_env_row)
 
       ! In the open shell case do point 1-2-3 for the beta spin
       IF (my_open_shell) THEN
-         CALL calc_ia_ia_integrals(para_env_RPA, homo(2), virtual(2), nrow_local_beta, right_term_ref_beta, Eigenval(:, 1,2), &
+         CALL calc_ia_ia_integrals(para_env_RPA, homo(2), virtual(2), nrow_local_beta, right_term_ref_beta, Eigenval(:, 1, 2), &
                                    D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S(2)%matrix, para_env_row_beta)
 
          right_term_ref = right_term_ref + right_term_ref_beta

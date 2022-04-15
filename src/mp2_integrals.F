@@ -38,14 +38,12 @@ MODULE mp2_integrals
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_scalar, dbcsr_type_real_8
-   USE dbt_api,                ONLY: &
-        dbt_clear, dbt_contract, dbt_copy, dbt_create, dbt_destroy, &
-        dbt_distribution_destroy, dbt_distribution_new, dbt_distribution_type, &
-        dbt_filter, dbt_get_block, dbt_get_info, dbt_get_num_blocks, &
-        dbt_get_stored_coordinates, dbt_mp_environ_pgrid, dbt_pgrid_create, &
-        dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, &
-        dbt_reserved_block_indices, dbt_split_blocks, dbt_type, dbt_write_blocks
+        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE dbt_api,                         ONLY: &
+        dbt_clear, dbt_contract, dbt_copy, dbt_create, dbt_destroy, dbt_distribution_destroy, &
+        dbt_distribution_new, dbt_distribution_type, dbt_filter, dbt_get_block, dbt_get_info, &
+        dbt_get_stored_coordinates, dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, &
+        dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_split_blocks, dbt_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type
@@ -143,6 +141,7 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param mo_coeff ...
 !> \param fm_matrix_L_RI_metric ...
+!> \param fm_matrix_Sinv_Vtrunc_Sinv ...
 !> \param nmo ...
 !> \param homo ...
 !> \param mat_munu ...
@@ -209,7 +208,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
+                                                            fm_matrix_Sinv_Vtrunc_Sinv
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
@@ -709,8 +709,6 @@ CONTAINS
          cut_memory_int = qs_env%mp2_env%ri_rpa_im_time%cut_memory
          CALL create_tensor_batches(sizes_AO, cut_memory_int, starts_array_mc_int, ends_array_mc_int, &
                                     starts_array_mc_block_int, ends_array_mc_block_int)
-
-!JW          PRINT *, 'sizes_AO (THAT ARE PROBABLY ATOMIC BLOCK SIZES) =', sizes_AO, 'from cut memory =', cut_memory_int
 
          DEALLOCATE (starts_array_mc_int, ends_array_mc_int)
 

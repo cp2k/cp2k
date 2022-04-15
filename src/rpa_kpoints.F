@@ -102,6 +102,7 @@ CONTAINS
 !> \param fm_mat_W ...
 !> \param fm_mat_RI_global_work ...
 !> \param mat_SinvVSinv ...
+!> \param fm_mat_SiVtrSi ...
 ! **************************************************************************************************
    SUBROUTINE RPA_postprocessing_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, para_env_RPA, &
                                     Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, wkp_W, wkp_V, do_gw_im_time, &
@@ -133,10 +134,11 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_mat_SiVtrSi
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
       TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_SiVtrSi
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'RPA_postprocessing_kp'
 
@@ -152,7 +154,7 @@ CONTAINS
       END IF
 
       IF (do_kpoints_from_Gamma) THEN
-         CALL get_mat_cell_T_from_mat_gamma(mat_P_omega(jquad,:), qs_env, kpoints, jquad, unit_nr)
+         CALL get_mat_cell_T_from_mat_gamma(mat_P_omega(jquad, :), qs_env, kpoints, jquad, unit_nr)
       END IF
 
       CALL transform_P_from_real_space_to_kpoints(mat_P_omega, mat_P_omega_kp, &
@@ -699,7 +701,7 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE get_mat_cell_T_from_mat_gamma(mat_P_omega, qs_env, kpoints, jquad, unit_nr)
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)    :: mat_P_omega
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mat_P_omega
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: jquad, unit_nr
@@ -830,7 +832,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_P_from_real_space_to_kpoints'
 
       INTEGER                                            :: handle, icell, nkp, num_integ_points
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
 
       CALL timeset(routineN, handle)
 
@@ -855,7 +856,6 @@ CONTAINS
 !> \param imag_mat_kp ...
 !> \param mat_real_space ...
 !> \param kpoints ...
-!> \param index_to_cell ...
 !> \param eps_filter_im_time ...
 ! **************************************************************************************************
    SUBROUTINE real_space_to_kpoint_transform_rpa(real_mat_kp, imag_mat_kp, mat_real_space, &
@@ -863,13 +863,13 @@ CONTAINS
 
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: real_mat_kp, imag_mat_kp, mat_real_space
       TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'real_space_to_kpoint_transform_rpa'
 
       INTEGER                                            :: handle, i_cell, ik, nkp, num_cells
       INTEGER, DIMENSION(3)                              :: cell
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
       REAL(KIND=dp)                                      :: arg, coskl, sinkl
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(dbcsr_type)                                   :: mat_work
@@ -885,7 +885,7 @@ CONTAINS
       ! this kpoint environme t should be the kpoints for D(it) and X(it) created in init_cell_index_rpa
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp)
 
-      NULLIFY(index_to_cell)
+      NULLIFY (index_to_cell)
       index_to_cell => kpoints%index_to_cell
 
       num_cells = SIZE(index_to_cell, 2)

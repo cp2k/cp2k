@@ -2532,8 +2532,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_integrals'
 
-      INTEGER :: handle, iatom, ibasis, icol, ikind, imax, img, irow, iset, jatom, jkind, jset, &
-         m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, unit_id, i_diag
+      INTEGER :: handle, i_diag, iatom, ibasis, icol, ikind, imax, img, irow, iset, jatom, jkind, &
+         jset, m_max, maxli, maxlj, natom, ncoi, ncoj, nimg, nseti, nsetj, op_prv, sgfi, sgfj, &
+         unit_id
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmax_j, lmin_i, lmin_j, npgfi, &
                                                             npgfj, nsgfi, nsgfj
@@ -2715,10 +2716,10 @@ CONTAINS
                   ! RI regularization
                   IF (do_kpoints_prv .AND. cell(1) == 0 .AND. cell(2) == 0 .AND. cell(3) == 0 .AND. &
                       iatom == jatom .AND. iset == jset) THEN
-                      DO i_diag = 1, nsgfi(iset)
-                         sij_rs(i_diag, i_diag) = sij_rs(i_diag, i_diag) + &
-                                                  regularization_RI*MAX(1.0_dp, 1.0_dp/MINVAL(zeti(:, iset)))
-                      END DO
+                     DO i_diag = 1, nsgfi(iset)
+                        sij_rs(i_diag, i_diag) = sij_rs(i_diag, i_diag) + &
+                                                 regularization_RI*MAX(1.0_dp, 1.0_dp/MINVAL(zeti(:, iset)))
+                     END DO
                   END IF
 
                   CALL block_add("IN", sij_rs, &

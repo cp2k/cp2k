@@ -165,11 +165,11 @@ MODULE mp2_types
       INTEGER                  :: min_bsize, min_bsize_mo, periodic_gf
       TYPE(kpoint_type), POINTER :: kpoints_G, kpoints_Sigma, kpoints_Sigma_no_xc
       INTEGER, ALLOCATABLE, DIMENSION(:)      :: starts_array_mc_RI, ends_array_mc_RI, &
-                                                            starts_array_mc_block_RI, &
-                                                            ends_array_mc_block_RI, &
-                                                            starts_array_mc, ends_array_mc, &
-                                                            starts_array_mc_block, &
-                                                            ends_array_mc_block
+                                                 starts_array_mc_block_RI, &
+                                                 ends_array_mc_block_RI, &
+                                                 starts_array_mc, ends_array_mc, &
+                                                 starts_array_mc_block, &
+                                                 ends_array_mc_block
 
    END TYPE
 
@@ -208,7 +208,7 @@ MODULE mp2_types
       LOGICAL :: do_gamma_only_sigma
       LOGICAL :: update_xc_energy, do_kpoints_Sigma
       INTEGER :: n_kp_in_kp_line, n_special_kp, nkp_self_energy, &
-              nkp_self_energy_special_kp, nkp_self_energy_monkh_pack
+                 nkp_self_energy_special_kp, nkp_self_energy_monkh_pack
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: xkp_special_kp
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: mat_exchange_for_kp_from_gamma
    END TYPE

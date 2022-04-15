@@ -26,14 +26,15 @@ MODULE input_cp2k_mp2
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
-        do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, do_potential_tshpsc, &
-        eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, gw_read_exx, &
-        gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, kp_weights_W_tailored, &
-        kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, mp2_method_none, numerical, &
-        ri_default, ri_rpa_g0w0_crossing_bisection, ri_rpa_g0w0_crossing_newton, &
-        ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, wfc_mm_style_syrk, &
-        gw_gf_mic, gw_gf_gamma, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-      ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse
+        do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
+        do_potential_tshpsc, eri_default, gaussian, gw_gf_gamma, gw_gf_mic, gw_no_print_exx, &
+        gw_pade_approx, gw_print_exx, gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, &
+        kp_weights_W_auto, kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, &
+        mp2_method_gpw, mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
+        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
+        wfc_mm_style_syrk
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -1244,7 +1245,7 @@ CONTAINS
          keyword, __LOCATION__, &
          name="TRUNC_COLOUMB_RI_X", &
          description="If true, use the truncated Coulomb operator for the exchange-self-energy in "// &
-         "periodic GW.",&
+         "periodic GW.", &
          usage="TRUNCATED_COLOUMB_RI_X", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
@@ -1279,8 +1280,8 @@ CONTAINS
          keyword, __LOCATION__, &
          name="GREENS_FUNCTION", &
          description="Decides which scheme is used for the periodic Green's function "// &
-                     "(only relevant for periodic GW calculations)."// &
-                     "Both schemes are exact in the limit of large unit cells."  , &
+         "(only relevant for periodic GW calculations)."// &
+         "Both schemes are exact in the limit of large unit cells.", &
          usage="GREENS_FUNCTION GAMMA", &
          enum_c_vals=s2a("GAMMA", "MIC"), &
          enum_i_vals=(/gw_gf_gamma, gw_gf_mic/), &
