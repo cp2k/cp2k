@@ -341,7 +341,7 @@ check_command() {
     local __package=${2}
   fi
   if $(command -v ${__command} >&- 2>&-); then
-    echo "path to ${__command} is " $(command -v ${__command})
+    echo "path to ${__command} is $(command -v ${__command})"
   else
     report_error "Cannot find ${__command}, please check if the package ${__package} is installed or in system search path"
     return 1
@@ -396,7 +396,7 @@ check_lib() {
   # instead of ld for linker then we can use LIBRARY_PATH, which IS
   # used during link stage. However, I think using ld is more
   # general, as in most systems LIBRARY_PATH is rarely defined, and
-  # we would have to reply on gcc.
+  # we would have to rely on gcc.
   local __search_engine="ld -o /dev/null"
   local __search_paths="$LIB_PATHS"
   # convert a list of paths to -L<dir> list used by ld

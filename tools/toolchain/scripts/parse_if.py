@@ -137,6 +137,7 @@ if __name__ == "__main__":
         "MPI": False,
         "CUDA": False,
         "HIP": False,
+        "OPENCL": False,
         "WARNALL": False,
         "DEBUG": False,
         "STATIC": False,

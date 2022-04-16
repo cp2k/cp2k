@@ -117,9 +117,9 @@ LIBS="${CP_LIBS} -lstdc++"
 
 CXXFLAGS+=" --std=c++11 \$(DFLAGS) -Wno-deprecated-declarations"
 # CUDA handling
-CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
-CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
+  CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
+  CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
   LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
   DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
   NVFLAGS="-g -arch sm_${ARCH_NUM} -O3 -allow-unsupported-compiler -Xcompiler='-fopenmp' --std=c++11 \$(DFLAGS)"
@@ -134,18 +134,20 @@ if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   CUDA_FLAGS=""
   add_include_from_paths CUDA_FLAGS "cuda.h" $INCLUDE_PATHS
   NVFLAGS+=" ${CUDA_FLAGS}"
-  CFLAGS+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
-  CXXFLAGS+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
+  NVCC_TOPDIR="$(dirname $(command -v nvcc))/.."
+  CUDA_PATH="${CUDA_PATH:-${CUDA_HOME:-${NVCC_TOPDIR:-/CUDA_HOME-notset}}}"
+  CFLAGS+=" IF_CUDA(-I${CUDA_PATH}/include|)"
+  CXXFLAGS+=" IF_CUDA(-I${CUDA_PATH}/include|)"
 
   # Set LD-flags
-  CUDA_LDFLAGS=''
+  CUDA_LDFLAGS=""
   add_lib_from_paths CUDA_LDFLAGS "libcudart.*" $LIB_PATHS
   add_lib_from_paths CUDA_LDFLAGS "libnvrtc.*" $LIB_PATHS
   add_lib_from_paths CUDA_LDFLAGS "libcuda.*" $LIB_PATHS
   add_lib_from_paths CUDA_LDFLAGS "libcufft.*" $LIB_PATHS
   add_lib_from_paths CUDA_LDFLAGS "libcublas.*" $LIB_PATHS
   export CUDA_LDFLAGS="${CUDA_LDFLAGS}"
-  LDFLAGS+=" ${CUDA_LDFLAGS}"
+  LDFLAGS+=" IF_CUDA(${CUDA_LDFLAGS}|)"
 fi
 
 # HIP handling
@@ -156,7 +158,6 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   check_lib -lhipfft "hip"
   add_lib_from_paths HIP_LDFLAGS "libhipfft.*" $LIB_PATHS
 
-  PLATFORM_FLAGS=''
   HIP_INCLUDES="-I${ROCM_PATH}/include"
   case "${GPUVER}" in
     Mi50)
@@ -172,8 +173,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       add_lib_from_paths HIP_LDFLAGS "libroctracer64.*" $LIB_PATHS
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
-      PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__'
-      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)  -D__DBCSR_ACC'
+      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)  -D__DBCSR_ACC"
       CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     Mi100)
@@ -189,8 +189,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       add_lib_from_paths HIP_LDFLAGS "libroctracer64.*" $LIB_PATHS
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
-      PLATFORM_FLAGS='-D__HIP_PLATFORM_AMD__ '
-      DFLAGS+=' IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC'
+      DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC"
       CXXFLAGS+=" -fopenmp -std=c++11"
       ;;
     *)
@@ -210,7 +209,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       # Set LD-flags
       # Multiple definition because of hip/include/hip/nvidia_detail/nvidia_hiprtc.h
       LDFLAGS+=" -Wl,--allow-multiple-definition"
-      LIBS+=' -lhipfft -lhipblas -lhipfft -lnvrtc -lcudart -lcufft -lcublas -lcuda'
+      LIBS+=" -lhipfft -lhipblas -lhipfft -lnvrtc -lcudart -lcufft -lcublas -lcuda"
       add_lib_from_paths HIP_LDFLAGS "libcudart.*" $LIB_PATHS
       add_lib_from_paths HIP_LDFLAGS "libnvrtc.*" $LIB_PATHS
       add_lib_from_paths HIP_LDFLAGS "libcuda.*" $LIB_PATHS
@@ -222,6 +221,30 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
   LDFLAGS+=" ${HIP_LDFLAGS}"
   CFLAGS+=" ${HIP_INCLUDES}"
   CXXFLAGS+=" ${HIP_INCLUDES}"
+fi
+
+# OpenCL handling (GPUVER is not a prerequisite)
+if [ "${ENABLE_OPENCL}" = __TRUE__ ]; then
+  OPENCL_DFLAGS="-D__DBCSR_ACC"
+  # avoid duplicating FLAGS
+  if [[ "${GPUVER}" == no || ("${ENABLE_CUDA}" != __TRUE__ && "${ENABLE_HIP}" != __TRUE__) ]]; then
+    OPENCL_FLAGS="${CFLAGS} ${OPENCL_DFLAGS} ${DFLAGS}"
+    DFLAGS="IF_OPENCL(${OPENCL_DFLAGS} ${DFLAGS}|)"
+    # Set include flags
+    OPENCL_INCLUDES=""
+    add_include_from_paths -p OPENCL_INCLUDES "CL" $INCLUDE_PATHS
+    if [ -e "${OPENCL_INCLUDES}/CL/cl.h" ]; then
+      OPENCL_FLAGS+=" ${OPENCL_INCLUDES}"
+    fi
+  fi
+  # Append OpenCL library to LIBS
+  LIBOPENCL=$(ldconfig -p 2> /dev/null | grep -m1 OpenCL | rev | cut -d' ' -f1 | rev)
+  if [ -e "${LIBOPENCL}" ]; then
+    echo "Found library ${LIBOPENCL}"
+    LIBS+=" IF_OPENCL(${LIBOPENCL}|)"
+  else
+    LIBS+=" IF_OPENCL(-lOpenCL|)"
+  fi
 fi
 
 # -------------------------
@@ -239,7 +262,7 @@ gen_arch_file() {
   shift
   local __flags=$@
   local __full_flag_list="MPI DEBUG CUDA WARNALL COVERAGE"
-  local __flag=''
+  local __flag=""
   for __flag in $__full_flag_list; do
     eval "local __${__flag}=off"
   done
@@ -267,6 +290,18 @@ OFFLOAD_CC    = \${ROCM_PATH}/hip/bin/hipcc
 OFFLOAD_FLAGS = \${HIP_FLAGS} \${HIP_INCLUDES}
 OFFLOAD_TARGET = hip
 EOF
+  fi
+
+  if [ "$__OPENCL" = "on" ]; then
+    cat << EOF >> $__filename
+#
+override DBCSR_USE_ACCEL = opencl
+EOF
+    if [ "${OPENCL_FLAGS}" ]; then
+      cat << EOF >> $__filename
+OFFLOAD_FLAGS = \${OPENCL_FLAGS}
+EOF
+    fi
   fi
 
   if [ "$__WARNALL" = "on" ]; then
@@ -311,15 +346,28 @@ if [ "$MPI_MODE" != no ]; then
   arch_vers="${arch_vers} psmp pdbg"
 fi
 
+# opencl enabled arch files
+if [ "$ENABLE_OPENCL" = __TRUE__ ]; then
+  gen_arch_file "local_opencl.ssmp" OPENCL
+  gen_arch_file "local_opencl.sdbg" OPENCL DEBUG
+  if [ "$MPI_MODE" != no ]; then
+    gen_arch_file "local_opencl.psmp" OPENCL MPI
+    gen_arch_file "local_opencl.pdbg" OPENCL MPI DEBUG
+    gen_arch_file "local_opencl_warn.psmp" OPENCL MPI WARNALL
+    gen_arch_file "local_coverage_opencl.pdbg" OPENCL MPI COVERAGE
+  fi
+  DBCSR_OPENCL=OPENCL
+fi
+
 # cuda enabled arch files
 if [ "$ENABLE_CUDA" = __TRUE__ ]; then
-  gen_arch_file "local_cuda.ssmp" CUDA
-  gen_arch_file "local_cuda.sdbg" CUDA DEBUG
+  gen_arch_file "local_cuda.ssmp" CUDA ${DBCSR_OPENCL}
+  gen_arch_file "local_cuda.sdbg" CUDA ${DBCSR_OPENCL} DEBUG
   if [ "$MPI_MODE" != no ]; then
-    gen_arch_file "local_cuda.psmp" CUDA MPI
-    gen_arch_file "local_cuda.pdbg" CUDA MPI DEBUG
-    gen_arch_file "local_cuda_warn.psmp" CUDA MPI WARNALL
-    gen_arch_file "local_coverage_cuda.pdbg" CUDA MPI COVERAGE
+    gen_arch_file "local_cuda.psmp" CUDA ${DBCSR_OPENCL} MPI
+    gen_arch_file "local_cuda.pdbg" CUDA ${DBCSR_OPENCL} MPI DEBUG
+    gen_arch_file "local_cuda_warn.psmp" CUDA ${DBCSR_OPENCL} MPI WARNALL
+    gen_arch_file "local_coverage_cuda.pdbg" CUDA ${DBCSR_OPENCL} MPI COVERAGE
   fi
 fi
 
@@ -355,6 +403,7 @@ To build CP2K you should change directory:
 
 arch files for GPU enabled CUDA versions are named "local_cuda.*"
 arch files for GPU enabled HIP versions are named "local_hip.*"
+arch files for OpenCL (GPU) versions are named "local_opencl.*"
 arch files for coverage versions are named "local_coverage.*"
 
 Note that these pre-built arch files are for the GNU compiler, users have to adapt them for other compilers.

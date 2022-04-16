@@ -474,7 +474,7 @@ RUN wget -q https://github.com/ROCm-Developer-Tools/HIP/archive/refs/tags/rocm-$
 
 RUN cd ${{HIPAMD_DIR}} \
     && mkdir -p build \
-    && cd  build \
+    && cd build \
     && mkdir /opt/rocm-${{ROCM_VER}} \
     && cmake -DHIP_COMMON_DIR=${{HIP_DIR}} -DHIP_PLATFORM=nvidia -DCMAKE_INSTALL_PREFIX=/opt/rocm-${{ROCM_VER}}/hip .. > /dev/null 2>&1 \
     && make -j > /dev/null 2>&1 \

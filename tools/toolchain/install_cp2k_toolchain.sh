@@ -85,8 +85,8 @@ OPTIONS:
                           --with-PKG option placed AFTER this option on the
                           command line.
 --mpi-mode                Selects which MPI flavour to use. Available options
-                          are: mpich, openmpi, intelmpi, and no. By selecting no,
-                          you will be disabling MPI support. By default the script
+                          are: mpich, openmpi, intelmpi, and no. By selecting "no",
+                          MPI is not supported and disabled. By default the script
                           will try to determine the flavour based on the MPI library
                           currently available in your system path. For CRAY (CLE)
                           systems, the default flavour is mpich. Note that explicitly
@@ -94,17 +94,16 @@ OPTIONS:
                           options to values other than no will also switch --mpi-mode
                           to the respective mode.
 --math-mode               Selects which core math library to use. Available options
-                          are: acml, cray, mkl, and openblas. cray
+                          are: acml, cray, mkl, and openblas. The option "cray"
                           corresponds to cray libsci, and is the default for CRAY
                           (CLE) systems. For non-CRAY systems, if env variable MKLROOT
                           exists then mkl will be default, otherwise openblas is the
-                          default option. Explicitly setting
-                          --with-acml, --with-mkl or --with-openblas options will
-                          switch --math-mode to the respective modes.
+                          default option. Explicitly setting --with-acml, --with-mkl,
+                          or --with-openblas options will switch --math-mode to the
+                          respective modes.
 --gpu-ver                 Selects the GPU architecture for which to compile. Available
-                          options are: K20X, K40, K80, P100, V100, Mi50, Mi100, no.
-                          The script will determine the correct corresponding value for
-                          nvcc's '-arch' flag.
+                          options are: K20X, K40, K80, P100, V100, Mi50, Mi100, and no.
+                          This setting determines the value of nvcc's '-arch' flag.
                           Default = no.
 --libint-lmax             Maximum supported angular momentum by libint.
                           Higher values will increase build time and library size.
@@ -129,9 +128,14 @@ The --enable-FEATURE options follow the rules:
                           this option forces the master development version
                           to be installed.
                           Default = no
-  --enable-cuda           Turn on GPU (CUDA) support.
+  --enable-cuda           Turn on GPU (CUDA) support (can be combined
+                          with --enable-opencl).
                           Default = no
   --enable-hip            Turn on GPU (HIP) support.
+                          Default = no
+  --enable-opencl         Turn on OpenCL (GPU) support. Requires the OpenCL
+                          development packages and runtime. If combined with
+                          --enable-cuda, OpenCL alongside of CUDA is used.
                           Default = no
   --enable-cray           Turn on or off support for CRAY Linux Environment
                           (CLE) manually. By default the script will automatically
@@ -337,6 +341,7 @@ export generic="__FALSE__"
 enable_tsan="__FALSE__"
 enable_gcc_master="__FALSE__"
 enable_libxsmm_master="__FALSE__"
+enable_opencl="__FALSE__"
 enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
 export GPUVER="no"
@@ -442,7 +447,7 @@ while [ $# -ge 1 ]; do
           ;;
         *)
           report_error ${LINENO} \
-            "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100 and no as options"
+            "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100, and no as options"
           exit 1
           ;;
       esac
@@ -493,6 +498,13 @@ while [ $# -ge 1 ]; do
       enable_hip=$(read_enable $1)
       if [ "${enable_hip}" = "__INVALID__" ]; then
         report_error "invalid value for --enable-hip, please use yes or no"
+        exit 1
+      fi
+      ;;
+    --enable-opencl*)
+      enable_opencl=$(read_enable $1)
+      if [ $enable_opencl = "__INVALID__" ]; then
+        report_error "invalid value for --enable-opencl, please use yes or no"
         exit 1
       fi
       ;;
@@ -628,6 +640,7 @@ done
 export ENABLE_TSAN="${enable_tsan}"
 export ENABLE_CUDA="${enable_cuda}"
 export ENABLE_HIP="${enable_hip}"
+export ENABLE_OPENCL="${enable_opencl}"
 export ENABLE_CRAY="${enable_cray}"
 [ "${enable_gcc_master}" = "__TRUE__" ] && export gcc_ver="master"
 [ "${enable_libxsmm_master}" = "__TRUE__" ] && export libxsmm_ver="master"
@@ -709,6 +722,14 @@ fi
 if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
   if [ "${GPUVER}" = "no" ]; then
     report_error "Please choose GPU architecture to compile for with --gpu-ver"
+    exit 1
+  fi
+fi
+
+# If OpenCL is enabled, make sure LIBXSMM is enabled as well.
+if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
+  if [ "${with_libxsmm}" = "__DONTUSE__" ]; then
+    report_error "LIBXSMM is necessary for the OpenCL backend (--with-libxsmm)"
     exit 1
   fi
 fi
@@ -906,7 +927,7 @@ case ${GPUVER} in
     ;;
   *)
     report_error ${LINENO} \
-      "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100 and no as options"
+      "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100, and no as options"
     exit 1
     ;;
 esac
