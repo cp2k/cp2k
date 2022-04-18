@@ -1396,7 +1396,9 @@ CONTAINS
             CALL mp_sum(z_value, para_env%group)
             CALL mp_sum(m_value, para_env%group)
 
-            CALL check_NaN(vec_gw_energ, z_value, m_value)
+            CALL check_NaN(vec_gw_energ, 0.0_dp)
+            CALL check_NaN(z_value, 1.0_dp)
+            CALL check_NaN(m_value, 0.0_dp)
 
             IF (do_im_time .OR. mp2_env%ri_g0w0%iter_sc_GW0 == 1) THEN
                count_ev_sc_GW_print = count_ev_sc_GW
@@ -1500,12 +1502,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param vec_gw_energ ...
-!> \param z_value ...
-!> \param m_value ...
+!> \param array ...
+!> \param real_value ...
 ! **************************************************************************************************
-   SUBROUTINE check_NaN(vec_gw_energ, z_value, m_value)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: vec_gw_energ, z_value, m_value
+   SUBROUTINE check_NaN(array, real_value)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(INOUT)                                   :: array
+      REAL(KIND=dp), INTENT(IN)                          :: real_value
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_NaN'
 
@@ -1513,14 +1516,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      DO i = 1, SIZE(m_value, 1)
-      DO j = 1, SIZE(m_value, 2)
-      DO k = 1, SIZE(m_value, 3)
+      DO i = 1, SIZE(array, 1)
+      DO j = 1, SIZE(array, 2)
+      DO k = 1, SIZE(array, 3)
 
          ! chekc for NaN
-         IF (m_value(i, j, k) .NE. m_value(i, j, k)) m_value(i, j, k) = 0.0_dp
-         IF (z_value(i, j, k) .NE. z_value(i, j, k)) z_value(i, j, k) = 1.0_dp
-         IF (vec_gw_energ(i, j, k) .NE. vec_gw_energ(i, j, k)) vec_gw_energ(i, j, k) = 0.0_dp
+         IF (array(i, j, k) .NE. array(i, j, k)) array(i, j, k) = real_value
 
       END DO
       END DO

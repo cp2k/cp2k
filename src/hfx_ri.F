@@ -1560,8 +1560,6 @@ CONTAINS
          CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_1(1, 1))
          CALL dbt_batched_contract_finalize(t_3c_3)
 
-         PRINT *, 'n_mem =', n_mem, 'n_mem_RI =', n_mem_RI
-
          DO i_mem = 1, n_mem
             DO j_mem = 1, n_mem_RI
                ASSOCIATE (blk_indices => ri_data%blk_indices(i_mem, j_mem), t_3c => ri_data%t_3c_int_ctr_1(1, 1))
