@@ -1025,7 +1025,9 @@ MODULE input_constants
                                                gw_two_pole_model = 10, &
                                                kp_weights_W_auto = 11, &
                                                kp_weights_W_uniform = 12, &
-                                               kp_weights_W_tailored = 13
+                                               kp_weights_W_tailored = 13, &
+                                               gw_gf_mic = 14, &
+                                               gw_gf_gamma = 15
 
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &

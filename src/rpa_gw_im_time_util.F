@@ -67,8 +67,8 @@ MODULE rpa_gw_im_time_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_im_time_util'
 
-   PUBLIC :: get_tensor_3c_overl_int_gw, compute_weight_re_im, get_atom_index_from_basis_function_index, &
-             compute_shortest_lattice_vector
+   PUBLIC :: get_tensor_3c_overl_int_gw, compute_weight_re_im, get_atom_index_from_basis_function_index
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -788,10 +788,13 @@ CONTAINS
 !> \param hmat ...
 !> \param particle_set ...
 !> \param abs_cutoffs_chi_W ...
+!> \param symmetrize ...
+!> \param gamma_only ...
 ! **************************************************************************************************
    SUBROUTINE compute_weight_re_im(weight_re, weight_im, &
                                    num_cells, iatom, jatom, xkp, wkp_W, &
-                                   cell, index_to_cell, hmat, particle_set, abs_cutoffs_chi_W)
+                                   cell, index_to_cell, hmat, particle_set, abs_cutoffs_chi_W, &
+                                   symmetrize, gamma_only)
 
       REAL(KIND=dp)                                      :: weight_re, weight_im
       INTEGER                                            :: num_cells, iatom, jatom
@@ -802,10 +805,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       REAL(KIND=dp), DIMENSION(2)                        :: abs_cutoffs_chi_W
+      LOGICAL                                            :: symmetrize, gamma_only
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_weight_re_im'
 
-      INTEGER                                            :: handle, icell, xcell, ycell, zcell
+      INTEGER                                            :: handle, i_sym, icell, n_sym, xcell, &
+                                                            ycell, zcell
       REAL(KIND=dp)                                      :: abs_rab_cell, arg, coskl, &
                                                             dampening_function, first_cutoff, &
                                                             second_cutoff, sinkl
@@ -825,78 +830,59 @@ CONTAINS
          ycell = index_to_cell(2, icell)
          zcell = index_to_cell(3, icell)
 
-         arg = REAL(xcell, dp)*xkp(1) + REAL(ycell, dp)*xkp(2) + REAL(zcell, dp)*xkp(3)
-
-         coskl = wkp_W*COS(twopi*arg)
-         sinkl = wkp_W*SIN(twopi*arg)
-
-         cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, icell), dp))
-
-         rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
-                           (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))
-
-         abs_rab_cell = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
-
-         ! smooth function that is only one if atoms are very close and becomes smoothly zero
-         ! for larger distances
-         IF (abs_rab_cell < first_cutoff) THEN
-            weight_re = 1.0_dp*coskl
-            weight_im = 1.0_dp*sinkl
-         ELSE IF (abs_rab_cell < second_cutoff) THEN
-            dampening_function = 0.5_dp*(COS(pi*(abs_rab_cell - first_cutoff)/ &
-                                             (second_cutoff - first_cutoff)) + 1.0_dp)
-            weight_re = dampening_function*coskl
-            weight_im = dampening_function*sinkl
+         IF (symmetrize .AND. (xcell .NE. 0 .OR. ycell .NE. 0 .OR. zcell .NE. 0)) THEN
+            n_sym = 2
+         ELSE
+            n_sym = 1
          END IF
 
+         DO i_sym = 1, n_sym
+
+            IF (n_sym == 2) THEN
+               xcell = -xcell
+               ycell = -ycell
+               zcell = -zcell
+            END IF
+
+            arg = REAL(xcell, dp)*xkp(1) + REAL(ycell, dp)*xkp(2) + REAL(zcell, dp)*xkp(3)
+
+            coskl = wkp_W*COS(twopi*arg)
+            sinkl = wkp_W*SIN(twopi*arg)
+
+            cell_vector(1:3) = MATMUL(hmat, REAL((/xcell, ycell, zcell/), dp))
+
+            rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
+                              (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))
+
+            abs_rab_cell = SQRT(rab_cell_i(1)**2 + rab_cell_i(2)**2 + rab_cell_i(3)**2)
+
+            ! smooth function that is only one if atoms are very close and becomes smoothly zero
+            ! for larger distances
+            IF (abs_rab_cell < first_cutoff) THEN
+               weight_re = 1.0_dp*coskl
+               weight_im = 1.0_dp*sinkl
+            ELSE IF (abs_rab_cell < second_cutoff) THEN
+               dampening_function = 0.5_dp*(COS(pi*(abs_rab_cell - first_cutoff)/ &
+                                                (second_cutoff - first_cutoff)) + 1.0_dp)
+               weight_re = dampening_function*coskl
+               weight_im = dampening_function*sinkl
+
+            END IF
+
+         END DO
+
       END DO
+
+      ! that is kind of a hack to get the same matrix format for GAMMA as for MIC
+      IF (gamma_only) THEN
+         IF (symmetrize .OR. iatom >= jatom) THEN
+            weight_re = 1.0_dp
+            weight_im = 0.0_dp
+         END IF
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_weight_re_im
-
-! **************************************************************************************************
-!> \brief ...
-!> \param shortest_lattice_vector ...
-!> \param hmat ...
-!> \param index_to_cell ...
-!> \param num_cells ...
-! **************************************************************************************************
-   SUBROUTINE compute_shortest_lattice_vector(shortest_lattice_vector, hmat, index_to_cell, num_cells)
-
-      REAL(KIND=dp)                                      :: shortest_lattice_vector
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
-      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
-      INTEGER                                            :: num_cells
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_shortest_lattice_vector'
-
-      INTEGER                                            :: handle, icell, xcell, ycell, zcell
-      REAL(KIND=dp)                                      :: abs_cell_vector
-      REAL(KIND=dp), DIMENSION(3)                        :: cell_vector
-
-      CALL timeset(routineN, handle)
-
-      shortest_lattice_vector = 1.0E9_dp
-
-      DO icell = 1, num_cells
-
-         xcell = index_to_cell(1, icell)
-         ycell = index_to_cell(2, icell)
-         zcell = index_to_cell(3, icell)
-
-         IF (xcell == 0 .AND. ycell == 0 .AND. zcell == 0) CYCLE
-
-         cell_vector(1:3) = MATMUL(hmat, REAL(index_to_cell(1:3, icell), dp))
-
-         abs_cell_vector = SQRT(cell_vector(1)**2 + cell_vector(2)**2 + cell_vector(3)**2)
-
-         IF (abs_cell_vector < shortest_lattice_vector) shortest_lattice_vector = abs_cell_vector
-
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_shortest_lattice_vector
 
 END MODULE rpa_gw_im_time_util

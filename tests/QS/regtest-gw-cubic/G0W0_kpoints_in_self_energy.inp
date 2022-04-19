@@ -22,13 +22,9 @@
       EPS_PGF_ORB 1.0E-15
     &END QS
     &SCF
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC
       EPS_SCF 1.0E-5
       MAX_SCF 100
-      &PRINT
-        &RESTART ON
-        &END
-      &END
       ADDED_MOS -1
     &END SCF
     &XC
@@ -36,10 +32,10 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         &INTEGRALS
-          SIZE_LATTICE_SUM 5
+          SIZE_LATTICE_SUM 3
         &END INTEGRALS
         &LOW_SCALING
-          KPOINTS 1 1 4
+          KPOINTS 1 4 4
           REGULARIZATION_RI 1.0E-3
         &END LOW_SCALING
         &RI_RPA
@@ -47,9 +43,13 @@
           &GW
            CORR_OCC   1
            CORR_VIRT  1
-           CROSSING_SEARCH NEWTON
-           ANALYTIC_CONTINUATION TWO_POLE
            RI_SIGMA_X
+           KPOINTS_SELF_ENERGY 2 2 1
+           &KPOINT_SET
+             SPECIAL_POINT  0.5   0.0   0.0
+             SPECIAL_POINT  0.0   0.0   0.0
+             NPOINTS 3
+           &END
           &END GW
         &END RI_RPA
       &END
@@ -59,7 +59,7 @@
     &CELL
       ABC [angstrom]  8.000   8.000  8.000
       MULTIPLE_UNIT_CELL  1 1 1
-      PERIODIC Z
+      PERIODIC YZ
     &END CELL
     &KIND H
       BASIS_SET ORB        DZVP-GTH

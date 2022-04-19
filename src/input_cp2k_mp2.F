@@ -27,10 +27,10 @@ MODULE input_cp2k_mp2
    USE input_constants,                 ONLY: &
         do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
         do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
-        do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
-        gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, kp_weights_W_auto, &
-        kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
+        do_potential_tshpsc, eri_default, gaussian, gw_gf_gamma, gw_gf_mic, gw_no_print_exx, &
+        gw_pade_approx, gw_print_exx, gw_read_exx, gw_skip_for_regtest, gw_two_pole_model, &
+        kp_weights_W_auto, kp_weights_W_tailored, kp_weights_W_uniform, mp2_method_direct, &
+        mp2_method_gpw, mp2_method_none, numerical, ot_precond_full_all, ot_precond_full_kinetic, &
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
         ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
@@ -828,6 +828,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="KPOINTS_SELF_ENERGY", &
+                          description="Specify number of k-points for the k-point grid of the self-energy. Internally, a "// &
+                          "Monkhorst-Pack grid is used. A dense k-point grid may be necessary to compute an accurate density "// &
+                          "of state from GW. Large self-energy k-meshes do not cost much more computation time.", &
+                          usage="KPOINTS  nx  ny  nz", repeats=.TRUE., &
+                          n_var=3, type_of_var=integer_t, default_i_vals=(/0, 0, 0/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! here we generate a subsection for the periodic GW correction
       CALL create_periodic_gw_correction_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -1234,6 +1243,17 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
+         name="TRUNC_COLOUMB_RI_X", &
+         description="If true, use the truncated Coulomb operator for the exchange-self-energy in "// &
+         "periodic GW.", &
+         usage="TRUNCATED_COLOUMB_RI_X", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
          name="KEEP_QUADRATURE", &
          variants=s2a("KEEP_WEIGHTS", "KEEP_QUAD", "KEEP_WEIGHT"), &
          description="Keep the Laplace quadrature defined at the first energy evaluations throughout "// &
@@ -1252,6 +1272,22 @@ CONTAINS
          "the k-mesh for G. Example: factor 4, k-mesh for W: 4x4x1 -> k-mesh for G: 16x16x1 (z-dir. is "// &
          "non-periodic).", &
          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (keyword)
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="GREENS_FUNCTION", &
+         description="Decides which scheme is used for the periodic Green's function "// &
+         "(only relevant for periodic GW calculations)."// &
+         "Both schemes are exact in the limit of large unit cells.", &
+         usage="GREENS_FUNCTION GAMMA", &
+         enum_c_vals=s2a("GAMMA", "MIC"), &
+         enum_i_vals=(/gw_gf_gamma, gw_gf_mic/), &
+         enum_desc=s2a("Use the Green's functions at the Gamma point. ", &
+                       "Use the minimum-image convention for the Green's function."), &
+         default_i_val=gw_gf_gamma)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

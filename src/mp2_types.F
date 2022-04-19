@@ -153,16 +153,24 @@ MODULE mp2_types
 
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
-      LOGICAL                  :: memory_info, make_chi_pos_definite, keep_quad
+      LOGICAL                  :: memory_info, make_chi_pos_definite, trunc_coulomb_ri_x, keep_quad
       REAL(KIND=dp)            :: eps_filter, &
                                   eps_filter_factor, eps_compress, exp_tailored_weights, regularization_RI
       REAL(KIND=dp), DIMENSION(:), POINTER :: rel_cutoffs_chi_W, tau_tj, tau_wj
       REAL(KIND=dp), DIMENSION(2) :: abs_cutoffs_chi_W
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: Eigenval_Gamma
       INTEGER                  :: group_size_P, group_size_3c, kpoint_weights_W_method, k_mesh_g_factor
       INTEGER, DIMENSION(:), POINTER     :: kp_grid
       LOGICAL                  :: do_im_time_kpoints
-      INTEGER                  :: min_bsize, min_bsize_mo
+      INTEGER                  :: min_bsize, min_bsize_mo, periodic_gf
       TYPE(kpoint_type), POINTER :: kpoints_G, kpoints_Sigma, kpoints_Sigma_no_xc
+      INTEGER, ALLOCATABLE, DIMENSION(:)      :: starts_array_mc_RI, ends_array_mc_RI, &
+                                                 starts_array_mc_block_RI, &
+                                                 ends_array_mc_block_RI, &
+                                                 starts_array_mc, ends_array_mc, &
+                                                 starts_array_mc_block, &
+                                                 ends_array_mc_block
+
    END TYPE
 
    TYPE ri_g0w0_type
@@ -182,7 +190,7 @@ MODULE mp2_types
                                   do_periodic, &
                                   print_self_energy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: vec_Sigma_x_minus_vxc_gw
-      INTEGER, DIMENSION(:), POINTER    :: kp_grid
+      INTEGER, DIMENSION(:), POINTER    :: kp_grid, kp_grid_Sigma
       INTEGER                  :: num_kp_grids
       REAL(KIND=dp)            :: eps_kpoint
       LOGICAL                  :: do_mo_coeff_gamma, do_average_deg_levels
@@ -198,9 +206,11 @@ MODULE mp2_types
       TYPE(one_dim_real_array), DIMENSION(2) :: ic_corr_list
       INTEGER :: print_exx
       LOGICAL :: do_gamma_only_sigma
-      LOGICAL :: update_xc_energy
-      INTEGER :: n_kp_in_kp_line, n_special_kp
+      LOGICAL :: update_xc_energy, do_kpoints_Sigma
+      INTEGER :: n_kp_in_kp_line, n_special_kp, nkp_self_energy, &
+                 nkp_self_energy_special_kp, nkp_self_energy_monkh_pack
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: xkp_special_kp
+      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: mat_exchange_for_kp_from_gamma
    END TYPE
 
    TYPE ri_basis_opt
