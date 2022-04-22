@@ -599,7 +599,7 @@ CONTAINS
                                                             occ_trace, omega, pref, t1, t2, tau
       REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:)    :: blk_indices
+      TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :) :: blk_indices
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ, mat_dm_virt
@@ -612,7 +612,7 @@ CONTAINS
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_P
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_compression_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: store_3c
+         DIMENSION(:, :)                                 :: store_3c
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
@@ -731,8 +731,8 @@ CONTAINS
       CALL dbt_batched_contract_init(t_M_occ, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
       CALL dbt_batched_contract_init(t_M_virt, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
 
-      CALL dbt_batched_contract_init(t_3c_ints, batch_range_1=mc_ranges_RI)
-      CALL dbt_batched_contract_init(t_3c_work, batch_range_1=mc_ranges_RI)
+      CALL dbt_batched_contract_init(t_3c_ints, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_work, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
 
       CALL dbt_batched_contract_init(t_3c_4, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_5, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
@@ -872,39 +872,41 @@ CONTAINS
 
          !Deal with the 3-center quantities.
 
-         !Pre-compute and compress KQK^T * (pq|R
-         ALLOCATE (store_3c(n_mem_RI))
-         ALLOCATE (blk_indices(n_mem_RI))
+         !Pre-compute and compress KQK^T * (pq|R)
+         ALLOCATE (store_3c(n_mem_RI, cut_memory))
+         ALLOCATE (blk_indices(n_mem_RI, cut_memory))
          memory = 0.0_dp
          CALL timeset(routineN//"_pre_3c", handle2)
          !temporarily build the full int 3c tensor
-         DO j_mem = 1, cut_memory
-            CALL decompress_tensor(t_3c_O, t_3c_O_ind(j_mem)%ind, t_3c_O_compressed(j_mem), &
+         CALL dbt_copy(t_3c_O, t_3c_0)
+         DO i_mem = 1, cut_memory
+            CALL decompress_tensor(t_3c_O, t_3c_O_ind(i_mem)%ind, t_3c_O_compressed(i_mem), &
                                    mp2_env%ri_rpa_im_time%eps_compress)
-            CALL dbt_copy(t_3c_O, t_3c_ints, move_data=.TRUE., summation=.TRUE.)
-         END DO
+            CALL dbt_copy(t_3c_O, t_3c_ints)
+            CALL dbt_copy(t_3c_O, t_3c_0, move_data=.TRUE., summation=.TRUE.)
 
-         DO k_mem = 1, n_mem_RI
-            kbounds(:, 1) = [batch_start_RI(k_mem), batch_end_RI(k_mem)]
+            DO k_mem = 1, n_mem_RI
+               kbounds(:, 1) = [batch_start_RI(k_mem), batch_end_RI(k_mem)]
 
-            CALL alloc_containers(store_3c(k_mem), 1) !0 coord for ints
+               CALL alloc_containers(store_3c(k_mem, i_mem), 1)
 
-            !contract witht KQK^T over the RI index and store
-            CALL dbt_batched_contract_init(t_KQKT)
-            CALL dbt_contract(1.0_dp, t_KQKT, t_3c_ints, 0.0_dp, t_3c_work, &
-                              contract_1=[2], notcontract_1=[1], &
-                              contract_2=[1], notcontract_2=[2, 3], &
-                              map_1=[1], map_2=[2, 3], filter_eps=eps_filter, &
-                              bounds_2=kbounds, flop=flop, unit_nr=unit_nr_dbcsr)
-            dbcsr_nflop = dbcsr_nflop + flop
+               !contract witht KQK^T over the RI index and store
+               CALL dbt_batched_contract_init(t_KQKT)
+               CALL dbt_contract(1.0_dp, t_KQKT, t_3c_ints, 0.0_dp, t_3c_work, &
+                                 contract_1=[2], notcontract_1=[1], &
+                                 contract_2=[1], notcontract_2=[2, 3], &
+                                 map_1=[1], map_2=[2, 3], filter_eps=eps_filter, &
+                                 bounds_2=kbounds, flop=flop, unit_nr=unit_nr_dbcsr)
+               CALL dbt_batched_contract_finalize(t_KQKT)
+               dbcsr_nflop = dbcsr_nflop + flop
 
-            CALL compress_tensor(t_3c_work, blk_indices(k_mem)%ind, store_3c(k_mem), &
-                                 mp2_env%ri_rpa_im_time%eps_compress, memory)
-
-            CALL dbt_batched_contract_finalize(t_KQKT)
-         END DO
-         CALL dbt_copy(t_3c_ints, t_3c_0, move_data=.TRUE.)
-         CALL dbt_copy(t_3c_M, t_3c_work)
+               CALL dbt_copy(t_3c_work, t_3c_M, move_data=.TRUE.)
+               CALL compress_tensor(t_3c_M, blk_indices(k_mem, i_mem)%ind, store_3c(k_mem, i_mem), &
+                                    mp2_env%ri_rpa_im_time%eps_compress, memory)
+            END DO
+         END DO !i_mem
+         CALL dbt_clear(t_3c_M)
+         CALL dbt_copy(t_3c_M, t_3c_ints)
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_3c", handle2)
@@ -937,9 +939,9 @@ CONTAINS
             !Compute the R matrices
             CALL timeset(routineN//"_3c_R", handle3)
             DO k_mem = 1, n_mem_RI
-               CALL decompress_tensor(t_3c_work, blk_indices(k_mem)%ind, store_3c(k_mem), &
+               CALL decompress_tensor(t_3c_M, blk_indices(k_mem, i_mem)%ind, store_3c(k_mem, i_mem), &
                                       mp2_env%ri_rpa_im_time%eps_compress)
-               CALL dbt_copy(t_3c_work, t_3c_3, move_data=.TRUE.)
+               CALL dbt_copy(t_3c_M, t_3c_3, move_data=.TRUE.)
 
                CALL dbt_batched_contract_init(t_R_occ)
                CALL dbt_contract(1.0_dp, t_M_occ, t_3c_3, 1.0_dp, t_R_occ, &
@@ -959,6 +961,7 @@ CONTAINS
                dbcsr_nflop = dbcsr_nflop + flop
                CALL dbt_batched_contract_finalize(t_R_virt)
             END DO
+            CALL dbt_copy(t_3c_M, t_3c_3)
             CALL timestop(handle3)
 
             CALL dbt_copy(t_M_occ, t_3c_2, move_data=.TRUE.)
@@ -1141,7 +1144,9 @@ CONTAINS
          CALL dbt_destroy(t_2c_tmp)
 
          DO k_mem = 1, n_mem_RI
-            CALL dealloc_containers(store_3c(k_mem), dummy_int)
+            DO i_mem = 1, cut_memory
+               CALL dealloc_containers(store_3c(k_mem, i_mem), dummy_int)
+            END DO
          END DO
          DEALLOCATE (store_3c, blk_indices)
       END DO !jquad
@@ -1669,11 +1674,11 @@ CONTAINS
       INTEGER :: color, handle, i, i_xyz, iatom, igrid_level, ikind, ipgf, iset, j, j_RI, jatom, &
          lb(3), lb_RI, location(3), n_RI, natom, ncoa, ncoms, nkind, nproc, nseta, o1, offset, &
          pdims(2), sgfa, tp(3), ub(3), ub_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, sizes_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iproc_map, kind_of, sizes_RI
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, la_max, la_min, npgfa, nsgfa, &
                                                             row_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, pgrid
-      LOGICAL                                            :: found, map_it_here
+      LOGICAL                                            :: found, map_it_here, one_proc_group
       REAL(dp)                                           :: cutoff_old, pref, radius, &
                                                             relative_cutoff_old
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: e_cutoff_old, wf_vector
@@ -1763,14 +1768,20 @@ CONTAINS
       CALL get_particle_set(particle_set, qs_kind_set, nsgf=sizes_RI, basis=basis_set_ri_aux)
       n_RI = SUM(sizes_RI)
 
-      !Split the communicator accross the columns of the matrix
-      ncoms = MIN(pdims(2), para_env%num_pe/mp2_env%mp2_num_proc)
-      DO i = 0, pdims(1) - 1
-         DO j = 0, pdims(2) - 1
-            IF (pgrid(i, j) == para_env%mepos) color = MODULO(j + 1, ncoms)
+      one_proc_group = mp2_env%mp2_num_proc == 1
+      IF (one_proc_group) THEN
+         !one subgroup per proc
+         CALL cp_para_env_split(para_env_ext, para_env, para_env%mepos)
+      ELSE
+         !Split the communicator accross the columns of the matrix
+         ncoms = MIN(pdims(2), para_env%num_pe/mp2_env%mp2_num_proc)
+         DO i = 0, pdims(1) - 1
+            DO j = 0, pdims(2) - 1
+               IF (pgrid(i, j) == para_env%mepos) color = MODULO(j + 1, ncoms)
+            END DO
          END DO
-      END DO
-      CALL cp_para_env_split(para_env_ext, para_env, color)
+         CALL cp_para_env_split(para_env_ext, para_env, color)
+      END IF
 
       !sab_orb and task_list_ext are essentially dummies
       CALL prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_ext, pw_env_ext, &
@@ -1781,11 +1792,21 @@ CONTAINS
       ALLOCATE (kind_of(natom))
       CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
+      ALLOCATE (iproc_map(natom))
+
       !Loop over the atomic blocks
       DO jatom = 1, natom
 
-         !Only calculate if on the correct sub-communicator
-         IF (.NOT. MODULO(col_dist(jatom) + 1, ncoms) == color) CYCLE
+         !Only calculate if on the correct sub-communicator/proc
+         IF (one_proc_group) THEN
+            iproc_map = 0
+            DO iatom = 1, natom
+               IF (pgrid(row_dist(iatom), col_dist(jatom)) == para_env%mepos) iproc_map(iatom) = 1
+            END DO
+            IF (.NOT. ANY(iproc_map == 1)) CYCLE
+         ELSE
+            IF (.NOT. MODULO(col_dist(jatom) + 1, ncoms) == color) CYCLE
+         END IF
 
          lb_RI = SUM(sizes_RI(1:jatom - 1))
          ub_RI = lb_RI + sizes_RI(jatom)
@@ -1808,6 +1829,11 @@ CONTAINS
             CALL potential_pw2rs(rs_v, rho_r, pw_env_ext)
 
             DO iatom = 1, natom
+
+               !only compute if i,j atom pair on correct proc
+               IF (one_proc_group) THEN
+                  IF (.NOT. iproc_map(iatom) == 1) CYCLE
+               END IF
 
                !Distribute atomic blocks evenly above and below the diagonal (symmetrize later)
                IF (iatom > jatom) THEN
