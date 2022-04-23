@@ -29,7 +29,7 @@ MODULE whittaker
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief int(y^(2+l) * exp(-alpha*y*y),y=0..x);
+!> \brief int(y^(2+l1+l2) * exp(-alpha*y*y),y=0..x) / x^(l2+1);
 !>        wc(:)    :: output
 !>        r(:)     :: coordinate
 !>        expa(:)  :: exp(-alpha*r(:)**2)
