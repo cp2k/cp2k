@@ -47,6 +47,17 @@ case "$with_elpa" in
     echo "==================== Installing ELPA ===================="
     pkg_install_dir="${INSTALLDIR}/elpa-${elpa_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
+    enable_openmp="yes"
+
+    # specific settings needed on CRAY Linux Environment
+    if [ "$ENABLE_CRAY" = "__TRUE__" ]; then
+      if [ ${CRAY_PRGENVCRAY} ]; then
+        # extra LDFLAGS needed
+        cray_ldflags="-dynamic"
+      fi
+      enable_openmp="no"
+    fi
+
     if verify_checksums "${install_lock_file}"; then
       echo "elpa-${elpa_ver} is already installed, skipping it."
     else
@@ -73,17 +84,6 @@ case "$with_elpa" in
       for patch in "${patches[@]}"; do
         patch -p1 < "${patch}"
       done
-
-      enable_openmp="yes"
-
-      # specific settings needed on CRAY Linux Environment
-      if [ "$ENABLE_CRAY" = "__TRUE__" ]; then
-        if [ ${CRAY_PRGENVCRAY} ]; then
-          # extra LDFLAGS needed
-          cray_ldflags="-dynamic"
-        fi
-        enable_openmp="no"
-      fi
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
       AVX_flag=""
