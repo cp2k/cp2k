@@ -19,6 +19,8 @@ apt-get install -qq --no-install-recommends \
   bzip2 \
   ca-certificates \
   g++ \
+  gcc \
+  gfortran \
   git \
   less \
   libtool \

@@ -23,6 +23,7 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --mpi-mode=mpich \
+    --with-gcc=system \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.

@@ -27,7 +27,8 @@ def main() -> None:
             f.write(toolchain_full(generic=True) + production(version))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
-        f.write(toolchain_full(mpi_mode="openmpi") + regtest("psmp"))
+        # Also testing --with-gcc=install here, see github.com/cp2k/cp2k/issues/2062 .
+        f.write(toolchain_full(mpi_mode="openmpi", gcc="install") + regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
         f.write(toolchain_full(base_image="fedora:33") + regtest("psmp"))
@@ -327,15 +328,14 @@ def install_cp2k(
     run_lines.append("echo 'Compiling cp2k...'")
     run_lines.append("source /opt/cp2k-toolchain/install/setup")
 
+    build_command = f"make -j ARCH={arch} VERSION={version}"
     if prod:
-        run_lines.append(f"make -j ARCH={arch} VERSION={version}")
+        run_lines.append(build_command)
         run_lines.append(f"ln -sf ./cp2k.{version} ./exe/{arch}/cp2k")
         run_lines.append(f"ln -sf ./cp2k_shell.{version} ./exe/{arch}/cp2k_shell")
         run_lines.append(f"rm -rf lib obj exe/{arch}/libcp2k_unittest.{version}")
     else:
-        run_lines.append(
-            f"( make -j ARCH={arch} VERSION={version} &> /dev/null || true )"
-        )
+        run_lines.append(f"( {build_command} &> /dev/null || true )")
 
     input_block = "\n".join(input_lines)
     run_block = " && \\\n    ".join(run_lines)
@@ -354,9 +354,12 @@ COPY ./tools/regtesting ./tools/regtesting
 
 # ======================================================================================
 def toolchain_full(
-    base_image: str = "ubuntu:20.04", mpi_mode: str = "mpich", generic: bool = False
+    base_image: str = "ubuntu:20.04",
+    mpi_mode: str = "mpich",
+    gcc: str = "system",
+    generic: bool = False,
 ) -> str:
-    args = dict(install_all=None, mpi_mode=mpi_mode)
+    args = dict(install_all=None, mpi_mode=mpi_mode, with_gcc=gcc)
     if generic:
         args["generic"] = None
     return f"\nFROM {base_image}\n\n" + install_toolchain(base_image=base_image, **args)
@@ -382,10 +385,10 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libhdf5-dev \
    && rm -rf /var/lib/apt/lists/*
 
-# Create links.
-RUN ln -sf gcc-{gcc_version}      /usr/bin/gcc  && \
-    ln -sf g++-{gcc_version}      /usr/bin/g++  && \
-    ln -sf gfortran-{gcc_version} /usr/bin/gfortran
+# Create links in /usr/local/bin to overrule links in /usr/bin.
+RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
 
 """ + install_toolchain(
         base_image="ubuntu",
