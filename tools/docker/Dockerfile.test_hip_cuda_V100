@@ -77,6 +77,10 @@ RUN cd hipFFT-rocm-* \
     && make install > /dev/null 2>&1 \
     && rm -rf hipFFT*
 
+# Workaround for HIP installer.
+RUN cp -f /opt/hipBLAS-rocm-${ROCM_VER}/build/library/src/libhipblas.so /opt/rocm-${ROCM_VER}/hipblas/lib/ && \
+    cp -f /opt/hipFFT-rocm-${ROCM_VER}/build/library/libhipfft.so /opt/rocm-${ROCM_VER}/hipfft/lib/
+
 # This is the alternative installation path via Ubuntu packages.
 ## https://rocmdocs.amd.com/en/latest/Installation_Guide/Installation-Guide.html#ubuntu
 ## https://rocmdocs.amd.com/en/latest/Installation_Guide/HIP-Installation.html#nvidia-platform
@@ -90,7 +94,7 @@ RUN cd hipFFT-rocm-* \
 # Setup HIP environment.
 ENV ROCM_PATH /opt/rocm-${ROCM_VER}
 ENV PATH ${PATH}:${ROCM_PATH}/hip/bin
-ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ROCM_PATH}/hip/lib:${ROCM_PATH}/hipblas/lib:${ROCM_PATH}/hipfft/lib:${ROCM_PATH}/hipfft/lib64:${ROCM_PATH}/hipblas/lib64
+ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ROCM_PATH}/lib
 ENV HIP_PLATFORM nvidia
 RUN hipconfig
 
