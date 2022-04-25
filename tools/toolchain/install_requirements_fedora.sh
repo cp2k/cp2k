@@ -14,6 +14,8 @@ dnf -qy install \
   ca-certificates \
   diffutils \
   g++ \
+  gcc \
+  gfortran \
   git \
   less \
   libtool \

@@ -18,10 +18,10 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libhdf5-dev \
    && rm -rf /var/lib/apt/lists/*
 
-# Create links.
-RUN ln -sf gcc-9      /usr/bin/gcc  && \
-    ln -sf g++-9      /usr/bin/g++  && \
-    ln -sf gfortran-9 /usr/bin/gfortran
+# Create links in /usr/local/bin to overrule links in /usr/bin.
+RUN ln -sf /usr/bin/gcc-9      /usr/local/bin/gcc  && \
+    ln -sf /usr/bin/g++-9      /usr/local/bin/g++  && \
+    ln -sf /usr/bin/gfortran-9 /usr/local/bin/gfortran
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
