@@ -89,7 +89,6 @@ extern "C" void grid_hip_create_task_list(
   memset(ctx->number_of_tasks_per_level_.data(), 0, sizeof(int) * nlevels);
 
   std::vector<rocm_backend::task_info> tasks_host(ntasks);
-  memset(tasks_host.data(), 0, sizeof(rocm_backend::task_info) * ntasks);
 
   size_t coef_size = 0;
 
@@ -112,6 +111,7 @@ extern "C" void grid_hip_create_task_list(
     const grid_basis_set *ibasis = basis_sets[ikind];
     const grid_basis_set *jbasis = basis_sets[jkind];
 
+    tasks_host[i] = {};
     tasks_host[i].level = level;
     tasks_host[i].iatom = iatom;
     tasks_host[i].jatom = jatom;

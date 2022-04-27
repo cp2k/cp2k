@@ -20,7 +20,7 @@ DBCSR_ACC      := $(OFFLOAD_CC)
 DBCSR_ACCFLAGS := $(OFFLOAD_FLAGS) -Xcompiler='-Wno-error'
 else ifeq (hip,$(DBCSR_USE_ACCEL))
 DBCSR_ACC      := $(CXX)
-DBCSR_ACCFLAGS := $(CXXFLAGS)
+DBCSR_ACCFLAGS := $(CXXFLAGS) -Wno-error=unused-parameter
 else ifeq (opencl,$(DBCSR_USE_ACCEL))
 DBCSR_ACC      := $(CC)
 DBCSR_ACCFLAGS := $(CFLAGS)
