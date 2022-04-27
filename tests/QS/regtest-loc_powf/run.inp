@@ -1,0 +1,136 @@
+&GLOBAL
+  PROJECT run
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+
+  METHOD Quickstep
+
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+
+    CHARGE 0
+    MULTIPLICITY 1
+    SURFACE_DIPOLE_CORRECTION  T
+    SURF_DIP_DIR  X
+    SURF_DIP_POS     20.000
+    SURF_DIP_SWITCH  T
+    CORE_CORR_DIP  F
+
+    &MGRID
+       NGRIDS 5
+       CUTOFF [Ry] 300
+       REL_CUTOFF [Ry] 40
+    &END
+
+    &QS
+       METHOD GPW
+       EPS_DEFAULT 1.0E-8
+    &END
+
+    &POISSON
+       PERIODIC XYZ
+    &END
+
+    &SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 100
+      EPS_SCF 1.0E-4
+      ADDED_MOS 10
+      &DIAGONALIZATION
+        ALGORITHM STANDARD
+      &END
+      &MIXING
+        METHOD BROYDEN_MIXING
+        ALPHA   0.69
+        BETA    1.55
+        NBROYDEN  13
+      &END
+      &SMEAR
+        METHOD ENERGY_WINDOW
+        WINDOW_SIZE 0.0037
+      &END
+      &OUTER_SCF ! repeat the inner SCF cycle 10 times
+        MAX_SCF 10
+        EPS_SCF 1.0E-4 ! must match the above
+      &END
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+        &RESTART_HISTORY OFF
+        &END RESTART_HISTORY
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+         &PBE
+         &END
+      &END XC_FUNCTIONAL
+    &END XC
+    &LOCALIZE  T
+      MAX_ITER  200
+      OUT_ITER_EACH  100
+      EPS_LOCALIZATION     94.0
+      METHOD  GAPO
+      CPO_GUESS  ATOMIC
+      CPO_GUESS_SPACE  WAN
+      CG_PO  T
+      NEXTRA  2
+      STATES  MIXED
+      &PRINT
+        &WANNIER_CUBES  OFF
+        &END WANNIER_CUBES
+        &WANNIER_CENTERS  ON
+          FILENAME =wannier.xyz
+          IONS+CENTERS  T
+          FORMAT  XMOL
+          &EACH
+            QS_SCF  50
+          &END EACH
+        &END WANNIER_CENTERS
+        &WANNIER_SPREADS  OFF
+        &END WANNIER_SPREADS
+      &END PRINT
+    &END LOCALIZE
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 30.000 5.222 6.031
+      PERIODIC XYZ
+    &END CELL
+
+    &TOPOLOGY
+      COORD_FILE_NAME ./pos_4Au_H2O_4Ne.xyz
+      COORD_FILE_FORMAT XYZ
+      &CENTER_COORDINATES FALSE
+      &END
+    &END
+
+    &KIND O
+      ELEMENT O
+      BASIS_SET DZVP-GTH-q6
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+    &KIND H
+      ELEMENT H
+      BASIS_SET DZVP-GTH-q1
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND Au
+      ELEMENT Au
+      BASIS_SET TZ-GTH
+      POTENTIAL GTH-PBE-q11
+    &END KIND
+    &KIND Ne
+      ELEMENT Ne
+      BASIS_SET DZVP-GTH-q8
+      POTENTIAL GTH-PBE-q8
+    &END KIND
+
+  &END SUBSYS
+
+&END FORCE_EVAL

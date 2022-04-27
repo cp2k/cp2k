@@ -58,7 +58,8 @@ MODULE cp_fm_basic_linalg
              cp_fm_qr_factorization, & ! compute the QR factorization of a rectangular matrix
              cp_fm_solve, & ! solves the equation  A*B=C A and C are input
              cp_fm_pdgeqpf, & ! compute a QR factorization with column pivoting of a M-by-N distributed matrix
-             cp_fm_pdorgqr ! generates an M-by-N as first N columns of a product of K elementary reflectors
+             cp_fm_pdorgqr, & ! generates an M-by-N as first N columns of a product of K elementary reflectors
+             cp_fm_Gram_Schmidt_orthonorm ! Gram-Schmidt orthonormalization of columns of a full matrix
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
    REAL(KIND=sp), EXTERNAL :: slange, pslange, pslatra
@@ -2284,5 +2285,142 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_pdorgqr
+
+! **************************************************************************************************
+!> \brief Orthonormalizes selected rows and columns of a full matrix, matrix_a
+!> \param matrix_a ...
+!> \param B ...
+!> \param nrows number of rows of matrix_a, optional, defaults to size(matrix_a,1)
+!> \param ncols number of columns of matrix_a, optional, defaults to size(matrix_a, 2)
+!> \param start_row starting index of rows, optional, defaults to 1
+!> \param start_col starting index of columns, optional, defaults to 1
+!> \param do_norm ...
+!> \param do_print ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_Gram_Schmidt_orthonorm(matrix_a, B, nrows, ncols, start_row, start_col, &
+                                           do_norm, do_print)
+
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix_a
+      REAL(kind=dp), DIMENSION(:, :), INTENT(OUT)        :: B
+      INTEGER, INTENT(IN), OPTIONAL                      :: nrows, ncols, start_row, start_col
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_norm, do_print
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_Gram_Schmidt_orthonorm', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER :: end_col_global, end_col_local, end_row_global, end_row_local, handle, i, j, &
+         j_col, ncol_global, ncol_local, nrow_global, nrow_local, start_col_global, &
+         start_col_local, start_row_global, start_row_local, this_col
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: my_do_norm, my_do_print
+      REAL(KIND=dp)                                      :: norm
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: a
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ASSOCIATED(matrix_a))
+      CPASSERT(matrix_a%ref_count .GT. 0)
+
+      my_do_norm = .TRUE.
+      IF (PRESENT(do_norm)) my_do_norm = do_norm
+
+      my_do_print = .FALSE.
+      IF (PRESENT(do_print) .AND. (my_do_norm)) my_do_print = do_print
+
+      IF (SIZE(B) /= 0) THEN
+         IF (PRESENT(nrows)) THEN
+            nrow_global = nrows
+         ELSE
+            nrow_global = SIZE(B, 1)
+         END IF
+
+         IF (PRESENT(ncols)) THEN
+            ncol_global = ncols
+         ELSE
+            ncol_global = SIZE(B, 2)
+         END IF
+
+         IF (PRESENT(start_row)) THEN
+            start_row_global = start_row
+         ELSE
+            start_row_global = 1
+         END IF
+
+         IF (PRESENT(start_col)) THEN
+            start_col_global = start_col
+         ELSE
+            start_col_global = 1
+         END IF
+
+         end_row_global = start_row_global + nrow_global - 1
+         end_col_global = start_col_global + ncol_global - 1
+
+         CALL cp_fm_get_info(matrix=matrix_a, &
+                             nrow_global=nrow_global, ncol_global=ncol_global, &
+                             nrow_local=nrow_local, ncol_local=ncol_local, &
+                             row_indices=row_indices, col_indices=col_indices)
+         IF (end_row_global > nrow_global) THEN
+            end_row_global = nrow_global
+         END IF
+         IF (end_col_global > ncol_global) THEN
+            end_col_global = ncol_global
+         END IF
+
+         ! find out row/column indices of locally stored matrix elements that
+         ! needs to be copied.
+         ! Arrays row_indices and col_indices are assumed to be sorted in
+         ! ascending order
+         DO start_row_local = 1, nrow_local
+            IF (row_indices(start_row_local) >= start_row_global) EXIT
+         END DO
+
+         DO end_row_local = start_row_local, nrow_local
+            IF (row_indices(end_row_local) > end_row_global) EXIT
+         END DO
+         end_row_local = end_row_local - 1
+
+         DO start_col_local = 1, ncol_local
+            IF (col_indices(start_col_local) >= start_col_global) EXIT
+         END DO
+
+         DO end_col_local = start_col_local, ncol_local
+            IF (col_indices(end_col_local) > end_col_global) EXIT
+         END DO
+         end_col_local = end_col_local - 1
+
+         a => matrix_a%local_data
+
+         this_col = col_indices(start_col_local) - start_col_global + 1
+
+         B(:, this_col) = a(:, start_col_local)
+
+         IF (my_do_norm) THEN
+            norm = SQRT(accurate_dot_product(B(:, this_col), B(:, this_col)))
+            B(:, this_col) = B(:, this_col)/norm
+            IF (my_do_print) WRITE (*, '(I3,F8.3)') this_col, norm
+         END IF
+
+         DO i = start_col_local + 1, end_col_local
+            this_col = col_indices(i) - start_col_global + 1
+            B(:, this_col) = a(:, i)
+            DO j = start_col_local, i - 1
+               j_col = col_indices(j) - start_col_global + 1
+               B(:, this_col) = B(:, this_col) - &
+                                accurate_dot_product(B(:, j_col), B(:, this_col))* &
+                                B(:, j_col)/accurate_dot_product(B(:, j_col), B(:, j_col))
+            END DO
+
+            IF (my_do_norm) THEN
+               norm = SQRT(accurate_dot_product(B(:, this_col), B(:, this_col)))
+               B(:, this_col) = B(:, this_col)/norm
+               IF (my_do_print) WRITE (*, '(I3,F8.3)') this_col, norm
+            END IF
+
+         END DO
+         CALL mp_sum(B, matrix_a%matrix_struct%para_env%group)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_Gram_Schmidt_orthonorm
 
 END MODULE cp_fm_basic_linalg

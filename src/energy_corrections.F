@@ -126,6 +126,7 @@ MODULE energy_corrections
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
                                               pw_type
+   USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ptrace
@@ -139,7 +140,6 @@ MODULE energy_corrections
    USE qs_force_types,                  ONLY: qs_force_type,&
                                               total_qs_force,&
                                               zero_qs_force
-   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&

@@ -448,7 +448,15 @@ MODULE input_constants
                                                do_loc_crazy = 2, &
                                                do_loc_direct = 3, &
                                                do_loc_l1_norm_sd = 4, &
-                                               do_loc_scdm = 5
+                                               do_loc_scdm = 5, &
+                                               do_loc_gapo = 6
+
+   INTEGER, PARAMETER, PUBLIC               :: do_loc_cpo_atomic = 0, &
+                                               do_loc_cpo_restart = 1, &
+                                               do_loc_cpo_random = 2
+
+   INTEGER, PARAMETER, PUBLIC               :: do_loc_cpo_space_wan = 0, &
+                                               do_loc_cpo_space_nmo = 1
 
    INTEGER, PARAMETER, PUBLIC               :: do_loc_min = 0, &
                                                do_loc_max = 1, &
@@ -460,11 +468,13 @@ MODULE input_constants
                                                state_loc_range = 1, &
                                                state_loc_list = 2, &
                                                energy_loc_range = 3, &
-                                               state_loc_none = 4
+                                               state_loc_none = 4, &
+                                               state_loc_mixed = 5
 
    INTEGER, PARAMETER, PUBLIC               :: do_loc_homo = 0, &
                                                do_loc_lumo = 1, &
-                                               do_loc_both = 2
+                                               do_loc_both = 2, &
+                                               do_loc_mixed = 3
 
    INTEGER, PARAMETER, PUBLIC               :: orb_s = 0, &
                                                orb_px = 1, &
