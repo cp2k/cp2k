@@ -82,7 +82,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, mystate, ns, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: lstates, marked_states_spin
-      LOGICAL                                            :: do_homo
+      LOGICAL                                            :: do_homo, do_mixed
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: scenter
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
@@ -101,6 +101,7 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit(logger)
       loc_print_section => section_vals_get_subs_vals(loc_section, "PRINT")
       do_homo = qs_loc_env%localized_wfn_control%do_homo
+      do_mixed = qs_loc_env%localized_wfn_control%do_mixed
       IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                            "WANNIER_STATES"), cp_p_file)) THEN
          CALL get_qs_env(qs_env=qs_env, WannierCentres=wc)
@@ -122,7 +123,11 @@ CONTAINS
             IF (output_unit > 0 .AND. do_homo) WRITE (output_unit, "(/,T2,A,I3)") &
                "LOCALIZATION| Computing localization properties "// &
                "for OCCUPIED ORBITALS. Spin:", ispin
-            IF (output_unit > 0 .AND. (.NOT. do_homo)) WRITE (output_unit, "(/,T2,A,I3)") &
+            IF (output_unit > 0 .AND. do_mixed) WRITE (output_unit, "(/,T2,A,/,T16,A,I3)") &
+               "LOCALIZATION| Computing localization properties for OCCUPIED, ", &
+               "PARTIALLY OCCUPIED and UNOCCUPIED ORBITALS. Spin:", ispin
+            IF (output_unit > 0 .AND. (.NOT. do_homo) .AND. (.NOT. do_mixed)) &
+               WRITE (output_unit, "(/,T2,A,I3)") &
                "LOCALIZATION| Computing localization properties "// &
                "for UNOCCUPIED ORBITALS. Spin:", ispin
 

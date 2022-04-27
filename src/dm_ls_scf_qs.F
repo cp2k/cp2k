@@ -50,6 +50,7 @@ MODULE dm_ls_scf_qs
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
+   USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                               gspace_mixing_nr
@@ -57,8 +58,7 @@ MODULE dm_ls_scf_qs
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gspace_mixing,                ONLY: gspace_mixing
-   USE qs_initial_guess,                ONLY: calculate_atomic_block_dm,&
-                                              calculate_mopac_dm
+   USE qs_initial_guess,                ONLY: calculate_mopac_dm
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&

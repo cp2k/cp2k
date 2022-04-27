@@ -127,11 +127,13 @@ MODULE qs_loc_types
       INTEGER                              :: min_or_max
       INTEGER                              :: localization_method
       INTEGER                              :: operator_type
-      INTEGER, DIMENSION(2)                :: nloc_states
+      INTEGER, DIMENSION(2)                :: nloc_states, nguess
       INTEGER                              :: set_of_states
       INTEGER, DIMENSION(2, 2)              :: lu_bound_states
       INTEGER                              :: max_iter
       INTEGER                              :: out_each
+      INTEGER                              :: nextra
+      INTEGER                              :: coeff_po_guess, coeff_po_guess_mo_space
       REAL(KIND=dp)                        :: eps_localization
       REAL(KIND=dp)                        :: max_crazy_angle
       REAL(KIND=dp)                        :: crazy_scale
@@ -142,6 +144,7 @@ MODULE qs_loc_types
       LOGICAL                              :: print_centers
       LOGICAL                              :: print_spreads
       LOGICAL                              :: do_homo
+      LOGICAL                              :: do_mixed, do_cg_po
       LOGICAL                              :: loc_restart
       LOGICAL                              :: use_history
       INTEGER, POINTER, DIMENSION(:, :)       :: loc_states
@@ -298,6 +301,8 @@ CONTAINS
 
       localized_wfn_control%ref_count = 1
       localized_wfn_control%nloc_states = 0
+      localized_wfn_control%nextra = 0
+      localized_wfn_control%nguess = 0
       localized_wfn_control%lu_bound_states = 0
       localized_wfn_control%lu_ene_bound = 0.0_dp
       localized_wfn_control%print_cubes = .FALSE.
