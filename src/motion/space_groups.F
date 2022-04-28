@@ -662,7 +662,7 @@ CONTAINS
             ro(3) = ro(3) - REAL(NINT(ro(3) - rf(3)), dp)
             rn(1:3) = rn(1:3) + ro(1:3)
          END DO
-         rn = rn/REAL(nops)
+         rn = rn/REAL(nops, dp)
          CALL scaled_to_real(coord(ja + 1:ja + 3), rn(1:3), spgr%cell_ref)
       END DO
       !$OMP END PARALLEL DO
@@ -719,7 +719,7 @@ CONTAINS
             ro(3) = REAL(rot(1, 3), dp)*ri(1) + REAL(rot(2, 3), dp)*ri(2) + REAL(rot(3, 3), dp)*ri(3)
             rn(1:3) = rn(1:3) + ro(1:3)
          END DO
-         rn = rn/REAL(nops)
+         rn = rn/REAL(nops, dp)
          CALL scaled_to_real(force(ja + 1:ja + 3), rn(1:3), spgr%cell_ref)
       END DO
       !$OMP END PARALLEL DO
