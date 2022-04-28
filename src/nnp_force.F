@@ -470,7 +470,7 @@ CONTAINS
             DO j = 1, nnp%n_committee
                var = var + (nnp%committee_forces(:, i, j) - nnp%nnp_forces(:, i))**2
             END DO
-            var = var/REAL(nnp%n_committee)
+            var = var/REAL(nnp%n_committee, dp)
             var = SQRT(var)
             WRITE (unit_nr, "(A4,1X,3F20.10)") nnp%atoms(nnp%sort_inv(i)), var
          END DO

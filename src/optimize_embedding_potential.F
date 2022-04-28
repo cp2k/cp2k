@@ -291,7 +291,7 @@ CONTAINS
 
          ! Calculate the number of electrons
          nelectrons = nelectron_spin(1) + nelectron_spin(2)
-         factor = (REAL(nelectrons) - 1.0_dp)/(REAL(nelectrons))
+         factor = (REAL(nelectrons, dp) - 1.0_dp)/(REAL(nelectrons, dp))
 
          ! Scale the Hartree potential to get Fermi-Amaldi
          CALL pw_scale(embed_pot%pw, a=factor)
