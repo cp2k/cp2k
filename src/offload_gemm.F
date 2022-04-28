@@ -11,7 +11,7 @@ MODULE offload_gemm
                             C_NULL_PTR, &
                             C_PTR, &
                             C_int
-#if defined(__SPLA)
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
    USE spla, ONLY: SPLA_PU_HOST, &
                    SPLA_PU_GPU, &
                    SPLA_OP_NONE, &
