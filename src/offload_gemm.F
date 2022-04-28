@@ -7,10 +7,8 @@
 
 MODULE offload_gemm
    USE ISO_C_BINDING, ONLY: C_LOC, &
-                            C_NULL_CHAR, &
                             C_NULL_PTR, &
-                            C_PTR, &
-                            C_int
+                            C_PTR
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
    USE spla, ONLY: SPLA_PU_HOST, &
                    SPLA_PU_GPU, &
