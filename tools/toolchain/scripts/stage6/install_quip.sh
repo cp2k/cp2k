@@ -28,11 +28,8 @@ EOF
   exit 0
 fi
 
-if [ "${with_intel}" != "__DONTUSE__" ]; then
+if [ "${with_quip}" != "__DONTUSE__" ] && [ "${with_intel}" != "__DONTUSE__" ]; then
   report_warning "A QUIP installation using the Intel compiler is currently not supported. The QUIP package will not be installed."
-  cat << EOF > ${BUILDDIR}/setup_quip
-with_quip="__DONTUSE__"
-EOF
   exit 0
 fi
 
