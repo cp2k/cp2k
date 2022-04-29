@@ -2,7 +2,7 @@
 #
 # CP2K (GNU aarch64) arch file for Linux clusters
 #
-# Tested with: GNU 11.2.0, MPICH 3.3.2,
+# Tested with: GNU 11.2.0, MPICH 3.4.3,
 #              ScaLAPACK 2.1.0, OpenBLAS 0.3.20, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 5.2.2, ELPA 2021.11.002, PLUMED 2.8.0, SPGLIB 1.16.2,
 #              LIBVORI 210412, GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.0
@@ -10,7 +10,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Author: Matthias Krack (14.04.2022)
+# Author: Matthias Krack (29.04.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
