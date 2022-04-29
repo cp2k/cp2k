@@ -30,8 +30,10 @@ def main() -> None:
         # Also testing --with-gcc=install here, see github.com/cp2k/cp2k/issues/2062 .
         f.write(toolchain_full(mpi_mode="openmpi", gcc="install") + regtest("psmp"))
 
-    with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(toolchain_full(base_image="fedora:33") + regtest("psmp"))
+    with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
+        f.write(toolchain_intel())
+        f.write("\n# TODO: Remove --mpiranks=1, see github.com/cp2k/cp2k/issues/2103\n")
+        f.write(regtest("psmp", testopts="--mpiranks=1"))
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
@@ -97,12 +99,12 @@ def main() -> None:
 
 
 # ======================================================================================
-def regtest(version: str, arch: str = "local") -> str:
+def regtest(version: str, arch: str = "local", testopts: str = "") -> str:
     return (
         install_cp2k(version=version, arch=arch)
         + fr"""
 # Run regression tests.
-ARG TESTOPTS
+ARG TESTOPTS="{testopts}"
 COPY ./tools/docker/scripts/test_regtest.sh ./
 RUN /bin/bash -c " \
     TESTOPTS="${{TESTOPTS}}" \
@@ -359,9 +361,9 @@ def toolchain_full(
     gcc: str = "system",
     generic: bool = False,
 ) -> str:
-    args = dict(install_all=None, mpi_mode=mpi_mode, with_gcc=gcc)
+    args = dict(install_all="", mpi_mode=mpi_mode, with_gcc=gcc)
     if generic:
-        args["generic"] = None
+        args["generic"] = ""
     return f"\nFROM {base_image}\n\n" + install_toolchain(base_image=base_image, **args)
 
 
@@ -403,6 +405,32 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         with_libxsmm="install",
         with_libint="install",
         with_libvori=("install" if libvori else "no"),
+    )
+
+
+# ======================================================================================
+def toolchain_intel() -> str:
+    # See https://github.com/cp2k/cp2k/issues/1936
+    return fr"""
+FROM intel/oneapi-hpckit:2021.4-devel-ubuntu18.04
+
+ENV PATH=/opt/intel/oneapi/compiler/2021.4.0/linux/bin/intel64:/opt/intel/oneapi/mpi/2021.4.0/bin:${{PATH}}
+ENV LD_LIBRARY_PATH=/opt/intel/oneapi/mpi/2021.4.0/lib/release:/opt/intel/oneapi/mpi/2021.4.0/lib:/opt/intel/oneapi/mpi/2021.4.0/libfabric/lib:/opt/intel/oneapi/mkl/2021.4.0/lib/intel64:/opt/intel/oneapi/compiler/2021.4.0/linux/compiler/lib/intel64_lin:${{LD_LIBRARY_PATH}}
+ENV MKLROOT=/opt/intel/oneapi/mkl/2021.4.0
+ENV I_MPI_ROOT=/opt/intel/oneapi/mpi/2021.4.0
+ENV FI_PROVIDER_PATH='/opt/intel/oneapi/mpi/2021.4.0/libfabric/lib/prov'
+
+ENTRYPOINT []
+
+""" + install_toolchain(
+        base_image="ubuntu",
+        with_intel="",
+        with_intelmpi="",
+        with_libint="no",  # https://github.com/cp2k/cp2k/issues/1999
+        with_elpa="no",  # MPI does not provide a sufficient threading level for OpenMP.
+        with_quip="no",  # Intel compiler is currently not supported.
+        with_spfft="no",  # Spawns infinite chain of mpiicpc sub-processes.
+        with_sirius="no",  # Requires spfft.
     )
 
 
@@ -560,7 +588,7 @@ def install_toolchain(base_image: str, **kwargs: Optional[str]) -> str:
     install_args = []
     for k, v in kwargs.items():
         k = k.replace("_", "-")
-        if v is not None:
+        if v != "":
             install_args.append(f"    --{k}={v} \\")
         else:
             install_args.append(f"    --{k} \\")

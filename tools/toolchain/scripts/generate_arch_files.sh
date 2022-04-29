@@ -36,11 +36,14 @@ FC_arch="IF_MPI(${MPIFC}|${FC})"
 LD_arch="IF_MPI(${MPIFC}|${FC})"
 
 # we always want good line information and backtraces
-if [ "${generic}" = "__TRUE__" ]; then
+if [ "${with_intel}" != "__DONTUSE__" ]; then
+  BASEFLAGS="-nofor-main -O2 -fopenmp -fp-model precise -funroll-loops -g -qopenmp-simd -traceback -xHost"
+elif [ "${generic}" = "__TRUE__" ]; then
   BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=generic"
 else
   BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -march=native -mtune=native"
 fi
+
 OPT_FLAGS="-O3 -funroll-loops"
 NOOPT_FLAGS="-O1"
 
@@ -70,7 +73,6 @@ IEEE_EXCEPTIONS_DFLAGS="-D__HAS_IEEE_EXCEPTIONS"
 
 # check all of the above flags, filter out incompatible flags for the
 # current version of gcc in use
-BASEFLAGS=$(allowed_gfortran_flags $BASEFLAGS)
 OPT_FLAGS=$(allowed_gfortran_flags $OPT_FLAGS)
 NOOPT_FLAGS=$(allowed_gfortran_flags $NOOPT_FLAGS)
 FCDEB_FLAGS=$(allowed_gfortran_flags $FCDEB_FLAGS)
