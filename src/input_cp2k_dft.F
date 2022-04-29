@@ -4702,7 +4702,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="LEVEL_SHIFT", &
                           variants=(/"LSHIFT"/), &
                           description="Use level shifting to improve convergence", &
-                          usage="LEVEL_SHIFT 0.1", default_r_val=0._dp)
+                          unit_str="au_e", &
+                          usage="LEVEL_SHIFT 0.1", &
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
