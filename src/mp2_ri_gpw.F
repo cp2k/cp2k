@@ -501,16 +501,16 @@ CONTAINS
 
             ! redistribute gamma
             IF (calc_forces) THEN
-               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(ispin)%array, ij_index, my_B_size, &
+               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(ispin)%array, ij_index, my_B_size(ispin), &
                                            my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                            ij_map, ranges_info_array, Y_i_aP, para_env_exchange, &
-                                           gd_array%sizes, ispin, 1)
-               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(jspin)%array, ij_index, my_B_size, &
+                                           gd_array%sizes, 1)
+               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(jspin)%array, ij_index, my_B_size(jspin), &
                                            my_block_size, my_group_L_size, my_j, my_ij_pairs, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                            ij_map, ranges_info_array, Y_j_aP, para_env_exchange, &
-                                           gd_array%sizes, jspin, 2)
+                                           gd_array%sizes, 2)
             END IF
 
          END DO
@@ -1702,17 +1702,16 @@ CONTAINS
 !> \param Y_i_aP ...
 !> \param para_env_exchange ...
 !> \param sizes_array ...
-!> \param ispin ...
 !> \param spin ...
 ! **************************************************************************************************
    SUBROUTINE mp2_redistribute_gamma(Gamma_P_ia, ij_index, my_B_size, &
                                      my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                      num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                      ij_map, ranges_info_array, Y_i_aP, para_env_exchange, &
-                                     sizes_array, ispin, spin)
+                                     sizes_array, spin)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Gamma_P_ia
-      INTEGER, INTENT(IN)                                :: ij_index, my_B_size(2), my_block_size, &
+      INTEGER, INTENT(IN)                                :: ij_index, my_B_size, my_block_size, &
                                                             my_group_L_size, my_i, my_ij_pairs, &
                                                             ngroup, num_integ_group
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: integ_group_pos2color_sub, num_ij_pairs, &
@@ -1724,13 +1723,13 @@ CONTAINS
          INTENT(IN)                                      :: Y_i_aP
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
-      INTEGER, INTENT(IN)                                :: ispin, spin
+      INTEGER, INTENT(IN)                                :: spin
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, Lstart_pos, &
-         my_B_size_i, my_B_size_j, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, &
-         rec_ij_index, send_L_size, start_point, tag
+         proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, send_L_size, &
+         start_point, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
 
 ! In alpha-beta case Y_i_aP_beta is sent as Y_j_aP
@@ -1738,8 +1737,6 @@ CONTAINS
       CALL timeset(routineN//"_comm2", handle)
 
       tag = 43
-
-      my_B_size_i = my_B_size(ispin)
 
       IF (ij_index <= my_ij_pairs) THEN
          ! somethig to send
@@ -1751,13 +1748,13 @@ CONTAINS
             end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 !$OMP       PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
 !$OMP                                 SHARED(start_point,end_point,Lstart_pos,my_block_size,&
-!$OMP                                        Gamma_P_ia,my_i,my_B_size_i,my_B_size_j,Y_i_aP,ispin)
+!$OMP                                        Gamma_P_ia,my_i,my_B_size,Y_i_aP)
             DO kkk = start_point, end_point
                lll = kkk - start_point + Lstart_pos
                DO iiB = 1, my_block_size
-                  Gamma_P_ia(1:my_B_size_i, my_i + iiB - 1, kkk) = &
-                     Gamma_P_ia(1:my_B_size_i, my_i + iiB - 1, kkk) + &
-                     Y_i_aP(1:my_B_size_i, lll, iiB)
+                  Gamma_P_ia(1:my_B_size, my_i + iiB - 1, kkk) = &
+                     Gamma_P_ia(1:my_B_size, my_i + iiB - 1, kkk) + &
+                     Y_i_aP(1:my_B_size, lll, iiB)
                END DO
             END DO
 !$OMP              END PARALLEL DO
@@ -1771,7 +1768,7 @@ CONTAINS
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             send_L_size = sizes_array(proc_send)
-            ALLOCATE (BI_C_send(my_B_size_i, my_block_size, send_L_size))
+            ALLOCATE (BI_C_send(my_B_size, my_block_size, send_L_size))
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
@@ -1780,11 +1777,11 @@ CONTAINS
                end_point = ranges_info_array(4, irep, proc_send)
 !$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
 !$OMP                                       SHARED(start_point,end_point,Lstart_pos,my_block_size,&
-!$OMP                                              BI_C_send,my_B_size_i,Y_i_aP,my_B_size)
+!$OMP                                              BI_C_send,my_B_size,Y_i_aP)
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
                   DO iiB = 1, my_block_size
-                     BI_C_send(1:my_B_size_i, iiB, kkk) = Y_i_aP(1:my_B_size_i, lll, iiB)
+                     BI_C_send(1:my_B_size, iiB, kkk) = Y_i_aP(1:my_B_size, lll, iiB)
                   END DO
                END DO
 !$OMP                END PARALLEL DO
@@ -1801,7 +1798,7 @@ CONTAINS
                rec_i = ij_map(ij_counter_rec, spin)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               ALLOCATE (BI_C_rec(my_B_size_i, rec_block_size, my_group_L_size))
+               ALLOCATE (BI_C_rec(my_B_size, rec_block_size, my_group_L_size))
                BI_C_rec = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, &
@@ -1813,10 +1810,10 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 !$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size_i,BI_C_rec,ispin)
+!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
                   Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
                      Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
-                     BI_C_rec(1:my_B_size_i, :, start_point:end_point)
+                     BI_C_rec(1:my_B_size, :, start_point:end_point)
 !$OMP             END PARALLEL WORKSHARE
                END DO
                CALL timestop(handle2)
@@ -1847,7 +1844,7 @@ CONTAINS
                rec_i = ij_map(ij_counter_rec, spin)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               ALLOCATE (BI_C_rec(my_B_size_i + my_B_size_j, rec_block_size, my_group_L_size))
+               ALLOCATE (BI_C_rec(my_B_size, rec_block_size, my_group_L_size))
 
                BI_C_rec = 0.0_dp
 
@@ -1858,10 +1855,10 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 !$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size_i,BI_C_rec,ispin)
+!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
                   Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
                      Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
-                     BI_C_rec(1:my_B_size_i, :, start_point:end_point)
+                     BI_C_rec(1:my_B_size, :, start_point:end_point)
 !$OMP             END PARALLEL WORKSHARE
                END DO
                CALL timestop(handle2)
