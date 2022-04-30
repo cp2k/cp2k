@@ -501,12 +501,12 @@ CONTAINS
 
             ! redistribute gamma
             IF (calc_forces) THEN
-               CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
+               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(ispin)%array, ij_index, my_B_size, &
                                            my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                            ij_map, ranges_info_array, Y_i_aP, para_env_exchange, &
                                            gd_array%sizes, ispin, 1)
-               CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
+               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(jspin)%array, ij_index, my_B_size, &
                                            my_block_size, my_group_L_size, my_j, my_ij_pairs, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                            ij_map, ranges_info_array, Y_j_aP, para_env_exchange, &
@@ -1685,7 +1685,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mp2_env ...
+!> \param Gamma_P_ia ...
 !> \param ij_index ...
 !> \param my_B_size ...
 !> \param my_block_size ...
@@ -1705,13 +1705,13 @@ CONTAINS
 !> \param ispin ...
 !> \param spin ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
+   SUBROUTINE mp2_redistribute_gamma(Gamma_P_ia, ij_index, my_B_size, &
                                      my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                      num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                      ij_map, ranges_info_array, Y_i_aP, para_env_exchange, &
                                      sizes_array, ispin, spin)
 
-      TYPE(mp2_type)                                     :: mp2_env
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Gamma_P_ia
       INTEGER, INTENT(IN)                                :: ij_index, my_B_size(2), my_block_size, &
                                                             my_group_L_size, my_i, my_ij_pairs, &
                                                             ngroup, num_integ_group
@@ -1751,12 +1751,12 @@ CONTAINS
             end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 !$OMP       PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
 !$OMP                                 SHARED(start_point,end_point,Lstart_pos,my_block_size,&
-!$OMP                                        mp2_env,my_i,my_B_size_i,my_B_size_j,Y_i_aP,ispin)
+!$OMP                                        Gamma_P_ia,my_i,my_B_size_i,my_B_size_j,Y_i_aP,ispin)
             DO kkk = start_point, end_point
                lll = kkk - start_point + Lstart_pos
                DO iiB = 1, my_block_size
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size_i, my_i + iiB - 1, kkk) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size_i, my_i + iiB - 1, kkk) + &
+                  Gamma_P_ia(1:my_B_size_i, my_i + iiB - 1, kkk) = &
+                     Gamma_P_ia(1:my_B_size_i, my_i + iiB - 1, kkk) + &
                      Y_i_aP(1:my_B_size_i, lll, iiB)
                END DO
             END DO
@@ -1813,9 +1813,9 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 !$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                           mp2_env,rec_i,iiB,my_B_size_i,BI_C_rec,ispin)
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
+!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size_i,BI_C_rec,ispin)
+                  Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
+                     Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
                      BI_C_rec(1:my_B_size_i, :, start_point:end_point)
 !$OMP             END PARALLEL WORKSHARE
                END DO
@@ -1858,9 +1858,9 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 !$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                           mp2_env,rec_i,iiB,my_B_size_i,BI_C_rec,ispin)
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
+!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size_i,BI_C_rec,ispin)
+                  Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
+                     Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
                      BI_C_rec(1:my_B_size_i, :, start_point:end_point)
 !$OMP             END PARALLEL WORKSHARE
                END DO
