@@ -99,13 +99,13 @@ CONTAINS
 
       INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
          decil, end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
-         integ_group_size, irep, ispin, jjB, jspin, kspin, Lend_pos, Lstart_pos, max_ij_pairs, &
-         min_integ_group_size, my_block_size, my_group_L_end, my_group_L_size, &
-         my_group_L_size_orig, my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, &
-         ngroup, nspins, num_IJ_blocks, num_integ_group, pos_integ_group, proc_receive, proc_send, &
-         proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size
-      INTEGER :: send_B_virtual_end, send_B_virtual_start, send_block_size, send_i, send_ij_index, &
-         send_j, start_point, sub_P_color, sub_sub_color, tag, total_ij_pairs
+         integ_group_size, ispin, jjB, jspin, kspin, max_ij_pairs, min_integ_group_size, &
+         my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
+         my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, num_IJ_blocks, &
+         num_integ_group, pos_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
+         rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end
+      INTEGER :: send_B_virtual_start, send_block_size, send_i, send_ij_index, send_j, &
+         start_point, sub_P_color, sub_sub_color, tag, total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
          my_B_virtual_end, my_B_virtual_start, num_ij_pairs, proc_map, proc_map_rep, &
          sizes_array_orig, sub_proc_map, virtual
@@ -248,32 +248,12 @@ CONTAINS
                my_block_size = ij_map(ij_counter, 3)
 
                local_i_aL = 0.0_dp
-               DO irep = 0, num_integ_group - 1
-                  Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
-                  Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
-                  start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
-                  end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(BIb_C,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_i,my_block_size,ispin)
-                  local_i_aL(Lstart_pos:Lend_pos, :, :) = &
-                     BIb_C(ispin)%array(start_point:end_point, :, my_i:my_i + my_block_size - 1)
-!$OMP END PARALLEL WORKSHARE
-               END DO
+               CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, para_env_exchange%mepos), &
+                                    BIb_C(ispin)%array(:, :, my_i:my_i + my_block_size - 1))
 
                local_j_aL = 0.0_dp
-               DO irep = 0, num_integ_group - 1
-                  Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
-                  Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
-                  start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
-                  end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(BIb_C,local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_j,my_block_size,jspin)
-                  local_j_aL(Lstart_pos:Lend_pos, :, :) = &
-                     BIb_C(jspin)%array(start_point:end_point, :, my_j:my_j + my_block_size - 1)
-!$OMP END PARALLEL WORKSHARE
-               END DO
+               CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, para_env_exchange%mepos), &
+                                    BIb_C(jspin)%array(:, :, my_j:my_j + my_block_size - 1))
 
                ! collect data from other proc
                CALL timeset(routineN//"_comm", handle3)
@@ -298,18 +278,8 @@ CONTAINS
                      CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
                                       proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group, tag)
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin,BI_C_rec)
-                        local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
-!$OMP END PARALLEL WORKSHARE
-
-                     END DO
+                     CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(ispin), :))
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
@@ -317,18 +287,7 @@ CONTAINS
                                       proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group, tag)
 
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
-                        local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
-!$OMP END PARALLEL WORKSHARE
-
-                     END DO
+                     CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(jspin), :))
 
                   ELSE
                      ! we send nothing while we know that we have to receive something
@@ -337,35 +296,13 @@ CONTAINS
                      BI_C_rec = 0.0_dp
                      CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(BI_C_rec,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin)
-                        local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
-!$OMP END PARALLEL WORKSHARE
-
-                     END DO
+                     CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(ispin), :))
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
                      CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
-                        local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
-!$OMP END PARALLEL WORKSHARE
-
-                     END DO
+                     CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(jspin), :))
 
                   END IF
 
@@ -752,6 +689,40 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mp2_ri_gpw_compute_en
+
+! **************************************************************************************************
+!> \brief ...
+!> \param local_i_aL ...
+!> \param ranges_info_array ...
+!> \param BIb_C_rec ...
+! **************************************************************************************************
+   SUBROUTINE fill_local_i_aL(local_i_aL, ranges_info_array, BIb_C_rec)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: local_i_aL
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: ranges_info_array
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: BIb_C_rec
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fill_local_i_aL'
+
+      INTEGER                                            :: end_point, handle, irep, Lend_pos, &
+                                                            Lstart_pos, start_point
+
+      CALL timeset(routineN, handle)
+
+      DO irep = 1, SIZE(ranges_info_array, 2)
+         Lstart_pos = ranges_info_array(1, irep)
+         Lend_pos = ranges_info_array(2, irep)
+         start_point = ranges_info_array(3, irep)
+         end_point = ranges_info_array(4, irep)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(BIb_C_rec,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point)
+         local_i_aL(Lstart_pos:Lend_pos, :, :) = BIb_C_rec(start_point:end_point, :, :)
+!$OMP END PARALLEL WORKSHARE
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE fill_local_i_aL
 
 ! **************************************************************************************************
 !> \brief ...
