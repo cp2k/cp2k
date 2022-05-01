@@ -240,6 +240,11 @@ CONTAINS
                END IF
             END IF
 
+            IF (calc_forces) THEN
+               Y_i_aP = 0.0_dp
+               Y_j_aP = 0.0_dp
+            END IF
+
             IF (ij_index <= my_ij_pairs) THEN
                ! We have work to do
                ij_counter = (ij_index - MIN(1, color_sub))*ngroup + color_sub
@@ -454,8 +459,6 @@ CONTAINS
 
                         IF (calc_forces) THEN
                            ! update P_ab, Gamma_P_ia
-                           Y_i_aP = 0.0_dp
-                           Y_j_aP = 0.0_dp
                            CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
                                                    Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
                                                    my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, &
