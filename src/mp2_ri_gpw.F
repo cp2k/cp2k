@@ -248,9 +248,9 @@ CONTAINS
             IF (ij_index <= my_ij_pairs) THEN
                ! We have work to do
                ij_counter = (ij_index - MIN(1, color_sub))*ngroup + color_sub
-               my_i = ij_map(ij_counter, 1)
-               my_j = ij_map(ij_counter, 2)
-               my_block_size = ij_map(ij_counter, 3)
+               my_i = ij_map(1, ij_counter)
+               my_j = ij_map(2, ij_counter)
+               my_block_size = ij_map(3, ij_counter)
 
                local_i_aL = 0.0_dp
                CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, para_env_exchange%mepos), &
@@ -274,9 +274,9 @@ CONTAINS
                   IF (ij_index <= send_ij_index) THEN
                      ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
                                        integ_group_pos2color_sub(proc_send)
-                     send_i = ij_map(ij_counter_send, 1)
-                     send_j = ij_map(ij_counter_send, 2)
-                     send_block_size = ij_map(ij_counter_send, 3)
+                     send_i = ij_map(1, ij_counter_send)
+                     send_j = ij_map(2, ij_counter_send)
+                     send_block_size = ij_map(3, ij_counter_send)
 
                      ! occupied i
                      BI_C_rec = 0.0_dp
@@ -487,9 +487,9 @@ CONTAINS
                      ! something to send
                      ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
                                        integ_group_pos2color_sub(proc_send)
-                     send_i = ij_map(ij_counter_send, 1)
-                     send_j = ij_map(ij_counter_send, 2)
-                     send_block_size = ij_map(ij_counter_send, 3)
+                     send_i = ij_map(1, ij_counter_send)
+                     send_j = ij_map(2, ij_counter_send)
+                     send_block_size = ij_map(3, ij_counter_send)
 
                      ! occupied i
                      CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
@@ -1023,7 +1023,7 @@ CONTAINS
 
          ALLOCATE (ij_marker(homo, homo))
          ij_marker = 0
-         ALLOCATE (ij_map(total_ij_pairs_blocks, 3))
+         ALLOCATE (ij_map(3, total_ij_pairs_blocks))
          ij_map = 0
          ij_counter = 0
          my_ij_pairs = 0
@@ -1032,9 +1032,9 @@ CONTAINS
                IF (ij_counter + 1 > assigned_blocks) EXIT
                ij_counter = ij_counter + 1
                ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = 1
-               ij_map(ij_counter, 1) = iiB
-               ij_map(ij_counter, 2) = jjB
-               ij_map(ij_counter, 3) = block_size
+               ij_map(1, ij_counter) = iiB
+               ij_map(2, ij_counter) = jjB
+               ij_map(3, ij_counter) = block_size
                IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
             END DO
          END DO
@@ -1042,9 +1042,9 @@ CONTAINS
             DO jjB = iiB, homo
                IF (ij_marker(iiB, jjB) == 0) THEN
                   ij_counter = ij_counter + 1
-                  ij_map(ij_counter, 1) = iiB
-                  ij_map(ij_counter, 2) = jjB
-                  ij_map(ij_counter, 3) = 1
+                  ij_map(1, ij_counter) = iiB
+                  ij_map(2, ij_counter) = jjB
+                  ij_map(3, ij_counter) = 1
                   IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
                END IF
             END DO
@@ -1068,16 +1068,16 @@ CONTAINS
       ELSE
          ! alpha-beta case no index symmetry
          total_ij_pairs = homo*homo_beta
-         ALLOCATE (ij_map(total_ij_pairs, 3))
+         ALLOCATE (ij_map(3, total_ij_pairs))
          ij_map = 0
          ij_counter = 0
          my_ij_pairs = 0
          DO iiB = 1, homo
             DO jjB = 1, homo_beta
                ij_counter = ij_counter + 1
-               ij_map(ij_counter, 1) = iiB
-               ij_map(ij_counter, 2) = jjB
-               ij_map(ij_counter, 3) = 1
+               ij_map(1, ij_counter) = iiB
+               ij_map(2, ij_counter) = jjB
+               ij_map(3, ij_counter) = 1
                IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
             END DO
          END DO
@@ -1798,8 +1798,8 @@ CONTAINS
                ij_counter_rec = &
                   (ij_index - MIN(1, integ_group_pos2color_sub(proc_receive)))*ngroup + integ_group_pos2color_sub(proc_receive)
 
-               rec_i = ij_map(ij_counter_rec, spin)
-               rec_block_size = ij_map(ij_counter_rec, 3)
+               rec_i = ij_map(spin, ij_counter_rec)
+               rec_block_size = ij_map(3, ij_counter_rec)
 
                ALLOCATE (BI_C_rec(my_B_size, rec_block_size, my_group_L_size))
                BI_C_rec = 0.0_dp
@@ -1844,8 +1844,8 @@ CONTAINS
                ij_counter_rec = &
                   (ij_index - MIN(1, integ_group_pos2color_sub(proc_receive)))*ngroup + integ_group_pos2color_sub(proc_receive)
 
-               rec_i = ij_map(ij_counter_rec, spin)
-               rec_block_size = ij_map(ij_counter_rec, 3)
+               rec_i = ij_map(spin, ij_counter_rec)
+               rec_block_size = ij_map(3, ij_counter_rec)
 
                ALLOCATE (BI_C_rec(my_B_size, rec_block_size, my_group_L_size))
 
