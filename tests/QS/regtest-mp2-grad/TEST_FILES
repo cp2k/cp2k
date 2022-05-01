@@ -10,4 +10,5 @@ H2O_MD_mme.inp                                        11      1e-10            -
 H2_MP2_debug.inp                                      11      1e-10             -1.146241031776471
 H2O_grad_ri-hfx.inp                                   11      6e-09            -16.764370375058888
 O2_dyn_ri-hfx.inp                                     11      1e-10            -31.518511363027905
+H2O_grad_blksize.inp                                  11      7e-08            -16.990048927268898
 #EOF

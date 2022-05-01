@@ -99,13 +99,13 @@ CONTAINS
 
       INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
          decil, end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
-         integ_group_size, irep, ispin, jjB, jspin, kspin, Lend_pos, Lstart_pos, max_ij_pairs, &
-         min_integ_group_size, my_block_size, my_group_L_end, my_group_L_size, &
-         my_group_L_size_orig, my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, &
-         ngroup, nspins, num_IJ_blocks, num_integ_group, pos_integ_group, proc_receive, proc_send, &
-         proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size
-      INTEGER :: send_B_virtual_end, send_B_virtual_start, send_block_size, send_i, send_ij_index, &
-         send_j, start_point, sub_P_color, sub_sub_color, tag, total_ij_pairs
+         integ_group_size, ispin, jjB, jspin, kspin, max_ij_pairs, min_integ_group_size, &
+         my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
+         my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, num_IJ_blocks, &
+         num_integ_group, pos_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
+         rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end
+      INTEGER :: send_B_virtual_start, send_block_size, send_i, send_ij_index, send_j, &
+         start_point, sub_P_color, sub_sub_color, tag, total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
          my_B_virtual_end, my_B_virtual_start, num_ij_pairs, proc_map, proc_map_rep, &
          sizes_array_orig, sub_proc_map, virtual
@@ -113,8 +113,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
       LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
                                                             my_beta_beta_case, my_open_shell_SS
-      REAL(KIND=dp) :: amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, &
-         mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, sym_fac, t_new, t_start
+      REAL(KIND=dp)                                      :: amp_fac, my_Emp2_Cou, my_Emp2_EX, &
+                                                            sym_fac, t_new, t_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          TARGET                                          :: external_ab, external_i_aL, local_ab, &
                                                             local_ba, t_ab
@@ -175,7 +175,7 @@ CONTAINS
             integ_group_size, min_integ_group_size, &
             ngroup, num_IJ_blocks, &
             num_integ_group, pos_integ_group, virtual(ispin), my_alpha_beta_case, &
-            my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
+            my_open_shell_SS, calc_forces)
 
          ! now create a group that contains all the proc that have the same virtual starting point
          ! in the integ group
@@ -240,40 +240,25 @@ CONTAINS
                END IF
             END IF
 
+            IF (calc_forces) THEN
+               Y_i_aP = 0.0_dp
+               Y_j_aP = 0.0_dp
+            END IF
+
             IF (ij_index <= my_ij_pairs) THEN
                ! We have work to do
                ij_counter = (ij_index - MIN(1, color_sub))*ngroup + color_sub
-               my_i = ij_map(ij_counter, 1)
-               my_j = ij_map(ij_counter, 2)
-               my_block_size = ij_map(ij_counter, 3)
+               my_i = ij_map(1, ij_counter)
+               my_j = ij_map(2, ij_counter)
+               my_block_size = ij_map(3, ij_counter)
 
                local_i_aL = 0.0_dp
-               DO irep = 0, num_integ_group - 1
-                  Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
-                  Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
-                  start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
-                  end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(BIb_C,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_i,my_block_size,ispin)
-                  local_i_aL(Lstart_pos:Lend_pos, :, :) = &
-                     BIb_C(ispin)%array(start_point:end_point, :, my_i:my_i + my_block_size - 1)
-!$OMP END PARALLEL WORKSHARE
-               END DO
+               CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, para_env_exchange%mepos), &
+                                    BIb_C(ispin)%array(:, :, my_i:my_i + my_block_size - 1))
 
                local_j_aL = 0.0_dp
-               DO irep = 0, num_integ_group - 1
-                  Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
-                  Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
-                  start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
-                  end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(BIb_C,local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_j,my_block_size,jspin)
-                  local_j_aL(Lstart_pos:Lend_pos, :, :) = &
-                     BIb_C(jspin)%array(start_point:end_point, :, my_j:my_j + my_block_size - 1)
-!$OMP END PARALLEL WORKSHARE
-               END DO
+               CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, para_env_exchange%mepos), &
+                                    BIb_C(jspin)%array(:, :, my_j:my_j + my_block_size - 1))
 
                ! collect data from other proc
                CALL timeset(routineN//"_comm", handle3)
@@ -289,27 +274,17 @@ CONTAINS
                   IF (ij_index <= send_ij_index) THEN
                      ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
                                        integ_group_pos2color_sub(proc_send)
-                     send_i = ij_map(ij_counter_send, 1)
-                     send_j = ij_map(ij_counter_send, 2)
-                     send_block_size = ij_map(ij_counter_send, 3)
+                     send_i = ij_map(1, ij_counter_send)
+                     send_j = ij_map(2, ij_counter_send)
+                     send_block_size = ij_map(3, ij_counter_send)
 
                      ! occupied i
                      BI_C_rec = 0.0_dp
                      CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
                                       proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group, tag)
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin,BI_C_rec)
-                        local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
-!$OMP END PARALLEL WORKSHARE
-
-                     END DO
+                     CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(ispin), :))
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
@@ -317,18 +292,7 @@ CONTAINS
                                       proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group, tag)
 
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
-                        local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
-!$OMP END PARALLEL WORKSHARE
-
-                     END DO
+                     CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(jspin), :))
 
                   ELSE
                      ! we send nothing while we know that we have to receive something
@@ -337,35 +301,13 @@ CONTAINS
                      BI_C_rec = 0.0_dp
                      CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(BI_C_rec,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin)
-                        local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
-!$OMP END PARALLEL WORKSHARE
-
-                     END DO
+                     CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(ispin), :))
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
                      CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
-                        local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
-!$OMP END PARALLEL WORKSHARE
-
-                     END DO
+                     CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(jspin), :))
 
                   END IF
 
@@ -517,8 +459,6 @@ CONTAINS
 
                         IF (calc_forces) THEN
                            ! update P_ab, Gamma_P_ia
-                           Y_i_aP = 0.0_dp
-                           Y_j_aP = 0.0_dp
                            CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
                                                    Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
                                                    my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, &
@@ -547,9 +487,9 @@ CONTAINS
                      ! something to send
                      ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
                                        integ_group_pos2color_sub(proc_send)
-                     send_i = ij_map(ij_counter_send, 1)
-                     send_j = ij_map(ij_counter_send, 2)
-                     send_block_size = ij_map(ij_counter_send, 3)
+                     send_i = ij_map(1, ij_counter_send)
+                     send_j = ij_map(2, ij_counter_send)
+                     send_block_size = ij_map(3, ij_counter_send)
 
                      ! occupied i
                      CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
@@ -564,11 +504,16 @@ CONTAINS
 
             ! redistribute gamma
             IF (calc_forces) THEN
-               CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
-                                           my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
+               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(ispin)%array, ij_index, my_B_size(ispin), &
+                                           my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                           ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                           gd_array%sizes, ispin, jspin)
+                                           ij_map, ranges_info_array, Y_i_aP, para_env_exchange, &
+                                           gd_array%sizes, 1)
+               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(jspin)%array, ij_index, my_B_size(jspin), &
+                                           my_block_size, my_group_L_size, my_j, my_ij_pairs, ngroup, &
+                                           num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
+                                           ij_map, ranges_info_array, Y_j_aP, para_env_exchange, &
+                                           gd_array%sizes, 2)
             END IF
 
          END DO
@@ -752,6 +697,40 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mp2_ri_gpw_compute_en
+
+! **************************************************************************************************
+!> \brief ...
+!> \param local_i_aL ...
+!> \param ranges_info_array ...
+!> \param BIb_C_rec ...
+! **************************************************************************************************
+   SUBROUTINE fill_local_i_aL(local_i_aL, ranges_info_array, BIb_C_rec)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: local_i_aL
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: ranges_info_array
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: BIb_C_rec
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fill_local_i_aL'
+
+      INTEGER                                            :: end_point, handle, irep, Lend_pos, &
+                                                            Lstart_pos, start_point
+
+      CALL timeset(routineN, handle)
+
+      DO irep = 1, SIZE(ranges_info_array, 2)
+         Lstart_pos = ranges_info_array(1, irep)
+         Lend_pos = ranges_info_array(2, irep)
+         start_point = ranges_info_array(3, irep)
+         end_point = ranges_info_array(4, irep)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(BIb_C_rec,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point)
+         local_i_aL(Lstart_pos:Lend_pos, :, :) = BIb_C_rec(start_point:end_point, :, :)
+!$OMP END PARALLEL WORKSHARE
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE fill_local_i_aL
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1044,7 +1023,7 @@ CONTAINS
 
          ALLOCATE (ij_marker(homo, homo))
          ij_marker = 0
-         ALLOCATE (ij_map(total_ij_pairs_blocks, 3))
+         ALLOCATE (ij_map(3, total_ij_pairs_blocks))
          ij_map = 0
          ij_counter = 0
          my_ij_pairs = 0
@@ -1053,9 +1032,9 @@ CONTAINS
                IF (ij_counter + 1 > assigned_blocks) EXIT
                ij_counter = ij_counter + 1
                ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = 1
-               ij_map(ij_counter, 1) = iiB
-               ij_map(ij_counter, 2) = jjB
-               ij_map(ij_counter, 3) = block_size
+               ij_map(1, ij_counter) = iiB
+               ij_map(2, ij_counter) = jjB
+               ij_map(3, ij_counter) = block_size
                IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
             END DO
          END DO
@@ -1063,9 +1042,9 @@ CONTAINS
             DO jjB = iiB, homo
                IF (ij_marker(iiB, jjB) == 0) THEN
                   ij_counter = ij_counter + 1
-                  ij_map(ij_counter, 1) = iiB
-                  ij_map(ij_counter, 2) = jjB
-                  ij_map(ij_counter, 3) = 1
+                  ij_map(1, ij_counter) = iiB
+                  ij_map(2, ij_counter) = jjB
+                  ij_map(3, ij_counter) = 1
                   IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
                END IF
             END DO
@@ -1089,16 +1068,16 @@ CONTAINS
       ELSE
          ! alpha-beta case no index symmetry
          total_ij_pairs = homo*homo_beta
-         ALLOCATE (ij_map(total_ij_pairs, 3))
+         ALLOCATE (ij_map(3, total_ij_pairs))
          ij_map = 0
          ij_counter = 0
          my_ij_pairs = 0
          DO iiB = 1, homo
             DO jjB = 1, homo_beta
                ij_counter = ij_counter + 1
-               ij_map(ij_counter, 1) = iiB
-               ij_map(ij_counter, 2) = jjB
-               ij_map(ij_counter, 3) = 1
+               ij_map(1, ij_counter) = iiB
+               ij_map(2, ij_counter) = jjB
+               ij_map(3, ij_counter) = 1
                IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
             END DO
          END DO
@@ -1242,13 +1221,7 @@ CONTAINS
 !> \param virtual ...
 !> \param my_alpha_beta_case ...
 !> \param my_open_shell_SS ...
-!> \param mem_for_aK ...
-!> \param mem_for_comm ...
-!> \param mem_for_iaK ...
-!> \param mem_for_rep ...
-!> \param mem_min ...
-!> \param mem_per_group ...
-!> \param mem_real ...
+!> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_get_sizes(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
                                homo, dimen_RI, unit_nr, color_sub, &
@@ -1256,8 +1229,7 @@ CONTAINS
                                integ_group_size, min_integ_group_size, &
                                ngroup, num_IJ_blocks, num_integ_group, &
                                pos_integ_group, virtual, my_alpha_beta_case, &
-                               my_open_shell_SS, mem_for_aK, mem_for_comm, &
-                               mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
+                               my_open_shell_SS, calc_forces)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
@@ -1266,15 +1238,16 @@ CONTAINS
          integ_group_size, min_integ_group_size, ngroup, num_IJ_blocks, num_integ_group, &
          pos_integ_group
       INTEGER, INTENT(IN)                                :: virtual
-      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS
-      REAL(KIND=dp), INTENT(OUT)                         :: mem_for_aK, mem_for_comm, mem_for_iaK, &
-                                                            mem_for_rep, mem_min, mem_per_group, &
-                                                            mem_real
+      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS, &
+                                                            calc_forces
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_ri_get_sizes'
 
       INTEGER                                            :: handle, iiB
       INTEGER(KIND=int_8)                                :: mem
+      REAL(KIND=dp)                                      :: mem_for_aK, mem_for_comm, mem_for_iaK, &
+                                                            mem_for_rep, mem_min, mem_per_group, &
+                                                            mem_real
 
       CALL timeset(routineN, handle)
 
@@ -1291,8 +1264,30 @@ CONTAINS
       ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
 
-      mem_min = 2.0_dp*REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
-      mem_min = mem_min + 3.0_dp*maxsize(gd_B_virtual)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      ! BIB_C_copy/external_i_aL/Gamma_P_ia
+      mem_min = MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+      IF (calc_forces) THEN
+         mem_min = MAX(mem_min, 2.0_dp*maxsize(gd_array)*maxsize(gd_B_virtual)*8.0_dp/(1024**2))
+      END IF
+      ! BIB_C
+      mem_min = REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
+      ! local_i_aL+local_j_aL
+      mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      ! local_ab
+      mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+
+      IF (calc_forces) THEN
+         ! Y_i_aP+Y_j_aP
+         mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*dimen_RI*8.0_dp/(1024**2)
+         ! local_ba/t_ab
+         mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+         IF (.NOT. my_alpha_beta_case) THEN
+            ! P_ij
+            mem_min = mem_min + REAL(homo, KIND=dp)*homo*8.0_dp/(1024**2)
+            ! P_ab
+            mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+         END IF
+      END IF
 
       IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
@@ -1709,14 +1704,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mp2_env ...
+!> \param Gamma_P_ia ...
 !> \param ij_index ...
 !> \param my_B_size ...
 !> \param my_block_size ...
 !> \param my_group_L_size ...
 !> \param my_i ...
 !> \param my_ij_pairs ...
-!> \param my_j ...
 !> \param ngroup ...
 !> \param num_integ_group ...
 !> \param integ_group_pos2color_sub ...
@@ -1725,38 +1719,36 @@ CONTAINS
 !> \param ij_map ...
 !> \param ranges_info_array ...
 !> \param Y_i_aP ...
-!> \param Y_j_aP ...
 !> \param para_env_exchange ...
 !> \param sizes_array ...
-!> \param ispin ...
-!> \param jspin ...
+!> \param spin ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
-                                     my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
+   SUBROUTINE mp2_redistribute_gamma(Gamma_P_ia, ij_index, my_B_size, &
+                                     my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                      num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                     ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                     sizes_array, ispin, jspin)
+                                     ij_map, ranges_info_array, Y_i_aP, para_env_exchange, &
+                                     sizes_array, spin)
 
-      TYPE(mp2_type)                                     :: mp2_env
-      INTEGER, INTENT(IN)                                :: ij_index, my_B_size(2), my_block_size, &
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Gamma_P_ia
+      INTEGER, INTENT(IN)                                :: ij_index, my_B_size, my_block_size, &
                                                             my_group_L_size, my_i, my_ij_pairs, &
-                                                            my_j, ngroup, num_integ_group
+                                                            ngroup, num_integ_group
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: integ_group_pos2color_sub, num_ij_pairs, &
                                                             proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: ij_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: Y_i_aP, Y_j_aP
+         INTENT(IN)                                      :: Y_i_aP
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
-      INTEGER, INTENT(IN)                                :: ispin, jspin
+      INTEGER, INTENT(IN)                                :: spin
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, Lstart_pos, &
-         my_B_size_i, my_B_size_j, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, &
-         rec_ij_index, rec_j, send_L_size, start_point, tag
+         proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, send_L_size, &
+         start_point, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
 
 ! In alpha-beta case Y_i_aP_beta is sent as Y_j_aP
@@ -1764,9 +1756,6 @@ CONTAINS
       CALL timeset(routineN//"_comm2", handle)
 
       tag = 43
-
-      my_B_size_i = my_B_size(ispin)
-      my_B_size_j = my_B_size(jspin)
 
       IF (ij_index <= my_ij_pairs) THEN
          ! somethig to send
@@ -1778,16 +1767,13 @@ CONTAINS
             end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 !$OMP       PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
 !$OMP                                 SHARED(start_point,end_point,Lstart_pos,my_block_size,&
-!$OMP                                        mp2_env,my_i,my_j,my_B_size_i,my_B_size_j,Y_i_aP,Y_j_aP,ispin,jspin)
+!$OMP                                        Gamma_P_ia,my_i,my_B_size,Y_i_aP)
             DO kkk = start_point, end_point
                lll = kkk - start_point + Lstart_pos
                DO iiB = 1, my_block_size
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size_i, my_i + iiB - 1, kkk) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size_i, my_i + iiB - 1, kkk) + &
-                     Y_i_aP(1:my_B_size_i, lll, iiB)
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(1:my_B_size_j, my_j + iiB - 1, kkk) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(1:my_B_size_j, my_j + iiB - 1, kkk) + &
-                     Y_j_aP(1:my_B_size_j, lll, iiB)
+                  Gamma_P_ia(1:my_B_size, my_i + iiB - 1, kkk) = &
+                     Gamma_P_ia(1:my_B_size, my_i + iiB - 1, kkk) + &
+                     Y_i_aP(1:my_B_size, lll, iiB)
                END DO
             END DO
 !$OMP              END PARALLEL DO
@@ -1801,7 +1787,7 @@ CONTAINS
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             send_L_size = sizes_array(proc_send)
-            ALLOCATE (BI_C_send(my_B_size_i + my_B_size_j, my_block_size, send_L_size))
+            ALLOCATE (BI_C_send(my_B_size, my_block_size, send_L_size))
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
@@ -1810,12 +1796,11 @@ CONTAINS
                end_point = ranges_info_array(4, irep, proc_send)
 !$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
 !$OMP                                       SHARED(start_point,end_point,Lstart_pos,my_block_size,&
-!$OMP                                              BI_C_send,my_B_size_i,my_B_size_j,Y_i_aP,Y_j_aP,my_B_size)
+!$OMP                                              BI_C_send,my_B_size,Y_i_aP)
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
                   DO iiB = 1, my_block_size
-                     BI_C_send(1:my_B_size_i, iiB, kkk) = Y_i_aP(1:my_B_size_i, lll, iiB)
-                     BI_C_send(my_B_size_i + 1:, iiB, kkk) = Y_j_aP(1:my_B_size_j, lll, iiB)
+                     BI_C_send(1:my_B_size, iiB, kkk) = Y_i_aP(1:my_B_size, lll, iiB)
                   END DO
                END DO
 !$OMP                END PARALLEL DO
@@ -1829,11 +1814,10 @@ CONTAINS
                ij_counter_rec = &
                   (ij_index - MIN(1, integ_group_pos2color_sub(proc_receive)))*ngroup + integ_group_pos2color_sub(proc_receive)
 
-               rec_i = ij_map(ij_counter_rec, 1)
-               rec_j = ij_map(ij_counter_rec, 2)
-               rec_block_size = ij_map(ij_counter_rec, 3)
+               rec_i = ij_map(spin, ij_counter_rec)
+               rec_block_size = ij_map(3, ij_counter_rec)
 
-               ALLOCATE (BI_C_rec(my_B_size_i + my_B_size_j, rec_block_size, my_group_L_size))
+               ALLOCATE (BI_C_rec(my_B_size, rec_block_size, my_group_L_size))
                BI_C_rec = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, &
@@ -1844,19 +1828,12 @@ CONTAINS
                DO irep = 0, num_integ_group - 1
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-!$OMP             PARALLEL DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                           mp2_env,rec_i,rec_j,iiB,my_B_size_i,BI_C_rec,ispin,jspin)
-!$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
-                     BI_C_rec(1:my_B_size_i, :, start_point:end_point)
-!$OMP             END WORKSHARE NOWAIT
-!$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(:, rec_j:rec_j + rec_block_size - 1, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(:, rec_j:rec_j + rec_block_size - 1, start_point:end_point) + &
-                     BI_C_rec(my_B_size_i + 1:, :, start_point:end_point)
-!$OMP             END WORKSHARE NOWAIT
-!$OMP             END PARALLEL
+!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
+!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
+                  Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
+                     Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
+                     BI_C_rec(1:my_B_size, :, start_point:end_point)
+!$OMP             END PARALLEL WORKSHARE
                END DO
                CALL timestop(handle2)
 
@@ -1883,11 +1860,10 @@ CONTAINS
                ij_counter_rec = &
                   (ij_index - MIN(1, integ_group_pos2color_sub(proc_receive)))*ngroup + integ_group_pos2color_sub(proc_receive)
 
-               rec_i = ij_map(ij_counter_rec, 1)
-               rec_j = ij_map(ij_counter_rec, 2)
-               rec_block_size = ij_map(ij_counter_rec, 3)
+               rec_i = ij_map(spin, ij_counter_rec)
+               rec_block_size = ij_map(3, ij_counter_rec)
 
-               ALLOCATE (BI_C_rec(my_B_size_i + my_B_size_j, rec_block_size, my_group_L_size))
+               ALLOCATE (BI_C_rec(my_B_size, rec_block_size, my_group_L_size))
 
                BI_C_rec = 0.0_dp
 
@@ -1897,19 +1873,12 @@ CONTAINS
                DO irep = 0, num_integ_group - 1
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-!$OMP             PARALLEL DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                           mp2_env,rec_i,rec_j,iiB,my_B_size_i,BI_C_rec,ispin,jspin)
-!$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
-                     BI_C_rec(1:my_B_size_i, :, start_point:end_point)
-!$OMP             END WORKSHARE NOWAIT
-!$OMP             WORKSHARE
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(:, rec_j:rec_j + rec_block_size - 1, start_point:end_point) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(:, rec_j:rec_j + rec_block_size - 1, start_point:end_point) + &
-                     BI_C_rec(my_B_size_i + 1:, :, start_point:end_point)
-!$OMP             END WORKSHARE NOWAIT
-!$OMP             END PARALLEL
+!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
+!$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
+                  Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
+                     Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
+                     BI_C_rec(1:my_B_size, :, start_point:end_point)
+!$OMP             END PARALLEL WORKSHARE
                END DO
                CALL timestop(handle2)
 
