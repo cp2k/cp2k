@@ -113,8 +113,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
       LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
                                                             my_beta_beta_case, my_open_shell_SS
-      REAL(KIND=dp) :: amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, &
-         mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, sym_fac, t_new, t_start
+      REAL(KIND=dp)                                      :: amp_fac, my_Emp2_Cou, my_Emp2_EX, &
+                                                            sym_fac, t_new, t_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          TARGET                                          :: external_ab, external_i_aL, local_ab, &
                                                             local_ba, t_ab
@@ -175,7 +175,7 @@ CONTAINS
             integ_group_size, min_integ_group_size, &
             ngroup, num_IJ_blocks, &
             num_integ_group, pos_integ_group, virtual(ispin), my_alpha_beta_case, &
-            my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
+            my_open_shell_SS, calc_forces)
 
          ! now create a group that contains all the proc that have the same virtual starting point
          ! in the integ group
@@ -1221,13 +1221,7 @@ CONTAINS
 !> \param virtual ...
 !> \param my_alpha_beta_case ...
 !> \param my_open_shell_SS ...
-!> \param mem_for_aK ...
-!> \param mem_for_comm ...
-!> \param mem_for_iaK ...
-!> \param mem_for_rep ...
-!> \param mem_min ...
-!> \param mem_per_group ...
-!> \param mem_real ...
+!> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_get_sizes(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
                                homo, dimen_RI, unit_nr, color_sub, &
@@ -1235,8 +1229,7 @@ CONTAINS
                                integ_group_size, min_integ_group_size, &
                                ngroup, num_IJ_blocks, num_integ_group, &
                                pos_integ_group, virtual, my_alpha_beta_case, &
-                               my_open_shell_SS, mem_for_aK, mem_for_comm, &
-                               mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
+                               my_open_shell_SS, calc_forces)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
@@ -1245,15 +1238,16 @@ CONTAINS
          integ_group_size, min_integ_group_size, ngroup, num_IJ_blocks, num_integ_group, &
          pos_integ_group
       INTEGER, INTENT(IN)                                :: virtual
-      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS
-      REAL(KIND=dp), INTENT(OUT)                         :: mem_for_aK, mem_for_comm, mem_for_iaK, &
-                                                            mem_for_rep, mem_min, mem_per_group, &
-                                                            mem_real
+      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS, &
+                                                            calc_forces
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_ri_get_sizes'
 
       INTEGER                                            :: handle, iiB
       INTEGER(KIND=int_8)                                :: mem
+      REAL(KIND=dp)                                      :: mem_for_aK, mem_for_comm, mem_for_iaK, &
+                                                            mem_for_rep, mem_min, mem_per_group, &
+                                                            mem_real
 
       CALL timeset(routineN, handle)
 
@@ -1270,8 +1264,30 @@ CONTAINS
       ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
 
-      mem_min = 2.0_dp*REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
-      mem_min = mem_min + 3.0_dp*maxsize(gd_B_virtual)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      ! BIB_C_copy/external_i_aL/Gamma_P_ia
+      mem_min = MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+      IF (calc_forces) THEN
+         mem_min = MAX(mem_min, 2.0_dp*maxsize(gd_array)*maxsize(gd_B_virtual)*8.0_dp/(1024**2))
+      END IF
+      ! BIB_C
+      mem_min = REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
+      ! local_i_aL+local_j_aL
+      mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      ! local_ab
+      mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+
+      IF (calc_forces) THEN
+         ! Y_i_aP+Y_j_aP
+         mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*dimen_RI*8.0_dp/(1024**2)
+         ! local_ba/t_ab
+         mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+         IF (.NOT. my_alpha_beta_case) THEN
+            ! P_ij
+            mem_min = mem_min + REAL(homo, KIND=dp)*homo*8.0_dp/(1024**2)
+            ! P_ab
+            mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+         END IF
+      END IF
 
       IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
