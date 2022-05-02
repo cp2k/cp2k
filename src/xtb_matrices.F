@@ -1006,7 +1006,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: defined, diagblock, floating_a, found, &
-                                                            ghost_a, use_virial, xb_inter
+                                                            ghost_a, use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: floating, ghost
       REAL(KIND=dp) :: alphaa, alphab, dfp, dhij, dr, drk, drx, ena, enb, etaa, etab, f0, fen, &
          fhua, fhub, fhud, foab, hij, k2sh, kab, kcnd, kcnp, kcns, kd, ken, kf, kg, kia, kjb, kp, &
@@ -1031,8 +1031,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(neighbor_atoms_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: neighbor_atoms
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -1226,26 +1224,6 @@ CONTAINS
          IF (.NOT. defined .OR. natorb_b < 1) CYCLE
 
          dr = SQRT(SUM(rij(:)**2))
-
-         ! neighbor atom for XB term
-         IF (xb_inter .AND. (dr > 1.e-3_dp)) THEN
-            IF (ASSOCIATED(neighbor_atoms(ikind)%rab)) THEN
-               atom_a = atom_of_kind(iatom)
-               IF (dr < neighbor_atoms(ikind)%rab(atom_a)) THEN
-                  neighbor_atoms(ikind)%rab(atom_a) = dr
-                  neighbor_atoms(ikind)%coord(1:3, atom_a) = rij(1:3)
-                  neighbor_atoms(ikind)%katom(atom_a) = jatom
-               END IF
-            END IF
-            IF (ASSOCIATED(neighbor_atoms(jkind)%rab)) THEN
-               atom_b = atom_of_kind(jatom)
-               IF (dr < neighbor_atoms(jkind)%rab(atom_b)) THEN
-                  neighbor_atoms(jkind)%rab(atom_b) = dr
-                  neighbor_atoms(jkind)%coord(1:3, atom_b) = -rij(1:3)
-                  neighbor_atoms(jkind)%katom(atom_b) = iatom
-               END IF
-            END IF
-         END IF
 
          ! atomic parameters
          CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa, lao=laoa, rcov=rcova, eta=etaa, &
