@@ -1,4 +1,4 @@
-H2O_grad_mme.inp                                      11      6e-09            -16.766973026874989
+H2O_grad_mme.inp                                      11      7e-09            -16.766973026874989
 H2O_grad_gpw.inp                                      11      7e-08            -16.990048927268898
 HF_dipole.inp                                         11      7e-08            -24.660454660161022
 H2_H2_no_freeHFX.inp                                  11      2e-13             -2.307710999246907
@@ -8,7 +8,7 @@ CH_dyn_screen.inp                                     11      2e-04             
 MOM_MP2_geoopt.inp                                    11      4e-06            -13.969926262647746
 H2O_MD_mme.inp                                        11      1e-10            -17.056807598425291
 H2_MP2_debug.inp                                      11      1e-10             -1.146241031776471
-H2O_grad_ri-hfx.inp                                   11      6e-09            -16.764370375058888
+H2O_grad_ri-hfx.inp                                   11      7e-09            -16.764370375058888
 O2_dyn_ri-hfx.inp                                     11      1e-10            -31.518511363027905
 H2O_grad_blksize.inp                                  11      7e-08            -16.990048927268898
 #EOF
