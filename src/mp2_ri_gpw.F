@@ -253,11 +253,11 @@ CONTAINS
                my_block_size = ij_map(3, ij_counter)
 
                local_i_aL = 0.0_dp
-               CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, para_env_exchange%mepos), &
+               CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
                                     BIb_C(ispin)%array(:, :, my_i:my_i + my_block_size - 1))
 
                local_j_aL = 0.0_dp
-               CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, para_env_exchange%mepos), &
+               CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
                                     BIb_C(jspin)%array(:, :, my_j:my_j + my_block_size - 1))
 
                ! collect data from other proc
@@ -284,7 +284,8 @@ CONTAINS
                                       proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group, tag)
 
-                     CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(ispin), :))
+                     CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
+                                          BI_C_rec(:, 1:my_B_size(ispin), :))
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
@@ -292,7 +293,8 @@ CONTAINS
                                       proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group, tag)
 
-                     CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(jspin), :))
+                     CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
+                                          BI_C_rec(:, 1:my_B_size(jspin), :))
 
                   ELSE
                      ! we send nothing while we know that we have to receive something
@@ -301,13 +303,15 @@ CONTAINS
                      BI_C_rec = 0.0_dp
                      CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
-                     CALL fill_local_i_aL(local_i_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(ispin), :))
+                     CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
+                                          BI_C_rec(:, 1:my_B_size(ispin), :))
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
                      CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
-                     CALL fill_local_i_aL(local_j_aL, ranges_info_array(:, :, proc_receive), BI_C_rec(:, 1:my_B_size(jspin), :))
+                     CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
+                                          BI_C_rec(:, 1:my_B_size(jspin), :))
 
                   END IF
 
@@ -507,12 +511,12 @@ CONTAINS
                CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(ispin)%array, ij_index, my_B_size(ispin), &
                                            my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                           ij_map, ranges_info_array, Y_i_aP, para_env_exchange, &
+                                           ij_map, ranges_info_array, Y_i_aP(:, :, 1:my_block_size), para_env_exchange, &
                                            gd_array%sizes, 1)
                CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(jspin)%array, ij_index, my_B_size(jspin), &
                                            my_block_size, my_group_L_size, my_j, my_ij_pairs, ngroup, &
                                            num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                           ij_map, ranges_info_array, Y_j_aP, para_env_exchange, &
+                                           ij_map, ranges_info_array, Y_j_aP(:, :, 1:my_block_size), para_env_exchange, &
                                            gd_array%sizes, 2)
             END IF
 
@@ -1738,8 +1742,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: ij_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: Y_i_aP
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Y_i_aP
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
       INTEGER, INTENT(IN)                                :: spin
