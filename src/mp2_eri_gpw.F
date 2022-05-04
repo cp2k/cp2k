@@ -191,7 +191,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: offset_2d
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: map_it_here
+      LOGICAL                                            :: map_it_here, use_subpatch
       REAL(KIND=dp)                                      :: cutoff_old, radius, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
@@ -276,7 +276,7 @@ CONTAINS
          !$OMP         nseta, nsgfa, rpgfa, set_radius_a, sphi_a, zeta, &
          !$OMP         ra, iset, ncoa, I_tmp2, I_ab, igrid_level, &
          !$OMP         map_it_here, dir, tp, lb, ub, location, ipgf, &
-         !$OMP         sgfa, na1, na2, radius, offset)
+         !$OMP         sgfa, na1, na2, radius, offset, use_subpatch)
          DO iatom = 1, natom
             ikind = kind_of(iatom)
             CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, basis_type="RI_AUX")
@@ -307,6 +307,7 @@ CONTAINS
 
                igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
                map_it_here = .FALSE.
+               use_subpatch = .FALSE.
                IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
                   DO dir = 1, 3
                      ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -327,6 +328,7 @@ CONTAINS
                       lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                      map_it_here = .TRUE.
                   END IF
+                  use_subpatch = .TRUE.
                ELSE
                   ! not distributed, just a round-robin distribution over the full set of CPUs
                   IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
@@ -354,7 +356,9 @@ CONTAINS
                         o1=na1 - 1, &
                         o2=0, &
                         radius=radius, &
-                        calculate_forces=.FALSE.)
+                        calculate_forces=.FALSE., &
+                        use_subpatch=use_subpatch, &
+                        subpatch_pattern=0)
                   END DO
 
                   CALL dgemm("T", "N", nsgfa(iset), 1, ncoa, &
@@ -596,7 +600,7 @@ CONTAINS
          lb(3), location(3), na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: map_it_here, skip_shell
+      LOGICAL                                            :: map_it_here, skip_shell, use_subpatch
       REAL(KIND=dp)                                      :: radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
@@ -698,6 +702,8 @@ CONTAINS
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
             map_it_here = .FALSE.
+            use_subpatch = .FALSE.
+
             IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
                DO dir = 1, 3
                   ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -718,6 +724,7 @@ CONTAINS
                    lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                   map_it_here = .TRUE.
                END IF
+               use_subpatch = .TRUE.
             ELSE
                ! not distributed, just a round-robin distribution over the full set of CPUs
                IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
@@ -748,7 +755,11 @@ CONTAINS
                                              radius=radius, &
                                              calculate_forces=.TRUE., &
                                              force_a=force_a, force_b=force_b, &
-                                             use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
+                                             use_virial=use_virial, &
+                                             my_virial_a=my_virial_a, &
+                                             my_virial_b=my_virial_b, &
+                                             use_subpatch=use_subpatch, &
+                                             subpatch_pattern=0)
                END DO
             END IF
 
@@ -926,7 +937,7 @@ CONTAINS
                                                             offset, sgfa, tp(3), ub(3)
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: map_it_here
+      LOGICAL                                            :: map_it_here, use_subpatch
       REAL(KIND=dp)                                      :: radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
@@ -997,6 +1008,7 @@ CONTAINS
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
             map_it_here = .FALSE.
+            use_subpatch = .FALSE.
             IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
                DO dir = 1, 3
                   ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -1017,6 +1029,7 @@ CONTAINS
                    lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                   map_it_here = .TRUE.
                END IF
+               use_subpatch = .TRUE.
             ELSE
                ! not distributed, just a round-robin distribution over the full set of CPUs
                IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
@@ -1047,7 +1060,11 @@ CONTAINS
                                              radius=radius, &
                                              calculate_forces=.TRUE., &
                                              force_a=force_a, force_b=force_b, &
-                                             use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
+                                             use_virial=use_virial, &
+                                             my_virial_a=my_virial_a, &
+                                             my_virial_b=my_virial_b, &
+                                             use_subpatch=use_subpatch, &
+                                             subpatch_pattern=0)
 
                END DO
 
