@@ -1411,7 +1411,6 @@ CONTAINS
          END IF
 
          IF (dft_control%do_admm) THEN
-            IF (use_virial) h_stress = virial%pv_virial
             IF (debug_forces) THEN
                deb = force(1)%overlap_admm(1:3, 1)
                IF (use_virial) e_dummy = third_tr(virial%pv_virial)
@@ -1429,7 +1428,6 @@ CONTAINS
                   IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: KADMM*S'  ", e_dummy
                END IF
             END IF
-            IF (use_virial) virial%pv_exc = virial%pv_exc + (virial%pv_virial - h_stress)
 
             ALLOCATE (matrix_ks_aux(nspins))
             DO ispin = 1, nspins
@@ -1502,7 +1500,6 @@ CONTAINS
                CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
             END DO
 
-            IF (use_virial) h_stress = virial%pv_virial
             IF (debug_forces) THEN
                deb = force(1)%overlap_admm(1:3, 1)
                IF (use_virial) e_dummy = third_tr(virial%pv_virial)
@@ -1519,7 +1516,6 @@ CONTAINS
                   IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: VADMM*S'  ", e_dummy
                END IF
             END IF
-            IF (use_virial) virial%pv_exc = virial%pv_exc + (virial%pv_virial - h_stress)
 
             DO ispin = 1, nspins
                CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, -1.0_dp)

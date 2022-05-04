@@ -85,7 +85,8 @@ MODULE mp2_eri_gpw
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_eri_gpw'
 
    PUBLIC :: mp2_eri_2c_integrate_gpw, mp2_eri_3c_integrate_gpw, calc_potential_gpw, cleanup_gpw, prepare_gpw, &
-             integrate_potential_forces_2c, integrate_potential_forces_3c_1c, integrate_potential_forces_3c_2c
+             integrate_potential_forces_2c, integrate_potential_forces_3c_1c, integrate_potential_forces_3c_2c, &
+             virial_gpw_potential
 
 CONTAINS
 

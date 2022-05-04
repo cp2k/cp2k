@@ -124,6 +124,7 @@ CONTAINS
 !> \param mp2_memory ...
 !> \param fm_matrix_L ...
 !> \param fm_matrix_V ...
+!> \param fm_matrix_PQ ...
 !> \param ngroup ...
 !> \param color_sub ...
 !> \param dimen_RI ...
@@ -150,8 +151,8 @@ CONTAINS
 !> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                               fm_matrix_L, fm_matrix_V, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff, &
-                               my_group_L_size, my_group_L_start, my_group_L_end, &
+                               fm_matrix_L, fm_matrix_V, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
+                               kpoints, mo_coeff, my_group_L_size, my_group_L_start, my_group_L_end, &
                                gd_array, calc_PQ_cond_num, cond_num, do_svd, &
                                num_small_eigen, potential, ri_metric, &
                                fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
@@ -162,7 +163,7 @@ CONTAINS
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub, para_env_L
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_V
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_V, fm_matrix_PQ
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
       INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -201,6 +202,12 @@ CONTAINS
                                 my_group_L_size, my_group_L_start, my_group_L_end, &
                                 gd_array, calc_PQ_cond_num, cond_num, &
                                 num_small_eigen, potential, sab_orb_sub, do_im_time=do_im_time)
+
+      IF (do_im_time .AND. calc_forces) THEN
+         !need a copy of the (P|Q) integrals
+         CALL cp_fm_create(fm_matrix_PQ, fm_matrix_L%matrix_struct)
+         CALL cp_fm_to_fm(fm_matrix_L, fm_matrix_PQ)
+      END IF
 
       dimen_RI_red = dimen_RI
 

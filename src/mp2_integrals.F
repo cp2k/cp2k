@@ -140,6 +140,7 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param mo_coeff ...
+!> \param fm_matrix_PQ ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param fm_matrix_Sinv_Vtrunc_Sinv ...
 !> \param nmo ...
@@ -180,8 +181,8 @@ CONTAINS
    SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
                                     dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, color_sub, &
                                     cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, &
-                                    fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, nmo, homo, &
-                                    mat_munu, &
+                                    fm_matrix_PQ, fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
+                                    nmo, homo, mat_munu, &
                                     sab_orb_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                     mo_coeff_gw, eps_filter, unit_nr, &
                                     mp2_memory, calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, do_bse, &
@@ -208,6 +209,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       INTEGER, INTENT(IN)                                :: nmo
@@ -346,8 +348,8 @@ CONTAINS
       END IF
 
       CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                            fm_matrix_L, fm_matrix_V, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff(1)%matrix, &
-                            my_group_L_size, my_group_L_start, my_group_L_end, &
+                            fm_matrix_L, fm_matrix_V, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
+                            kpoints, mo_coeff(1)%matrix, my_group_L_size, my_group_L_start, my_group_L_end, &
                             gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, &
                             num_small_eigen, qs_env%mp2_env%potential_parameter, ri_metric, &
                             fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &

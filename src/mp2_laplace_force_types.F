@@ -38,7 +38,7 @@ MODULE mp2_laplace_force_types
 
       !The RI related 2-center quantities
       TYPE(dbt_type) :: t_2c_pot_psqrt, t_2c_inv_metric, t_2c_K, t_2c_pot_msqrt
-      TYPE(dbcsr_type) :: inv_ovlp
+      TYPE(dbcsr_type) :: inv_ovlp, G_PQ
 
       !The occupied and virtual density matrices (standard block size, one for each spin)
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: P_occ, P_virt
@@ -54,6 +54,9 @@ MODULE mp2_laplace_force_types
 
       !Keep track of atom index for splitted blocks
       INTEGER, DIMENSION(:), ALLOCATABLE  :: idx_to_at_AO, idx_to_at_RI
+
+      !Is it a periodic calculation
+      LOGICAL :: do_periodic
 
    END TYPE mp2_laplace_force_type
 
@@ -74,6 +77,7 @@ CONTAINS
       CALL dbt_destroy(force_data%t_2c_K)
 
       CALL dbcsr_release(force_data%inv_ovlp)
+      IF (force_data%do_periodic) CALL dbcsr_release(force_data%G_PQ)
       CALL dbcsr_deallocate_matrix_set(force_data%P_virt)
       CALL dbcsr_deallocate_matrix_set(force_data%P_occ)
       CALL dbcsr_deallocate_matrix_set(force_data%sum_O_tau)
@@ -81,7 +85,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(force_data%sum_YP_tau)
 
       DO i_xyz = 1, 3
-         CALL dbt_destroy(force_data%t_2c_der_pot(i_xyz))
+         IF (.NOT. force_data%do_periodic) CALL dbt_destroy(force_data%t_2c_der_pot(i_xyz))
          CALL dbt_destroy(force_data%t_2c_der_ovlp(i_xyz))
 
          CALL dbt_destroy(force_data%t_3c_der_AO(i_xyz))
