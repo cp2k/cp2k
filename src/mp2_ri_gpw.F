@@ -12,6 +12,8 @@
 !>      03.2019 Refactored from mp2_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
 MODULE mp2_ri_gpw
+   USE ISO_C_BINDING,                   ONLY: C_NULL_PTR,&
+                                              c_associated
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
@@ -42,7 +44,10 @@ MODULE mp2_ri_gpw
                                               three_dim_real_array,&
                                               two_dim_int_array
    USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
-                                              offload_dgemm
+                                              offload_dgemm,&
+                                              offload_gemm_create,&
+                                              offload_gemm_destroy,&
+                                              offload_gemm_set_op_threshold_gpu
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -147,7 +152,7 @@ CONTAINS
 
       ! offload_gemm_ctx has a very footprint the first time this routine is
       ! called.
-      IF (mp2_env%offload_gemm_ctx .EQ. C_NULL_PTR) THEN
+      IF (.NOT. c_associated(mp2_env%offload_gemm_ctx)) THEN
          CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
          CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
       END IF
@@ -708,7 +713,7 @@ CONTAINS
 
       ! release memory allocated by offload_dgemm when run on GPU. offload_gemm_ctx is null on cpu only runs
       CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
-
+      mp2_env%offload_gemm_ctx = C_NULL_PTR
       CALL timestop(handle)
 
    END SUBROUTINE mp2_ri_gpw_compute_en

@@ -1678,7 +1678,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, la_max, la_min, npgfa, nsgfa, &
                                                             row_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, pgrid
-      LOGICAL                                            :: found, map_it_here, one_proc_group
+      LOGICAL                                            :: found, map_it_here, one_proc_group, &
+                                                            use_subpatch
       REAL(dp)                                           :: cutoff_old, pref, radius, &
                                                             relative_cutoff_old
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: e_cutoff_old, wf_vector
@@ -1870,6 +1871,7 @@ CONTAINS
 
                   igrid_level = gaussian_gridlevel(pw_env_ext%gridlevel_info, MINVAL(zeta(:, iset)))
                   map_it_here = .FALSE.
+                  use_subpatch = .FALSE.
                   IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
                      DO i_xyz = 1, 3
                         ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -1891,6 +1893,7 @@ CONTAINS
                          lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                         map_it_here = .TRUE.
                      END IF
+                     use_subpatch = .TRUE.
                   ELSE
                      map_it_here = .TRUE.
                   END IF
@@ -1915,7 +1918,9 @@ CONTAINS
                            o1=o1, &
                            o2=0, &
                            radius=radius, &
-                           calculate_forces=.TRUE.)
+                           calculate_forces=.TRUE., &
+                           use_subpatch=use_subpatch, &
+                           subpatch_pattern=0)
 
                      END DO
 

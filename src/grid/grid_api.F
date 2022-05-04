@@ -420,7 +420,7 @@ CONTAINS
                                  shift_local=shift_local, &
                                  border_width=border_width)
 
-      grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! pointer assignment
+      grid(1:, 1:, 1:) => rsgrid%r(:, :, :) ! pointer assignment
 
 #if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh))
