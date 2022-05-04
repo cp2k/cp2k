@@ -110,7 +110,7 @@ CONTAINS
          num_IJ_blocks, num_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
          rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, &
          send_B_virtual_start, send_block_size, send_i, send_ij_index, send_j, start_point
-      INTEGER :: sub_P_color, sub_sub_color, tag, total_ij_pairs
+      INTEGER :: sub_P_color, tag, total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
          my_B_virtual_end, my_B_virtual_start, num_ij_pairs, proc_map, proc_map_rep, &
          sizes_array_orig, sub_proc_map, virtual
@@ -188,23 +188,26 @@ CONTAINS
             num_integ_group, virtual(ispin), my_alpha_beta_case, &
             my_open_shell_SS, calc_forces)
 
+         ! now create a group that contains all the proc that have the same virtual starting point
+         ! in the integ group
+         CALL mp2_ri_create_group( &
+            para_env, para_env_sub, color_sub, &
+            gd_array%sizes, calc_forces, &
+            integ_group_size, my_group_L_end, &
+            my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
+            integ_group_pos2color_sub, proc_map, proc_map_rep, sizes_array_orig, &
+            sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
+
+         CALL replicate_iaK_2intgroup(BIb_C(ispin)%array, para_env_exchange, para_env_rep, &
+                                      homo(ispin), proc_map_rep, gd_array%sizes, my_B_size(ispin), &
+                                      my_group_L_size, ranges_info_array)
+
          CALL mp2_ri_get_block_size( &
             mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
             homo(ispin), dimen_RI, unit_nr, block_size, &
             ngroup, num_IJ_blocks, &
             virtual(ispin), my_alpha_beta_case, &
             my_open_shell_SS, calc_forces)
-
-         ! now create a group that contains all the proc that have the same virtual starting point
-         ! in the integ group
-         ! sub_sub_color=para_env_sub%mepos
-         CALL mp2_ri_create_group( &
-            BIb_C(ispin)%array, para_env, para_env_sub, homo(ispin), color_sub, &
-            gd_array%sizes, calc_forces, &
-            integ_group_size, my_B_size(ispin), iiB, my_group_L_end, &
-            my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
-            sub_sub_color, integ_group_pos2color_sub, proc_map, proc_map_rep, sizes_array_orig, &
-            sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
 
          ! *****************************************************************
          ! **********  REPLICATION-BLOCKED COMMUNICATION SCHEME  ***********
@@ -760,8 +763,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param BIb_C ...
-!> \param para_env ...
-!> \param para_env_sub ...
 !> \param para_env_exchange ...
 !> \param para_env_rep ...
 !> \param homo ...
@@ -769,99 +770,28 @@ CONTAINS
 !> \param sizes_array ...
 !> \param my_B_size ...
 !> \param my_group_L_size ...
-!> \param my_group_L_start ...
-!> \param my_group_L_end ...
-!> \param my_new_group_L_size ...
-!> \param new_sizes_array ...
 !> \param ranges_info_array ...
 ! **************************************************************************************************
-   SUBROUTINE replicate_iaK_2intgroup(BIb_C, para_env, para_env_sub, para_env_exchange, para_env_rep, &
-                                      homo, proc_map_rep, &
-                                      sizes_array, &
-                                      my_B_size, &
-                                      my_group_L_size, my_group_L_start, my_group_L_end, &
-                                      my_new_group_L_size, new_sizes_array, ranges_info_array)
+   SUBROUTINE replicate_iaK_2intgroup(BIb_C, para_env_exchange, para_env_rep, homo, proc_map_rep, sizes_array, my_B_size, &
+                                      my_group_L_size, ranges_info_array)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: BIb_C
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
-      TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_rep
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_exchange, para_env_rep
       INTEGER, INTENT(IN)                                :: homo
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: proc_map_rep
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
-      INTEGER, INTENT(IN)                                :: my_B_size, my_group_L_size, &
-                                                            my_group_L_start, my_group_L_end
-      INTEGER, INTENT(INOUT)                             :: my_new_group_L_size
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: new_sizes_array
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: ranges_info_array
+      INTEGER, DIMENSION(-para_env_rep%num_pe:), &
+         INTENT(IN)                                      :: proc_map_rep
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_array
+      INTEGER, INTENT(IN)                                :: my_B_size, my_group_L_size
+      INTEGER, DIMENSION(:, 0:, 0:), INTENT(IN)          :: ranges_info_array
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_iaK_2intgroup'
 
-      INTEGER                                            :: end_point, handle, i, max_L_size, &
-                                                            proc_receive, proc_shift, start_point, &
-                                                            sub_sub_color
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rep_ends_array, rep_sizes_array, &
-                                                            rep_starts_array
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: my_info
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_copy
+      INTEGER                                            :: end_point, handle, max_L_size, &
+                                                            proc_receive, proc_shift, start_point
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: BIb_C_gather
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_copy
 
       CALL timeset(routineN, handle)
-
-      ! create the replication group
-      sub_sub_color = para_env_sub%mepos*para_env_exchange%num_pe + para_env_exchange%mepos
-      CALL cp_para_env_split(para_env_rep, para_env, sub_sub_color)
-
-      ! crate the proc maps
-      ALLOCATE (proc_map_rep(-para_env_rep%num_pe:2*para_env_rep%num_pe - 1))
-      DO i = 0, para_env_rep%num_pe - 1
-         proc_map_rep(i) = i
-         proc_map_rep(-i - 1) = para_env_rep%num_pe - i - 1
-         proc_map_rep(para_env_rep%num_pe + i) = i
-      END DO
-
-      ! create the new limits for K according to the size
-      ! of the integral group
-
-      ! info array for replication
-      ALLOCATE (rep_ends_array(0:para_env_rep%num_pe - 1))
-      ALLOCATE (rep_starts_array(0:para_env_rep%num_pe - 1))
-      ALLOCATE (rep_sizes_array(0:para_env_rep%num_pe - 1))
-
-      CALL mp_allgather(my_group_L_size, rep_sizes_array, para_env_rep%group)
-      CALL mp_allgather(my_group_L_start, rep_starts_array, para_env_rep%group)
-      CALL mp_allgather(my_group_L_end, rep_ends_array, para_env_rep%group)
-
-      ! calculate my_new_group_L_size according to sizes_array
-      my_new_group_L_size = my_group_L_size
-
-      ! Info of this process
-      ALLOCATE (my_info(4, 0:para_env_rep%num_pe - 1))
-      my_info(1, 0) = my_group_L_start
-      my_info(2, 0) = my_group_L_end
-      my_info(3, 0) = 1
-      my_info(4, 0) = my_group_L_size
-
-      DO proc_shift = 1, para_env_rep%num_pe - 1
-         proc_receive = proc_map_rep(para_env_rep%mepos - proc_shift)
-
-         my_new_group_L_size = my_new_group_L_size + rep_sizes_array(proc_receive)
-
-         my_info(1, proc_shift) = rep_starts_array(proc_receive)
-         my_info(2, proc_shift) = rep_ends_array(proc_receive)
-         my_info(3, proc_shift) = my_info(4, proc_shift - 1) + 1
-         my_info(4, proc_shift) = my_new_group_L_size
-
-      END DO
-
-      ALLOCATE (new_sizes_array(0:para_env_exchange%num_pe - 1))
-      ALLOCATE (ranges_info_array(4, 0:para_env_rep%num_pe - 1, 0:para_env_exchange%num_pe - 1))
-      CALL mp_allgather(my_new_group_L_size, new_sizes_array, para_env_exchange%group)
-      CALL mp_allgather(my_info, ranges_info_array, para_env_exchange%group)
-
-      DEALLOCATE (rep_sizes_array)
-      DEALLOCATE (rep_starts_array)
-      DEALLOCATE (rep_ends_array)
 
       ! replication scheme using mp_allgather
       ! get the max L size of the
@@ -869,7 +799,7 @@ CONTAINS
 
       ALLOCATE (BIb_C_copy(max_L_size, my_B_size, homo))
       BIb_C_copy = 0.0_dp
-      BIb_C_copy(1:my_group_L_size, 1:my_B_size, 1:homo) = BIb_C
+      BIb_C_copy(1:SIZE(BIb_C, 1), 1:my_B_size, 1:homo) = BIb_C
 
       DEALLOCATE (BIb_C)
 
@@ -880,15 +810,15 @@ CONTAINS
 
       DEALLOCATE (BIb_C_copy)
 
-      ALLOCATE (BIb_C(my_new_group_L_size, my_B_size, homo))
+      ALLOCATE (BIb_C(my_group_L_size, my_B_size, homo))
       BIb_C = 0.0_dp
 
       ! reorder data
       DO proc_shift = 0, para_env_rep%num_pe - 1
          proc_receive = proc_map_rep(para_env_rep%mepos - proc_shift)
 
-         start_point = my_info(3, proc_shift)
-         end_point = my_info(4, proc_shift)
+         start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
+         end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
 
          BIb_C(start_point:end_point, 1:my_B_size, 1:homo) = &
             BIb_C_gather(1:end_point - start_point + 1, 1:my_B_size, 1:homo, proc_receive)
@@ -1114,22 +1044,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param BIb_C ...
 !> \param para_env ...
 !> \param para_env_sub ...
-!> \param homo ...
 !> \param color_sub ...
 !> \param sizes_array ...
 !> \param calc_forces ...
 !> \param integ_group_size ...
-!> \param my_B_size ...
-!> \param iiB ...
 !> \param my_group_L_end ...
 !> \param my_group_L_size ...
 !> \param my_group_L_size_orig ...
 !> \param my_group_L_start ...
 !> \param my_new_group_L_size ...
-!> \param sub_sub_color ...
 !> \param integ_group_pos2color_sub ...
 !> \param proc_map ...
 !> \param proc_map_rep ...
@@ -1140,27 +1065,22 @@ CONTAINS
 !> \param para_env_rep ...
 !> \param num_integ_group ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_ri_create_group(BIb_C, para_env, para_env_sub, homo, color_sub, &
+   SUBROUTINE mp2_ri_create_group(para_env, para_env_sub, color_sub, &
                                   sizes_array, calc_forces, &
-                                  integ_group_size, my_B_size, iiB, my_group_L_end, &
+                                  integ_group_size, my_group_L_end, &
                                   my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
-                                  sub_sub_color, integ_group_pos2color_sub, &
+                                  integ_group_pos2color_sub, &
                                   proc_map, proc_map_rep, sizes_array_orig, &
                                   sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: BIb_C
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
-      INTEGER, INTENT(IN)                                :: homo, color_sub
+      INTEGER, INTENT(IN)                                :: color_sub
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: sizes_array
       LOGICAL, INTENT(IN)                                :: calc_forces
-      INTEGER, INTENT(IN)                                :: integ_group_size, my_B_size
-      INTEGER, INTENT(OUT)                               :: iiB
-      INTEGER, INTENT(IN)                                :: my_group_L_end
+      INTEGER, INTENT(IN)                                :: integ_group_size, my_group_L_end
       INTEGER, INTENT(INOUT)                             :: my_group_L_size
       INTEGER, INTENT(OUT)                               :: my_group_L_size_orig
       INTEGER, INTENT(IN)                                :: my_group_L_start
       INTEGER, INTENT(INOUT)                             :: my_new_group_L_size
-      INTEGER, INTENT(OUT)                               :: sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: integ_group_pos2color_sub, proc_map, &
                                                             proc_map_rep, sizes_array_orig, &
                                                             sub_proc_map
@@ -1171,8 +1091,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_create_group'
 
-      INTEGER                                            :: handle, i
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: new_sizes_array
+      INTEGER                                            :: handle, i, iiB, proc_receive, &
+                                                            proc_shift, sub_sub_color
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: new_sizes_array, rep_ends_array, &
+                                                            rep_sizes_array, rep_starts_array
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: my_info
 
       CALL timeset(routineN, handle)
       !
@@ -1194,12 +1117,60 @@ CONTAINS
          sub_proc_map(para_env_sub%num_pe + i) = i
       END DO
 
-      CALL replicate_iaK_2intgroup(BIb_C, para_env, para_env_sub, para_env_exchange, para_env_rep, &
-                                   homo, proc_map_rep, &
-                                   sizes_array, &
-                                   my_B_size, &
-                                   my_group_L_size, my_group_L_start, my_group_L_end, &
-                                   my_new_group_L_size, new_sizes_array, ranges_info_array)
+      ! create the replication group
+      sub_sub_color = para_env_sub%mepos*para_env_exchange%num_pe + para_env_exchange%mepos
+      CALL cp_para_env_split(para_env_rep, para_env, sub_sub_color)
+
+      ! crate the proc maps
+      ALLOCATE (proc_map_rep(-para_env_rep%num_pe:2*para_env_rep%num_pe - 1))
+      DO i = 0, para_env_rep%num_pe - 1
+         proc_map_rep(i) = i
+         proc_map_rep(-i - 1) = para_env_rep%num_pe - i - 1
+         proc_map_rep(para_env_rep%num_pe + i) = i
+      END DO
+
+      ! create the new limits for K according to the size
+      ! of the integral group
+
+      ! info array for replication
+      ALLOCATE (rep_ends_array(0:para_env_rep%num_pe - 1))
+      ALLOCATE (rep_starts_array(0:para_env_rep%num_pe - 1))
+      ALLOCATE (rep_sizes_array(0:para_env_rep%num_pe - 1))
+
+      CALL mp_allgather(my_group_L_size, rep_sizes_array, para_env_rep%group)
+      CALL mp_allgather(my_group_L_start, rep_starts_array, para_env_rep%group)
+      CALL mp_allgather(my_group_L_end, rep_ends_array, para_env_rep%group)
+
+      ! calculate my_new_group_L_size according to sizes_array
+      my_new_group_L_size = my_group_L_size
+
+      ! Info of this process
+      ALLOCATE (my_info(4, 0:para_env_rep%num_pe - 1))
+      my_info(1, 0) = my_group_L_start
+      my_info(2, 0) = my_group_L_end
+      my_info(3, 0) = 1
+      my_info(4, 0) = my_group_L_size
+
+      DO proc_shift = 1, para_env_rep%num_pe - 1
+         proc_receive = proc_map_rep(para_env_rep%mepos - proc_shift)
+
+         my_new_group_L_size = my_new_group_L_size + rep_sizes_array(proc_receive)
+
+         my_info(1, proc_shift) = rep_starts_array(proc_receive)
+         my_info(2, proc_shift) = rep_ends_array(proc_receive)
+         my_info(3, proc_shift) = my_info(4, proc_shift - 1) + 1
+         my_info(4, proc_shift) = my_new_group_L_size
+
+      END DO
+
+      ALLOCATE (new_sizes_array(0:para_env_exchange%num_pe - 1))
+      ALLOCATE (ranges_info_array(4, 0:para_env_rep%num_pe - 1, 0:para_env_exchange%num_pe - 1))
+      CALL mp_allgather(my_new_group_L_size, new_sizes_array, para_env_exchange%group)
+      CALL mp_allgather(my_info, ranges_info_array, para_env_exchange%group)
+
+      DEALLOCATE (rep_sizes_array)
+      DEALLOCATE (rep_starts_array)
+      DEALLOCATE (rep_ends_array)
 
       ALLOCATE (integ_group_pos2color_sub(0:para_env_exchange%num_pe - 1))
       CALL mp_allgather(color_sub, integ_group_pos2color_sub, para_env_exchange%group)
