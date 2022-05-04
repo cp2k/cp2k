@@ -156,6 +156,12 @@ CONTAINS
          CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
       END IF
 
+      CALL mp2_ri_get_integ_group_size( &
+         mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
+         homo, dimen_RI, unit_nr, &
+         integ_group_size, ngroup, &
+         num_integ_group, virtual, calc_forces)
+
       ! We cannot fix the tag because of the recv routine
       tag = 42
 
@@ -180,13 +186,6 @@ CONTAINS
 
          amp_fac = mp2_env%scale_S + mp2_env%scale_T
          IF (my_alpha_beta_case .OR. my_open_shell_SS) amp_fac = mp2_env%scale_T
-
-         CALL mp2_ri_get_integ_group_size( &
-            mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
-            homo(ispin), dimen_RI, unit_nr, &
-            integ_group_size, ngroup, &
-            num_integ_group, virtual(ispin), my_alpha_beta_case, &
-            my_open_shell_SS, calc_forces)
 
          ! now create a group that contains all the proc that have the same virtual starting point
          ! in the integ group
@@ -1208,24 +1207,22 @@ CONTAINS
 !> \param ngroup ...
 !> \param num_integ_group ...
 !> \param virtual ...
-!> \param my_alpha_beta_case ...
-!> \param my_open_shell_SS ...
 !> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_get_integ_group_size(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
                                           homo, dimen_RI, unit_nr, &
                                           integ_group_size, &
                                           ngroup, num_integ_group, &
-                                          virtual, my_alpha_beta_case, &
-                                          my_open_shell_SS, calc_forces)
+                                          virtual, calc_forces)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
-      INTEGER, INTENT(IN)                                :: homo, dimen_RI, unit_nr
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
+      TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
       INTEGER, INTENT(OUT)                               :: integ_group_size, ngroup, num_integ_group
-      INTEGER, INTENT(IN)                                :: virtual
-      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS, &
-                                                            calc_forces
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: virtual
+      LOGICAL, INTENT(IN)                                :: calc_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_integ_group_size'
 
@@ -1241,8 +1238,8 @@ CONTAINS
 
       ! Calculate available memory and create integral group according to that
       ! mem_for_iaK is the memory needed for storing the 3 centre integrals
-      mem_for_iaK = REAL(homo, KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
-      mem_for_aK = REAL(virtual, KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
+      mem_for_iaK = MAXVAL(REAL(homo, KIND=dp)*virtual)*dimen_RI*8.0_dp/(1024_dp**2)
+      mem_for_aK = REAL(MAXVAL(virtual), KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
 
       CALL m_memory(mem)
       mem_real = (mem + 1024*1024 - 1)/(1024*1024)
@@ -1251,31 +1248,29 @@ CONTAINS
       CALL mp_min(mem_real, para_env%group)
 
       ! BIB_C_copy/external_i_aL/Gamma_P_ia
-      mem_min = MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+      mem_min = MAXVAL(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
       IF (calc_forces) THEN
-         mem_min = MAX(mem_min, 2.0_dp*maxsize(gd_array)*maxsize(gd_B_virtual)*8.0_dp/(1024**2))
+         mem_min = MAX(mem_min, 2.0_dp*MAXVAL(maxsize(gd_array)*maxsize(gd_B_virtual))*8.0_dp/(1024**2))
       END IF
       ! BIB_C
-      mem_min = REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
+      mem_min = MAXVAL(REAL(homo, KIND=dp)*maxsize(gd_B_virtual))*maxsize(gd_array)*8.0_dp/(1024**2)
       ! local_i_aL+local_j_aL
-      mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      mem_min = mem_min + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
       ! local_ab
-      mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+      mem_min = mem_min + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
 
       IF (calc_forces) THEN
          ! Y_i_aP+Y_j_aP
-         mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*dimen_RI*8.0_dp/(1024**2)
+         mem_min = mem_min + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
          ! local_ba/t_ab
-         mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
-         IF (.NOT. my_alpha_beta_case) THEN
-            ! P_ij
-            mem_min = mem_min + REAL(homo, KIND=dp)*homo*8.0_dp/(1024**2)
-            ! P_ab
-            mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
-         END IF
+         mem_min = mem_min + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+         ! P_ij
+         mem_min = mem_min + SUM(REAL(homo, KIND=dp)*homo)*8.0_dp/(1024**2)
+         ! P_ab
+         mem_min = mem_min + SUM(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
       END IF
 
-      IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
+      IF (SIZE(homo) == 1) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
             mem_min, ' MiB'
       END IF
@@ -1289,7 +1284,7 @@ CONTAINS
       best_block_size = 1
 
       ! in the open shell case no replication and no block communication is done
-      IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
+      IF (SIZE(homo) == 1) THEN
          ! Here we split the memory half for the communication, half for replication
          IF (mp2_env%ri_mp2%block_size > 0) THEN
             best_block_size = mp2_env%ri_mp2%block_size
@@ -1315,7 +1310,7 @@ CONTAINS
 
       integ_group_size = best_integ_group_size
 
-      IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
+      IF (SIZE(homo) == 1) THEN
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
