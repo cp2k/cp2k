@@ -103,15 +103,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en'
 
-      INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
-         decil, end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
-         integ_group_size, ispin, jjB, jspin, kspin, max_ij_pairs, min_integ_group_size, &
-         my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
-         my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, num_IJ_blocks, &
-         num_integ_group, pos_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
-         rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end
-      INTEGER :: send_B_virtual_start, send_block_size, send_i, send_ij_index, send_j, &
-         start_point, sub_P_color, sub_sub_color, tag, total_ij_pairs
+      INTEGER :: a, a_global, b, b_global, block_size, decil, end_point, handle, handle2, handle3, &
+         iiB, ij_counter, ij_counter_send, ij_index, integ_group_size, ispin, jjB, jspin, kspin, &
+         max_ij_pairs, my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, &
+         my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
+         num_IJ_blocks, num_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
+         rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, &
+         send_B_virtual_start, send_block_size, send_i, send_ij_index, send_j, start_point
+      INTEGER :: sub_P_color, sub_sub_color, tag, total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
          my_B_virtual_end, my_B_virtual_start, num_ij_pairs, proc_map, proc_map_rep, &
          sizes_array_orig, sub_proc_map, virtual
@@ -182,12 +181,18 @@ CONTAINS
          amp_fac = mp2_env%scale_S + mp2_env%scale_T
          IF (my_alpha_beta_case .OR. my_open_shell_SS) amp_fac = mp2_env%scale_T
 
-         CALL mp2_ri_get_sizes( &
+         CALL mp2_ri_get_integ_group_size( &
             mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
-            homo(ispin), dimen_RI, unit_nr, color_sub, best_block_size, best_integ_group_size, block_size, &
-            integ_group_size, min_integ_group_size, &
+            homo(ispin), dimen_RI, unit_nr, &
+            integ_group_size, ngroup, &
+            num_integ_group, virtual(ispin), my_alpha_beta_case, &
+            my_open_shell_SS, calc_forces)
+
+         CALL mp2_ri_get_block_size( &
+            mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
+            homo(ispin), dimen_RI, unit_nr, block_size, &
             ngroup, num_IJ_blocks, &
-            num_integ_group, pos_integ_group, virtual(ispin), my_alpha_beta_case, &
+            virtual(ispin), my_alpha_beta_case, &
             my_open_shell_SS, calc_forces)
 
          ! now create a group that contains all the proc that have the same virtual starting point
@@ -1228,46 +1233,36 @@ CONTAINS
 !> \param homo ...
 !> \param dimen_RI ...
 !> \param unit_nr ...
-!> \param color_sub ...
-!> \param best_block_size ...
-!> \param best_integ_group_size ...
-!> \param block_size ...
 !> \param integ_group_size ...
-!> \param min_integ_group_size ...
 !> \param ngroup ...
-!> \param num_IJ_blocks ...
 !> \param num_integ_group ...
-!> \param pos_integ_group ...
 !> \param virtual ...
 !> \param my_alpha_beta_case ...
 !> \param my_open_shell_SS ...
 !> \param calc_forces ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_ri_get_sizes(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
-                               homo, dimen_RI, unit_nr, color_sub, &
-                               best_block_size, best_integ_group_size, block_size, &
-                               integ_group_size, min_integ_group_size, &
-                               ngroup, num_IJ_blocks, num_integ_group, &
-                               pos_integ_group, virtual, my_alpha_beta_case, &
-                               my_open_shell_SS, calc_forces)
+   SUBROUTINE mp2_ri_get_integ_group_size(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
+                                          homo, dimen_RI, unit_nr, &
+                                          integ_group_size, &
+                                          ngroup, num_integ_group, &
+                                          virtual, my_alpha_beta_case, &
+                                          my_open_shell_SS, calc_forces)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
-      INTEGER, INTENT(IN)                                :: homo, dimen_RI, unit_nr, color_sub
-      INTEGER, INTENT(OUT) :: best_block_size, best_integ_group_size, block_size, &
-         integ_group_size, min_integ_group_size, ngroup, num_IJ_blocks, num_integ_group, &
-         pos_integ_group
+      INTEGER, INTENT(IN)                                :: homo, dimen_RI, unit_nr
+      INTEGER, INTENT(OUT)                               :: integ_group_size, ngroup, num_integ_group
       INTEGER, INTENT(IN)                                :: virtual
       LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS, &
                                                             calc_forces
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_ri_get_sizes'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_integ_group_size'
 
-      INTEGER                                            :: handle, iiB
+      INTEGER                                            :: best_block_size, best_integ_group_size, &
+                                                            handle, iiB, min_integ_group_size
       INTEGER(KIND=int_8)                                :: mem
-      REAL(KIND=dp)                                      :: mem_for_aK, mem_for_comm, mem_for_iaK, &
-                                                            mem_for_rep, mem_min, mem_per_group, &
-                                                            mem_real
+      REAL(KIND=dp)                                      :: mem_for_aK, mem_for_iaK, mem_for_rep, &
+                                                            mem_min, mem_per_group, mem_real
 
       CALL timeset(routineN, handle)
 
@@ -1345,9 +1340,117 @@ CONTAINS
             best_integ_group_size = integ_group_size
             EXIT
          END DO
+      END IF
+
+      integ_group_size = best_integ_group_size
+
+      IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
+            CALL m_flush(unit_nr)
+         END IF
+      END IF
+
+      num_integ_group = ngroup/integ_group_size
+
+      CALL timestop(handle)
+
+   END SUBROUTINE mp2_ri_get_integ_group_size
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param gd_array ...
+!> \param gd_B_virtual ...
+!> \param homo ...
+!> \param dimen_RI ...
+!> \param unit_nr ...
+!> \param block_size ...
+!> \param ngroup ...
+!> \param num_IJ_blocks ...
+!> \param virtual ...
+!> \param my_alpha_beta_case ...
+!> \param my_open_shell_SS ...
+!> \param calc_forces ...
+! **************************************************************************************************
+   SUBROUTINE mp2_ri_get_block_size(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
+                                    homo, dimen_RI, unit_nr, &
+                                    block_size, ngroup, num_IJ_blocks, &
+                                    virtual, my_alpha_beta_case, &
+                                    my_open_shell_SS, calc_forces)
+      TYPE(mp2_type)                                     :: mp2_env
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
+      INTEGER, INTENT(IN)                                :: homo, dimen_RI, unit_nr
+      INTEGER, INTENT(OUT)                               :: block_size, ngroup, num_IJ_blocks
+      INTEGER, INTENT(IN)                                :: virtual
+      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS, &
+                                                            calc_forces
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_block_size'
+
+      INTEGER                                            :: best_block_size, handle
+      INTEGER(KIND=int_8)                                :: mem
+      REAL(KIND=dp)                                      :: mem_for_aK, mem_for_iaK, mem_min, &
+                                                            mem_per_group, mem_real
+
+      CALL timeset(routineN, handle)
+
+      ngroup = para_env%num_pe/para_env_sub%num_pe
+
+      ! Calculate available memory and create integral group according to that
+      ! mem_for_iaK is the memory needed for storing the 3 centre integrals
+      mem_for_iaK = REAL(homo, KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
+      mem_for_aK = REAL(virtual, KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
+
+      CALL m_memory(mem)
+      mem_real = (mem + 1024*1024 - 1)/(1024*1024)
+      ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
+      ! has not been given back to the OS yet.
+      CALL mp_min(mem_real, para_env%group)
+
+      ! BIB_C_copy/external_i_aL/Gamma_P_ia
+      mem_min = MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+      IF (calc_forces) THEN
+         mem_min = MAX(mem_min, 2.0_dp*maxsize(gd_array)*maxsize(gd_B_virtual)*8.0_dp/(1024**2))
+      END IF
+      ! BIB_C
+      mem_min = REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
+      ! local_i_aL+local_j_aL
+      mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      ! local_ab
+      mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+
+      IF (calc_forces) THEN
+         ! Y_i_aP+Y_j_aP
+         mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*dimen_RI*8.0_dp/(1024**2)
+         ! local_ba/t_ab
+         mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+         IF (.NOT. my_alpha_beta_case) THEN
+            ! P_ij
+            mem_min = mem_min + REAL(homo, KIND=dp)*homo*8.0_dp/(1024**2)
+            ! P_ab
+            mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+         END IF
+      END IF
+
+      mem_real = mp2_env%mp2_memory
+
+      mem_per_group = mem_real*para_env_sub%num_pe
+
+      best_block_size = 1
+
+      ! in the open shell case no replication and no block communication is done
+      IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
+         ! Here we split the memory half for the communication, half for replication
+         IF (mp2_env%ri_mp2%block_size > 0) THEN
+            best_block_size = mp2_env%ri_mp2%block_size
+         END IF
 
          IF (.NOT. (mp2_env%ri_mp2%block_size > 0)) THEN
-            mem_for_comm = mem_per_group - 2.0_dp*mem_for_iaK/best_integ_group_size
             DO
                num_IJ_blocks = (homo/best_block_size)
                num_IJ_blocks = (num_IJ_blocks*num_IJ_blocks - num_IJ_blocks)/2
@@ -1363,25 +1466,19 @@ CONTAINS
          best_block_size = MIN(MAX(homo/2 - 1 + MOD(homo, 2), 1), best_block_size)
       END IF
 
-      integ_group_size = best_integ_group_size
       block_size = best_block_size
 
       IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
          IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "RI_INFO| Block size:", block_size
             CALL m_flush(unit_nr)
          END IF
       END IF
 
-      num_integ_group = ngroup/integ_group_size
-      pos_integ_group = MOD(color_sub, integ_group_size)
-
       CALL timestop(handle)
 
-   END SUBROUTINE mp2_ri_get_sizes
+   END SUBROUTINE mp2_ri_get_block_size
 
 ! **************************************************************************************************
 !> \brief ...
