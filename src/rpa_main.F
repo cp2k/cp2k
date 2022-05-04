@@ -141,6 +141,7 @@ CONTAINS
 !> \param gd_B_occ_bse ...
 !> \param gd_B_virt_bse ...
 !> \param mo_coeff ...
+!> \param fm_matrix_PQ ...
 !> \param fm_matrix_L_RI_metric ...
 !> \param fm_matrix_Sinv_Vtrunc_Sinv ...
 !> \param kpoints ...
@@ -172,7 +173,7 @@ CONTAINS
    SUBROUTINE rpa_ri_compute_en(qs_env, Erpa, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
                                 para_env, para_env_sub, color_sub, &
                                 gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
-                                mo_coeff, fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, kpoints, &
+                                mo_coeff, fm_matrix_PQ, fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, kpoints, &
                                 Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 unit_nr, do_ri_sos_laplace_mp2, my_do_gw, do_im_time, do_bse, matrix_s, &
                                 mat_munu, mat_P_global, &
@@ -194,6 +195,7 @@ CONTAINS
          INTENT(INOUT)                                   :: gd_B_virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all, gd_B_occ_bse, gd_B_virt_bse
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -662,7 +664,7 @@ CONTAINS
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
-                       fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
+                       fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                        fm_mat_S_ij_bse, fm_mat_S_ij_bse, &
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
                        do_minimax_quad, &
@@ -1418,6 +1420,7 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
+!> \param fm_matrix_PQ ...
 !> \param fm_mat_S ...
 !> \param fm_mat_Q_gemm ...
 !> \param fm_mat_Q ...
@@ -1459,7 +1462,7 @@ CONTAINS
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                           Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
-                          fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
+                          fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                           my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
                           do_minimax_quad, do_im_time, fm_mo_coeff_occ, &
@@ -1486,6 +1489,7 @@ CONTAINS
          INTENT(INOUT)                                   :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
                                                             fm_mat_S_gw
       TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, fm_mat_S_ij_bse, &
@@ -1642,7 +1646,7 @@ CONTAINS
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, mat_work)
 
          IF (do_ri_sos_laplace_mp2 .AND. calc_forces) THEN
-            CALL init_mp2_laplace_forces(force_data, t_3c_M, mp2_env, qs_env)
+            CALL init_mp2_laplace_forces(force_data, fm_matrix_PQ, t_3c_M, mp2_env, qs_env)
          END IF
 
          IF (my_do_gw) THEN

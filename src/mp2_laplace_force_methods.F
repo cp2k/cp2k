@@ -49,14 +49,13 @@ MODULE mp2_laplace_force_methods
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_scale, &
-        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbt_api,                         ONLY: &
         dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_clear, dbt_contract, &
         dbt_copy, dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, dbt_create, dbt_destroy, &
         dbt_filter, dbt_get_info, dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, &
-        dbt_pgrid_type, dbt_type
+        dbt_pgrid_type, dbt_scale, dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE ec_methods,                      ONLY: create_kernel
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
@@ -74,7 +73,6 @@ MODULE mp2_laplace_force_methods
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               do_eri_gpw,&
                                               do_eri_mme,&
-                                              do_eri_os,&
                                               do_potential_id
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -91,7 +89,8 @@ MODULE mp2_laplace_force_methods
    USE mp2_eri,                         ONLY: integrate_set_2c
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
                                               cleanup_gpw,&
-                                              prepare_gpw
+                                              prepare_gpw,&
+                                              virial_gpw_potential
    USE mp2_laplace_force_types,         ONLY: mp2_laplace_force_type
    USE mp2_types,                       ONLY: mp2_type
    USE orbital_pointers,                ONLY: ncoset
@@ -100,6 +99,7 @@ MODULE mp2_laplace_force_methods
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_copy,&
                                               pw_integral_ab,&
                                               pw_scale,&
                                               pw_transfer,&
@@ -179,13 +179,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initializes and pre-calculates all needed tensors for the forces
 !> \param force_data ...
+!> \param fm_matrix_PQ ...
 !> \param t_3c_M the 3-center M tensor to be used as a template
 !> \param mp2_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE init_mp2_laplace_forces(force_data, t_3c_M, mp2_env, qs_env)
+   SUBROUTINE init_mp2_laplace_forces(force_data, fm_matrix_PQ, t_3c_M, mp2_env, qs_env)
 
       TYPE(mp2_laplace_force_type), INTENT(INOUT)        :: force_data
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -208,7 +210,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
-      TYPE(dbcsr_type)                                   :: dbcsr_work, dbcsr_work2
+      TYPE(dbcsr_type)                                   :: dbcsr_work, dbcsr_work2, dbcsr_work3
       TYPE(dbcsr_type), DIMENSION(1)                     :: t_2c_int_tmp
       TYPE(dbcsr_type), DIMENSION(1, 3)                  :: t_2c_der_tmp
       TYPE(dbt_pgrid_type)                               :: pgrid_t2c, pgrid_t3c
@@ -237,6 +239,7 @@ CONTAINS
 
       do_periodic = .FALSE.
       IF (ANY(cell%perd == 1)) do_periodic = .TRUE.
+      force_data%do_periodic = do_periodic
 
       !Dealing with the 3-center derivatives
       pdims_t3c = 0
@@ -330,27 +333,19 @@ CONTAINS
                            dbcsr_type_antisymmetric, row_bsize, col_bsize)
       END DO
 
+      !TODO: -make the same kind of stuff with eri_mme such that we compute the force at the end (unification)
+      !      -make changes such that we carry over the fm_PQ matrix and do not recompute integrals (pointer in force_data ?)
+      !      -move all the G_PQ forces at the end, incl. the non-periodic case (for unification)
+
       ! Main (P|Q) integrals and derivatives
-      IF (do_periodic .AND. mp2_env%eri_method == do_eri_mme) THEN
-         CALL build_2c_periodic_mme(t_2c_int_tmp, t_2c_der_tmp, mp2_env, qs_env)
-      ELSE IF (do_periodic .AND. mp2_env%eri_method == do_eri_gpw) THEN
-         CALL build_2c_periodic_gpw(t_2c_int_tmp, t_2c_der_tmp, mp2_env, qs_env)
-      ELSE IF (do_periodic .AND. mp2_env%eri_method == do_eri_os) THEN
-         CPABORT("OS integrals not possible in PBCs")
-      ELSE
-         CALL build_2c_neighbor_lists(nl_2c, basis_set_ri_aux, basis_set_ri_aux, mp2_env%potential_parameter, &
-                                      "RPA_2c_nl_pot", qs_env, sym_ij=.TRUE., dist_2d=dist_2d)
-         CALL build_2c_integrals(t_2c_int_tmp, mp2_env%ri_rpa_im_time%eps_filter, qs_env, nl_2c, &
-                                 basis_set_ri_aux, basis_set_ri_aux, mp2_env%potential_parameter)
-         CALL build_2c_derivatives(t_2c_der_tmp, mp2_env%ri_rpa_im_time%eps_filter, qs_env, nl_2c, &
-                                   basis_set_ri_aux, basis_set_ri_aux, mp2_env%potential_parameter)
-         CALL release_neighbor_list_sets(nl_2c)
-      END IF
+      ! Integrals are passed as a full matrix => convert to DBCSR
+      CALL dbcsr_create(dbcsr_work, template=t_2c_int_tmp(1))
+      CALL copy_fm_to_dbcsr(fm_matrix_PQ, dbcsr_work)
 
       ! We need the  +/- square root of (P|Q)
-      CALL dbcsr_create(dbcsr_work, template=t_2c_int_tmp(1))
       CALL dbcsr_create(dbcsr_work2, template=t_2c_int_tmp(1))
-      CALL dbcsr_copy(dbcsr_work, t_2c_int_tmp(1))
+      CALL dbcsr_create(dbcsr_work3, template=t_2c_int_tmp(1))
+      CALL dbcsr_copy(dbcsr_work2, dbcsr_work)
       CALL cp_dbcsr_power(dbcsr_work, -0.5_dp, 1.0E-7_dp, n_dependent, para_env, blacs_env) !1.0E-7 ev qunenching thresh
 
       ! Transfer to tensor format with split blocks
@@ -360,26 +355,37 @@ CONTAINS
       CALL dbt_copy(t_2c_tmp, force_data%t_2c_pot_msqrt, move_data=.TRUE.)
       CALL dbt_filter(force_data%t_2c_pot_msqrt, mp2_env%ri_rpa_im_time%eps_filter)
 
-      CALL dbcsr_multiply('N', 'N', 1.0_dp, t_2c_int_tmp(1), dbcsr_work, 0.0_dp, dbcsr_work2)
-      CALL dbt_copy_matrix_to_tensor(dbcsr_work2, t_2c_tmp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, dbcsr_work2, dbcsr_work, 0.0_dp, dbcsr_work3)
+      CALL dbt_copy_matrix_to_tensor(dbcsr_work3, t_2c_tmp)
       CALL dbt_create(t_2c_template, force_data%t_2c_pot_psqrt)
       CALL dbt_copy(t_2c_tmp, force_data%t_2c_pot_psqrt, move_data=.TRUE.)
       CALL dbt_filter(force_data%t_2c_pot_psqrt, mp2_env%ri_rpa_im_time%eps_filter)
-
       CALL dbt_destroy(t_2c_tmp)
       CALL dbcsr_release(dbcsr_work2)
+      CALL dbcsr_release(dbcsr_work3)
       CALL dbcsr_clear(dbcsr_work)
-      CALL dbcsr_clear(t_2c_int_tmp(1))
 
-      DO i_xyz = 1, 3
-         CALL dbt_create(t_2c_der_tmp(1, i_xyz), t_2c_tmp)
-         CALL dbt_copy_matrix_to_tensor(t_2c_der_tmp(1, i_xyz), t_2c_tmp)
-         CALL dbt_create(t_2c_template, force_data%t_2c_der_pot(i_xyz))
-         CALL dbt_copy(t_2c_tmp, force_data%t_2c_der_pot(i_xyz), move_data=.TRUE.)
-         CALL dbt_filter(force_data%t_2c_der_pot(i_xyz), mp2_env%ri_rpa_im_time%eps_filter)
-         CALL dbt_destroy(t_2c_tmp)
-         CALL dbcsr_clear(t_2c_der_tmp(1, i_xyz))
-      END DO
+      ! Deal with the 2c potential derivatives. Only precompute if not in PBCs
+      IF (.NOT. do_periodic) THEN
+         CALL build_2c_neighbor_lists(nl_2c, basis_set_ri_aux, basis_set_ri_aux, mp2_env%potential_parameter, &
+                                      "RPA_2c_nl_pot", qs_env, sym_ij=.TRUE., dist_2d=dist_2d)
+         CALL build_2c_derivatives(t_2c_der_tmp, mp2_env%ri_rpa_im_time%eps_filter, qs_env, nl_2c, &
+                                   basis_set_ri_aux, basis_set_ri_aux, mp2_env%potential_parameter)
+         CALL release_neighbor_list_sets(nl_2c)
+
+         DO i_xyz = 1, 3
+            CALL dbt_create(t_2c_der_tmp(1, i_xyz), t_2c_tmp)
+            CALL dbt_copy_matrix_to_tensor(t_2c_der_tmp(1, i_xyz), t_2c_tmp)
+            CALL dbt_create(t_2c_template, force_data%t_2c_der_pot(i_xyz))
+            CALL dbt_copy(t_2c_tmp, force_data%t_2c_der_pot(i_xyz), move_data=.TRUE.)
+            CALL dbt_filter(force_data%t_2c_der_pot(i_xyz), mp2_env%ri_rpa_im_time%eps_filter)
+            CALL dbt_destroy(t_2c_tmp)
+            CALL dbcsr_clear(t_2c_der_tmp(1, i_xyz))
+         END DO
+      ELSE
+         ! Create a G_PQ matrix to collect the terms for the force trace in the periodic case
+         CALL dbcsr_create(force_data%G_PQ, "G_PQ", dbcsr_dist, dbcsr_type_no_symmetry, row_bsize, col_bsize)
+      END IF
 
       ! we need the RI metric derivatives and the inverse of the integrals
       CALL build_2c_neighbor_lists(nl_2c, basis_set_ri_aux, basis_set_ri_aux, mp2_env%ri_metric, &
@@ -834,20 +840,27 @@ CONTAINS
                            flop=flop, unit_nr=unit_nr_dbcsr)
          dbcsr_nflop = dbcsr_nflop + flop
 
-         !Here we do the trace for the force
+         !Here we do the trace for the force. In the periodic case, we store the matrix in G_PQ for later
          pref = 0.5_dp*spin_fac*omega
-         IF (use_virial) THEN
-            CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_pot, atom_of_kind, &
-                                  kind_of, force_data%idx_to_at_RI, pref, work_virial, cell, &
-                                  particle_set, do_mp2=.TRUE.)
+         IF (force_data%do_periodic) THEN
+            CALL dbt_scale(t_2c_RI_2, pref)
+            CALL dbt_create(force_data%G_PQ, t_2c_tmp)
+            CALL dbt_copy(t_2c_RI_2, t_2c_tmp, move_data=.TRUE.)
+            CALL dbt_copy_tensor_to_matrix(t_2c_tmp, force_data%G_PQ, summation=.TRUE.)
+            CALL dbt_destroy(t_2c_tmp)
          ELSE
-            CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_pot, atom_of_kind, &
-                                  kind_of, force_data%idx_to_at_RI, pref, do_mp2=.TRUE.)
+            IF (use_virial) THEN
+               CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_pot, atom_of_kind, &
+                                     kind_of, force_data%idx_to_at_RI, pref, work_virial, cell, &
+                                     particle_set, do_mp2=.TRUE.)
+            ELSE
+               CALL get_2c_der_force(force, t_2c_RI_2, force_data%t_2c_der_pot, atom_of_kind, &
+                                     kind_of, force_data%idx_to_at_RI, pref, do_mp2=.TRUE.)
+            END IF
          END IF
 
          CALL dbt_clear(t_2c_RI)
          CALL dbt_clear(t_2c_RI_2)
-
          CALL timestop(handle2)
 
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
@@ -1165,7 +1178,22 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_5)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
+      !Calculate the periodic contributions of (P|Q) to the force and the virial
+      work_virial = 0.0_dp
+      IF (force_data%do_periodic) THEN
+         IF (mp2_env%eri_method == do_eri_gpw) THEN
+            CALL get_2c_gpw_forces(force_data%G_PQ, force, work_virial, use_virial, mp2_env, qs_env)
+         ELSE IF (mp2_env%eri_method == do_eri_mme) THEN
+            CALL get_2c_mme_forces(force_data%G_PQ, force, mp2_env, qs_env)
+            IF (use_virial) CPABORT("Stress tensor not available with MME intrgrals")
+         ELSE
+            CPABORT("Periodic case not possible with OS integrals")
+         END IF
+      END IF
+
       IF (use_virial) THEN
+         virial%pv_mp2 = virial%pv_mp2 + work_virial
+         virial%pv_virial = virial%pv_virial + work_virial
          virial%pv_calculate = .FALSE.
       END IF
 
@@ -1656,42 +1684,44 @@ CONTAINS
    END SUBROUTINE prepare_for_response
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param t2c_int ...
-!> \param t2c_der ...
+!> \brief Calculate the force and virial due to the (P|Q) GPW integral derivatives
+!> \param G_PQ ...
+!> \param force ...
+!> \param h_stress ...
+!> \param use_virial ...
 !> \param mp2_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE build_2c_periodic_gpw(t2c_int, t2c_der, mp2_env, qs_env)
+   SUBROUTINE get_2c_gpw_forces(G_PQ, force, h_stress, use_virial, mp2_env, qs_env)
 
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: t2c_int
-      TYPE(dbcsr_type), DIMENSION(:, :), INTENT(INOUT)   :: t2c_der
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: G_PQ
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      REAL(dp), DIMENSION(3, 3), INTENT(INOUT)           :: h_stress
+      LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_periodic_gpw'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_2c_gpw_forces'
 
-      INTEGER :: color, handle, i, i_xyz, iatom, igrid_level, ikind, ipgf, iset, j, j_RI, jatom, &
-         lb(3), lb_RI, location(3), n_RI, natom, ncoa, ncoms, nkind, nproc, nseta, o1, offset, &
-         pdims(2), sgfa, tp(3), ub(3), ub_RI
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iproc_map, kind_of, sizes_RI
+      INTEGER :: atom_a, color, handle, i, i_RI, i_xyz, iatom, igrid_level, ikind, ipgf, iset, j, &
+         j_RI, jatom, lb(3), lb_RI, location(3), n_RI, natom, ncoa, ncoms, nkind, nproc, nseta, &
+         o1, offset, pdims(2), sgfa, tp(3), ub(3), ub_RI
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, iproc_map, kind_of, &
+                                                            sizes_RI
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, la_max, la_min, npgfa, nsgfa, &
                                                             row_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, pgrid
-      LOGICAL                                            :: found, map_it_here, one_proc_group, &
-                                                            use_subpatch
-      REAL(dp)                                           :: cutoff_old, pref, radius, &
-                                                            relative_cutoff_old
+      LOGICAL                                            :: found, map_it_here, one_proc_group
+      REAL(dp)                                           :: cutoff_old, radius, relative_cutoff_old
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: e_cutoff_old, wf_vector
-      REAL(dp), DIMENSION(3)                             :: ra
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_ab, h_tmp, pab, pblock, sphi_a, zeta
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: h_dtmp
+      REAL(dp), DIMENSION(3)                             :: force_a, force_b, ra
+      REAL(dp), DIMENSION(3, 3)                          :: my_virial_a, my_virial_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_tmp, I_ab, pab, pblock, sphi_a, zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_ext
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
-      TYPE(dbcsr_type)                                   :: dbcsr_work, tmp_int
-      TYPE(dbcsr_type), DIMENSION(3)                     :: tmp_der
+      TYPE(dbcsr_type)                                   :: tmp_G_PQ
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_ri_aux
@@ -1701,7 +1731,8 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env_ext
-      TYPE(pw_p_type)                                    :: pot_g, psi_L, rho_g, rho_r
+      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, rho_g, rho_g_copy, &
+                                                            rho_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1756,13 +1787,8 @@ CONTAINS
       CALL dbcsr_distribution_new(dbcsr_dist, group=para_env%group, pgrid=pgrid, row_dist=row_dist, col_dist=col_dist)
 
       !The temporary DBCSR integrals and derivatives matrices in this flat distribution
-      CALL dbcsr_create(tmp_int, template=t2c_int(1), matrix_type=dbcsr_type_no_symmetry, dist=dbcsr_dist)
-      CALL dbcsr_reserve_all_blocks(tmp_int)
-      DO i_xyz = 1, 3
-         CALL dbcsr_create(tmp_der(i_xyz), template=t2c_der(1, i_xyz), &
-                           matrix_type=dbcsr_type_no_symmetry, dist=dbcsr_dist)
-         CALL dbcsr_reserve_all_blocks(tmp_der(i_xyz))
-      END DO
+      CALL dbcsr_create(tmp_G_PQ, template=G_PQ, matrix_type=dbcsr_type_no_symmetry, dist=dbcsr_dist)
+      CALL dbcsr_complete_redistribute(G_PQ, tmp_G_PQ)
 
       ALLOCATE (basis_set_ri_aux(nkind), sizes_RI(natom))
       CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
@@ -1788,10 +1814,23 @@ CONTAINS
       CALL prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_ext, pw_env_ext, &
                        auxbas_pw_pool, poisson_env, task_list_ext, rho_r, rho_g, pot_g, psi_L, sab_orb)
 
+      IF (use_virial) THEN
+         NULLIFY (rho_g_copy%pw)
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_copy%pw, &
+                                use_data=COMPLEXDATA1D, &
+                                in_space=RECIPROCALSPACE)
+         DO i_xyz = 1, 3
+            NULLIFY (dvg(i_xyz)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i_xyz)%pw, &
+                                   use_data=COMPLEXDATA1D, &
+                                   in_space=RECIPROCALSPACE)
+         END DO
+      END IF
+
       ALLOCATE (wf_vector(n_RI))
 
-      ALLOCATE (kind_of(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
+      ALLOCATE (atom_of_kind(natom), kind_of(natom))
+      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
       ALLOCATE (iproc_map(natom))
 
@@ -1820,7 +1859,35 @@ CONTAINS
                                         qs_kind_set, cell, dft_control, particle_set, pw_env_ext, &
                                         basis_type="RI_AUX", external_vector=wf_vector)
 
-            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, mp2_env%potential_parameter)
+            IF (use_virial) THEN
+               CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, mp2_env%potential_parameter, dvg)
+
+               wf_vector = 0.0_dp
+               DO iatom = 1, natom
+                  !only compute if i,j atom pair on correct proc
+                  IF (one_proc_group) THEN
+                     IF (.NOT. iproc_map(iatom) == 1) CYCLE
+                  END IF
+
+                  CALL dbcsr_get_block_p(tmp_G_PQ, iatom, jatom, pblock, found)
+                  IF (.NOT. found) CYCLE
+
+                  i_RI = SUM(sizes_RI(1:iatom - 1))
+                  wf_vector(i_RI + 1:i_RI + sizes_RI(iatom)) = pblock(:, j_RI - lb_RI)
+               END DO
+
+               CALL pw_copy(rho_g%pw, rho_g_copy%pw)
+               CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+                                           qs_kind_set, cell, dft_control, particle_set, pw_env_ext, &
+                                           basis_type="RI_AUX", external_vector=wf_vector)
+
+               CALL calc_potential_gpw(psi_L, rho_g, poisson_env, pot_g, mp2_env%potential_parameter, &
+                                       no_transfer=.TRUE.)
+               CALL virial_gpw_potential(rho_g_copy, pot_g, rho_g, dvg, h_stress, &
+                                         mp2_env%potential_parameter, para_env_ext)
+            ELSE
+               CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, mp2_env%potential_parameter)
+            END IF
 
             NULLIFY (rs_v)
             CALL pw_env_get(pw_env_ext, rs_grids=rs_v)
@@ -1836,16 +1903,15 @@ CONTAINS
                   IF (.NOT. iproc_map(iatom) == 1) CYCLE
                END IF
 
-               !Distribute atomic blocks evenly above and below the diagonal (symmetrize later)
-               IF (iatom > jatom) THEN
-                  IF (MODULO(iatom + jatom, 2) == 0) CYCLE
-               ELSE IF (jatom > iatom) THEN
-                  IF (MODULO(iatom + jatom, 2) == 1) CYCLE
+               force_a(:) = 0.0_dp
+               force_b(:) = 0.0_dp
+               IF (use_virial) THEN
+                  my_virial_a = 0.0_dp
+                  my_virial_b = 0.0_dp
                END IF
-               pref = 1.0_dp
-               IF (iatom == jatom) pref = 0.5_dp
 
                ikind = kind_of(iatom)
+               atom_a = atom_of_kind(iatom)
 
                basis_set_a => basis_set_ri_aux(ikind)%gto_basis_set
                first_sgfa => basis_set_a%first_sgf
@@ -1859,19 +1925,24 @@ CONTAINS
 
                ra(:) = pbc(particle_set(iatom)%r, cell)
 
+               CALL dbcsr_get_block_p(tmp_G_PQ, iatom, jatom, pblock, found)
+               IF (.NOT. found) CYCLE
+
                offset = 0
                DO iset = 1, nseta
                   ncoa = npgfa(iset)*ncoset(la_max(iset))
                   sgfa = first_sgfa(1, iset)
 
-                  ALLOCATE (pab(ncoa, 1)); pab = 0.0_dp
                   ALLOCATE (h_tmp(ncoa, 1)); h_tmp = 0.0_dp
-                  ALLOCATE (h_ab(nsgfa(iset), 1)); h_ab = 0.0_dp
-                  ALLOCATE (h_dtmp(3, ncoa, 1)); h_dtmp = 0.0_dp
+                  ALLOCATE (I_ab(nsgfa(iset), 1)); I_ab = 0.0_dp
+                  ALLOCATE (pab(ncoa, 1)); pab = 0.0_dp
+
+                  I_ab(1:nsgfa(iset), 1) = 2.0_dp*pblock(offset + 1:offset + nsgfa(iset), j_RI - lb_RI)
+                  CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), 1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                             I_ab(1, 1), nsgfa(iset), 0.0_dp, pab(1, 1), ncoa)
 
                   igrid_level = gaussian_gridlevel(pw_env_ext%gridlevel_info, MINVAL(zeta(:, iset)))
                   map_it_here = .FALSE.
-                  use_subpatch = .FALSE.
                   IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
                      DO i_xyz = 1, 3
                         ! bounds of local grid (i.e. removing the 'wings'), if periodic
@@ -1893,7 +1964,6 @@ CONTAINS
                          lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
                         map_it_here = .TRUE.
                      END IF
-                     use_subpatch = .TRUE.
                   ELSE
                      map_it_here = .TRUE.
                   END IF
@@ -1914,40 +1984,24 @@ CONTAINS
                            lb_max=0, zetb=0.0_dp, lb_min=0, &
                            ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                            rsgrid=rs_v(igrid_level)%rs_grid, &
-                           hab=h_tmp, hdab=h_dtmp, pab=pab, &
+                           hab=h_tmp, pab=pab, &
                            o1=o1, &
                            o2=0, &
                            radius=radius, &
                            calculate_forces=.TRUE., &
-                           use_subpatch=use_subpatch, &
-                           subpatch_pattern=0)
+                           force_a=force_a, force_b=force_b, &
+                           use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
 
-                     END DO
-
-                     CALL dgemm("T", "N", nsgfa(iset), 1, ncoa, &
-                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                h_tmp(1, 1), SIZE(h_tmp, 1), &
-                                0.0_dp, h_ab(1, 1), SIZE(h_ab, 1))
-
-                     !Get the dbcsr_block and add the column to it
-                     CALL dbcsr_get_block_p(tmp_int, iatom, jatom, pblock, found)
-                     IF (found) pblock(offset + 1:offset + nsgfa(iset), j_RI - lb_RI) = pref*h_ab(:, 1)
-
-                     DO i_xyz = 1, 3
-                        h_tmp(:, :) = h_dtmp(i_xyz, :, :)
-                        CALL dgemm("T", "N", nsgfa(iset), 1, ncoa, &
-                                   1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                   h_tmp(1, 1), SIZE(h_tmp, 1), &
-                                   0.0_dp, h_ab(1, 1), SIZE(h_ab, 1))
-                        CALL dbcsr_get_block_p(tmp_der(i_xyz), iatom, jatom, pblock, found)
-                        IF (found) pblock(offset + 1:offset + nsgfa(iset), j_RI - lb_RI) = pref*h_ab(:, 1)
                      END DO
 
                   END IF
 
                   offset = offset + nsgfa(iset)
-                  DEALLOCATE (pab, h_tmp, h_ab, h_dtmp)
+                  DEALLOCATE (pab, h_tmp, I_ab)
                END DO !iset
+
+               force(ikind)%mp2_non_sep(:, atom_a) = force(ikind)%mp2_non_sep(:, atom_a) + force_a + force_b
+               IF (use_virial) h_stress = h_stress + my_virial_a + my_virial_b
 
             END DO !iatom
 
@@ -1957,24 +2011,17 @@ CONTAINS
          END DO !j_RI
       END DO !jatom
 
-      !Symmetrize integrals and anti-symmetrize derivatives
-      CALL dbcsr_create(dbcsr_work, template=tmp_int)
-      CALL dbcsr_transposed(dbcsr_work, tmp_int)
-      CALL dbcsr_add(dbcsr_work, tmp_int, 1.0_dp, 1.0_dp)
-      CALL dbcsr_complete_redistribute(dbcsr_work, t2c_int(1))
-      CALL dbcsr_release(tmp_int)
-
-      DO i_xyz = 1, 3
-         CALL dbcsr_transposed(dbcsr_work, tmp_der(i_xyz))
-         CALL dbcsr_add(dbcsr_work, tmp_der(i_xyz), -1.0_dp, 1.0_dp)
-         CALL dbcsr_complete_redistribute(dbcsr_work, t2c_der(1, i_xyz))
-         CALL dbcsr_release(tmp_der(i_xyz))
-      END DO
-      CALL dbcsr_release(dbcsr_work)
+      IF (use_virial) THEN
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy%pw)
+         DO i_xyz = 1, 3
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i_xyz)%pw)
+         END DO
+      END IF
 
       CALL cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_ext, pw_env_ext, &
                        task_list_ext, auxbas_pw_pool, rho_r, rho_g, pot_g, psi_L)
 
+      CALL dbcsr_release(tmp_G_PQ)
       CALL dbcsr_distribution_release(dbcsr_dist)
       DEALLOCATE (col_dist, row_dist, pgrid)
 
@@ -1982,32 +2029,32 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_2c_periodic_gpw
+   END SUBROUTINE get_2c_gpw_forces
 
 ! **************************************************************************************************
-!> \brief Pre-calculates the potential integrals and derivatives in the periodic case using MME integrals
-!> \param t2c_int ...
-!> \param t2c_der ...
+!> \brief Calculate the forces due to the (P|Q) MME integral derivatives
+!> \param G_PQ ...
+!> \param force ...
 !> \param mp2_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE build_2c_periodic_mme(t2c_int, t2c_der, mp2_env, qs_env)
+   SUBROUTINE get_2c_mme_forces(G_PQ, force, mp2_env, qs_env)
 
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: t2c_int
-      TYPE(dbcsr_type), DIMENSION(:, :), INTENT(INOUT)   :: t2c_der
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: G_PQ
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_2c_periodic_mme'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'get_2c_mme_forces'
 
-      INTEGER :: blk, G_count, handle, i_xyz, iatom, ikind, iset, jatom, jkind, jset, natom, &
-         nkind, nseta, nsetb, offset_hab_a, offset_hab_b, R_count, sgfa, sgfb
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      INTEGER :: atom_a, atom_b, blk, G_count, handle, i_xyz, iatom, ikind, iset, jatom, jkind, &
+         jset, natom, nkind, nseta, nsetb, offset_hab_a, offset_hab_b, R_count, sgfa, sgfb
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found
-      REAL(dp)                                           :: pref
+      REAL(dp)                                           :: new_force, pref
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: hab
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: hdab
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock
@@ -2017,8 +2064,6 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
-      TYPE(dbcsr_type)                                   :: dbcsr_work, tmp_int
-      TYPE(dbcsr_type), DIMENSION(3)                     :: tmp_der
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_ri_aux
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
@@ -2035,29 +2080,27 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, nkind=nkind, particle_set=particle_set, &
                       cell=cell, atomic_kind_set=atomic_kind_set, natom=natom, para_env=para_env)
 
-      ALLOCATE (kind_of(natom))
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
-
-      CALL dbcsr_create(tmp_int, template=t2c_int(1), matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_reserve_all_blocks(tmp_int)
-      DO i_xyz = 1, 3
-         CALL dbcsr_create(tmp_der(i_xyz), template=t2c_der(1, i_xyz), matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_reserve_all_blocks(tmp_der(i_xyz))
-      END DO
+      ALLOCATE (atom_of_kind(natom), kind_of(natom))
+      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of, atom_of_kind=atom_of_kind)
 
       ALLOCATE (basis_set_ri_aux(nkind))
       CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
 
-      CALL dbcsr_iterator_start(iter, tmp_int)
+      CALL dbcsr_iterator_start(iter, G_PQ)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
          CALL dbcsr_iterator_next_block(iter, row=iatom, column=jatom, blk=blk)
+         CALL dbcsr_get_block_p(G_PQ, iatom, jatom, pblock, found)
+         IF (.NOT. found) CYCLE
          IF (iatom > jatom) CYCLE
-         pref = 1.0_dp
-         IF (iatom == jatom) pref = 0.5_dp
+         pref = 2.0_dp
+         IF (iatom == jatom) pref = 1.0_dp
 
          ikind = kind_of(iatom)
          jkind = kind_of(jatom)
+
+         atom_a = atom_of_kind(iatom)
+         atom_b = atom_of_kind(jatom)
 
          basis_set_a => basis_set_ri_aux(ikind)%gto_basis_set
          first_sgfa => basis_set_a%first_sgf
@@ -2107,36 +2150,21 @@ CONTAINS
             offset_hab_a = offset_hab_a + nsgfa(iset)
          END DO
 
-         CALL dbcsr_get_block_p(tmp_int, iatom, jatom, pblock, found)
-         pblock(:, :) = pref*hab(:, :)
          DO i_xyz = 1, 3
-            CALL dbcsr_get_block_p(tmp_der(i_xyz), iatom, jatom, pblock, found)
-            pblock(:, :) = pref*hdab(i_xyz, :, :)
+            new_force = pref*SUM(pblock(:, :)*hdab(i_xyz, :, :))
+            force(ikind)%mp2_non_sep(i_xyz, atom_a) = force(ikind)%mp2_non_sep(i_xyz, atom_a) + new_force
+            force(jkind)%mp2_non_sep(i_xyz, atom_b) = force(jkind)%mp2_non_sep(i_xyz, atom_b) - new_force
          END DO
+
          DEALLOCATE (hab, hdab)
       END DO
       CALL dbcsr_iterator_stop(iter)
 
       CALL cp_eri_mme_update_local_counts(mp2_env%eri_mme_param, para_env, G_count_2c=G_count, R_count_2c=R_count)
 
-      !Symmetrize integrals and anti-symmetrize derivatives
-      CALL dbcsr_create(dbcsr_work, template=tmp_int)
-      CALL dbcsr_transposed(dbcsr_work, tmp_int)
-      CALL dbcsr_add(dbcsr_work, tmp_int, 1.0_dp, 1.0_dp)
-      CALL dbcsr_complete_redistribute(dbcsr_work, t2c_int(1))
-      CALL dbcsr_release(tmp_int)
-
-      DO i_xyz = 1, 3
-         CALL dbcsr_transposed(dbcsr_work, tmp_der(i_xyz))
-         CALL dbcsr_add(dbcsr_work, tmp_der(i_xyz), -1.0_dp, 1.0_dp)
-         CALL dbcsr_complete_redistribute(dbcsr_work, t2c_der(1, i_xyz))
-         CALL dbcsr_release(tmp_der(i_xyz))
-      END DO
-      CALL dbcsr_release(dbcsr_work)
-
       CALL timestop(handle)
 
-   END SUBROUTINE build_2c_periodic_mme
+   END SUBROUTINE get_2c_mme_forces
 
 ! **************************************************************************************************
 !> \brief This routines gather all the force updates due to the response density and the trace with F
@@ -2318,9 +2346,7 @@ CONTAINS
          CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
          CALL tddft_hfx_matrix(scrm_admm, rho_ao_aux_fit, qs_env, .FALSE., .FALSE.)
 
-         IF (use_virial) pv_loc = virial%pv_virial
          CALL admm_projection_derivative(qs_env, scrm_admm, matrix_p_mp2)
-         IF (use_virial) virial%pv_exc = virial%pv_exc + (virial%pv_virial - pv_loc)
       END IF
 
       !The exact-exchange term
@@ -2623,10 +2649,8 @@ CONTAINS
 
             CALL tddft_hfx_matrix(scrm_admm, current_density_admm, qs_env, .FALSE., .FALSE.)
 
-            IF (use_virial) pv_loc = virial%pv_virial
             CALL qs_rho_get(rho, rho_ao_kp=dbcsr_work_p)
             CALL admm_projection_derivative(qs_env, scrm_admm, dbcsr_work_p(:, 1))
-            IF (use_virial) virial%pv_exc = virial%pv_exc + (virial%pv_virial - pv_loc)
 
             !If response density, need to get matrix_hz contribution
             CALL dbcsr_create(dbcsr_work, template=matrix_s(1)%matrix)
