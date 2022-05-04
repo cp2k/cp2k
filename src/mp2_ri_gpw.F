@@ -201,6 +201,9 @@ CONTAINS
                                       homo(ispin), proc_map_rep, gd_array%sizes, my_B_size(ispin), &
                                       my_group_L_size, ranges_info_array)
 
+         CALL mp2_ri_allocate_no_blk(local_ab, t_ab, mp2_env, homo, virtual, my_B_size, &
+                                     my_group_L_size, calc_forces, ispin, jspin, local_ba)
+
          CALL mp2_ri_get_block_size( &
             mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
             homo(ispin), dimen_RI, unit_nr, block_size, &
@@ -225,10 +228,8 @@ CONTAINS
          max_ij_pairs = MAXVAL(num_ij_pairs)
 
          ! start real stuff
-         CALL mp2_ri_allocate(local_ab, t_ab, mp2_env, homo, virtual, dimen_RI, my_B_size, &
-                              block_size, my_group_L_size, local_i_aL, &
-                              local_j_aL, calc_forces, Y_i_aP, Y_j_aP, &
-                              ispin, jspin, local_ba)
+         CALL mp2_ri_allocate_blk(dimen_RI, my_B_size, block_size, local_i_aL, &
+                                  local_j_aL, calc_forces, Y_i_aP, Y_j_aP, ispin, jspin)
 
          IF (unit_nr > 0) THEN
             IF (nspins == 1) THEN
@@ -837,61 +838,39 @@ CONTAINS
 !> \param mp2_env ...
 !> \param homo ...
 !> \param virtual ...
-!> \param dimen_RI ...
 !> \param my_B_size ...
-!> \param block_size ...
 !> \param my_group_L_size ...
-!> \param local_i_aL ...
-!> \param local_j_aL ...
 !> \param calc_forces ...
-!> \param Y_i_aP ...
-!> \param Y_j_aP ...
 !> \param ispin ...
 !> \param jspin ...
 !> \param local_ba ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_ri_allocate(local_ab, t_ab, mp2_env, homo, virtual, dimen_RI, my_B_size, &
-                              block_size, my_group_L_size, &
-                              local_i_aL, local_j_aL, calc_forces, &
-                              Y_i_aP, Y_j_aP, ispin, jspin, &
-                              local_ba)
+   SUBROUTINE mp2_ri_allocate_no_blk(local_ab, t_ab, mp2_env, homo, virtual, my_B_size, &
+                                     my_group_L_size, calc_forces, ispin, jspin, local_ba)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: local_ab, t_ab
       TYPE(mp2_type)                                     :: mp2_env
-      INTEGER, INTENT(IN)                                :: homo(2), virtual(2), dimen_RI, &
-                                                            my_B_size(2), block_size, &
+      INTEGER, INTENT(IN)                                :: homo(2), virtual(2), my_B_size(2), &
                                                             my_group_L_size
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: local_i_aL, local_j_aL
       LOGICAL, INTENT(IN)                                :: calc_forces
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(OUT)                                     :: Y_i_aP, Y_j_aP
       INTEGER, INTENT(IN)                                :: ispin, jspin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: local_ba
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_ri_allocate'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_allocate_no_blk'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (local_i_aL(dimen_RI, my_B_size(ispin), block_size))
-      ALLOCATE (local_j_aL(dimen_RI, my_B_size(jspin), block_size))
       ALLOCATE (local_ab(virtual(ispin), my_B_size(jspin)))
+      local_ab = 0.0_dp
 
       IF (calc_forces) THEN
-         ALLOCATE (Y_i_aP(my_B_size(ispin), dimen_RI, block_size))
-         Y_i_aP = 0.0_dp
-         ! For  closed-shell, alpha-alpha and beta-beta my_B_size_beta=my_b_size
-         ! Not for alpha-beta case: Y_j_aP_beta is sent and received as Y_j_aP
-         ALLOCATE (Y_j_aP(my_B_size(jspin), dimen_RI, block_size))
-         Y_j_aP = 0.0_dp
-         ! Closed shell or alpha-alpha case
          IF (ispin == jspin) THEN
             ALLOCATE (mp2_env%ri_grad%P_ij(ispin)%array(homo(ispin), homo(ispin)))
-            ALLOCATE (mp2_env%ri_grad%P_ab(ispin)%array(my_B_size(ispin), virtual(ispin)))
             mp2_env%ri_grad%P_ij(ispin)%array = 0.0_dp
+            ALLOCATE (mp2_env%ri_grad%P_ab(ispin)%array(my_B_size(ispin), virtual(ispin)))
             mp2_env%ri_grad%P_ab(ispin)%array = 0.0_dp
             ALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_B_size(ispin), homo(ispin), my_group_L_size))
             mp2_env%ri_grad%Gamma_P_ia(ispin)%array = 0.0_dp
@@ -910,7 +889,56 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE mp2_ri_allocate
+   END SUBROUTINE mp2_ri_allocate_no_blk
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dimen_RI ...
+!> \param my_B_size ...
+!> \param block_size ...
+!> \param local_i_aL ...
+!> \param local_j_aL ...
+!> \param calc_forces ...
+!> \param Y_i_aP ...
+!> \param Y_j_aP ...
+!> \param ispin ...
+!> \param jspin ...
+! **************************************************************************************************
+   SUBROUTINE mp2_ri_allocate_blk(dimen_RI, my_B_size, block_size, &
+                                  local_i_aL, local_j_aL, calc_forces, &
+                                  Y_i_aP, Y_j_aP, ispin, jspin)
+      INTEGER, INTENT(IN)                                :: dimen_RI, my_B_size(2), block_size
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: local_i_aL, local_j_aL
+      LOGICAL, INTENT(IN)                                :: calc_forces
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: Y_i_aP, Y_j_aP
+      INTEGER, INTENT(IN)                                :: ispin, jspin
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_allocate_blk'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (local_i_aL(dimen_RI, my_B_size(ispin), block_size))
+      local_i_aL = 0.0_dp
+      ALLOCATE (local_j_aL(dimen_RI, my_B_size(jspin), block_size))
+      local_j_aL = 0.0_dp
+
+      IF (calc_forces) THEN
+         ALLOCATE (Y_i_aP(my_B_size(ispin), dimen_RI, block_size))
+         Y_i_aP = 0.0_dp
+         ! For  closed-shell, alpha-alpha and beta-beta my_B_size_beta=my_b_size
+         ! Not for alpha-beta case: Y_j_aP_beta is sent and received as Y_j_aP
+         ALLOCATE (Y_j_aP(my_B_size(jspin), dimen_RI, block_size))
+         Y_j_aP = 0.0_dp
+      END IF
+      !
+
+      CALL timestop(handle)
+
+   END SUBROUTINE mp2_ri_allocate_blk
 
 ! **************************************************************************************************
 !> \brief ...
