@@ -627,16 +627,14 @@ CONTAINS
             ! sum Gamma and dereplicate
             DO kspin = ispin, jspin
                ALLOCATE (BIb_C(kspin)%array(my_B_size(kspin), homo(kspin), my_group_L_size))
-            END DO
-            DO proc_shift = 1, para_env_rep%num_pe - 1
-               ! invert order
-               proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
-               proc_receive = proc_map_rep(para_env_rep%mepos + proc_shift)
+               DO proc_shift = 1, para_env_rep%num_pe - 1
+                  ! invert order
+                  proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
+                  proc_receive = proc_map_rep(para_env_rep%mepos + proc_shift)
 
-               start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
-               end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
+                  start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
+                  end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
 
-               DO kspin = ispin, jspin
                   CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
                                    proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group, tag)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
@@ -646,12 +644,10 @@ CONTAINS
                      + BIb_C(kspin)%array(:, :, :)
 !$OMP END PARALLEL WORKSHARE
                END DO
+               DEALLOCATE (BIb_C(kspin)%array)
             END DO
 
             IF (my_open_shell_ss) THEN
-               DO kspin = ispin, jspin
-                  DEALLOCATE (BIb_C(kspin)%array)
-               END DO
                ALLOCATE (BIb_C(ispin)%array(my_group_L_size, my_B_size(ispin), homo(ispin)))
                BIb_C(ispin)%array = 0.0_dp
                ! copy the integrals (ia|Q) back
@@ -690,11 +686,6 @@ CONTAINS
 
          CALL cp_para_env_release(para_env_exchange)
          CALL cp_para_env_release(para_env_rep)
-
-         WRITE (*, *) ispin, jspin
-      END DO
-      DO kspin = 1, nspins
-         WRITE (*, *) ALLOCATED(mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
       END DO
       END DO
 
@@ -703,6 +694,7 @@ CONTAINS
       IF (calc_forces) THEN
          ! Reduce size of Gamma_P_ia to save memory
          DO ispin = 1, nspins
+            ALLOCATE (BIb_C(ispin)%array(my_B_size(ispin), homo(ispin), my_group_L_size))
             BIb_C(ispin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, 1:my_group_L_size)
             DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
             CALL MOVE_ALLOC(BIb_C(ispin)%array, mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
