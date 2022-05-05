@@ -600,59 +600,6 @@ CONTAINS
                CALL cp_para_env_release(para_env_P)
             END IF
 
-            ! make a copy of the original integrals (ia|Q)
-            my_group_L_size = my_group_L_size_orig
-            ALLOCATE (B_ia_Q(ispin:jspin))
-            DO kspin = ispin, jspin
-               ALLOCATE (B_ia_Q(kspin)%array(homo(kspin), my_B_size(kspin), my_group_L_size))
-               B_ia_Q(kspin)%array = 0.0_dp
-               DO jjB = 1, homo(kspin)
-                  DO iiB = 1, my_B_size(kspin)
-                     B_ia_Q(kspin)%array(jjB, iiB, 1:my_group_L_size) = &
-                        BIb_C(kspin)%array(1:my_group_L_size, iiB, jjB)
-                  END DO
-               END DO
-               DEALLOCATE (BIb_C(kspin)%array)
-            END DO
-
-            ! sum Gamma and dereplicate
-            DO kspin = ispin, jspin
-               ALLOCATE (BIb_C(kspin)%array(my_B_size(kspin), homo(kspin), my_group_L_size))
-               DO proc_shift = 1, para_env_rep%num_pe - 1
-                  ! invert order
-                  proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
-                  proc_receive = proc_map_rep(para_env_rep%mepos + proc_shift)
-
-                  start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
-                  end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
-
-                  CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
-                                   proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group, tag)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(mp2_env,BIb_C,kspin,homo,my_B_size,my_group_L_size)
-                  mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:my_B_size(kspin), 1:homo(kspin), 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:my_B_size(kspin), 1:homo(kspin), 1:my_group_L_size) &
-                     + BIb_C(kspin)%array(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-               END DO
-               DEALLOCATE (BIb_C(kspin)%array)
-            END DO
-
-            IF (my_open_shell_ss) THEN
-               ALLOCATE (BIb_C(ispin)%array(my_group_L_size, my_B_size(ispin), homo(ispin)))
-               BIb_C(ispin)%array = 0.0_dp
-               ! copy the integrals (ia|Q) back
-               DO jjB = 1, homo(ispin)
-                  DO iiB = 1, my_B_size(ispin)
-                     BIb_C(ispin)%array(1:my_group_L_size, iiB, jjB) = &
-                        B_ia_Q(ispin)%array(jjB, iiB, 1:my_group_L_size)
-                  END DO
-               END DO
-               ! There is only one B_ia_Q allocated in this case
-               DEALLOCATE (B_ia_Q(ispin)%array)
-               DEALLOCATE (B_ia_Q)
-            END IF
-
          END IF
 
          IF (my_open_shell_SS .OR. my_alpha_beta_case) THEN
@@ -673,14 +620,6 @@ CONTAINS
       END DO
       END DO
 
-      DEALLOCATE (integ_group_pos2color_sub)
-      DEALLOCATE (proc_map)
-      DEALLOCATE (proc_map_rep)
-      DEALLOCATE (ranges_info_array)
-
-      CALL cp_para_env_release(para_env_exchange)
-      CALL cp_para_env_release(para_env_rep)
-
       DEALLOCATE (replicated)
 
       IF (calc_forces) THEN
@@ -691,13 +630,54 @@ CONTAINS
          gd_array%sizes(:) = sizes_array_orig
          DEALLOCATE (sizes_array_orig)
 
-         ! Reduce size of Gamma_P_ia to save memory
+         ! make a copy of the original integrals (ia|Q)
+         my_group_L_size = my_group_L_size_orig
+         ALLOCATE (B_ia_Q(ispin:jspin))
+         DO ispin = 1, nspins
+            ALLOCATE (B_ia_Q(ispin)%array(homo(ispin), my_B_size(ispin), my_group_L_size))
+            B_ia_Q(ispin)%array = 0.0_dp
+            DO jjB = 1, homo(ispin)
+               DO iiB = 1, my_B_size(ispin)
+                  B_ia_Q(ispin)%array(jjB, iiB, 1:my_group_L_size) = &
+                     BIb_C(ispin)%array(1:my_group_L_size, iiB, jjB)
+               END DO
+            END DO
+            DEALLOCATE (BIb_C(ispin)%array)
+         END DO
+
+         ! sum Gamma and dereplicate
          DO ispin = 1, nspins
             ALLOCATE (BIb_C(ispin)%array(my_B_size(ispin), homo(ispin), my_group_L_size))
+            DO proc_shift = 1, para_env_rep%num_pe - 1
+               ! invert order
+               proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
+               proc_receive = proc_map_rep(para_env_rep%mepos + proc_shift)
+
+               start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
+               end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
+
+               CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, start_point:end_point), &
+                                proc_send, BIb_C(ispin)%array, proc_receive, para_env_rep%group, tag)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(mp2_env,BIb_C,ispin,homo,my_B_size,my_group_L_size)
+               mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size(ispin), 1:homo(ispin), 1:my_group_L_size) = &
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size(ispin), 1:homo(ispin), 1:my_group_L_size) &
+                  + BIb_C(ispin)%array(:, :, :)
+!$OMP END PARALLEL WORKSHARE
+            END DO
+
             BIb_C(ispin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, 1:my_group_L_size)
             DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
             CALL MOVE_ALLOC(BIb_C(ispin)%array, mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
          END DO
+
+         DEALLOCATE (integ_group_pos2color_sub)
+         DEALLOCATE (proc_map)
+         DEALLOCATE (proc_map_rep)
+         DEALLOCATE (ranges_info_array)
+
+         CALL cp_para_env_release(para_env_exchange)
+         CALL cp_para_env_release(para_env_rep)
 
          ! B_ia_Q(ispin)%array will be deallocated inside of complete_gamma
          DO ispin = 1, nspins
@@ -709,6 +689,15 @@ CONTAINS
                                 sub_proc_map, ispin)
          END DO
          DEALLOCATE (B_ia_Q)
+      ELSE
+
+         DEALLOCATE (integ_group_pos2color_sub)
+         DEALLOCATE (proc_map)
+         DEALLOCATE (proc_map_rep)
+         DEALLOCATE (ranges_info_array)
+
+         CALL cp_para_env_release(para_env_exchange)
+         CALL cp_para_env_release(para_env_rep)
       END IF
       DEALLOCATE (sub_proc_map)
 
