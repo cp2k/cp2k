@@ -1235,20 +1235,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_integ_group_size'
 
-      INTEGER                                            :: best_block_size, best_integ_group_size, &
-                                                            handle, iiB, min_integ_group_size
+      INTEGER                                            :: block_size, handle, iiB, &
+                                                            max_repl_group_size, &
+                                                            min_integ_group_size
       INTEGER(KIND=int_8)                                :: mem
-      REAL(KIND=dp)                                      :: mem_for_aK, mem_for_iaK, mem_for_rep, &
-                                                            mem_min, mem_per_group, mem_real
+      REAL(KIND=dp)                                      :: mem_base, mem_min, mem_per_blk, &
+                                                            mem_per_repl, mem_per_repl_blk, &
+                                                            mem_real
 
       CALL timeset(routineN, handle)
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
-
-      ! Calculate available memory and create integral group according to that
-      ! mem_for_iaK is the memory needed for storing the 3 centre integrals
-      mem_for_iaK = MAXVAL(REAL(homo, KIND=dp)*virtual)*dimen_RI*8.0_dp/(1024_dp**2)
-      mem_for_aK = REAL(MAXVAL(virtual), KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
 
       CALL m_memory(mem)
       mem_real = (mem + 1024*1024 - 1)/(1024*1024)
@@ -1256,75 +1253,68 @@ CONTAINS
       ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
 
+      mem_base = 0.0_dp
+      mem_per_blk = 0.0_dp
+      mem_per_repl = 0.0_dp
+      mem_per_repl_blk = 0.0_dp
+
       ! BIB_C_copy/external_i_aL/Gamma_P_ia
-      mem_min = MAXVAL(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
-      IF (calc_forces) THEN
-         mem_min = MAX(mem_min, 2.0_dp*MAXVAL(maxsize(gd_array)*maxsize(gd_B_virtual))*8.0_dp/(1024**2))
-      END IF
+      mem_per_repl = mem_per_repl + MAXVAL(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))* &
+                                           maxsize(gd_B_virtual))*8.0_dp/(1024**2)
       ! BIB_C
-      mem_min = MAXVAL(REAL(homo, KIND=dp)*maxsize(gd_B_virtual))*maxsize(gd_array)*8.0_dp/(1024**2)
+      mem_per_repl = mem_per_repl + SUM(REAL(homo, KIND=dp)*maxsize(gd_B_virtual))*maxsize(gd_array)*8.0_dp/(1024**2)
+      ! BIB_C
+      mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
       ! local_i_aL+local_j_aL
-      mem_min = mem_min + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
       ! local_ab
-      mem_min = mem_min + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+      mem_base = mem_base + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
 
       IF (calc_forces) THEN
          ! Y_i_aP+Y_j_aP
-         mem_min = mem_min + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
+         mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
          ! local_ba/t_ab
-         mem_min = mem_min + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+         mem_base = mem_base + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
          ! P_ij
-         mem_min = mem_min + SUM(REAL(homo, KIND=dp)*homo)*8.0_dp/(1024**2)
+         mem_base = mem_base + SUM(REAL(homo, KIND=dp)*homo)*8.0_dp/(1024**2)
          ! P_ab
-         mem_min = mem_min + SUM(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+         mem_base = mem_base + SUM(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
       END IF
 
-      IF (SIZE(homo) == 1) THEN
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
-            mem_min, ' MiB'
-      END IF
+      block_size = 1
+      IF (mp2_env%ri_mp2%block_size > 0) block_size = mp2_env%ri_mp2%block_size
+
+      mem_min = mem_base + mem_per_repl + (mem_per_blk + mem_per_repl_blk)*block_size
+
+      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum available memory per MPI process:', &
+         mem_real, ' MiB'
+      IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
+         mem_min, ' MiB'
 
       mem_real = mp2_env%mp2_memory
 
-      mem_per_group = mem_real*para_env_sub%num_pe
-
       ! here we try to find the best block_size and integ_group_size
-      best_integ_group_size = ngroup
-      best_block_size = 1
+      integ_group_size = ngroup
+      ! Remove the fixed memory and divide by the memory per replication group size
+      max_repl_group_size = MIN(MAX(FLOOR((mem_real - mem_base - mem_per_blk*block_size)/ &
+                                          (mem_per_repl + mem_per_repl_blk*block_size)), 1), ngroup)
+      ! Convert to an integration group size
+      min_integ_group_size = ngroup/max_repl_group_size
 
-      ! in the open shell case no replication and no block communication is done
-      IF (SIZE(homo) == 1) THEN
-         ! Here we split the memory half for the communication, half for replication
-         IF (mp2_env%ri_mp2%block_size > 0) THEN
-            best_block_size = mp2_env%ri_mp2%block_size
-            mem_for_rep = MAX(mem_min, mem_per_group - 2.0_dp*mem_for_aK*best_block_size)
-         ELSE
-            mem_for_rep = mem_per_group/2.0_dp
-         END IF
-         ! calculate the minimum replication group size according to the available memory
-         min_integ_group_size = CEILING(2.0_dp*mem_for_iaK/mem_for_rep)
-
-         integ_group_size = MIN(min_integ_group_size, ngroup) - 1
-         DO iiB = min_integ_group_size + 1, ngroup
-            integ_group_size = integ_group_size + 1
-            ! check that the ngroup is a multiple of  integ_group_size
-            IF (MOD(ngroup, integ_group_size) /= 0) CYCLE
-            ! check that the integ group size is not too small (10% is empirical for now)
-            IF (REAL(integ_group_size, KIND=dp)/REAL(ngroup, KIND=dp) < 0.1_dp) CYCLE
-
-            best_integ_group_size = integ_group_size
+      ! Ensure that the integration group size is a divisor of the number of sub groups
+      DO iiB = MAX(MIN(min_integ_group_size, ngroup), 1), ngroup
+         ! check that the ngroup is a multiple of  integ_group_size
+         IF (MOD(ngroup, iiB) == 0) THEN
+            integ_group_size = iiB
             EXIT
-         END DO
-      END IF
-
-      integ_group_size = best_integ_group_size
-
-      IF (SIZE(homo) == 1) THEN
-         IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
-            CALL m_flush(unit_nr)
          END IF
+         integ_group_size = integ_group_size + 1
+      END DO
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "RI_INFO| Group size for integral replication:", integ_group_size*para_env_sub%num_pe
+         CALL m_flush(unit_nr)
       END IF
 
       num_integ_group = ngroup/integ_group_size
