@@ -118,6 +118,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
       LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
                                                             my_beta_beta_case, my_open_shell_SS
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: replicated
       REAL(KIND=dp)                                      :: amp_fac, my_Emp2_Cou, my_Emp2_EX, &
                                                             sym_fac, t_new, t_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -162,6 +163,9 @@ CONTAINS
          integ_group_size, ngroup, &
          num_integ_group, virtual, calc_forces)
 
+      ALLOCATE (replicated(nspins))
+      replicated = .FALSE.
+
       ! We cannot fix the tag because of the recv routine
       tag = 42
 
@@ -197,9 +201,14 @@ CONTAINS
             integ_group_pos2color_sub, proc_map, proc_map_rep, sizes_array_orig, &
             sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
 
-         CALL replicate_iaK_2intgroup(BIb_C(ispin)%array, para_env_exchange, para_env_rep, &
-                                      homo(ispin), proc_map_rep, gd_array%sizes, my_B_size(ispin), &
-                                      my_group_L_size, ranges_info_array)
+         DO kspin = ispin, jspin
+         IF (.NOT. replicated(kspin)) THEN
+            CALL replicate_iaK_2intgroup(BIb_C(kspin)%array, para_env_exchange, para_env_rep, &
+                                         homo(ispin), proc_map_rep, gd_array%sizes, my_B_size(kspin), &
+                                         my_group_L_size, ranges_info_array)
+            replicated(kspin) = .TRUE.
+         END IF
+         END DO
 
          CALL mp2_ri_allocate_no_blk(local_ab, t_ab, mp2_env, homo, virtual, my_B_size, &
                                      my_group_L_size, calc_forces, ispin, jspin, local_ba)
@@ -711,6 +720,8 @@ CONTAINS
 
       END DO
       END DO
+
+      DEALLOCATE (replicated)
 
       ! We do not need this matrix later, so deallocate it here to safe memory
       IF (calc_forces) DEALLOCATE (mp2_env%ri_grad%PQ_half)
