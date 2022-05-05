@@ -574,6 +574,48 @@ CONTAINS
 
             END IF
 
+            ! Dereplicate BIb_C and Gamma_P_ia to save memory
+            ! These matrices will not be needed in that fashion anymore
+            ! B_ia_Q will needed later
+            IF (calc_forces .AND. jspin == nspins) THEN
+               IF (.NOT. ALLOCATED(B_ia_Q)) ALLOCATE (B_ia_Q(nspins))
+               ALLOCATE (B_ia_Q(ispin)%array(homo(ispin), my_B_size(ispin), my_group_L_size_orig))
+               B_ia_Q(ispin)%array = 0.0_dp
+               DO jjB = 1, homo(ispin)
+                  DO iiB = 1, my_B_size(ispin)
+                     B_ia_Q(ispin)%array(jjB, iiB, 1:my_group_L_size_orig) = &
+                        BIb_C(ispin)%array(1:my_group_L_size_orig, iiB, jjB)
+                  END DO
+               END DO
+               DEALLOCATE (BIb_C(ispin)%array)
+
+               ! sum Gamma and dereplicate
+               ALLOCATE (BIb_C(ispin)%array(my_B_size(ispin), homo(ispin), my_group_L_size_orig))
+               DO proc_shift = 1, para_env_rep%num_pe - 1
+                  ! invert order
+                  proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
+                  proc_receive = proc_map_rep(para_env_rep%mepos + proc_shift)
+
+                  start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
+                  end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
+
+                  CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, start_point:end_point), &
+                                   proc_send, BIb_C(ispin)%array, proc_receive, para_env_rep%group, tag)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(mp2_env,BIb_C,ispin,homo,my_B_size,my_group_L_size_orig)
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, 1:my_group_L_size_orig) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, 1:my_group_L_size_orig) &
+                     + BIb_C(ispin)%array(:, :, :)
+!$OMP END PARALLEL WORKSHARE
+               END DO
+
+               BIb_C(ispin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, 1:my_group_L_size_orig)
+               DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
+               CALL MOVE_ALLOC(BIb_C(ispin)%array, mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
+            ELSE IF (jspin == nspins) THEN
+               DEALLOCATE (BIb_C(ispin)%array)
+            END IF
+
             CALL mp_sum(my_Emp2_Cou, para_env%group)
             CALL mp_sum(my_Emp2_Ex, para_env%group)
 
@@ -593,7 +635,16 @@ CONTAINS
                Emp2_EX = Emp2_EX + my_Emp2_EX
             END IF
          END DO
+
       END DO
+
+      DEALLOCATE (integ_group_pos2color_sub)
+      DEALLOCATE (proc_map)
+      DEALLOCATE (proc_map_rep)
+      DEALLOCATE (ranges_info_array)
+
+      CALL cp_para_env_release(para_env_exchange)
+      CALL cp_para_env_release(para_env_rep)
 
       IF (calc_forces) THEN
          ! recover original information (before replication)
@@ -605,52 +656,6 @@ CONTAINS
 
          ! Remove replication from BIb_C and reorder the matrix
          my_group_L_size = my_group_L_size_orig
-         ALLOCATE (B_ia_Q(nspins))
-         DO ispin = 1, nspins
-            ALLOCATE (B_ia_Q(ispin)%array(homo(ispin), my_B_size(ispin), my_group_L_size))
-            B_ia_Q(ispin)%array = 0.0_dp
-            DO jjB = 1, homo(ispin)
-               DO iiB = 1, my_B_size(ispin)
-                  B_ia_Q(ispin)%array(jjB, iiB, 1:my_group_L_size) = &
-                     BIb_C(ispin)%array(1:my_group_L_size, iiB, jjB)
-               END DO
-            END DO
-            DEALLOCATE (BIb_C(ispin)%array)
-         END DO
-
-         ! sum Gamma and dereplicate
-         DO ispin = 1, nspins
-            ALLOCATE (BIb_C(ispin)%array(my_B_size(ispin), homo(ispin), my_group_L_size))
-            DO proc_shift = 1, para_env_rep%num_pe - 1
-               ! invert order
-               proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
-               proc_receive = proc_map_rep(para_env_rep%mepos + proc_shift)
-
-               start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
-               end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
-
-               CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, start_point:end_point), &
-                                proc_send, BIb_C(ispin)%array, proc_receive, para_env_rep%group, tag)
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
-!$OMP          SHARED(mp2_env,BIb_C,ispin,homo,my_B_size,my_group_L_size)
-               mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size(ispin), 1:homo(ispin), 1:my_group_L_size) = &
-                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(1:my_B_size(ispin), 1:homo(ispin), 1:my_group_L_size) &
-                  + BIb_C(ispin)%array(:, :, :)
-!$OMP END PARALLEL WORKSHARE
-            END DO
-
-            BIb_C(ispin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, 1:my_group_L_size)
-            DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
-            CALL MOVE_ALLOC(BIb_C(ispin)%array, mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
-         END DO
-
-         DEALLOCATE (integ_group_pos2color_sub)
-         DEALLOCATE (proc_map)
-         DEALLOCATE (proc_map_rep)
-         DEALLOCATE (ranges_info_array)
-
-         CALL cp_para_env_release(para_env_exchange)
-         CALL cp_para_env_release(para_env_rep)
 
          ! B_ia_Q(ispin)%array will be deallocated inside of complete_gamma
          DO ispin = 1, nspins
@@ -671,15 +676,6 @@ CONTAINS
          END DO
          ! release para_env_P
          CALL cp_para_env_release(para_env_P)
-      ELSE
-
-         DEALLOCATE (integ_group_pos2color_sub)
-         DEALLOCATE (proc_map)
-         DEALLOCATE (proc_map_rep)
-         DEALLOCATE (ranges_info_array)
-
-         CALL cp_para_env_release(para_env_exchange)
-         CALL cp_para_env_release(para_env_rep)
       END IF
       DEALLOCATE (sub_proc_map)
 
