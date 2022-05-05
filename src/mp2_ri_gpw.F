@@ -104,7 +104,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_en'
 
       INTEGER :: a, a_global, b, b_global, block_size, decil, end_point, handle, handle2, handle3, &
-         iiB, ij_counter, ij_counter_send, ij_index, integ_group_size, ispin, jjB, jspin, kspin, &
+         iiB, ij_counter, ij_counter_send, ij_index, integ_group_size, ispin, jjB, jspin, &
          max_ij_pairs, my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, &
          my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
          num_IJ_blocks, num_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
@@ -118,7 +118,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
       LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
                                                             my_beta_beta_case, my_open_shell_SS
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: replicated
       REAL(KIND=dp)                                      :: amp_fac, my_Emp2_Cou, my_Emp2_EX, &
                                                             sym_fac, t_new, t_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -173,439 +172,430 @@ CONTAINS
          integ_group_pos2color_sub, proc_map, proc_map_rep, sizes_array_orig, &
          sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
 
-      ALLOCATE (replicated(nspins))
-      replicated = .FALSE.
-
       ! We cannot fix the tag because of the recv routine
       tag = 42
 
       DO jspin = 1, nspins
-      DO ispin = 1, jspin
 
-         my_open_shell_SS = (nspins == 2) .AND. (ispin == jspin)
+         CALL replicate_iaK_2intgroup(BIb_C(jspin)%array, para_env_exchange, para_env_rep, &
+                                      homo(jspin), proc_map_rep, gd_array%sizes, my_B_size(jspin), &
+                                      my_group_L_size, ranges_info_array)
 
-         ! t_ab = amp_fac*(:,a|:,b)-(:,b|:,a)
-         ! If we calculate the gradient we need to distinguish
-         ! between alpha-alpha and beta-beta cases for UMP2
+         DO ispin = 1, jspin
 
-         my_alpha_alpha_case = .FALSE.
-         my_beta_beta_case = .FALSE.
-         my_alpha_beta_case = .FALSE.
-         IF (ispin /= jspin) THEN
-            my_alpha_beta_case = .TRUE.
-         ELSE IF (my_open_shell_SS) THEN
-            IF (ispin == 1) my_alpha_alpha_case = .TRUE.
-            IF (ispin == 2) my_beta_beta_case = .TRUE.
-         END IF
+            my_open_shell_SS = (nspins == 2) .AND. (ispin == jspin)
 
-         amp_fac = mp2_env%scale_S + mp2_env%scale_T
-         IF (my_alpha_beta_case .OR. my_open_shell_SS) amp_fac = mp2_env%scale_T
+            ! t_ab = amp_fac*(:,a|:,b)-(:,b|:,a)
+            ! If we calculate the gradient we need to distinguish
+            ! between alpha-alpha and beta-beta cases for UMP2
 
-         DO kspin = ispin, jspin
-         IF (.NOT. replicated(kspin)) THEN
-            CALL replicate_iaK_2intgroup(BIb_C(kspin)%array, para_env_exchange, para_env_rep, &
-                                         homo(kspin), proc_map_rep, gd_array%sizes, my_B_size(kspin), &
-                                         my_group_L_size, ranges_info_array)
-            replicated(kspin) = .TRUE.
-         END IF
-         END DO
-
-         CALL mp2_ri_allocate_no_blk(local_ab, t_ab, mp2_env, homo, virtual, my_B_size, &
-                                     my_group_L_size, calc_forces, ispin, jspin, local_ba)
-
-         CALL mp2_ri_get_block_size( &
-            mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
-            homo(ispin), dimen_RI, unit_nr, block_size, &
-            ngroup, num_IJ_blocks, &
-            virtual(ispin), my_alpha_beta_case, &
-            my_open_shell_SS, calc_forces)
-
-         ! *****************************************************************
-         ! **********  REPLICATION-BLOCKED COMMUNICATION SCHEME  ***********
-         ! *****************************************************************
-         ! introduce block size, the number of occupied orbitals has to be a
-         ! multiple of the block size
-
-         ! Calculate the maximum number of ij pairs that have to be computed
-         ! among groups
-         CALL mp2_ri_communication(my_alpha_beta_case, total_ij_pairs, homo(ispin), homo(jspin), num_IJ_blocks, &
-                                   block_size, ngroup, ij_map, color_sub, my_ij_pairs, my_open_shell_SS, unit_nr)
-
-         ALLOCATE (num_ij_pairs(0:para_env_exchange%num_pe - 1))
-         CALL mp_allgather(my_ij_pairs, num_ij_pairs, para_env_exchange%group)
-
-         max_ij_pairs = MAXVAL(num_ij_pairs)
-
-         ! start real stuff
-         CALL mp2_ri_allocate_blk(dimen_RI, my_B_size, block_size, local_i_aL, &
-                                  local_j_aL, calc_forces, Y_i_aP, Y_j_aP, ispin, jspin)
-
-         IF (unit_nr > 0) THEN
-            IF (nspins == 1) THEN
-               WRITE (unit_nr, *) "Start loop run"
-            ELSE IF (ispin == 1 .AND. jspin == 1) THEN
-               WRITE (unit_nr, *) "Start loop run alpha-alpha"
-            ELSE IF (ispin == 1 .AND. jspin == 2) THEN
-               WRITE (unit_nr, *) "Start loop run alpha-beta"
-            ELSE IF (ispin == 2 .AND. jspin == 2) THEN
-               WRITE (unit_nr, *) "Start loop run beta-beta"
+            my_alpha_alpha_case = .FALSE.
+            my_beta_beta_case = .FALSE.
+            my_alpha_beta_case = .FALSE.
+            IF (ispin /= jspin) THEN
+               my_alpha_beta_case = .TRUE.
+            ELSE IF (my_open_shell_SS) THEN
+               IF (ispin == 1) my_alpha_alpha_case = .TRUE.
+               IF (ispin == 2) my_beta_beta_case = .TRUE.
             END IF
-            CALL m_flush(unit_nr)
-            t_start = m_walltime()
-         END IF
 
-         CALL timeset(routineN//"_RI_loop", handle2)
-         my_Emp2_Cou = 0.0_dp
-         my_Emp2_EX = 0.0_dp
-         DO ij_index = 1, max_ij_pairs
+            amp_fac = mp2_env%scale_S + mp2_env%scale_T
+            IF (my_alpha_beta_case .OR. my_open_shell_SS) amp_fac = mp2_env%scale_T
+
+            CALL mp2_ri_allocate_no_blk(local_ab, t_ab, mp2_env, homo, virtual, my_B_size, &
+                                        my_group_L_size, calc_forces, ispin, jspin, local_ba)
+
+            CALL mp2_ri_get_block_size( &
+               mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
+               homo(ispin), dimen_RI, unit_nr, block_size, &
+               ngroup, num_IJ_blocks, &
+               virtual(ispin), my_alpha_beta_case, &
+               my_open_shell_SS, calc_forces)
+
+            ! *****************************************************************
+            ! **********  REPLICATION-BLOCKED COMMUNICATION SCHEME  ***********
+            ! *****************************************************************
+            ! introduce block size, the number of occupied orbitals has to be a
+            ! multiple of the block size
+
+            ! Calculate the maximum number of ij pairs that have to be computed
+            ! among groups
+            CALL mp2_ri_communication(my_alpha_beta_case, total_ij_pairs, homo(ispin), homo(jspin), num_IJ_blocks, &
+                                      block_size, ngroup, ij_map, color_sub, my_ij_pairs, my_open_shell_SS, unit_nr)
+
+            ALLOCATE (num_ij_pairs(0:para_env_exchange%num_pe - 1))
+            CALL mp_allgather(my_ij_pairs, num_ij_pairs, para_env_exchange%group)
+
+            max_ij_pairs = MAXVAL(num_ij_pairs)
+
+            ! start real stuff
+            CALL mp2_ri_allocate_blk(dimen_RI, my_B_size, block_size, local_i_aL, &
+                                     local_j_aL, calc_forces, Y_i_aP, Y_j_aP, ispin, jspin)
 
             IF (unit_nr > 0) THEN
-               decil = ij_index*10/max_ij_pairs
-               IF (decil /= (ij_index - 1)*10/max_ij_pairs) THEN
-                  t_new = m_walltime()
-                  t_new = (t_new - t_start)/60.0_dp*(max_ij_pairs - ij_index + 1)/MAX(ij_index - 1, 1)
-                  WRITE (unit_nr, FMT="(T3,A)") "Percentage of finished loop: "// &
-                     cp_to_string(decil*10)//". Minutes left: "//cp_to_string(t_new)
-                  CALL m_flush(unit_nr)
+               IF (nspins == 1) THEN
+                  WRITE (unit_nr, *) "Start loop run"
+               ELSE IF (ispin == 1 .AND. jspin == 1) THEN
+                  WRITE (unit_nr, *) "Start loop run alpha-alpha"
+               ELSE IF (ispin == 1 .AND. jspin == 2) THEN
+                  WRITE (unit_nr, *) "Start loop run alpha-beta"
+               ELSE IF (ispin == 2 .AND. jspin == 2) THEN
+                  WRITE (unit_nr, *) "Start loop run beta-beta"
                END IF
+               CALL m_flush(unit_nr)
+               t_start = m_walltime()
             END IF
 
-            IF (calc_forces) THEN
-               Y_i_aP = 0.0_dp
-               Y_j_aP = 0.0_dp
-            END IF
+            CALL timeset(routineN//"_RI_loop", handle2)
+            my_Emp2_Cou = 0.0_dp
+            my_Emp2_EX = 0.0_dp
+            DO ij_index = 1, max_ij_pairs
 
-            IF (ij_index <= my_ij_pairs) THEN
-               ! We have work to do
-               ij_counter = (ij_index - MIN(1, color_sub))*ngroup + color_sub
-               my_i = ij_map(1, ij_counter)
-               my_j = ij_map(2, ij_counter)
-               my_block_size = ij_map(3, ij_counter)
-
-               local_i_aL = 0.0_dp
-               CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
-                                    BIb_C(ispin)%array(:, :, my_i:my_i + my_block_size - 1))
-
-               local_j_aL = 0.0_dp
-               CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
-                                    BIb_C(jspin)%array(:, :, my_j:my_j + my_block_size - 1))
-
-               ! collect data from other proc
-               CALL timeset(routineN//"_comm", handle3)
-               DO proc_shift = 1, para_env_exchange%num_pe - 1
-                  proc_send = proc_map(para_env_exchange%mepos + proc_shift)
-                  proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
-
-                  send_ij_index = num_ij_pairs(proc_send)
-
-                  CALL get_group_dist(gd_array, proc_receive, sizes=rec_L_size)
-                  ALLOCATE (BI_C_rec(rec_L_size, MAXVAL(my_B_size), my_block_size))
-
-                  IF (ij_index <= send_ij_index) THEN
-                     ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
-                                       integ_group_pos2color_sub(proc_send)
-                     send_i = ij_map(1, ij_counter_send)
-                     send_j = ij_map(2, ij_counter_send)
-                     send_block_size = ij_map(3, ij_counter_send)
-
-                     ! occupied i
-                     BI_C_rec = 0.0_dp
-                     CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
-                                      proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group, tag)
-
-                     CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
-                                          BI_C_rec(:, 1:my_B_size(ispin), :))
-
-                     ! occupied j
-                     BI_C_rec = 0.0_dp
-                     CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
-                                      proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group, tag)
-
-                     CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
-                                          BI_C_rec(:, 1:my_B_size(jspin), :))
-
-                  ELSE
-                     ! we send nothing while we know that we have to receive something
-
-                     ! occupied i
-                     BI_C_rec = 0.0_dp
-                     CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
-
-                     CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
-                                          BI_C_rec(:, 1:my_B_size(ispin), :))
-
-                     ! occupied j
-                     BI_C_rec = 0.0_dp
-                     CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
-
-                     CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
-                                          BI_C_rec(:, 1:my_B_size(jspin), :))
-
+               IF (unit_nr > 0) THEN
+                  decil = ij_index*10/max_ij_pairs
+                  IF (decil /= (ij_index - 1)*10/max_ij_pairs) THEN
+                     t_new = m_walltime()
+                     t_new = (t_new - t_start)/60.0_dp*(max_ij_pairs - ij_index + 1)/MAX(ij_index - 1, 1)
+                     WRITE (unit_nr, FMT="(T3,A)") "Percentage of finished loop: "// &
+                        cp_to_string(decil*10)//". Minutes left: "//cp_to_string(t_new)
+                     CALL m_flush(unit_nr)
                   END IF
+               END IF
 
-                  DEALLOCATE (BI_C_rec)
+               IF (calc_forces) THEN
+                  Y_i_aP = 0.0_dp
+                  Y_j_aP = 0.0_dp
+               END IF
 
-               END DO
-               CALL timestop(handle3)
+               IF (ij_index <= my_ij_pairs) THEN
+                  ! We have work to do
+                  ij_counter = (ij_index - MIN(1, color_sub))*ngroup + color_sub
+                  my_i = ij_map(1, ij_counter)
+                  my_j = ij_map(2, ij_counter)
+                  my_block_size = ij_map(3, ij_counter)
 
-               ! loop over the block elements
-               DO iiB = 1, my_block_size
-                  DO jjB = 1, my_block_size
-                     CALL timeset(routineN//"_expansion", handle3)
-                     ASSOCIATE (my_local_i_aL => local_i_aL(:, :, iiB), my_local_j_aL => local_j_aL(:, :, jjB))
+                  local_i_aL = 0.0_dp
+                  CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
+                                       BIb_C(ispin)%array(:, :, my_i:my_i + my_block_size - 1))
 
-                        ! calculate the integrals (ia|jb) strating from my local data ...
-                        local_ab = 0.0_dp
-                        IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
-                           local_ba = 0.0_dp
-                        END IF
-                        CALL dgemm_counter_start(dgemm_counter)
-                        CALL offload_dgemm('T', 'N', my_B_size(ispin), my_B_size(jspin), dimen_RI, 1.0_dp, &
-                                           my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
-                                         0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
-                                           mp2_env%offload_gemm_ctx)
-                        ! Additional integrals only for alpha_beta case and forces
-                        IF (my_alpha_beta_case .AND. calc_forces) THEN
-                           local_ba(my_B_virtual_start(jspin):my_B_virtual_end(jspin), :) = &
-                              TRANSPOSE(local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :))
-                        END IF
-                        ! ... and from the other of my subgroup
-                        DO proc_shift = 1, para_env_sub%num_pe - 1
-                           proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
-                           proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+                  local_j_aL = 0.0_dp
+                  CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
+                                       BIb_C(jspin)%array(:, :, my_j:my_j + my_block_size - 1))
 
-                           CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, &
-                                               rec_B_virtual_end, rec_B_size)
+                  ! collect data from other proc
+                  CALL timeset(routineN//"_comm", handle3)
+                  DO proc_shift = 1, para_env_exchange%num_pe - 1
+                     proc_send = proc_map(para_env_exchange%mepos + proc_shift)
+                     proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
-                           ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
-                           external_i_aL = 0.0_dp
+                     send_ij_index = num_ij_pairs(proc_send)
 
-                           CALL mp_sendrecv(my_local_i_aL, proc_send, &
-                                            external_i_aL, proc_receive, &
-                                            para_env_sub%group, tag)
+                     CALL get_group_dist(gd_array, proc_receive, sizes=rec_L_size)
+                     ALLOCATE (BI_C_rec(rec_L_size, MAXVAL(my_B_size), my_block_size))
 
-                           CALL offload_dgemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
-                                              external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
-                                          0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(jspin)), rec_B_size, &
-                                              mp2_env%offload_gemm_ctx)
+                     IF (ij_index <= send_ij_index) THEN
+                        ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
+                                          integ_group_pos2color_sub(proc_send)
+                        send_i = ij_map(1, ij_counter_send)
+                        send_j = ij_map(2, ij_counter_send)
+                        send_block_size = ij_map(3, ij_counter_send)
 
-                           DEALLOCATE (external_i_aL)
+                        ! occupied i
+                        BI_C_rec = 0.0_dp
+                        CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
+                                         proc_send, BI_C_rec, proc_receive, &
+                                         para_env_exchange%group, tag)
+
+                        CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
+                                             BI_C_rec(:, 1:my_B_size(ispin), :))
+
+                        ! occupied j
+                        BI_C_rec = 0.0_dp
+                        CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
+                                         proc_send, BI_C_rec, proc_receive, &
+                                         para_env_exchange%group, tag)
+
+                        CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
+                                             BI_C_rec(:, 1:my_B_size(jspin), :))
+
+                     ELSE
+                        ! we send nothing while we know that we have to receive something
+
+                        ! occupied i
+                        BI_C_rec = 0.0_dp
+                        CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
+
+                        CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
+                                             BI_C_rec(:, 1:my_B_size(ispin), :))
+
+                        ! occupied j
+                        BI_C_rec = 0.0_dp
+                        CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
+
+                        CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
+                                             BI_C_rec(:, 1:my_B_size(jspin), :))
+
+                     END IF
+
+                     DEALLOCATE (BI_C_rec)
+
+                  END DO
+                  CALL timestop(handle3)
+
+                  ! loop over the block elements
+                  DO iiB = 1, my_block_size
+                     DO jjB = 1, my_block_size
+                        CALL timeset(routineN//"_expansion", handle3)
+                        ASSOCIATE (my_local_i_aL => local_i_aL(:, :, iiB), my_local_j_aL => local_j_aL(:, :, jjB))
+
+                           ! calculate the integrals (ia|jb) strating from my local data ...
+                           local_ab = 0.0_dp
+                           IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
+                              local_ba = 0.0_dp
+                           END IF
+                           CALL dgemm_counter_start(dgemm_counter)
+                           CALL offload_dgemm('T', 'N', my_B_size(ispin), my_B_size(jspin), dimen_RI, 1.0_dp, &
+                                              my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
+                                              0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), &
+                                              my_B_size(ispin), mp2_env%offload_gemm_ctx)
                            ! Additional integrals only for alpha_beta case and forces
                            IF (my_alpha_beta_case .AND. calc_forces) THEN
+                              local_ba(my_B_virtual_start(jspin):my_B_virtual_end(jspin), :) = &
+                                 TRANSPOSE(local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :))
+                           END IF
+                           ! ... and from the other of my subgroup
+                           DO proc_shift = 1, para_env_sub%num_pe - 1
+                              proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+                              proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-                              CALL get_group_dist(gd_B_virtual(jspin), proc_receive, rec_B_virtual_start, &
+                              CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, &
                                                   rec_B_virtual_end, rec_B_size)
 
                               ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                               external_i_aL = 0.0_dp
 
-                              CALL mp_sendrecv(my_local_j_aL, proc_send, &
+                              CALL mp_sendrecv(my_local_i_aL, proc_send, &
                                                external_i_aL, proc_receive, &
                                                para_env_sub%group, tag)
 
-                              CALL offload_dgemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
-                                                 external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
-                                          0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(ispin)), rec_B_size, &
+                              CALL offload_dgemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
+                                                 external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
+                                          0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(jspin)), rec_B_size, &
                                                  mp2_env%offload_gemm_ctx)
+
                               DEALLOCATE (external_i_aL)
-                           END IF
-                        END DO
-                        IF (my_alpha_beta_case .AND. calc_forces) THEN
-                           ! Is just an approximation, but the call does not allow it, it ought to be (virtual_i*B_size_j+virtual_j*B_size_i)*dimen_RI
-                           CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(ispin) + my_B_size(jspin), dimen_RI)
-                        ELSE
-                           CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(jspin), dimen_RI)
-                        END IF
-                        CALL timestop(handle3)
+                              ! Additional integrals only for alpha_beta case and forces
+                              IF (my_alpha_beta_case .AND. calc_forces) THEN
 
-                        !sample peak memory
-                        CALL m_memory()
+                                 CALL get_group_dist(gd_B_virtual(jspin), proc_receive, rec_B_virtual_start, &
+                                                     rec_B_virtual_end, rec_B_size)
 
-                        CALL timeset(routineN//"_ener", handle3)
-                        ! calculate coulomb only MP2
-                        sym_fac = 2.0_dp
-                        IF (my_i == my_j) sym_fac = 1.0_dp
-                        IF (my_alpha_beta_case) sym_fac = 0.5_dp
-                        DO b = 1, my_B_size(jspin)
-                           b_global = b + my_B_virtual_start(jspin) - 1
-                           DO a = 1, virtual(ispin)
-                              my_Emp2_Cou = my_Emp2_Cou - sym_fac*2.0_dp*local_ab(a, b)**2/ &
-                                            (Eigenval(homo(ispin) + a, ispin) + Eigenval(homo(jspin) + b_global, jspin) - &
-                                             Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
+                                 ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
+                                 external_i_aL = 0.0_dp
+
+                                 CALL mp_sendrecv(my_local_j_aL, proc_send, &
+                                                  external_i_aL, proc_receive, &
+                                                  para_env_sub%group, tag)
+
+                                 CALL offload_dgemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
+                                                    external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
+                                          0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(ispin)), rec_B_size, &
+                                                    mp2_env%offload_gemm_ctx)
+                                 DEALLOCATE (external_i_aL)
+                              END IF
                            END DO
-                        END DO
+                           IF (my_alpha_beta_case .AND. calc_forces) THEN
+                              ! Is just an approximation, but the call does not allow it, it ought to be (virtual_i*B_size_j+virtual_j*B_size_i)*dimen_RI
+                              CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(ispin) + my_B_size(jspin), dimen_RI)
+                           ELSE
+                              CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(jspin), dimen_RI)
+                           END IF
+                           CALL timestop(handle3)
 
-                        IF (calc_ex) THEN
-                           ! contract integrals with orbital energies for exchange MP2 energy
-                           ! starting with local ...
-                           IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) t_ab = 0.0_dp
-                           DO b = 1, my_B_size(ispin)
-                              b_global = b + my_B_virtual_start(ispin) - 1
-                              DO a = 1, my_B_size(ispin)
-                                 a_global = a + my_B_virtual_start(ispin) - 1
-                                 my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*local_ab(b_global, a)/ &
-                                              (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
-                                               Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
-                                 IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) THEN
-                                    t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*local_ab(b_global, a))/ &
-                                                        (Eigenval(homo(ispin) + a_global, ispin) + &
-                                                         Eigenval(homo(ispin) + b_global, ispin) - &
-                                                         Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
-                                 END IF
+                           !sample peak memory
+                           CALL m_memory()
+
+                           CALL timeset(routineN//"_ener", handle3)
+                           ! calculate coulomb only MP2
+                           sym_fac = 2.0_dp
+                           IF (my_i == my_j) sym_fac = 1.0_dp
+                           IF (my_alpha_beta_case) sym_fac = 0.5_dp
+                           DO b = 1, my_B_size(jspin)
+                              b_global = b + my_B_virtual_start(jspin) - 1
+                              DO a = 1, virtual(ispin)
+                                 my_Emp2_Cou = my_Emp2_Cou - sym_fac*2.0_dp*local_ab(a, b)**2/ &
+                                               (Eigenval(homo(ispin) + a, ispin) + Eigenval(homo(jspin) + b_global, jspin) - &
+                                                Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
                               END DO
                            END DO
-                           ! ... and then with external data
-                           DO proc_shift = 1, para_env_sub%num_pe - 1
-                              proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
-                              proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+
+                           IF (calc_ex) THEN
+                              ! contract integrals with orbital energies for exchange MP2 energy
+                              ! starting with local ...
+                              IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) t_ab = 0.0_dp
+                              DO b = 1, my_B_size(ispin)
+                                 b_global = b + my_B_virtual_start(ispin) - 1
+                                 DO a = 1, my_B_size(ispin)
+                                    a_global = a + my_B_virtual_start(ispin) - 1
+                                    my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*local_ab(b_global, a)/ &
+                                              (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
+                                                  Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
+                                    IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) THEN
+                                     t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*local_ab(b_global, a))/ &
+                                                           (Eigenval(homo(ispin) + a_global, ispin) + &
+                                                            Eigenval(homo(ispin) + b_global, ispin) - &
+                                                            Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
+                                    END IF
+                                 END DO
+                              END DO
+                              ! ... and then with external data
+                              DO proc_shift = 1, para_env_sub%num_pe - 1
+                                 proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+                                 proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
                           CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                           CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
-                              ALLOCATE (external_ab(my_B_size(ispin), rec_B_size))
-                              external_ab = 0.0_dp
+                                 ALLOCATE (external_ab(my_B_size(ispin), rec_B_size))
+                                 external_ab = 0.0_dp
 
-                              CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
-                                               external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, &
-                                               para_env_sub%group, tag)
+                                CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
+                                                  external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, &
+                                                  para_env_sub%group, tag)
 
-                              DO b = 1, my_B_size(ispin)
-                                 b_global = b + my_B_virtual_start(ispin) - 1
-                                 DO a = 1, rec_B_size
-                                    a_global = a + rec_B_virtual_start - 1
-                                    my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*external_ab(b, a)/ &
+                                 DO b = 1, my_B_size(ispin)
+                                    b_global = b + my_B_virtual_start(ispin) - 1
+                                    DO a = 1, rec_B_size
+                                       a_global = a + rec_B_virtual_start - 1
+                                       my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*external_ab(b, a)/ &
                                               (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
-                                                  Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
-                                    IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) &
-                                       t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*external_ab(b, a))/ &
-                                                           (Eigenval(homo(ispin) + a_global, ispin) + &
-                                                            Eigenval(homo(ispin) + b_global, ispin) - &
-                                                            Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
+                                                     Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
+                                       IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) &
+                                         t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*external_ab(b, a))/ &
+                                                              (Eigenval(homo(ispin) + a_global, ispin) + &
+                                                               Eigenval(homo(ispin) + b_global, ispin) - &
+                                                               Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
+                                    END DO
                                  END DO
+
+                                 DEALLOCATE (external_ab)
                               END DO
+                           END IF
+                           CALL timestop(handle3)
 
-                              DEALLOCATE (external_ab)
-                           END DO
-                        END IF
-                        CALL timestop(handle3)
+                           IF (calc_forces) THEN
+                              ! update P_ab, Gamma_P_ia
+                              CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
+                                                      Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
+                                                      my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, &
+                                                      sub_proc_map, local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
+                                                      my_open_shell_ss, Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB), local_ba, &
+                                                      ispin, jspin, dgemm_counter)
 
-                        IF (calc_forces) THEN
-                           ! update P_ab, Gamma_P_ia
-                           CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
-                                                   Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
-                                                   my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, &
-                                                   sub_proc_map, local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
-                                                   my_open_shell_ss, Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB), local_ba, &
-                                                   ispin, jspin, dgemm_counter)
+                           END IF
 
-                        END IF
+                        END ASSOCIATE
 
-                     END ASSOCIATE
+                     END DO ! jjB
+                  END DO ! iiB
 
-                  END DO ! jjB
-               END DO ! iiB
+               ELSE
+                  CALL timeset(routineN//"_comm", handle3)
+                  ! No work to do and we know that we have to receive nothing, but send something
+                  ! send data to other proc
+                  DO proc_shift = 1, para_env_exchange%num_pe - 1
+                     proc_send = proc_map(para_env_exchange%mepos + proc_shift)
+                     proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
-            ELSE
-               CALL timeset(routineN//"_comm", handle3)
-               ! No work to do and we know that we have to receive nothing, but send something
-               ! send data to other proc
-               DO proc_shift = 1, para_env_exchange%num_pe - 1
-                  proc_send = proc_map(para_env_exchange%mepos + proc_shift)
-                  proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
+                     send_ij_index = num_ij_pairs(proc_send)
 
-                  send_ij_index = num_ij_pairs(proc_send)
+                     IF (ij_index <= send_ij_index) THEN
+                        ! something to send
+                        ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
+                                          integ_group_pos2color_sub(proc_send)
+                        send_i = ij_map(1, ij_counter_send)
+                        send_j = ij_map(2, ij_counter_send)
+                        send_block_size = ij_map(3, ij_counter_send)
 
-                  IF (ij_index <= send_ij_index) THEN
-                     ! something to send
-                     ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
-                                       integ_group_pos2color_sub(proc_send)
-                     send_i = ij_map(1, ij_counter_send)
-                     send_j = ij_map(2, ij_counter_send)
-                     send_block_size = ij_map(3, ij_counter_send)
+                        ! occupied i
+                        CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
+                                     proc_send, tag, para_env_exchange%group)
+                        ! occupied j
+                        CALL mp_send(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
+                                     proc_send, tag, para_env_exchange%group)
+                     END IF
+                  END DO
+                  CALL timestop(handle3)
+               END IF
 
-                     ! occupied i
-                     CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
-                                  proc_send, tag, para_env_exchange%group)
-                     ! occupied j
-                     CALL mp_send(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
-                                  proc_send, tag, para_env_exchange%group)
-                  END IF
-               END DO
-               CALL timestop(handle3)
-            END IF
+               ! redistribute gamma
+               IF (calc_forces) THEN
+                  CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(ispin)%array, ij_index, my_B_size(ispin), &
+                                              my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
+                                              num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
+                                              ij_map, ranges_info_array, Y_i_aP(:, :, 1:my_block_size), para_env_exchange, &
+                                              gd_array%sizes, 1)
+                  CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(jspin)%array, ij_index, my_B_size(jspin), &
+                                              my_block_size, my_group_L_size, my_j, my_ij_pairs, ngroup, &
+                                              num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
+                                              ij_map, ranges_info_array, Y_j_aP(:, :, 1:my_block_size), para_env_exchange, &
+                                              gd_array%sizes, 2)
+               END IF
 
-            ! redistribute gamma
+            END DO
+            CALL timestop(handle2)
+
+            DEALLOCATE (local_i_aL)
+            DEALLOCATE (local_j_aL)
+            DEALLOCATE (ij_map)
+            DEALLOCATE (num_ij_pairs)
+            DEALLOCATE (local_ab)
+
             IF (calc_forces) THEN
-               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(ispin)%array, ij_index, my_B_size(ispin), &
-                                           my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
-                                           num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                           ij_map, ranges_info_array, Y_i_aP(:, :, 1:my_block_size), para_env_exchange, &
-                                           gd_array%sizes, 1)
-               CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(jspin)%array, ij_index, my_B_size(jspin), &
-                                           my_block_size, my_group_L_size, my_j, my_ij_pairs, ngroup, &
-                                           num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                           ij_map, ranges_info_array, Y_j_aP(:, :, 1:my_block_size), para_env_exchange, &
-                                           gd_array%sizes, 2)
+               DEALLOCATE (Y_i_aP)
+               DEALLOCATE (Y_j_aP)
+               IF (ALLOCATED(t_ab)) THEN
+                  DEALLOCATE (t_ab)
+               END IF
+               DEALLOCATE (local_ba)
+
+               ! here we check if there are almost degenerate ij
+               ! pairs and we update P_ij with these contribution.
+               ! If all pairs are degenerate with each other this step will scale O(N^6),
+               ! if the number of degenerate pairs scales linearly with the system size
+               ! this step will scale O(N^5).
+               ! Start counting the number of almost degenerate ij pairs according
+               ! to eps_canonical
+               CALL quasi_degenerate_P_ij( &
+                  mp2_env, Eigenval(:, ispin:jspin), homo(ispin:jspin), virtual(ispin:jspin), my_open_shell_ss, &
+                  my_beta_beta_case, Bib_C(ispin:jspin), unit_nr, dimen_RI, &
+                  my_B_size(ispin:jspin), ngroup, num_integ_group, my_group_L_size, &
+                  color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
+                  my_B_virtual_start(ispin:jspin), my_B_virtual_end(ispin:jspin), gd_array%sizes, gd_B_virtual(ispin:jspin), &
+                  sub_proc_map, integ_group_pos2color_sub, dgemm_counter)
+
             END IF
 
-         END DO
-         CALL timestop(handle2)
+            CALL mp_sum(my_Emp2_Cou, para_env%group)
+            CALL mp_sum(my_Emp2_Ex, para_env%group)
 
-         DEALLOCATE (local_i_aL)
-         DEALLOCATE (local_j_aL)
-         DEALLOCATE (ij_map)
-         DEALLOCATE (num_ij_pairs)
-         DEALLOCATE (local_ab)
-
-         IF (calc_forces) THEN
-            DEALLOCATE (Y_i_aP)
-            DEALLOCATE (Y_j_aP)
-            IF (ALLOCATED(t_ab)) THEN
-               DEALLOCATE (t_ab)
-            END IF
-            DEALLOCATE (local_ba)
-
-            ! here we check if there are almost degenerate ij
-            ! pairs and we update P_ij with these contribution.
-            ! If all pairs are degenerate with each other this step will scale O(N^6),
-            ! if the number of degenerate pairs scales linearly with the system size
-            ! this step will scale O(N^5).
-            ! Start counting the number of almost degenerate ij pairs according
-            ! to eps_canonical
-            CALL quasi_degenerate_P_ij( &
-               mp2_env, Eigenval(:, ispin:jspin), homo(ispin:jspin), virtual(ispin:jspin), my_open_shell_ss, &
-               my_beta_beta_case, Bib_C(ispin:jspin), unit_nr, dimen_RI, &
-               my_B_size(ispin:jspin), ngroup, num_integ_group, my_group_L_size, &
-               color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
-               my_B_virtual_start(ispin:jspin), my_B_virtual_end(ispin:jspin), gd_array%sizes, gd_B_virtual(ispin:jspin), &
-               sub_proc_map, integ_group_pos2color_sub, dgemm_counter)
-
-         END IF
-
-         CALL mp_sum(my_Emp2_Cou, para_env%group)
-         CALL mp_sum(my_Emp2_Ex, para_env%group)
-
-         IF (my_open_shell_SS .OR. my_alpha_beta_case) THEN
-            IF (my_alpha_beta_case) THEN
-               Emp2_S = Emp2_S + my_Emp2_Cou
-               Emp2_Cou = Emp2_Cou + my_Emp2_Cou
+            IF (my_open_shell_SS .OR. my_alpha_beta_case) THEN
+               IF (my_alpha_beta_case) THEN
+                  Emp2_S = Emp2_S + my_Emp2_Cou
+                  Emp2_Cou = Emp2_Cou + my_Emp2_Cou
+               ELSE
+                  my_Emp2_Cou = my_Emp2_Cou*0.25_dp
+                  my_Emp2_EX = my_Emp2_EX*0.5_dp
+                  Emp2_T = Emp2_T + my_Emp2_Cou + my_Emp2_EX
+                  Emp2_Cou = Emp2_Cou + my_Emp2_Cou
+                  Emp2_EX = Emp2_EX + my_Emp2_EX
+               END IF
             ELSE
-               my_Emp2_Cou = my_Emp2_Cou*0.25_dp
-               my_Emp2_EX = my_Emp2_EX*0.5_dp
-               Emp2_T = Emp2_T + my_Emp2_Cou + my_Emp2_EX
                Emp2_Cou = Emp2_Cou + my_Emp2_Cou
                Emp2_EX = Emp2_EX + my_Emp2_EX
             END IF
-         ELSE
-            Emp2_Cou = Emp2_Cou + my_Emp2_Cou
-            Emp2_EX = Emp2_EX + my_Emp2_EX
-         END IF
+         END DO
       END DO
-      END DO
-
-      DEALLOCATE (replicated)
 
       IF (calc_forces) THEN
          ! recover original information (before replication)
