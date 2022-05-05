@@ -706,15 +706,6 @@ CONTAINS
          DEALLOCATE (proc_map_rep)
          DEALLOCATE (ranges_info_array)
 
-         IF (.NOT. my_open_shell_SS) THEN
-            ! keep the array for the next calculations
-            IF (ALLOCATED(BIb_C(ispin)%array)) DEALLOCATE (BIb_C(ispin)%array)
-            CALL release_group_dist(gd_array)
-            DO kspin = ispin, jspin
-               CALL release_group_dist(gd_B_virtual(kspin))
-            END DO
-         END IF
-
          CALL cp_para_env_release(para_env_exchange)
          CALL cp_para_env_release(para_env_rep)
 
@@ -722,6 +713,12 @@ CONTAINS
       END DO
 
       DEALLOCATE (replicated)
+
+      CALL release_group_dist(gd_array)
+      DO ispin = 1, nspins
+         IF (ALLOCATED(BIb_C(ispin)%array)) DEALLOCATE (BIb_C(ispin)%array)
+         CALL release_group_dist(gd_B_virtual(ispin))
+      END DO
 
       ! We do not need this matrix later, so deallocate it here to safe memory
       IF (calc_forces) DEALLOCATE (mp2_env%ri_grad%PQ_half)
