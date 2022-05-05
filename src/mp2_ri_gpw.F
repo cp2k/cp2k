@@ -587,21 +587,6 @@ CONTAINS
          CALL mp_sum(my_Emp2_Cou, para_env%group)
          CALL mp_sum(my_Emp2_Ex, para_env%group)
 
-         IF (calc_forces) THEN
-            ! sum P_ab
-            IF (.NOT. my_open_shell_ss) THEN
-               IF (nspins == 1) mp2_env%ri_grad%P_ab(1)%array(:, :) = mp2_env%ri_grad%P_ab(1)%array(:, :)*2.0_dp
-               sub_P_color = para_env_sub%mepos
-               CALL cp_para_env_split(para_env_P, para_env, sub_P_color)
-               DO kspin = ispin, jspin
-                  CALL mp_sum(mp2_env%ri_grad%P_ab(kspin)%array, para_env_P%group)
-               END DO
-               ! release para_env_P
-               CALL cp_para_env_release(para_env_P)
-            END IF
-
-         END IF
-
          IF (my_open_shell_SS .OR. my_alpha_beta_case) THEN
             IF (my_alpha_beta_case) THEN
                Emp2_S = Emp2_S + my_Emp2_Cou
@@ -630,7 +615,7 @@ CONTAINS
          gd_array%sizes(:) = sizes_array_orig
          DEALLOCATE (sizes_array_orig)
 
-         ! make a copy of the original integrals (ia|Q)
+         ! Remove replication from BIb_C and reorder the matrix
          my_group_L_size = my_group_L_size_orig
          ALLOCATE (B_ia_Q(ispin:jspin))
          DO ispin = 1, nspins
@@ -689,6 +674,15 @@ CONTAINS
                                 sub_proc_map, ispin)
          END DO
          DEALLOCATE (B_ia_Q)
+
+         IF (nspins == 1) mp2_env%ri_grad%P_ab(1)%array(:, :) = mp2_env%ri_grad%P_ab(1)%array(:, :)*2.0_dp
+         sub_P_color = para_env_sub%mepos
+         CALL cp_para_env_split(para_env_P, para_env, sub_P_color)
+         DO ispin = 1, nspins
+            CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_P%group)
+         END DO
+         ! release para_env_P
+         CALL cp_para_env_release(para_env_P)
       ELSE
 
          DEALLOCATE (integ_group_pos2color_sub)
