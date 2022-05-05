@@ -1239,7 +1239,7 @@ CONTAINS
                                                             max_repl_group_size, &
                                                             min_integ_group_size
       INTEGER(KIND=int_8)                                :: mem
-      REAL(KIND=dp)                                      :: mem_base, mem_min, mem_per_blk, &
+      REAL(KIND=dp)                                      :: factor, mem_base, mem_min, mem_per_blk, &
                                                             mem_per_repl, mem_per_repl_blk, &
                                                             mem_real
 
@@ -1293,23 +1293,47 @@ CONTAINS
 
       mem_real = mp2_env%mp2_memory
 
-      ! here we try to find the best block_size and integ_group_size
-      integ_group_size = ngroup
-      ! Remove the fixed memory and divide by the memory per replication group size
-      max_repl_group_size = MIN(MAX(FLOOR((mem_real - mem_base - mem_per_blk*block_size)/ &
-                                          (mem_per_repl + mem_per_repl_blk*block_size)), 1), ngroup)
-      ! Convert to an integration group size
-      min_integ_group_size = ngroup/max_repl_group_size
+      ! We use the following communication model
+      ! Comm(replication)+Comm(collection of data for ij pair)+Comm(contraction)
+      ! One can show that the costs of the contraction step are independent of the block size and the replication group size
+      ! With gradients, both steps are carried out twice (Y_i_aP -> Gamma_i_aP, and dereplication)
+      ! NL ... number of RI basis functions
+      ! NR ... replication group size
+      ! NG ... number of sub groups
+      ! NB ... Block size
+      ! o  ... number of occupied orbitals
+      ! Then, we have the communication costs (in multiples of the original BIb_C matrix)
+      ! (NR/NG)+(1-(NR/NG))*(o/NB+NB-2)/NG = (NR/NG)*(1-(o/NB+NB-2)/NG)+(o/NB+NB-2)/NG
+      ! and with gradients
+      ! 2*(NR/NG)+2*(1-(NR/NG))*(o/NB+NB-2)/NG = (NR/NG)*(1-(o/NB+NB-2)/NG)+(o/NB+NB-2)/NG
+      ! We are looking for the minimum of the communication volume,
+      ! thus, if the prefactor of (NR/NG) is smaller than zero, use the largest possible replication group size.
+      ! If the factor is larger than zero, set the replicaiton group size to 1. (For small systems and a large number of subgroups)
+      ! Replication group size = 1 implies that the integration group size equals the number of subgroups
 
-      ! Ensure that the integration group size is a divisor of the number of sub groups
-      DO iiB = MAX(MIN(min_integ_group_size, ngroup), 1), ngroup
-         ! check that the ngroup is a multiple of  integ_group_size
-         IF (MOD(ngroup, iiB) == 0) THEN
-            integ_group_size = iiB
-            EXIT
-         END IF
-         integ_group_size = integ_group_size + 1
-      END DO
+      integ_group_size = ngroup
+
+      factor = REAL(SUM(homo*virtual), KIND=dp) &
+               - SUM((REAL(MAXVAL(homo), KIND=dp)/block_size + block_size - 2.0_dp)*homo*virtual)/ngroup
+      IF (SIZE(homo) == 2) factor = factor - 2.0_dp*PRODUCT(homo)/block_size/ngroup*SUM(homo*virtual)
+
+      IF (factor <= 0.0_dp) THEN
+         ! Remove the fixed memory and divide by the memory per replication group size
+         max_repl_group_size = MIN(MAX(FLOOR((mem_real - mem_base - mem_per_blk*block_size)/ &
+                                             (mem_per_repl + mem_per_repl_blk*block_size)), 1), ngroup)
+         ! Convert to an integration group size
+         min_integ_group_size = ngroup/max_repl_group_size
+
+         ! Ensure that the integration group size is a divisor of the number of sub groups
+         DO iiB = MAX(MIN(min_integ_group_size, ngroup), 1), ngroup
+            ! check that the ngroup is a multiple of  integ_group_size
+            IF (MOD(ngroup, iiB) == 0) THEN
+               integ_group_size = iiB
+               EXIT
+            END IF
+            integ_group_size = integ_group_size + 1
+         END DO
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
