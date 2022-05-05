@@ -451,8 +451,10 @@ CONTAINS
                                  proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
                                  proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-                          CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-                          CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
+                                 CALL get_group_dist(gd_B_virtual(ispin), proc_receive, &
+                                                     rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+                                 CALL get_group_dist(gd_B_virtual(ispin), proc_send, &
+                                                     send_B_virtual_start, send_B_virtual_end, send_B_size)
 
                                  ALLOCATE (external_ab(my_B_size(ispin), rec_B_size))
                                  external_ab = 0.0_dp
