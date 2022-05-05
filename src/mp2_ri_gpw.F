@@ -180,7 +180,7 @@ CONTAINS
       tag = 42
 
       DO jspin = 1, nspins
-      DO ispin = jspin, 1, -1
+      DO ispin = 1, jspin
 
          my_open_shell_SS = (nspins == 2) .AND. (ispin == jspin)
 
@@ -204,7 +204,7 @@ CONTAINS
          DO kspin = ispin, jspin
          IF (.NOT. replicated(kspin)) THEN
             CALL replicate_iaK_2intgroup(BIb_C(kspin)%array, para_env_exchange, para_env_rep, &
-                                         homo(ispin), proc_map_rep, gd_array%sizes, my_B_size(kspin), &
+                                         homo(kspin), proc_map_rep, gd_array%sizes, my_B_size(kspin), &
                                          my_group_L_size, ranges_info_array)
             replicated(kspin) = .TRUE.
          END IF
@@ -617,7 +617,7 @@ CONTAINS
 
          ! Remove replication from BIb_C and reorder the matrix
          my_group_L_size = my_group_L_size_orig
-         ALLOCATE (B_ia_Q(ispin:jspin))
+         ALLOCATE (B_ia_Q(nspins))
          DO ispin = 1, nspins
             ALLOCATE (B_ia_Q(ispin)%array(homo(ispin), my_B_size(ispin), my_group_L_size))
             B_ia_Q(ispin)%array = 0.0_dp
@@ -856,14 +856,20 @@ CONTAINS
       local_ab = 0.0_dp
 
       IF (calc_forces) THEN
-         IF (ispin == jspin) THEN
-            ALLOCATE (mp2_env%ri_grad%P_ij(ispin)%array(homo(ispin), homo(ispin)))
-            mp2_env%ri_grad%P_ij(ispin)%array = 0.0_dp
-            ALLOCATE (mp2_env%ri_grad%P_ab(ispin)%array(my_B_size(ispin), virtual(ispin)))
-            mp2_env%ri_grad%P_ab(ispin)%array = 0.0_dp
-            ALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_B_size(ispin), homo(ispin), my_group_L_size))
-            mp2_env%ri_grad%Gamma_P_ia(ispin)%array = 0.0_dp
+         IF (.NOT. ALLOCATED(mp2_env%ri_grad%P_ij(jspin)%array)) THEN
+            ALLOCATE (mp2_env%ri_grad%P_ij(jspin)%array(homo(ispin), homo(ispin)))
+            mp2_env%ri_grad%P_ij(jspin)%array = 0.0_dp
+         END IF
+         IF (.NOT. ALLOCATED(mp2_env%ri_grad%P_ab(jspin)%array)) THEN
+            ALLOCATE (mp2_env%ri_grad%P_ab(jspin)%array(my_B_size(jspin), virtual(jspin)))
+            mp2_env%ri_grad%P_ab(jspin)%array = 0.0_dp
+         END IF
+         IF (.NOT. ALLOCATED(mp2_env%ri_grad%Gamma_P_ia(jspin)%array)) THEN
+            ALLOCATE (mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_B_size(jspin), homo(jspin), my_group_L_size))
+            mp2_env%ri_grad%Gamma_P_ia(jspin)%array = 0.0_dp
+         END IF
 
+         IF (ispin == jspin) THEN
             ! For non-alpha-beta case we need amplitudes
             ALLOCATE (t_ab(virtual(ispin), my_B_size(jspin)))
 
