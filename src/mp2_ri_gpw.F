@@ -163,6 +163,16 @@ CONTAINS
          integ_group_size, ngroup, &
          num_integ_group, virtual, calc_forces)
 
+      ! now create a group that contains all the proc that have the same virtual starting point
+      ! in the integ group
+      CALL mp2_ri_create_group( &
+         para_env, para_env_sub, color_sub, &
+         gd_array%sizes, calc_forces, &
+         integ_group_size, my_group_L_end, &
+         my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
+         integ_group_pos2color_sub, proc_map, proc_map_rep, sizes_array_orig, &
+         sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
+
       ALLOCATE (replicated(nspins))
       replicated = .FALSE.
 
@@ -190,16 +200,6 @@ CONTAINS
 
          amp_fac = mp2_env%scale_S + mp2_env%scale_T
          IF (my_alpha_beta_case .OR. my_open_shell_SS) amp_fac = mp2_env%scale_T
-
-         ! now create a group that contains all the proc that have the same virtual starting point
-         ! in the integ group
-         CALL mp2_ri_create_group( &
-            para_env, para_env_sub, color_sub, &
-            gd_array%sizes, calc_forces, &
-            integ_group_size, my_group_L_end, &
-            my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
-            integ_group_pos2color_sub, proc_map, proc_map_rep, sizes_array_orig, &
-            sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
 
          DO kspin = ispin, jspin
          IF (.NOT. replicated(kspin)) THEN
@@ -584,8 +584,6 @@ CONTAINS
 
          END IF
 
-         DEALLOCATE (integ_group_pos2color_sub)
-
          CALL mp_sum(my_Emp2_Cou, para_env%group)
          CALL mp_sum(my_Emp2_Ex, para_env%group)
 
@@ -601,13 +599,6 @@ CONTAINS
                ! release para_env_P
                CALL cp_para_env_release(para_env_P)
             END IF
-
-            ! recover original information (before replication)
-            DEALLOCATE (gd_array%sizes)
-            iiB = SIZE(sizes_array_orig)
-            ALLOCATE (gd_array%sizes(0:iiB - 1))
-            gd_array%sizes(:) = sizes_array_orig
-            DEALLOCATE (sizes_array_orig)
 
             ! make a copy of the original integrals (ia|Q)
             my_group_L_size = my_group_L_size_orig
@@ -679,19 +670,27 @@ CONTAINS
             Emp2_Cou = Emp2_Cou + my_Emp2_Cou
             Emp2_EX = Emp2_EX + my_Emp2_EX
          END IF
-
-         DEALLOCATE (proc_map)
-         DEALLOCATE (proc_map_rep)
-         DEALLOCATE (ranges_info_array)
-
-         CALL cp_para_env_release(para_env_exchange)
-         CALL cp_para_env_release(para_env_rep)
       END DO
       END DO
+
+      DEALLOCATE (integ_group_pos2color_sub)
+      DEALLOCATE (proc_map)
+      DEALLOCATE (proc_map_rep)
+      DEALLOCATE (ranges_info_array)
+
+      CALL cp_para_env_release(para_env_exchange)
+      CALL cp_para_env_release(para_env_rep)
 
       DEALLOCATE (replicated)
 
       IF (calc_forces) THEN
+         ! recover original information (before replication)
+         DEALLOCATE (gd_array%sizes)
+         iiB = SIZE(sizes_array_orig)
+         ALLOCATE (gd_array%sizes(0:iiB - 1))
+         gd_array%sizes(:) = sizes_array_orig
+         DEALLOCATE (sizes_array_orig)
+
          ! Reduce size of Gamma_P_ia to save memory
          DO ispin = 1, nspins
             ALLOCATE (BIb_C(ispin)%array(my_B_size(ispin), homo(ispin), my_group_L_size))
