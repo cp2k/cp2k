@@ -648,24 +648,7 @@ CONTAINS
                END DO
             END DO
 
-            IF (.NOT. my_open_shell_ss) THEN
-               ! Reduce size of Gamma_P_ia to save memory
-               DO kspin = ispin, jspin
-                  BIb_C(kspin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, 1:my_group_L_size)
-                  DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(kspin)%array)
-                  CALL MOVE_ALLOC(BIb_C(kspin)%array, mp2_env%ri_grad%Gamma_P_ia(kspin)%array)
-               END DO
-
-               ! B_ia_Q(kspin)%array will be deallocated inside of complete_gamma
-               DO kspin = ispin, jspin
-                  CALL complete_gamma(mp2_env, B_ia_Q(kspin)%array, dimen_RI, homo(kspin), &
-                                      virtual(kspin), para_env, para_env_sub, ngroup, &
-                                      my_group_L_size, my_group_L_start, my_group_L_end, &
-                                      my_B_size(kspin), my_B_virtual_start(kspin), &
-                                      gd_array, gd_B_virtual(kspin), &
-                                      sub_proc_map, kspin)
-               END DO
-            ELSE
+            IF (my_open_shell_ss) THEN
                DO kspin = ispin, jspin
                   DEALLOCATE (BIb_C(kspin)%array)
                END DO
@@ -680,8 +663,8 @@ CONTAINS
                END DO
                ! There is only one B_ia_Q allocated in this case
                DEALLOCATE (B_ia_Q(ispin)%array)
+               DEALLOCATE (B_ia_Q)
             END IF
-            DEALLOCATE (B_ia_Q)
 
          END IF
 
@@ -702,17 +685,41 @@ CONTAINS
          END IF
 
          DEALLOCATE (proc_map)
-         DEALLOCATE (sub_proc_map)
          DEALLOCATE (proc_map_rep)
          DEALLOCATE (ranges_info_array)
 
          CALL cp_para_env_release(para_env_exchange)
          CALL cp_para_env_release(para_env_rep)
 
+         WRITE (*, *) ispin, jspin
+      END DO
+      DO kspin = 1, nspins
+         WRITE (*, *) ALLOCATED(mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
       END DO
       END DO
 
       DEALLOCATE (replicated)
+
+      IF (calc_forces) THEN
+         ! Reduce size of Gamma_P_ia to save memory
+         DO ispin = 1, nspins
+            BIb_C(ispin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(ispin)%array(:, :, 1:my_group_L_size)
+            DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
+            CALL MOVE_ALLOC(BIb_C(ispin)%array, mp2_env%ri_grad%Gamma_P_ia(ispin)%array)
+         END DO
+
+         ! B_ia_Q(ispin)%array will be deallocated inside of complete_gamma
+         DO ispin = 1, nspins
+            CALL complete_gamma(mp2_env, B_ia_Q(ispin)%array, dimen_RI, homo(ispin), &
+                                virtual(ispin), para_env, para_env_sub, ngroup, &
+                                my_group_L_size, my_group_L_start, my_group_L_end, &
+                                my_B_size(ispin), my_B_virtual_start(ispin), &
+                                gd_array, gd_B_virtual(ispin), &
+                                sub_proc_map, ispin)
+         END DO
+         DEALLOCATE (B_ia_Q)
+      END IF
+      DEALLOCATE (sub_proc_map)
 
       CALL release_group_dist(gd_array)
       DO ispin = 1, nspins
