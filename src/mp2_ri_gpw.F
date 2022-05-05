@@ -116,8 +116,8 @@ CONTAINS
          sizes_array_orig, sub_proc_map, virtual
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
-      LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
-                                                            my_beta_beta_case, my_open_shell_SS
+      LOGICAL                                            :: my_alpha_beta_case, my_beta_beta_case, &
+                                                            my_open_shell_SS
       REAL(KIND=dp)                                      :: amp_fac, my_Emp2_Cou, my_Emp2_EX, &
                                                             sym_fac, t_new, t_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -189,13 +189,11 @@ CONTAINS
             ! If we calculate the gradient we need to distinguish
             ! between alpha-alpha and beta-beta cases for UMP2
 
-            my_alpha_alpha_case = .FALSE.
             my_beta_beta_case = .FALSE.
             my_alpha_beta_case = .FALSE.
             IF (ispin /= jspin) THEN
                my_alpha_beta_case = .TRUE.
             ELSE IF (my_open_shell_SS) THEN
-               IF (ispin == 1) my_alpha_alpha_case = .TRUE.
                IF (ispin == 2) my_beta_beta_case = .TRUE.
             END IF
 
