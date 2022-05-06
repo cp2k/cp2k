@@ -183,6 +183,19 @@ CONTAINS
 
          DO ispin = 1, jspin
 
+            IF (unit_nr > 0) THEN
+               IF (nspins == 1) THEN
+                  WRITE (unit_nr, *) "Start loop run"
+               ELSE IF (ispin == 1 .AND. jspin == 1) THEN
+                  WRITE (unit_nr, *) "Start loop run alpha-alpha"
+               ELSE IF (ispin == 1 .AND. jspin == 2) THEN
+                  WRITE (unit_nr, *) "Start loop run alpha-beta"
+               ELSE IF (ispin == 2 .AND. jspin == 2) THEN
+                  WRITE (unit_nr, *) "Start loop run beta-beta"
+               END IF
+               CALL m_flush(unit_nr)
+            END IF
+
             my_open_shell_SS = (nspins == 2) .AND. (ispin == jspin)
 
             ! t_ab = amp_fac*(:,a|:,b)-(:,b|:,a)
@@ -228,23 +241,10 @@ CONTAINS
             CALL mp2_ri_allocate_blk(dimen_RI, my_B_size, block_size, local_i_aL, &
                                      local_j_aL, calc_forces, Y_i_aP, Y_j_aP, ispin, jspin)
 
-            IF (unit_nr > 0) THEN
-               IF (nspins == 1) THEN
-                  WRITE (unit_nr, *) "Start loop run"
-               ELSE IF (ispin == 1 .AND. jspin == 1) THEN
-                  WRITE (unit_nr, *) "Start loop run alpha-alpha"
-               ELSE IF (ispin == 1 .AND. jspin == 2) THEN
-                  WRITE (unit_nr, *) "Start loop run alpha-beta"
-               ELSE IF (ispin == 2 .AND. jspin == 2) THEN
-                  WRITE (unit_nr, *) "Start loop run beta-beta"
-               END IF
-               CALL m_flush(unit_nr)
-               t_start = m_walltime()
-            END IF
-
             CALL timeset(routineN//"_RI_loop", handle2)
             my_Emp2_Cou = 0.0_dp
             my_Emp2_EX = 0.0_dp
+            t_start = m_walltime()
             DO ij_index = 1, max_ij_pairs
 
                IF (unit_nr > 0) THEN
@@ -949,7 +949,7 @@ CONTAINS
       INTEGER :: assigned_blocks, first_I_block, first_J_block, handle, iiB, ij_block_counter, &
          ij_counter, jjB, last_i_block, last_J_block, num_block_per_group, num_IJ_blocks, &
          num_IJ_blocks_beta, total_ij_block, total_ij_pairs_blocks
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_marker
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: ij_marker
 
 ! Calculate the maximum number of ij pairs that have to be computed
 ! among groups
@@ -980,7 +980,7 @@ CONTAINS
          total_ij_pairs_blocks = assigned_blocks + (total_ij_pairs - assigned_blocks*(block_size**2))
 
          ALLOCATE (ij_marker(homo, homo))
-         ij_marker = 0
+         ij_marker = .TRUE.
          ALLOCATE (ij_map(3, total_ij_pairs_blocks))
          ij_map = 0
          ij_counter = 0
@@ -989,7 +989,7 @@ CONTAINS
             DO jjB = iiB + block_size, last_J_block, block_size
                IF (ij_counter + 1 > assigned_blocks) EXIT
                ij_counter = ij_counter + 1
-               ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = 1
+               ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = .FALSE.
                ij_map(1, ij_counter) = iiB
                ij_map(2, ij_counter) = jjB
                ij_map(3, ij_counter) = block_size
@@ -998,7 +998,7 @@ CONTAINS
          END DO
          DO iiB = 1, homo
             DO jjB = iiB, homo
-               IF (ij_marker(iiB, jjB) == 0) THEN
+               IF (ij_marker(iiB, jjB)) THEN
                   ij_counter = ij_counter + 1
                   ij_map(1, ij_counter) = iiB
                   ij_map(2, ij_counter) = jjB
@@ -1018,12 +1018,13 @@ CONTAINS
          first_I_block = 1
          last_i_block = block_size*(num_IJ_blocks - 1)
 
-         first_J_block = block_size + 1
+         ! We shift the blocks to prevent the calculation of the diagonal elements which always give zero
+         first_J_block = block_size + 2
          last_J_block = block_size*(num_IJ_blocks + 1) + 1
 
          ij_block_counter = 0
          DO iiB = first_I_block, last_i_block, block_size
-            DO jjB = iiB + block_size, last_J_block, block_size
+            DO jjB = iiB + block_size + 1, last_J_block, block_size
                ij_block_counter = ij_block_counter + 1
             END DO
          END DO
@@ -1035,16 +1036,16 @@ CONTAINS
          total_ij_pairs_blocks = assigned_blocks + (total_ij_pairs - assigned_blocks*(block_size**2))
 
          ALLOCATE (ij_marker(homo, homo))
-         ij_marker = 0
+         ij_marker = .TRUE.
          ALLOCATE (ij_map(3, total_ij_pairs_blocks))
          ij_map = 0
          ij_counter = 0
          my_ij_pairs = 0
          DO iiB = first_I_block, last_i_block, block_size
-            DO jjB = iiB + block_size, last_J_block, block_size
+            DO jjB = iiB + block_size + 1, last_J_block, block_size
                IF (ij_counter + 1 > assigned_blocks) EXIT
                ij_counter = ij_counter + 1
-               ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = 1
+               ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = .FALSE.
                ij_map(1, ij_counter) = iiB
                ij_map(2, ij_counter) = jjB
                ij_map(3, ij_counter) = block_size
@@ -1053,7 +1054,7 @@ CONTAINS
          END DO
          DO iiB = 1, homo
             DO jjB = iiB + 1, homo
-               IF (ij_marker(iiB, jjB) == 0) THEN
+               IF (ij_marker(iiB, jjB)) THEN
                   ij_counter = ij_counter + 1
                   ij_map(1, ij_counter) = iiB
                   ij_map(2, ij_counter) = jjB
@@ -1077,7 +1078,7 @@ CONTAINS
 
          ij_block_counter = 0
          DO iiB = first_I_block, last_i_block, block_size
-            DO jjB = iiB + block_size, last_J_block, block_size
+            DO jjB = first_J_block, last_J_block, block_size
                ij_block_counter = ij_block_counter + 1
             END DO
          END DO
@@ -1089,7 +1090,7 @@ CONTAINS
          total_ij_pairs_blocks = assigned_blocks + (total_ij_pairs - assigned_blocks*(block_size**2))
 
          ALLOCATE (ij_marker(homo, homo_beta))
-         ij_marker = 0
+         ij_marker = .TRUE.
          ALLOCATE (ij_map(3, total_ij_pairs_blocks))
          ij_map = 0
          ij_counter = 0
@@ -1098,7 +1099,7 @@ CONTAINS
             DO jjB = first_J_block, last_J_block, block_size
                IF (ij_counter + 1 > assigned_blocks) EXIT
                ij_counter = ij_counter + 1
-               ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = 1
+               ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = .FALSE.
                ij_map(1, ij_counter) = iiB
                ij_map(2, ij_counter) = jjB
                ij_map(3, ij_counter) = block_size
@@ -1107,7 +1108,7 @@ CONTAINS
          END DO
          DO iiB = 1, homo
             DO jjB = 1, homo_beta
-               IF (ij_marker(iiB, jjB) == 0) THEN
+               IF (ij_marker(iiB, jjB)) THEN
                   ij_counter = ij_counter + 1
                   ij_map(1, ij_counter) = iiB
                   ij_map(2, ij_counter) = jjB
@@ -1465,7 +1466,8 @@ CONTAINS
 
       INTEGER                                            :: best_block_size, handle, num_IJ_blocks
       INTEGER(KIND=int_8)                                :: mem
-      REAL(KIND=dp)                                      :: mem_per_blk, mem_per_repl_blk, mem_real
+      REAL(KIND=dp)                                      :: mem_base, mem_per_blk, mem_per_repl_blk, &
+                                                            mem_real
 
       CALL timeset(routineN, handle)
 
@@ -1477,9 +1479,12 @@ CONTAINS
       ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
 
+      mem_base = 0.0_dp
       mem_per_blk = 0.0_dp
       mem_per_repl_blk = 0.0_dp
 
+! external_i_aL
+      mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
       ! BIB_C_rec
       mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
       ! local_i_aL+local_j_aL
@@ -1490,7 +1495,7 @@ CONTAINS
          mem_per_blk = mem_per_blk + 3.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
       END IF
 
-      mem_real = MIN(mp2_env%mp2_memory, mem_real)
+      !mem_real = MIN(mp2_env%mp2_memory, mem_real)
 
       best_block_size = 1
 
@@ -1498,7 +1503,7 @@ CONTAINS
       IF (mp2_env%ri_mp2%block_size > 0) THEN
          best_block_size = mp2_env%ri_mp2%block_size
       ELSE
-         best_block_size = MAX(FLOOR(mem_real/(mem_per_blk + mem_per_repl_blk*ngroup/num_integ_group)), 1)
+         best_block_size = MAX(FLOOR((mem_real - mem_base)/(mem_per_blk + mem_per_repl_blk*ngroup/num_integ_group)), 1)
 
          DO
             IF (SIZE(homo) == 1) THEN
@@ -1523,6 +1528,7 @@ CONTAINS
       IF (SIZE(homo) == 1) THEN
       IF (my_open_shell_ss) THEN
          ! check that best_block_size is not bigger than sqrt(homo-1)
+         ! Diagonal elements do not have to be considered
          best_block_size = MIN(FLOOR(SQRT(REAL(homo(1) - 1, KIND=dp))), best_block_size)
       ELSE
          ! check that best_block_size is not bigger than sqrt(homo)
