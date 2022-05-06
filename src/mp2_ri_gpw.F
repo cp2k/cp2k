@@ -208,7 +208,7 @@ CONTAINS
                homo(ispin), dimen_RI, unit_nr, block_size, &
                ngroup, num_IJ_blocks, &
                virtual(ispin), my_alpha_beta_case, &
-               my_open_shell_SS, calc_forces)
+               calc_forces)
 
             ! *****************************************************************
             ! **********  REPLICATION-BLOCKED COMMUNICATION SCHEME  ***********
@@ -952,8 +952,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_communication'
 
       INTEGER :: assigned_blocks, first_I_block, first_J_block, handle, iiB, ij_block_counter, &
-         ij_counter, jjB, last_i_block, last_J_block, num_block_per_group, total_ij_block, &
-         total_ij_pairs_blocks
+         ij_counter, jjB, last_i_block, last_J_block, num_block_per_group, num_IJ_blocks_beta, &
+         total_ij_block, total_ij_pairs_blocks
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_marker
 
 ! Calculate the maximum number of ij pairs that have to be computed
@@ -961,7 +961,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (.NOT. my_alpha_beta_case) THEN
+      IF (.NOT. my_open_shell_ss .AND. .NOT. my_alpha_beta_case) THEN
          total_ij_pairs = homo*(1 + homo)/2
          num_IJ_blocks = homo/block_size - 1
 
@@ -1014,36 +1014,126 @@ CONTAINS
          END DO
          DEALLOCATE (ij_marker)
 
-         IF ((.NOT. my_open_shell_SS)) THEN
-            IF (unit_nr > 0) THEN
-               IF (block_size == 1) THEN
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.1)") &
-                     "RI_INFO| Percentage of ij pairs communicated with block size 1:", 100.0_dp
-               ELSE
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.1)") &
-                     "RI_INFO| Percentage of ij pairs communicated with block size 1:", &
-                     100.0_dp*REAL((total_ij_pairs - assigned_blocks*(block_size**2)), KIND=dp)/REAL(total_ij_pairs, KIND=dp)
-               END IF
-               CALL m_flush(unit_nr)
-            END IF
-         END IF
+      ELSE IF (.NOT. my_alpha_beta_case) THEN
+         ! THese are the cases alpha/alpha and beta/beta
+         ! We do not have to consider the diagonal elements
+         total_ij_pairs = homo*(homo - 1)/2
+         num_IJ_blocks = (homo - 1)/block_size - 1
 
-      ELSE
-         ! alpha-beta case no index symmetry
-         total_ij_pairs = homo*homo_beta
-         ALLOCATE (ij_map(3, total_ij_pairs))
+         first_I_block = 1
+         last_i_block = block_size*(num_IJ_blocks - 1)
+
+         first_J_block = block_size + 1
+         last_J_block = block_size*(num_IJ_blocks + 1) + 1
+
+         ij_block_counter = 0
+         DO iiB = first_I_block, last_i_block, block_size
+            DO jjB = iiB + block_size, last_J_block, block_size
+               ij_block_counter = ij_block_counter + 1
+            END DO
+         END DO
+
+         total_ij_block = ij_block_counter
+         num_block_per_group = total_ij_block/ngroup
+         assigned_blocks = num_block_per_group*ngroup
+
+         total_ij_pairs_blocks = assigned_blocks + (total_ij_pairs - assigned_blocks*(block_size**2))
+
+         ALLOCATE (ij_marker(homo, homo))
+         ij_marker = 0
+         ALLOCATE (ij_map(3, total_ij_pairs_blocks))
          ij_map = 0
          ij_counter = 0
          my_ij_pairs = 0
-         DO iiB = 1, homo
-            DO jjB = 1, homo_beta
+         DO iiB = first_I_block, last_i_block, block_size
+            DO jjB = iiB + block_size, last_J_block, block_size
+               IF (ij_counter + 1 > assigned_blocks) EXIT
                ij_counter = ij_counter + 1
+               ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = 1
                ij_map(1, ij_counter) = iiB
                ij_map(2, ij_counter) = jjB
-               ij_map(3, ij_counter) = 1
+               ij_map(3, ij_counter) = block_size
                IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
             END DO
          END DO
+         DO iiB = 1, homo
+            DO jjB = iiB + 1, homo
+               IF (ij_marker(iiB, jjB) == 0) THEN
+                  ij_counter = ij_counter + 1
+                  ij_map(1, ij_counter) = iiB
+                  ij_map(2, ij_counter) = jjB
+                  ij_map(3, ij_counter) = 1
+                  IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
+               END IF
+            END DO
+         END DO
+         DEALLOCATE (ij_marker)
+
+      ELSE
+         total_ij_pairs = homo*homo_beta
+         num_IJ_blocks = homo/block_size
+         num_IJ_blocks_beta = homo_beta/block_size
+
+         first_I_block = 1
+         last_i_block = block_size*(num_IJ_blocks - 1)
+
+         first_J_block = 1
+         last_J_block = block_size*(num_IJ_blocks_beta - 1)
+
+         ij_block_counter = 0
+         DO iiB = first_I_block, last_i_block, block_size
+            DO jjB = iiB + block_size, last_J_block, block_size
+               ij_block_counter = ij_block_counter + 1
+            END DO
+         END DO
+
+         total_ij_block = ij_block_counter
+         num_block_per_group = total_ij_block/ngroup
+         assigned_blocks = num_block_per_group*ngroup
+
+         total_ij_pairs_blocks = assigned_blocks + (total_ij_pairs - assigned_blocks*(block_size**2))
+
+         ALLOCATE (ij_marker(homo, homo_beta))
+         ij_marker = 0
+         ALLOCATE (ij_map(3, total_ij_pairs_blocks))
+         ij_map = 0
+         ij_counter = 0
+         my_ij_pairs = 0
+         DO iiB = first_I_block, last_i_block, block_size
+            DO jjB = first_J_block, last_J_block, block_size
+               IF (ij_counter + 1 > assigned_blocks) EXIT
+               ij_counter = ij_counter + 1
+               ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = 1
+               ij_map(1, ij_counter) = iiB
+               ij_map(2, ij_counter) = jjB
+               ij_map(3, ij_counter) = block_size
+               IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
+            END DO
+         END DO
+         DO iiB = 1, homo
+            DO jjB = 1, homo_beta
+               IF (ij_marker(iiB, jjB) == 0) THEN
+                  ij_counter = ij_counter + 1
+                  ij_map(1, ij_counter) = iiB
+                  ij_map(2, ij_counter) = jjB
+                  ij_map(3, ij_counter) = 1
+                  IF (MOD(ij_counter, ngroup) == color_sub) my_ij_pairs = my_ij_pairs + 1
+               END IF
+            END DO
+         END DO
+         DEALLOCATE (ij_marker)
+      END IF
+
+      IF (unit_nr > 0) THEN
+         IF (block_size == 1) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.1)") &
+               "RI_INFO| Percentage of ij pairs communicated with block size 1:", 100.0_dp
+         ELSE
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.1)") &
+               "RI_INFO| Percentage of ij pairs communicated with block size 1:", &
+               100.0_dp*REAL((total_ij_pairs - assigned_blocks*(block_size**2)), KIND=dp)/REAL(total_ij_pairs, KIND=dp)
+         END IF
+         CALL m_flush(unit_nr)
       END IF
 
       CALL timestop(handle)
@@ -1362,22 +1452,20 @@ CONTAINS
 !> \param num_IJ_blocks ...
 !> \param virtual ...
 !> \param my_alpha_beta_case ...
-!> \param my_open_shell_SS ...
 !> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_get_block_size(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
                                     homo, dimen_RI, unit_nr, &
                                     block_size, ngroup, num_IJ_blocks, &
                                     virtual, my_alpha_beta_case, &
-                                    my_open_shell_SS, calc_forces)
+                                    calc_forces)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
       INTEGER, INTENT(IN)                                :: homo, dimen_RI, unit_nr
       INTEGER, INTENT(OUT)                               :: block_size, ngroup, num_IJ_blocks
       INTEGER, INTENT(IN)                                :: virtual
-      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, my_open_shell_SS, &
-                                                            calc_forces
+      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, calc_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_block_size'
 
@@ -1432,37 +1520,29 @@ CONTAINS
 
       best_block_size = 1
 
-      ! in the open shell case no replication and no block communication is done
-      IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
-         ! Here we split the memory half for the communication, half for replication
-         IF (mp2_env%ri_mp2%block_size > 0) THEN
-            best_block_size = mp2_env%ri_mp2%block_size
-         END IF
-
-         IF (.NOT. (mp2_env%ri_mp2%block_size > 0)) THEN
-            DO
-               num_IJ_blocks = (homo/best_block_size)
-               num_IJ_blocks = (num_IJ_blocks*num_IJ_blocks - num_IJ_blocks)/2
-               IF (num_IJ_blocks > ngroup .OR. best_block_size == 1) THEN
-                  EXIT
-               ELSE
-                  best_block_size = best_block_size - 1
-               END IF
-            END DO
-         END IF
-
-         ! check that best_block_size is not bigger than homo/2-1
-         best_block_size = MIN(MAX(homo/2 - 1 + MOD(homo, 2), 1), best_block_size)
+      ! Here we split the memory half for the communication, half for replication
+      IF (mp2_env%ri_mp2%block_size > 0) THEN
+         best_block_size = mp2_env%ri_mp2%block_size
+      ELSE
+         DO
+            num_IJ_blocks = (homo/best_block_size)
+            num_IJ_blocks = (num_IJ_blocks*num_IJ_blocks - num_IJ_blocks)/2
+            IF (num_IJ_blocks > ngroup .OR. best_block_size == 1) THEN
+               EXIT
+            ELSE
+               best_block_size = best_block_size - 1
+            END IF
+         END DO
       END IF
 
+      ! check that best_block_size is not bigger than homo/2-1
+      best_block_size = MIN(MAX(homo/2 - 1 + MOD(homo, 2), 1), best_block_size)
       block_size = best_block_size
 
-      IF ((.NOT. my_open_shell_SS) .AND. (.NOT. my_alpha_beta_case)) THEN
-         IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "RI_INFO| Block size:", block_size
-            CALL m_flush(unit_nr)
-         END IF
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "RI_INFO| Block size:", block_size
+         CALL m_flush(unit_nr)
       END IF
 
       CALL timestop(handle)
