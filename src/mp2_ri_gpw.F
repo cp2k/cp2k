@@ -107,10 +107,10 @@ CONTAINS
          iiB, ij_counter, ij_counter_send, ij_index, integ_group_size, ispin, jjB, jspin, &
          max_ij_pairs, my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, &
          my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
-         num_IJ_blocks, num_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, &
-         rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, &
-         send_B_virtual_start, send_block_size, send_i, send_ij_index, send_j, start_point
-      INTEGER :: sub_P_color, tag, total_ij_pairs
+         num_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
+         rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
+         send_block_size, send_i, send_ij_index, send_j, start_point, sub_P_color, tag
+      INTEGER :: total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
          my_B_virtual_end, my_B_virtual_start, num_ij_pairs, proc_map, proc_map_rep, &
          sizes_array_orig, sub_proc_map, virtual
@@ -204,11 +204,9 @@ CONTAINS
                                         my_group_L_size, calc_forces, ispin, jspin, local_ba)
 
             CALL mp2_ri_get_block_size( &
-               mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
-               homo(ispin), dimen_RI, unit_nr, block_size, &
-               ngroup, num_IJ_blocks, &
-               virtual(ispin), my_alpha_beta_case, &
-               calc_forces)
+               mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin:jspin), &
+               homo(ispin:jspin), dimen_RI, unit_nr, block_size, &
+               ngroup, num_integ_group, my_open_shell_ss, calc_forces)
 
             ! *****************************************************************
             ! **********  REPLICATION-BLOCKED COMMUNICATION SCHEME  ***********
@@ -218,7 +216,7 @@ CONTAINS
 
             ! Calculate the maximum number of ij pairs that have to be computed
             ! among groups
-            CALL mp2_ri_communication(my_alpha_beta_case, total_ij_pairs, homo(ispin), homo(jspin), num_IJ_blocks, &
+            CALL mp2_ri_communication(my_alpha_beta_case, total_ij_pairs, homo(ispin), homo(jspin), &
                                       block_size, ngroup, ij_map, color_sub, my_ij_pairs, my_open_shell_SS, unit_nr)
 
             ALLOCATE (num_ij_pairs(0:para_env_exchange%num_pe - 1))
@@ -927,7 +925,6 @@ CONTAINS
 !> \param total_ij_pairs ...
 !> \param homo ...
 !> \param homo_beta ...
-!> \param num_IJ_blocks ...
 !> \param block_size ...
 !> \param ngroup ...
 !> \param ij_map ...
@@ -936,13 +933,11 @@ CONTAINS
 !> \param my_open_shell_SS ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_ri_communication(my_alpha_beta_case, total_ij_pairs, homo, homo_beta, num_IJ_blocks, &
+   SUBROUTINE mp2_ri_communication(my_alpha_beta_case, total_ij_pairs, homo, homo_beta, &
                                    block_size, ngroup, ij_map, color_sub, my_ij_pairs, my_open_shell_SS, unit_nr)
       LOGICAL, INTENT(IN)                                :: my_alpha_beta_case
       INTEGER, INTENT(OUT)                               :: total_ij_pairs
-      INTEGER, INTENT(IN)                                :: homo, homo_beta
-      INTEGER, INTENT(OUT)                               :: num_IJ_blocks
-      INTEGER, INTENT(IN)                                :: block_size, ngroup
+      INTEGER, INTENT(IN)                                :: homo, homo_beta, block_size, ngroup
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: ij_map
       INTEGER, INTENT(IN)                                :: color_sub
       INTEGER, INTENT(OUT)                               :: my_ij_pairs
@@ -952,8 +947,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_communication'
 
       INTEGER :: assigned_blocks, first_I_block, first_J_block, handle, iiB, ij_block_counter, &
-         ij_counter, jjB, last_i_block, last_J_block, num_block_per_group, num_IJ_blocks_beta, &
-         total_ij_block, total_ij_pairs_blocks
+         ij_counter, jjB, last_i_block, last_J_block, num_block_per_group, num_IJ_blocks, &
+         num_IJ_blocks_beta, total_ij_block, total_ij_pairs_blocks
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_marker
 
 ! Calculate the maximum number of ij pairs that have to be computed
@@ -1381,7 +1376,7 @@ CONTAINS
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
          mem_min, ' MiB'
 
-      mem_real = mp2_env%mp2_memory
+      mem_real = MIN(mem_real, mp2_env%mp2_memory)
 
       ! We use the following communication model
       ! Comm(replication)+Comm(collection of data for ij pair)+Comm(contraction)
@@ -1449,39 +1444,32 @@ CONTAINS
 !> \param unit_nr ...
 !> \param block_size ...
 !> \param ngroup ...
-!> \param num_IJ_blocks ...
-!> \param virtual ...
-!> \param my_alpha_beta_case ...
+!> \param num_integ_group ...
+!> \param my_open_shell_ss ...
 !> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_get_block_size(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
                                     homo, dimen_RI, unit_nr, &
-                                    block_size, ngroup, num_IJ_blocks, &
-                                    virtual, my_alpha_beta_case, &
-                                    calc_forces)
+                                    block_size, ngroup, num_integ_group, &
+                                    my_open_shell_ss, calc_forces)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
-      INTEGER, INTENT(IN)                                :: homo, dimen_RI, unit_nr
-      INTEGER, INTENT(OUT)                               :: block_size, ngroup, num_IJ_blocks
-      INTEGER, INTENT(IN)                                :: virtual
-      LOGICAL, INTENT(IN)                                :: my_alpha_beta_case, calc_forces
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
+      TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
+      INTEGER, INTENT(OUT)                               :: block_size, ngroup, num_integ_group
+      LOGICAL, INTENT(IN)                                :: my_open_shell_ss, calc_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_block_size'
 
-      INTEGER                                            :: best_block_size, handle
+      INTEGER                                            :: best_block_size, handle, num_IJ_blocks
       INTEGER(KIND=int_8)                                :: mem
-      REAL(KIND=dp)                                      :: mem_for_aK, mem_for_iaK, mem_min, &
-                                                            mem_per_group, mem_real
+      REAL(KIND=dp)                                      :: mem_per_blk, mem_per_repl_blk, mem_real
 
       CALL timeset(routineN, handle)
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
-
-      ! Calculate available memory and create integral group according to that
-      ! mem_for_iaK is the memory needed for storing the 3 centre integrals
-      mem_for_iaK = REAL(homo, KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
-      mem_for_aK = REAL(virtual, KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
 
       CALL m_memory(mem)
       mem_real = (mem + 1024*1024 - 1)/(1024*1024)
@@ -1489,34 +1477,20 @@ CONTAINS
       ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
 
-      ! BIB_C_copy/external_i_aL/Gamma_P_ia
-      mem_min = MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
-      IF (calc_forces) THEN
-         mem_min = MAX(mem_min, 2.0_dp*maxsize(gd_array)*maxsize(gd_B_virtual)*8.0_dp/(1024**2))
-      END IF
-      ! BIB_C
-      mem_min = REAL(homo, KIND=dp)*maxsize(gd_B_virtual)*maxsize(gd_array)*8.0_dp/(1024**2)
+      mem_per_blk = 0.0_dp
+      mem_per_repl_blk = 0.0_dp
+
+      ! BIB_C_rec
+      mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
       ! local_i_aL+local_j_aL
-      mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
-      ! local_ab
-      mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
+      mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
 
       IF (calc_forces) THEN
-         ! Y_i_aP+Y_j_aP
-         mem_min = mem_min + 2.0_dp*maxsize(gd_B_virtual)*dimen_RI*8.0_dp/(1024**2)
-         ! local_ba/t_ab
-         mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
-         IF (.NOT. my_alpha_beta_case) THEN
-            ! P_ij
-            mem_min = mem_min + REAL(homo, KIND=dp)*homo*8.0_dp/(1024**2)
-            ! P_ab
-            mem_min = mem_min + REAL(virtual, KIND=dp)*maxsize(gd_B_virtual)*8.0_dp/(1024**2)
-         END IF
+         ! Y_i_aP+Y_j_aP+BIb_C_send
+         mem_per_blk = mem_per_blk + 3.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
       END IF
 
-      mem_real = mp2_env%mp2_memory
-
-      mem_per_group = mem_real*para_env_sub%num_pe
+      mem_real = MIN(mp2_env%mp2_memory, mem_real)
 
       best_block_size = 1
 
@@ -1524,9 +1498,20 @@ CONTAINS
       IF (mp2_env%ri_mp2%block_size > 0) THEN
          best_block_size = mp2_env%ri_mp2%block_size
       ELSE
+         best_block_size = MAX(FLOOR(mem_real/(mem_per_blk + mem_per_repl_blk*ngroup/num_integ_group)), 1)
+
          DO
-            num_IJ_blocks = (homo/best_block_size)
-            num_IJ_blocks = (num_IJ_blocks*num_IJ_blocks - num_IJ_blocks)/2
+            IF (SIZE(homo) == 1) THEN
+            IF (.NOT. my_open_shell_ss) THEN
+               num_IJ_blocks = (homo(1)/best_block_size)
+               num_IJ_blocks = (num_IJ_blocks*num_IJ_blocks - num_IJ_blocks)/2
+            ELSE
+               num_IJ_blocks = ((homo(1) - 1)/best_block_size)
+               num_IJ_blocks = (num_IJ_blocks*num_IJ_blocks - num_IJ_blocks)/2
+            END IF
+            ELSE
+            num_ij_blocks = PRODUCT(homo/best_block_size)
+            END IF
             IF (num_IJ_blocks > ngroup .OR. best_block_size == 1) THEN
                EXIT
             ELSE
@@ -1535,8 +1520,15 @@ CONTAINS
          END DO
       END IF
 
-      ! check that best_block_size is not bigger than homo/2-1
-      best_block_size = MIN(MAX(homo/2 - 1 + MOD(homo, 2), 1), best_block_size)
+      IF (SIZE(homo) == 1) THEN
+      IF (my_open_shell_ss) THEN
+         ! check that best_block_size is not bigger than sqrt(homo-1)
+         best_block_size = MIN(FLOOR(SQRT(REAL(homo(1) - 1, KIND=dp))), best_block_size)
+      ELSE
+         ! check that best_block_size is not bigger than sqrt(homo)
+         best_block_size = MIN(FLOOR(SQRT(REAL(homo(1), KIND=dp))), best_block_size)
+      END IF
+      END IF
       block_size = best_block_size
 
       IF (unit_nr > 0) THEN
