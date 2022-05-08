@@ -50,6 +50,7 @@ async def main() -> None:
     parser.add_argument("--keepalive", dest="keepalive", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--restrictdir", action="append")
+    parser.add_argument("--skipdir", action="append")
     parser.add_argument("--workbasedir", type=Path)
     parser.add_argument("arch")
     parser.add_argument("version")
@@ -121,17 +122,21 @@ async def main() -> None:
 
     # Create async tasks.
     tasks = []
-    num_restrictdirs = 0
+    num_restrictdirs = num_skipdirs = 0
     for batch in batches:
         if not batch.requirements_satisfied(flags, cfg.mpiranks):
             print(f"Skipping {batch.name} because its requirements are not satisfied.")
         elif not any(re.fullmatch(p, batch.name) for p in cfg.restrictdirs):
             num_restrictdirs += 1
+        elif any(re.fullmatch(p, batch.name) for p in cfg.skipdirs):
+            num_skipdirs += 1
         else:
             tasks.append(asyncio.get_event_loop().create_task(run_batch(batch, cfg)))
 
     if num_restrictdirs:
         print(f"Skipping {num_restrictdirs} test directories because of --restrictdir.")
+    if num_skipdirs:
+        print(f"Skipping {num_skipdirs} test directories because of --skipdir.")
     if not tasks:
         print("\nNo test directories selected, check --restrictdir filter.")
         sys.exit(1)
@@ -205,6 +210,7 @@ class Config:
         self.debug = args.debug
         self.max_errors = args.maxerrors
         self.restrictdirs = args.restrictdir if args.restrictdir else [".*"]
+        self.skipdirs = args.skipdir if args.skipdir else []
         datestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         leaf_dir = f"TEST-{args.arch}-{args.version}-{datestamp}"
         self.work_base_dir = (
