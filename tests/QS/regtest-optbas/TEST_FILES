@@ -1,4 +1,6 @@
 # test optimize basis
 H2O-ref.inp                                            1      9e-14             -17.02896604845343
+H2-ref.inp                                             1      9e-14              -1.11824989194243
 opt-1.inp                                             55      1e-14                 -.46916008E+03
+opt-2.inp                                             55      1e-14                 -.55279835E+03
 #EOF
