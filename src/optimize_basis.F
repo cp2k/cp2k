@@ -295,13 +295,12 @@ CONTAINS
       mp_id = opt_bas%opt_id
       ALLOCATE (start_time(SIZE(opt_bas%comp_group(mp_id)%member_list)))
       !
-      NULLIFY (matrix_s_aux_orb, matrix_s_aux)
-
       DO icalc = 1, SIZE(opt_bas%comp_group(mp_id)%member_list)
          my_id = opt_bas%comp_group(mp_id)%member_list(icalc) + 1
          ! setup timings
          start_time(icalc) = m_walltime()
 
+         NULLIFY (matrix_s_aux_orb, matrix_s_aux)
          CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc), opt_bas, set_id, bas_id)
          CALL f_env_get_from_id(f_env_id(icalc), f_env)
          force_env => f_env%force_env
@@ -341,19 +340,18 @@ CONTAINS
 
          CALL fit_mo_coeffs(matrix_s_aux, matrix_s_aux_orb, mos, mos_aux)
          CALL evaluate_optvals(mos, mos_aux, matrix_ks, matrix_s_aux_orb(1)%matrix, &
-                               matrix_s_aux(1)%matrix, matrix_S_inv(1)%matrix, &
+                               matrix_s_aux(1)%matrix, matrix_S_inv(icalc)%matrix, &
                                f_vec(my_id), energy(my_id), cond_vec(my_id))
 
          DO ispin = 1, nspins
             CALL deallocate_mo_set(mos_aux(ispin)%mo_set)
          END DO
          DEALLOCATE (mos_aux)
+         IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
+         IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
 
          my_time(my_id) = m_walltime() - start_time(icalc)
       END DO
-
-      IF (ASSOCIATED(matrix_s_aux)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux)
-      IF (ASSOCIATED(matrix_s_aux_orb)) CALL dbcsr_deallocate_matrix_set(matrix_s_aux_orb)
 
       DEALLOCATE (start_time)
 
