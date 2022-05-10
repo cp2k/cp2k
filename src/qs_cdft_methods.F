@@ -25,6 +25,7 @@ MODULE qs_cdft_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_realspace_grid_cube,          ONLY: cp_cube_to_pw
+   USE cube_utils,                      ONLY: cube_info_type
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product
    USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
@@ -599,7 +600,7 @@ CONTAINS
             ! Initialize the Hirshfeld constraint environment
             CALL hirshfeld_constraint_init(qs_env)
             ! Calculate the Hirshfeld weight function and possibly the gradients
-            CALL hirshfeld_constraint_low(qs_env)
+            CALL hirshfeld_constraint_low(qs_env, calculate_forces)
          END IF
          ! Integrate the Hirshfeld constraint
          CALL cdft_constraint_integrate(qs_env)
@@ -681,12 +682,8 @@ CONTAINS
                        pw_env=pw_env)
       CALL qs_rho_get(rho, rho_r=rho_r)
 
-         t1 = m_walltime()
          num_atoms = natom
 
-         ! IF (para_env%ionode) PRINT *, "start hirshfeld_constraint_low"
-
-         ! Pointers
          cdft_control => dft_control%qs_control%cdft_control
          hirshfeld_control => cdft_control%hirshfeld_control
          hirshfeld_env => hirshfeld_control%hirshfeld_env
@@ -810,9 +807,6 @@ CONTAINS
             nthread = 1
             ithread = 0
 
-            ! t2 = m_walltime()
-            ! IF (para_env%ionode) PRINT *, "t1-t2", t1-t2
-
             DO ikind = 1, SIZE(atomic_kind_set)
                numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
                IF (numexp <= 0) CYCLE
@@ -865,7 +859,7 @@ CONTAINS
 
                       ! CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                       !                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                      !                           rs_rho_all, cell, cube_info, radius=radius, &
+                      !                           rs_rho_all, radius=radius, &
                       !                           ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                       !                           subpatch_pattern=subpatch_pattern)
 
@@ -883,7 +877,7 @@ CONTAINS
 
                         ! CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                         !                            (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
-                        !                            pab, 0, 0, rs_rho_constr, cell, cube_info, &
+                        !                            pab, 0, 0, rs_rho_constr, &
                         !                            radius=radius, &
                         !                            ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                         !                            subpatch_pattern=subpatch_pattern)
@@ -904,7 +898,7 @@ CONTAINS
 
                         ! CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                         !                           (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                        !                           rs_single(iatom)%rs_grid, cell, cube_info, radius=radius, &
+                        !                           rs_single(iatom)%rs_grid, radius=radius, &
                         !                           ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                         !                           subpatch_pattern=subpatch_pattern)
                     END IF
@@ -925,7 +919,7 @@ CONTAINS
 
                           ! CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                           !                             (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                          !                             rs_single_charge(iatom)%rs_grid, cell, cube_info, radius=radius, &
+                          !                             rs_single_charge(iatom)%rs_grid, radius=radius, &
                           !                             ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                           !                             subpatch_pattern=subpatch_pattern)
                         END IF
@@ -1105,7 +1099,7 @@ CONTAINS
 
                       ! CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
                       !                              (/0.0_dp, 0.0_dp, 0.0_dp/), prefactor, &
-                      !                              pab, 0, 0, rs_single_dr(iatom+(num_species_small(k)-1))%rs_grid, cell, cube_info, &
+                      !                              pab, 0, 0, rs_single_dr(iatom+(num_species_small(k)-1))%rs_grid, &
                       !                              radius=radius, &
                       !                              ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                       !                              subpatch_pattern=subpatch_pattern)
@@ -1126,7 +1120,6 @@ CONTAINS
                 cdft_control%group(igroup)%gradients_x(atom_a, :, :, :) = pw_single_dr(iatom)%pw%cr3d(:, :, :)
                 CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_single_dr(iatom)%pw)
             END DO
-            t2 = m_walltime()
 
             DEALLOCATE (rs_single_dr)
             DEALLOCATE(num_species_small)
@@ -1404,7 +1397,7 @@ CONTAINS
                                                                 ispin, j, k, natom, nvar
           INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
           INTEGER, DIMENSION(2, 3)                           :: bo
-          REAL(kind=dp)                                      :: dvol, eps_cavity, sign, t1, t2
+          REAL(kind=dp)                                      :: dvol, eps_cavity, sign
           REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: strength
           REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoffs
           TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1445,10 +1438,6 @@ CONTAINS
           eps_cavity = cdft_control%becke_control%eps_cavity
           ALLOCATE (atom_of_kind(natom))
           ALLOCATE (kind_of(natom))
-
-          ! IF (para_env%ionode) PRINT *, "Calculating force"
-          t1 = m_walltime()
-
 
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                    atom_of_kind=atom_of_kind, &
@@ -1674,20 +1663,6 @@ CONTAINS
              END DO
           END IF
 
-          ! t2 = m_walltime()
-          ! IF (para_env%ionode) PRINT *, "Finished calcuating integrated", t1-t2
-          !
-          !
-          !    IF (para_env%ionode) PRINT *, "cdft_control%group(1)%integrated(:, 1)", cdft_control%group(1)%integrated(:, 1)
-          !    IF (para_env%ionode) PRINT *, "cdft_control%group(1)%integrated(:, 2)", cdft_control%group(1)%integrated(:, 2)
-          !
-
-          ! IF (.NOT. cdft_control%transfer_pot) THEN
-          !    DO igroup = 1, SIZE(group)
-          !       DEALLOCATE (cdft_control%group(igroup)%gradients)
-          !    END DO
-          ! END IF
-
           IF (.NOT. cdft_control%transfer_pot) THEN
             IF (cdft_control%type == outer_scf_becke_constraint) THEN
               DO igroup = 1, SIZE(group)
@@ -1739,12 +1714,6 @@ CONTAINS
              END DO
           END IF
         END IF
-
-        t2 = m_walltime()
-        ! IF (para_env%ionode) PRINT *, "Finished calcuating forces", t1-t2
-        ! IF (para_env%ionode)  PRINT *, "cdft_control%pot(:)", cdft_control%pot(:)
-
-        ! Note that energy due to external potential is calculated in qs_ks_methods.F
 
           DEALLOCATE (strength)
           DEALLOCATE (atom_of_kind)
