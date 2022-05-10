@@ -86,7 +86,8 @@ RUN /bin/bash -c " \
     ln -vs /opt/cp2k-toolchain/install/arch/local_hip.psmp ./arch/ && \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
-    ( make -j ARCH=local_hip VERSION=psmp &> /dev/null || true )"
+    ( make -j ARCH=local_hip VERSION=psmp &> /dev/null || true ) && \
+    ( [ ! -f ./exe/local_hip/cp2k.psmp ] || ldd ./exe/local_hip/cp2k.psmp | grep libmpi.so )"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting

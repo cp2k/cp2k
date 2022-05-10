@@ -76,7 +76,8 @@ RUN /bin/bash -c " \
     make -j ARCH=local VERSION=pdbg && \
     ln -sf ./cp2k.pdbg ./exe/local/cp2k && \
     ln -sf ./cp2k_shell.pdbg ./exe/local/cp2k_shell && \
-    rm -rf lib obj exe/local/libcp2k_unittest.pdbg"
+    rm -rf lib obj exe/local/libcp2k_unittest.pdbg && \
+    ( [ ! -f ./exe/local/cp2k.pdbg ] || ldd ./exe/local/cp2k.pdbg | grep libmpi.so )"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
