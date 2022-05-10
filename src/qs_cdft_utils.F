@@ -383,11 +383,18 @@ CONTAINS
                                                        pab=pab, o1=0, o2=0, &  ! without map_consistent
                                                        prefactor=1.0_dp, cutoff=0.0_dp)
 
-                     CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, &
-                                                pab, 0, 0, rs_cavity, &
-                                                radius=radius, ga_gb_function=GRID_FUNC_AB, &
-                                                use_subpatch=.TRUE., subpatch_pattern=0)
+
+                    CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                               (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, &
+                                               pab, 0, 0, rs_cavity, cell, pw_env%cube_info(1), &
+                                               radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                               use_subpatch=.TRUE., subpatch_pattern=0)
+
+                     ! CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                     !                            (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, &
+                     !                            pab, 0, 0, rs_cavity, &
+                     !                            radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                     !                            use_subpatch=.TRUE., subpatch_pattern=0)
                   END IF
                END DO
             END DO
