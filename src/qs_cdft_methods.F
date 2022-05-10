@@ -124,7 +124,7 @@ CONTAINS
          ! Integrate the Becke constraint
          CALL cdft_constraint_integrate(qs_env)
          ! Calculate forces
-         IF (calculate_forces) CALL becke_constraint_force(qs_env)
+         IF (calculate_forces) CALL cdft_constraint_force(qs_env)
       END IF
       CALL timestop(handle)
 
@@ -579,540 +579,7 @@ CONTAINS
    END SUBROUTINE becke_constraint_low
 
 ! **************************************************************************************************
-!> \brief Calculates atomic forces due to a Becke constraint
-!> \param qs_env the qs_env where to build the gradients
-!> \par   History
-!>        Created 01.2007 [fschiff]
-!>        Extended functionality 12/15-12/16 [Nico Holmberg]
-! **************************************************************************************************
-   SUBROUTINE becke_constraint_force(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'becke_constraint_force'
-
-      INTEGER                                            :: handle, i, iatom, igroup, ikind, ind(3), &
-                                                            ispin, j, k, natom, nvar
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
-      INTEGER, DIMENSION(2, 3)                           :: bo
-      REAL(kind=dp)                                      :: dvol, eps_cavity, sign, th
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: strength
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoffs
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(becke_constraint_type), POINTER               :: becke_control
-      TYPE(cdft_control_type), POINTER                   :: cdft_control
-      TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_rho_type), POINTER                         :: rho
-
-      CALL timeset(routineN, handle)
-      NULLIFY (atomic_kind_set, cell, para_env, dft_control, particle_set, &
-               rho, rho_r, force, cutoffs, becke_control, group)
-
-      CALL get_qs_env(qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      natom=natom, &
-                      particle_set=particle_set, &
-                      cell=cell, &
-                      rho=rho, &
-                      force=force, &
-                      dft_control=dft_control, &
-                      para_env=para_env)
-      CALL qs_rho_get(rho, rho_r=rho_r)
-
-      th = 1.0e-8_dp
-      cdft_control => dft_control%qs_control%cdft_control
-      becke_control => cdft_control%becke_control
-      group => cdft_control%group
-      nvar = SIZE(cdft_control%target)
-      ALLOCATE (strength(nvar))
-      strength(:) = cdft_control%strength(:)
-      cutoffs => becke_control%cutoffs
-      eps_cavity = becke_control%eps_cavity
-      ALLOCATE (atom_of_kind(natom))
-      ALLOCATE (kind_of(natom))
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                               atom_of_kind=atom_of_kind, &
-                               kind_of=kind_of)
-      DO igroup = 1, SIZE(group)
-         ALLOCATE (group(igroup)%integrated(3, natom))
-         group(igroup)%integrated = 0.0_dp
-      END DO
-      bo = group(1)%weight%pw%pw_grid%bounds_local
-      dvol = group(1)%weight%pw%pw_grid%dvol
-
-      IF (.NOT. becke_control%in_memory) &
-         ! Gradients were not precomputed => calculate them now
-         CALL becke_constraint_low(qs_env, just_gradients=.TRUE.)
-      ! Integrate gradients
-      IF (.NOT. ASSOCIATED(becke_control%cavity_mat)) THEN
-         ! No external control
-         DO k = bo(1, 1), bo(2, 1)
-            DO j = bo(1, 2), bo(2, 2)
-               DO i = bo(1, 3), bo(2, 3)
-                  ! First check if this grid point should be skipped
-                  IF (becke_control%cavity_confine) THEN
-                     IF (becke_control%cavity%pw%cr3d(k, j, i) < eps_cavity) CYCLE
-                  END IF
-                  ind = (/k, j, i/)
-                  DO igroup = 1, SIZE(group)
-                     DO iatom = 1, natom
-                        DO ispin = 1, dft_control%nspins
-                           SELECT CASE (group(igroup)%constraint_type)
-                           CASE (cdft_charge_constraint)
-                              sign = 1.0_dp
-                           CASE (cdft_magnetization_constraint)
-                              IF (ispin == 1) THEN
-                                 sign = 1.0_dp
-                              ELSE
-                                 sign = -1.0_dp
-                              END IF
-                           CASE (cdft_alpha_constraint)
-                              sign = 1.0_dp
-                              IF (ispin == 2) CYCLE
-                           CASE (cdft_beta_constraint)
-                              sign = 1.0_dp
-                              IF (ispin == 1) CYCLE
-                           CASE DEFAULT
-                              CPABORT("Unknown constraint type.")
-                           END SELECT
-                           group(igroup)%integrated(:, iatom) = group(igroup)%integrated(:, iatom) + sign* &
-                                                            group(igroup)%gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i)* &
-                                                                rho_r(ispin)%pw%cr3d(k, j, i)*dvol
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-      ELSE
-         DO k = LBOUND(becke_control%cavity_mat, 1), UBOUND(becke_control%cavity_mat, 1)
-            DO j = LBOUND(becke_control%cavity_mat, 2), UBOUND(becke_control%cavity_mat, 2)
-               DO i = LBOUND(becke_control%cavity_mat, 3), UBOUND(becke_control%cavity_mat, 3)
-                  ! First check if this grid point should be skipped
-                  IF (becke_control%cavity_mat(k, j, i) < eps_cavity) CYCLE
-                  DO igroup = 1, SIZE(group)
-                     DO iatom = 1, natom
-                        DO ispin = 1, dft_control%nspins
-                           SELECT CASE (group(igroup)%constraint_type)
-                           CASE (cdft_charge_constraint)
-                              sign = 1.0_dp
-                           CASE (cdft_magnetization_constraint)
-                              IF (ispin == 1) THEN
-                                 sign = 1.0_dp
-                              ELSE
-                                 sign = -1.0_dp
-                              END IF
-                           CASE (cdft_alpha_constraint)
-                              sign = 1.0_dp
-                              IF (ispin == 2) CYCLE
-                           CASE (cdft_beta_constraint)
-                              sign = 1.0_dp
-                              IF (ispin == 1) CYCLE
-                           CASE DEFAULT
-                              CPABORT("Unknown constraint type.")
-                           END SELECT
-                           group(igroup)%integrated(:, iatom) = group(igroup)%integrated(:, iatom) + sign* &
-                                                            group(igroup)%gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i)* &
-                                                                rho_r(ispin)%pw%cr3d(k, j, i)*dvol
-                        END DO
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-      END IF
-      IF (.NOT. cdft_control%transfer_pot) THEN
-         DO igroup = 1, SIZE(group)
-            DEALLOCATE (group(igroup)%gradients)
-         END DO
-      END IF
-      DO igroup = 1, SIZE(group)
-         CALL mp_sum(group(igroup)%integrated, para_env%group)
-      END DO
-      ! Update force only on master process. Otherwise force due to constraint becomes multiplied
-      ! by the number of processes when the final force%rho_elec is constructed in qs_force
-      ! by mp_summing [the final integrated(:,:) is distributed on all processors]
-      IF (para_env%ionode) THEN
-         DO igroup = 1, SIZE(group)
-            DO iatom = 1, natom
-               ikind = kind_of(iatom)
-               i = atom_of_kind(iatom)
-               force(ikind)%rho_elec(:, i) = force(ikind)%rho_elec(:, i) + group(igroup)%integrated(:, iatom)*strength(igroup)
-            END DO
-         END DO
-      END IF
-      DEALLOCATE (strength)
-      DEALLOCATE (atom_of_kind)
-      DEALLOCATE (kind_of)
-      DO igroup = 1, SIZE(group)
-         DEALLOCATE (group(igroup)%integrated)
-      END DO
-      NULLIFY (group)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE becke_constraint_force
-
-! **************************************************************************************************
-!> \brief Calculates the value of a CDFT constraint by integrating the product of the CDFT
-!>        weight function and the realspace electron density
-!> \param qs_env the qs_env where to build the constraint
-!> \par   History
-!>        Created 3.2017 [Nico Holmberg]
-!>        Generalized to any CDFT weight function 9.2018 [Nico Holmberg]
-! **************************************************************************************************
-   SUBROUTINE cdft_constraint_integrate(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_integrate'
-
-      INTEGER                                            :: handle, i, iatom, igroup, ikind, ivar, &
-                                                            iw, jatom, natom, nvar
-      LOGICAL                                            :: is_becke, paw_atom
-      REAL(kind=dp)                                      :: dvol, eps_cavity, sign
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: dE, strength, target_val
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: electronic_charge, gapw_offset
-      TYPE(becke_constraint_type), POINTER               :: becke_control
-      TYPE(cdft_control_type), POINTER                   :: cdft_control
-      TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mpole_rho_atom), DIMENSION(:), POINTER        :: mp_rho
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: charge, rho_r
-      TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
-      TYPE(section_vals_type), POINTER                   :: cdft_constraint_section
-
-      NULLIFY (para_env, dft_control, particle_set, rho_r, energy, rho, &
-               logger, cdft_constraint_section, qs_kind_set, mp_rho, &
-               rho0_mpole, group, charge)
-      CALL timeset(routineN, handle)
-      logger => cp_get_default_logger()
-      CALL get_qs_env(qs_env, &
-                      particle_set=particle_set, &
-                      rho=rho, &
-                      natom=natom, &
-                      dft_control=dft_control, &
-                      para_env=para_env, &
-                      qs_kind_set=qs_kind_set)
-      CALL qs_rho_get(rho, rho_r=rho_r)
-      CPASSERT(ASSOCIATED(qs_kind_set))
-      cdft_constraint_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%CDFT")
-      iw = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", extension=".cdftLog")
-      cdft_control => dft_control%qs_control%cdft_control
-      is_becke = (cdft_control%type == outer_scf_becke_constraint)
-      becke_control => cdft_control%becke_control
-      IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) &
-         CPABORT("Becke control has not been allocated.")
-      group => cdft_control%group
-      ! Initialize
-      nvar = SIZE(cdft_control%target)
-      ALLOCATE (strength(nvar))
-      ALLOCATE (target_val(nvar))
-      ALLOCATE (dE(nvar))
-      strength(:) = cdft_control%strength(:)
-      target_val(:) = cdft_control%target(:)
-      dE = 0.0_dp
-      dvol = group(1)%weight%pw%pw_grid%dvol
-      IF (cdft_control%atomic_charges) THEN
-         charge => cdft_control%charge
-         ALLOCATE (electronic_charge(cdft_control%natoms, dft_control%nspins))
-         electronic_charge = 0.0_dp
-      END IF
-      ! Calculate value of constraint i.e. int ( rho(r) w(r) dr)
-      DO i = 1, dft_control%nspins
-         DO igroup = 1, SIZE(group)
-            SELECT CASE (group(igroup)%constraint_type)
-            CASE (cdft_charge_constraint)
-               sign = 1.0_dp
-            CASE (cdft_magnetization_constraint)
-               IF (i == 1) THEN
-                  sign = 1.0_dp
-               ELSE
-                  sign = -1.0_dp
-               END IF
-            CASE (cdft_alpha_constraint)
-               sign = 1.0_dp
-               IF (i == 2) CYCLE
-            CASE (cdft_beta_constraint)
-               sign = 1.0_dp
-               IF (i == 1) CYCLE
-            CASE DEFAULT
-               CPABORT("Unknown constraint type.")
-            END SELECT
-            IF (is_becke .AND. (cdft_control%external_control .AND. becke_control%cavity_confine)) THEN
-               ! With external control, we can use cavity_mat as a mask to kahan sum
-               eps_cavity = becke_control%eps_cavity
-               IF (igroup /= 1) &
-                  CALL cp_abort(__LOCATION__, &
-                                "Multiple constraints not yet supported by parallel mixed calculations.")
-               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d, &
-                                                                   becke_control%cavity_mat, eps_cavity)*dvol
-            ELSE
-               dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
-            END IF
-         END DO
-         IF (cdft_control%atomic_charges) THEN
-            DO iatom = 1, cdft_control%natoms
-               electronic_charge(iatom, i) = accurate_dot_product(charge(iatom)%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
-            END DO
-         END IF
-      END DO
-      CALL get_qs_env(qs_env, energy=energy)
-      CALL mp_sum(dE, para_env%group)
-      IF (cdft_control%atomic_charges) THEN
-         CALL mp_sum(electronic_charge, para_env%group)
-      END IF
-      ! Use fragment densities as reference value (= Becke deformation density)
-      IF (cdft_control%fragment_density .AND. .NOT. cdft_control%fragments_integrated) THEN
-         CALL prepare_fragment_constraint(qs_env)
-      END IF
-      IF (dft_control%qs_control%gapw) THEN
-         ! GAPW: add core charges (rho_hard - rho_soft)
-         IF (cdft_control%fragment_density) &
-            CALL cp_abort(__LOCATION__, &
-                          "Fragment constraints not yet compatible with GAPW.")
-         ALLOCATE (gapw_offset(nvar, dft_control%nspins))
-         gapw_offset = 0.0_dp
-         CALL get_qs_env(qs_env, rho0_mpole=rho0_mpole)
-         CALL get_rho0_mpole(rho0_mpole, mp_rho=mp_rho)
-         DO i = 1, dft_control%nspins
-            DO igroup = 1, SIZE(group)
-               DO iatom = 1, SIZE(group(igroup)%atoms)
-                  SELECT CASE (group(igroup)%constraint_type)
-                  CASE (cdft_charge_constraint)
-                     sign = 1.0_dp
-                  CASE (cdft_magnetization_constraint)
-                     IF (i == 1) THEN
-                        sign = 1.0_dp
-                     ELSE
-                        sign = -1.0_dp
-                     END IF
-                  CASE (cdft_alpha_constraint)
-                     sign = 1.0_dp
-                     IF (i == 2) CYCLE
-                  CASE (cdft_beta_constraint)
-                     sign = 1.0_dp
-                     IF (i == 1) CYCLE
-                  CASE DEFAULT
-                     CPABORT("Unknown constraint type.")
-                  END SELECT
-                  jatom = group(igroup)%atoms(iatom)
-                  CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=ikind)
-                  CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
-                  IF (paw_atom) THEN
-                     gapw_offset(igroup, i) = gapw_offset(igroup, i) + sign*group(igroup)%coeff(iatom)*mp_rho(jatom)%q0(i)
-                  END IF
-               END DO
-            END DO
-         END DO
-         IF (cdft_control%atomic_charges) THEN
-            DO iatom = 1, cdft_control%natoms
-               jatom = cdft_control%atoms(iatom)
-               CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
-               IF (paw_atom) THEN
-                  DO i = 1, dft_control%nspins
-                     electronic_charge(iatom, i) = electronic_charge(iatom, i) + mp_rho(jatom)%q0(i)
-                  END DO
-               END IF
-            END DO
-         END IF
-         DO i = 1, dft_control%nspins
-            DO ivar = 1, nvar
-               dE(ivar) = dE(ivar) + gapw_offset(ivar, i)
-            END DO
-         END DO
-         DEALLOCATE (gapw_offset)
-      END IF
-      ! Update constraint value and energy
-      cdft_control%value(:) = dE(:)
-      energy%cdft = 0.0_dp
-      DO ivar = 1, nvar
-         energy%cdft = energy%cdft + (dE(ivar) - target_val(ivar))*strength(ivar)
-      END DO
-      ! Print constraint info and atomic CDFT charges
-      CALL cdft_constraint_print(qs_env, electronic_charge)
-      ! Deallocate tmp storage
-      DEALLOCATE (dE, strength, target_val)
-      IF (cdft_control%atomic_charges) DEALLOCATE (electronic_charge)
-      CALL cp_print_key_finished_output(iw, logger, cdft_constraint_section, "PROGRAM_RUN_INFO")
-      CALL timestop(handle)
-
-   END SUBROUTINE cdft_constraint_integrate
-
-! **************************************************************************************************
-!> \brief Prepare CDFT fragment constraints. Fragment densities are read from cube files, multiplied
-!>        by the CDFT weight functions and integrated over the realspace grid.
-!> \param qs_env the qs_env where to build the constraint
-!> \par   History
-!>        Created 9.2018 [Nico Holmberg]
-! **************************************************************************************************
-   SUBROUTINE prepare_fragment_constraint(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'prepare_fragment_constraint'
-
-      INTEGER                                            :: handle, i, iatom, igroup, natom, &
-                                                            nelectron_total, nfrag_spins
-      LOGICAL                                            :: is_becke, needs_spin_density
-      REAL(kind=dp)                                      :: dvol, multiplier(2), nelectron_frag
-      TYPE(becke_constraint_type), POINTER               :: becke_control
-      TYPE(cdft_control_type), POINTER                   :: cdft_control
-      TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_frag
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_subsys_type), POINTER                      :: subsys
-
-      NULLIFY (para_env, dft_control, logger, subsys, pw_env, auxbas_pw_pool, group, rho_frag)
-      CALL timeset(routineN, handle)
-      logger => cp_get_default_logger()
-      CALL get_qs_env(qs_env, &
-                      natom=natom, &
-                      dft_control=dft_control, &
-                      para_env=para_env)
-
-      cdft_control => dft_control%qs_control%cdft_control
-      is_becke = (cdft_control%type == outer_scf_becke_constraint)
-      becke_control => cdft_control%becke_control
-      IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) &
-         CPABORT("Becke control has not been allocated.")
-      group => cdft_control%group
-      dvol = group(1)%weight%pw%pw_grid%dvol
-      ! Fragment densities are meaningful only for some calculation types
-      IF (.NOT. qs_env%single_point_run) &
-         CALL cp_abort(__LOCATION__, &
-                       "CDFT fragment constraints are only compatible with single "// &
-                       "point calculations (run_type ENERGY or ENERGY_FORCE).")
-      IF (dft_control%qs_control%gapw) &
-         CALL cp_abort(__LOCATION__, &
-                       "CDFT fragment constraint not compatible with GAPW.")
-      needs_spin_density = .FALSE.
-      multiplier = 1.0_dp
-      nfrag_spins = 1
-      DO igroup = 1, SIZE(group)
-         SELECT CASE (group(igroup)%constraint_type)
-         CASE (cdft_charge_constraint)
-            ! Do nothing
-         CASE (cdft_magnetization_constraint)
-            needs_spin_density = .TRUE.
-         CASE (cdft_alpha_constraint, cdft_beta_constraint)
-            CALL cp_abort(__LOCATION__, &
-                          "CDFT fragment constraint not yet compatible with "// &
-                          "spin specific constraints.")
-         CASE DEFAULT
-            CPABORT("Unknown constraint type.")
-         END SELECT
-      END DO
-      IF (needs_spin_density) THEN
-         nfrag_spins = 2
-         DO i = 1, 2
-            IF (cdft_control%flip_fragment(i)) multiplier(i) = -1.0_dp
-         END DO
-      END IF
-      ! Read fragment reference densities
-      ALLOCATE (cdft_control%fragments(nfrag_spins, 2))
-      ALLOCATE (rho_frag(nfrag_spins))
-      CALL get_qs_env(qs_env, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      ! Total density (rho_alpha + rho_beta)
-      CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(1, 1)%pw, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      CALL cp_cube_to_pw(cdft_control%fragments(1, 1)%pw, &
-                         cdft_control%fragment_a_fname, 1.0_dp)
-      CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(1, 2)%pw, &
-                             use_data=REALDATA3D, in_space=REALSPACE)
-      CALL cp_cube_to_pw(cdft_control%fragments(1, 2)%pw, &
-                         cdft_control%fragment_b_fname, 1.0_dp)
-      ! Spin difference density (rho_alpha - rho_beta) if needed
-      IF (needs_spin_density) THEN
-         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(2, 1)%pw, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL cp_cube_to_pw(cdft_control%fragments(2, 1)%pw, &
-                            cdft_control%fragment_a_spin_fname, multiplier(1))
-         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(2, 2)%pw, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL cp_cube_to_pw(cdft_control%fragments(2, 2)%pw, &
-                            cdft_control%fragment_b_spin_fname, multiplier(2))
-      END IF
-      ! Sum up fragments
-      DO i = 1, nfrag_spins
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_frag(i)%pw, use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_copy(cdft_control%fragments(i, 1)%pw, rho_frag(i)%pw)
-         CALL pw_axpy(cdft_control%fragments(i, 2)%pw, rho_frag(i)%pw, 1.0_dp)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 1)%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 2)%pw)
-      END DO
-      DEALLOCATE (cdft_control%fragments)
-      ! Check that the number of electrons is consistent
-      CALL get_qs_env(qs_env, subsys=subsys)
-      CALL qs_subsys_get(subsys, nelectron_total=nelectron_total)
-      nelectron_frag = pw_integrate_function(rho_frag(1)%pw)
-      IF (NINT(nelectron_frag) /= nelectron_total) &
-         CALL cp_abort(__LOCATION__, &
-                       "The number of electrons in the reference and interacting "// &
-                       "configurations does not match. Check your fragment cube files.")
-      ! Update constraint target value i.e. perform integration w_i*rho_frag_{tot/spin}*dr
-      cdft_control%target = 0.0_dp
-      DO igroup = 1, SIZE(group)
-         IF (group(igroup)%constraint_type == cdft_charge_constraint) THEN
-            i = 1
-         ELSE
-            i = 2
-         END IF
-         IF (is_becke .AND. (cdft_control%external_control .AND. becke_control%cavity_confine)) THEN
-            cdft_control%target(igroup) = cdft_control%target(igroup) + &
-                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d, &
-                                                               becke_control%cavity_mat, becke_control%eps_cavity)*dvol
-         ELSE
-            cdft_control%target(igroup) = cdft_control%target(igroup) + &
-                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
-         END IF
-      END DO
-      CALL mp_sum(cdft_control%target, para_env%group)
-      ! Calculate reference atomic charges int( w_i * rho_frag * dr )
-      IF (cdft_control%atomic_charges) THEN
-         ALLOCATE (cdft_control%charges_fragment(cdft_control%natoms, nfrag_spins))
-         DO i = 1, nfrag_spins
-            DO iatom = 1, cdft_control%natoms
-               cdft_control%charges_fragment(iatom, i) = &
-                  accurate_dot_product(cdft_control%charge(iatom)%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
-            END DO
-         END DO
-         CALL mp_sum(cdft_control%charges_fragment, para_env%group)
-      END IF
-      DO i = 1, nfrag_spins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i)%pw)
-      END DO
-      DEALLOCATE (rho_frag)
-      cdft_control%fragments_integrated = .TRUE.
-
-      CALL timestop(handle)
-
-   END SUBROUTINE prepare_fragment_constraint
-
-! **************************************************************************************************
-!> \brief Driver routine for calculating a Gaussian Hirshfeld constraint
-!> \param qs_env the qs_env where to build the constraint
-!> \param calc_pot if the potential needs to be recalculated or just integrated
-!> \param calculate_forces logical if potential has to be calculated or only_energy
-!> \par   History
-!>        Created 09.2018 [Nico Holmberg]
+!> \brief Driver routine for calculating a Hirshfeld constraint
 ! **************************************************************************************************
    SUBROUTINE hirshfeld_constraint(qs_env, calc_pot, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1137,228 +604,1277 @@ CONTAINS
          ! Integrate the Hirshfeld constraint
          CALL cdft_constraint_integrate(qs_env)
          ! Calculate forces
-         IF (calculate_forces) CPABORT("Hirshfeld force NYI.")
-         !CALL hirshfeld_constraint_force(qs_env)
+         IF (calculate_forces) CALL cdft_constraint_force(qs_env)
       END IF
       CALL timestop(handle)
 
    END SUBROUTINE hirshfeld_constraint
 
-! **************************************************************************************************
-!> \brief Calculates Gaussian Hirshfeld constraints
-!> \param qs_env the qs_env where to build the constraint
-!> \author  Nico Holmberg (09.2018)
-! **************************************************************************************************
-   SUBROUTINE hirshfeld_constraint_low(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   ! **************************************************************************************************
+      !> \brief Calculates Gaussian Hirshfeld constraints
+      !> \param qs_env the qs_env where to build the constraint
+      !> \author  Nico Holmberg (09.2018)
+      ! **************************************************************************************************
+      ! SUBROUTINE hirshfeld_constraint_low(qs_env)
+       SUBROUTINE hirshfeld_constraint_low(qs_env, calculate_forces, just_gradients)
+     TYPE(qs_environment_type), POINTER                 :: qs_env
+     LOGICAL, OPTIONAL                                  :: just_gradients
+     LOGICAL                                            :: calculate_forces
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_low'
+     CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_low', &
+        routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: atom_a, handle, i, iatom, iex, igroup, &
-                                                            ikind, ithread, j, natom, npme, &
-                                                            nthread, numexp, subpatch_pattern
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: compute_charge, is_constraint
-      REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, &
-                                                            radius, radius_constr
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients
-      REAL(kind=dp), DIMENSION(3)                        :: ra
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cdft_control_type), POINTER                   :: cdft_control
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
-      TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: tmp
-      TYPE(pw_p_type), POINTER                           :: fnorm
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_single
-      TYPE(realspace_grid_type), POINTER                 :: rs_rho_all, rs_rho_constr
+     LOGICAL                                            :: plot_hirshfeld_density, in_memory, my_just_gradients
+     INTEGER                                            :: atom_a, handle, i, iatom, jatom, iatom2, iex, igroup, num_atoms, &
+                                                           ikind, ithread, j, natom, npme, num_species, atoms_memory_num, &
+                                                           nthread, numexp, k, i2, j2, k2,  im, jm, km, atoms_memory, &
+                                                           subpatch_pattern
+     INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
+     TYPE(cube_info_type)                               :: cube_info
+     LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: compute_charge, is_constraint
+     REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, r, r0, sum_alpha, t1, t2, &
+                                                           radius, radius_constr, r_squared, exp_eval, sign, eps_weight, &
+                                                           r_squared_pbc, prefactor
+     REAL(kind=dp), DIMENSION(3)                        :: ra, origin, sign_val, temp_val, ra_pbc
+     INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_species_small, test
+     TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+     TYPE(cdft_control_type), POINTER                   :: cdft_control
+     TYPE(dft_control_type), POINTER                    :: dft_control
+     TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
+     TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
+     TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+     TYPE(pw_p_type)                                    :: tmp
+     TYPE(pw_p_type), POINTER                           :: fnorm
+     TYPE(pw_p_type), DIMENSION(:), POINTER :: pw_single_dr
+     TYPE(pw_env_type), POINTER                         :: pw_env
+     INTEGER, DIMENSION(2, 3)                           :: bo, bo_conf, gridbounds
+     TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+     TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
+     INTEGER, DIMENSION(3)                              :: lb, ub, npts, ng, lb_rs, ub_rs, lb_pw, ub_pw
+       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+       TYPE(qs_rho_type), POINTER                         :: rho
+       TYPE(pw_p_type)                                    :: pw_rho_temp
+       REAL(KIND=dp), DIMENSION(3)              :: dr, dr_rs, dr_pw, r2, r_pbc, r_rs
+       TYPE(cell_type), POINTER                           :: cell
+       TYPE(cp_para_env_type), POINTER                    :: para_env
+       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients
+       REAL(KIND=dp), POINTER, DIMENSION(:, :, :)             :: rho_temp!, rho_dr_temp
+       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
+       TYPE(realspace_grid_type)                :: rsgrid
+       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_single, rs_single_charge, rs_single_dr, rs_single_gradient
+      TYPE(realspace_grid_type), POINTER                 :: rs_rho_all, rs_rho_constr, rho_dr_temp, rs_rho_temp
 
-      NULLIFY (atom_list, cores, pab, atomic_kind_set, cell, dft_control, &
-               hirshfeld_env, particle_set, pw_env, fnorm, auxbas_pw_pool, &
-               auxbas_rs_desc, rs_rho_all, rs_rho_constr, cdft_control, &
-               hirshfeld_control, rs_single)
+       NULLIFY (atom_list, atomic_kind_set, dft_control, fnorm, pw_single_dr, &
+                hirshfeld_env, particle_set, pw_env, auxbas_pw_pool, para_env, &
+                auxbas_rs_desc, cdft_control, pab, rs_rho_all, rho_dr_temp,rs_rho_temp, &
+                hirshfeld_control, cell, rho_r, rho, rs_single, rs_single_dr, rs_rho_constr, rs_single_charge)
 
-      CALL timeset(routineN, handle)
-      CALL get_qs_env(qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      cell=cell, &
-                      particle_set=particle_set, &
-                      natom=natom, &
-                      dft_control=dft_control, &
-                      pw_env=pw_env)
+       CALL timeset(routineN, handle)
+       CALL get_qs_env(qs_env, &
+                       atomic_kind_set=atomic_kind_set, &
+                       particle_set=particle_set, &
+                       natom=natom, &
+                       cell=cell, &
+                       rho=rho, &
+                       dft_control=dft_control, &
+                       para_env=para_env, &
+                       pw_env=pw_env)
+      CALL qs_rho_get(rho, rho_r=rho_r)
 
-      cdft_control => dft_control%qs_control%cdft_control
-      hirshfeld_control => cdft_control%hirshfeld_control
-      hirshfeld_env => hirshfeld_control%hirshfeld_env
+         t1 = m_walltime()
+         num_atoms = natom
 
-      ! Build weight function
-      ALLOCATE (is_constraint(natom))
-      ALLOCATE (coefficients(natom))
-      IF (cdft_control%atomic_charges) THEN
-         ALLOCATE (compute_charge(natom))
-         compute_charge = .FALSE.
-      END IF
+         ! IF (para_env%ionode) PRINT *, "start hirshfeld_constraint_low"
 
-      DO igroup = 1, SIZE(cdft_control%group)
-         dvol = cdft_control%group(igroup)%weight%pw%pw_grid%dvol
-         cdft_control%group(igroup)%weight%pw%cr3d = 0.0_dp
-         ! Keep track of those atoms that are active in this constraint group
-         coefficients(:) = 0.0_dp
-         is_constraint = .FALSE.
-         DO i = 1, SIZE(cdft_control%group(igroup)%atoms)
-            coefficients(cdft_control%group(igroup)%atoms(i)) = cdft_control%group(igroup)%coeff(i)
-            is_constraint(cdft_control%group(igroup)%atoms(i)) = .TRUE.
-         END DO
-         ! Calculate atomic Hirshfeld weight functions:  rs_rho_constr / rs_rho_all
-         ! rs_rho_all: Superposition of isolated Gaussian densities over all atoms in system
-         ! rs_rho_constr: Sum of isolated Gaussian densities over constraint atoms in this constraint group
-         IF (.NOT. ASSOCIATED(rs_rho_all)) THEN
-            CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho_all, &
-                            auxbas_pw_pool=auxbas_pw_pool)
-            CALL rs_grid_retain(rs_rho_all)
-            CALL rs_grid_zero(rs_rho_all)
-         END IF
-         CALL rs_grid_create(rs_rho_constr, auxbas_rs_desc)
-         CALL rs_grid_zero(rs_rho_constr)
-         ! Compute Gaussian density over single atoms (rs_single) when atomic charges are requested
-         IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
-            ALLOCATE (rs_single(cdft_control%natoms))
-            DO i = 1, cdft_control%natoms
-               NULLIFY (rs_single(i)%rs_grid)
-               CALL rs_grid_create(rs_single(i)%rs_grid, auxbas_rs_desc)
-               CALL rs_grid_zero(rs_single(i)%rs_grid)
-               compute_charge(cdft_control%atoms(i)) = .TRUE.
-            END DO
+         ! Pointers
+         cdft_control => dft_control%qs_control%cdft_control
+         hirshfeld_control => cdft_control%hirshfeld_control
+         hirshfeld_env => hirshfeld_control%hirshfeld_env
+
+         ! Check if only gradient should be calculated, if gradients should be precomputed
+         my_just_gradients = .FALSE.
+         IF (PRESENT(just_gradients)) my_just_gradients = just_gradients
+         IF (my_just_gradients) THEN
+           cdft_control%in_memory = .TRUE.
+           ! IF only gradient, no need to caluclate atomic charges or print density
+           cdft_control%atomic_charges = .FALSE.
+           hirshfeld_control%print_density = .FALSE.
          END IF
 
-         ! Collocate Gaussians
+         ! Allocation
+         ALLOCATE (coefficients(natom))
+         ALLOCATE (is_constraint(natom))
+
+         ! Reset strength to zero each SCF loop if requested (no extrapolation)
+          IF (hirshfeld_control%zero_strength) cdft_control%strength(:) = 0.0_dp
+
+         ! Neccessary for collocate_pgf_product
+         subpatch_pattern = 0
          eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-         ALLOCATE (pab(1, 1))
-         nthread = 1
-         ithread = 0
+         cube_info = pw_env%cube_info(1)
+         radius = 100.0_dp
 
-         DO ikind = 1, SIZE(atomic_kind_set)
-            numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
-            IF (numexp <= 0) CYCLE
-            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-            ALLOCATE (cores(natom))
+         ! For each CDFT group
+         DO igroup = 1, SIZE(cdft_control%group)
 
-            DO iex = 1, numexp
-               alpha = hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
-               coef = hirshfeld_env%kind_shape_fn(ikind)%coef(iex)
-               npme = 0
-               cores = 0
-               DO iatom = 1, natom
-                  atom_a = atom_list(iatom)
-                  ra(:) = pbc(particle_set(atom_a)%r, cell)
-                  IF (rs_rho_all%desc%parallel .AND. .NOT. rs_rho_all%desc%distributed) THEN
+         IF (.NOT. ASSOCIATED(rs_rho_all)) THEN
+              CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho_all, &
+                              auxbas_pw_pool=auxbas_pw_pool)
+              cube_info = pw_env%cube_info(1)
+              CALL rs_grid_retain(rs_rho_all)
+              CALL rs_grid_zero(rs_rho_all)
+            END IF
+
+          ! Get size of rs and pw grids
+          npts = rho_r(1)%pw%pw_grid%npts
+          dr_pw = rho_r(1)%pw%pw_grid%dr
+          dr_rs(1) = rs_rho_all%desc%dh(1, 1)
+          dr_rs(2) = rs_rho_all%desc%dh(2, 2)
+          dr_rs(3) = rs_rho_all%desc%dh(3, 3)
+          origin(:) = (dr_pw(:) * npts(:)) * 0.5_dp
+          lb_pw(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
+          ub_pw(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
+          lb_rs(1) = LBOUND(rs_rho_all%r(:, :, :), 1)
+          lb_rs(2) = LBOUND(rs_rho_all%r(:, :, :), 2)
+          lb_rs(3) = LBOUND(rs_rho_all%r(:, :, :), 3)
+          ub_rs(1) = UBOUND(rs_rho_all%r(:, :, :), 1)
+          ub_rs(2) = UBOUND(rs_rho_all%r(:, :, :), 2)
+          ub_rs(3) = UBOUND(rs_rho_all%r(:, :, :), 3)
+          bo = cdft_control%group(igroup)%weight%pw%pw_grid%bounds_local
+
+          ! Coefficients
+          coefficients(:) = 0.0_dp
+          is_constraint = .FALSE.
+            DO i = 1, SIZE(cdft_control%group(igroup)%atoms)
+              coefficients(cdft_control%group(igroup)%atoms(i)) = cdft_control%group(igroup)%coeff(i)
+              is_constraint(cdft_control%group(igroup)%atoms(i)) = .TRUE.
+          END DO
+
+           ! rs_rho_constr: Sum of isolated Gaussian densities over constraint atoms in this constraint group
+           CALL rs_grid_create(rs_rho_constr, auxbas_rs_desc)
+           CALL rs_grid_zero(rs_rho_constr)
+
+          ! rs_single: Gaussian density over single atoms when required
+          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
+             ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic(cdft_control%natoms))
+             ALLOCATE (rs_single(cdft_control%natoms))
+             DO i = 1, cdft_control%natoms
+                NULLIFY (rs_single(i)%rs_grid)
+                CALL rs_grid_create(rs_single(i)%rs_grid, auxbas_rs_desc)
+                CALL rs_grid_zero(rs_single(i)%rs_grid)
+                END DO
+         END IF
+
+         ! Setup pw
+         cdft_control%group(igroup)%weight%pw%cr3d = 0.0_dp
+
+         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint%pw, &
+          use_data=REALDATA3D, in_space=REALSPACE)
+          cdft_control%group(igroup)%hw_rho_total_constraint%pw%cr3d = 1.0_dp
+
+         IF (igroup == 1) THEN
+           CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total%pw, &
+           use_data=REALDATA3D, in_space=REALSPACE)
+           cdft_control%group(igroup)%hw_rho_total%pw%cr3d = 1.0_dp
+
+           IF (hirshfeld_control%print_density) THEN
+             DO iatom = 1, cdft_control%natoms
+                 CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic(iatom)%pw, &
+                 use_data=REALDATA3D, in_space=REALSPACE)
+                 cdft_control%group(igroup)%hw_rho_atomic(iatom)%pw%cr3d = 1.0_dp
+             END DO
+         END IF
+       END IF
+
+         IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
+           ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge(cdft_control%natoms))
+           ALLOCATE (rs_single_charge(cdft_control%natoms))
+           ALLOCATE (compute_charge(natom))
+           compute_charge = .FALSE.
+
+           DO i = 1, cdft_control%natoms
+              NULLIFY (rs_single_charge(i)%rs_grid)
+              CALL rs_grid_create(rs_single_charge(i)%rs_grid, auxbas_rs_desc)
+              CALL rs_grid_zero(rs_single_charge(i)%rs_grid)
+              compute_charge(cdft_control%atoms(i)) = .TRUE.
+           END DO
+
+           DO iatom = 1, cdft_control%natoms
+               CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw, &
+             use_data=REALDATA3D, in_space=REALSPACE)
+             cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw%cr3d = 1.0_dp
+           END DO
+       END IF
+
+            ALLOCATE (pab(1, 1))
+            nthread = 1
+            ithread = 0
+
+            ! t2 = m_walltime()
+            ! IF (para_env%ionode) PRINT *, "t1-t2", t1-t2
+
+            DO ikind = 1, SIZE(atomic_kind_set)
+               numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
+               IF (numexp <= 0) CYCLE
+               CALL get_atomic_kind(atomic_kind_set(ikind), natom=num_species, atom_list=atom_list)
+               ALLOCATE (cores(num_species))
+
+               DO iex = 1, numexp
+                  alpha = hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
+                  coef = hirshfeld_env%kind_shape_fn(ikind)%coef(iex)
+                  npme = 0
+                  cores = 0
+                  DO iatom = 1, num_species
+                     atom_a = atom_list(iatom)
+                     ra(:) = pbc(particle_set(atom_a)%r, cell)
+                     IF (rs_rho_all%desc%parallel .AND. .NOT. rs_rho_all%desc%distributed) THEN
+                        ! replicated realspace grid, split the atoms up between procs
+                        IF (MODULO(iatom, rs_rho_all%desc%group_size) == rs_rho_all%desc%my_pos) THEN
+                           npme = npme + 1
+                           cores(npme) = iatom
+                        ENDIF
+                     ELSE
+                        npme = npme + 1
+                        cores(npme) = iatom
+                     ENDIF
+                  END DO
+                  DO j = 1, npme
+                     iatom = cores(j)
+                     atom_a = atom_list(iatom)
+                     pab(1, 1) = coef*hirshfeld_env%charges(atom_a)
+                     ra(:) = pbc(particle_set(atom_a)%r, cell)
+                     ! subpatch_pattern = 0
+
+                     ! Calculate cutoff (Juerg Hutter code)
+                    IF (hirshfeld_control%use_atomic_cutoff) THEN
+                      radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                                        ra=ra, rb=ra, rp=ra, &
+                                                        zetp=alpha, eps=hirshfeld_control%atomic_cutoff, &
+                                                        pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                        prefactor=1.0_dp, cutoff=0.0_dp)
+                      ! IF (para_env%ionode) PRINT *, "radius", radius
+                    END IF
+
+                    ! Calculate total density rs_rho_all for first igroup only
+                    IF (igroup == 1) THEN
+                     CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                                                rs_rho_all, cell, cube_info, radius=radius, &
+                                                ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
+                                                subpatch_pattern=subpatch_pattern)
+                    END IF
+
+                     ! Calculate constraint density rs_rho_constr
+                     IF (is_constraint(atom_a)) THEN
+                        CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                                   (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
+                                                   pab, 0, 0, rs_rho_constr, cell, cube_info, &
+                                                   radius=radius, &
+                                                   ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
+                                                   subpatch_pattern=subpatch_pattern)
+                     END IF
+
+                     ! Calculate atomic density rs_single for printing density
+                     IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
+                       IF (is_constraint(atom_a)) THEN
+                       DO iatom = 1, cdft_control%natoms
+                         IF (atom_a == cdft_control%atoms(iatom)) EXIT
+                       END DO
+                       CPASSERT(iatom <= cdft_control%natoms)
+                       CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                                  (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                                                  rs_single(iatom)%rs_grid, cell, cube_info, radius=radius, &
+                                                  ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
+                                                  subpatch_pattern=subpatch_pattern)
+                    END IF
+                  END IF
+
+                  ! Calculate atomic density rs_single for calculating charges
+                     IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
+                        IF (compute_charge(atom_a)) THEN
+                           DO iatom = 1, cdft_control%natoms
+                              IF (atom_a == cdft_control%atoms(iatom)) EXIT
+                           END DO
+                           CPASSERT(iatom <= cdft_control%natoms)
+                           CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                                      (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                                                      rs_single_charge(iatom)%rs_grid, cell, cube_info, radius=radius, &
+                                                      ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
+                                                      subpatch_pattern=subpatch_pattern)
+                        END IF
+                     END IF
+
+                  END DO
+               END DO
+               DEALLOCATE (cores)
+            END DO
+            DEALLOCATE (pab)
+
+            ! Transfer rs to pw (annoying but necessary as electron density is stored on pw grid)
+
+            ! hw_rho_total only has to be calculated for first igroup
+            IF (igroup == 1) THEN
+            CALL rs_pw_transfer(rs_rho_all, cdft_control%group(igroup)%hw_rho_total%pw, rs2pw)
+             IF (.NOT. cdft_control%in_memory) CALL rs_grid_release(rs_rho_all)
+           END IF
+
+             CALL rs_pw_transfer(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint%pw, rs2pw)
+             CALL rs_grid_release(rs_rho_constr)
+
+            ! Calculate weight function
+              CALL hfun_scale2(cdft_control%group(igroup)%weight%pw%cr3d, &
+                                 cdft_control%group(igroup)%hw_rho_total_constraint%pw%cr3d, &
+                                 cdft_control%group(1)%hw_rho_total%pw%cr3d, divide=.TRUE., small=hirshfeld_control%eps_cutoff)
+
+            ! Calculate charges
+            IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
+               DO i = 1, cdft_control%natoms
+                CALL rs_pw_transfer(rs_single_charge(i)%rs_grid, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw, rs2pw)
+                CALL hfun_scale2(cdft_control%charge(i)%pw%cr3d, &
+                                  cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw%cr3d, &
+                                  cdft_control%group(igroup)%hw_rho_total%pw%cr3d, divide=.TRUE., small=hirshfeld_control%eps_cutoff)
+                END DO
+           END IF
+
+           ! Print atomic densities if requested
+           IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
+             DO i = 1, cdft_control%natoms
+             CALL rs_pw_transfer(rs_single(i)%rs_grid, cdft_control%group(igroup)%hw_rho_atomic(i)%pw, rs2pw)
+           END DO
+             CALL cdft_print_hirshfeld_density(qs_env)
+           END IF
+
+         END DO ! igroup = 1, SIZE(cdft_control%group)
+
+         ! Clear memory
+         DO igroup = 1, SIZE(cdft_control%group)
+
+           CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint%pw)
+
+           IF (.NOT. cdft_control%in_memory .AND. igroup == 1) THEN
+             CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total%pw)
+           END IF
+
+             IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
+               DO i = 1, cdft_control%natoms
+               CALL rs_grid_release(rs_single(i)%rs_grid)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic(i)%pw)
+               END DO
+               DEALLOCATE (rs_single)
+               DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic)
+             END IF
+
+             IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
+               DO i = 1, cdft_control%natoms
+               CALL rs_grid_release(rs_single_charge(i)%rs_grid)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw)
+             END DO
+             DEALLOCATE (rs_single_charge)
+             DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge)
+             END IF
+
+        END DO ! igroup = 1, SIZE(cdft_control%group)
+
+              ! Allocate gradients_x
+             IF (cdft_control%in_memory) THEN
+                DO igroup = 1, SIZE(cdft_control%group)
+                 ALLOCATE (cdft_control%group(igroup)%gradients_x(1*natom, lb_pw(1):ub_pw(1), lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
+                 cdft_control%group(igroup)%gradients_x(:, :, :, :) = 0.0_dp
+               END DO
+             END IF
+
+             IF (cdft_control%in_memory .AND. .NOT. cdft_control%energy_only) THEN
+               DO igroup = 1, SIZE(cdft_control%group)
+
+                ALLOCATE (pab(1, 1))
+                nthread = 1
+                ithread = 0
+                atoms_memory = hirshfeld_control%atoms_memory
+
+                DO ikind = 1, SIZE(atomic_kind_set)
+                numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
+                IF (numexp <= 0) CYCLE
+                CALL get_atomic_kind(atomic_kind_set(ikind), natom=num_species, atom_list=atom_list)
+
+                ALLOCATE (pw_single_dr(num_species))
+                ALLOCATE (rs_single_dr(num_species))
+
+                            DO i = 1, num_species
+                            CALL pw_pool_create_pw(auxbas_pw_pool, pw_single_dr(i)%pw, use_data=REALDATA3D, &
+                                               in_space=REALSPACE)
+                              pw_single_dr(i)%pw%cr3d(:, :, :) = 0.0_dp
+                             END DO
+
+                atoms_memory_num = SIZE((/ (j, j = 1, num_species, atoms_memory)/))
+
+                ! Can't store all pw grids, therefore split into groups of size atom_memory
+                ! Ideally this code should be re-written to be more memory efficient
+                IF (num_species > atoms_memory) THEN
+                  ALLOCATE (num_species_small(atoms_memory_num+1))
+                  num_species_small(1:atoms_memory_num) = (/ (j, j = 1, num_species, atoms_memory) /)
+                  num_species_small(atoms_memory_num+1) = num_species
+                ELSE
+                  ALLOCATE (num_species_small(2))
+                  num_species_small(:) = (/ 1, num_species /)
+                END IF
+
+                  DO k = 1, SIZE(num_species_small)-1
+                    IF (num_species > atoms_memory) THEN
+                      ALLOCATE (cores(num_species_small(k+1)-(num_species_small(k)-1)))
+                    ELSE
+                      ALLOCATE (cores(num_species))
+                    END IF
+
+                    DO i = num_species_small(k), num_species_small(k+1)
+                       NULLIFY (rs_single_dr(i)%rs_grid)
+                       CALL rs_grid_create(rs_single_dr(i)%rs_grid, auxbas_rs_desc)
+                       CALL rs_grid_zero(rs_single_dr(i)%rs_grid)
+                    END DO
+                DO iex = 1, numexp
+
+                   alpha = hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
+                   coef = hirshfeld_env%kind_shape_fn(ikind)%coef(iex)
+                   prefactor = 2.0_dp * alpha
+                   npme = 0
+                   cores = 0
+
+                    DO iatom = 1, SIZE(cores)
+                      atom_a = atom_list(iatom+(num_species_small(k)-1))
+                      ra(:) = pbc(particle_set(atom_a)%r, cell)
+
+                      IF (rs_rho_all%desc%parallel .AND. .NOT. rs_rho_all%desc%distributed) THEN
                      ! replicated realspace grid, split the atoms up between procs
                      IF (MODULO(iatom, rs_rho_all%desc%group_size) == rs_rho_all%desc%my_pos) THEN
                         npme = npme + 1
                         cores(npme) = iatom
-                     END IF
+                     ENDIF
                   ELSE
                      npme = npme + 1
                      cores(npme) = iatom
-                  END IF
+                  ENDIF
                END DO
                DO j = 1, npme
                   iatom = cores(j)
-                  atom_a = atom_list(iatom)
+                  atom_a = atom_list(iatom+(num_species_small(k)-1))
                   pab(1, 1) = coef*hirshfeld_env%charges(atom_a)
                   ra(:) = pbc(particle_set(atom_a)%r, cell)
                   subpatch_pattern = 0
-                  radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
-                                                    ra=ra, rb=ra, rp=ra, &
-                                                    zetp=alpha, eps=eps_rho_rspace, &
-                                                    pab=pab, o1=0, o2=0, &  ! without map_consistent
-                                                    prefactor=1.0_dp, cutoff=0.0_dp)
 
-                  CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                             (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                             rs_rho_all, radius=radius, &
-                                             ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
-                                             subpatch_pattern=subpatch_pattern)
-                  IF (is_constraint(atom_a)) THEN
-                     radius_constr = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
-                                                              ra=ra, rb=ra, rp=ra, &
-                                                              zetp=alpha, eps=eps_rho_rspace, &
-                                                              pab=pab, o1=0, o2=0, &  ! without map_consistent
-                                                              prefactor=coefficients(atom_a), cutoff=0.0_dp)
+                      ! Calculate cutoff
+                     IF (hirshfeld_control%use_atomic_cutoff) THEN
+                       radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+                                                         ra=ra, rb=ra, rp=ra, &
+                                                         zetp=alpha, eps=hirshfeld_control%atomic_cutoff, &
+                                                         pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                         prefactor=1.0_dp, cutoff=0.0_dp)
+                     END IF
 
-                     CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
-                                                pab, 0, 0, rs_rho_constr, &
-                                                radius=radius_constr, &
-                                                ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
-                                                subpatch_pattern=subpatch_pattern)
-                  END IF
-                  IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
-                     IF (compute_charge(atom_a)) THEN
-                        DO iatom = 1, cdft_control%natoms
-                           IF (atom_a == cdft_control%atoms(iatom)) EXIT
-                        END DO
-                        CPASSERT(iatom <= cdft_control%natoms)
-                        CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                   (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                                                   rs_single(iatom)%rs_grid, radius=radius, &
+                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                                   (/0.0_dp, 0.0_dp, 0.0_dp/), prefactor, &
+                                                   pab, 0, 0, rs_single_dr(iatom+(num_species_small(k)-1))%rs_grid, cell, cube_info, &
+                                                   radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                    subpatch_pattern=subpatch_pattern)
-                     END IF
-                  END IF
+
+                      END DO
+                END DO
+
+               DO iatom = num_species_small(k), num_species_small(k+1)
+                  CALL rs_pw_transfer(rs_single_dr(iatom)%rs_grid, pw_single_dr(iatom)%pw, rs2pw)
+                  CALL rs_grid_release(rs_single_dr(iatom)%rs_grid)
                END DO
+
+                DEALLOCATE (cores)
+              END DO
+
+               DO iatom = 1, num_species
+                 atom_a = atom_list(iatom)
+                cdft_control%group(igroup)%gradients_x(atom_a, :, :, :) = pw_single_dr(iatom)%pw%cr3d(:, :, :)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_single_dr(iatom)%pw)
             END DO
-            DEALLOCATE (cores)
+            t2 = m_walltime()
+
+            DEALLOCATE (rs_single_dr)
+            DEALLOCATE(num_species_small)
+            DEALLOCATE(pw_single_dr)
          END DO
          DEALLOCATE (pab)
+         END DO
+      END IF
 
-         ! Transfer rs_rho_all to the correct grid and save it
-         CALL get_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
-         IF (igroup == 1) THEN
-            IF (ASSOCIATED(fnorm)) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, fnorm%pw)
-            END IF
-            ALLOCATE (fnorm)
-            CALL pw_pool_create_pw(auxbas_pw_pool, fnorm%pw, use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
-            CALL set_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
-            CALL rs_pw_transfer(rs_rho_all, fnorm%pw, rs2pw)
-            CALL rs_grid_release(rs_rho_all)
+        ! Allocate gradients_y, gradients_z
+         IF (cdft_control%in_memory) THEN
+           DO igroup = 1, SIZE(cdft_control%group)
+              ALLOCATE (cdft_control%group(igroup)%gradients_y(1*num_atoms, lb_pw(1):ub_pw(1), lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
+              ALLOCATE (cdft_control%group(igroup)%gradients_z(1*num_atoms, lb_pw(1):ub_pw(1), lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
+              cdft_control%group(igroup)%gradients_y(:, :, :, :) = cdft_control%group(igroup)%gradients_x(:, :, :, :) !0.0_dp
+              cdft_control%group(igroup)%gradients_z(:, :, :, :) = cdft_control%group(igroup)%gradients_x(:, :, :, :) !0.0_dp
+          END DO
+        END IF
+
+         ! Calculate gradient if requested
+         IF (cdft_control%in_memory .AND. .NOT. cdft_control%energy_only) THEN
+
+             DO igroup = 1, SIZE(cdft_control%group)
+               DO k = lb_pw(3), ub_pw(3)
+                 DO j = lb_pw(2), ub_pw(2)
+                   DO i = lb_pw(1), ub_pw(1)
+                   DO iatom = 1, natom
+
+                     ra(:) = particle_set(iatom)%r
+
+                           IF (cdft_control%group(igroup)%hw_rho_total%pw%cr3d(i, j, k) > hirshfeld_control%eps_cutoff) THEN
+
+                                         exp_eval =  (coefficients(iatom) - &
+                                                      cdft_control%group(igroup)%weight%pw%cr3d(i, j, k)) / &
+                                                     cdft_control%group(igroup)%hw_rho_total%pw%cr3d(i, j, k)
+
+                            r2 = (/i * dr_pw(1), j * dr_pw(2), k * dr_pw(3)/) + origin
+                            r_pbc = pbc(ra, r2, cell) ! Periodic distance (rs)
+
+                                              ! Store gradient d/dR_x w, including term: (r_x - R_x)
+                                              cdft_control%group(igroup)%gradients_x(iatom, i, j, k) = &
+                                                          cdft_control%group(igroup)%gradients_x(iatom, i, j, k) * &
+                                                          r_pbc(1) * exp_eval
+
+                                             ! Store gradient d/dR_y w, including term: (r_y - R_y)
+                                             cdft_control%group(igroup)%gradients_y(iatom, i, j, k) = &
+                                                         cdft_control%group(igroup)%gradients_y(iatom, i, j, k) * &
+                                                          r_pbc(2) * exp_eval
+
+                                             ! Store gradient d/dR_z w, including term:(r_z - R_z)
+                                             cdft_control%group(igroup)%gradients_z(iatom, i, j, k) = &
+                                                         cdft_control%group(igroup)%gradients_z(iatom, i, j, k) * &
+                                                          r_pbc(3) * exp_eval
+
+                              END IF
+                         END DO ! i = lb(1), ub(1)
+                       END DO ! j = lb(2), ub(2)
+                     END DO ! k = lb(3), ub(3)
+                   END DO ! iatom = 1, natom
+
+                   IF (igroup == 1) THEN
+                     CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total%pw)
+                   END IF
+                 CALL rs_grid_release(rs_rho_all)
+               END DO ! igroup = 1, SIZE(cdft_control%group)
+             END IF ! (cdft_control%in_memory) THEN
+
+             ! Deallocate if allocated
+             IF (ALLOCATED(coefficients)) DEALLOCATE (coefficients)
+             IF (ALLOCATED(is_constraint)) DEALLOCATE (is_constraint)
+             IF (ALLOCATED(compute_charge)) DEALLOCATE (compute_charge)
+
+         CALL timestop(handle)
+
+      END SUBROUTINE hirshfeld_constraint_low
+
+   ! **************************************************************************************************
+   !> \brief Calculates the value of a CDFT constraint by integrating the product of the CDFT
+   !>        weight function and the realspace electron density
+   ! **************************************************************************************************
+      SUBROUTINE cdft_constraint_integrate(qs_env)
+         TYPE(qs_environment_type), POINTER                 :: qs_env
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_integrate'
+
+         INTEGER                                            :: handle, i, iatom, igroup, ikind, ivar, &
+                                                               iw, jatom, natom, nvar
+         LOGICAL                                            :: is_becke, paw_atom
+         REAL(kind=dp)                                      :: dvol, eps_cavity, sign
+         REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: dE, strength, target_val
+         REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: electronic_charge, gapw_offset
+         TYPE(becke_constraint_type), POINTER               :: becke_control
+         TYPE(cdft_control_type), POINTER                   :: cdft_control
+         TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
+         TYPE(cp_logger_type), POINTER                      :: logger
+         TYPE(cp_para_env_type), POINTER                    :: para_env
+         TYPE(dft_control_type), POINTER                    :: dft_control
+         TYPE(mpole_rho_atom), DIMENSION(:), POINTER        :: mp_rho
+         TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+         TYPE(pw_p_type), DIMENSION(:), POINTER             :: charge, rho_r
+         TYPE(qs_energy_type), POINTER                      :: energy
+         TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+         TYPE(qs_rho_type), POINTER                         :: rho
+         TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
+         TYPE(section_vals_type), POINTER                   :: cdft_constraint_section
+
+         NULLIFY (para_env, dft_control, particle_set, rho_r, energy, rho, &
+                  logger, cdft_constraint_section, qs_kind_set, mp_rho, &
+                  rho0_mpole, group, charge)
+         CALL timeset(routineN, handle)
+         logger => cp_get_default_logger()
+         CALL get_qs_env(qs_env, &
+                         particle_set=particle_set, &
+                         rho=rho, &
+                         natom=natom, &
+                         dft_control=dft_control, &
+                         para_env=para_env, &
+                         qs_kind_set=qs_kind_set)
+         CALL qs_rho_get(rho, rho_r=rho_r)
+         CPASSERT(ASSOCIATED(qs_kind_set))
+         cdft_constraint_section => section_vals_get_subs_vals(qs_env%input, "DFT%QS%CDFT")
+         iw = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", extension=".cdftLog")
+         cdft_control => dft_control%qs_control%cdft_control
+         is_becke = (cdft_control%type == outer_scf_becke_constraint)
+         becke_control => cdft_control%becke_control
+         IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) &
+            CPABORT("Becke control has not been allocated.")
+         group => cdft_control%group
+         ! Initialize
+         nvar = SIZE(cdft_control%target)
+         ALLOCATE (strength(nvar))
+         ALLOCATE (target_val(nvar))
+         ALLOCATE (dE(nvar))
+         strength(:) = cdft_control%strength(:)
+         target_val(:) = cdft_control%target(:)
+         dE = 0.0_dp
+         dvol = group(1)%weight%pw%pw_grid%dvol
+         IF (cdft_control%atomic_charges) THEN
+            charge => cdft_control%charge
+            ALLOCATE (electronic_charge(cdft_control%natoms, dft_control%nspins))
+            electronic_charge = 0.0_dp
          END IF
-         ! Compute CDFT weight function
-         CALL pw_pool_create_pw(auxbas_pw_pool, tmp%pw, use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL rs_pw_transfer(rs_rho_constr, tmp%pw, rs2pw)
-         CALL rs_grid_release(rs_rho_constr)
-         CALL hfun_scale(cdft_control%group(igroup)%weight%pw%cr3d, tmp%pw%cr3d, &
-                         fnorm%pw%cr3d, divide=.TRUE.)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp%pw)
-         ! Compute atomic weight functions if charges are needed
-         IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
-            CALL pw_pool_create_pw(auxbas_pw_pool, tmp%pw, use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
-            DO i = 1, cdft_control%natoms
-               CALL rs_pw_transfer(rs_single(i)%rs_grid, tmp%pw, rs2pw)
-               CALL rs_grid_release(rs_single(i)%rs_grid)
-               CALL hfun_scale(cdft_control%charge(i)%pw%cr3d, tmp%pw%cr3d, &
-                               fnorm%pw%cr3d, divide=.TRUE.)
+         ! Calculate value of constraint i.e. int ( rho(r) w(r) dr)
+         DO i = 1, dft_control%nspins
+            DO igroup = 1, SIZE(group)
+               SELECT CASE (group(igroup)%constraint_type)
+               CASE (cdft_charge_constraint)
+                  sign = 1.0_dp
+               CASE (cdft_magnetization_constraint)
+                  IF (i == 1) THEN
+                     sign = 1.0_dp
+                  ELSE
+                     sign = -1.0_dp
+                  END IF
+               CASE (cdft_alpha_constraint)
+                  sign = 1.0_dp
+                  IF (i == 2) CYCLE
+               CASE (cdft_beta_constraint)
+                  sign = 1.0_dp
+                  IF (i == 1) CYCLE
+               CASE DEFAULT
+                  CPABORT("Unknown constraint type.")
+               END SELECT
+               IF (is_becke .AND. (cdft_control%external_control .AND. becke_control%cavity_confine)) THEN
+                  ! With external control, we can use cavity_mat as a mask to kahan sum
+                  eps_cavity = becke_control%eps_cavity
+                  IF (igroup /= 1) &
+                     CALL cp_abort(__LOCATION__, &
+                                   "Multiple constraints not yet supported by parallel mixed calculations.")
+                  dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d, &
+                                                                      becke_control%cavity_mat, eps_cavity)*dvol
+               ELSE
+                  dE(igroup) = dE(igroup) + sign*accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
+               END IF
             END DO
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp%pw)
-            DEALLOCATE (rs_single)
-            DEALLOCATE (compute_charge)
+            IF (cdft_control%atomic_charges) THEN
+               DO iatom = 1, cdft_control%natoms
+                  electronic_charge(iatom, i) = accurate_dot_product(charge(iatom)%pw%cr3d, rho_r(i)%pw%cr3d)*dvol
+               END DO
+            END IF
+         END DO
+         CALL get_qs_env(qs_env, energy=energy)
+         CALL mp_sum(dE, para_env%group)
+         IF (cdft_control%atomic_charges) THEN
+            CALL mp_sum(electronic_charge, para_env%group)
          END IF
-      END DO
+         ! Use fragment densities as reference value (= Becke deformation density)
+         IF (cdft_control%fragment_density .AND. .NOT. cdft_control%fragments_integrated) THEN
+            CALL prepare_fragment_constraint(qs_env)
+         END IF
+         IF (dft_control%qs_control%gapw) THEN
+            ! GAPW: add core charges (rho_hard - rho_soft)
+            IF (cdft_control%fragment_density) &
+               CALL cp_abort(__LOCATION__, &
+                             "Fragment constraints not yet compatible with GAPW.")
+            ALLOCATE (gapw_offset(nvar, dft_control%nspins))
+            gapw_offset = 0.0_dp
+            CALL get_qs_env(qs_env, rho0_mpole=rho0_mpole)
+            CALL get_rho0_mpole(rho0_mpole, mp_rho=mp_rho)
+            DO i = 1, dft_control%nspins
+               DO igroup = 1, SIZE(group)
+                  DO iatom = 1, SIZE(group(igroup)%atoms)
+                     SELECT CASE (group(igroup)%constraint_type)
+                     CASE (cdft_charge_constraint)
+                        sign = 1.0_dp
+                     CASE (cdft_magnetization_constraint)
+                        IF (i == 1) THEN
+                           sign = 1.0_dp
+                        ELSE
+                           sign = -1.0_dp
+                        END IF
+                     CASE (cdft_alpha_constraint)
+                        sign = 1.0_dp
+                        IF (i == 2) CYCLE
+                     CASE (cdft_beta_constraint)
+                        sign = 1.0_dp
+                        IF (i == 1) CYCLE
+                     CASE DEFAULT
+                        CPABORT("Unknown constraint type.")
+                     END SELECT
+                     jatom = group(igroup)%atoms(iatom)
+                     CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=ikind)
+                     CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
+                     IF (paw_atom) THEN
+                        gapw_offset(igroup, i) = gapw_offset(igroup, i) + sign*group(igroup)%coeff(iatom)*mp_rho(jatom)%q0(i)
+                     END IF
+                  END DO
+               END DO
+            END DO
+            IF (cdft_control%atomic_charges) THEN
+               DO iatom = 1, cdft_control%natoms
+                  jatom = cdft_control%atoms(iatom)
+                  CALL get_atomic_kind(particle_set(jatom)%atomic_kind, kind_number=ikind)
+                  CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
+                  IF (paw_atom) THEN
+                     DO i = 1, dft_control%nspins
+                        electronic_charge(iatom, i) = electronic_charge(iatom, i) + mp_rho(jatom)%q0(i)
+                     END DO
+                  END IF
+               END DO
+            END IF
+            DO i = 1, dft_control%nspins
+               DO ivar = 1, nvar
+                  dE(ivar) = dE(ivar) + gapw_offset(ivar, i)
+               END DO
+            END DO
+            DEALLOCATE (gapw_offset)
+         END IF
+         ! Update constraint value and energy
+         cdft_control%value(:) = dE(:)
+         energy%cdft = 0.0_dp
+         DO ivar = 1, nvar
+            energy%cdft = energy%cdft + (dE(ivar) - target_val(ivar))*strength(ivar)
+         END DO
+         ! Print constraint info and atomic CDFT charges
+         CALL cdft_constraint_print(qs_env, electronic_charge)
+         ! Deallocate tmp storage
+         DEALLOCATE (dE, strength, target_val)
+         IF (cdft_control%atomic_charges) DEALLOCATE (electronic_charge)
+         CALL cp_print_key_finished_output(iw, logger, cdft_constraint_section, "PROGRAM_RUN_INFO")
+         CALL timestop(handle)
 
-      DEALLOCATE (is_constraint)
-      DEALLOCATE (coefficients)
-      CALL timestop(handle)
+      END SUBROUTINE cdft_constraint_integrate
 
-   END SUBROUTINE hirshfeld_constraint_low
+    ! **************************************************************************************************
+    !> \brief Calculates atomic forces due to a CDFT constraint (Becke or Hirshfeld)
+    ! **************************************************************************************************
+       SUBROUTINE cdft_constraint_force(qs_env)
+          TYPE(qs_environment_type), POINTER                 :: qs_env
+
+          CHARACTER(len=*), PARAMETER :: routineN = 'cdft_constraint_force', &
+             routineP = moduleN//':'//routineN
+
+          INTEGER                                            :: handle, i, iatom, igroup, ikind, &
+                                                                ispin, j, k, natom, nvar
+          INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+          INTEGER, DIMENSION(2, 3)                           :: bo
+          REAL(kind=dp)                                      :: dvol, eps_cavity, sign, t1, t2
+          REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: strength
+          REAL(KIND=dp), DIMENSION(:), POINTER               :: cutoffs
+          TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+          TYPE(becke_constraint_type), POINTER               :: becke_control
+          TYPE(cdft_control_type), POINTER                   :: cdft_control
+          TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
+          TYPE(cell_type), POINTER                           :: cell
+          TYPE(cp_para_env_type), POINTER                    :: para_env
+          TYPE(dft_control_type), POINTER                    :: dft_control
+          TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+          TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+          TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+          TYPE(qs_rho_type), POINTER                         :: rho
+          INTEGER, DIMENSION(3)                              :: lb, ub, ub_rs, lb_rs
+
+          CALL timeset(routineN, handle)
+          NULLIFY (atomic_kind_set, cell, para_env, dft_control, particle_set, &
+                   rho, rho_r, force, cutoffs, becke_control, group)
+
+          CALL get_qs_env(qs_env, &
+                          atomic_kind_set=atomic_kind_set, &
+                          natom=natom, &
+                          particle_set=particle_set, &
+                          cell=cell, &
+                          rho=rho, &
+                          force=force, &
+                          dft_control=dft_control, &
+                          para_env=para_env)
+          CALL qs_rho_get(rho, rho_r=rho_r)
+
+          cdft_control => dft_control%qs_control%cdft_control
+          becke_control => cdft_control%becke_control
+          group => cdft_control%group
+          nvar = SIZE(cdft_control%target)
+          ALLOCATE (strength(nvar))
+          strength(:) = cdft_control%strength(:)
+          cutoffs => cdft_control%becke_control%cutoffs
+          eps_cavity = cdft_control%becke_control%eps_cavity
+          ALLOCATE (atom_of_kind(natom))
+          ALLOCATE (kind_of(natom))
+
+          ! IF (para_env%ionode) PRINT *, "Calculating force"
+          t1 = m_walltime()
+
+
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                                   atom_of_kind=atom_of_kind, &
+                                   kind_of=kind_of)
+          DO igroup = 1, SIZE(cdft_control%group)
+             ALLOCATE (cdft_control%group(igroup)%integrated(3, natom))
+             cdft_control%group(igroup)%integrated = 0.0_dp
+          END DO
+
+          ! IF (dft_control%qs_control%cdft_control%print_force) THEN
+          !       DO iatom = 1, natom
+          !         ikind = kind_of(iatom)
+          !         i = atom_of_kind(iatom)
+          !         PRINT *, "iatom i", iatom, i
+          !         PRINT *, "force(ikind)%rho_elec(:, i)", force(ikind)%rho_elec(:, i)
+          !         PRINT *, "force(ikind)%total(:, i) i", force(ikind)%total(:, i)
+          !       END DO
+          ! END IF
+
+          ! Get size of pw grid
+          lb(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
+          ub(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
+          ! lb_rs(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
+          ! ub_rs(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
+          ! npts = rho_r(1)%pw%pw_grid%npts
+          ! dr = rho_r(1)%pw%pw_grid%dr
+          ! origin(:) = (dr(:) * npts(:)) * 0.5_dp
+          ! PRINT *, "dr from pw", dr
+          ! PRINT *, "npts from pw", npts
+          ! PRINT *, "lb from pw", lb
+          ! PRINT *, "ub from pw", ub
+
+          ! Get size of rs grid
+          ! dr(1) = rs_rho_all%desc%dh(1, 1)
+          ! dr(2) = rs_rho_all%desc%dh(2, 2)
+          ! dr(3) = rs_rho_all%desc%dh(3, 3)
+          ! ng(:) = rs_rho_all%desc%npts(:)
+          ! lb(1) = LBOUND(cdft_control%group(1)%gradients(1, :, :, :), 1)
+          ! lb(2) = LBOUND(cdft_control%group(1)%gradients(1, :, :, :), 2)
+          ! lb(3) = LBOUND(cdft_control%group(1)%gradients(1, :, :, :), 3)
+          ! ub(1) = UBOUND(cdft_control%group(1)%gradients(1, :, :, :), 1)
+          ! ub(2) = UBOUND(cdft_control%group(1)%gradients(1, :, :, :), 2)
+          ! ub(3) = UBOUND(cdft_control%group(1)%gradients(1, :, :, :), 3)
+          ! ! PRINT *, "dr from rsgrid", dr
+          ! PRINT *, "npts from rsgrid", ng
+          ! PRINT *, "lb from rsgrid", lb
+          ! PRINT *, "ub from rsgrid", ub
+
+          bo = cdft_control%group(1)%weight%pw%pw_grid%bounds_local
+          ! lb(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
+          ! ub(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
+          dvol = cdft_control%group(1)%weight%pw%pw_grid%dvol
+
+          ! PRINT *, "cdft_control%type", cdft_control%type
+          ! PRINT *, "calculate_forces", calculate_forces
+
+          ! If gradients were not precomputed, calculate them now
+        IF (cdft_control%type == outer_scf_becke_constraint) THEN
+          IF (.NOT. cdft_control%becke_control%in_memory) THEN
+             CALL becke_constraint_low(qs_env, just_gradients=.TRUE.)
+           END IF
+
+        ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+          IF (.NOT. cdft_control%in_memory) THEN
+             CALL hirshfeld_constraint_low(qs_env, calculate_forces=.TRUE., just_gradients=.TRUE.)
+           END IF
+        END IF
+
+
+      ! Zero gradient if ENERGY_ONLY
+      IF (cdft_control%energy_only) THEN
+        IF (cdft_control%type == outer_scf_becke_constraint) THEN
+          DO igroup = 1, SIZE(group)
+             cdft_control%group(igroup)%gradients = 0.0_dp
+          END DO
+
+        ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+         DO igroup = 1, SIZE(group)
+           cdft_control%group(igroup)%gradients_x = 0.0_dp
+           cdft_control%group(igroup)%gradients_y = 0.0_dp
+           cdft_control%group(igroup)%gradients_z = 0.0_dp
+         END DO
+       END IF
+      END IF
+
+          ! If no Becke Gaussian confinement
+          IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
+            DO k = lb(3), ub(3)
+               DO j = lb(2), ub(2)
+                  DO i = lb(1), ub(1)
+
+                      ! First check if this grid point should be skipped
+                      IF (cdft_control%becke_control%cavity_confine) THEN
+                         IF (cdft_control%becke_control%cavity%pw%cr3d(k, j, i) < eps_cavity) CYCLE
+                      END IF
+
+                      DO igroup = 1, SIZE(cdft_control%group)
+                         DO iatom = 1, natom
+                            DO ispin = 1, dft_control%nspins
+
+                               SELECT CASE (cdft_control%group(igroup)%constraint_type)
+                               CASE (cdft_charge_constraint)
+                                  sign = 1.0_dp
+                               CASE (cdft_magnetization_constraint)
+                                  IF (ispin == 1) THEN
+                                     sign = 1.0_dp
+                                  ELSE
+                                     sign = -1.0_dp
+                                  END IF
+                               CASE (cdft_alpha_constraint)
+                                  sign = 1.0_dp
+                                  IF (ispin == 2) CYCLE
+                               CASE (cdft_beta_constraint)
+                                  sign = 1.0_dp
+                                  IF (ispin == 1) CYCLE
+                               CASE DEFAULT
+                                  CPABORT("Unknown constraint type.")
+                               END SELECT
+
+                               IF (cdft_control%type == outer_scf_becke_constraint) THEN
+
+                                 cdft_control%group(igroup)%integrated(:, iatom) = &
+                                   cdft_control%group(igroup)%integrated(:, iatom) + &
+                                   cdft_control%group(igroup)%gradients(3*(iatom - 1)+1:3*(iatom - 1) + 3, i, j, k) &
+                                   * rho_r(ispin)%pw%cr3d(i, j, k) &
+                                   * dvol
+
+                               ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+
+                                 cdft_control%group(igroup)%integrated(1, iatom) = &
+                                   cdft_control%group(igroup)%integrated(1, iatom) &
+                                   + cdft_control%group(igroup)%gradients_x(iatom, i, j, k) &
+                                   * rho_r(ispin)%pw%cr3d(i, j, k) &
+                                   * dvol
+
+                                   cdft_control%group(igroup)%integrated(2, iatom) = &
+                                     cdft_control%group(igroup)%integrated(2, iatom) &
+                                     + cdft_control%group(igroup)%gradients_y(iatom, i, j, k) &
+                                     * rho_r(ispin)%pw%cr3d(i, j, k) &
+                                     * dvol
+
+                                     cdft_control%group(igroup)%integrated(3, iatom) = &
+                                       cdft_control%group(igroup)%integrated(3, iatom) &
+                                       + cdft_control%group(igroup)%gradients_z(iatom, i, j, k) &
+                                       * rho_r(ispin)%pw%cr3d(i, j, k) &
+                                       * dvol
+
+                               END IF
+
+                            END DO
+                         END DO
+                      END DO
+                   END DO
+                END DO
+             END DO
+
+          ! If Becke Gaussian confinement
+          ELSE
+             DO k = LBOUND(cdft_control%becke_control%cavity_mat, 1), UBOUND(cdft_control%becke_control%cavity_mat, 1)
+                DO j = LBOUND(cdft_control%becke_control%cavity_mat, 2), UBOUND(cdft_control%becke_control%cavity_mat, 2)
+                   DO i = LBOUND(cdft_control%becke_control%cavity_mat, 3), UBOUND(cdft_control%becke_control%cavity_mat, 3)
+
+                      ! First check if this grid point should be skipped
+                      IF (cdft_control%becke_control%cavity_mat(k, j, i) < eps_cavity) CYCLE
+
+                      DO igroup = 1, SIZE(group)
+                         DO iatom = 1, natom
+                            DO ispin = 1, dft_control%nspins
+                               SELECT CASE (group(igroup)%constraint_type)
+                               CASE (cdft_charge_constraint)
+                                  sign = 1.0_dp
+                               CASE (cdft_magnetization_constraint)
+                                  IF (ispin == 1) THEN
+                                     sign = 1.0_dp
+                                  ELSE
+                                     sign = -1.0_dp
+                                  END IF
+                               CASE (cdft_alpha_constraint)
+                                  sign = 1.0_dp
+                                  IF (ispin == 2) CYCLE
+                               CASE (cdft_beta_constraint)
+                                  sign = 1.0_dp
+                                  IF (ispin == 1) CYCLE
+                               CASE DEFAULT
+                                  CPABORT("Unknown constraint type.")
+                               END SELECT
+
+                               ! Integrate gradient of weight function
+                               IF (cdft_control%type == outer_scf_becke_constraint) THEN
+
+                                 cdft_control%group(igroup)%integrated(:, iatom) = &
+                                   cdft_control%group(igroup)%integrated(:, iatom) + &
+                                   cdft_control%group(igroup)%gradients(3*(iatom - 1)+1:3*(iatom - 1) + 3, i, j, k) &
+                                   * rho_r(ispin)%pw%cr3d(i, j, k) * dvol
+
+                               ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+
+                                 cdft_control%group(igroup)%integrated(1, iatom) = &
+                                   cdft_control%group(igroup)%integrated(1, iatom) &
+                                   + cdft_control%group(igroup)%gradients_x(iatom, i, j, k) &
+                                   * rho_r(ispin)%pw%cr3d(i, j, k) &
+                                   * dvol
+
+                                   cdft_control%group(igroup)%integrated(2, iatom) = &
+                                     cdft_control%group(igroup)%integrated(2, iatom) &
+                                     + cdft_control%group(igroup)%gradients_y(iatom, i, j, k) &
+                                     * rho_r(ispin)%pw%cr3d(i, j, k) &
+                                     * dvol
+
+                                     cdft_control%group(igroup)%integrated(3, iatom) = &
+                                       cdft_control%group(igroup)%integrated(3, iatom) &
+                                       + cdft_control%group(igroup)%gradients_z(iatom, i, j, k) &
+                                       * rho_r(ispin)%pw%cr3d(i, j, k) &
+                                       * dvol
+
+                               END IF
+
+                            END DO
+                         END DO
+                      END DO
+                   END DO
+                END DO
+             END DO
+          END IF
+
+          ! t2 = m_walltime()
+          ! IF (para_env%ionode) PRINT *, "Finished calcuating integrated", t1-t2
+          !
+          !
+          !    IF (para_env%ionode) PRINT *, "cdft_control%group(1)%integrated(:, 1)", cdft_control%group(1)%integrated(:, 1)
+          !    IF (para_env%ionode) PRINT *, "cdft_control%group(1)%integrated(:, 2)", cdft_control%group(1)%integrated(:, 2)
+          !
+
+          ! IF (.NOT. cdft_control%transfer_pot) THEN
+          !    DO igroup = 1, SIZE(group)
+          !       DEALLOCATE (cdft_control%group(igroup)%gradients)
+          !    END DO
+          ! END IF
+
+          IF (.NOT. cdft_control%transfer_pot) THEN
+            IF (cdft_control%type == outer_scf_becke_constraint) THEN
+              DO igroup = 1, SIZE(group)
+                 DEALLOCATE (cdft_control%group(igroup)%gradients)
+              END DO
+            ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
+             DO igroup = 1, SIZE(group)
+                DEALLOCATE (cdft_control%group(igroup)%gradients_x)
+                DEALLOCATE (cdft_control%group(igroup)%gradients_y)
+                DEALLOCATE (cdft_control%group(igroup)%gradients_z)
+             END DO
+           END IF
+          END IF
+
+          DO igroup = 1, SIZE(group)
+             CALL mp_sum(group(igroup)%integrated, para_env%group)
+          END DO
+
+          ! IF (para_env%ionode) PRINT *, "cdft_control%group(1)%integrated(:, 1)", cdft_control%group(1)%integrated(:, 1)
+          ! IF (para_env%ionode) PRINT *, "cdft_control%group(1)%integrated(:, 2)", cdft_control%group(1)%integrated(:, 2)
+
+
+          ! Update force only on master process. Otherwise force due to constraint becomes multiplied
+          ! by the number of processes when the final force%rho_elec is constructed in qs_force
+          ! by mp_summing [the final integrated(:,:) is distributed on all processors]
+          IF (para_env%ionode) THEN
+             DO igroup = 1, SIZE(group)
+                DO iatom = 1, natom
+                   ikind = kind_of(iatom)
+                   i = atom_of_kind(iatom)
+                   force(ikind)%rho_elec(:, i) = force(ikind)%rho_elec(:, i) + group(igroup)%integrated(:, iatom)*strength(igroup)
+                END DO
+             END DO
+          END IF
+
+          IF (cdft_control%print_force) THEN
+             IF (para_env%ionode) THEN
+             DO igroup = 1, SIZE(group)
+                DO iatom = 1, natom
+                  ikind = kind_of(iatom)
+                  i = atom_of_kind(iatom)
+                PRINT *, "cdft_constraint_force"
+                PRINT *, "iatom i", iatom, i
+                PRINT *, "group(igroup)%integrated(:, iatom)", group(igroup)%integrated(:, iatom)
+                PRINT *, "group(igroup)%integrated(:, iatom)*strength(igroup)", group(igroup)%integrated(:, iatom)*strength(igroup)
+                PRINT *, "force(ikind)%rho_elec(:, i)", force(ikind)%rho_elec(:, i)
+                PRINT *, "force(ikind)%total(:, i) i", force(ikind)%total(:, i)
+                END DO
+             END DO
+          END IF
+        END IF
+
+        t2 = m_walltime()
+        ! IF (para_env%ionode) PRINT *, "Finished calcuating forces", t1-t2
+        ! IF (para_env%ionode)  PRINT *, "cdft_control%pot(:)", cdft_control%pot(:)
+
+        ! Note that energy due to external potential is calculated in qs_ks_methods.F
+
+          DEALLOCATE (strength)
+          DEALLOCATE (atom_of_kind)
+          DEALLOCATE (kind_of)
+          DO igroup = 1, SIZE(group)
+             DEALLOCATE (group(igroup)%integrated)
+          END DO
+          NULLIFY (group)
+
+          CALL timestop(handle)
+
+       END SUBROUTINE cdft_constraint_force
+
+
+       ! **************************************************************************************************
+       !> \brief Prepare CDFT fragment constraints. Fragment densities are read from cube files, multiplied
+       !>        by the CDFT weight functions and integrated over the realspace grid.
+       ! **************************************************************************************************
+          SUBROUTINE prepare_fragment_constraint(qs_env)
+             TYPE(qs_environment_type), POINTER                 :: qs_env
+
+             CHARACTER(len=*), PARAMETER :: routineN = 'prepare_fragment_constraint'
+
+             INTEGER                                            :: handle, i, iatom, igroup, natom, &
+                                                                   nelectron_total, nfrag_spins
+             LOGICAL                                            :: is_becke, needs_spin_density
+             REAL(kind=dp)                                      :: dvol, multiplier(2), nelectron_frag
+             TYPE(becke_constraint_type), POINTER               :: becke_control
+             TYPE(cdft_control_type), POINTER                   :: cdft_control
+             TYPE(cdft_group_type), DIMENSION(:), POINTER       :: group
+             TYPE(cp_logger_type), POINTER                      :: logger
+             TYPE(cp_para_env_type), POINTER                    :: para_env
+             TYPE(dft_control_type), POINTER                    :: dft_control
+             TYPE(pw_env_type), POINTER                         :: pw_env
+             TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_frag
+             TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+             TYPE(qs_subsys_type), POINTER                      :: subsys
+
+             NULLIFY (para_env, dft_control, logger, subsys, pw_env, auxbas_pw_pool, group, rho_frag)
+             CALL timeset(routineN, handle)
+             logger => cp_get_default_logger()
+             CALL get_qs_env(qs_env, &
+                             natom=natom, &
+                             dft_control=dft_control, &
+                             para_env=para_env)
+
+             cdft_control => dft_control%qs_control%cdft_control
+             is_becke = (cdft_control%type == outer_scf_becke_constraint)
+             becke_control => cdft_control%becke_control
+             IF (is_becke .AND. .NOT. ASSOCIATED(becke_control)) &
+                CPABORT("Becke control has not been allocated.")
+             group => cdft_control%group
+             dvol = group(1)%weight%pw%pw_grid%dvol
+             ! Fragment densities are meaningful only for some calculation types
+             IF (.NOT. qs_env%single_point_run) &
+                CALL cp_abort(__LOCATION__, &
+                              "CDFT fragment constraints are only compatible with single "// &
+                              "point calculations (run_type ENERGY or ENERGY_FORCE).")
+             IF (dft_control%qs_control%gapw) &
+                CALL cp_abort(__LOCATION__, &
+                              "CDFT fragment constraint not compatible with GAPW.")
+             needs_spin_density = .FALSE.
+             multiplier = 1.0_dp
+             nfrag_spins = 1
+             DO igroup = 1, SIZE(group)
+                SELECT CASE (group(igroup)%constraint_type)
+                CASE (cdft_charge_constraint)
+                   ! Do nothing
+                CASE (cdft_magnetization_constraint)
+                   needs_spin_density = .TRUE.
+                CASE (cdft_alpha_constraint, cdft_beta_constraint)
+                   CALL cp_abort(__LOCATION__, &
+                                 "CDFT fragment constraint not yet compatible with "// &
+                                 "spin specific constraints.")
+                CASE DEFAULT
+                   CPABORT("Unknown constraint type.")
+                END SELECT
+             END DO
+             IF (needs_spin_density) THEN
+                nfrag_spins = 2
+                DO i = 1, 2
+                   IF (cdft_control%flip_fragment(i)) multiplier(i) = -1.0_dp
+                END DO
+             END IF
+             ! Read fragment reference densities
+             ALLOCATE (cdft_control%fragments(nfrag_spins, 2))
+             ALLOCATE (rho_frag(nfrag_spins))
+             CALL get_qs_env(qs_env, pw_env=pw_env)
+             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+             ! Total density (rho_alpha + rho_beta)
+             CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(1, 1)%pw, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
+             CALL cp_cube_to_pw(cdft_control%fragments(1, 1)%pw, &
+                                cdft_control%fragment_a_fname, 1.0_dp)
+             CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(1, 2)%pw, &
+                                    use_data=REALDATA3D, in_space=REALSPACE)
+             CALL cp_cube_to_pw(cdft_control%fragments(1, 2)%pw, &
+                                cdft_control%fragment_b_fname, 1.0_dp)
+             ! Spin difference density (rho_alpha - rho_beta) if needed
+             IF (needs_spin_density) THEN
+                CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(2, 1)%pw, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
+                CALL cp_cube_to_pw(cdft_control%fragments(2, 1)%pw, &
+                                   cdft_control%fragment_a_spin_fname, multiplier(1))
+                CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(2, 2)%pw, &
+                                       use_data=REALDATA3D, in_space=REALSPACE)
+                CALL cp_cube_to_pw(cdft_control%fragments(2, 2)%pw, &
+                                   cdft_control%fragment_b_spin_fname, multiplier(2))
+             END IF
+             ! Sum up fragments
+             DO i = 1, nfrag_spins
+                CALL pw_pool_create_pw(auxbas_pw_pool, rho_frag(i)%pw, use_data=REALDATA3D, &
+                                       in_space=REALSPACE)
+                CALL pw_copy(cdft_control%fragments(i, 1)%pw, rho_frag(i)%pw)
+                CALL pw_axpy(cdft_control%fragments(i, 2)%pw, rho_frag(i)%pw, 1.0_dp)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 1)%pw)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 2)%pw)
+             END DO
+             DEALLOCATE (cdft_control%fragments)
+             ! Check that the number of electrons is consistent
+             CALL get_qs_env(qs_env, subsys=subsys)
+             CALL qs_subsys_get(subsys, nelectron_total=nelectron_total)
+             nelectron_frag = pw_integrate_function(rho_frag(1)%pw)
+             IF (NINT(nelectron_frag) /= nelectron_total) &
+                CALL cp_abort(__LOCATION__, &
+                              "The number of electrons in the reference and interacting "// &
+                              "configurations does not match. Check your fragment cube files.")
+             ! Update constraint target value i.e. perform integration w_i*rho_frag_{tot/spin}*dr
+             cdft_control%target = 0.0_dp
+             DO igroup = 1, SIZE(group)
+                IF (group(igroup)%constraint_type == cdft_charge_constraint) THEN
+                   i = 1
+                ELSE
+                   i = 2
+                END IF
+                IF (is_becke .AND. (cdft_control%external_control .AND. becke_control%cavity_confine)) THEN
+                   cdft_control%target(igroup) = cdft_control%target(igroup) + &
+                                                 accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d, &
+                                                                      becke_control%cavity_mat, becke_control%eps_cavity)*dvol
+                ELSE
+                   cdft_control%target(igroup) = cdft_control%target(igroup) + &
+                                                 accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
+                END IF
+             END DO
+             CALL mp_sum(cdft_control%target, para_env%group)
+             ! Calculate reference atomic charges int( w_i * rho_frag * dr )
+             IF (cdft_control%atomic_charges) THEN
+                ALLOCATE (cdft_control%charges_fragment(cdft_control%natoms, nfrag_spins))
+                DO i = 1, nfrag_spins
+                   DO iatom = 1, cdft_control%natoms
+                      cdft_control%charges_fragment(iatom, i) = &
+                         accurate_dot_product(cdft_control%charge(iatom)%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
+                   END DO
+                END DO
+                CALL mp_sum(cdft_control%charges_fragment, para_env%group)
+             END IF
+             DO i = 1, nfrag_spins
+                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i)%pw)
+             END DO
+             DEALLOCATE (rho_frag)
+             cdft_control%fragments_integrated = .TRUE.
+
+             CALL timestop(handle)
+
+          END SUBROUTINE prepare_fragment_constraint
 
 END MODULE qs_cdft_methods
