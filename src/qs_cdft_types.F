@@ -202,6 +202,11 @@ MODULE qs_cdft_types
          DIMENSION(:, :, :, :)             :: gradients
       ! The weight function of this constraint group
       TYPE(pw_p_type)                      :: weight
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
+      TYPE(pw_p_type)             :: hw_rho_total_constraint
+      TYPE(pw_p_type)          :: hw_rho_total
    END TYPE cdft_group_type
 
    TYPE cdft_control_type

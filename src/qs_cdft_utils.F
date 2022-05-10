@@ -86,7 +86,7 @@ MODULE qs_cdft_utils
 
 ! *** Public subroutines ***
    PUBLIC :: becke_constraint_init, read_becke_section, read_cdft_control_section
-   PUBLIC :: hfun_scale, hirshfeld_constraint_init, cdft_constraint_print  &
+   PUBLIC :: hfun_scale, hirshfeld_constraint_init, cdft_constraint_print,  &
            cdft_print_hirshfeld_density, cdft_print_weight_function
 
 CONTAINS
