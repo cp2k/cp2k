@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-spla_ver="1.5.3"
-spla_sha256="527c06e316ce46ec87309a16bfa4138b1abad23fd276fe789c78a2de84f05637"
+spla_ver="1.5.4"
+spla_sha256="de30e427d24c741e2e4fcae3d7668162056ac2574afed6522c0bb49d6f1d0f79"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -19,7 +19,7 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-case "$with_spla" in
+case "${with_spla}" in
   __INSTALL__)
     echo "==================== Installing spla ===================="
     pkg_install_dir="${INSTALLDIR}/SpLA-${spla_ver}"
@@ -137,10 +137,6 @@ case "$with_spla" in
           *) ;;
         esac
       fi
-
-      # https://github.com/eth-cscs/spla/issues/17
-      [ -d "${pkg_install_dir}/lib/cmake/spla/modules" ] && mv "${pkg_install_dir}/lib/cmake/spla/modules" "${pkg_install_dir}/lib/cmake/SPLA/modules"
-
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
     SPLA_ROOT="${pkg_install_dir}"
@@ -148,7 +144,6 @@ case "$with_spla" in
     SPLA_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
     SPLA_CUDA_LDFLAGS="-L'${pkg_install_dir}/lib/cuda' -Wl,-rpath='${pkg_install_dir}/lib/cuda'"
     SPLA_HIP_LDFLAGS="-L'${pkg_install_dir}/lib/hip' -Wl,-rpath='${pkg_install_dir}/lib/hip'"
-
     ;;
   __SYSTEM__)
     echo "==================== Finding spla from system paths ===================="
@@ -156,8 +151,9 @@ case "$with_spla" in
     add_include_from_paths SPLA_CFLAGS "spla.h" $INCLUDE_PATHS
     add_lib_from_paths SPLA_LDFLAGS "libspla.*" $LIB_PATHS
     ;;
-  __DONTUSE__) ;;
-
+  __DONTUSE__)
+    # Nothing to do
+    ;;
   *)
     echo "==================== Linking spla to user paths ===================="
     pkg_install_dir="$with_spla"
