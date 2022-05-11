@@ -17,8 +17,8 @@ H2O-hfx-emd-restart.inp                                2      1E-11            -
 H2O-hfx-emd-ngs.inp                                    2      1E-11            -0.154149025813E+02
 H2O-hfx-atprop.inp                                     1      8e-14             -16.95511512921416
 H2O-hfx-ls-emd.inp                                     2    1.0E-14            -0.168398027926E+02
-H2O-hfx-ls-rtp.inp                                     1      1e-13             -16.83980778496808
-H2O-hfx-ls-rtp-bch.inp                                 1      1e-13             -16.83980778496808
+H2O-hfx-ls-rtp.inp                                     1    1.0e-12             -16.83980778496808
+H2O-hfx-ls-rtp-bch.inp                                 1    1.0e-12             -16.83980778496808
 H2O-hfx-ls-emd-bch.inp                                 2    1.0E-14            -0.168398023991E+02
 H2O-hfx-ls-emd-ngs.inp                                 2    1.0E-14            -0.167496522883E+02
 #EOF
