@@ -3,7 +3,7 @@
 # Usage: docker build -f ./Dockerfile.test_python ../../
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k

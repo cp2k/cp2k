@@ -3,7 +3,7 @@
 # Usage: docker build -f ./Dockerfile.test_gcc9 ../../
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Install Ubuntu packages.
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
