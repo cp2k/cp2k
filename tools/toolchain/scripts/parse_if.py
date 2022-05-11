@@ -61,9 +61,9 @@ class Parser:
 
     def ParseIf(self, string, switch):
         """
-ParseIf(string, switch) will replace in string recursively
-occurance of IF_key(A|B) statements with A if val = True;
-B if val = False
+        ParseIf(string, switch) will replace in string recursively
+        occurance of IF_key(A|B) statements with A if val = True;
+        B if val = False
         """
         result = string
         while result.find("IF_" + switch[0]) > -1:
@@ -72,9 +72,9 @@ B if val = False
 
     def ParseString(self, string):
         """
-ParseString(string) will parse in string recursively
-all of IF_key(A|B) statements for all (key, val) pairs
-in dictionary self.mSwitches
+        ParseString(string) will parse in string recursively
+        all of IF_key(A|B) statements for all (key, val) pairs
+        in dictionary self.mSwitches
         """
         result = string
         for switch in self.mSwitches.items():

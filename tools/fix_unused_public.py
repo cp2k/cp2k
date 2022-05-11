@@ -128,7 +128,10 @@ def parse_file(fn):
     matches = re_use.findall(content)
     for m in matches:
         uses.append((m.strip(), ("*",)))
-        if m.strip() not in ("iso_c_binding", "f77_blas",):
+        if m.strip() not in (
+            "iso_c_binding",
+            "f77_blas",
+        ):
             print("missing ONLY-clause: ", fn, m)
 
     matches = re_useonly.findall(content)

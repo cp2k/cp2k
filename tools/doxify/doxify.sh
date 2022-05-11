@@ -39,4 +39,4 @@ for file in "$@"; do
   fi
 done
 
-exit ${nwarnings}
+exit "${nwarnings}"

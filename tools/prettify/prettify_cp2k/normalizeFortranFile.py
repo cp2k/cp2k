@@ -150,7 +150,7 @@ class CharFilter(object):
         return self
 
     def __next__(self):
-        """ python 3 version"""
+        """python 3 version"""
         pos, char = next(self._it)
         if not self._instring and char == "!":
             raise StopIteration
@@ -168,7 +168,7 @@ class CharFilter(object):
         return (pos, char)
 
     def next(self):
-        """ python 2 version"""
+        """python 2 version"""
         pos, char = self._it.next()
         if not self._instring and char == "!":
             raise StopIteration

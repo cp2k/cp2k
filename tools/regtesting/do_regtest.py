@@ -258,7 +258,7 @@ class Config:
 
 # ======================================================================================
 class TestType:
-    """ Search pattern for result values, ie. a line in the TEST_TYPES file. """
+    """Search pattern for result values, ie. a line in the TEST_TYPES file."""
 
     def __init__(self, line: str):
         parts = line.rsplit("!", 1)
@@ -285,7 +285,7 @@ class TestType:
 
 # ======================================================================================
 class Unittest:
-    """ A unit test, ie. a standalone binary that matches '*_unittest.{cfg.version}'."""
+    """A unit test, ie. a standalone binary that matches '*_unittest.{cfg.version}'."""
 
     def __init__(self, name: str, workdir: Path):
         self.name = name
@@ -294,7 +294,7 @@ class Unittest:
 
 # ======================================================================================
 class Regtest:
-    """ A single input file to test, ie. a line in a TEST_FILES file. """
+    """A single input file to test, ie. a line in a TEST_FILES file."""
 
     def __init__(self, line: str, test_types: List[Optional[TestType]], workdir: Path):
         parts = line.split()
@@ -311,7 +311,7 @@ class Regtest:
 
 # ======================================================================================
 class Batch:
-    """ A directory of tests, ie. a line in the TEST_DIRS file. """
+    """A directory of tests, ie. a line in the TEST_DIRS file."""
 
     def __init__(self, line: str, cfg: Config):
         parts = line.split()

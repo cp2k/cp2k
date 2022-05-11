@@ -34,7 +34,7 @@ if [[ -d ".git" ]]; then
   while IFS= read -r -d $'\0'; do
     submodule_basedir="${REPLY%/*}"
     submodule_hash=$(< "${submodule_basedir}/HEAD")
-    submodule_dir="${submodule_basedir#${modules_git_dir}}"
+    submodule_dir="${submodule_basedir#"${modules_git_dir}"}"
     submodule_sha+=("${submodule_dir}:${submodule_hash}")
   done < <(find "${modules_git_dir}" -name index -print0)
 fi
