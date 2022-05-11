@@ -3,12 +3,12 @@
 # Usage: docker build -f ./Dockerfile.test_i-pi ../../
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh ubuntu:20.04
+RUN ./install_requirements.sh ubuntu:22.04
 
 # Install the toolchain.
 RUN mkdir scripts

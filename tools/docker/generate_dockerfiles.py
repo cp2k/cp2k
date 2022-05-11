@@ -42,15 +42,15 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_coverage-{version}", args.check) as f:
             f.write(toolchain_full() + coverage(version))
 
-    for gcc_version in 7, 8, 9, 10:
+    for gcc_version in 7, 8, 9, 10, 11, 12:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
-            f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version) + regtest("ssmp"))
+            img = "ubuntu:22.04" if gcc_version > 8 else "ubuntu:20.04"
+            f.write(toolchain_ubuntu_nompi(base_image=img, gcc_version=gcc_version))
+            f.write(regtest("ssmp"))
 
     with OutputFile("Dockerfile.test_i386", args.check) as f:
-        f.write(
-            toolchain_ubuntu_nompi(base_image="i386/debian:11", libvori=False)
-            + regtest("ssmp")
-        )
+        f.write(toolchain_ubuntu_nompi(base_image="i386/debian:11", libvori=False))
+        f.write(regtest("ssmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
         f.write(toolchain_full() + performance())
@@ -72,10 +72,8 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_hip_rocm_{gpu_ver}", args.check) as f:
             # ROCm containers require --device, which is not available for docker build.
             # https://rocmdocs.amd.com/en/latest/ROCm_Virtualization_Containers/ROCm-Virtualization-&-Containers.html#docker-hub
-            f.write(
-                toolchain_hip_rocm(gpu_ver=gpu_ver)
-                + regtest_postponed("psmp", "local_hip")
-            )
+            f.write(toolchain_hip_rocm(gpu_ver=gpu_ver))
+            f.write(regtest_postponed("psmp", "local_hip"))
 
         with OutputFile(f"Dockerfile.build_hip_rocm_{gpu_ver}", args.check) as f:
             f.write(toolchain_hip_rocm(gpu_ver=gpu_ver) + build("psmp", "local_hip"))
@@ -209,7 +207,7 @@ RUN ./test_manual.sh 2>&1 | tee report.log
 def precommit() -> str:
     return (
         fr"""
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k-precommit
@@ -244,7 +242,7 @@ RUN ./test_{name}.sh 2>&1 | tee report.log
 def test_without_build(name: str) -> str:
     return (
         fr"""
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k
@@ -356,7 +354,7 @@ COPY ./tools/regtesting ./tools/regtesting
 
 # ======================================================================================
 def toolchain_full(
-    base_image: str = "ubuntu:20.04",
+    base_image: str = "ubuntu:22.04",
     mpi_mode: str = "mpich",
     gcc: str = "system",
     generic: bool = False,
@@ -369,7 +367,7 @@ def toolchain_full(
 
 # ======================================================================================
 def toolchain_ubuntu_nompi(
-    base_image: str = "ubuntu:20.04", gcc_version: int = 10, libvori: bool = True,
+    base_image: str = "ubuntu:22.04", gcc_version: int = 10, libvori: bool = True,
 ) -> str:
     return fr"""
 FROM {base_image}
