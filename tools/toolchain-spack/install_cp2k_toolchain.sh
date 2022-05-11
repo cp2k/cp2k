@@ -2,6 +2,9 @@
 # author: Tiziano Müller
 # SPDX-License-Identifier: MIT
 
+# TODO: Review and if possible fix shellcheck errors.
+# shellcheck disable=all
+
 set -o errexit
 set -o nounset
 
