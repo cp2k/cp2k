@@ -12,10 +12,6 @@ VERSION=$2
 
 ulimit -c 0 # Disable core dumps as they can take a very long time to write.
 
-# Extend stack size - needed when using Intel compilers.
-ulimit -s unlimited
-export OMP_STACKSIZE=64m
-
 # Check available shared memory - needed for MPI inter-process communication.
 SHM_AVAIL=$(df --output=avail -m /dev/shm | tail -1)
 if ((SHM_AVAIL < 1024)); then
@@ -63,6 +59,12 @@ fi
 
 # Improve code coverage on COSMA.
 export COSMA_DIM_THRESHOLD=0
+
+# Extend stack size only for Intel compiler - otherwise it breaks tests on i386.
+if "./exe/${ARCH}/cp2k.${VERSION}" --version | grep -q "compiler: Intel"; then
+  ulimit -s unlimited
+  export OMP_STACKSIZE=64m
+fi
 
 # Run regtests.
 echo -e "\n========== Running Regtests =========="
