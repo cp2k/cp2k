@@ -10,16 +10,16 @@ base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test"
-cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDPOTRF called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDPOTRI called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDTRMM called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDTRSM called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSCOPY called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSPOTRF called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSPOTRI called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
+cp_dbcsr_cholesky.F: Procedure 'pdcopy' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pdpotrf' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pdpotri' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pdtrmm' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pdtrsm' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pscopy' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pspotrf' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pspotri' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pstrmm' called with an implicit interface at (1) [-Wimplicit-interface]
+cp_dbcsr_cholesky.F: Procedure 'pstrsm' called with an implicit interface at (1) [-Wimplicit-interface]
 cp_dbcsr_operations.F: Found CALL cp_fm_gemm in procedure "cp_dbcsr_plus_fm_fm_t"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_plus_fm_fm_t"
 cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution"
@@ -57,23 +57,16 @@ dumpdcd.F: Found STOP statement in procedure "abort_program"
 dumpdcd.F: Found STOP statement in procedure "dumpdcd"
 dumpdcd.F: Found WRITE statement with hardcoded unit in "abort_program"
 dumpdcd.F: Found WRITE statement with hardcoded unit in "print_help"
-dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&r_pbc].dim[0].ubound' is used uninitialized [-Wuninitialized]
-dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&r_pbc].dim[1].stride' is used uninitialized [-Wuninitialized]
-dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&s].dim[0].ubound' is used uninitialized [-Wuninitialized]
-dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&s_pbc].dim[0].ubound' is used uninitialized [-Wuninitialized]
-dumpdcd.F: 'MEM[(struct array02_real(kind=8) &)&s_pbc].dim[1].stride' is used uninitialized [-Wuninitialized]
-dumpdcd.F: 's.dim[1].stride' is used uninitialized [-Wuninitialized]
 eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
-et_coupling_proj.F: Routine INFOG2L called with an implicit interface.
+et_coupling_proj.F: Procedure 'infog2l' called with an implicit interface at (1) [-Wimplicit-interface]
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
-fist_intra_force.F: 'pv_a.dim[0].stride' is used uninitialized [-Wuninitialized]
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc_low"
@@ -97,7 +90,7 @@ library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
 library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test"
-library_tests.F: Routine PILAENV called with an implicit interface.
+library_tests.F: Procedure 'pilaenv' called with an implicit interface at (1) [-Wimplicit-interface]
 machine.F: Found CALL m_abort in procedure "m_getcwd"
 machine.F: Found CALL m_abort in procedure "m_hostnm"
 machine.F: Found CALL m_abort in procedure "m_mov"
@@ -161,9 +154,9 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp"
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new"
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc"
-qs_linres_op.F: Routine INDXL2G called with an implicit interface.
-qs_localization_methods.F: Routine PZROT called with an implicit interface.
-qs_loc_utils.F: Routine PZROT called with an implicit interface.
+qs_linres_op.F: Procedure 'indxl2g' called with an implicit interface at (1) [-Wimplicit-interface]
+qs_localization_methods.F: Procedure 'pzrot' called with an implicit interface at (1) [-Wimplicit-interface]
+qs_loc_utils.F: Procedure 'pzrot' called with an implicit interface at (1) [-Wimplicit-interface]
 qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation"
 qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa"
@@ -180,7 +173,7 @@ semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_rotmat_der"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "check_value"
 semi_empirical_int_debug.F: Found WRITE statement with hardcoded unit in "rot_2el_2c_first_debug"
-semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
+semi_empirical_int_debug.F: Procedure 'check_value' called with an implicit interface at (1) [-Wimplicit-interface]
 semi_empirical_mpole_methods.F: Found WRITE statement with hardcoded unit in "semi_empirical_mpole_p_setup"
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "cgc"
 spherical_harmonics.F: Found WRITE statement with hardcoded unit in "get_factor"
@@ -218,9 +211,3 @@ xyz2dcd.F: Found STOP statement in procedure "xyz2dcd"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "abort_program"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "print_help"
 xyz2dcd.F: Found WRITE statement with hardcoded unit in "xyz2dcd"
-xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&r_pbc].dim[0].ubound' is used uninitialized [-Wuninitialized]
-xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&r_pbc].dim[1].stride' is used uninitialized [-Wuninitialized]
-xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&s].dim[0].ubound' is used uninitialized [-Wuninitialized]
-xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&s_pbc].dim[0].ubound' is used uninitialized [-Wuninitialized]
-xyz2dcd.F: 'MEM[(struct array02_real(kind=8) &)&s_pbc].dim[1].stride' is used uninitialized [-Wuninitialized]
-xyz2dcd.F: 's.dim[1].stride' is used uninitialized [-Wuninitialized]

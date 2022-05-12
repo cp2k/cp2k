@@ -46,7 +46,7 @@ IGNORED_WARNINGS = (
     "style of line directive is a GCC extension",
 )
 
-
+# ======================================================================================
 def check_warnings(fhandle):
     loc = loc_short = ""
 
@@ -98,21 +98,23 @@ def check_warnings(fhandle):
         if ("CHARACTER expression" in warning) and ("truncated" in warning):
             continue
 
-        # ok this warning we should handle
         if "called with an implicit interface" in warning:
             parts = warning.split()
             assert parts[0] == "Procedure"
             routine = parts[1].strip("'").upper()
             if may_call_implicit(loc, routine):
                 continue
-            print(
-                "%s: Routine %s called with an implicit interface."
-                % (loc_short, routine)
-            )
-        else:
-            print("%s: %s" % (loc_short, warning))  # unknown warning, just output
+
+        if ".ubound' is used uninitialized" in warning:
+            continue
+        if ".stride' is used uninitialized" in warning:
+            continue
+
+        # ok this warning we should handle
+        print("%s: %s" % (loc_short, warning))
 
 
+# ======================================================================================
 def may_call_implicit(loc, routine):
     if blas_re.match(routine):
         return True  # BLAS calls are allowed everywhere
@@ -131,6 +133,7 @@ def may_call_implicit(loc, routine):
     return re.match(manifest["implicit"], routine)
 
 
+# ======================================================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Checks given stderr output files from gfortran for violations of the coding conventions",
@@ -154,3 +157,5 @@ in the cp2k arch-file.
     for fn in args.files:
         with open(fn, encoding="utf8") as fhandle:
             check_warnings(fhandle)
+
+# EOF
