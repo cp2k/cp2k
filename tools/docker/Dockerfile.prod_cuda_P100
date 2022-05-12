@@ -88,7 +88,7 @@ RUN /bin/bash -c " \
     ln -sf ./cp2k.psmp ./exe/local_cuda/cp2k && \
     ln -sf ./cp2k_shell.psmp ./exe/local_cuda/cp2k_shell && \
     rm -rf lib obj exe/local_cuda/libcp2k_unittest.psmp && \
-    ( [ ! -f ./exe/local_cuda/cp2k.psmp ] || ldd ./exe/local_cuda/cp2k.psmp | grep libmpi.so )"
+    ( [ ! -f ./exe/local_cuda/cp2k.psmp ] || ldd ./exe/local_cuda/cp2k.psmp | grep -q libmpi )"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
