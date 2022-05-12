@@ -83,7 +83,7 @@ RUN /bin/bash -c " \
     echo 'Compiling cp2k...' && \
     source /opt/cp2k-toolchain/install/setup && \
     ( make -j ARCH=local_cuda VERSION=psmp &> /dev/null || true ) && \
-    ( [ ! -f ./exe/local_cuda/cp2k.psmp ] || ldd ./exe/local_cuda/cp2k.psmp | grep libmpi.so )"
+    ( [ ! -f ./exe/local_cuda/cp2k.psmp ] || ldd ./exe/local_cuda/cp2k.psmp | grep -q libmpi )"
 COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting

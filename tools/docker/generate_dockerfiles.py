@@ -340,7 +340,7 @@ def install_cp2k(
     # Ensure MPI is dynamically linked, which is needed e.g. for Shifter.
     if version.startswith("p"):
         binary = f"./exe/{arch}/cp2k.{version}"
-        run_lines.append(f"( [ ! -f {binary} ] || ldd {binary} | grep libmpi.so )")
+        run_lines.append(f"( [ ! -f {binary} ] || ldd {binary} | grep -q libmpi )")
 
     input_block = "\n".join(input_lines)
     run_block = " && \\\n    ".join(run_lines)
