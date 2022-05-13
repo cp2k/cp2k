@@ -2,6 +2,6 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-HeH-noconstraint.inp                                  72      1e-10              0.0
-HeH-cdft-1.inp                                        72      1e-10              0.0
+HeH-noconstraint.inp                                  72      1e-10              0.1450972684448
+HeH-cdft-1.inp                                        72      1e-10              0.1552195046628
 #EOF

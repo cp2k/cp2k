@@ -6,40 +6,24 @@
   &CDFT
     TYPE_OF_CONSTRAINT HIRSHFELD
     STRENGTH        ${HIRSHFELD_STR}
-    ! The constraint target: sum_i coeff_i * N_i
-    ! where N_i is the number of VALENCE electrons on i
     TARGET          ${HIRSHFELD_TARGET}
-    ATOMIC_CHARGES  TRUE
-    @IF ( ${HIRSHFELD_FRAGMENT} == TRUE )
+
       &ATOM_GROUP
-        ATOMS           1
-        COEFF           1
-        FRAGMENT_CONSTRAINT
-      &END ATOM_GROUP
-      &DUMMY_ATOMS
-        ATOMS 2
-      &END DUMMY_ATOMS
-      FRAGMENT_A_FILE_NAME He+-noconstraint-ELECTRON_DENSITY-1_0.cube
-      FRAGMENT_B_FILE_NAME H-noconstraint-ELECTRON_DENSITY-1_0.cube
-    @ENDIF
-    @IF ( ${HIRSHFELD_FRAGMENT} == FALSE )
-      &ATOM_GROUP
-        ATOMS           1..2
+        ATOMS           1 2
         COEFF           1 -1
       &END ATOM_GROUP
-    @ENDIF
-    &OUTER_SCF ON
-      EPS_SCF 1.0e-0
-      TYPE CDFT_CONSTRAINT
-      OPTIMIZER BISECT
-      BISECT_TRUST_COUNT 8
-      EXTRAPOLATION_ORDER 2
-      MAX_SCF  ${MAX_SCF}
-      STEP_SIZE -0.001
-    &END
-    &HIRSHFELD_CONSTRAINT
-      SHAPE_FUNCTION ${HIRSHFELD_SHAPEFN}
-    &END HIRSHFELD_CONSTRAINT
+
+  &OUTER_SCF ON
+        TYPE CDFT_CONSTRAINT
+        MAX_SCF 50
+
+        EPS_SCF 1.0E-0
+        OPTIMIZER NEWTON_LS
+
+          &HIRSHFELD_CONSTRAINT
+        SHAPE_FUNCTION DENSITY
+     &END HIRSHFELD_CONSTRAINT
+
     &PROGRAM_RUN_INFO ON
       ! Print weight function to cube file
       @IF ( ${PRINT_WEIGHT_FUNCTION} == TRUE )
