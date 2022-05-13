@@ -774,25 +774,25 @@ CONTAINS
          END IF
        END IF
 
-       !   IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
-       !     ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge(cdft_control%natoms))
-       !     ALLOCATE (rs_single_charge(cdft_control%natoms))
-       !     ALLOCATE (compute_charge(natom))
-       !     compute_charge = .FALSE.
-       !
-       !     DO i = 1, cdft_control%natoms
-       !        NULLIFY (rs_single_charge(i)%rs_grid)
-       !        CALL rs_grid_create(rs_single_charge(i)%rs_grid, auxbas_rs_desc)
-       !        CALL rs_grid_zero(rs_single_charge(i)%rs_grid)
-       !        compute_charge(cdft_control%atoms(i)) = .TRUE.
-       !     END DO
-       !
-       !     DO iatom = 1, cdft_control%natoms
-       !         CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw, &
-       !       use_data=REALDATA3D, in_space=REALSPACE)
-       !       cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw%cr3d = 1.0_dp
-       !     END DO
-       ! END IF
+         IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
+           ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge(cdft_control%natoms))
+           ALLOCATE (rs_single_charge(cdft_control%natoms))
+           ALLOCATE (compute_charge(natom))
+           compute_charge = .FALSE.
+
+           DO i = 1, cdft_control%natoms
+              NULLIFY (rs_single_charge(i)%rs_grid)
+              CALL rs_grid_create(rs_single_charge(i)%rs_grid, auxbas_rs_desc)
+              CALL rs_grid_zero(rs_single_charge(i)%rs_grid)
+              compute_charge(cdft_control%atoms(i)) = .TRUE.
+           END DO
+
+           DO iatom = 1, cdft_control%natoms
+               CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw, &
+             use_data=REALDATA3D, in_space=REALSPACE)
+             cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw%cr3d = 1.0_dp
+           END DO
+       END IF
 
             ALLOCATE (pab(1, 1))
             nthread = 1
@@ -889,25 +889,25 @@ CONTAINS
                     END IF
                   END IF
 
-                     ! IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
-                     !    IF (compute_charge(atom_a)) THEN
-                     !       DO iatom = 1, cdft_control%natoms
-                     !          IF (atom_a == cdft_control%atoms(iatom)) EXIT
-                     !       END DO
-                     !       CPASSERT(iatom <= cdft_control%natoms)
-                     !       CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                     !                                  (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                     !                                  rs_single_charge(iatom)%rs_grid, cell, cube_info, radius=radius, &
-                     !                                  ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
-                     !                                  subpatch_pattern=subpatch_pattern)
-                     !
-                     !      ! CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                     !      !                             (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
-                     !      !                             rs_single_charge(iatom)%rs_grid, radius=radius, &
-                     !      !                             ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
-                     !      !                             subpatch_pattern=subpatch_pattern)
-                     !    END IF
-                     ! END IF
+                     IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
+                        IF (compute_charge(atom_a)) THEN
+                           DO iatom = 1, cdft_control%natoms
+                              IF (atom_a == cdft_control%atoms(iatom)) EXIT
+                           END DO
+                           CPASSERT(iatom <= cdft_control%natoms)
+                           CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                                      (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                                                      rs_single_charge(iatom)%rs_grid, cell, cube_info, radius=radius, &
+                                                      ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
+                                                      subpatch_pattern=subpatch_pattern)
+
+                          ! CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
+                          !                             (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                          !                             rs_single_charge(iatom)%rs_grid, radius=radius, &
+                          !                             ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
+                          !                             subpatch_pattern=subpatch_pattern)
+                        END IF
+                     END IF
 
                   END DO
                END DO
@@ -929,14 +929,14 @@ CONTAINS
                                  cdft_control%group(1)%hw_rho_total%pw%cr3d, divide=.TRUE., small=hirshfeld_control%eps_cutoff)
 
             ! Calculate charges
-           !  IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
-           !     DO i = 1, cdft_control%natoms
-           !      CALL rs_pw_transfer(rs_single_charge(i)%rs_grid, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw, rs2pw)
-           !      CALL hfun_scale(cdft_control%charge(i)%pw%cr3d, &
-           !                        cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw%cr3d, &
-           !                        cdft_control%group(igroup)%hw_rho_total%pw%cr3d, divide=.TRUE., small=hirshfeld_control%eps_cutoff)
-           !      END DO
-           ! END IF
+            IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
+               DO i = 1, cdft_control%natoms
+                CALL rs_pw_transfer(rs_single_charge(i)%rs_grid, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw, rs2pw)
+                CALL hfun_scale(cdft_control%charge(i)%pw%cr3d, &
+                                  cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw%cr3d, &
+                                  cdft_control%group(igroup)%hw_rho_total%pw%cr3d, divide=.TRUE., small=hirshfeld_control%eps_cutoff)
+                END DO
+           END IF
 
            ! Print atomic densities if requested
            IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
@@ -965,15 +965,15 @@ CONTAINS
                DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic)
              END IF
 
-             ! IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
-             !   DO i = 1, cdft_control%natoms
-             !   CALL rs_grid_release(rs_single_charge(i)%rs_grid)
-             !   CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw)
-             ! END DO
-             ! DEALLOCATE (rs_single_charge)
-             ! DEALLOCATE (compute_charge)
-             ! DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge)
-             ! END IF
+             IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
+               DO i = 1, cdft_control%natoms
+               CALL rs_grid_release(rs_single_charge(i)%rs_grid)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw)
+             END DO
+             DEALLOCATE (rs_single_charge)
+             DEALLOCATE (compute_charge)
+             DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge)
+             END IF
 
         END DO
 
