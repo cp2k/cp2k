@@ -90,7 +90,6 @@ CONTAINS
 !> \param matrix_s ...
 !> \param kpoints ...
 !> \param eps_filter_im_time ...
-!> \param do_ri_sos_laplace_mp2 ...
 !> \param cut_memory ...
 !> \param nkp ...
 !> \param num_cells_dm ...
@@ -129,7 +128,7 @@ CONTAINS
                             fm_mat_Q, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                             fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, mat_P_global, &
                             t_3c_O, matrix_s, kpoints, eps_filter_im_time, &
-                            do_ri_sos_laplace_mp2, cut_memory, nkp, num_cells_dm, num_3c_repl, &
+                            cut_memory, nkp, num_cells_dm, num_3c_repl, &
                             size_P, ikp_local, &
                             index_to_cell_3c, &
                             cell_to_index_3c, &
@@ -155,7 +154,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
-      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
       INTEGER, INTENT(IN)                                :: cut_memory
       INTEGER, INTENT(OUT)                               :: nkp, num_cells_dm, num_3c_repl, size_P
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: ikp_local
@@ -257,7 +255,7 @@ CONTAINS
       END IF
 
       nspins_P_omega = 1
-      IF (do_ri_sos_laplace_mp2 .AND. my_open_shell) nspins_P_omega = 2
+      IF (my_open_shell) nspins_P_omega = 2
 
       ALLOCATE (mat_P_omega(num_integ_points, size_P, nspins_P_omega))
       DO ispin = 1, nspins_P_omega

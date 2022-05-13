@@ -57,8 +57,7 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        SCALE_S 1.3
-        &RI_SOS_MP2
+        &RI_RPA
           QUADRATURE_POINTS  3
         &END
         &LOW_SCALING

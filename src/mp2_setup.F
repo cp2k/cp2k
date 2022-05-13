@@ -259,6 +259,10 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%keep_quad)
       NULLIFY (mp2_env%ri_rpa_im_time%tau_tj)
       NULLIFY (mp2_env%ri_rpa_im_time%tau_wj)
+      NULLIFY (mp2_env%ri_rpa_im_time%tj)
+      NULLIFY (mp2_env%ri_rpa_im_time%wj)
+      NULLIFY (mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w)
+      NULLIFY (mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t)
 
       CALL section_vals_val_get(low_scaling_section, "MIN_BLOCK_SIZE", &
                                 i_val=mp2_env%ri_rpa_im_time%min_bsize)

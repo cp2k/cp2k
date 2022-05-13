@@ -42,9 +42,9 @@ MODULE rpa_main
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_get_info, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_clear, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_get_info, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbt_api,                         ONLY: dbt_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
@@ -73,12 +73,6 @@ MODULE rpa_main
    USE mp2_grids,                       ONLY: get_clenshaw_grid,&
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
-   USE mp2_laplace_force_methods,       ONLY: calc_laplace_loop_forces,&
-                                              calc_laplace_post_loop_forces,&
-                                              init_mp2_laplace_forces,&
-                                              keep_initial_quad
-   USE mp2_laplace_force_types,         ONLY: mp2_laplace_force_release,&
-                                              mp2_laplace_force_type
    USE mp2_ri_grad_util,                ONLY: array2fm
    USE mp2_types,                       ONLY: dgemm_counter_init,&
                                               dgemm_counter_type,&
@@ -103,6 +97,13 @@ MODULE rpa_main
    USE rpa_gw_ic,                       ONLY: calculate_ic_correction
    USE rpa_im_time,                     ONLY: compute_mat_P_omega,&
                                               zero_mat_P_omega
+   USE rpa_im_time_force_methods,       ONLY: calc_laplace_loop_forces,&
+                                              calc_post_loop_forces,&
+                                              calc_rpa_loop_forces,&
+                                              init_im_time_forces,&
+                                              keep_initial_quad
+   USE rpa_im_time_force_types,         ONLY: im_time_force_release,&
+                                              im_time_force_type
    USE rpa_kpoints,                     ONLY: RPA_postprocessing_kp
    USE rpa_util,                        ONLY: RPA_postprocessing_nokp,&
                                               RPA_postprocessing_start,&
@@ -554,7 +555,7 @@ CONTAINS
          NULLIFY (fm_mat_Q(ispin)%matrix, fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix, &
                   fm_mo_coeff_occ(ispin)%matrix, fm_mo_coeff_virt(ispin)%matrix)
       END DO
-      IF (my_open_shell .AND. do_im_time .AND. do_ri_sos_laplace_mp2) THEN
+      IF (my_open_shell .AND. do_im_time) THEN
          CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
@@ -1526,8 +1527,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
-         ispin, iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, nkp, &
+      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
+         ispin, iter_evGW, iter_sc_GW0, j, jquad, max_iter_bse, min_bsize, mm_style, nkp, &
          nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, num_Z_vectors, &
          Pspin, Qspin, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
@@ -1542,8 +1543,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, eps_filter, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
-         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, spin_fac, tau, &
-         tau_old
+         fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_V, wkp_W
@@ -1575,7 +1575,7 @@ CONTAINS
       TYPE(dgemm_counter_type)                           :: dgemm_counter
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: t_3c_O_mo_compressed
-      TYPE(mp2_laplace_force_type)                       :: force_data
+      TYPE(im_time_force_type)                           :: force_data
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
       CALL timeset(routineN, handle)
@@ -1633,7 +1633,7 @@ CONTAINS
                             num_integ_points, fm_mat_Q(1)%matrix, fm_mo_coeff_occ(1)%matrix, fm_mo_coeff_virt(1)%matrix, &
                             fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, mat_P_global, &
                             t_3c_O, matrix_s, kpoints, eps_filter_im_time, &
-                            do_ri_sos_laplace_mp2, cut_memory, nkp, num_cells_dm, num_3c_repl, &
+                            cut_memory, nkp, num_cells_dm, num_3c_repl, &
                             size_P, ikp_local, &
                             index_to_cell_3c, &
                             cell_to_index_3c, &
@@ -1645,9 +1645,7 @@ CONTAINS
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, mat_P_global_copy, &
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, mat_work)
 
-         IF (do_ri_sos_laplace_mp2 .AND. calc_forces) THEN
-            CALL init_mp2_laplace_forces(force_data, fm_matrix_PQ, t_3c_M, mp2_env, qs_env)
-         END IF
+         IF (calc_forces) CALL init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, mp2_env, qs_env)
 
          IF (my_do_gw) THEN
 
@@ -1687,15 +1685,17 @@ CONTAINS
 
       ALLOCATE (e_fermi(nspins))
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
-         do_print = .NOT. do_ic_model .AND. .NOT. (do_ri_sos_laplace_mp2 .AND. qs_env%mp2_env%ri_rpa_im_time%keep_quad)
+         do_print = .NOT. do_ic_model .AND. (.NOT. qs_env%mp2_env%ri_rpa_im_time%keep_quad)
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
 
-         !For sos_laplace_mp2, potentially need to store the initial weights
-         IF (do_ri_sos_laplace_mp2 .AND. qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
-            CALL keep_initial_quad(tau_tj, tau_wj, num_integ_points, unit_nr, qs_env)
+         !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
+         IF (do_im_time .AND. qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
+            CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
+                                   weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, &
+                                   num_integ_points, unit_nr, qs_env)
          END IF
       ELSE
          CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
@@ -1814,47 +1814,32 @@ CONTAINS
 
             ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
             IF (my_open_shell) THEN
-               ! For SOS-MP2 we need the same calculation for alpha and beta spin independently, for RPA the sum of both
-               IF (do_ri_sos_laplace_mp2) THEN
-                  CALL zero_mat_P_omega(mat_P_omega(:, :, 2))
+               CALL zero_mat_P_omega(mat_P_omega(:, :, 2))
+               CALL compute_mat_P_omega(mat_P_omega(:, :, 2), fm_scaled_dm_occ_tau, &
+                                        fm_scaled_dm_virt_tau, fm_mo_coeff_occ(2)%matrix, &
+                                        fm_mo_coeff_virt(2)%matrix, fm_mo_coeff_occ_scaled, &
+                                        fm_mo_coeff_virt_scaled, mat_P_global, matrix_s, 2, &
+                                        t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
+                                        starts_array_mc, ends_array_mc, &
+                                        starts_array_mc_block, ends_array_mc_block, &
+                                        weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(2), eps_filter, alpha, &
+                                        eps_filter_im_time, Eigenval(:, 1, 2), nmo, &
+                                        num_integ_points, cut_memory, &
+                                        unit_nr, mp2_env, para_env, &
+                                        qs_env, do_kpoints_from_Gamma, &
+                                        index_to_cell_3c, cell_to_index_3c, &
+                                        has_mat_P_blocks, do_ri_sos_laplace_mp2, &
+                                        dbcsr_time, dbcsr_nflop)
 
-                  CALL compute_mat_P_omega(mat_P_omega(:, :, 2), fm_scaled_dm_occ_tau, &
-                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ(2)%matrix, fm_mo_coeff_virt(2)%matrix, &
-                                           fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-                                           mat_P_global, &
-                                           matrix_s, &
-                                           2, &
-                                           t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                                           starts_array_mc, ends_array_mc, &
-                                           starts_array_mc_block, ends_array_mc_block, &
-                                           weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(2), eps_filter, alpha, &
-                                           eps_filter_im_time, Eigenval(:, 1, 2), nmo, &
-                                           num_integ_points, cut_memory, &
-                                           unit_nr, mp2_env, para_env, &
-                                           qs_env, do_kpoints_from_Gamma, &
-                                           index_to_cell_3c, cell_to_index_3c, &
-                                           has_mat_P_blocks, do_ri_sos_laplace_mp2, &
-                                           dbcsr_time, dbcsr_nflop)
-               ELSE
-                  CALL compute_mat_P_omega(mat_P_omega(:, :, 1), fm_scaled_dm_occ_tau, &
-                                           fm_scaled_dm_virt_tau, fm_mo_coeff_occ(2)%matrix, fm_mo_coeff_virt(2)%matrix, &
-                                           fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-                                           mat_P_global, &
-                                           matrix_s, &
-                                           2, &
-                                           t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
-                                           starts_array_mc, ends_array_mc, &
-                                           starts_array_mc_block, ends_array_mc_block, &
-                                           weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(2), eps_filter, alpha, &
-                                           eps_filter_im_time, Eigenval(:, 1, 2), nmo, &
-                                           num_integ_points, cut_memory, &
-                                           unit_nr, mp2_env, para_env, &
-                                           qs_env, do_kpoints_from_Gamma, &
-                                           index_to_cell_3c, cell_to_index_3c, &
-                                           has_mat_P_blocks, do_ri_sos_laplace_mp2, &
-                                           dbcsr_time, dbcsr_nflop)
-               END IF ! do_ri_sos_laplace_mp2
-
+               !For RPA, we sum up the P matrices. If no force needed, can clean-up the beta spin one
+               IF (.NOT. do_ri_sos_laplace_mp2) THEN
+                  DO j = 1, SIZE(mat_P_omega, 2)
+                     DO i = 1, SIZE(mat_P_omega, 1)
+                        CALL dbcsr_add(mat_P_omega(i, j, 1)%matrix, mat_P_omega(i, j, 2)%matrix, 1.0_dp, 1.0_dp)
+                        IF (.NOT. calc_forces) CALL dbcsr_clear(mat_P_omega(i, j, 2)%matrix)
+                     END DO
+                  END DO
+               END IF
             END IF ! my_open_shell
 
          END IF ! do im time
@@ -1980,7 +1965,6 @@ CONTAINS
 
          IF (calc_forces .AND. do_ri_sos_laplace_mp2) THEN
             IF (my_open_shell) THEN
-               spin_fac = -1.0_dp
                Pspin = 1
                Qspin = 2
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
@@ -1989,8 +1973,8 @@ CONTAINS
                                              fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
                                              ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
-                                             tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
-                                             unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
+                                             tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
+                                             unit_nr, dbcsr_time, dbcsr_nflop, mp2_env, qs_env)
                Pspin = 2
                Qspin = 1
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
@@ -1999,11 +1983,10 @@ CONTAINS
                                              fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
                                              ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
-                                             tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
-                                             unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
+                                             tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
+                                             unit_nr, dbcsr_time, dbcsr_nflop, mp2_env, qs_env)
 
             ELSE
-               spin_fac = -2.0_dp
                Pspin = 1
                Qspin = 1
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
@@ -2012,11 +1995,25 @@ CONTAINS
                                              fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
                                              ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
-                                             tau_tj, tau_wj, cut_memory, spin_fac, Pspin, Qspin, &
-                                             unit_nr, dbcsr_time, dbcsr_nflop, para_env, mp2_env, qs_env)
+                                             tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
+                                             unit_nr, dbcsr_time, dbcsr_nflop, mp2_env, qs_env)
             END IF
+            CALL calc_post_loop_forces(force_data, qs_env)
+         END IF !laplace SOS-MP2
 
-            CALL calc_laplace_post_loop_forces(force_data, qs_env)
+         IF (calc_forces .AND. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) THEN
+            DO ispin = 1, nspins
+               CALL calc_rpa_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
+                                         t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), fm_scaled_dm_occ_tau, &
+                                         fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+                                         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                         starts_array_mc, ends_array_mc, starts_array_mc_block, &
+                                         ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
+                                         e_fermi(ispin), weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, tj, &
+                                         wj, tau_tj, cut_memory, ispin, my_open_shell, unit_nr, dbcsr_time, &
+                                         dbcsr_nflop, mp2_env, qs_env)
+            END DO
+            CALL calc_post_loop_forces(force_data, qs_env)
          END IF
 
          IF (do_im_time) THEN
@@ -2175,8 +2172,8 @@ CONTAINS
          DEALLOCATE (tau_wj)
       END IF
 
-      IF (do_ri_sos_laplace_mp2 .AND. calc_forces) THEN
-         CALL mp2_laplace_force_release(force_data)
+      IF (do_im_time .AND. calc_forces) THEN
+         CALL im_time_force_release(force_data)
       END IF
 
       CALL timestop(handle)

@@ -1625,14 +1625,19 @@ CONTAINS
 !> \param qs_env    Quickstep environment
 !> \param update_energy whether to update energy (default: yes)
 !> \param recalc_integrals whether to recalculate integrals (default: value of HF%TREAT_LSD_IN_CORE)
+!> \param external_hfx_sections ...
+!> \param external_x_data ...
 !> \note
 !>     Simplified version of subroutine hfx_ks_matrix()
 ! **************************************************************************************************
-   SUBROUTINE tddft_hfx_matrix(matrix_ks, rho_ao, qs_env, update_energy, recalc_integrals)
+   SUBROUTINE tddft_hfx_matrix(matrix_ks, rho_ao, qs_env, update_energy, recalc_integrals, &
+                               external_hfx_sections, external_x_data)
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          TARGET                                          :: matrix_ks, rho_ao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: update_energy, recalc_integrals
+      TYPE(section_vals_type), OPTIONAL, POINTER         :: external_hfx_sections
+      TYPE(hfx_type), DIMENSION(:, :), OPTIONAL, POINTER :: external_x_data
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddft_hfx_matrix'
 
@@ -1663,6 +1668,9 @@ CONTAINS
 
       ! This should probably be the HF section from the TDDFPT XC section!
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
+
+      IF (PRESENT(external_hfx_sections)) hfx_sections => external_hfx_sections
+      IF (PRESENT(external_x_data)) x_data => external_x_data
 
       my_update_energy = .TRUE.
       IF (PRESENT(update_energy)) my_update_energy = update_energy
