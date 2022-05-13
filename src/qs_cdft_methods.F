@@ -635,7 +635,7 @@ CONTAINS
      REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, r, r0, sum_alpha, t1, t2, &
                                                            radius, radius_constr, r_squared, exp_eval, sign, eps_weight, &
                                                            r_squared_pbc, prefactor
-     REAL(kind=dp), DIMENSION(3)                        :: ra, origin, sign_val, temp_val, ra_pbc
+     REAL(kind=dp), DIMENSION(3)                        :: ra, origin
      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_species_small, test
      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
      TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -643,8 +643,6 @@ CONTAINS
      TYPE(hirshfeld_constraint_type), POINTER           :: hirshfeld_control
      TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-     TYPE(pw_p_type)                                    :: tmp
-     TYPE(pw_p_type), POINTER                           :: fnorm
      TYPE(pw_p_type), DIMENSION(:), POINTER :: pw_single_dr
      TYPE(pw_env_type), POINTER                         :: pw_env
      INTEGER, DIMENSION(2, 3)                           :: bo, bo_conf, gridbounds
@@ -654,7 +652,7 @@ CONTAINS
        TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
        TYPE(qs_rho_type), POINTER                         :: rho
        TYPE(pw_p_type)                                    :: pw_rho_temp
-       REAL(KIND=dp), DIMENSION(3)              :: dr, dr_rs, dr_pw, r2, r_pbc, r_rs
+       REAL(KIND=dp), DIMENSION(3)              :: dr, dr_rs, dr_pw, r2, r_pbc
        TYPE(cell_type), POINTER                           :: cell
        TYPE(cp_para_env_type), POINTER                    :: para_env
        REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients
@@ -664,7 +662,7 @@ CONTAINS
        TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_single, rs_single_charge, rs_single_dr, rs_single_gradient
       TYPE(realspace_grid_type), POINTER                 :: rs_rho_all, rs_rho_constr, rho_dr_temp, rs_rho_temp
 
-       NULLIFY (atom_list, atomic_kind_set, dft_control, fnorm, pw_single_dr, &
+       NULLIFY (atom_list, atomic_kind_set, dft_control, pw_single_dr, &
                 hirshfeld_env, particle_set, pw_env, auxbas_pw_pool, para_env, &
                 auxbas_rs_desc, cdft_control, pab, rs_rho_all, rho_dr_temp,rs_rho_temp, &
                 hirshfeld_control, cell, rho_r, rho, rs_single, rs_single_dr, rs_rho_constr, rs_single_charge)
@@ -973,6 +971,7 @@ CONTAINS
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw)
              END DO
              DEALLOCATE (rs_single_charge)
+             DEALLOCATE (compute_charge)
              DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge)
              END IF
 
@@ -1168,7 +1167,6 @@ CONTAINS
 
              IF (ALLOCATED(coefficients)) DEALLOCATE (coefficients)
              IF (ALLOCATED(is_constraint)) DEALLOCATE (is_constraint)
-             IF (ALLOCATED(compute_charge)) DEALLOCATE (compute_charge)
 
          CALL timestop(handle)
 
