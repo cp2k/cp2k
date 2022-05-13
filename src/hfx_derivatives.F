@@ -113,7 +113,8 @@ CONTAINS
 !> \author Manuel Guidon
 ! **************************************************************************************************
    SUBROUTINE derivatives_four_center(qs_env, rho_ao, rho_ao_resp, hfx_section, para_env, &
-                                      irep, use_virial, adiabatic_rescale_factor, resp_only)
+                                      irep, use_virial, adiabatic_rescale_factor, resp_only, &
+                                      external_x_data)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
@@ -124,6 +125,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
       REAL(dp), INTENT(IN), OPTIONAL                     :: adiabatic_rescale_factor
       LOGICAL, INTENT(IN), OPTIONAL                      :: resp_only
+      TYPE(hfx_type), DIMENSION(:, :), POINTER, OPTIONAL  :: external_x_data
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center'
 
@@ -213,6 +215,7 @@ CONTAINS
       TYPE(hfx_screening_type)                           :: screening_parameter
       TYPE(hfx_task_list_type), DIMENSION(:), POINTER    :: shm_task_list, tmp_task_list
       TYPE(hfx_type), POINTER                            :: actual_x_data
+      TYPE(hfx_type), DIMENSION(:, :), POINTER            :: my_x_data
       TYPE(pair_list_type)                               :: list_ij, list_kl
       TYPE(pair_set_list_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: set_list_ij, set_list_kl
@@ -241,6 +244,9 @@ CONTAINS
       nkimages = dft_control%nimages
       CPASSERT(nkimages == 1)
 
+      my_x_data => qs_env%x_data
+      IF (PRESENT(external_x_data)) my_x_data => external_x_data
+
       !! One atom systems have no contribution to forces
       IF (SIZE(particle_set, 1) == 1) THEN
          IF (.NOT. use_virial) RETURN
@@ -251,15 +257,15 @@ CONTAINS
       nkind = SIZE(atomic_kind_set, 1)
       l_max = 0
       DO ikind = 1, nkind
-         l_max = MAX(l_max, MAXVAL(qs_env%x_data(1, 1)%basis_parameter(ikind)%lmax))
+         l_max = MAX(l_max, MAXVAL(my_x_data(1, 1)%basis_parameter(ikind)%lmax))
       END DO
       l_max = 4*l_max + 1
       CALL init_md_ftable(l_max)
 
-      IF (qs_env%x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
-          qs_env%x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
+      IF (my_x_data(1, 1)%potential_parameter%potential_type == do_potential_truncated .OR. &
+          my_x_data(1, 1)%potential_parameter%potential_type == do_potential_mix_cl_trunc) THEN
          IF (l_max > init_t_c_g0_lmax) THEN
-            CALL open_file(unit_number=unit_id, file_name=qs_env%x_data(1, 1)%potential_parameter%filename)
+            CALL open_file(unit_number=unit_id, file_name=my_x_data(1, 1)%potential_parameter%filename)
             CALL init(l_max, unit_id, para_env%mepos, para_env%group)
             CALL close_file(unit_id)
             init_t_c_g0_lmax = l_max
@@ -331,7 +337,7 @@ CONTAINS
 !$OMP                                  shm_pmax_atom,&
 !$OMP                                  use_virial,&
 !$OMP                                  do_print_load_balance_info,&
-!$OMP                                  nkimages,nspins)&
+!$OMP                                  nkimages,nspins,my_x_data)&
 !$OMP  PRIVATE(actual_x_data,atomic_kind_set,atomic_offset_ac,atomic_offset_ad,atomic_offset_bc,&
 !$OMP  atomic_offset_bd,atom_of_kind,basis_info,&
 !$OMP  basis_parameter,bin,bins_left,bintime_start,bintime_stop,bits_max_val,buffer_left,buffer_overflow,buffer_size,&
@@ -372,7 +378,7 @@ CONTAINS
 
       ln_10 = LOG(10.0_dp)
       log_2 = LOG10(2.0_dp)
-      actual_x_data => qs_env%x_data(irep, i_thread + 1)
+      actual_x_data => my_x_data(irep, i_thread + 1)
       do_periodic = actual_x_data%periodic_parameter%do_periodic
 
       screening_parameter = actual_x_data%screening_parameter
@@ -783,16 +789,16 @@ CONTAINS
          ! ** Lets construct the task list
          shm_total_bins = 0
          DO i = 1, n_threads
-            shm_total_bins = shm_total_bins + SIZE(qs_env%x_data(irep, i)%distribution_forces)
+            shm_total_bins = shm_total_bins + SIZE(my_x_data(irep, i)%distribution_forces)
          END DO
          ALLOCATE (tmp_task_list(shm_total_bins))
          shm_task_counter = 0
          DO i = 1, n_threads
-            DO bin = 1, SIZE(qs_env%x_data(irep, i)%distribution_forces)
+            DO bin = 1, SIZE(my_x_data(irep, i)%distribution_forces)
                shm_task_counter = shm_task_counter + 1
                tmp_task_list(shm_task_counter)%thread_id = i
                tmp_task_list(shm_task_counter)%bin_id = bin
-               tmp_task_list(shm_task_counter)%cost = qs_env%x_data(irep, i)%distribution_forces(bin)%cost
+               tmp_task_list(shm_task_counter)%cost = my_x_data(irep, i)%distribution_forces(bin)%cost
             END DO
          END DO
 
@@ -879,12 +885,12 @@ CONTAINS
                my_thread_id = shm_task_list(shm_task_counter)%thread_id
                my_bin_id = shm_task_list(shm_task_counter)%bin_id
                IF (treat_forces_in_core) THEN
-                  maxval_cache => qs_env%x_data(irep, my_thread_id)%store_forces%maxval_cache(my_bin_id)
-                  maxval_container => qs_env%x_data(irep, my_thread_id)%store_forces%maxval_container(my_bin_id)
-                  integral_caches => qs_env%x_data(irep, my_thread_id)%store_forces%integral_caches(:, my_bin_id)
-                  integral_containers => qs_env%x_data(irep, my_thread_id)%store_forces%integral_containers(:, my_bin_id)
+                  maxval_cache => my_x_data(irep, my_thread_id)%store_forces%maxval_cache(my_bin_id)
+                  maxval_container => my_x_data(irep, my_thread_id)%store_forces%maxval_container(my_bin_id)
+                  integral_caches => my_x_data(irep, my_thread_id)%store_forces%integral_caches(:, my_bin_id)
+                  integral_containers => my_x_data(irep, my_thread_id)%store_forces%integral_containers(:, my_bin_id)
                END IF
-               distribution_forces => qs_env%x_data(irep, my_thread_id)%distribution_forces(my_bin_id)
+               distribution_forces => my_x_data(irep, my_thread_id)%distribution_forces(my_bin_id)
                do_it = .TRUE.
                bins_left = .TRUE.
                IF (actual_x_data%memory_parameter%recalc_forces) THEN
@@ -1159,7 +1165,7 @@ CONTAINS
                         mem_compression_counter = 0
                         DO i = 1, n_threads
 !$OMP                   ATOMIC READ
-                           tmp_i4 = qs_env%x_data(irep, i)%memory_parameter%actual_memory_usage
+                           tmp_i4 = my_x_data(irep, i)%memory_parameter%actual_memory_usage
                            mem_compression_counter = mem_compression_counter + &
                                                      tmp_i4*memory_parameter%cache_size
                         END DO

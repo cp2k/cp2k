@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Types needed for cubic-scaling SOS-Laplace-MP2 forces
+!> \brief Types needed for cubic-scaling RPA and SOS-Laplace-MP2 forces
 !> \author Augustin Bussy
 ! **************************************************************************************************
-MODULE mp2_laplace_force_types
+MODULE rpa_im_time_force_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_release,&
@@ -22,12 +22,12 @@ MODULE mp2_laplace_force_types
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_laplace_force_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_im_time_force_types'
 
-   PUBLIC :: mp2_laplace_force_type, mp2_laplace_force_release
+   PUBLIC :: im_time_force_type, im_time_force_release
 
    !Type definitions
-   TYPE mp2_laplace_force_type
+   TYPE im_time_force_type
 
       !The various 2-center integral derivatives
       TYPE(dbt_type), DIMENSION(3)  :: t_2c_der_metric, t_2c_der_pot, t_2c_der_ovlp
@@ -58,7 +58,7 @@ MODULE mp2_laplace_force_types
       !Is it a periodic calculation
       LOGICAL :: do_periodic
 
-   END TYPE mp2_laplace_force_type
+   END TYPE im_time_force_type
 
 CONTAINS
 
@@ -66,9 +66,9 @@ CONTAINS
 !> \brief Cleans everything up
 !> \param force_data ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_laplace_force_release(force_data)
+   SUBROUTINE im_time_force_release(force_data)
 
-      TYPE(mp2_laplace_force_type)                       :: force_data
+      TYPE(im_time_force_type)                           :: force_data
 
       INTEGER                                            :: i_xyz
 
@@ -77,7 +77,7 @@ CONTAINS
       CALL dbt_destroy(force_data%t_2c_K)
 
       CALL dbcsr_release(force_data%inv_ovlp)
-      IF (force_data%do_periodic) CALL dbcsr_release(force_data%G_PQ)
+      CALL dbcsr_release(force_data%G_PQ)
       CALL dbcsr_deallocate_matrix_set(force_data%P_virt)
       CALL dbcsr_deallocate_matrix_set(force_data%P_occ)
       CALL dbcsr_deallocate_matrix_set(force_data%sum_O_tau)
@@ -97,6 +97,6 @@ CONTAINS
          CALL dbt_destroy(force_data%t_2c_der_metric(i_xyz))
       END DO
 
-   END SUBROUTINE mp2_laplace_force_release
+   END SUBROUTINE im_time_force_release
 
-END MODULE mp2_laplace_force_types
+END MODULE rpa_im_time_force_types

@@ -385,7 +385,7 @@ CONTAINS
                                                 beta=1.0_dp, &
                                                 tensor_3=t_3c_M_occ_tmp, &
                                                 contract_1=[3], notcontract_1=[1, 2], &
-                                                contract_2=[1], notcontract_2=[2], &
+                                                contract_2=[2], notcontract_2=[1], &
                                                 map_1=[1, 2], map_2=[3], &
                                                 bounds_2=jbounds_1, bounds_3=ibounds_2, &
                                                 filter_eps=eps_filter, unit_nr=unit_nr_dbcsr, &
@@ -435,7 +435,7 @@ CONTAINS
                                                 beta=1.0_dp, &
                                                 tensor_3=t_3c_M_virt_tmp, &
                                                 contract_1=[3], notcontract_1=[1, 2], &
-                                                contract_2=[1], notcontract_2=[2], &
+                                                contract_2=[2], notcontract_2=[1], &
                                                 map_1=[1, 2], map_2=[3], &
                                                 bounds_2=ibounds_1, bounds_3=jbounds_2, &
                                                 filter_eps=eps_filter, unit_nr=unit_nr_dbcsr, &
@@ -1031,7 +1031,8 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       matrix_s_kp=matrix_s_kp, &
                       mos=mos, &
-                      kpoints=kpoints)
+                      kpoints=kpoints, &
+                      cell=cell)
 
       nspin = SIZE(mos)
 

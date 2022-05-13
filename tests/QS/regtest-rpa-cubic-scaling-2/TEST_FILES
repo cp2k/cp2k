@@ -1,0 +1,8 @@
+H2O_md.inp                                                11      5e-10            -17.139274110248877
+H2O_md_periodic.inp                                       11      5e-10            -17.152310315201596
+H2O_dh_admm.inp                                           11      1e-8             -17.396989904939694
+H2O_dh_meta.inp                                           11      1e-8             -17.170279631316898 
+H2O_dh_stress.inp                                         31      1e-5               9.57509343361E-01
+CH3_md.inp                                                11      5e-10             -7.410709943873027
+CH3_md_periodic_admm.inp                                  11      5e-10             -7.320882174838694
+#EOF
