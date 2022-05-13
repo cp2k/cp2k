@@ -17,8 +17,13 @@
         TYPE CDFT_CONSTRAINT
         MAX_SCF 50
 
-        EPS_SCF 1.0E-0
+        EPS_SCF 1.0E-3
         OPTIMIZER NEWTON_LS
+
+        &CDFT_OPT ON
+          CONTINUE_LS TRUE
+        &END CDFT_OPT
+      &END
 
           &HIRSHFELD_CONSTRAINT
         SHAPE_FUNCTION DENSITY

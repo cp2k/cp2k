@@ -98,11 +98,11 @@ MODULE qs_cdft_types
 !> \param radius          Gaussian radius parameter
 !> \param shape_function  the constraint type: atomic density or single Gaussian
 !> \param use_bohr        determines whether to use angstrom or bohr units for the radii of Gaussians
-!> \param use_atomic_cutoff        Boolean to control atomic_cutoff
-!> \param atomic_cutoff        cutoff for Hirshfeld constraint atomic density
-!> \param atoms_memory        atoms to store in memory
-!> \param eps_cutoff       cutoff for Hirshfeld constraint weight function
-!> \param print_density    logical to decide if Hirshfeld densities should be printed
+!> \param use_atomic_cutoff        Logical to control use of ATOMIC_CUTOFF
+!> \param atomic_cutoff        Numerical cutoff for calculation of Hirshfeld densities
+!> \param atoms_memory        Number of atomic gradients to store in memory
+!> \param eps_cutoff       Numerical cutoff for calculation of weight function
+!> \param print_density    Logical to control printing of Hirshfeld densities to .cube file
 !> \param hirshfeld_env   auxiliary type storing information about the Gaussians
 ! **************************************************************************************************
    TYPE hirshfeld_constraint_type
