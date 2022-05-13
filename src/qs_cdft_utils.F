@@ -573,6 +573,9 @@ CONTAINS
          ALLOCATE (cdft_control%group(k)%coeff(natoms))
          NULLIFY (cdft_control%group(k)%weight%pw)
          NULLIFY (cdft_control%group(k)%gradients)
+         NULLIFY (cdft_control%group(k)%gradients_x)
+       NULLIFY (cdft_control%group(k)%gradients_y)
+       NULLIFY (cdft_control%group(k)%gradients_z)
          NULLIFY (cdft_control%group(k)%integrated)
          tot_natoms = tot_natoms + natoms
          ! Now parse
