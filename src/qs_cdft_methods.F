@@ -61,6 +61,7 @@ MODULE qs_cdft_methods
    USE qs_cdft_utils,                   ONLY: becke_constraint_init,&
                                               cdft_constraint_print,&
                                               hfun_scale,&
+                                              hfun_scale2,&
                                               hirshfeld_constraint_init
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1609,17 +1610,6 @@ CONTAINS
                 END DO
              END DO
           END IF
-
-          IF (cdft_control%print_force) THEN
-             IF (para_env%ionode) THEN
-             DO igroup = 1, SIZE(group)
-                DO iatom = 1, natom
-                  ikind = kind_of(iatom)
-                  i = atom_of_kind(iatom)
-                END DO
-             END DO
-          END IF
-        END IF
 
           DEALLOCATE (strength)
           DEALLOCATE (atom_of_kind)
