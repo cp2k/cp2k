@@ -849,55 +849,57 @@ CONTAINS
 
    END SUBROUTINE read_hirshfeld_constraint_section
 
-! **************************************************************************************************
+   ! **************************************************************************************************
 !> \brief Calculate fout = fun1/fun2 or fout = fun1*fun2
 !> \param fout the output 3D potential
 !> \param fun1 the first input 3D potential
 !> \param fun2 the second input 3D potential
 !> \param divide logical that decides whether to divide or multiply the input potentials
+!> \param small customisable parameter to determine lower bound of division
 ! **************************************************************************************************
-   SUBROUTINE hfun_scale(fout, fun1, fun2, divide)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: fout
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
-      LOGICAL, INTENT(IN)                                :: divide
+ SUBROUTINE hfun_scale(fout, fun1, fun2, divide, small)
+    REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: fout
+    REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
+    LOGICAL, INTENT(IN)                                :: divide
+    REAL(KIND=dp), INTENT(IN)                        :: small
 
-      REAL(KIND=dp), PARAMETER                           :: small = 1.0e-12_dp
+    CHARACTER(len=*), PARAMETER :: routineN = 'hfun_scale', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: i1, i2, i3, n1, n2, n3
+    INTEGER                                            :: i1, i2, i3, n1, n2, n3
 
-      n1 = SIZE(fout, 1)
-      n2 = SIZE(fout, 2)
-      n3 = SIZE(fout, 3)
-      CPASSERT(n1 == SIZE(fun1, 1))
-      CPASSERT(n2 == SIZE(fun1, 2))
-      CPASSERT(n3 == SIZE(fun1, 3))
-      CPASSERT(n1 == SIZE(fun2, 1))
-      CPASSERT(n2 == SIZE(fun2, 2))
-      CPASSERT(n3 == SIZE(fun2, 3))
+    n1 = SIZE(fout, 1)
+    n2 = SIZE(fout, 2)
+    n3 = SIZE(fout, 3)
+    CPASSERT(n1 == SIZE(fun1, 1))
+    CPASSERT(n2 == SIZE(fun1, 2))
+    CPASSERT(n3 == SIZE(fun1, 3))
+    CPASSERT(n1 == SIZE(fun2, 1))
+    CPASSERT(n2 == SIZE(fun2, 2))
+    CPASSERT(n3 == SIZE(fun2, 3))
 
-      IF (divide) THEN
-         DO i3 = 1, n3
-            DO i2 = 1, n2
-               DO i1 = 1, n1
-                  IF (fun2(i1, i2, i3) > small) THEN
-                     fout(i1, i2, i3) = fun1(i1, i2, i3)/fun2(i1, i2, i3)
-                  ELSE
-                     fout(i1, i2, i3) = 0.0_dp
-                  END IF
-               END DO
-            END DO
-         END DO
-      ELSE
-         DO i3 = 1, n3
-            DO i2 = 1, n2
-               DO i1 = 1, n1
-                  fout(i1, i2, i3) = fun1(i1, i2, i3)*fun2(i1, i2, i3)
-               END DO
-            END DO
-         END DO
-      END IF
+    IF (divide) THEN
+       DO i3 = 1, n3
+          DO i2 = 1, n2
+             DO i1 = 1, n1
+                IF (fun2(i1, i2, i3) > small) THEN
+                   fout(i1, i2, i3) = fun1(i1, i2, i3)/fun2(i1, i2, i3)
+                ELSE
+                   fout(i1, i2, i3) = 0.0_dp
+                END IF
+             END DO
+          END DO
+       END DO
+    ELSE
+       DO i3 = 1, n3
+          DO i2 = 1, n2
+             DO i1 = 1, n1
+                fout(i1, i2, i3) = fun1(i1, i2, i3)*fun2(i1, i2, i3)
+             END DO
+          END DO
+       END DO
+    END IF
 
-   END SUBROUTINE hfun_scale
+ END SUBROUTINE hfun_scale
 
 ! **************************************************************************************************
 !> \brief Determine confinement bounds along confinement dir (hardcoded to be z)
