@@ -6,8 +6,7 @@ HeH-noconstraint.inp                                   1      2e-13             
 He+-noconstraint.inp                                   1      2e-13              -2.05007934458372
 H-noconstraint.inp                                     1      4e-13              -0.45734465780293
 # These tests use different constraint formalisms so their value differs (see outputted charges)
-HeH-cdft-1.inp                                        71      1e-7                 1.135284778087
-HeH-cdft-2.inp                                        71      1e-7                 1.681175629226
-HeH-cdft-3.inp                                        71      1e-7                 1.197180842657
-HeH-cdft-4.inp                                        71      1e-7                 1.567707953208
-#EOF
+HeH-cdft-1.inp                                        71      1e-7                 1.135281643193
+HeH-cdft-2.inp                                        71      1e-7                 1.681172869379
+HeH-cdft-3.inp                                        71      1e-7                 1.197176189824
+HeH-cdft-4.inp                                        71      1e-7                 1.567706385507

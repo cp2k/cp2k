@@ -3,16 +3,15 @@
 # see regtest/TEST_FILES
 #
 HeH-noconstraint.inp                                   1      2e-13              -3.01067446615063
-HeH-cdft-state-1.inp                                  71      1e-7                 0.161058277961
-HeH-cdft-state-2.inp                                  71      1e-7                 1.849710298768
+HeH-cdft-state-1.inp                                  71      1e-7                 0.161058337228
+HeH-cdft-state-2.inp                                  71      1e-7                 1.849710970513
 # These tests compute the electronic coupling and related quantities
 # Coupling via rotation
-HeH-mixed-cdft-1.inp                                  73      1e-7               204.357666111486
+HeH-mixed-cdft-1.inp                                  73      1e-7               204.357138287654
 # Coupling via Lowdin orthogonalization
-HeH-mixed-cdft-2.inp                                  76      1e-7               154.149991533916
+HeH-mixed-cdft-2.inp                                  76      1e-7               154.149819062673
 # CDFT-CI
-HeH-mixed-cdft-3.inp                                  77      1e-7              -2.80477609252478
+HeH-mixed-cdft-3.inp                                  77      1e-7              -2.80477609770094
 # Rerun some tests using parallel mode (NGROUPS 2)
 # Electronic coupling and related
-HeH-mixed-cdft-8.inp                                  73      1e-7               204.357666111487
-#EOF
+HeH-mixed-cdft-8.inp                                  73      1e-7               204.357138287651
