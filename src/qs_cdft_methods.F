@@ -61,7 +61,9 @@ MODULE qs_cdft_methods
    USE qs_cdft_utils,                   ONLY: becke_constraint_init,&
                                               cdft_constraint_print,&
                                               hfun_scale,&
-                                              hirshfeld_constraint_init
+                                              hirshfeld_constraint_init, &
+                                              cdft_print_weight_function, &
+                                              cdft_print_hirshfeld_density
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
