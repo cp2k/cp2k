@@ -601,7 +601,7 @@ CONTAINS
             ! Initialize the Hirshfeld constraint environment
             CALL hirshfeld_constraint_init(qs_env)
             ! Calculate the Hirshfeld weight function and possibly the gradients
-            CALL hirshfeld_constraint_low(qs_env, calculate_forces)
+            CALL hirshfeld_constraint_low(qs_env)
          END IF
          ! Integrate the Hirshfeld constraint
          CALL cdft_constraint_integrate(qs_env)
@@ -615,23 +615,21 @@ CONTAINS
    ! **************************************************************************************************
       !> \brief Calculates Hirshfeld constraints
       ! **************************************************************************************************
-       SUBROUTINE hirshfeld_constraint_low(qs_env, calculate_forces, just_gradients)
+       SUBROUTINE hirshfeld_constraint_low(qs_env, just_gradients)
      TYPE(qs_environment_type), POINTER                 :: qs_env
      LOGICAL, OPTIONAL                                  :: just_gradients
-     LOGICAL                                            :: calculate_forces
 
      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_low', &
         routineP = moduleN//':'//routineN
 
-     LOGICAL                                            :: in_memory, my_just_gradients
-     INTEGER                                            :: atom_a, handle, i, iatom, jatom, iatom2, iex, igroup, num_atoms, &
+     LOGICAL                                            :: my_just_gradients
+     INTEGER                                            :: atom_a, handle, i, iatom, iex, igroup, num_atoms, &
                                                            ikind, ithread, j, natom, npme, num_species, atoms_memory_num, &
-                                                           nthread, numexp, k, i2, j2, k2,  im, jm, atoms_memory, &
-                                                           subpatch_pattern
+                                                           nthread, numexp, k, atoms_memory, subpatch_pattern
      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: compute_charge, is_constraint
-     REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, &
-                                                           radius, exp_eval, eps_weight, prefactor
+     REAL(kind=dp)                                      :: alpha, coef, eps_rho_rspace, &
+                                                           radius, exp_eval, prefactor
      REAL(kind=dp), DIMENSION(3)                        :: ra, origin
      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_species_small
      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -642,13 +640,13 @@ CONTAINS
      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
      TYPE(pw_p_type), DIMENSION(:), POINTER :: pw_single_dr
      TYPE(pw_env_type), POINTER                         :: pw_env
-     INTEGER, DIMENSION(2, 3)                           :: bo, bo_conf, gridbounds
+     INTEGER, DIMENSION(2, 3)                           :: bo
      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
      INTEGER, DIMENSION(3)                              :: npts, lb_rs, ub_rs, lb_pw, ub_pw
        TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
        TYPE(qs_rho_type), POINTER                         :: rho
-       REAL(KIND=dp), DIMENSION(3)              :: dr, dr_rs, dr_pw, r2, r_pbc
+       REAL(KIND=dp), DIMENSION(3)              :: dr_rs, dr_pw, r2, r_pbc
        TYPE(cell_type), POINTER                           :: cell
        TYPE(cp_para_env_type), POINTER                    :: para_env
        REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients
@@ -1350,7 +1348,7 @@ CONTAINS
           TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
           TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
           TYPE(qs_rho_type), POINTER                         :: rho
-          INTEGER, DIMENSION(3)                              :: lb, ub, ub_rs, lb_rs
+          INTEGER, DIMENSION(3)                              :: lb, ub
 
           CALL timeset(routineN, handle)
           NULLIFY (atomic_kind_set, cell, para_env, dft_control, particle_set, &
