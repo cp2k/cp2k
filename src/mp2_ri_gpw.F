@@ -1389,8 +1389,6 @@ CONTAINS
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
          mem_min, ' MiB'
 
-      mem_real = MIN(mem_real, mp2_env%mp2_memory)
-
       ! We use the following communication model
       ! Comm(replication)+Comm(collection of data for ij pair)+Comm(contraction)
       ! One can show that the costs of the contraction step are independent of the block size and the replication group size
@@ -1947,7 +1945,9 @@ CONTAINS
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, Lstart_pos, &
          proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, send_L_size, &
          start_point, tag
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BI_C_rec_1D, BI_C_send_1D
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: BI_C_rec, BI_C_send
 
 ! In alpha-beta case Y_i_aP_beta is sent as Y_j_aP
 
@@ -1979,13 +1979,16 @@ CONTAINS
          CALL timestop(handle2)
 
          ! Y_i_aP(my_B_size,dimen_RI,block_size)
+         ALLOCATE (BI_C_send_1D(INT(my_B_size, int_8)*my_block_size*MAXVAL(sizes_array)))
+         ALLOCATE (BI_C_rec_1D(INT(my_B_size, int_8)*my_block_size*my_group_L_size))
 
          DO proc_shift = 1, para_env_exchange%num_pe - 1
             proc_send = proc_map(para_env_exchange%mepos + proc_shift)
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             send_L_size = sizes_array(proc_send)
-            ALLOCATE (BI_C_send(my_B_size, my_block_size, send_L_size))
+            BI_C_send(1:my_B_size, 1:my_block_size, 1:send_L_size) => &
+               BI_C_send_1D(1:INT(my_B_size, int_8)*my_block_size*send_L_size)
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
@@ -2015,7 +2018,8 @@ CONTAINS
                rec_i = ij_map(spin, ij_counter_rec)
                rec_block_size = ij_map(3, ij_counter_rec)
 
-               ALLOCATE (BI_C_rec(my_B_size, rec_block_size, my_group_L_size))
+               BI_C_rec(1:my_B_size, 1:rec_block_size, 1:my_group_L_size) => &
+                  BI_C_rec_1D(1:INT(my_B_size, int_8)*rec_block_size*my_group_L_size)
                BI_C_rec = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, &
@@ -2035,18 +2039,18 @@ CONTAINS
                END DO
                CALL timestop(handle2)
 
-               DEALLOCATE (BI_C_rec)
-
             ELSE
                ! we have something to send but nothing to receive
                CALL mp_send(BI_C_send, proc_send, tag, para_env_exchange%group)
 
             END IF
 
-            DEALLOCATE (BI_C_send)
          END DO
 
+         DEALLOCATE (BI_C_send_1D, BI_C_rec_1D)
+
       ELSE
+         ALLOCATE (BI_C_rec_1D(INT(my_B_size, int_8)*my_block_size*my_group_L_size))
          ! noting to send check if we have to receive
          DO proc_shift = 1, para_env_exchange%num_pe - 1
             proc_send = proc_map(para_env_exchange%mepos + proc_shift)
@@ -2061,7 +2065,8 @@ CONTAINS
                rec_i = ij_map(spin, ij_counter_rec)
                rec_block_size = ij_map(3, ij_counter_rec)
 
-               ALLOCATE (BI_C_rec(my_B_size, rec_block_size, my_group_L_size))
+               BI_C_rec(1:my_B_size, 1:rec_block_size, 1:my_group_L_size) => &
+                  BI_C_rec_1D(1:INT(my_B_size, int_8)*rec_block_size*my_group_L_size)
 
                BI_C_rec = 0.0_dp
 
@@ -2080,10 +2085,10 @@ CONTAINS
                END DO
                CALL timestop(handle2)
 
-               DEALLOCATE (BI_C_rec)
-
             END IF
          END DO
+
+         DEALLOCATE (BI_C_rec_1D)
 
       END IF
       CALL timestop(handle)
