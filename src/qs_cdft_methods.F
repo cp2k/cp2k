@@ -623,18 +623,17 @@ CONTAINS
      CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_constraint_low', &
         routineP = moduleN//':'//routineN
 
-     LOGICAL                                            :: plot_hirshfeld_density, in_memory, my_just_gradients
+     LOGICAL                                            :: in_memory, my_just_gradients
      INTEGER                                            :: atom_a, handle, i, iatom, jatom, iatom2, iex, igroup, num_atoms, &
                                                            ikind, ithread, j, natom, npme, num_species, atoms_memory_num, &
-                                                           nthread, numexp, k, i2, j2, k2,  im, jm, km, atoms_memory, &
+                                                           nthread, numexp, k, i2, j2, k2,  im, jm, atoms_memory, &
                                                            subpatch_pattern
      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: compute_charge, is_constraint
-     REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, r, r0, sum_alpha, t1, t2, &
-                                                           radius, radius_constr, r_squared, exp_eval, sign, eps_weight, &
-                                                           r_squared_pbc, prefactor
+     REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, &
+                                                           radius, exp_eval, eps_weight, prefactor
      REAL(kind=dp), DIMENSION(3)                        :: ra, origin
-     INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_species_small, test
+     INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_species_small
      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
      TYPE(cdft_control_type), POINTER                   :: cdft_control
      TYPE(dft_control_type), POINTER                    :: dft_control
@@ -646,18 +645,15 @@ CONTAINS
      INTEGER, DIMENSION(2, 3)                           :: bo, bo_conf, gridbounds
      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
      TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
-     INTEGER, DIMENSION(3)                              :: lb, ub, npts, ng, lb_rs, ub_rs, lb_pw, ub_pw
+     INTEGER, DIMENSION(3)                              :: npts, lb_rs, ub_rs, lb_pw, ub_pw
        TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
        TYPE(qs_rho_type), POINTER                         :: rho
-       TYPE(pw_p_type)                                    :: pw_rho_temp
        REAL(KIND=dp), DIMENSION(3)              :: dr, dr_rs, dr_pw, r2, r_pbc
        TYPE(cell_type), POINTER                           :: cell
        TYPE(cp_para_env_type), POINTER                    :: para_env
        REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: coefficients
-       REAL(KIND=dp), POINTER, DIMENSION(:, :, :)             :: rho_temp
        REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
-       TYPE(realspace_grid_type)                :: rsgrid
-       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_single, rs_single_charge, rs_single_dr, rs_single_gradient
+       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_single, rs_single_charge, rs_single_dr
       TYPE(realspace_grid_type), POINTER                 :: rs_rho_all, rs_rho_constr, rho_dr_temp, rs_rho_temp
 
        NULLIFY (atom_list, atomic_kind_set, dft_control, pw_single_dr, &
