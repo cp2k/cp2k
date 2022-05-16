@@ -86,8 +86,8 @@ MODULE qs_cdft_utils
 
 ! *** Public subroutines ***
    PUBLIC :: becke_constraint_init, read_becke_section, read_cdft_control_section
-   PUBLIC :: hfun_scale, hirshfeld_constraint_init, cdft_constraint_print,  &
-           cdft_print_hirshfeld_density, cdft_print_weight_function
+   PUBLIC :: hfun_scale, hirshfeld_constraint_init, cdft_constraint_print, &
+             cdft_print_hirshfeld_density, cdft_print_weight_function
 
 CONTAINS
 
@@ -567,8 +567,8 @@ CONTAINS
          NULLIFY (cdft_control%group(k)%weight%pw)
          NULLIFY (cdft_control%group(k)%gradients)
          NULLIFY (cdft_control%group(k)%gradients_x)
-       NULLIFY (cdft_control%group(k)%gradients_y)
-       NULLIFY (cdft_control%group(k)%gradients_z)
+         NULLIFY (cdft_control%group(k)%gradients_y)
+         NULLIFY (cdft_control%group(k)%gradients_z)
          NULLIFY (cdft_control%group(k)%integrated)
          tot_natoms = tot_natoms + natoms
          ! Now parse
@@ -853,49 +853,49 @@ CONTAINS
 !> \param divide logical that decides whether to divide or multiply the input potentials
 !> \param small customisable parameter to determine lower bound of division
 ! **************************************************************************************************
- SUBROUTINE hfun_scale(fout, fun1, fun2, divide, small)
-    REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: fout
-    REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
-    LOGICAL, INTENT(IN)                                :: divide
-    REAL(KIND=dp), INTENT(IN)                        :: small
+   SUBROUTINE hfun_scale(fout, fun1, fun2, divide, small)
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: fout
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: fun1, fun2
+      LOGICAL, INTENT(IN)                                :: divide
+      REAL(KIND=dp), INTENT(IN)                          :: small
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'hfun_scale', routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'hfun_scale', routineP = moduleN//':'//routineN
 
-    INTEGER                                            :: i1, i2, i3, n1, n2, n3
+      INTEGER                                            :: i1, i2, i3, n1, n2, n3
 
-    n1 = SIZE(fout, 1)
-    n2 = SIZE(fout, 2)
-    n3 = SIZE(fout, 3)
-    CPASSERT(n1 == SIZE(fun1, 1))
-    CPASSERT(n2 == SIZE(fun1, 2))
-    CPASSERT(n3 == SIZE(fun1, 3))
-    CPASSERT(n1 == SIZE(fun2, 1))
-    CPASSERT(n2 == SIZE(fun2, 2))
-    CPASSERT(n3 == SIZE(fun2, 3))
+      n1 = SIZE(fout, 1)
+      n2 = SIZE(fout, 2)
+      n3 = SIZE(fout, 3)
+      CPASSERT(n1 == SIZE(fun1, 1))
+      CPASSERT(n2 == SIZE(fun1, 2))
+      CPASSERT(n3 == SIZE(fun1, 3))
+      CPASSERT(n1 == SIZE(fun2, 1))
+      CPASSERT(n2 == SIZE(fun2, 2))
+      CPASSERT(n3 == SIZE(fun2, 3))
 
-    IF (divide) THEN
-       DO i3 = 1, n3
-          DO i2 = 1, n2
-             DO i1 = 1, n1
-                IF (fun2(i1, i2, i3) > small) THEN
-                   fout(i1, i2, i3) = fun1(i1, i2, i3)/fun2(i1, i2, i3)
-                ELSE
-                   fout(i1, i2, i3) = 0.0_dp
-                END IF
-             END DO
-          END DO
-       END DO
-    ELSE
-       DO i3 = 1, n3
-          DO i2 = 1, n2
-             DO i1 = 1, n1
-                fout(i1, i2, i3) = fun1(i1, i2, i3)*fun2(i1, i2, i3)
-             END DO
-          END DO
-       END DO
-    END IF
+      IF (divide) THEN
+         DO i3 = 1, n3
+            DO i2 = 1, n2
+               DO i1 = 1, n1
+                  IF (fun2(i1, i2, i3) > small) THEN
+                     fout(i1, i2, i3) = fun1(i1, i2, i3)/fun2(i1, i2, i3)
+                  ELSE
+                     fout(i1, i2, i3) = 0.0_dp
+                  END IF
+               END DO
+            END DO
+         END DO
+      ELSE
+         DO i3 = 1, n3
+            DO i2 = 1, n2
+               DO i1 = 1, n1
+                  fout(i1, i2, i3) = fun1(i1, i2, i3)*fun2(i1, i2, i3)
+               END DO
+            END DO
+         END DO
+      END IF
 
- END SUBROUTINE hfun_scale
+   END SUBROUTINE hfun_scale
 
 ! **************************************************************************************************
 !> \brief Determine confinement bounds along confinement dir (hardcoded to be z)
@@ -1260,6 +1260,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Prints CDFT weight functions to cube files
+!> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE cdft_print_weight_function(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1309,6 +1310,7 @@ CONTAINS
 
    ! **************************************************************************************************
 !> \brief Prints Hirshfeld weight function and promolecule density
+!> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE cdft_print_hirshfeld_density(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1317,19 +1319,18 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_path_length)                 :: middle_name
-      INTEGER                                            :: igroup, unit_nr, iatom
+      INTEGER                                            :: iatom, igroup, unit_nr
       LOGICAL                                            :: mpi_io
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: cdft_constraint_section
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_env_type), POINTER                         :: pw_env
 
-      NULLIFY (cdft_constraint_section, logger, particles, dft_control, auxbas_pw_pool, &
+      NULLIFY (cdft_constraint_section, logger, particles, dft_control, &
                para_env, subsys, cdft_control, pw_env)
       logger => cp_get_default_logger()
 
@@ -1340,47 +1341,47 @@ CONTAINS
 
       mpi_io = .TRUE.
 
-          DO igroup = 1, SIZE(cdft_control%group)
+      DO igroup = 1, SIZE(cdft_control%group)
 
-            middle_name = "hw_rho_total"//TRIM(ADJUSTL(cp_to_string(igroup)))
+         middle_name = "hw_rho_total"//TRIM(ADJUSTL(cp_to_string(igroup)))
+         unit_nr = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io, &
+                                        file_position="REWIND", middle_name=middle_name, extension=".cube")
+
+         CALL cp_pw_to_cube(cdft_control%group(igroup)%hw_rho_total%pw, unit_nr, "CDFT Weight Function", mpi_io=mpi_io, &
+                  particles=particles, stride=section_get_ivals(cdft_constraint_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"))
+
+         CALL cp_print_key_finished_output(unit_nr, logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
+
+      END DO
+
+      DO igroup = 1, SIZE(cdft_control%group)
+
+         middle_name = "hw_rho_total_constraint_"//TRIM(ADJUSTL(cp_to_string(igroup)))
+         unit_nr = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io, &
+                                        file_position="REWIND", middle_name=middle_name, extension=".cube")
+
+         CALL cp_pw_to_cube(cdft_control%group(igroup)%hw_rho_total_constraint%pw, unit_nr, &
+                            "CDFT Weight Function", mpi_io=mpi_io, particles=particles, &
+                            stride=section_get_ivals(cdft_constraint_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"))
+
+         CALL cp_print_key_finished_output(unit_nr, logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
+
+      END DO
+
+      DO igroup = 1, SIZE(cdft_control%group)
+         DO iatom = 1, (cdft_control%natoms)
+
+            middle_name = "hw_rho_atomic_"//TRIM(ADJUSTL(cp_to_string(iatom)))
             unit_nr = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io, &
                                            file_position="REWIND", middle_name=middle_name, extension=".cube")
 
-            CALL cp_pw_to_cube(cdft_control%group(igroup)%hw_rho_total%pw, unit_nr, "CDFT Weight Function", mpi_io=mpi_io, &
-             particles=particles, stride=section_get_ivals(cdft_constraint_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"))
-
-           CALL cp_print_key_finished_output(unit_nr, logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
-
-       END DO
-
-           DO igroup = 1, SIZE(cdft_control%group)
-
-             middle_name = "hw_rho_total_constraint_"//TRIM(ADJUSTL(cp_to_string(igroup)))
-             unit_nr = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io, &
-                                            file_position="REWIND", middle_name=middle_name, extension=".cube")
-
-             CALL cp_pw_to_cube(cdft_control%group(igroup)%hw_rho_total_constraint%pw, unit_nr, &
-                     "CDFT Weight Function", mpi_io=mpi_io, particles=particles, &
-                        stride=section_get_ivals(cdft_constraint_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"))
+            CALL cp_pw_to_cube(cdft_control%group(igroup)%hw_rho_atomic(iatom)%pw, unit_nr, &
+                               "CDFT Weight Function", mpi_io=mpi_io, particles=particles, &
+                               stride=section_get_ivals(cdft_constraint_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"))
 
             CALL cp_print_key_finished_output(unit_nr, logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
 
-        END DO
-
-       DO igroup = 1, SIZE(cdft_control%group)
-           DO iatom  = 1, (cdft_control%natoms)
-
-             middle_name = "hw_rho_atomic_"//TRIM(ADJUSTL(cp_to_string(iatom)))
-             unit_nr = cp_print_key_unit_nr(logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io, &
-                                            file_position="REWIND", middle_name=middle_name, extension=".cube")
-
-             CALL cp_pw_to_cube(cdft_control%group(igroup)%hw_rho_atomic(iatom)%pw, unit_nr, &
-                         "CDFT Weight Function", mpi_io=mpi_io, particles=particles, &
-                         stride=section_get_ivals(cdft_constraint_section, "PROGRAM_RUN_INFO%WEIGHT_FUNCTION%STRIDE"))
-
-            CALL cp_print_key_finished_output(unit_nr, logger, cdft_constraint_section, "PROGRAM_RUN_INFO", mpi_io=mpi_io)
-
-        END DO
+         END DO
       END DO
 
    END SUBROUTINE cdft_print_hirshfeld_density
