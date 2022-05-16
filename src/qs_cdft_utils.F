@@ -1317,7 +1317,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
 
       CHARACTER(LEN=default_path_length)                 :: middle_name
-      INTEGER                                            :: igroup, unit_nr, iatom, i
+      INTEGER                                            :: igroup, unit_nr, iatom
       LOGICAL                                            :: mpi_io
       TYPE(cdft_control_type), POINTER                   :: cdft_control
       TYPE(cp_logger_type), POINTER                      :: logger
