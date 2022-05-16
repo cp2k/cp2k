@@ -10,7 +10,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Author: Matthias Krack (29.04.2022)
+# Author: Matthias Krack (16.05.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -54,8 +54,8 @@ USE_SIRIUS     := 7.3.1
 USE_SPGLIB     := 1.16.2
 # Only needed for SIRIUS
 LIBVDWXC_VER   := 0.4.0
-SPFFT_VER      := 1.0.5
-SPLA_VER       := 1.5.3
+SPFFT_VER      := 1.0.6
+SPLA_VER       := 1.5.4
 HDF5_VER       := 1.12.0
 # Only needed for LIBPEXSI
 SCOTCH_VER     := 6.0.0
