@@ -629,7 +629,6 @@ CONTAINS
                                                            nthread, numexp, k, i2, j2, k2,  im, jm, km, atoms_memory, &
                                                            subpatch_pattern
      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
-     TYPE(cube_info_type)                               :: cube_info
      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: compute_charge, is_constraint
      REAL(kind=dp)                                      :: alpha, coef, dvol, eps_rho_rspace, r, r0, sum_alpha, t1, t2, &
                                                            radius, radius_constr, r_squared, exp_eval, sign, eps_weight, &
@@ -698,7 +697,6 @@ CONTAINS
 
          subpatch_pattern = 0
          eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-         cube_info = pw_env%cube_info(1)
          radius = 100.0_dp
 
          ! For each CDFT group
@@ -707,7 +705,6 @@ CONTAINS
          IF (.NOT. ASSOCIATED(rs_rho_all)) THEN
               CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho_all, &
                               auxbas_pw_pool=auxbas_pw_pool)
-              cube_info = pw_env%cube_info(1)
               CALL rs_grid_retain(rs_rho_all)
               CALL rs_grid_zero(rs_rho_all)
             END IF
@@ -898,7 +895,8 @@ CONTAINS
             ! Calculate weight function
               CALL hfun_scale(cdft_control%group(igroup)%weight%pw%cr3d, &
                                  cdft_control%group(igroup)%hw_rho_total_constraint%pw%cr3d, &
-                                 cdft_control%group(1)%hw_rho_total%pw%cr3d, divide=.TRUE., small=hirshfeld_control%eps_cutoff)
+                                 cdft_control%group(1)%hw_rho_total%pw%cr3d, divide=.TRUE., &
+                                 small=hirshfeld_control%eps_cutoff)
 
             ! Calculate charges
             IF (cdft_control%atomic_charges .AND. igroup == 1) THEN
@@ -906,7 +904,8 @@ CONTAINS
                 CALL rs_pw_transfer(rs_single_charge(i)%rs_grid, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw, rs2pw)
                 CALL hfun_scale(cdft_control%charge(i)%pw%cr3d, &
                                   cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw%cr3d, &
-                                  cdft_control%group(igroup)%hw_rho_total%pw%cr3d, divide=.TRUE., small=hirshfeld_control%eps_cutoff)
+                                  cdft_control%group(igroup)%hw_rho_total%pw%cr3d, divide=.TRUE., &
+                                  small=hirshfeld_control%eps_cutoff)
                 END DO
            END IF
 
@@ -951,7 +950,8 @@ CONTAINS
 
              IF (cdft_control%in_memory) THEN
                 DO igroup = 1, SIZE(cdft_control%group)
-                 ALLOCATE (cdft_control%group(igroup)%gradients_x(1*natom, lb_pw(1):ub_pw(1), lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
+                 ALLOCATE (cdft_control%group(igroup)%gradients_x(1*natom, lb_pw(1):ub_pw(1), &
+                                                                  lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
                  cdft_control%group(igroup)%gradients_x(:, :, :, :) = 0.0_dp
                END DO
              END IF
@@ -1075,10 +1075,12 @@ CONTAINS
 
          IF (cdft_control%in_memory) THEN
            DO igroup = 1, SIZE(cdft_control%group)
-              ALLOCATE (cdft_control%group(igroup)%gradients_y(1*num_atoms, lb_pw(1):ub_pw(1), lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
-              ALLOCATE (cdft_control%group(igroup)%gradients_z(1*num_atoms, lb_pw(1):ub_pw(1), lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
-              cdft_control%group(igroup)%gradients_y(:, :, :, :) = cdft_control%group(igroup)%gradients_x(:, :, :, :) !0.0_dp
-              cdft_control%group(igroup)%gradients_z(:, :, :, :) = cdft_control%group(igroup)%gradients_x(:, :, :, :) !0.0_dp
+              ALLOCATE (cdft_control%group(igroup)%gradients_y(1*num_atoms, lb_pw(1):ub_pw(1), &
+                                                               lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
+              ALLOCATE (cdft_control%group(igroup)%gradients_z(1*num_atoms, lb_pw(1):ub_pw(1), &
+                                                              lb_pw(2):ub_pw(2), lb_pw(3):ub_pw(3)))
+              cdft_control%group(igroup)%gradients_y(:, :, :, :) = cdft_control%group(igroup)%gradients_x(:, :, :, :)
+              cdft_control%group(igroup)%gradients_z(:, :, :, :) = cdft_control%group(igroup)%gradients_x(:, :, :, :)
           END DO
         END IF
 
