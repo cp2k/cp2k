@@ -120,12 +120,14 @@ CONTAINS
                                                             my_open_shell_SS
       REAL(KIND=dp)                                      :: amp_fac, my_Emp2_Cou, my_Emp2_EX, &
                                                             sym_fac, t_new, t_start
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BI_C_rec_1D
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          TARGET                                          :: external_ab, external_i_aL, local_ab, &
                                                             local_ba, t_ab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         TARGET                                          :: BI_C_rec, local_i_aL, local_j_aL, &
-                                                            Y_i_aP, Y_j_aP
+         TARGET                                          :: local_i_aL, local_j_aL, Y_i_aP, Y_j_aP
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: BI_C_rec
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_P, &
                                                             para_env_rep
       TYPE(dgemm_counter_type)                           :: dgemm_counter
@@ -278,6 +280,8 @@ CONTAINS
                   CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
                                        BIb_C(jspin)%array(:, :, my_j:my_j + my_block_size - 1))
 
+                  ALLOCATE (BI_C_rec_1D(INT(maxsize(gd_array), int_8)*MAXVAL(my_B_size)*my_block_size))
+
                   ! collect data from other proc
                   CALL timeset(routineN//"_comm", handle3)
                   DO proc_shift = 1, para_env_exchange%num_pe - 1
@@ -287,7 +291,6 @@ CONTAINS
                      send_ij_index = num_ij_pairs(proc_send)
 
                      CALL get_group_dist(gd_array, proc_receive, sizes=rec_L_size)
-                     ALLOCATE (BI_C_rec(rec_L_size, MAXVAL(my_B_size), my_block_size))
 
                      IF (ij_index <= send_ij_index) THEN
                         ij_counter_send = (ij_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
@@ -297,6 +300,8 @@ CONTAINS
                         send_block_size = ij_map(3, ij_counter_send)
 
                         ! occupied i
+                        BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:send_block_size) => &
+                           BI_C_rec_1D(1:rec_L_size*my_B_size(ispin)*send_block_size)
                         BI_C_rec = 0.0_dp
                         CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
                                          proc_send, BI_C_rec, proc_receive, &
@@ -306,6 +311,8 @@ CONTAINS
                                              BI_C_rec(:, 1:my_B_size(ispin), :))
 
                         ! occupied j
+                        BI_C_rec(1:rec_L_size, 1:my_B_size(jspin), 1:send_block_size) => &
+                           BI_C_rec_1D(1:INT(rec_L_size, int_8)*my_B_size(jspin)*send_block_size)
                         BI_C_rec = 0.0_dp
                         CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
                                          proc_send, BI_C_rec, proc_receive, &
@@ -318,24 +325,29 @@ CONTAINS
                         ! we send nothing while we know that we have to receive something
 
                         ! occupied i
+                        BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:my_block_size) => &
+                           BI_C_rec_1D(1:INT(rec_L_size, int_8)*my_B_size(ispin)*my_block_size)
                         BI_C_rec = 0.0_dp
                         CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
                         CALL fill_local_i_aL(local_i_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
-                                             BI_C_rec(:, 1:my_B_size(ispin), :))
+                                             BI_C_rec(:, 1:my_B_size(ispin), 1:my_block_size))
 
                         ! occupied j
+                        BI_C_rec(1:rec_L_size, 1:my_B_size(jspin), 1:my_block_size) => &
+                           BI_C_rec_1D(1:INT(rec_L_size, int_8)*my_B_size(jspin)*my_block_size)
                         BI_C_rec = 0.0_dp
                         CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
                         CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, proc_receive), &
-                                             BI_C_rec(:, 1:my_B_size(jspin), :))
+                                             BI_C_rec(:, 1:my_B_size(jspin), 1:my_block_size))
 
                      END IF
 
-                     DEALLOCATE (BI_C_rec)
-
                   END DO
+
+                  DEALLOCATE (BI_C_rec_1D)
+
                   CALL timestop(handle3)
 
                   ! loop over the block elements
