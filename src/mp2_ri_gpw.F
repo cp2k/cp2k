@@ -218,7 +218,7 @@ CONTAINS
 
             CALL mp2_ri_get_block_size( &
                mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin:jspin), &
-               homo(ispin:jspin), dimen_RI, unit_nr, block_size, &
+               homo(ispin:jspin), virtual(ispin:jspin), dimen_RI, unit_nr, block_size, &
                ngroup, num_integ_group, my_open_shell_ss, calc_forces)
 
             ! *****************************************************************
@@ -1441,6 +1441,7 @@ CONTAINS
 !> \param gd_array ...
 !> \param gd_B_virtual ...
 !> \param homo ...
+!> \param virtual ...
 !> \param dimen_RI ...
 !> \param unit_nr ...
 !> \param block_size ...
@@ -1450,14 +1451,14 @@ CONTAINS
 !> \param calc_forces ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_get_block_size(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
-                                    homo, dimen_RI, unit_nr, &
+                                    homo, virtual, dimen_RI, unit_nr, &
                                     block_size, ngroup, num_integ_group, &
                                     my_open_shell_ss, calc_forces)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
       INTEGER, INTENT(OUT)                               :: block_size, ngroup, num_integ_group
       LOGICAL, INTENT(IN)                                :: my_open_shell_ss, calc_forces
@@ -1483,8 +1484,10 @@ CONTAINS
       mem_per_blk = 0.0_dp
       mem_per_repl_blk = 0.0_dp
 
-! external_i_aL
+      ! external_i_aL
       mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
+      ! external_ab
+      mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*MAXVAL(virtual)*8.0_dp/(1024**2)
       ! BIB_C_rec
       mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
       ! local_i_aL+local_j_aL
