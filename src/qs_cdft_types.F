@@ -18,6 +18,8 @@ MODULE qs_cdft_types
    USE hirshfeld_types,                 ONLY: hirshfeld_type,&
                                               release_hirshfeld_type
    USE input_constants,                 ONLY: becke_cutoff_global,&
+                                              outer_scf_becke_constraint,&
+                                              outer_scf_hirshfeld_constraint,&
                                               outer_scf_none,&
                                               radius_single,&
                                               shape_function_gaussian
