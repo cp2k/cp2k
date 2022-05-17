@@ -565,10 +565,6 @@ CONTAINS
          ALLOCATE (cdft_control%group(k)%atoms(natoms))
          ALLOCATE (cdft_control%group(k)%coeff(natoms))
          NULLIFY (cdft_control%group(k)%weight%pw)
-         NULLIFY (cdft_control%group(k)%gradients)
-         NULLIFY (cdft_control%group(k)%gradients_x)
-         NULLIFY (cdft_control%group(k)%gradients_y)
-         NULLIFY (cdft_control%group(k)%gradients_z)
          NULLIFY (cdft_control%group(k)%integrated)
          tot_natoms = tot_natoms + natoms
          ! Now parse
@@ -730,16 +726,19 @@ CONTAINS
       TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
       TYPE(section_vals_type), POINTER                   :: cdft_control_section
 
+      INTEGER                                            :: k, nvar
       LOGICAL                                            :: exists
       TYPE(cdft_control_type), POINTER                   :: cdft_control
-      TYPE(section_vals_type), POINTER                   :: becke_constraint_section, &
+      TYPE(section_vals_type), POINTER                   :: becke_constraint_section, group_section, &
                                                             hirshfeld_constraint_section, &
                                                             outer_scf_section, print_section
 
       NULLIFY (outer_scf_section, hirshfeld_constraint_section, becke_constraint_section, &
-               print_section)
+               print_section, group_section)
       cdft_control => qs_control%cdft_control
       CPASSERT(ASSOCIATED(cdft_control))
+      group_section => section_vals_get_subs_vals(cdft_control_section, "ATOM_GROUP")
+      CALL section_vals_get(group_section, n_repetition=nvar, explicit=exists)
 
       CALL section_vals_val_get(cdft_control_section, "TYPE_OF_CONSTRAINT", &
                                 i_val=qs_control%cdft_control%type)
@@ -775,11 +774,19 @@ CONTAINS
                becke_constraint_section => section_vals_get_subs_vals(cdft_control_section, "BECKE_CONSTRAINT")
                CALL section_vals_get(becke_constraint_section, explicit=exists)
                IF (.NOT. exists) CPABORT("BECKE_CONSTRAINT section is missing.")
+               DO k = 1, nvar
+                  NULLIFY (cdft_control%group(k)%gradients)
+               END DO
                CALL read_becke_section(cdft_control, becke_constraint_section)
             CASE (outer_scf_hirshfeld_constraint)
                hirshfeld_constraint_section => section_vals_get_subs_vals(cdft_control_section, "HIRSHFELD_CONSTRAINT")
                CALL section_vals_get(hirshfeld_constraint_section, explicit=exists)
                IF (.NOT. exists) CPABORT("HIRSHFELD_CONSTRAINT section is missing.")
+               DO k = 1, nvar
+                  NULLIFY (cdft_control%group(k)%gradients_x)
+                  NULLIFY (cdft_control%group(k)%gradients_y)
+                  NULLIFY (cdft_control%group(k)%gradients_z)
+               END DO
                CALL read_hirshfeld_constraint_section(cdft_control, hirshfeld_constraint_section)
             CASE DEFAULT
                CPABORT("Unknown constraint type.")
