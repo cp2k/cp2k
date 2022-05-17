@@ -4285,6 +4285,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="IN_MEMORY", &
+                          description="Precompute gradients due to constraint during"// &
+                          " initial formation of constraint and store them in memory. Does"// &
+                          " nothing if forces are not calculated.", &
+                          usage="IN_MEMORY", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_cdft_control_section
 
 ! **************************************************************************************************
@@ -4353,6 +4362,40 @@ CONTAINS
                           "Gaussian than without unit conversion.", &
                           usage="CAVITY_USE_BOHR TRUE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_DENSITY", &
+                          description="Logical to control printing of Hirshfeld densities to .cube file.", &
+                          usage="PRINT_DENSITY TRUE", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS_MEMORY", &
+                          description="Number of atomic gradients to store in memory.", &
+                          usage="ATOMS_MEMORY", &
+                          n_var=1, type_of_var=integer_t, &
+                          default_i_val=80)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="USE_ATOMIC_CUTOFF", &
+                          description="Logical to control use of ATOMIC_CUTOFF.", &
+                          usage="USE_ATOMIC_CUTOFF TRUE", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_CUTOFF", &
+                          description="Numerical cutoff for calculation of weight function.", &
+                          usage="EPS_CUTOFF {real} ", default_r_val=1.0e-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMIC_CUTOFF", &
+                          description="Numerical cutoff for calculation of Hirshfeld densities.", &
+                          usage="ATOMIC_CUTOFF {real} ", default_r_val=1.0e-12_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
