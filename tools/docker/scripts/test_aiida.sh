@@ -28,6 +28,7 @@ apt-get install -qq --no-install-recommends \
   python3-pip \
   python3-dev \
   postgresql \
+  libpq-dev \
   rabbitmq-server \
   sudo \
   ssh
@@ -36,6 +37,7 @@ rm -rf /var/lib/apt/lists/*
 # Some buggy Python packages open utf8 files in text mode.
 # As a workaround we set locale.getpreferredencoding() to utf8.
 export LANG="en_US.UTF-8" LANGUAGE="en_US:en" LC_ALL="en_US.UTF-8"
+locale-gen ${LANG}
 
 # create ubuntu user with sudo powers
 adduser --disabled-password --gecos "" ubuntu
