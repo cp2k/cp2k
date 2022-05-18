@@ -92,7 +92,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: tmp_energy, trace
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit, tmp1, tmp2
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: smat
@@ -118,15 +117,12 @@ CONTAINS
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
-         CALL cp_fm_struct_create(fm_struct, ncol_global=nmo, &
-                                  template_fmstruct=S_inv_orb%matrix_struct)
-         CALL cp_fm_create(tmp1, matrix_struct=fm_struct)
+         CALL cp_fm_create(tmp1, matrix_struct=mo_coeff%matrix_struct)
          CALL cp_dbcsr_sm_fm_multiply(Qt, mo_coeff_aux_fit, tmp1, nmo)
          CALL cp_fm_trace(tmp1, mo_coeff, trace)
          fval = fval - 2.0_dp*trace + 2.0_dp*nmo
          !
-         CALL cp_fm_create(tmp2, matrix_struct=fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
+         CALL cp_fm_create(tmp2, matrix_struct=mo_coeff%matrix_struct)
          CALL cp_gemm('N', 'N', norb, nmo, norb, 1.0_dp, S_inv_orb, tmp1, 0.0_dp, tmp2)
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, tmp2, tmp1, nmo)
          CALL cp_fm_trace(tmp2, tmp1, tmp_energy)
