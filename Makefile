@@ -211,9 +211,11 @@ ifneq ($(OFFLOAD_CC),)
 	@echo ""
 endif
 ifneq ($(AR),)
+ifeq (Linux,$(shell uname -s))
 	@echo "=========== AR ($(ONEVERSION)) ==========="
 	$(firstword $(AR)) V
 	@echo ""
+endif
 endif
 	@echo "========== Make ($(ONEVERSION)) =========="
 	$(MAKE) --version

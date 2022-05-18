@@ -55,7 +55,14 @@ if [[ "${git_sha}" != "<N/A>" ]] && command -v git > /dev/null 2>&1; then
 fi
 
 echo "--------------------------- Resource limits ------------------------------"
-prlimit
+case "$(uname -s)" in
+  Linux)
+    prlimit
+    ;;
+  Darwin)
+    launchctl limit
+    ;;
+esac
 
 echo "--------------------------- SELinux --------------------------------------"
 if [[ -f /usr/sbin/getenforce ]]; then
