@@ -109,6 +109,7 @@ OPTIONS:
                           Default = 200
 --generic                 Compile for a generic target system, i.e. do not optimize for
                           the actual host system.
+--no-arch-files           Do not generate arch files
 --dry-run                 Write only config files, but don't actually build packages.
 
 The --enable-FEATURE options follow the rules:
@@ -334,6 +335,7 @@ fi
 
 # default enable options
 dry_run="__FALSE__"
+no_arch_files="__FALSE__"
 export generic="__FALSE__"
 enable_tsan="__FALSE__"
 enable_gcc_master="__FALSE__"
@@ -456,6 +458,9 @@ while [ $# -ge 1 ]; do
     --libint-lmax=*)
       user_input="${1#*=}"
       export LIBINT_LMAX="${user_input}"
+      ;;
+    --no-arch-files)
+      no_arch_files="__TRUE__"
       ;;
     --generic)
       export generic="__TRUE__"
@@ -955,7 +960,9 @@ else
   ./scripts/stage7/install_stage7.sh
   ./scripts/stage8/install_stage8.sh
   # Stage 9 is reserved for DBCSR.
-  ./scripts/generate_arch_files.sh
+  if [ "${no_arch_files}" = "__FALSE__" ]; then
+    ./scripts/generate_arch_files.sh
+  fi
 fi
 
 #EOF
