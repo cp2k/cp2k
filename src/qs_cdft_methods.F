@@ -696,6 +696,16 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
       radius = 100.0_dp
 
+      dr_pw(1) = rho_r(1)%pw%pw_grid%dr(1)
+      dr_pw(2) = rho_r(1)%pw%pw_grid%dr(2)
+      dr_pw(3) = rho_r(1)%pw%pw_grid%dr(3)
+      lb_pw(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
+      ub_pw(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
+      npts = rho_r(1)%pw%pw_grid%npts
+      origin(1) = (dr_pw(1)*npts(1))*0.5_dp
+      origin(2) = (dr_pw(2)*npts(2))*0.5_dp
+      origin(3) = (dr_pw(3)*npts(3))*0.5_dp
+
       ! For each CDFT group
       DO igroup = 1, SIZE(cdft_control%group)
 
@@ -706,15 +716,9 @@ CONTAINS
             CALL rs_grid_zero(rs_rho_all)
          END IF
 
-         ! Get size of rs and pw grids
-         npts = rho_r(1)%pw%pw_grid%npts
-         dr_pw = rho_r(1)%pw%pw_grid%dr
          dr_rs(1) = rs_rho_all%desc%dh(1, 1)
          dr_rs(2) = rs_rho_all%desc%dh(2, 2)
          dr_rs(3) = rs_rho_all%desc%dh(3, 3)
-         origin(:) = (dr_pw(:)*npts(:))*0.5_dp
-         lb_pw(1:3) = rho_r(1)%pw%pw_grid%bounds_local(1, 1:3)
-         ub_pw(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
          lb_rs(1) = LBOUND(rs_rho_all%r(:, :, :), 1)
          lb_rs(2) = LBOUND(rs_rho_all%r(:, :, :), 2)
          lb_rs(3) = LBOUND(rs_rho_all%r(:, :, :), 3)
@@ -1199,6 +1203,7 @@ CONTAINS
       ALLOCATE (dE(nvar))
       strength(:) = cdft_control%strength(:)
       target_val(:) = cdft_control%target(:)
+      sign = 1.0_dp
       dE = 0.0_dp
       dvol = group(1)%weight%pw%pw_grid%dvol
       IF (cdft_control%atomic_charges) THEN
@@ -1399,6 +1404,7 @@ CONTAINS
       ub(1:3) = rho_r(1)%pw%pw_grid%bounds_local(2, 1:3)
       bo = cdft_control%group(1)%weight%pw%pw_grid%bounds_local
       dvol = cdft_control%group(1)%weight%pw%pw_grid%dvol
+      sign = 1.0_dp
 
       IF (cdft_control%type == outer_scf_becke_constraint) THEN
          IF (.NOT. cdft_control%becke_control%in_memory) THEN
