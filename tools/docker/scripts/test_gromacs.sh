@@ -19,7 +19,7 @@ fi
 
 echo -e "\n========== Building Gromacs =========="
 echo -n "Cloning Gromacs repository... "
-git clone --quiet --depth=1 --single-branch -b master https://gitlab.com/gromacs/gromacs.git /opt/gromacs
+git clone --quiet --depth=1 --single-branch -b main https://gitlab.com/gromacs/gromacs.git /opt/gromacs
 echo "done."
 cd /opt/gromacs/
 GROMACS_REVISION=$(git rev-parse --short HEAD)
