@@ -151,12 +151,14 @@ export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${MPICH_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${MPICH_LIBS}|)"
 EOF
   if [ "${with_mpich}" != "__SYSTEM__" ]; then
+    # Using append_path instead of prepend_path for compatibility with Shifter.
+    # See http://github.com/cp2k/cp2k/issues/2058
     cat << EOF >> "${BUILDDIR}/setup_mpich"
-prepend_path PATH "${pkg_install_dir}/bin"
-prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
-prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path CPATH "${pkg_install_dir}/include"
+append_path PATH "${pkg_install_dir}/bin"
+append_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
+append_path LD_RUN_PATH "${pkg_install_dir}/lib"
+append_path LIBRARY_PATH "${pkg_install_dir}/lib"
+append_path CPATH "${pkg_install_dir}/include"
 EOF
   fi
   cat "${BUILDDIR}/setup_mpich" >> ${SETUPFILE}
