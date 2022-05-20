@@ -3,12 +3,12 @@
 # CP2K (GNU) arch file for a serial static x86_64 binary
 #
 # Tested with: GNU 11.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBBVORI 210412,
-#              LIBXC 5.2.2, OpenBLAS 0.3.20, SPGLIB 1.16.2
+#              LIBXC 5.2.3, OpenBLAS 0.3.20, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Add "generic" as argument to compile for a generic x86_64 target.
 #
-# Author: Matthias Krack (23.03.2022)
+# Author: Matthias Krack (20.05.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -19,9 +19,9 @@
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
    if [[ "${1}" == "generic" ]]; then \
-      ./install_cp2k_toolchain.sh -j 16 --generic --mpi-mode=no --with-gcc=install; \
+      ./install_cp2k_toolchain.sh --generic --mpi-mode=no --no-arch-files --with-gcc=install; \
    else \
-      ./install_cp2k_toolchain.sh -j 16 --mpi-mode=no --with-gcc=install; \
+      ./install_cp2k_toolchain.sh --mpi-mode=no --no-arch-files --with-gcc=install; \
    fi; \
    source ./install/setup; \
    cd ../..; \
@@ -29,9 +29,9 @@
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
    if [[ "${1}" == "generic" ]]; then \
-      echo "   make -j 16 ARCH=${this_file%%.*} VERSION=${this_file##*.} GENERIC=yes"; \
+      echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} GENERIC=yes"; \
    else \
-      echo "   make -j 16 ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+      echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
    fi; \
    echo "Further checks are performed, if DO_CHECKS=yes is added."; \
    return
@@ -42,7 +42,7 @@ GENERIC        := no
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 210412
-USE_LIBXC      := 5.2.2
+USE_LIBXC      := 5.2.3
 USE_OPENBLAS   := 0.3.20
 USE_SPGLIB     := 1.16.2
 

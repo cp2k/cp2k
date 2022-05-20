@@ -3,7 +3,7 @@
 # CP2K (GNU aarch64) arch file for a serial static ARM64 binary
 #
 # Tested with: GNU 11.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBBVORI 210412,
-#              LIBXC 5.2.2, OpenBLAS 0.3.20, SPGLIB 1.16.2
+#              LIBXC 5.2.3, OpenBLAS 0.3.20, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #
@@ -16,7 +16,7 @@
       exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
-   ./install_cp2k_toolchain.sh --mpi-mode=no --with-gcc=system --with-cmake=system; \
+   ./install_cp2k_toolchain.sh --mpi-mode=no --no-arch-files --with-gcc=system --with-cmake=system; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -32,7 +32,7 @@ DO_CHECKS      := no
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 210412
-USE_LIBXC      := 5.2.2
+USE_LIBXC      := 5.2.3
 USE_OPENBLAS   := 0.3.20
 USE_SPGLIB     := 1.16.2
 
