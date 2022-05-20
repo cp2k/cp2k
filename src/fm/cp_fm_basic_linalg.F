@@ -61,12 +61,7 @@ MODULE cp_fm_basic_linalg
              cp_fm_pdorgqr ! generates an M-by-N as first N columns of a product of K elementary reflectors
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
-#if defined (__ACCELERATE)
-   REAL(KIND=dp), EXTERNAL :: slange
-   REAL(KIND=sp), EXTERNAL :: pslange, pslatra
-#else
    REAL(KIND=sp), EXTERNAL :: slange, pslange, pslatra
-#endif
 
    INTERFACE cp_fm_trace
       MODULE PROCEDURE cp_fm_trace_a0b0t0
