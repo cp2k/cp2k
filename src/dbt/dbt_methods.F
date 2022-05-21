@@ -34,7 +34,7 @@ MODULE dbt_methods
    USE dbt_tas_base, ONLY: &
       dbt_tas_copy, dbt_tas_finalize, dbt_tas_get_info, dbt_tas_info
    USE dbt_tas_mm, ONLY: &
-      dbt_tas_multiply, dbt_tas_batched_mm_init, dbt_tas_batched_mm_finalize, dbt_tas_result_index, &
+      dbt_tas_multiply, dbt_tas_batched_mm_init, dbt_tas_batched_mm_finalize, &
       dbt_tas_batched_mm_complete, dbt_tas_set_batched_state
    USE dbt_block, ONLY: &
       dbt_iterator_type, dbt_get_block, dbt_put_block, dbt_iterator_start, &
@@ -89,7 +89,6 @@ MODULE dbt_methods
       dbt_reserve_blocks, &
       dbt_copy_matrix_to_tensor, &
       dbt_copy_tensor_to_matrix, &
-      dbt_contract_index, &
       dbt_batched_contract_init, &
       dbt_batched_contract_finalize
 
@@ -302,6 +301,8 @@ CONTAINS
 
       CALL dbt_reserve_blocks(tensor_in, tensor_out)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_in,tensor_out,summation) &
+!$OMP PRIVATE(iter,ind_nd,blk_data,found)
       CALL dbt_iterator_start(iter, tensor_in)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind_nd)
@@ -311,6 +312,7 @@ CONTAINS
          CALL destroy_block(blk_data)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -355,6 +357,8 @@ CONTAINS
 
       CALL dbt_reserve_blocks(matrix_in_desym, tensor_out)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in_desym,tensor_out,summation) &
+!$OMP PRIVATE(iter,ind_2d,block,tr,block_arr)
       CALL dbcsr_iterator_start(iter, matrix_in_desym)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2), block, tr)
@@ -363,6 +367,7 @@ CONTAINS
          DEALLOCATE (block_arr)
       END DO
       CALL dbcsr_iterator_stop(iter)
+!$OMP END PARALLEL
 
       IF (dbcsr_has_symmetry(matrix_in)) THEN
          CALL dbcsr_release(matrix_in_desym)
@@ -399,6 +404,8 @@ CONTAINS
 
       CALL dbt_reserve_blocks(tensor_in, matrix_out)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_in,matrix_out,summation) &
+!$OMP PRIVATE(iter,ind_2d,block,found)
       CALL dbt_iterator_start(iter, tensor_in)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind_2d)
@@ -415,6 +422,7 @@ CONTAINS
          DEALLOCATE (block)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
@@ -549,8 +557,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief expert routine for tensor contraction. For internal use only.
 !> \param nblks_local number of local blocks on this MPI rank
-!> \param result_index get indices of non-zero tensor blocks for tensor_3 without actually
-!>                     performing contraction this is an estimate based on block norm multiplication
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE dbt_contract_expert(alpha, tensor_1, tensor_2, beta, tensor_3, &
@@ -560,7 +566,7 @@ CONTAINS
                                   bounds_1, bounds_2, bounds_3, &
                                   optimize_dist, pgrid_opt_1, pgrid_opt_2, pgrid_opt_3, &
                                   filter_eps, flop, move_data, retain_sparsity, &
-                                  nblks_local, result_index, unit_nr, log_verbose)
+                                  nblks_local, unit_nr, log_verbose)
       REAL(dp), INTENT(IN)            :: alpha
       TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_1
       TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_2
@@ -590,8 +596,6 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                  :: move_data
       LOGICAL, INTENT(IN), OPTIONAL                  :: retain_sparsity
       INTEGER, INTENT(OUT), OPTIONAL                 :: nblks_local
-      INTEGER, DIMENSION(dbt_max_nblks_local(tensor_3), ndims_tensor(tensor_3)), &
-         OPTIONAL, INTENT(OUT)                       :: result_index
       INTEGER, OPTIONAL, INTENT(IN)                  :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                  :: log_verbose
 
@@ -600,11 +604,9 @@ CONTAINS
       TYPE(dbt_type), POINTER                    :: tensor_crop_1, tensor_crop_2
       TYPE(dbt_type), POINTER                    :: tensor_small, tensor_large
 
-      INTEGER(int_8), DIMENSION(:, :), ALLOCATABLE  :: result_index_2d
       LOGICAL                                        :: assert_stmt, tensors_remapped
       INTEGER                                        :: max_mm_dim, max_tensor, mp_comm, &
-                                                        iblk, nblk, unit_nr_prv, ref_tensor, mp_comm_opt, &
-                                                        handle
+                                                        unit_nr_prv, ref_tensor, mp_comm_opt, handle
       INTEGER, DIMENSION(SIZE(contract_1))           :: contract_1_mod
       INTEGER, DIMENSION(SIZE(notcontract_1))        :: notcontract_1_mod
       INTEGER, DIMENSION(SIZE(contract_2))           :: contract_2_mod
@@ -661,7 +663,6 @@ CONTAINS
       unit_nr_prv = prep_output_unit(unit_nr)
 
       IF (PRESENT(flop)) flop = 0
-      IF (PRESENT(result_index)) result_index = 0
       IF (PRESENT(nblks_local)) nblks_local = 0
 
       IF (PRESENT(move_data)) THEN
@@ -901,58 +902,13 @@ CONTAINS
          IF (new_2) CALL dbt_write_tensor_dist(tensor_contr_2, unit_nr_prv)
       END IF
 
-      IF (.NOT. PRESENT(result_index)) THEN
-         CALL dbt_tas_multiply(trans_1, trans_2, trans_3, alpha, &
-                               tensor_contr_1%matrix_rep, tensor_contr_2%matrix_rep, &
-                               beta, &
-                               tensor_contr_3%matrix_rep, filter_eps=filter_eps, flop=flop, &
-                               unit_nr=unit_nr_prv, log_verbose=log_verbose, &
-                               split_opt=split_opt, &
-                               move_data_a=move_data_1, move_data_b=move_data_2, retain_sparsity=retain_sparsity)
-      ELSE
-
-         CALL dbt_tas_result_index(trans_1, trans_2, trans_3, tensor_contr_1%matrix_rep, tensor_contr_2%matrix_rep, &
-                                   tensor_contr_3%matrix_rep, filter_eps=filter_eps, blk_ind=result_index_2d)
-
-         nblk = SIZE(result_index_2d, 1)
-         IF (PRESENT(nblks_local)) nblks_local = nblk
-         IF (SIZE(result_index, 1) < nblk) THEN
-            CALL cp_abort(__LOCATION__, &
-        "allocated size of `result_index` is too small. This error occurs due to a high load imbalance of distributed tensor data.")
-         END IF
-
-         DO iblk = 1, nblk
-            result_index(iblk, :) = get_nd_indices_tensor(tensor_contr_3%nd_index_blk, result_index_2d(iblk, :))
-         END DO
-
-         IF (new_1) THEN
-            CALL dbt_destroy(tensor_contr_1)
-            DEALLOCATE (tensor_contr_1)
-         END IF
-         IF (new_2) THEN
-            CALL dbt_destroy(tensor_contr_2)
-            DEALLOCATE (tensor_contr_2)
-         END IF
-         IF (new_3) THEN
-            CALL dbt_destroy(tensor_contr_3)
-            DEALLOCATE (tensor_contr_3)
-         END IF
-         IF (do_crop_1) THEN
-            CALL dbt_destroy(tensor_crop_1)
-            DEALLOCATE (tensor_crop_1)
-         END IF
-         IF (do_crop_2) THEN
-            CALL dbt_destroy(tensor_crop_2)
-            DEALLOCATE (tensor_crop_2)
-         END IF
-
-         CALL dbt_destroy(tensor_algn_1)
-         CALL dbt_destroy(tensor_algn_2)
-         CALL dbt_destroy(tensor_algn_3)
-
-         CALL timestop(handle)
-         RETURN
-      END IF
+      CALL dbt_tas_multiply(trans_1, trans_2, trans_3, alpha, &
+                            tensor_contr_1%matrix_rep, tensor_contr_2%matrix_rep, &
+                            beta, &
+                            tensor_contr_3%matrix_rep, filter_eps=filter_eps, flop=flop, &
+                            unit_nr=unit_nr_prv, log_verbose=log_verbose, &
+                            split_opt=split_opt, &
+                            move_data_a=move_data_1, move_data_b=move_data_2, retain_sparsity=retain_sparsity)
 
       IF (PRESENT(pgrid_opt_1)) THEN
          IF (.NOT. new_1) THEN
@@ -1794,57 +1750,6 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief get indices of non-zero tensor blocks for contraction result without actually
-!>        performing contraction.
-!>        this is an estimate based on block norm multiplication.
-!>        See documentation of dbt_contract.
-!> \param nblks_local number of local blocks on this MPI rank
-!> \param result_index indices of local non-zero tensor blocks for tensor_3
-!>        only the elements result_index(:nblks_local, :) are relevant (all others are set to 0)
-!> \author Patrick Seewald
-! **************************************************************************************************
-   SUBROUTINE dbt_contract_index(alpha, tensor_1, tensor_2, beta, tensor_3, &
-                                 contract_1, notcontract_1, &
-                                 contract_2, notcontract_2, &
-                                 map_1, map_2, &
-                                 bounds_1, bounds_2, bounds_3, &
-                                 filter_eps, &
-                                 nblks_local, result_index)
-      REAL(dp), INTENT(IN)            :: alpha
-      TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_1
-      TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_2
-      REAL(dp), INTENT(IN)            :: beta
-      INTEGER, DIMENSION(:), INTENT(IN)              :: contract_1
-      INTEGER, DIMENSION(:), INTENT(IN)              :: contract_2
-      INTEGER, DIMENSION(:), INTENT(IN)              :: map_1
-      INTEGER, DIMENSION(:), INTENT(IN)              :: map_2
-      INTEGER, DIMENSION(:), INTENT(IN)              :: notcontract_1
-      INTEGER, DIMENSION(:), INTENT(IN)              :: notcontract_2
-      TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_3
-      INTEGER, DIMENSION(2, SIZE(contract_1)), &
-         INTENT(IN), OPTIONAL                        :: bounds_1
-      INTEGER, DIMENSION(2, SIZE(notcontract_1)), &
-         INTENT(IN), OPTIONAL                        :: bounds_2
-      INTEGER, DIMENSION(2, SIZE(notcontract_2)), &
-         INTENT(IN), OPTIONAL                        :: bounds_3
-      REAL(KIND=dp), INTENT(IN), OPTIONAL        :: filter_eps
-      INTEGER, INTENT(OUT)                           :: nblks_local
-      INTEGER, DIMENSION(dbt_max_nblks_local(tensor_3), ndims_tensor(tensor_3)), &
-         INTENT(OUT)                                 :: result_index
-
-      CALL dbt_contract_expert(alpha, tensor_1, tensor_2, beta, tensor_3, &
-                               contract_1, notcontract_1, &
-                               contract_2, notcontract_2, &
-                               map_1, map_2, &
-                               bounds_1=bounds_1, &
-                               bounds_2=bounds_2, &
-                               bounds_3=bounds_3, &
-                               filter_eps=filter_eps, &
-                               nblks_local=nblks_local, &
-                               result_index=result_index)
    END SUBROUTINE
 
 ! **************************************************************************************************

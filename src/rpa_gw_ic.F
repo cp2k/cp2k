@@ -230,10 +230,19 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: boff, bsize, ind
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: block_1, block_2
+      REAL(KIND=dp), &
+         DIMENSION(mo_bounds(2)-mo_bounds(1)+1)          :: Delta_Sigma_Neaton_prv
       TYPE(dbt_iterator_type)                            :: iter
 
       CALL timeset(routineN, handle)
 
+      CPASSERT(SIZE(Delta_Sigma_Neaton_prv) == SIZE(Delta_Sigma_Neaton))
+      Delta_Sigma_Neaton_prv = 0.0_dp
+
+!$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:Delta_Sigma_Neaton_prv) &
+!$OMP SHARED(t3c_1,t3c_2,mo_bounds) &
+!$OMP PRIVATE(iter,ind,bsize,boff,block_1,block_2,found) &
+!$OMP PRIVATE(n_start_block,n_start,n_end_block,n_end)
       CALL dbt_iterator_start(iter, t3c_1)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind, blk_size=bsize, blk_offset=boff)
@@ -259,15 +268,17 @@ CONTAINS
             n_end = boff(3) + bsize(3) - mo_bounds(1)
          END IF
 
-         Delta_Sigma_Neaton(n_start:n_end) = &
-            Delta_Sigma_Neaton(n_start:n_end) + &
+         Delta_Sigma_Neaton_prv(n_start:n_end) = &
+            Delta_Sigma_Neaton_prv(n_start:n_end) + &
             (/(DOT_PRODUCT(block_1(:, n, n), &
                            block_2(:, n, n)), &
                n=n_start_block, n_end_block)/)
          DEALLOCATE (block_1, block_2)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
+      Delta_Sigma_Neaton = Delta_Sigma_Neaton + Delta_Sigma_Neaton_prv
       CALL mp_sum(Delta_Sigma_Neaton, para_env%group)
 
       CALL timestop(handle)

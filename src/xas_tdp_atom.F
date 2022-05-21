@@ -997,6 +997,11 @@ CONTAINS
 
          !Do the actual contraction: coeff_y = sum_pq sum_x P_pq (phi_p phi_q xi_x) S_xy^-1
 
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(pqX,rho_ao,ri_sinv,xas_atom_env,blk_size_ri,idx_to_nb,nspins,nnb,neighbors,iex,factor) &
+!$OMP PRIVATE(iter,ind,t_block,tensor_found,iatom,jatom,katom,inb,prefac,ispin) &
+!$OMP PRIVATE(pmat_block,pmat_found,pmat_blockt,pmat_foundt,work1,work2,jnb,ri_at) &
+!$OMP PRIVATE(sinv_block,sinv_found,sinv_blockt,sinv_foundt)
          CALL dbt_iterator_start(iter, pqX)
          DO WHILE (dbt_iterator_blocks_left(iter))
             CALL dbt_iterator_next_block(iter, ind)
@@ -1055,9 +1060,11 @@ CONTAINS
                         work2(:) = work2(:) + factor*work1(i, 1)*sinv_blockt(:, i)
                      END DO
                   END IF
-
-                  xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(:) = &
-                     xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(:) + work2(:)
+                  DO i = 1, SIZE(work2)
+!$OMP ATOMIC
+                     xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(i) = &
+                        xas_atom_env%ri_dcoeff(ri_at, ispin, iex)%array(i) + work2(i)
+                  END DO
 
                   DEALLOCATE (work2)
                END DO !jnb
@@ -1068,6 +1075,7 @@ CONTAINS
             DEALLOCATE (t_block)
          END DO !iter
          CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
          !clean-up
          CALL dbcsr_release(ri_sinv)

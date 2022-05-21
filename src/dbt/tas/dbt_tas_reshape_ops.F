@@ -34,8 +34,7 @@ MODULE dbt_tas_reshape_ops
                                               dbt_tas_iterator,&
                                               dbt_tas_split_info,&
                                               dbt_tas_type
-   USE dbt_tas_util,                    ONLY: index_unique,&
-                                              swap
+   USE dbt_tas_util,                    ONLY: swap
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_alltoall,&
@@ -43,6 +42,9 @@ MODULE dbt_tas_reshape_ops
                                               mp_irecv,&
                                               mp_isend,&
                                               mp_waitall
+
+!$ USE OMP_LIB, ONLY: omp_lock_kind, omp_init_lock
+
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -83,6 +85,8 @@ CONTAINS
                                                             mynode, nblk, ndata, numnodes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: blks_to_allocate, index_recv
       INTEGER(KIND=int_8), DIMENSION(2)                  :: blk_index
+      INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
+         DIMENSION(:)                                    :: locks
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
                                                             num_entries_recv, num_entries_send, &
                                                             num_rec, num_send
@@ -131,23 +135,30 @@ CONTAINS
       ALLOCATE (num_send(0:2*numnodes - 1))
       num_send(:) = 0
       ALLOCATE (req_array(1:numnodes, 4))
-      CALL dbt_tas_iterator_start(iter, matrix_in)
+      ALLOCATE (locks(0:numnodes - 1))
+      DO iproc = 0, numnodes - 1
+         CALL omp_init_lock(locks(iproc))
+      END DO
 
       CALL timeset(routineN//"_get_coord", handle2)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out,tr_in,num_send) &
+!$OMP PRIVATE(iter,blk_index,blk_size,iproc)
+      CALL dbt_tas_iterator_start(iter, matrix_in)
       DO WHILE (dbt_tas_iterator_blocks_left(iter))
          CALL dbt_tas_iterator_next_block(iter, blk_index(1), blk_index(2), &
                                           row_size=blk_size(1), col_size=blk_size(2))
-
          IF (tr_in) THEN
             CALL dbt_tas_get_stored_coordinates(matrix_out, blk_index(2), blk_index(1), iproc)
          ELSE
             CALL dbt_tas_get_stored_coordinates(matrix_out, blk_index(1), blk_index(2), iproc)
          END IF
-
+!$OMP ATOMIC
          num_send(2*iproc) = num_send(2*iproc) + PRODUCT(blk_size)
+!$OMP ATOMIC
          num_send(2*iproc + 1) = num_send(2*iproc + 1) + 1
       END DO
       CALL dbt_tas_iterator_stop(iter)
+!$OMP END PARALLEL
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_alltoall", handle2)
@@ -167,6 +178,8 @@ CONTAINS
 
       END DO
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out,tr_in,buffer_send,locks) &
+!$OMP PRIVATE(iter,blk_index,blk_size,block,iproc)
       CALL dbt_tas_iterator_start(iter, matrix_in)
       DO WHILE (dbt_tas_iterator_blocks_left(iter))
          CALL dbt_tas_iterator_next_block(iter, blk_index(1), blk_index(2), block, &
@@ -176,9 +189,12 @@ CONTAINS
          ELSE
             CALL dbt_tas_get_stored_coordinates(matrix_out, blk_index(1), blk_index(2), iproc)
          END IF
+         CALL omp_set_lock(locks(iproc))
          CALL dbt_buffer_add_block(buffer_send(iproc), blk_index, block, transposed=tr_in)
+         CALL omp_unset_lock(locks(iproc))
       END DO
       CALL dbt_tas_iterator_stop(iter)
+!$OMP END PARALLEL
 
       IF (move_prv) CALL dbt_tas_clear(matrix_in)
 
@@ -195,6 +211,7 @@ CONTAINS
 
       CALL timeset(routineN//"_buffer_obtain", handle2)
 
+      ! TODO Add OpenMP to the buffer unpacking.
       nblk = SUM(num_blocks_recv)
       ALLOCATE (blks_to_allocate(nblk, 2))
 
@@ -206,7 +223,10 @@ CONTAINS
          DEALLOCATE (index_recv)
       END DO
 
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,blks_to_allocate)
       CALL dbt_tas_reserve_blocks(matrix_out, blks_to_allocate(:, 1), blks_to_allocate(:, 2))
+!$OMP END PARALLEL
       DEALLOCATE (blks_to_allocate)
 
       DO iproc = 0, numnodes - 1
@@ -257,7 +277,8 @@ CONTAINS
       TYPE(dbt_tas_blk_size_repl), TARGET :: repl_blksize
       TYPE(dbt_tas_blk_size_arb), TARGET :: dir_blksize
       TYPE(dbt_tas_distribution_type) :: dist
-      INTEGER :: mp_comm, numnodes, mynode
+      INTEGER :: mp_comm, numnodes, mynode, ngroup
+      INTEGER(kind=omp_lock_kind), ALLOCATABLE, DIMENSION(:) :: locks
       TYPE(dbt_buffer_type), ALLOCATABLE, DIMENSION(:) :: buffer_recv, buffer_send
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
                                                             num_entries_recv, num_entries_send, &
@@ -304,6 +325,7 @@ CONTAINS
       col_dist => dbm_distribution_col_dist(dbm_dist)
 
       mp_comm = info%mp_comm
+      ngroup = info%ngroup
 
       CALL mp_environ(numnodes, mynode, mp_comm)
       CALL mp_environ(numnodes, pdims, pcoord, mp_comm)
@@ -349,19 +371,29 @@ CONTAINS
       ALLOCATE (num_send(0:2*numnodes - 1))
       num_send(:) = 0
       ALLOCATE (req_array(1:numnodes, 4))
+      ALLOCATE (locks(0:numnodes - 1))
+      DO iproc = 0, numnodes - 1
+         CALL omp_init_lock(locks(iproc))
+      END DO
 
-      ALLOCATE (iprocs(info%ngroup))
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out,num_send,ngroup) &
+!$OMP PRIVATE(iter,blk_index,blk_size,iprocs)
+      ALLOCATE (iprocs(ngroup))
       CALL dbm_iterator_start(iter, matrix_in)
       DO WHILE (dbm_iterator_blocks_left(iter))
          CALL dbm_iterator_next_block(iter, blk_index(1), blk_index(2), &
                                       row_size=blk_size(1), col_size=blk_size(2))
          CALL dbt_repl_get_stored_coordinates(matrix_out, blk_index(1), blk_index(2), iprocs)
          DO i = 1, SIZE(iprocs)
+!$OMP ATOMIC
             num_send(2*iprocs(i)) = num_send(2*iprocs(i)) + PRODUCT(blk_size)
+!$OMP ATOMIC
             num_send(2*iprocs(i) + 1) = num_send(2*iprocs(i) + 1) + 1
          END DO
       END DO
       CALL dbm_iterator_stop(iter)
+      DEALLOCATE (iprocs)
+!$OMP END PARALLEL
 
       CALL timeset(routineN//"_alltoall", handle2)
       CALL mp_alltoall(num_send, num_rec, 2, mp_comm)
@@ -379,16 +411,23 @@ CONTAINS
 
       END DO
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out,buffer_send,locks,ngroup) &
+!$OMP PRIVATE(iter,blk_index,blk_size,block,iprocs)
+      ALLOCATE (iprocs(ngroup))
       CALL dbm_iterator_start(iter, matrix_in)
       DO WHILE (dbm_iterator_blocks_left(iter))
          CALL dbm_iterator_next_block(iter, blk_index(1), blk_index(2), block, &
                                       row_size=blk_size(1), col_size=blk_size(2))
          CALL dbt_repl_get_stored_coordinates(matrix_out, blk_index(1), blk_index(2), iprocs)
          DO i = 1, SIZE(iprocs)
+            CALL omp_set_lock(locks(iprocs(i)))
             CALL dbt_buffer_add_block(buffer_send(iprocs(i)), INT(blk_index, KIND=int_8), block)
+            CALL omp_unset_lock(locks(iprocs(i)))
          END DO
       END DO
       CALL dbm_iterator_stop(iter)
+      DEALLOCATE (iprocs)
+!$OMP END PARALLEL
 
       IF (move_prv) CALL dbm_clear(matrix_in)
 
@@ -401,6 +440,7 @@ CONTAINS
 
       CALL timestop(handle2)
 
+      ! TODO Add OpenMP to the buffer unpacking.
       nblk = SUM(num_blocks_recv)
       ALLOCATE (blks_to_allocate(nblk, 2))
 
@@ -412,7 +452,10 @@ CONTAINS
          DEALLOCATE (index_recv)
       END DO
 
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,blks_to_allocate)
       CALL dbm_reserve_blocks(matrix_out%matrix, blks_to_allocate(:, 1), blks_to_allocate(:, 2))
+!$OMP END PARALLEL
       DEALLOCATE (blks_to_allocate)
 
       DO iproc = 0, numnodes - 1
@@ -454,11 +497,12 @@ CONTAINS
                                                             mynode, nblk, ndata, numnodes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: index_recv
       INTEGER(KIND=int_8), DIMENSION(2)                  :: blk_index_i8
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iprocs, num_blocks_recv, &
-                                                            num_blocks_send, num_entries_recv, &
-                                                            num_entries_send, num_rec, num_send
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blks_to_allocate, blks_to_allocate_u, &
-                                                            req_array
+      INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
+         DIMENSION(:)                                    :: locks
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
+                                                            num_entries_recv, num_entries_send, &
+                                                            num_rec, num_send
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blks_to_allocate, req_array
       INTEGER, DIMENSION(2)                              :: blk_index, blk_size
       INTEGER, DIMENSION(:), POINTER                     :: col_block_sizes, row_block_sizes
       LOGICAL                                            :: move_prv
@@ -497,18 +541,25 @@ CONTAINS
       ALLOCATE (num_send(0:2*numnodes - 1))
       num_send(:) = 0
       ALLOCATE (req_array(1:numnodes, 4))
+      ALLOCATE (locks(0:numnodes - 1))
+      DO iproc = 0, numnodes - 1
+         CALL omp_init_lock(locks(iproc))
+      END DO
 
-      ALLOCATE (iprocs(info%ngroup))
-
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out,num_send) &
+!$OMP PRIVATE(iter,blk_index,blk_size,iproc)
       CALL dbm_iterator_start(iter, matrix_in%matrix)
       DO WHILE (dbm_iterator_blocks_left(iter))
          CALL dbm_iterator_next_block(iter, blk_index(1), blk_index(2), &
                                       row_size=blk_size(1), col_size=blk_size(2))
          CALL dbm_get_stored_coordinates(matrix_out, blk_index(1), blk_index(2), iproc)
+!$OMP ATOMIC
          num_send(2*iproc) = num_send(2*iproc) + PRODUCT(blk_size)
+!$OMP ATOMIC
          num_send(2*iproc + 1) = num_send(2*iproc + 1) + 1
       END DO
       CALL dbm_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timeset(routineN//"_alltoall", handle2)
       CALL mp_alltoall(num_send, num_rec, 2, mp_comm)
@@ -526,15 +577,19 @@ CONTAINS
 
       END DO
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out,buffer_send,locks) &
+!$OMP PRIVATE(iter,blk_index,blk_size,block,iproc)
       CALL dbm_iterator_start(iter, matrix_in%matrix)
       DO WHILE (dbm_iterator_blocks_left(iter))
          CALL dbm_iterator_next_block(iter, blk_index(1), blk_index(2), block, &
                                       row_size=blk_size(1), col_size=blk_size(2))
          CALL dbm_get_stored_coordinates(matrix_out, blk_index(1), blk_index(2), iproc)
+         CALL omp_set_lock(locks(iproc))
          CALL dbt_buffer_add_block(buffer_send(iproc), INT(blk_index, KIND=int_8), block)
+         CALL omp_unset_lock(locks(iproc))
       END DO
-
       CALL dbm_iterator_stop(iter)
+!$OMP END PARALLEL
 
       IF (move_prv) CALL dbt_tas_clear(matrix_in)
 
@@ -547,6 +602,7 @@ CONTAINS
 
       CALL timestop(handle2)
 
+      ! TODO Add OpenMP to the buffer unpacking.
       nblk = SUM(num_blocks_recv)
       ALLOCATE (blks_to_allocate(nblk, 2))
 
@@ -558,10 +614,11 @@ CONTAINS
          DEALLOCATE (index_recv)
       END DO
 
-      CALL index_unique(blks_to_allocate, blks_to_allocate_u)
-
-      CALL dbm_reserve_blocks(matrix_out, blks_to_allocate_u(:, 1), blks_to_allocate_u(:, 2))
-      DEALLOCATE (blks_to_allocate, blks_to_allocate_u)
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,blks_to_allocate)
+      CALL dbm_reserve_blocks(matrix_out, blks_to_allocate(:, 1), blks_to_allocate(:, 2))
+!$OMP END PARALLEL
+      DEALLOCATE (blks_to_allocate)
 
       DO iproc = 0, numnodes - 1
          ! First, we need to get the index to create block

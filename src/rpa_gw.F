@@ -5508,6 +5508,10 @@ CONTAINS
 
       vec_Sigma_prv = 0.0_dp
 
+!$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:vec_Sigma_prv) &
+!$OMP SHARED(t3c_1_redist,t3c_2,mo_bounds) &
+!$OMP PRIVATE(iter,ind,bsize,boff,block_1,block_2,found) &
+!$OMP PRIVATE(n_start_block,n_start,n_end_block,n_end,trace_shape)
       CALL dbt_iterator_start(iter, t3c_1_redist)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind, blk_size=bsize, blk_offset=boff)
@@ -5541,6 +5545,7 @@ CONTAINS
          DEALLOCATE (block_1, block_2)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbt_destroy(t3c_1_redist)
 

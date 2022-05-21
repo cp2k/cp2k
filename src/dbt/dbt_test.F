@@ -88,6 +88,8 @@ CONTAINS
 
       dbt_equal = .TRUE.
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor1,tensor2_tmp,dbt_equal) &
+!$OMP PRIVATE(iter,ind_nd, blk_size,blk_data1,blk_data2,found)
       CALL dbt_iterator_start(iter, tensor1)
 
       DO WHILE (dbt_iterator_blocks_left(iter))
@@ -98,11 +100,14 @@ CONTAINS
          CPASSERT(found)
 
          IF (.NOT. blocks_equal(blk_data1, blk_data2)) THEN
+!$OMP CRITICAL
             dbt_equal = .FALSE.
+!$OMP END CRITICAL
          END IF
       END DO
 
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbt_destroy(tensor2_tmp)
    END FUNCTION
@@ -396,7 +401,16 @@ CONTAINS
       END IF
 
       ALLOCATE (ind_nd(nblks_alloc, ndims_tensor(tensor)))
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(ind_nd,nblks_alloc,tensor,mynode,enumerate,randmat_counter) &
+!$OMP SHARED(${varlist("blk_ind")}$) &
+!$OMP PRIVATE(my_nblks_alloc,ib,proc,i,iterator,blk_offset,blk_size,blk_index) &
+!$OMP PRIVATE(blk_index_2d,nblks_2d,iseed,nze,tensor_dims) &
+!$OMP PRIVATE(${varlist("blk_values", nmin=2)}$) &
+!$OMP PRIVATE(${varlist("my_blk_ind")}$)
+
       my_nblks_alloc = 0
+!$OMP DO
       DO ib = 1, nblks_alloc
          #:for ndim in ndims
             IF (ndims_tensor(tensor) == ${ndim}$) THEN
@@ -408,6 +422,7 @@ CONTAINS
             my_nblks_alloc = my_nblks_alloc + 1
          END IF
       END DO
+!$OMP END DO
 
       #:for dim in range(1, maxdim+1)
          IF (ndims_tensor(tensor) >= ${dim}$) THEN
@@ -416,6 +431,7 @@ CONTAINS
       #:endfor
 
       i = 0
+!$OMP DO
       DO ib = 1, nblks_alloc
          CALL dbt_get_stored_coordinates(tensor, ind_nd(ib, :), proc)
          IF (proc == mynode) THEN
@@ -427,6 +443,7 @@ CONTAINS
             #:endfor
          END IF
       END DO
+!$OMP END DO
 
       #:for ndim in ndims
          IF (ndims_tensor(tensor) == ${ndim}$) THEN
@@ -460,6 +477,7 @@ CONTAINS
          #:endfor
       END DO
       CALL dbt_iterator_stop(iterator)
+!$OMP END PARALLEL
 
    END SUBROUTINE
 
@@ -523,6 +541,8 @@ CONTAINS
                CALL allocate_any(array, shape_spec=dims_nd)
                array(${shape_colon(ndim)}$) = 0.0_dp
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor,array) &
+!$OMP PRIVATE(iterator,ind_nd,blk_size,blk_offset,block,found,idim,blk_start,blk_end)
                CALL dbt_iterator_start(iterator, tensor)
                DO WHILE (dbt_iterator_blocks_left(iterator))
                   CALL dbt_iterator_next_block(iterator, ind_nd, blk_size=blk_size, blk_offset=blk_offset)
@@ -539,6 +559,7 @@ CONTAINS
                   DEALLOCATE (block)
                END DO
                CALL dbt_iterator_stop(iterator)
+!$OMP END PARALLEL
                CALL mp_sum(array, tensor%pgrid%mp_comm_2d)
 
             END SUBROUTINE

@@ -23,10 +23,10 @@ MODULE dbt_tas_mm
         dbm_redistribute, dbm_release, dbm_scale, dbm_type, dbm_zero
    USE dbt_tas_base,                    ONLY: &
         dbt_tas_clear, dbt_tas_copy, dbt_tas_create, dbt_tas_destroy, dbt_tas_distribution_new, &
-        dbt_tas_filter, dbt_tas_get_info, dbt_tas_get_num_blocks, dbt_tas_get_nze_total, &
-        dbt_tas_info, dbt_tas_iterator_blocks_left, dbt_tas_iterator_next_block, &
-        dbt_tas_iterator_start, dbt_tas_iterator_stop, dbt_tas_nblkcols_total, &
-        dbt_tas_nblkrows_total, dbt_tas_put_block, dbt_tas_reserve_blocks
+        dbt_tas_filter, dbt_tas_get_info, dbt_tas_get_nze_total, dbt_tas_info, &
+        dbt_tas_iterator_blocks_left, dbt_tas_iterator_next_block, dbt_tas_iterator_start, &
+        dbt_tas_iterator_stop, dbt_tas_nblkcols_total, dbt_tas_nblkrows_total, dbt_tas_put_block, &
+        dbt_tas_reserve_blocks
    USE dbt_tas_global,                  ONLY: dbt_tas_blk_size_one,&
                                               dbt_tas_default_distvec,&
                                               dbt_tas_dist_arb,&
@@ -71,7 +71,6 @@ MODULE dbt_tas_mm
       dbt_tas_multiply, &
       dbt_tas_batched_mm_init, &
       dbt_tas_batched_mm_finalize, &
-      dbt_tas_result_index, &
       dbt_tas_set_batched_state, &
       dbt_tas_batched_mm_complete
 
@@ -101,14 +100,13 @@ CONTAINS
 !>                   (for internal use only)
 !> \param retain_sparsity ...
 !> \param simple_split ...
-!> \param result_index ...
 !> \param unit_nr unit number for logging output
 !> \param log_verbose only for testing: verbose output
 !> \author Patrick Seewald
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE dbt_tas_multiply(transa, transb, transc, alpha, matrix_a, matrix_b, beta, matrix_c, &
                                          optimize_dist, split_opt, filter_eps, flop, move_data_a, &
-                                         move_data_b, retain_sparsity, simple_split, result_index, unit_nr, log_verbose)
+                                         move_data_b, retain_sparsity, simple_split, unit_nr, log_verbose)
 
       LOGICAL, INTENT(IN)                                :: transa, transb, transc
       REAL(dp), INTENT(IN)                               :: alpha
@@ -121,8 +119,6 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(OUT), OPTIONAL         :: flop
       LOGICAL, INTENT(IN), OPTIONAL                      :: move_data_a, move_data_b, &
                                                             retain_sparsity, simple_split
-      INTEGER(int_8), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT), OPTIONAL                           :: result_index
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: log_verbose
 
@@ -266,15 +262,9 @@ CONTAINS
       nze_b = dbt_tas_get_nze_total(matrix_b)
 
       IF (.NOT. simple_split_prv) THEN
-         CALL dbt_tas_result_index(transa, transb, transc, matrix_a, matrix_b, matrix_c, filter_eps, &
-                                   blk_ind=result_index, nze=nze_c, retain_sparsity=retain_sparsity)
-
-         IF (PRESENT(result_index)) THEN
-            CALL mp_sync(matrix_a%dist%info%mp_comm)
-            CALL timestop(handle2)
-            CALL timestop(handle)
-            RETURN
-         END IF
+         CALL dbt_tas_estimate_result_nze(transa, transb, transc, matrix_a, matrix_b, matrix_c, &
+                                          estimated_nze=nze_c, filter_eps=filter_eps, &
+                                          retain_sparsity=retain_sparsity)
 
          max_mm_dim = MAXLOC(dims, 1)
          nsplit = split_factor_estimate(max_mm_dim, nze_a, nze_b, nze_c, numproc)
@@ -1402,28 +1392,24 @@ CONTAINS
 !> \param matrix_a ...
 !> \param matrix_b ...
 !> \param matrix_c ...
+!> \param estimated_nze ...
 !> \param filter_eps ...
 !> \param unit_nr ...
-!> \param blk_ind ...
-!> \param nze ...
 !> \param retain_sparsity ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   SUBROUTINE dbt_tas_result_index(transa, transb, transc, matrix_a, matrix_b, matrix_c, filter_eps, &
-                                   unit_nr, blk_ind, nze, retain_sparsity)
+   SUBROUTINE dbt_tas_estimate_result_nze(transa, transb, transc, matrix_a, matrix_b, matrix_c, &
+                                          estimated_nze, filter_eps, unit_nr, retain_sparsity)
       LOGICAL, INTENT(IN)                                :: transa, transb, transc
       TYPE(dbt_tas_type), INTENT(INOUT), TARGET          :: matrix_a, matrix_b, matrix_c
+      INTEGER(int_8), INTENT(OUT)                        :: estimated_nze
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: filter_eps
       INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
-      INTEGER(int_8), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT), OPTIONAL                           :: blk_ind
-      INTEGER(int_8), INTENT(OUT), OPTIONAL              :: nze
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_result_index'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_estimate_result_nze'
 
-      INTEGER                                            :: col_size, handle, iblk, mp_comm, nblk, &
-                                                            row_size
+      INTEGER                                            :: col_size, handle, mp_comm, row_size
       INTEGER(int_8)                                     :: col, row
       LOGICAL                                            :: retain_sparsity_prv
       TYPE(dbt_tas_iterator)                             :: iter
@@ -1456,24 +1442,21 @@ CONTAINS
          matrix_c_bnorm => matrix_c
       END IF
 
-      nblk = dbt_tas_get_num_blocks(matrix_c_bnorm)
-      IF (PRESENT(blk_ind)) ALLOCATE (blk_ind(nblk, 2))
-
+      estimated_nze = 0
+!$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:estimated_nze) SHARED(matrix_c_bnorm,matrix_c) &
+!$OMP PRIVATE(iter,row,col,row_size,col_size)
       CALL dbt_tas_iterator_start(iter, matrix_c_bnorm)
-      IF (PRESENT(nze)) nze = 0
-      DO iblk = 1, nblk
+      DO WHILE (dbt_tas_iterator_blocks_left(iter))
          CALL dbt_tas_iterator_next_block(iter, row, col)
          row_size = matrix_c%row_blk_size%data(row)
          col_size = matrix_c%col_blk_size%data(col)
-         IF (PRESENT(nze)) nze = nze + row_size*col_size
-         IF (PRESENT(blk_ind)) blk_ind(iblk, :) = [row, col]
+         estimated_nze = estimated_nze + row_size*col_size
       END DO
       CALL dbt_tas_iterator_stop(iter)
+!$OMP END PARALLEL
 
-      IF (PRESENT(nze)) THEN
-         CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
-         CALL mp_sum(nze, mp_comm)
-      END IF
+      CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
+      CALL mp_sum(estimated_nze, mp_comm)
 
       IF (.NOT. retain_sparsity_prv) THEN
          CALL dbt_tas_destroy(matrix_c_bnorm)
@@ -1541,8 +1524,8 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: name
       INTEGER(KIND=int_8)                                :: column, nblkcols, nblkrows, row
       LOGICAL                                            :: nodata_prv
-      REAL(dp), DIMENSION(1, 1)                          :: dbt_put
-      REAL(dp), DIMENSION(:, :), POINTER                 :: dbt_get
+      REAL(dp), DIMENSION(1, 1)                          :: blk_put
+      REAL(dp), DIMENSION(:, :), POINTER                 :: blk_get
       TYPE(dbt_tas_blk_size_one)                         :: col_blk_size, row_blk_size
       TYPE(dbt_tas_iterator)                             :: iter
 
@@ -1565,17 +1548,16 @@ CONTAINS
 
       IF (.NOT. nodata_prv) THEN
          CALL dbt_tas_reserve_blocks(matrix_in, matrix_out)
-
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out) &
+!$OMP PRIVATE(iter,row,column,blk_get,blk_put)
          CALL dbt_tas_iterator_start(iter, matrix_in)
-
          DO WHILE (dbt_tas_iterator_blocks_left(iter))
-            CALL dbt_tas_iterator_next_block(iter, row, column, dbt_get)
-            !CALL dbt_tas_get_block_p(matrix_out, row, column, dbt_put)
-            !CPASSERT(ASSOCIATED(dbt_put))
-            dbt_put(1, 1) = NORM2(dbt_get)
-            CALL dbt_tas_put_block(matrix_out, row, column, dbt_put)
+            CALL dbt_tas_iterator_next_block(iter, row, column, blk_get)
+            blk_put(1, 1) = NORM2(blk_get)
+            CALL dbt_tas_put_block(matrix_out, row, column, blk_put)
          END DO
          CALL dbt_tas_iterator_stop(iter)
+!$OMP END PARALLEL
       END IF
 
    END SUBROUTINE

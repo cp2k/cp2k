@@ -3133,6 +3133,10 @@ CONTAINS
       deriv_dim_prv = 1
       IF (PRESENT(deriv_dim)) deriv_dim_prv = deriv_dim
 
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(t_3c_der,t_3c_contr,work_virial,force,use_virial,do_mp2_prv,deriv_dim_prv) &
+!$OMP SHARED(pref,idx_to_at,atom_of_kind,kind_of,particle_set,cell) &
+!$OMP PRIVATE(i_xyz,j_xyz,iter,ind,der_blk,contr_blk,found,new_force,iat,iat_of_kind,ikind,scoord)
       DO i_xyz = 1, 3
          CALL dbt_iterator_start(iter, t_3c_der(i_xyz))
          DO WHILE (dbt_iterator_blocks_left(iter))
@@ -3153,9 +3157,11 @@ CONTAINS
                ikind = kind_of(iat)
 
                IF (.NOT. do_mp2_prv) THEN
+!$OMP ATOMIC
                   force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
                                                              + new_force
                ELSE
+!$OMP ATOMIC
                   force(ikind)%mp2_non_sep(i_xyz, iat_of_kind) = force(ikind)%mp2_non_sep(i_xyz, iat_of_kind) &
                                                                  + new_force
                END IF
@@ -3164,6 +3170,7 @@ CONTAINS
                   CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
 
                   DO j_xyz = 1, 3
+!$OMP ATOMIC
                      work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + new_force*scoord(j_xyz)
                   END DO
                END IF
@@ -3173,6 +3180,7 @@ CONTAINS
          END DO !iter
          CALL dbt_iterator_stop(iter)
       END DO
+!$OMP END PARALLEL
       CALL timestop(handle)
 
    END SUBROUTINE get_force_from_3c_trace
@@ -3220,6 +3228,10 @@ CONTAINS
       use_virial = .FALSE.
       IF (PRESENT(work_virial) .AND. PRESENT(cell) .AND. PRESENT(particle_set)) use_virial = .TRUE.
 
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(t_2c_MO_AO,t_mo_coeff,pref,use_virial,particle_set,cell,force,work_virial) &
+!$OMP SHARED(idx_to_at,atom_of_kind,kind_of,i_xyz) &
+!$OMP PRIVATE(iter,ind,mo_ao_blk,mo_coeff_blk,found,new_force,iat,iat_of_kind,ikind,scoord,j_xyz)
       CALL dbt_iterator_start(iter, t_2c_MO_AO)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind)
@@ -3236,6 +3248,7 @@ CONTAINS
             iat_of_kind = atom_of_kind(iat)
             ikind = kind_of(iat)
 
+!$OMP ATOMIC
             force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
                                                        + new_force
 
@@ -3244,6 +3257,7 @@ CONTAINS
                CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
 
                DO j_xyz = 1, 3
+!$OMP ATOMIC
                   work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + new_force*scoord(j_xyz)
                END DO
             END IF
@@ -3254,6 +3268,7 @@ CONTAINS
          DEALLOCATE (mo_ao_blk)
       END DO !iter
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
@@ -3315,6 +3330,11 @@ CONTAINS
       do_ovlp_prv = .FALSE.
       IF (PRESENT(do_ovlp)) do_ovlp_prv = do_ovlp
 
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(t_2c_der,t_2c_contr,work_virial,force,use_virial,do_mp2_prv,do_ovlp_prv) &
+!$OMP SHARED(pref,idx_to_at,atom_of_kind,kind_of,particle_set,cell) &
+!$OMP PRIVATE(i_xyz,j_xyz,iter,ind,der_blk,contr_blk,found,new_force) &
+!$OMP PRIVATE(iat,jat,iat_of_kind,jat_of_kind,ikind,jkind,scoord)
       DO i_xyz = 1, 3
          CALL dbt_iterator_start(iter, t_2c_der(i_xyz))
          DO WHILE (dbt_iterator_blocks_left(iter))
@@ -3337,12 +3357,15 @@ CONTAINS
                ikind = kind_of(iat)
 
                IF (do_mp2_prv) THEN
+!$OMP ATOMIC
                   force(ikind)%mp2_non_sep(i_xyz, iat_of_kind) = force(ikind)%mp2_non_sep(i_xyz, iat_of_kind) &
                                                                  + new_force
                ELSE IF (do_ovlp_prv) THEN
+!$OMP ATOMIC
                   force(ikind)%overlap(i_xyz, iat_of_kind) = force(ikind)%overlap(i_xyz, iat_of_kind) &
                                                              + new_force
                ELSE
+!$OMP ATOMIC
                   force(ikind)%fock_4c(i_xyz, iat_of_kind) = force(ikind)%fock_4c(i_xyz, iat_of_kind) &
                                                              + new_force
                END IF
@@ -3352,6 +3375,7 @@ CONTAINS
                   CALL real_to_scaled(scoord, particle_set(iat)%r, cell)
 
                   DO j_xyz = 1, 3
+!$OMP ATOMIC
                      work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) + new_force*scoord(j_xyz)
                   END DO
                END IF
@@ -3361,13 +3385,15 @@ CONTAINS
                jkind = kind_of(jat)
 
                IF (do_mp2_prv) THEN
+!$OMP ATOMIC
                   force(jkind)%mp2_non_sep(i_xyz, jat_of_kind) = force(jkind)%mp2_non_sep(i_xyz, jat_of_kind) &
                                                                  - new_force
                ELSE IF (do_ovlp_prv) THEN
+!$OMP ATOMIC
                   force(jkind)%overlap(i_xyz, jat_of_kind) = force(jkind)%overlap(i_xyz, jat_of_kind) &
                                                              - new_force
                ELSE
-
+!$OMP ATOMIC
                   force(jkind)%fock_4c(i_xyz, jat_of_kind) = force(jkind)%fock_4c(i_xyz, jat_of_kind) &
                                                              - new_force
                END IF
@@ -3377,6 +3403,7 @@ CONTAINS
                   CALL real_to_scaled(scoord, particle_set(jat)%r, cell)
 
                   DO j_xyz = 1, 3
+!$OMP ATOMIC
                      work_virial(i_xyz, j_xyz) = work_virial(i_xyz, j_xyz) - new_force*scoord(j_xyz)
                   END DO
                END IF
@@ -3389,7 +3416,7 @@ CONTAINS
          CALL dbt_iterator_stop(iter)
 
       END DO !i_xyz
-
+!$OMP END PARALLEL
       CALL timestop(handle)
 
    END SUBROUTINE get_2c_der_force

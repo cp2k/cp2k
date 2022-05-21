@@ -66,21 +66,25 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
   dbm_get_row_sizes(matrix, &nrows, &row_sizes);
   dbm_get_col_sizes(matrix, &ncols, &col_sizes);
 
-  const int nblocks = nrows * ncols;
-  int reserve_row[nblocks];
-  int reserve_col[nblocks];
-
-  int nblocks_reserve = 0;
-  for (int i = 0; i < nblocks; i++) {
-    const int row = i % nrows;
-    const int col = i % ncols;
-    if (dbm_get_stored_coordinates(matrix, row, col) == matrix->dist->my_rank) {
-      reserve_row[nblocks_reserve] = row;
-      reserve_col[nblocks_reserve] = col;
-      nblocks_reserve++;
+#pragma omp parallel
+  {
+    const int nblocks = nrows * ncols;
+    int reserve_row[nblocks / omp_get_num_threads() + 1];
+    int reserve_col[nblocks / omp_get_num_threads() + 1];
+    int nblocks_reserve = 0;
+#pragma omp for
+    for (int i = 0; i < nblocks; i++) {
+      const int row = i % nrows;
+      const int col = i % ncols;
+      if (dbm_get_stored_coordinates(matrix, row, col) ==
+          matrix->dist->my_rank) {
+        reserve_row[nblocks_reserve] = row;
+        reserve_col[nblocks_reserve] = col;
+        nblocks_reserve++;
+      }
     }
+    dbm_reserve_blocks(matrix, nblocks_reserve, reserve_row, reserve_col);
   }
-  dbm_reserve_blocks(matrix, nblocks_reserve, reserve_row, reserve_col);
 }
 
 /*******************************************************************************
@@ -88,18 +92,21 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
  * \author Ole Schuett
  ******************************************************************************/
 static void set_all_blocks(dbm_matrix_t *matrix) {
-  dbm_iterator_t *iter = NULL;
-  dbm_iterator_start(&iter, matrix);
-  while (dbm_iterator_blocks_left(iter)) {
-    int row, col, row_size, col_size;
-    double *block;
-    dbm_iterator_next_block(iter, &row, &col, &block, &row_size, &col_size);
-    const int block_size = row_size * col_size;
-    for (int i = 0; i < block_size; i++) {
-      block[i] = 1.0;
+#pragma omp parallel
+  {
+    dbm_iterator_t *iter = NULL;
+    dbm_iterator_start(&iter, matrix);
+    while (dbm_iterator_blocks_left(iter)) {
+      int row, col, row_size, col_size;
+      double *block;
+      dbm_iterator_next_block(iter, &row, &col, &block, &row_size, &col_size);
+      const int block_size = row_size * col_size;
+      for (int i = 0; i < block_size; i++) {
+        block[i] = 1.0;
+      }
     }
+    dbm_iterator_stop(iter);
   }
-  dbm_iterator_stop(iter);
 }
 
 /*******************************************************************************

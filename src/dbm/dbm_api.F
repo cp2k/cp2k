@@ -83,6 +83,7 @@ MODULE dbm_api
    PUBLIC :: dbm_iterator
    PUBLIC :: dbm_iterator_start
    PUBLIC :: dbm_iterator_stop
+   PUBLIC :: dbm_iterator_num_blocks
    PUBLIC :: dbm_iterator_blocks_left
    PUBLIC :: dbm_iterator_next_block
 
@@ -849,6 +850,28 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(iterator%c_ptr))
       CALL validate(matrix)
    END SUBROUTINE dbm_iterator_start
+
+! **************************************************************************************************
+!> \brief Returns number of blocks the iterator will provide to calling thread.
+!> \param iterator ...
+!> \return ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION dbm_iterator_num_blocks(iterator) RESULT(num_blocks)
+      TYPE(dbm_iterator), INTENT(IN)                     :: iterator
+      INTEGER                                            :: num_blocks
+
+      INTERFACE
+         FUNCTION dbm_iterator_num_blocks_c(iterator) &
+            BIND(C, name="dbm_iterator_num_blocks")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                        :: iterator
+            INTEGER(kind=C_INT)                       :: dbm_iterator_num_blocks_c
+         END FUNCTION dbm_iterator_num_blocks_c
+      END INTERFACE
+
+      num_blocks = dbm_iterator_num_blocks_c(iterator%c_ptr)
+   END FUNCTION dbm_iterator_num_blocks
 
 ! **************************************************************************************************
 !> \brief Tests whether the given iterator has any block left.
