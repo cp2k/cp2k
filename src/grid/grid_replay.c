@@ -5,19 +5,16 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-// needed for struct timespec
-#define _POSIX_C_SOURCE 200809L
-
 #include <assert.h>
 #include <fenv.h>
 #include <limits.h>
 #include <math.h>
+#include <omp.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #include "../offload/offload_buffer.h"
 #include "common/grid_common.h"
@@ -333,8 +330,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
   double hab_test[n2][n1];
   double forces_test[2][3];
   double virial_test[3][3];
-
-  struct timespec start_time, end_time;
+  double start_time, end_time;
 
   if (batch) {
     grid_basis_set *basisa = NULL, *basisb = NULL;
@@ -356,7 +352,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         pab_blocks->host_buffer[j * n1 + i] = 0.5 * f * pab[j][i];
       }
     }
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
+    start_time = omp_get_wtime();
     const int nlevels = 1;
     const int natoms = 2;
     if (collocate) {
@@ -376,14 +372,14 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         }
       }
     }
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+    end_time = omp_get_wtime();
     grid_free_basis_set(basisa);
     grid_free_basis_set(basisb);
     grid_free_task_list(task_list);
     offload_free_buffer(pab_blocks);
     offload_free_buffer(hab_blocks);
   } else {
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
+    start_time = omp_get_wtime();
     if (collocate) {
       // collocate
       memset(grid_test->host_buffer, 0, npts_local_total * sizeof(double));
@@ -413,10 +409,8 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
         }
       }
     }
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+    end_time = omp_get_wtime();
   }
-  const double delta_sec = (end_time.tv_sec - start_time.tv_sec) +
-                           1e-9 * (end_time.tv_nsec - start_time.tv_nsec);
 
   double max_value = 0.0;
   double max_rel_diff = 0.0;
@@ -483,7 +477,7 @@ double grid_replay(const char *filename, const int cycles, const bool collocate,
          "Max rel diff: %le   Time: %le sec\n",
          filename, collocate ? "Collocate" : "Integrate",
          batch ? "Batched" : "PGF-Ref", (float)cycles, max_value, max_rel_diff,
-         delta_sec);
+         end_time - start_time);
 
   offload_free_buffer(grid_ref);
   offload_free_buffer(grid_test);
