@@ -1001,7 +1001,9 @@ CONTAINS
       END IF
 
       ! reserve (R|ai) block
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tB_in,loc_P,loc_a)
       CALL dbt_reserve_blocks(tB_in, [loc_P], [loc_a], [1])
+!$OMP END PARALLEL
 
       ! reserve (R|P) blocks
       ! in my_Lrows, R index is replicated. For (R|P), we distribute quadratic blocks cyclically over
@@ -1019,7 +1021,11 @@ CONTAINS
             block_ind_L_P(ii) = loc_P
          END IF
       END DO
+
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tL,block_ind_L_R,block_ind_L_P,ii)
       CALL dbt_reserve_blocks(tL, block_ind_L_R(1:ii), block_ind_L_P(1:ii))
+!$OMP END PARALLEL
 
       ! insert (R|ai) block
       CALL dbt_put_block(tB_in, [loc_P, loc_a, 1], SHAPE(BIb_C), BIb_C)

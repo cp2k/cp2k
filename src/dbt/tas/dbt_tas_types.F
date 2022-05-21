@@ -87,8 +87,7 @@ MODULE dbt_tas_types
    END TYPE
 
    TYPE dbt_tas_iterator
-      TYPE(dbt_tas_split_info) :: info
-      TYPE(dbt_tas_distribution_type) :: dist
+      TYPE(dbt_tas_distribution_type), POINTER :: dist => NULL()
       TYPE(dbm_iterator) :: iter
    END TYPE dbt_tas_iterator
 

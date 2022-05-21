@@ -26,7 +26,8 @@ MODULE dbt_block
       dbt_tas_iterator
    USE dbt_tas_base, ONLY: &
       dbt_tas_iterator_next_block, dbt_tas_iterator_blocks_left, dbt_tas_iterator_start, &
-      dbt_tas_iterator_stop, dbt_tas_get_block_p, dbt_tas_put_block, dbt_tas_reserve_blocks
+      dbt_tas_iterator_stop, dbt_tas_get_block_p, dbt_tas_put_block, dbt_tas_reserve_blocks, &
+      dbt_tas_iterator_num_blocks
    USE kinds, ONLY: dp, int_8, dp
    USE dbt_index, ONLY: &
       nd_to_2d_mapping, ndims_mapping, get_nd_indices_tensor, destroy_nd_to_2d_mapping, get_2d_indices_tensor, &
@@ -48,6 +49,7 @@ MODULE dbt_block
       block_nd, &
       create_block, &
       dbt_get_block, &
+      dbt_iterator_num_blocks, &
       dbt_iterator_blocks_left, &
       dbt_iterator_next_block, &
       dbt_iterator_start, &
@@ -55,16 +57,13 @@ MODULE dbt_block
       dbt_iterator_type, &
       dbt_put_block, &
       dbt_reserve_blocks, &
-      dbt_reserved_block_indices, &
       destroy_block, &
       checker_tr, &
       ndims_iterator
 
    TYPE dbt_iterator_type
       TYPE(dbt_tas_iterator)      :: iter
-      TYPE(nd_to_2d_mapping)      :: nd_index_blk
-      TYPE(nd_to_2d_mapping)      :: nd_index
-      TYPE(array_list)            :: blk_sizes, blk_offsets
+      TYPE(dbt_type), POINTER     :: tensor => NULL()
    END TYPE dbt_iterator_type
 
    TYPE block_nd
@@ -119,16 +118,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_iterator_start(iterator, tensor)
       TYPE(dbt_iterator_type), INTENT(OUT)           :: iterator
-      TYPE(dbt_type), INTENT(IN)                     :: tensor
+      TYPE(dbt_type), INTENT(IN), TARGET             :: tensor
 
       CPASSERT(tensor%valid)
-
       CALL dbt_tas_iterator_start(iterator%iter, tensor%matrix_rep)
-      iterator%nd_index_blk = tensor%nd_index_blk
-      iterator%nd_index = tensor%nd_index
-      iterator%blk_sizes = tensor%blk_sizes
-      iterator%blk_offsets = tensor%blk_offsets
-
+      iterator%tensor => tensor
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -139,11 +133,6 @@ CONTAINS
       TYPE(dbt_iterator_type), INTENT(INOUT) :: iterator
 
       CALL dbt_tas_iterator_stop(iterator%iter)
-      CALL destroy_nd_to_2d_mapping(iterator%nd_index)
-      CALL destroy_nd_to_2d_mapping(iterator%nd_index_blk)
-      CALL destroy_array_list(iterator%blk_sizes)
-      CALL destroy_array_list(iterator%blk_offsets)
-
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -156,7 +145,7 @@ CONTAINS
       TYPE(dbt_iterator_type), INTENT(IN) :: iterator
       INTEGER                                 :: ndims_iterator
 
-      ndims_iterator = iterator%nd_index%ndim_nd
+      ndims_iterator = iterator%tensor%nd_index%ndim_nd
    END FUNCTION
 
 ! **************************************************************************************************
@@ -179,13 +168,25 @@ CONTAINS
 
       CALL dbt_tas_iterator_next_block(iterator%iter, ind_2d(1), ind_2d(2))
 
-      ind_nd(:) = get_nd_indices_tensor(iterator%nd_index_blk, ind_2d)
-      IF (PRESENT(blk_size)) blk_size(:) = get_array_elements(iterator%blk_sizes, ind_nd)
+      ind_nd(:) = get_nd_indices_tensor(iterator%tensor%nd_index_blk, ind_2d)
+      IF (PRESENT(blk_size)) blk_size(:) = get_array_elements(iterator%tensor%blk_sizes, ind_nd)
       ! note: blk_offset needs to be determined by tensor metadata, can not be derived from 2d row/col
       ! offset since block index mapping is not consistent with element index mapping
-      IF (PRESENT(blk_offset)) blk_offset(:) = get_array_elements(iterator%blk_offsets, ind_nd)
+      IF (PRESENT(blk_offset)) blk_offset(:) = get_array_elements(iterator%tensor%blk_offsets, ind_nd)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief Generalization of block_iterator_num_blocks for tensors.
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION dbt_iterator_num_blocks(iterator)
+      TYPE(dbt_iterator_type), INTENT(IN) :: iterator
+      INTEGER                             :: dbt_iterator_num_blocks
+
+      dbt_iterator_num_blocks = dbt_tas_iterator_num_blocks(iterator%iter)
+
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief Generalization of block_iterator_blocks_left for tensors.
@@ -261,17 +262,30 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE dbt_reserve_blocks_template(tensor_in, tensor_out)
-      TYPE(dbt_type), INTENT(IN)    :: tensor_in
-      TYPE(dbt_type), INTENT(INOUT) :: tensor_out
-      INTEGER                           :: handle
+      TYPE(dbt_type), INTENT(IN)           :: tensor_in
+      TYPE(dbt_type), INTENT(INOUT)        :: tensor_out
 
-      INTEGER, DIMENSION(dbt_get_num_blocks(tensor_in), ndims_tensor(tensor_in)) :: blk_ind
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_reserve_blocks_template'
+      CHARACTER(LEN=*), PARAMETER          :: routineN = 'dbt_reserve_blocks_template'
+
+      TYPE(dbt_iterator_type)              :: iter
+      INTEGER                              :: handle, nblk, iblk
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: blk_ind
 
       CALL timeset(routineN, handle)
 
-      CALL dbt_reserved_block_indices(tensor_in, blk_ind)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_in,tensor_out) &
+!$OMP PRIVATE(iter,nblk,iblk,blk_ind)
+      CALL dbt_iterator_start(iter, tensor_in)
+      nblk = dbt_iterator_num_blocks(iter)
+      ALLOCATE (blk_ind(nblk, ndims_tensor(tensor_in)))
+      DO iblk = 1, nblk
+         CALL dbt_iterator_next_block(iter, ind_nd=blk_ind(iblk, :))
+      END DO
+      CPASSERT(.NOT. dbt_iterator_blocks_left(iter))
+      CALL dbt_iterator_stop(iter)
+
       CALL dbt_reserve_blocks(tensor_out, blk_ind)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -310,7 +324,10 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_out,blk_ind_1,blk_ind_2)
       CALL dbt_reserve_blocks(tensor_out, blk_ind_1, blk_ind_2)
+!$OMP END PARALLEL
 
       IF (dbcsr_has_symmetry(matrix_in)) THEN
          CALL dbcsr_release(matrix_in_desym)
@@ -338,20 +355,25 @@ CONTAINS
 
       nblk = dbt_get_num_blocks(tensor_in)
       ALLOCATE (blk_ind_1(nblk), blk_ind_2(nblk))
-      CALL dbt_iterator_start(iter, tensor_in)
-
       iblk = 0
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_in,matrix_out,iblk,blk_ind_1,blk_ind_2) &
+!$OMP PRIVATE(iter,ind_2d)
+      CALL dbt_iterator_start(iter, tensor_in)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind_2d)
          IF (dbcsr_has_symmetry(matrix_out)) THEN
             IF (checker_tr(ind_2d(1), ind_2d(2))) CYCLE
             IF (ind_2d(1) > ind_2d(2)) CALL swap(ind_2d(1), ind_2d(2))
          END IF
-
+!$OMP CRITICAL
          iblk = iblk + 1
-         blk_ind_1(iblk) = ind_2d(1); blk_ind_2(iblk) = ind_2d(2)
+         blk_ind_1(iblk) = ind_2d(1)
+         blk_ind_2(iblk) = ind_2d(2)
+!$OMP END CRITICAL
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbcsr_reserve_blocks(matrix_out, blk_ind_1(:iblk), blk_ind_2(:iblk))
       CALL dbcsr_finalize(matrix_out)
@@ -371,30 +393,6 @@ CONTAINS
       a = b
       b = tmp
    END SUBROUTINE swap
-
-! **************************************************************************************************
-!> \brief indices of non-zero blocks
-!> \author Patrick Seewald
-! **************************************************************************************************
-   SUBROUTINE dbt_reserved_block_indices(tensor, blk_ind)
-      TYPE(dbt_type), INTENT(IN)            :: tensor
-      INTEGER                                   :: iblk, nblk
-      TYPE(dbt_iterator_type)               :: iterator
-      INTEGER, DIMENSION(ndims_tensor(tensor))  :: ind_nd
-      INTEGER, DIMENSION(dbt_get_num_blocks(tensor), ndims_tensor(tensor)), INTENT(OUT) :: blk_ind
-
-      CPASSERT(tensor%valid)
-
-      nblk = dbt_get_num_blocks(tensor)
-
-      CALL dbt_iterator_start(iterator, tensor)
-      DO iblk = 1, nblk
-         CALL dbt_iterator_next_block(iterator, ind_nd)
-         blk_ind(iblk, :) = ind_nd(:)
-      END DO
-      CALL dbt_iterator_stop(iterator)
-
-   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Create block from array, array can be n-dimensional.

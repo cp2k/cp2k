@@ -236,7 +236,10 @@ CONTAINS
       CALL neighbor_list_iterator_release(ab_iter)
       CALL neighbor_list_iterator_release(ac_iter)
 
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pq_X, idx1, idx2, idx3)
       CALL dbt_reserve_blocks(pq_X, idx1, idx2, idx3)
+!$OMP END PARALLEL
       CALL dbt_finalize(pq_X)
 
       !clean-up

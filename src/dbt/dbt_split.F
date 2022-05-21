@@ -21,11 +21,11 @@ MODULE dbt_split
                         dbt_get_block, &
                         dbt_put_block, &
                         dbt_iterator_start, &
+                        dbt_iterator_num_blocks, &
                         dbt_iterator_blocks_left, &
                         dbt_iterator_stop, &
                         dbt_iterator_next_block, &
-                        dbt_reserve_blocks, &
-                        dbt_reserved_block_indices
+                        dbt_reserve_blocks
    USE dbt_index, ONLY: dbt_get_mapping_info, &
                         dbt_inverse_order
    USE dbt_types, ONLY: dbt_create, &
@@ -172,6 +172,15 @@ CONTAINS
          END IF
       END IF
 
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(tensor_in,tensor_out) &
+!$OMP SHARED(${varlist("blk_nsplit", nmax=ndim)}$) &
+!$OMP SHARED(${varlist("inblock_offset", nmax=ndim)}$) &
+!$OMP SHARED(${varlist("blk_size", nmax=ndim)}$) &
+!$OMP SHARED(${varlist("index_split_offset", nmax=ndim)}$) &
+!$OMP PRIVATE(iter,found,bcount,blks_to_allocate,bi_split,inblock_offset) &
+!$OMP PRIVATE(blk_index,blk_size,blk_offset,blk_shape) &
+!$OMP PRIVATE(block_2d,block_3d,block_4d)
       CALL dbt_iterator_start(iter, tensor_in)
 
       bcount = 0
@@ -254,6 +263,7 @@ CONTAINS
                            #:endfor
                         END DO
                         CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
                         CALL dbt_finalize(tensor_out)
 
@@ -341,7 +351,7 @@ CONTAINS
                      INTEGER, DIMENSION(:), ALLOCATABLE              :: ${varlist("inblock_offset")}$, ${varlist("blk_size_split")}$
                         INTEGER, DIMENSION(:, :), ALLOCATABLE            :: blks_to_allocate
                         INTEGER                                         :: idim, iblk, bcount
-                        INTEGER                                         :: ${varlist("iblk")}$, isplit_sum, splitsum, nblk
+                        INTEGER                                         :: ${varlist("iblk")}$, isplit_sum, splitsum
                         TYPE(dbt_iterator_type)                     :: iter
                         INTEGER, DIMENSION(ndims_tensor(tensor_out)) :: blk_index, blk_size, blk_offset, blk_shape, blk_index_n
                         LOGICAL                                         :: found
@@ -406,9 +416,17 @@ CONTAINS
                            DEALLOCATE (blk_size_split_d, blk_size_d)
                         END DO
 
-                        nblk = dbt_get_num_blocks(tensor_split_in)
-                        ALLOCATE (blks_to_allocate(nblk, ndims_tensor(tensor_split_in)))
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED(tensor_split_in,tensor_out,summation) &
+!$OMP SHARED(${varlist("split", nmax=ndim)}$) &
+!$OMP SHARED(${varlist("first_split", nmax=ndim)}$) &
+!$OMP SHARED(${varlist("last_split", nmax=ndim)}$) &
+!$OMP SHARED(${varlist("inblock_offset", nmax=ndim)}$) &
+!$OMP PRIVATE(iter,blks_to_allocate,bcount,blk_index_n) &
+!$OMP PRIVATE(blk_index,blk_size,blk_shape,blk_offset,inblock_offset,found) &
+!$OMP PRIVATE(block_2d,block_3d,block_4d,block_split_2d,block_split_3d,block_split_4d)
                         CALL dbt_iterator_start(iter, tensor_split_in)
+                        ALLOCATE (blks_to_allocate(dbt_iterator_num_blocks(iter), ndims_tensor(tensor_split_in)))
                         bcount = 0
                         DO WHILE (dbt_iterator_blocks_left(iter))
                            CALL dbt_iterator_next_block(iter, blk_index, blk_size=blk_size)
@@ -458,6 +476,7 @@ CONTAINS
                                  #:endfor
                               END DO
                               CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
                               CALL timestop(handle)
 
@@ -599,15 +618,20 @@ CONTAINS
                               TYPE(dbt_type), INTENT(OUT) :: tensor_out
                               INTEGER, DIMENSION(2, ndims_tensor(tensor_in)), INTENT(IN) :: bounds
                               LOGICAL, INTENT(IN), OPTIONAL :: move_data
+
+                              CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_crop'
+
                               INTEGER, DIMENSION(2, ndims_tensor(tensor_in)) :: blk_bounds
                               TYPE(dbt_iterator_type)                     :: iter
                               INTEGER, DIMENSION(ndims_tensor(tensor_in)) :: blk_index, blk_size, blk_offset
                               LOGICAL :: found, move_data_prv
-                              INTEGER :: idim, iblk, iblk_all, nblk
-                              INTEGER, DIMENSION(:, :), ALLOCATABLE :: blk_ind, blk_ind_tmp
+                              INTEGER :: handle, idim, iblk_out
+                              INTEGER, DIMENSION(:, :), ALLOCATABLE :: blk_ind_out
                               #:for ndim in ndims
                                  REAL(dp), DIMENSION(${shape_colon(n=ndim)}$), ALLOCATABLE :: block_${ndim}$d, block_put_${ndim}$d
                               #:endfor
+
+                              CALL timeset(routineN, handle)
 
                               IF (PRESENT(move_data)) THEN
                                  move_data_prv = move_data
@@ -617,29 +641,28 @@ CONTAINS
 
                               CALL dbt_create(tensor_in, tensor_out)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_in,tensor_out,bounds) &
+!$OMP PRIVATE(iter,blk_ind_out,iblk_out,blk_index,blk_size,blk_offset,found,blk_bounds) &
+!$OMP PRIVATE(block_2d,block_put_2d,block_3d,block_put_3d,block_4d,block_put_4d)
+
                               ! reserve blocks inside bounds
-                              ALLOCATE (blk_ind(dbt_get_num_blocks(tensor_in), ndims_tensor(tensor_in)))
-                              CALL dbt_reserved_block_indices(tensor_in, blk_ind)
-                              nblk = dbt_get_num_blocks(tensor_in)
-                              ALLOCATE (blk_ind_tmp(dbt_get_num_blocks(tensor_in), ndims_tensor(tensor_in)))
-                              blk_ind_tmp(:, :) = 0
-                              iblk = 0
-                              blk_loop: DO iblk_all = 1, nblk
-                                 CALL dbt_blk_offsets(tensor_in, blk_ind(iblk_all, :), blk_offset)
-                                 CALL dbt_blk_sizes(tensor_in, blk_ind(iblk_all, :), blk_size)
+                              CALL dbt_iterator_start(iter, tensor_in)
+                              ALLOCATE (blk_ind_out(dbt_iterator_num_blocks(iter), ndims_tensor(tensor_in)))
+                              blk_ind_out(:, :) = 0
+                              iblk_out = 0
+                              blk_loop: DO WHILE (dbt_iterator_blocks_left(iter))
+                                 CALL dbt_iterator_next_block(iter, blk_index, blk_size=blk_size, blk_offset=blk_offset)
                                  DO idim = 1, ndims_tensor(tensor_in)
                                     IF (bounds(1, idim) > blk_offset(idim) - 1 + blk_size(idim)) CYCLE blk_loop
                                     IF (bounds(2, idim) < blk_offset(idim)) CYCLE blk_loop
                                  END DO
-                                 iblk = iblk + 1
-                                 blk_ind_tmp(iblk, :) = blk_ind(iblk_all, :)
+                                 iblk_out = iblk_out + 1
+                                 blk_ind_out(iblk_out, :) = blk_index
                               END DO blk_loop
+                              CALL dbt_iterator_stop(iter)
 
-                              DEALLOCATE (blk_ind)
-                              ALLOCATE (blk_ind(iblk, ndims_tensor(tensor_in)))
-                              blk_ind(:, :) = blk_ind_tmp(:iblk, :)
-
-                              CALL dbt_reserve_blocks(tensor_out, blk_ind)
+                              CALL dbt_reserve_blocks(tensor_out, blk_ind_out(1:iblk_out, :))
+                              DEALLOCATE (blk_ind_out)
 
                               ! copy blocks
                               CALL dbt_iterator_start(iter, tensor_out)
@@ -666,6 +689,7 @@ CONTAINS
                                  #:endfor
                               END DO iter_loop
                               CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
                               CALL dbt_finalize(tensor_out)
 
                               IF (move_data_prv) CALL dbt_clear(tensor_in)
@@ -673,6 +697,7 @@ CONTAINS
                               ! transfer data for batched contraction
                               CALL dbt_copy_contraction_storage(tensor_in, tensor_out)
 
+                              CALL timestop(handle)
                            END SUBROUTINE
 
                         END MODULE

@@ -985,6 +985,9 @@ CONTAINS
       CALL dbt_distribution_destroy(t_dist)
 
       !dist of 3c_ex and work match, can simply copy blocks over. Diagonal with factor 0.5
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(xas_tdp_env,exat,work,orb_blk_size,nsgf_x) &
+!$OMP PRIVATE(iter,ind,pblock,found)
       CALL dbt_iterator_start(iter, xas_tdp_env%ri_3c_ex)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind)
@@ -999,6 +1002,7 @@ CONTAINS
          DEALLOCATE (pblock)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
       CALL dbt_finalize(work)
 
       !create (pq|X) based on work and copy over
@@ -1331,6 +1335,9 @@ CONTAINS
          CALL dbt_distribution_destroy(t_dist)
 
          !copy block by block, dist match
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(t_work,t_pI_Y,nblk_ri,ri_blk_size,ao_blk_size) &
+!$OMP PRIVATE(iter,ind,pblock,found,bo)
          CALL dbt_iterator_start(iter, t_work)
          DO WHILE (dbt_iterator_blocks_left(iter))
             CALL dbt_iterator_next_block(iter, ind)
@@ -1346,6 +1353,7 @@ CONTAINS
             DEALLOCATE (pblock)
          END DO
          CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
          CALL dbt_finalize(t_pI_Y)
 
          !get optimal pgrid  for (oI|Y)
@@ -1430,6 +1438,10 @@ CONTAINS
       nocc = SIZE(occ_evals, 1)
 
       !Iterate over the tensors and sum. Both tensors have same dist
+
+!$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:contrib,dev) &
+!$OMP SHARED(ja_Ik_diff,occ_evals,virt_evals,omega,c_ss,nocc) &
+!$OMP PRIVATE(iter,ind,boff,bsize,tensor_blk,found,idx1,idx2,idx3,j,A,k,denom,tmp)
       CALL dbt_iterator_start(iter, ja_Ik_diff)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind, blk_offset=boff, blk_size=bsize)
@@ -1462,6 +1474,7 @@ CONTAINS
          DEALLOCATE (tensor_blk)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
@@ -1509,6 +1522,10 @@ CONTAINS
       !      of the 2 terms, but with a factor 2
 
       !Iterate over the tensor and sum
+
+!$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:contrib,dev) &
+!$OMP SHARED(ja_Ik,j_evals,a_evals,k_evals,omega,c_os,a_offset) &
+!$OMP PRIVATE(iter,ind,boff,bsize,ja_Ik_blk,found,idx1,idx2,idx3,j,A,k,denom,tmp)
       CALL dbt_iterator_start(iter, ja_Ik)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind, blk_offset=boff, blk_size=bsize)
@@ -1542,6 +1559,7 @@ CONTAINS
          DEALLOCATE (ja_Ik_blk)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
@@ -1585,6 +1603,10 @@ CONTAINS
       nocc = SIZE(occ_evals, 1)
 
       !tensors have matching distributions, can do that safely
+
+!$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:contrib,dev) &
+!$OMP SHARED(aj_Ib_diff,occ_evals,virt_evals,omega,c_ss,nocc) &
+!$OMP PRIVATE(iter,ind,boff,bsize,tensor_blk,found,idx1,idx2,idx3,j,A,b,denom,tmp)
       CALL dbt_iterator_start(iter, aj_Ib_diff)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind, blk_offset=boff, blk_size=bsize)
@@ -1617,6 +1639,7 @@ CONTAINS
          DEALLOCATE (tensor_blk)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
@@ -1664,6 +1687,9 @@ CONTAINS
       !       MOs on one center have one spin and the 2 MOs on the other center have another spin
       !       In the end, the sum is such that can take one of those with a factor 2
 
+!$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:contrib,dev) &
+!$OMP SHARED(aj_Ib,a_evals,j_evals,b_evals,omega,c_os,a_offset,b_offset) &
+!$OMP PRIVATE(iter,ind,boff,bsize,aj_Ib_blk,found,idx1,idx2,idx3,j,A,b,denom,tmp)
       CALL dbt_iterator_start(iter, aj_Ib)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind, blk_offset=boff, blk_size=bsize)
@@ -1696,6 +1722,7 @@ CONTAINS
          DEALLOCATE (aj_Ib_blk)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 

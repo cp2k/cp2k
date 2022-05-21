@@ -104,6 +104,7 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps);
 
 /*******************************************************************************
  * \brief Adds list of blocks efficiently. The blocks will be filled with zeros.
+ *        This routine must always be called within an OpenMP parallel region.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
@@ -130,9 +131,16 @@ void dbm_add(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b);
 /*******************************************************************************
  * \brief Creates an iterator for the blocks of the given matrix.
  *        The iteration order is not stable.
+ *        This routine must always be called within an OpenMP parallel region.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_iterator_start(dbm_iterator_t **iter_out, const dbm_matrix_t *matrix);
+
+/*******************************************************************************
+ * \brief Returns number of blocks the iterator will provide to calling thread.
+ * \author Ole Schuett
+ ******************************************************************************/
+int dbm_iterator_num_blocks(const dbm_iterator_t *iter);
 
 /*******************************************************************************
  * \brief Tests whether the given iterator has any block left.

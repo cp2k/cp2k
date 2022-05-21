@@ -104,14 +104,21 @@ CONTAINS
       ALLOCATE (num_send(0:2*numnodes - 1))
       num_send(:) = 0
       ALLOCATE (req_array(1:numnodes, 4))
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_in,tensor_out,num_send) &
+!$OMP PRIVATE(iter,ind_nd,blk_size,iproc)
       CALL dbt_iterator_start(iter, tensor_in)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind_nd, blk_size=blk_size)
          CALL dbt_get_stored_coordinates(tensor_out, ind_nd, iproc)
+!$OMP ATOMIC
          num_send(2*iproc) = num_send(2*iproc) + PRODUCT(blk_size)
+!$OMP ATOMIC
          num_send(2*iproc + 1) = num_send(2*iproc + 1) + 1
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
+
       CALL mp_alltoall(num_send, num_rec, 2, mp_comm)
       DO iproc = 0, numnodes - 1
          num_entries_recv(iproc) = num_rec(2*iproc)
@@ -124,16 +131,22 @@ CONTAINS
          CALL block_buffer_create(buffer_recv(iproc), num_blocks_recv(iproc), num_entries_recv(iproc), &
                                   ndims_tensor(tensor_in))
       END DO
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_in,tensor_out,buffer_send) &
+!$OMP PRIVATE(iter,ind_nd,blk_size,blk_data,found,iproc)
       CALL dbt_iterator_start(iter, tensor_in)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind_nd, blk_size=blk_size)
          CALL dbt_get_block(tensor_in, ind_nd, blk_data, found)
          CPASSERT(found)
          CALL dbt_get_stored_coordinates(tensor_out, ind_nd, iproc)
+!$OMP CRITICAL
          CALL block_buffer_add_anyd_block(buffer_send(iproc), ind_nd, blk_data)
+!$OMP END CRITICAL
          CALL destroy_block(blk_data)
       END DO
       CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       IF (move_prv) CALL dbt_clear(tensor_in)
 
@@ -153,7 +166,10 @@ CONTAINS
          DEALLOCATE (index_recv)
       END DO
 
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_out,blks_to_allocate)
       CALL dbt_reserve_blocks(tensor_out, blks_to_allocate)
+!$OMP END PARALLEL
       DEALLOCATE (blks_to_allocate)
 
       DO iproc = 0, numnodes - 1

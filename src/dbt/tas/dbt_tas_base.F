@@ -18,8 +18,8 @@ MODULE dbt_tas_base
         dbm_get_block_p, dbm_get_col_block_sizes, dbm_get_distribution, dbm_get_local_cols, &
         dbm_get_local_rows, dbm_get_name, dbm_get_num_blocks, dbm_get_nze, &
         dbm_get_row_block_sizes, dbm_iterator, dbm_iterator_blocks_left, dbm_iterator_next_block, &
-        dbm_iterator_start, dbm_iterator_stop, dbm_put_block, dbm_release, dbm_reserve_blocks, &
-        dbm_type
+        dbm_iterator_num_blocks, dbm_iterator_start, dbm_iterator_stop, dbm_put_block, &
+        dbm_release, dbm_reserve_blocks, dbm_type
    USE dbt_tas_global,                  ONLY: dbt_tas_blk_size_arb,&
                                               dbt_tas_dist_arb,&
                                               dbt_tas_distribution,&
@@ -36,7 +36,6 @@ MODULE dbt_tas_base
                                               dbt_tas_iterator,&
                                               dbt_tas_split_info,&
                                               dbt_tas_type
-   USE dbt_tas_util,                    ONLY: index_unique
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -69,6 +68,7 @@ MODULE dbt_tas_base
       dbt_tas_get_num_blocks_total, &
       dbt_tas_get_stored_coordinates, &
       dbt_tas_info, &
+      dbt_tas_iterator_num_blocks, &
       dbt_tas_iterator_blocks_left, &
       dbt_tas_iterator_next_block, &
       dbt_tas_iterator_start, &
@@ -266,12 +266,16 @@ CONTAINS
 
       CALL dbt_tas_reserve_blocks(matrix_a, matrix_b)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_a,matrix_b,summation) &
+!$OMP PRIVATE(iter,row,column,block)
       CALL dbt_tas_iterator_start(iter, matrix_a)
       DO WHILE (dbt_tas_iterator_blocks_left(iter))
          CALL dbt_tas_iterator_next_block(iter, row, column, block)
          CALL dbt_tas_put_block(matrix_b, row, column, block, summation=summation)
       END DO
       CALL dbt_tas_iterator_stop(iter)
+!$OMP END PARALLEL
+
       CALL timestop(handle)
    END SUBROUTINE
 
@@ -286,23 +290,29 @@ CONTAINS
       TYPE(dbt_tas_type), INTENT(IN)                     :: matrix_in
       TYPE(dbt_tas_type), INTENT(INOUT)                  :: matrix_out
 
-      INTEGER                                            :: iblk, nblk
-      INTEGER(KIND=int_8)                                :: column, row
-      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: col_res, row_res
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_reserve_blocks_template'
+
+      INTEGER                                            :: handle, iblk, nblk
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: columns, rows
       TYPE(dbt_tas_iterator)                             :: iter
 
-      nblk = dbt_tas_get_num_blocks(matrix_in)
-      ALLOCATE (row_res(nblk), col_res(nblk))
+      CALL timeset(routineN, handle)
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_in,matrix_out) &
+!$OMP PRIVATE(iter,nblk,rows,columns)
       CALL dbt_tas_iterator_start(iter, matrix_in)
+      nblk = dbt_tas_iterator_num_blocks(iter)
+      ALLOCATE (rows(nblk), columns(nblk))
       DO iblk = 1, nblk
-         CALL dbt_tas_iterator_next_block(iter, row, column)
-         row_res(iblk) = row
-         col_res(iblk) = column
+         CALL dbt_tas_iterator_next_block(iter, row=rows(iblk), column=columns(iblk))
       END DO
       CPASSERT(.NOT. dbt_tas_iterator_blocks_left(iter))
       CALL dbt_tas_iterator_stop(iter)
 
-      CALL dbt_tas_reserve_blocks(matrix_out, row_res, col_res)
+      CALL dbt_tas_reserve_blocks_index(matrix_out, rows=rows, columns=columns)
+!$OMP END PARALLEL
+
+      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -554,8 +564,11 @@ CONTAINS
       CALL dbm_distribution_release(dist)
 
       DEALLOCATE (row_size_vec, col_size_vec)
-      nblks_local = dbt_tas_get_num_blocks(matrix_rect)
+
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_rect,matrix_dbm) &
+!$OMP PRIVATE(iter,nblks_local,nz_rows,nz_cols,rb_count,row,col,block)
       CALL dbt_tas_iterator_start(iter, matrix_rect)
+      nblks_local = dbt_tas_iterator_num_blocks(iter)
       ALLOCATE (nz_rows(nblks_local), nz_cols(nblks_local))
       rb_count = 0
       DO WHILE (dbt_tas_iterator_blocks_left(iter))
@@ -564,17 +577,17 @@ CONTAINS
          nz_rows(rb_count) = INT(row)
          nz_cols(rb_count) = INT(col)
       END DO
+      CALL dbt_tas_iterator_stop(iter)
 
       CALL dbm_reserve_blocks(matrix_dbm, nz_rows, nz_cols)
 
-      CALL dbt_tas_iterator_stop(iter)
       CALL dbt_tas_iterator_start(iter, matrix_rect)
       DO WHILE (dbt_tas_iterator_blocks_left(iter))
          CALL dbt_tas_iterator_next_block(iter, row, col, block)
          CALL dbm_put_block(matrix_dbm, INT(row), INT(col), block)
       END DO
-
       CALL dbt_tas_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbm_finalize(matrix_dbm)
 
@@ -630,12 +643,14 @@ CONTAINS
       CALL dbt_tas_create(matrix_rect, TRIM(name)//"_compressed", &
                           dist, row_blk_size_obj, col_blk_size_obj)
 
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_dbm,matrix_rect) PRIVATE(iter,row,col,block)
       CALL dbm_iterator_start(iter, matrix_dbm)
       DO WHILE (dbm_iterator_blocks_left(iter))
          CALL dbm_iterator_next_block(iter, row, col, block)
          CALL dbt_tas_put_block(matrix_rect, INT(row, KIND=int_8), INT(col, KIND=int_8), block)
       END DO
       CALL dbm_iterator_stop(iter)
+!$OMP END PARALLEL
 
       CALL dbt_tas_finalize(matrix_rect)
 
@@ -650,12 +665,25 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_iterator_start(iter, matrix_in)
       TYPE(dbt_tas_iterator), INTENT(INOUT)              :: iter
-      TYPE(dbt_tas_type), INTENT(IN)                     :: matrix_in
+      TYPE(dbt_tas_type), INTENT(IN), TARGET             :: matrix_in
 
       CALL dbm_iterator_start(iter%iter, matrix_in%matrix)
 
-      iter%dist = matrix_in%dist
+      iter%dist => matrix_in%dist
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief As dbm_iterator_num_blocks
+!> \param iter ...
+!> \return ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION dbt_tas_iterator_num_blocks(iter)
+      TYPE(dbt_tas_iterator), INTENT(IN)                 :: iter
+      INTEGER                                            :: dbt_tas_iterator_num_blocks
+
+      dbt_tas_iterator_num_blocks = dbm_iterator_num_blocks(iter%iter)
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief As dbm_iterator_blocks_left
@@ -718,28 +746,19 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_tas_reserve_blocks_index'
 
-      INTEGER                                            :: handle, icol, irow
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: rowcols_group_u
-      INTEGER, DIMENSION(SIZE(rows), 2)                  :: rowcols_group
+      INTEGER                                            :: handle, i
+      INTEGER, DIMENSION(SIZE(rows))                     :: columns_group, rows_group
 
       CALL timeset(routineN, handle)
 
-      DO irow = 1, SIZE(rows)
-         CALL dbt_index_global_to_local(dbt_tas_info(matrix), matrix%dist, row=rows(irow), &
-                                        row_group=rowcols_group(irow, 1))
+      CPASSERT(SIZE(rows) == SIZE(columns))
+      DO i = 1, SIZE(rows)
+         CALL dbt_index_global_to_local(dbt_tas_info(matrix), matrix%dist, &
+                                        row=rows(i), row_group=rows_group(i), &
+                                        column=columns(i), column_group=columns_group(i))
       END DO
 
-      DO icol = 1, SIZE(columns)
-         CALL dbt_index_global_to_local(dbt_tas_info(matrix), matrix%dist, column=columns(icol), &
-                                        column_group=rowcols_group(icol, 2))
-      END DO
-
-      ! TODO: While this was needed for DBCSR, it is no longer necessary for DBM.
-      CALL index_unique(rowcols_group, rowcols_group_u) ! make sure that index is unique, not sure
-      ! if this is really needed or whether DBM
-      ! takes care of duplicate indices
-
-      CALL dbm_reserve_blocks(matrix%matrix, rowcols_group_u(:, 1), rowcols_group_u(:, 2))
+      CALL dbm_reserve_blocks(matrix%matrix, rows_group, columns_group)
 
       CALL timestop(handle)
    END SUBROUTINE
@@ -786,16 +805,8 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(IN)                    :: row, col
       INTEGER, INTENT(OUT)                               :: row_size, col_size
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_blk_sizes'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
       row_size = matrix%row_blk_size%data(row)
       col_size = matrix%col_blk_size%data(col)
-
-      CALL timestop(handle)
    END SUBROUTINE
 
 ! **************************************************************************************************

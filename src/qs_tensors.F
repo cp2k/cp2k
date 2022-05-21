@@ -35,7 +35,8 @@ MODULE qs_tensors
    USE dbt_api,                         ONLY: &
         dbt_blk_sizes, dbt_clear, dbt_copy, dbt_create, dbt_destroy, dbt_filter, dbt_get_block, &
         dbt_get_info, dbt_get_num_blocks, dbt_get_nze_total, dbt_get_stored_coordinates, &
-        dbt_ndims, dbt_put_block, dbt_reserve_blocks, dbt_reserved_block_indices, dbt_type
+        dbt_iterator_next_block, dbt_iterator_num_blocks, dbt_iterator_start, dbt_iterator_stop, &
+        dbt_iterator_type, dbt_ndims, dbt_put_block, dbt_reserve_blocks, dbt_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
    USE gamma,                           ONLY: init_md_ftable
@@ -623,10 +624,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_block_3c'
 
-      INTEGER                                            :: handle, i, i_img, iatom, ikind, iproc, &
-                                                            j_img, jatom, jcell, jkind, katom, &
-                                                            kcell, kkind, natom, nimg, op_ij, &
-                                                            op_jk, op_pos_prv
+      INTEGER                                            :: handle, i_img, iatom, ikind, j_img, &
+                                                            jatom, jcell, jkind, katom, kcell, &
+                                                            kkind, natom, nimg, op_ij, op_jk, &
+                                                            op_pos_prv
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:, :)       :: nblk
       INTEGER, DIMENSION(3)                              :: cell_j, cell_k, kp_index_lbounds, &
                                                             kp_index_ubounds
@@ -806,17 +807,11 @@ CONTAINS
       END DO
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(t3c,nimg,alloc_i,alloc_j,alloc_k) PRIVATE(i_img,j_img)
       DO j_img = 1, nimg
          DO i_img = 1, nimg
             IF (ALLOCATED(alloc_i(i_img, j_img)%array)) THEN
-               DO i = 1, SIZE(alloc_i(i_img, j_img)%array)
-                  CALL dbt_get_stored_coordinates(t3c(i_img, j_img), &
-                                                  [alloc_i(i_img, j_img)%array(i), alloc_j(i_img, j_img)%array(i), &
-                                                   alloc_k(i_img, j_img)%array(i)], &
-                                                  iproc)
-                  CPASSERT(iproc .EQ. para_env%mepos)
-               END DO
-
                CALL dbt_reserve_blocks(t3c(i_img, j_img), &
                                        alloc_i(i_img, j_img)%array, &
                                        alloc_j(i_img, j_img)%array, &
@@ -824,6 +819,7 @@ CONTAINS
             END IF
          END DO
       END DO
+!$OMP END PARALLEL
 
       CALL timestop(handle)
 
@@ -2761,7 +2757,8 @@ CONTAINS
       REAL(dp), INTENT(INOUT)                            :: memory
 
       INTEGER                                            :: buffer_left, buffer_size, buffer_start, &
-                                                            i, memory_usage, nbits, nints
+                                                            i, iblk, memory_usage, nbits, nblk, &
+                                                            nints, offset, shared_offset
       INTEGER(int_8)                                     :: estimate_to_store_int, &
                                                             storage_counter_integrals
       INTEGER, DIMENSION(3)                              :: ind
@@ -2769,6 +2766,7 @@ CONTAINS
       REAL(dp)                                           :: spherical_estimate
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: blk_data
       REAL(dp), DIMENSION(:), POINTER                    :: blk_data_1d
+      TYPE(dbt_iterator_type)                            :: iter
       TYPE(hfx_cache_type), DIMENSION(:), POINTER        :: integral_caches
       TYPE(hfx_cache_type), POINTER                      :: maxval_cache
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
@@ -2790,7 +2788,21 @@ CONTAINS
 
       IF (ALLOCATED(blk_indices)) DEALLOCATE (blk_indices)
       ALLOCATE (blk_indices(dbt_get_num_blocks(tensor), 3))
-      CALL dbt_reserved_block_indices(tensor, blk_indices)
+      shared_offset = 0
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor,blk_indices,shared_offset) &
+!$OMP PRIVATE(iter,ind,offset,nblk,iblk)
+      CALL dbt_iterator_start(iter, tensor)
+      nblk = dbt_iterator_num_blocks(iter)
+!$OMP CRITICAL
+      offset = shared_offset
+      shared_offset = shared_offset + nblk
+!$OMP END CRITICAL
+      DO iblk = 1, nblk
+         CALL dbt_iterator_next_block(iter, ind)
+         blk_indices(offset + iblk, :) = ind(:)
+      END DO
+      CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
 
       ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
       DO i = 1, SIZE(blk_indices, 1)
@@ -2897,7 +2909,10 @@ CONTAINS
                                          memory_usage, .FALSE.)
       END DO
 
+!TODO: Parallelize this properly.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor,blk_indices)
       CALL dbt_reserve_blocks(tensor, blk_indices)
+!$OMP END PARALLEL
 
       ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
       DO i = 1, SIZE(blk_indices, 1)

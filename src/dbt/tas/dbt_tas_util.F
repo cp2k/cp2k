@@ -29,7 +29,6 @@ MODULE dbt_tas_util
 
    PUBLIC :: &
       array_eq, &
-      index_unique, &
       swap, &
       generate_larnv_seed
 
@@ -74,115 +73,6 @@ CONTAINS
       arr(1) = arr(2)
       arr(2) = tmp
    END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief Get all unique elements in index_in
-!> \param index_in ...
-!> \param index_out ...
-!> \author Patrick Seewald
-! **************************************************************************************************
-   SUBROUTINE index_unique(index_in, index_out)
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_in
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: index_out
-
-      INTEGER                                            :: blk, count, orig_size
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_tmp
-      INTEGER, DIMENSION(2)                              :: prev_index
-      INTEGER, DIMENSION(1:SIZE(index_in, 1), 1:SIZE(&
-         index_in, 2))                                   :: index_sorted
-
-      orig_size = SIZE(index_in, 1)
-      ALLOCATE (index_tmp(orig_size, 2))
-      index_sorted(:, :) = index_in(:, :)
-      CALL sort_indices(orig_size, index_sorted(:, 1), index_sorted(:, 2))
-      count = 0
-      prev_index(:) = [0, 0]
-      DO blk = 1, orig_size
-         IF (ANY(index_sorted(blk, :) .NE. prev_index(:))) THEN
-            count = count + 1
-            index_tmp(count, :) = index_sorted(blk, :)
-            prev_index(:) = index_sorted(blk, :)
-         END IF
-      END DO
-
-      ALLOCATE (index_out(count, 2))
-      index_out(:, :) = index_tmp(1:count, :)
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief Sorts the rows & columns of a work matrix
-!>        Sorts the row and column indices so that the rows monotonically
-!>        increase and the columns monotonically increase within each row.
-!>        Passing the blk_p array rearranges the block pointers accordingly.
-!>        This must be done if they are pointing to valid data, otherwise
-!>        they become invalid.
-!>        TODO: Simplify using array_sort.fypp and merge with index_unique above.
-!> \param n number of blocks (elements) to sort
-!> \param row_i row indices
-!> \param col_i column indices
-!> \param blk_p block pointers
-!> \param blk_d data storage
-!> \author Patrick Seewald
-! **************************************************************************************************
-   SUBROUTINE sort_indices(n, row_i, col_i, blk_p, blk_d)
-      INTEGER, INTENT(IN)                                :: n
-      INTEGER, DIMENSION(1:), INTENT(INOUT)              :: row_i, col_i
-      INTEGER, DIMENSION(1:), INTENT(INOUT), OPTIONAL    :: blk_p, blk_d
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sort_indices'
-      INTEGER(KIND=int_8), PARAMETER                     :: lmask8 = 4294967295_int_8
-
-      INTEGER                                            :: error_handle, i
-      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: sort_keys
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: buf, buf_d
-
-!   ---------------------------------------------------------------------------
-
-      IF (SIZE(row_i) .EQ. 0) RETURN
-
-      CALL timeset(routineN, error_handle)
-
-      IF (SIZE(row_i) < n) CPABORT('row_i too small')
-      IF (SIZE(col_i) < n) CPABORT('col_i too small')
-      IF (PRESENT(blk_p)) THEN
-         IF (SIZE(blk_p) < n) CPABORT('blk_p too small')
-         ALLOCATE (buf(n))
-         buf(1:n) = blk_p(1:n)
-      END IF
-      IF (PRESENT(blk_d)) THEN
-         ALLOCATE (buf_d(n))
-         buf_d(1:n) = blk_d(1:n)
-      END IF
-      ! Create an ordering for both rows and columns. If the blk_p must
-      ! be rearranged, then the col_i array will be used as a
-      ! permutation vector.
-      ALLOCATE (sort_keys(n))
-      sort_keys(:) = IOR(ISHFT(INT(row_i(1:n), int_8), 32), INT(col_i(1:n), int_8))
-      IF (PRESENT(blk_p)) col_i(1:n) = (/(i, i=1, n)/)
-      ! Now do a nice quicksort.
-      CALL sort(sort_keys, n, col_i)
-      ! Since blk_d is usually not present we can have two loops that
-      ! are essentially the same.
-      IF (PRESENT(blk_p)) THEN
-         DO i = 1, n
-            blk_p(i) = buf(col_i(i))
-         END DO
-         DEALLOCATE (buf)
-      END IF
-      IF (PRESENT(blk_d)) THEN
-         DO i = 1, n
-            blk_d(i) = buf_d(col_i(i))
-         END DO
-         DEALLOCATE (buf_d)
-      END IF
-      DO i = 1, n
-         col_i(i) = INT(IAND(sort_keys(i), lmask8), int_4)
-         row_i(i) = INT(ISHFT(sort_keys(i), -32), int_4)
-      END DO
-      DEALLOCATE (sort_keys)
-      CALL timestop(error_handle)
-
-   END SUBROUTINE sort_indices
 
 ! **************************************************************************************************
 !> \brief ...

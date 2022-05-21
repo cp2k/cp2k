@@ -368,27 +368,32 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
 
 /*******************************************************************************
  * \brief Adds list of blocks efficiently. The blocks will be filled with zeros.
+ *        This routine must always be called within an OpenMP parallel region.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
                         const int rows[], const int cols[]) {
-  assert(omp_get_num_threads() == 1);
+  assert(omp_get_num_threads() == omp_get_max_threads() &&
+         "Please call dbm_reserve_blocks within an OpenMP parallel region.");
   const int my_rank = matrix->dist->my_rank;
+  for (int i = 0; i < nblocks; i++) {
+    const int ishard = rows[i] % matrix->nshards;
+    dbm_shard_t *shard = &matrix->shards[ishard];
+    omp_set_lock(&shard->lock);
+    assert(0 <= rows[i] && rows[i] < matrix->nrows);
+    assert(0 <= cols[i] && cols[i] < matrix->ncols);
+    assert(dbm_get_stored_coordinates(matrix, rows[i], cols[i]) == my_rank);
+    const int row_size = matrix->row_sizes[rows[i]];
+    const int col_size = matrix->col_sizes[cols[i]];
+    const int block_size = row_size * col_size;
+    dbm_shard_get_or_promise_block(shard, rows[i], cols[i], block_size);
+    omp_unset_lock(&shard->lock);
+  }
+#pragma omp barrier
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp for schedule(dynamic)
   for (int ishard = 0; ishard < matrix->nshards; ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
-    for (int i = 0; i < nblocks; i++) {
-      if (rows[i] % matrix->nshards == ishard) {
-        assert(0 <= rows[i] && rows[i] < matrix->nrows);
-        assert(0 <= cols[i] && cols[i] < matrix->ncols);
-        assert(dbm_get_stored_coordinates(matrix, rows[i], cols[i]) == my_rank);
-        const int row_size = matrix->row_sizes[rows[i]];
-        const int col_size = matrix->col_sizes[cols[i]];
-        const int block_size = row_size * col_size;
-        dbm_shard_get_or_promise_block(shard, rows[i], cols[i], block_size);
-      }
-    }
     dbm_shard_allocate_promised_blocks(shard);
   }
 }
@@ -474,22 +479,35 @@ void dbm_add(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
 /*******************************************************************************
  * \brief Creates an iterator for the blocks of the given matrix.
  *        The iteration order is not stable.
+ *        This routine must always be called within an OpenMP parallel region.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_iterator_start(dbm_iterator_t **iter_out, const dbm_matrix_t *matrix) {
-  assert(omp_get_num_threads() == 1);
+  assert(omp_get_num_threads() == omp_get_max_threads() &&
+         "Please call dbm_iterator_start within an OpenMP parallel region.");
   dbm_iterator_t *iter = malloc(sizeof(dbm_iterator_t));
   iter->matrix = matrix;
   iter->next_block = 0;
-  iter->next_shard = 0;
-  while (iter->next_shard < matrix->nshards) {
-    if (matrix->shards[iter->next_shard].nblocks > 0) {
-      break;
-    }
-    iter->next_shard++;
+  iter->next_shard = omp_get_thread_num();
+  while (iter->next_shard < matrix->nshards &&
+         matrix->shards[iter->next_shard].nblocks == 0) {
+    iter->next_shard += omp_get_num_threads();
   }
   assert(*iter_out == NULL);
   *iter_out = iter;
+}
+
+/*******************************************************************************
+ * \brief Returns number of blocks the iterator will provide to calling thread.
+ * \author Ole Schuett
+ ******************************************************************************/
+int dbm_iterator_num_blocks(const dbm_iterator_t *iter) {
+  int num_blocks = 0;
+  for (int ishard = omp_get_thread_num(); ishard < iter->matrix->nshards;
+       ishard += omp_get_num_threads()) {
+    num_blocks += iter->matrix->shards[ishard].nblocks;
+  }
+  return num_blocks;
 }
 
 /*******************************************************************************
@@ -497,7 +515,6 @@ void dbm_iterator_start(dbm_iterator_t **iter_out, const dbm_matrix_t *matrix) {
  * \author Ole Schuett
  ******************************************************************************/
 bool dbm_iterator_blocks_left(const dbm_iterator_t *iter) {
-  assert(omp_get_num_threads() == 1);
   return iter->next_shard < iter->matrix->nshards;
 }
 
@@ -507,7 +524,6 @@ bool dbm_iterator_blocks_left(const dbm_iterator_t *iter) {
  ******************************************************************************/
 void dbm_iterator_next_block(dbm_iterator_t *iter, int *row, int *col,
                              double **block, int *row_size, int *col_size) {
-  assert(omp_get_num_threads() == 1);
   const dbm_matrix_t *matrix = iter->matrix;
   assert(iter->next_shard < matrix->nshards);
   const dbm_shard_t *shard = &matrix->shards[iter->next_shard];
@@ -524,10 +540,10 @@ void dbm_iterator_next_block(dbm_iterator_t *iter, int *row, int *col,
   iter->next_block++;
   if (iter->next_block >= shard->nblocks) {
     // Advance to the next non-empty shard...
-    iter->next_shard++;
+    iter->next_shard += omp_get_num_threads();
     while (iter->next_shard < matrix->nshards &&
            matrix->shards[iter->next_shard].nblocks == 0) {
-      iter->next_shard++;
+      iter->next_shard += omp_get_num_threads();
     }
     iter->next_block = 0; // ...and continue with its first block.
   }
@@ -537,10 +553,7 @@ void dbm_iterator_next_block(dbm_iterator_t *iter, int *row, int *col,
  * \brief Releases the given iterator.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_iterator_stop(dbm_iterator_t *iter) {
-  assert(omp_get_num_threads() == 1);
-  free(iter);
-}
+void dbm_iterator_stop(dbm_iterator_t *iter) { free(iter); }
 
 /*******************************************************************************
  * \brief Computes a checksum of the given matrix.

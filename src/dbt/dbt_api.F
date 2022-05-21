@@ -18,19 +18,19 @@ MODULE dbt_api
 
    USE dbt_block,                       ONLY: dbt_iterator_blocks_left,&
                                               dbt_iterator_next_block,&
+                                              dbt_iterator_num_blocks,&
                                               dbt_iterator_start,&
                                               dbt_iterator_stop,&
-                                              dbt_iterator_type,&
-                                              dbt_reserved_block_indices
+                                              dbt_iterator_type
    USE dbt_index,                       ONLY: dbt_get_mapping_info
    USE dbt_io,                          ONLY: dbt_write_blocks,&
                                               dbt_write_split_info,&
                                               dbt_write_tensor_dist,&
                                               dbt_write_tensor_info
    USE dbt_methods,                     ONLY: &
-        dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_contract, &
-        dbt_contract_index, dbt_copy, dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, &
-        dbt_get_block, dbt_get_stored_coordinates, dbt_put_block, dbt_reserve_blocks
+        dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_contract, dbt_copy, &
+        dbt_copy_matrix_to_tensor, dbt_copy_tensor_to_matrix, dbt_get_block, &
+        dbt_get_stored_coordinates, dbt_put_block, dbt_reserve_blocks
    USE dbt_split,                       ONLY: dbt_split_blocks
    USE dbt_test,                        ONLY: dbt_checksum,&
                                               dbt_contract_test
@@ -69,6 +69,7 @@ MODULE dbt_api
    PUBLIC :: dbt_iterator_stop
    PUBLIC :: dbt_iterator_start
    PUBLIC :: dbt_iterator_type
+   PUBLIC :: dbt_iterator_num_blocks
    PUBLIC :: dbt_split_blocks
    PUBLIC :: dbt_pgrid_type
    PUBLIC :: dbt_pgrid_create
@@ -98,8 +99,6 @@ MODULE dbt_api
    PUBLIC :: dbt_ndims
    PUBLIC :: dbt_dims
    PUBLIC :: dbt_pgrid_change_dims
-   PUBLIC :: dbt_reserved_block_indices
-   PUBLIC :: dbt_contract_index
    PUBLIC :: dbt_ndims_matrix_row
    PUBLIC :: dbt_ndims_matrix_column
    PUBLIC :: dbt_nblks_local
