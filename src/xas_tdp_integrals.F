@@ -11,6 +11,9 @@
 ! **************************************************************************************************
 
 MODULE xas_tdp_integrals
+   USE OMP_LIB,                         ONLY: omp_get_max_threads,&
+                                              omp_get_num_threads,&
+                                              omp_get_thread_num
    USE ai_contraction_sphi,             ONLY: ab_contract,&
                                               libxsmm_abc_contract
    USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -93,8 +96,6 @@ MODULE xas_tdp_integrals
                                               init
    USE xas_tdp_types,                   ONLY: xas_tdp_control_type,&
                                               xas_tdp_env_type
-
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -135,8 +136,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'create_pqX_tensor'
 
-      INTEGER                                            :: group, handle, i, iatom, ikind, jatom, &
-                                                            katom, kkind, nblk, nblk_3, nkind
+      INTEGER                                            :: A, b, group, handle, i, iatom, ikind, &
+                                                            jatom, katom, kkind, nblk, nblk_3, &
+                                                            nblk_per_thread, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx1, idx2, idx3
       INTEGER, DIMENSION(3)                              :: pdims
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, row_dist
@@ -236,9 +238,12 @@ CONTAINS
       CALL neighbor_list_iterator_release(ab_iter)
       CALL neighbor_list_iterator_release(ac_iter)
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(pq_X, idx1, idx2, idx3)
-      CALL dbt_reserve_blocks(pq_X, idx1, idx2, idx3)
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(pq_X, nblk, idx1, idx2, idx3) PRIVATE(nblk_per_thread,A,b)
+      nblk_per_thread = nblk/omp_get_num_threads() + 1
+      a = omp_get_thread_num()*nblk_per_thread + 1
+      b = MIN(a + nblk_per_thread, nblk)
+      CALL dbt_reserve_blocks(pq_X, idx1(a:b), idx2(a:b), idx3(a:b))
 !$OMP END PARALLEL
       CALL dbt_finalize(pq_X)
 

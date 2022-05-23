@@ -9,6 +9,8 @@
 !> \brief Utility methods to build 3-center integral tensors of various types.
 ! **************************************************************************************************
 MODULE qs_tensors
+   USE OMP_LIB,                         ONLY: omp_get_num_threads,&
+                                              omp_get_thread_num
    USE ai_contraction,                  ONLY: block_add
    USE ai_contraction_sphi,             ONLY: ab_contract,&
                                               libxsmm_abc_contract
@@ -628,6 +630,7 @@ CONTAINS
                                                             jatom, jcell, jkind, katom, kcell, &
                                                             kkind, natom, nimg, op_ij, op_jk, &
                                                             op_pos_prv
+      INTEGER(int_8)                                     :: a, b, nblk_per_thread
       INTEGER(int_8), ALLOCATABLE, DIMENSION(:, :)       :: nblk
       INTEGER, DIMENSION(3)                              :: cell_j, cell_k, kp_index_lbounds, &
                                                             kp_index_ubounds
@@ -807,15 +810,19 @@ CONTAINS
       END DO
       CALL neighbor_list_3c_iterator_destroy(nl_3c_iter)
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(t3c,nimg,alloc_i,alloc_j,alloc_k) PRIVATE(i_img,j_img)
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(t3c,nimg,nblk,alloc_i,alloc_j,alloc_k) &
+!$OMP PRIVATE(i_img,j_img,nblk_per_thread,A,b)
       DO j_img = 1, nimg
          DO i_img = 1, nimg
             IF (ALLOCATED(alloc_i(i_img, j_img)%array)) THEN
+               nblk_per_thread = nblk(i_img, j_img)/omp_get_num_threads() + 1
+               a = omp_get_thread_num()*nblk_per_thread + 1
+               b = MIN(a + nblk_per_thread, nblk(i_img, j_img))
                CALL dbt_reserve_blocks(t3c(i_img, j_img), &
-                                       alloc_i(i_img, j_img)%array, &
-                                       alloc_j(i_img, j_img)%array, &
-                                       alloc_k(i_img, j_img)%array)
+                                       alloc_i(i_img, j_img)%array(a:b), &
+                                       alloc_j(i_img, j_img)%array(a:b), &
+                                       alloc_k(i_img, j_img)%array(a:b))
             END IF
          END DO
       END DO
@@ -2883,8 +2890,9 @@ CONTAINS
       TYPE(hfx_compression_type), INTENT(INOUT)          :: compressed
       REAL(dp), INTENT(IN)                               :: eps
 
-      INTEGER                                            :: buffer_left, buffer_size, buffer_start, &
-                                                            i, memory_usage, nbits, nints
+      INTEGER                                            :: A, b, buffer_left, buffer_size, &
+                                                            buffer_start, i, memory_usage, nbits, &
+                                                            nblk_per_thread, nints
       INTEGER(int_8)                                     :: estimate_to_store_int
       INTEGER, DIMENSION(3)                              :: blk_size, ind
       REAL(dp)                                           :: spherical_estimate
@@ -2909,9 +2917,12 @@ CONTAINS
                                          memory_usage, .FALSE.)
       END DO
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor,blk_indices)
-      CALL dbt_reserve_blocks(tensor, blk_indices)
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor,blk_indices) PRIVATE(nblk_per_thread,A,b)
+      nblk_per_thread = SIZE(blk_indices, 1)/omp_get_num_threads() + 1
+      a = omp_get_thread_num()*nblk_per_thread + 1
+      b = MIN(a + nblk_per_thread, SIZE(blk_indices, 1))
+      CALL dbt_reserve_blocks(tensor, blk_indices(a:b, :))
 !$OMP END PARALLEL
 
       ! Can not use the tensor iterator here because the order of the blocks is not guaranteed.
