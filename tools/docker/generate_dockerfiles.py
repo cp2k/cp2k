@@ -104,7 +104,7 @@ def regtest(version: str, arch: str = "local", testopts: str = "") -> str:
 # Run regression tests.
 ARG TESTOPTS="{testopts}"
 COPY ./tools/docker/scripts/test_regtest.sh ./
-RUN /bin/bash -c " \
+RUN /bin/bash -o pipefail -c " \
     TESTOPTS="${{TESTOPTS}}" \
     ./test_regtest.sh '{arch}' '{version}' |& tee report.log && \
     rm -rf regtesting"
@@ -271,6 +271,7 @@ def print_cached_report() -> str:
     return r"""
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
+ENTRYPOINT []
 
 #EOF
 """
@@ -424,9 +425,6 @@ ENV LD_LIBRARY_PATH=/opt/intel/oneapi/mpi/2021.4.0/lib/release:/opt/intel/oneapi
 ENV MKLROOT=/opt/intel/oneapi/mkl/2021.4.0
 ENV I_MPI_ROOT=/opt/intel/oneapi/mpi/2021.4.0
 ENV FI_PROVIDER_PATH='/opt/intel/oneapi/mpi/2021.4.0/libfabric/lib/prov'
-
-ENTRYPOINT []
-
 """ + install_toolchain(
         base_image="ubuntu",
         with_intel="",

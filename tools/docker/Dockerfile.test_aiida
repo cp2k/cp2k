@@ -82,5 +82,6 @@ RUN ./test_aiida.sh 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
+ENTRYPOINT []
 
 #EOF
