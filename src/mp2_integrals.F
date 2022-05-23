@@ -12,6 +12,8 @@
 !>      03.2019 separated from mp2_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
 MODULE mp2_integrals
+   USE OMP_LIB,                         ONLY: omp_get_num_threads,&
+                                              omp_get_thread_num
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
    USE bibliography,                    ONLY: DelBen2013,&
@@ -99,8 +101,6 @@ MODULE mp2_integrals
                                               pgf_block_sizes
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
-
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -923,7 +923,8 @@ CONTAINS
 
       INTEGER                                            :: check_proc, handle, i, iend, ii, ioff, &
                                                             iproc, iproc_glob, istart, loc_a, &
-                                                            loc_P, nproc, nproc_glob
+                                                            loc_P, nblk_per_thread, nproc, &
+                                                            nproc_glob
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: block_ind_L_P, block_ind_L_R
       INTEGER, DIMENSION(1)                              :: dist_B_i, map_B_1, map_L_1, map_L_2, &
                                                             sizes_i
@@ -1022,9 +1023,13 @@ CONTAINS
          END IF
       END DO
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(tL,block_ind_L_R,block_ind_L_P,ii)
-      CALL dbt_reserve_blocks(tL, block_ind_L_R(1:ii), block_ind_L_P(1:ii))
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tL,block_ind_L_R,block_ind_L_P,ii) &
+!$OMP PRIVATE(nblk_per_thread,istart,iend)
+      nblk_per_thread = ii/omp_get_num_threads() + 1
+      istart = omp_get_thread_num()*nblk_per_thread + 1
+      iend = MIN(istart + nblk_per_thread, ii)
+      CALL dbt_reserve_blocks(tL, block_ind_L_R(istart:iend), block_ind_L_P(istart:iend))
 !$OMP END PARALLEL
 
       ! insert (R|ai) block

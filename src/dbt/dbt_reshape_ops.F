@@ -14,6 +14,8 @@ MODULE dbt_reshape_ops
    #:set maxdim = maxrank
    #:set ndims = range(2,maxdim+1)
 
+   USE OMP_LIB, ONLY: omp_get_thread_num, &
+                      omp_get_num_threads
    USE dbt_allocate_wrap, ONLY: allocate_any
    USE dbt_tas_base, ONLY: dbt_tas_copy, dbt_tas_get_info, dbt_tas_info
    USE dbt_block, ONLY: &
@@ -65,7 +67,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                    :: move_data
 
       INTEGER                                            :: iproc, mp_comm, mynode, ndata, &
-                                                            numnodes, bcount, nblk
+                                                            numnodes, bcount, nblk, &
+                                                            nblk_per_thread, a, b
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_blocks_recv, num_blocks_send, &
                                                             num_entries_recv, num_entries_send, &
                                                             num_rec, num_send
@@ -166,9 +169,12 @@ CONTAINS
          DEALLOCATE (index_recv)
       END DO
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_out,blks_to_allocate)
-      CALL dbt_reserve_blocks(tensor_out, blks_to_allocate)
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_out,nblk,blks_to_allocate) PRIVATE(nblk_per_thread,a,b)
+      nblk_per_thread = nblk/omp_get_num_threads() + 1
+      a = omp_get_thread_num()*nblk_per_thread + 1
+      b = MIN(a + nblk_per_thread, nblk)
+      CALL dbt_reserve_blocks(tensor_out, blks_to_allocate(a:b, :))
 !$OMP END PARALLEL
       DEALLOCATE (blks_to_allocate)
 
@@ -185,6 +191,7 @@ CONTAINS
          END DO
          CALL block_buffer_destroy(buffer_recv(iproc))
       END DO
+
    END SUBROUTINE
 
 ! **************************************************************************************************

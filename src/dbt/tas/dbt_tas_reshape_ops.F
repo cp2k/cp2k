@@ -10,6 +10,12 @@
 !> \author Patrick Seewald
 ! **************************************************************************************************
 MODULE dbt_tas_reshape_ops
+   USE OMP_LIB,                         ONLY: omp_get_num_threads,&
+                                              omp_get_thread_num,&
+                                              omp_init_lock,&
+                                              omp_lock_kind,&
+                                              omp_set_lock,&
+                                              omp_unset_lock
    USE dbm_api,                         ONLY: &
         dbm_clear, dbm_distribution_col_dist, dbm_distribution_obj, dbm_distribution_row_dist, &
         dbm_finalize, dbm_get_col_block_sizes, dbm_get_distribution, dbm_get_name, &
@@ -42,9 +48,6 @@ MODULE dbt_tas_reshape_ops
                                               mp_irecv,&
                                               mp_isend,&
                                               mp_waitall
-
-!$ USE OMP_LIB, ONLY: omp_lock_kind, omp_init_lock
-
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -81,8 +84,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_reshape'
 
-      INTEGER                                            :: bcount, handle, handle2, iproc, mp_comm, &
-                                                            mynode, nblk, ndata, numnodes
+      INTEGER                                            :: a, b, bcount, handle, handle2, iproc, &
+                                                            mp_comm, mynode, nblk, &
+                                                            nblk_per_thread, ndata, numnodes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: blks_to_allocate, index_recv
       INTEGER(KIND=int_8), DIMENSION(2)                  :: blk_index
       INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
@@ -223,9 +227,12 @@ CONTAINS
          DEALLOCATE (index_recv)
       END DO
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,blks_to_allocate)
-      CALL dbt_tas_reserve_blocks(matrix_out, blks_to_allocate(:, 1), blks_to_allocate(:, 2))
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,nblk,blks_to_allocate) PRIVATE(nblk_per_thread,A,b)
+      nblk_per_thread = nblk/omp_get_num_threads() + 1
+      a = omp_get_thread_num()*nblk_per_thread + 1
+      b = MIN(a + nblk_per_thread, nblk)
+      CALL dbt_tas_reserve_blocks(matrix_out, blks_to_allocate(a:b, 1), blks_to_allocate(a:b, 2))
 !$OMP END PARALLEL
       DEALLOCATE (blks_to_allocate)
 
@@ -264,7 +271,7 @@ CONTAINS
       TYPE(dbt_tas_type), INTENT(OUT)                    :: matrix_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: nodata, move_data
 
-      INTEGER                                            :: nblkcols, nblkrows
+      INTEGER                                            :: a, b, nblk_per_thread, nblkcols, nblkrows
       INTEGER, DIMENSION(2)                              :: pcoord, pdims
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
@@ -452,9 +459,12 @@ CONTAINS
          DEALLOCATE (index_recv)
       END DO
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,blks_to_allocate)
-      CALL dbm_reserve_blocks(matrix_out%matrix, blks_to_allocate(:, 1), blks_to_allocate(:, 2))
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,nblk,blks_to_allocate) PRIVATE(nblk_per_thread,A,b)
+      nblk_per_thread = nblk/omp_get_num_threads() + 1
+      a = omp_get_thread_num()*nblk_per_thread + 1
+      b = MIN(a + nblk_per_thread, nblk)
+      CALL dbm_reserve_blocks(matrix_out%matrix, blks_to_allocate(a:b, 1), blks_to_allocate(a:b, 2))
 !$OMP END PARALLEL
       DEALLOCATE (blks_to_allocate)
 
@@ -493,8 +503,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbt_tas_merge'
 
-      INTEGER                                            :: bcount, handle, handle2, iproc, mp_comm, &
-                                                            mynode, nblk, ndata, numnodes
+      INTEGER                                            :: a, b, bcount, handle, handle2, iproc, &
+                                                            mp_comm, mynode, nblk, &
+                                                            nblk_per_thread, ndata, numnodes
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: index_recv
       INTEGER(KIND=int_8), DIMENSION(2)                  :: blk_index_i8
       INTEGER(kind=omp_lock_kind), ALLOCATABLE, &
@@ -614,9 +625,12 @@ CONTAINS
          DEALLOCATE (index_recv)
       END DO
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,blks_to_allocate)
-      CALL dbm_reserve_blocks(matrix_out, blks_to_allocate(:, 1), blks_to_allocate(:, 2))
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(matrix_out,nblk,blks_to_allocate) PRIVATE(nblk_per_thread,A,b)
+      nblk_per_thread = nblk/omp_get_num_threads() + 1
+      a = omp_get_thread_num()*nblk_per_thread + 1
+      b = MIN(a + nblk_per_thread, nblk)
+      CALL dbm_reserve_blocks(matrix_out, blks_to_allocate(a:b, 1), blks_to_allocate(a:b, 2))
 !$OMP END PARALLEL
       DEALLOCATE (blks_to_allocate)
 

@@ -15,6 +15,7 @@ MODULE dbt_block
    #:set maxdim = maxrank
    #:set ndims = range(2,maxdim+1)
 
+   USE OMP_LIB, ONLY: omp_get_thread_num, omp_get_num_threads
    USE dbcsr_api, ONLY: &
       dbcsr_type, dbcsr_release, &
       dbcsr_iterator_type, dbcsr_iterator_start, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -299,7 +300,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)  :: tensor_out
       TYPE(dbcsr_type), POINTER               :: matrix_in_desym
 
-      INTEGER                            :: blk, iblk, nblk
+      INTEGER                            :: blk, iblk, nblk, nblk_per_thread, a, b
       INTEGER, ALLOCATABLE, DIMENSION(:) :: blk_ind_1, blk_ind_2
       INTEGER, DIMENSION(2)              :: ind_2d
       TYPE(dbcsr_iterator_type)          :: iter
@@ -324,9 +325,13 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-!TODO: Parallelize this properly.
-!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_out,blk_ind_1,blk_ind_2)
-      CALL dbt_reserve_blocks(tensor_out, blk_ind_1, blk_ind_2)
+!TODO: Parallelize creation of block list.
+!$OMP PARALLEL DEFAULT(NONE) SHARED(tensor_out,nblk,blk_ind_1,blk_ind_2) &
+!$OMP PRIVATE(nblk_per_thread,a,b)
+      nblk_per_thread = nblk/omp_get_num_threads() + 1
+      a = omp_get_thread_num()*nblk_per_thread + 1
+      b = MIN(a + nblk_per_thread, nblk)
+      CALL dbt_reserve_blocks(tensor_out, blk_ind_1(a:b), blk_ind_2(a:b))
 !$OMP END PARALLEL
 
       IF (dbcsr_has_symmetry(matrix_in)) THEN
