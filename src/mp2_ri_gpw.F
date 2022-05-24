@@ -109,8 +109,7 @@ CONTAINS
          my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
          num_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
          rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
-         send_i, send_ij_index, send_j, start_point, sub_P_color, tag
-      INTEGER :: total_ij_pairs
+         send_i, send_ij_index, send_j, start_point, sub_P_color, tag, total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
          my_B_virtual_end, my_B_virtual_start, num_ij_pairs, proc_map, proc_map_rep, &
          sizes_array_orig, sub_proc_map, virtual
@@ -125,9 +124,10 @@ CONTAINS
          TARGET                                          :: local_ab, local_ba, t_ab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: local_i_aL, local_j_aL, Y_i_aP, Y_j_aP
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: external_ab, external_i_aL
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: BI_C_rec
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: external_ab, external_i_aL
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_P, &
                                                             para_env_rep
       TYPE(dgemm_counter_type)                           :: dgemm_counter
@@ -1624,7 +1624,8 @@ CONTAINS
       INTEGER :: a, b, b_global, handle, proc_receive, proc_send, proc_shift, rec_B_size, &
          rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, &
          send_B_virtual_start
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: external_ab, send_ab
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: external_ab, send_ab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_2_1D
       REAL(KIND=dp)                                      :: factor, P_ij_diag
       LOGICAL                                            :: alpha_beta
@@ -1937,8 +1938,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, Lstart_pos, &
-         proc_receive, proc_send, proc_shift, rec_i, rec_ij_index, send_L_size, &
-         start_point, tag
+         proc_receive, proc_send, proc_shift, rec_i, rec_ij_index, send_L_size, start_point, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BI_C_rec_1D, BI_C_send_1D
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: BI_C_rec, BI_C_send
