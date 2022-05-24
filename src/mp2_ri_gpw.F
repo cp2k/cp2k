@@ -109,7 +109,7 @@ CONTAINS
          my_group_L_start, my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
          num_integ_group, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
          rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
-         send_block_size, send_i, send_ij_index, send_j, start_point, sub_P_color, tag
+         send_i, send_ij_index, send_j, start_point, sub_P_color, tag
       INTEGER :: total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, my_B_size, &
          my_B_virtual_end, my_B_virtual_start, num_ij_pairs, proc_map, proc_map_rep, &
@@ -298,13 +298,12 @@ CONTAINS
                                           integ_group_pos2color_sub(proc_send)
                         send_i = ij_map(1, ij_counter_send)
                         send_j = ij_map(2, ij_counter_send)
-                        send_block_size = ij_map(3, ij_counter_send)
 
                         ! occupied i
-                        BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:send_block_size) => &
-                           buffer_1D(1:rec_L_size*my_B_size(ispin)*send_block_size)
+                        BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:my_block_size) => &
+                           buffer_1D(1:rec_L_size*my_B_size(ispin)*my_block_size)
                         BI_C_rec = 0.0_dp
-                        CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
+                        CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + my_block_size - 1), &
                                          proc_send, BI_C_rec, proc_receive, &
                                          para_env_exchange%group, tag)
 
@@ -312,10 +311,10 @@ CONTAINS
                                              BI_C_rec(:, 1:my_B_size(ispin), :))
 
                         ! occupied j
-                        BI_C_rec(1:rec_L_size, 1:my_B_size(jspin), 1:send_block_size) => &
-                           buffer_1D(1:INT(rec_L_size, int_8)*my_B_size(jspin)*send_block_size)
+                        BI_C_rec(1:rec_L_size, 1:my_B_size(jspin), 1:my_block_size) => &
+                           buffer_1D(1:INT(rec_L_size, int_8)*my_B_size(jspin)*my_block_size)
                         BI_C_rec = 0.0_dp
-                        CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
+                        CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + my_block_size - 1), &
                                          proc_send, BI_C_rec, proc_receive, &
                                          para_env_exchange%group, tag)
 
@@ -530,13 +529,12 @@ CONTAINS
                                           integ_group_pos2color_sub(proc_send)
                         send_i = ij_map(1, ij_counter_send)
                         send_j = ij_map(2, ij_counter_send)
-                        send_block_size = ij_map(3, ij_counter_send)
 
                         ! occupied i
-                        CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
+                        CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + my_block_size - 1), &
                                      proc_send, tag, para_env_exchange%group)
                         ! occupied j
-                        CALL mp_send(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
+                        CALL mp_send(BIb_C(jspin)%array(:, :, send_j:send_j + my_block_size - 1), &
                                      proc_send, tag, para_env_exchange%group)
                      END IF
                   END DO
@@ -1941,7 +1939,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, Lstart_pos, &
-         proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, send_L_size, &
+         proc_receive, proc_send, proc_shift, rec_i, rec_ij_index, send_L_size, &
          start_point, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BI_C_rec_1D, BI_C_send_1D
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
@@ -2014,10 +2012,9 @@ CONTAINS
                   (ij_index - MIN(1, integ_group_pos2color_sub(proc_receive)))*ngroup + integ_group_pos2color_sub(proc_receive)
 
                rec_i = ij_map(spin, ij_counter_rec)
-               rec_block_size = ij_map(3, ij_counter_rec)
 
-               BI_C_rec(1:my_B_size, 1:rec_block_size, 1:my_group_L_size) => &
-                  BI_C_rec_1D(1:INT(my_B_size, int_8)*rec_block_size*my_group_L_size)
+               BI_C_rec(1:my_B_size, 1:my_block_size, 1:my_group_L_size) => &
+                  BI_C_rec_1D(1:INT(my_B_size, int_8)*my_block_size*my_group_L_size)
                BI_C_rec = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, &
@@ -2028,10 +2025,10 @@ CONTAINS
                DO irep = 0, num_integ_group - 1
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
+!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,my_block_size,&
 !$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
-                  Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
-                     Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
+                  Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) = &
+                     Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) + &
                      BI_C_rec(1:my_B_size, :, start_point:end_point)
 !$OMP             END PARALLEL WORKSHARE
                END DO
@@ -2061,10 +2058,9 @@ CONTAINS
                   (ij_index - MIN(1, integ_group_pos2color_sub(proc_receive)))*ngroup + integ_group_pos2color_sub(proc_receive)
 
                rec_i = ij_map(spin, ij_counter_rec)
-               rec_block_size = ij_map(3, ij_counter_rec)
 
-               BI_C_rec(1:my_B_size, 1:rec_block_size, 1:my_group_L_size) => &
-                  BI_C_rec_1D(1:INT(my_B_size, int_8)*rec_block_size*my_group_L_size)
+               BI_C_rec(1:my_B_size, 1:my_block_size, 1:my_group_L_size) => &
+                  BI_C_rec_1D(1:INT(my_B_size, int_8)*my_block_size*my_group_L_size)
 
                BI_C_rec = 0.0_dp
 
@@ -2074,10 +2070,10 @@ CONTAINS
                DO irep = 0, num_integ_group - 1
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
+!$OMP             PARALLEL WORKSHARE DEFAULT(NONE) SHARED(start_point,end_point,my_block_size,&
 !$OMP                                           Gamma_P_ia,rec_i,iiB,my_B_size,BI_C_rec)
-                  Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) = &
-                     Gamma_P_ia(:, rec_i:rec_i + rec_block_size - 1, start_point:end_point) + &
+                  Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) = &
+                     Gamma_P_ia(:, rec_i:rec_i + my_block_size - 1, start_point:end_point) + &
                      BI_C_rec(1:my_B_size, :, start_point:end_point)
 !$OMP             END PARALLEL WORKSHARE
                END DO
