@@ -39,7 +39,7 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         &RI_MP2
-          BLOCK_SIZE  1
+          BLOCK_SIZE  -1
           EPS_CANONICAL 0.0001
           FREE_HFX_BUFFER .TRUE.
           &CPHF
