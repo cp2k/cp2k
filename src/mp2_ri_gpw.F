@@ -1360,19 +1360,22 @@ CONTAINS
       mem_per_repl = 0.0_dp
       mem_per_repl_blk = 0.0_dp
 
-      ! BIB_C_copy/external_i_aL/Gamma_P_ia
+      ! BIB_C_copy/external_i_aL
       mem_per_repl = mem_per_repl + MAXVAL(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))* &
                                            maxsize(gd_B_virtual))*8.0_dp/(1024**2)
       ! BIB_C
       mem_per_repl = mem_per_repl + SUM(REAL(homo, KIND=dp)*maxsize(gd_B_virtual))*maxsize(gd_array)*8.0_dp/(1024**2)
-      ! BIB_C
+      ! BIB_C_rec
       mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
       ! local_i_aL+local_j_aL
       mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
-      ! local_ab
-      mem_base = mem_base + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+      ! local_ab+external_ab
+      mem_base = mem_base + 2.0_dp*MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
 
       IF (calc_forces) THEN
+         ! Gamma_P_ia
+         mem_per_repl = mem_per_repl + SUM(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))* &
+                                           maxsize(gd_B_virtual))*8.0_dp/(1024**2)
          ! Y_i_aP+Y_j_aP
          mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
          ! local_ba/t_ab
@@ -1510,9 +1513,9 @@ CONTAINS
       IF (calc_forces) THEN
          ! Y_i_aP+Y_j_aP+BIb_C_send
          mem_per_blk = mem_per_blk + 3.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
+         ! send_ab
+         mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*MAXVAL(virtual)*8.0_dp/(1024**2)
       END IF
-
-      !mem_real = MIN(mp2_env%mp2_memory, mem_real)
 
       best_block_size = 1
 
