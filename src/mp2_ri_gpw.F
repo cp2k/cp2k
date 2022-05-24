@@ -456,7 +456,8 @@ CONTAINS
                                     END IF
                                  END DO
                               END DO
-                      IF (para_env_sub%num_pe > 1) ALLOCATE (buffer_1D(1:INT(my_B_size(ispin), int_8)*maxsize(gd_B_virtual(ispin))))
+                              IF (para_env_sub%num_pe > 1) &
+                                 ALLOCATE (buffer_1D(1:INT(my_B_size(ispin), int_8)*maxsize(gd_B_virtual(ispin))))
                               ! ... and then with external data
                               DO proc_shift = 1, para_env_sub%num_pe - 1
                                  proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -1704,7 +1705,7 @@ CONTAINS
       END IF
       IF (para_env_sub%num_pe > 1) THEN
          ALLOCATE (buffer_1D(INT(MAX(MAXVAL(virtual), dimen_RI), int_8)*MAXVAL(maxsize(gd_B_virtual))))
-         ALLOCATE (buffer_2_1D(INT(MAXVAL(maxsize(gd_B_virtual)), KIND=int_8)*MAXVAL(virtual)))
+         ALLOCATE (buffer_2_1D(INT(MAXVAL(maxsize(gd_B_virtual)), KIND=int_8)*MAX(MAXVAL(virtual), dimen_RI)))
       END IF
       DO proc_shift = 1, para_env_sub%num_pe - 1
          proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -1776,7 +1777,6 @@ CONTAINS
       ELSE
          CALL dgemm_counter_stop(dgemm_counter, SUM(my_B_size), virtual(ispin), virtual(jspin))
       END IF
-      IF (para_env_sub%num_pe > 1) DEALLOCATE (buffer_2_1D)
       CALL timestop(handle)
 
       ! Now, Gamma_P_ia (made of Y_ia_P)
@@ -1801,8 +1801,6 @@ CONTAINS
       IF (para_env_sub%num_pe > 1) THEN
          external_ab(1:my_B_size(ispin), 1:dimen_RI) => buffer_1D(1:INT(my_B_size(ispin), int_8)*dimen_RI)
          external_ab = 0.0_dp
-
-         ALLOCATE (buffer_2_1D(INT(MAXVAL(maxsize(gd_B_virtual)), KIND=int_8)*dimen_RI))
       END IF
       !
       DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -1975,8 +1973,10 @@ CONTAINS
          CALL timestop(handle2)
 
          ! Y_i_aP(my_B_size,dimen_RI,block_size)
-         ALLOCATE (BI_C_send_1D(INT(my_B_size, int_8)*my_block_size*MAXVAL(sizes_array)))
-         ALLOCATE (BI_C_rec_1D(INT(my_B_size, int_8)*my_block_size*my_group_L_size))
+         IF (para_env_exchange%num_pe > 1) THEN
+            ALLOCATE (BI_C_send_1D(INT(my_B_size, int_8)*my_block_size*MAXVAL(sizes_array)))
+            ALLOCATE (BI_C_rec_1D(INT(my_B_size, int_8)*my_block_size*my_group_L_size))
+         END IF
 
          DO proc_shift = 1, para_env_exchange%num_pe - 1
             proc_send = proc_map(para_env_exchange%mepos + proc_shift)
@@ -2042,10 +2042,10 @@ CONTAINS
 
          END DO
 
-         DEALLOCATE (BI_C_send_1D, BI_C_rec_1D)
+         IF (para_env_exchange%num_pe > 1) DEALLOCATE (BI_C_send_1D, BI_C_rec_1D)
 
       ELSE
-         ALLOCATE (BI_C_rec_1D(INT(my_B_size, int_8)*my_block_size*my_group_L_size))
+         IF (para_env_exchange%num_pe > 1) ALLOCATE (BI_C_rec_1D(INT(my_B_size, int_8)*my_block_size*my_group_L_size))
          ! noting to send check if we have to receive
          DO proc_shift = 1, para_env_exchange%num_pe - 1
             proc_send = proc_map(para_env_exchange%mepos + proc_shift)
@@ -2082,7 +2082,7 @@ CONTAINS
             END IF
          END DO
 
-         DEALLOCATE (BI_C_rec_1D)
+         IF (para_env_exchange%num_pe > 1) DEALLOCATE (BI_C_rec_1D)
 
       END IF
       CALL timestop(handle)
