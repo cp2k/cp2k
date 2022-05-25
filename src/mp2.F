@@ -258,12 +258,15 @@ CONTAINS
          mp2_env%mp2_num_proc = 1
       END IF
 
-      IF (mp2_env%mp2_num_proc <= 0 .OR. mp2_env%mp2_num_proc > para_env%num_pe .OR. &
-          MOD(para_env%num_pe, mp2_env%mp2_num_proc) .NE. 0) THEN
-         IF (unit_nr > 0 .AND. mp2_env%mp2_num_proc .NE. -1) &
-            WRITE (unit_nr, '(T3,A,T76,I5)') 'Requested number of processes per group:', mp2_env%mp2_num_proc
-         mp2_env%mp2_num_proc = para_env%num_pe
+      IF (mp2_env%mp2_num_proc <= 1 .OR. mp2_env%mp2_num_proc > para_env%num_pe) THEN
+         CPWARN("GROUP_SIZE is reset because of a too small or too large value.")
+         mp2_env%mp2_num_proc = MAX(MIN(para_env%num_pe, mp2_env%mp2_num_proc), 1)
       END IF
+
+      IF (MOD(para_env%num_pe, mp2_env%mp2_num_proc) /= 0) THEN
+         CPABORT("GROUP_SIZE must be a divisor of the total number of MPI ranks!")
+      END IF
+
       IF (.NOT. mp2_env%do_im_time) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T76,I5)') 'Used number of processes per group:', mp2_env%mp2_num_proc
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Maximum allowed memory usage per MPI process:', &
