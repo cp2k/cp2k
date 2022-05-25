@@ -14,7 +14,6 @@ MODULE dbt_reshape_ops
    #:set maxdim = maxrank
    #:set ndims = range(2,maxdim+1)
 
-   USE OMP_LIB, ONLY: omp_get_num_threads
    USE dbt_allocate_wrap, ONLY: allocate_any
    USE dbt_tas_base, ONLY: dbt_tas_copy, dbt_tas_get_info, dbt_tas_info
    USE dbt_block, ONLY: &
@@ -64,9 +63,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_reshape'
 
-      INTEGER                                            :: iproc, mp_comm, mynode, &
-                                                            numnodes, bcount, handle, &
-                                                            max_nblk_per_thread, iblk, offset, ndata
+      INTEGER                                            :: iproc, mp_comm, mynode, numnodes, &
+                                                            handle, iblk, jblk, offset, ndata, &
+                                                            nblks_recv_mythread
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blks_to_allocate
       TYPE(dbt_iterator_type)                            :: iter
       TYPE(block_nd)                                     :: blk_data
@@ -76,8 +75,7 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblks_send_total, ndata_send_total, &
                                                             nblks_recv_total, ndata_recv_total, &
-                                                            nblks_send_mythread, ndata_send_mythread, &
-                                                            nblks_recv_mythread, ndata_recv_mythread
+                                                            nblks_send_mythread, ndata_send_mythread
 
       CALL timeset(routineN, handle)
 
@@ -100,23 +98,17 @@ CONTAINS
       mp_comm = tensor_in%pgrid%mp_comm_2d
       CALL mp_environ(numnodes, mynode, mp_comm)
       ALLOCATE (buffer_send(0:numnodes - 1), buffer_recv(0:numnodes - 1))
-
-      ALLOCATE (nblks_send_total(0:numnodes - 1), ndata_send_total(0:numnodes - 1))
-      ALLOCATE (nblks_recv_total(0:numnodes - 1), ndata_recv_total(0:numnodes - 1))
-      nblks_send_total(:) = 0
-      ndata_send_total(:) = 0
+      ALLOCATE (nblks_send_total(0:numnodes - 1), ndata_send_total(0:numnodes - 1), source=0)
+      ALLOCATE (nblks_recv_total(0:numnodes - 1), ndata_recv_total(0:numnodes - 1), source=0)
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(tensor_in,tensor_out,summation) &
 !$OMP SHARED(buffer_send,buffer_recv,mp_comm,numnodes) &
 !$OMP SHARED(nblks_send_total,ndata_send_total,nblks_recv_total,ndata_recv_total) &
-!$OMP PRIVATE(nblks_send_mythread,ndata_send_mythread,nblks_recv_mythread,ndata_recv_mythread) &
+!$OMP PRIVATE(nblks_send_mythread,ndata_send_mythread,nblks_recv_mythread) &
 !$OMP PRIVATE(iter,ind_nd,blk_size,blk_data,found,iproc) &
-!$OMP PRIVATE(blks_to_allocate,max_nblk_per_thread,bcount,offset,ndata,iblk)
-      ALLOCATE (nblks_send_mythread(0:numnodes - 1), ndata_send_mythread(0:numnodes - 1))
-      ALLOCATE (nblks_recv_mythread(0:numnodes - 1), ndata_recv_mythread(0:numnodes - 1))
-      nblks_send_mythread(:) = 0
-      ndata_send_mythread(:) = 0
+!$OMP PRIVATE(blks_to_allocate,offset,ndata,iblk,jblk)
+      ALLOCATE (nblks_send_mythread(0:numnodes - 1), ndata_send_mythread(0:numnodes - 1), source=0)
 
       CALL dbt_iterator_start(iter, tensor_in)
       DO WHILE (dbt_iterator_blocks_left(iter))
@@ -181,20 +173,28 @@ CONTAINS
       END DO
 !$OMP END DO
 
-      max_nblk_per_thread = SUM(nblks_recv_total)/omp_get_num_threads() + 1
-      ALLOCATE (blks_to_allocate(max_nblk_per_thread, ndims_tensor(tensor_in)))
-      bcount = 0
+      nblks_recv_mythread = 0
       DO iproc = 0, numnodes - 1
 !$OMP DO
          DO iblk = 1, nblks_recv_total(iproc)
-            bcount = bcount + 1
-            blks_to_allocate(bcount, :) = buffer_recv(iproc)%blocks(iblk, 1:)
+            nblks_recv_mythread = nblks_recv_mythread + 1
          END DO
 !$OMP END DO
       END DO
-      CALL dbt_reserve_blocks(tensor_out, blks_to_allocate(1:bcount, :))
+      ALLOCATE (blks_to_allocate(nblks_recv_mythread, ndims_tensor(tensor_in)))
+
+      jblk = 0
+      DO iproc = 0, numnodes - 1
+!$OMP DO
+         DO iblk = 1, nblks_recv_total(iproc)
+            jblk = jblk + 1
+            blks_to_allocate(jblk, :) = buffer_recv(iproc)%blocks(iblk, 1:)
+         END DO
+!$OMP END DO
+      END DO
+      CPASSERT(jblk == nblks_recv_mythread)
+      CALL dbt_reserve_blocks(tensor_out, blks_to_allocate)
       DEALLOCATE (blks_to_allocate)
-!$OMP BARRIER
 
       DO iproc = 0, numnodes - 1
 !$OMP DO
