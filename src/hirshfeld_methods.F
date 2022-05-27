@@ -20,6 +20,9 @@ MODULE hirshfeld_methods
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_result_methods,               ONLY: cp_results_erase,&
+                                              put_results
+   USE cp_result_types,                 ONLY: cp_result_type
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE grid_api,                        ONLY: GRID_FUNC_AB,&
                                               collocate_pgf_product,&
@@ -34,7 +37,8 @@ MODULE hirshfeld_methods
                                               radius_vdw,&
                                               shape_function_density,&
                                               shape_function_gaussian
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              default_string_length
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
@@ -71,7 +75,8 @@ MODULE hirshfeld_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hirshfeld_methods'
 
    PUBLIC :: create_shape_function, comp_hirshfeld_charges, &
-             comp_hirshfeld_i_charges, write_hirshfeld_charges
+             comp_hirshfeld_i_charges, write_hirshfeld_charges, &
+             save_hirshfeld_charges
 
 ! **************************************************************************************************
 
@@ -128,6 +133,48 @@ CONTAINS
       WRITE (unit_nr, '(T2,A)') '!-----------------------------------------------------------------------------!'
 
    END SUBROUTINE write_hirshfeld_charges
+
+! **************************************************************************************************
+!> \brief saves the Hirshfeld charges to the results structure
+!> \param charges the calculated Hirshfeld charges
+!> \param particle_set the particle set
+!> \param qs_kind_set the kind set
+!> \param qs_env the environment
+! **************************************************************************************************
+   SUBROUTINE save_hirshfeld_charges(charges, particle_set, qs_kind_set, qs_env)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: charges
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      INTEGER                                            :: iatom, ikind, natom
+      REAL(KIND=dp)                                      :: zeff
+      CHARACTER(LEN=default_string_length)               :: description
+      TYPE(cp_result_type), POINTER                      :: results
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_save
+
+      NULLIFY (results)
+      CALL get_qs_env(qs_env, results=results)
+      
+      natom = SIZE(charges, 1)
+      ALLOCATE (charges_save(natom))
+      
+      DO iatom = 1, natom
+         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
+                              kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+         charges_save(iatom) = zeff - SUM(charges(iatom, :))
+      END DO
+      
+      ! Store charges in results
+      description = "[HIRSHFELD-CHARGES]"
+      CALL cp_results_erase(results=results, description=description)
+      CALL put_results(results=results, description=description, & 
+                       values=charges_save)
+      
+      DEALLOCATE (charges_save)
+      
+   END SUBROUTINE save_hirshfeld_charges
 
 ! **************************************************************************************************
 !> \brief creates kind specific shape functions for Hirshfeld charges

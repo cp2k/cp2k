@@ -60,7 +60,8 @@ MODULE qs_scf_post_gpw
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
                                               comp_hirshfeld_i_charges,&
                                               create_shape_function,&
-                                              write_hirshfeld_charges
+                                              write_hirshfeld_charges,&
+                                              save_hirshfeld_charges
    USE hirshfeld_types,                 ONLY: create_hirshfeld_type,&
                                               hirshfeld_type,&
                                               release_hirshfeld_type,&
@@ -2692,6 +2693,8 @@ CONTAINS
          CALL write_hirshfeld_charges(charges, hirshfeld_env, particle_set, &
                                       qs_kind_set, unit_nr)
       END IF
+      ! Save the charges to the results under the tag [HIRSHFELD-CHARGES]
+      CALL save_hirshfeld_charges(charges, particle_set, qs_kind_set, qs_env)
       !
       CALL release_hirshfeld_type(hirshfeld_env)
       DEALLOCATE (charges)

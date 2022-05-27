@@ -34,6 +34,9 @@ MODULE population_analyses
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_result_methods,               ONLY: cp_results_erase,&
+                                              put_results
+   USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
@@ -409,6 +412,9 @@ CONTAINS
          CALL write_orbpop(orbpop, atomic_kind_set, qs_kind_set, particle_set, output_unit, print_gop)
       END IF
 
+      ! Save the Mulliken charges to results
+      CALL save_mulliken_charges(orbpop, atomic_kind_set, qs_kind_set, particle_set, qs_env)
+
       ! Release local working storage
       IF (ASSOCIATED(sm_ps)) CALL dbcsr_deallocate_matrix(sm_ps)
       IF (ASSOCIATED(orbpop)) THEN
@@ -426,6 +432,102 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mulliken_population_analysis
+
+! **************************************************************************************************
+!> \brief Save the Mulliken charges in results
+!>
+!> \param orbpop ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param particle_set ...
+!> \param qs_env ...
+!> \date    27.05.2022
+!> \author  Bo Thomsen (BT)
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE save_mulliken_charges(orbpop, atomic_kind_set, qs_kind_set, particle_set, qs_env)      
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+   
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_save
+      CHARACTER(LEN=default_string_length)               :: description
+      TYPE(cp_result_type), POINTER                      :: results
+      INTEGER                                            :: iao, iatom, ikind, iset, isgf, &
+                                                            ishell, iso, l, natom, nset, nsgf, &
+                                                            nspin
+      INTEGER, DIMENSION(:), POINTER                     :: nshell
+      INTEGER, DIMENSION(:, :), POINTER                  :: lshell
+      REAL(KIND=dp)                                      :: zeff
+      REAL(KIND=dp), DIMENSION(3)                        :: sumorbpop
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      
+      
+      NULLIFY (lshell)
+      NULLIFY (nshell)
+      NULLIFY (orb_basis_set)
+
+      CPASSERT(ASSOCIATED(orbpop))
+      CPASSERT(ASSOCIATED(atomic_kind_set))
+      CPASSERT(ASSOCIATED(particle_set))
+
+      nspin = SIZE(orbpop, 2)
+
+      CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+      CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+      CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+      NULLIFY (results)
+      CALL get_qs_env(qs_env, results=results)
+      ALLOCATE (charges_save(natom))
+      
+      iao = 1
+      DO iatom = 1, natom
+         sumorbpop(:) = 0.0_dp
+         NULLIFY (orb_basis_set)
+         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
+                              kind_number=ikind)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, zeff=zeff)
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                   nset=nset, &
+                                   nshell=nshell, &
+                                   l=lshell)
+            isgf = 1
+            DO iset = 1, nset
+               DO ishell = 1, nshell(iset)
+                  l = lshell(ishell, iset)
+                  DO iso = 1, nso(l)
+                     IF (nspin == 1) THEN
+                        sumorbpop(1) = sumorbpop(1) + orbpop(iao, 1)
+                     ELSE
+                        sumorbpop(1:2) = sumorbpop(1:2) + orbpop(iao, 1:2)
+                        sumorbpop(3) = sumorbpop(3) + orbpop(iao, 1) - orbpop(iao, 2)
+                     END IF
+                     isgf = isgf + 1
+                     iao = iao + 1
+                  END DO
+               END DO
+            END DO
+            IF (nspin == 1) THEN
+               charges_save(iatom) = zeff - sumorbpop(1)
+            ELSE
+               charges_save(iatom) = zeff - sumorbpop(1) - sumorbpop(2)
+            END IF
+         END IF ! atom has an orbital basis
+      END DO ! next atom iatom
+      
+      ! Store charges in results
+      description = "[MULLIKEN-CHARGES]"
+      CALL cp_results_erase(results=results, description=description)
+      CALL put_results(results=results, description=description, & 
+                       values=charges_save)
+
+      DEALLOCATE (charges_save)
+
+      
+   END SUBROUTINE save_mulliken_charges
 
 ! **************************************************************************************************
 !> \brief Write atomic orbital populations and net atomic charges
