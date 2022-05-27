@@ -1940,7 +1940,7 @@ CONTAINS
       CHARACTER(LEN=512)                                 :: error_msg
       CHARACTER(LEN=64)                                  :: char_nshells
       INTEGER :: i, idx, ikind, ipgf, iset, ishell, j, jkind, jpgf, jset, jshell, k, kshell, l, &
-         m(3), max_shell, nseta, nsetb, total_number_of_cells, ub, ub_max
+         m(3), max_shell, nseta, nsetb, perd(3), total_number_of_cells, ub, ub_max
       INTEGER, DIMENSION(:), POINTER                     :: la_max, lb_max, npgfa, npgfb
       LOGICAL                                            :: image_cell_found, nothing_more_to_add
       REAL(dp) :: cross_product(3), dist_min, distance(14), l_min, normal(3, 6), P(3, 14), &
@@ -2069,9 +2069,11 @@ CONTAINS
 
             DEALLOCATE (tmp_neighbor_cells)
 
-            DO ishell = -max_shell, max_shell
-            DO jshell = -max_shell, max_shell
-            DO kshell = -max_shell, max_shell
+            perd(1:3) = x_data%periodic_parameter%perd(1:3)
+
+            DO ishell = -max_shell*perd(1), max_shell*perd(1)
+            DO jshell = -max_shell*perd(2), max_shell*perd(2)
+            DO kshell = -max_shell*perd(3), max_shell*perd(3)
                IF (MAX(ABS(ishell), ABS(jshell), ABS(kshell)) /= max_shell) CYCLE
                idx = 0
                DO j = 0, 1
