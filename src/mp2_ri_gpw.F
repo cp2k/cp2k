@@ -221,7 +221,7 @@ CONTAINS
             CALL mp2_ri_get_block_size( &
                mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin:jspin), &
                homo(ispin:jspin), virtual(ispin:jspin), dimen_RI, unit_nr, block_size, &
-               ngroup, num_integ_group, my_open_shell_ss, calc_forces)
+               ngroup, num_integ_group, my_open_shell_ss, calc_forces, buffer_1D)
 
             ! *****************************************************************
             ! **********  REPLICATION-BLOCKED COMMUNICATION SCHEME  ***********
@@ -279,9 +279,6 @@ CONTAINS
                   local_j_aL = 0.0_dp
                   CALL fill_local_i_aL(local_j_aL(:, :, 1:my_block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
                                        BIb_C(jspin)%array(:, :, my_j:my_j + my_block_size - 1))
-
-                  IF (para_env_exchange%num_pe > 1) &
-                     ALLOCATE (buffer_1D(INT(maxsize(gd_array), int_8)*MAXVAL(my_B_size)*my_block_size))
 
                   ! collect data from other proc
                   CALL timeset(routineN//"_comm", handle3)
@@ -346,8 +343,6 @@ CONTAINS
 
                   END DO
 
-                  IF (para_env_exchange%num_pe > 1) DEALLOCATE (buffer_1D)
-
                   CALL timestop(handle3)
 
                   ! loop over the block elements
@@ -371,7 +366,6 @@ CONTAINS
                               local_ba(my_B_virtual_start(jspin):my_B_virtual_end(jspin), :) = &
                                  TRANSPOSE(local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :))
                            END IF
-                           IF (para_env_sub%num_pe > 1) ALLOCATE (buffer_1D(INT(dimen_RI, int_8)*MAXVAL(maxsize(gd_B_virtual))))
                            ! ... and from the other of my subgroup
                            DO proc_shift = 1, para_env_sub%num_pe - 1
                               proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -411,7 +405,6 @@ CONTAINS
                                                     mp2_env%offload_gemm_ctx)
                               END IF
                            END DO
-                           IF (para_env_sub%num_pe > 1) DEALLOCATE (buffer_1D)
                            IF (my_alpha_beta_case .AND. calc_forces) THEN
                               ! Is just an approximation, but the call does not allow it, it ought to be (virtual_i*B_size_j+virtual_j*B_size_i)*dimen_RI
                               CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), my_B_size(ispin) + my_B_size(jspin), dimen_RI)
@@ -456,8 +449,6 @@ CONTAINS
                                     END IF
                                  END DO
                               END DO
-                              IF (para_env_sub%num_pe > 1) &
-                                 ALLOCATE (buffer_1D(1:INT(my_B_size(ispin), int_8)*maxsize(gd_B_virtual(ispin))))
                               ! ... and then with external data
                               DO proc_shift = 1, para_env_sub%num_pe - 1
                                  proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -491,7 +482,6 @@ CONTAINS
                                     END DO
                                  END DO
                               END DO
-                              IF (para_env_sub%num_pe > 1) DEALLOCATE (buffer_1D)
                            END IF
                            CALL timestop(handle3)
 
@@ -502,7 +492,7 @@ CONTAINS
                                                       my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, &
                                                       sub_proc_map, local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
                                                       my_open_shell_ss, Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB), local_ba, &
-                                                      ispin, jspin, dgemm_counter)
+                                                      ispin, jspin, dgemm_counter, buffer_1D)
 
                            END IF
 
@@ -548,12 +538,12 @@ CONTAINS
                                               my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                               num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                               ij_map, ranges_info_array, Y_i_aP(:, :, 1:my_block_size), para_env_exchange, &
-                                              gd_array%sizes, 1)
+                                              gd_array%sizes, 1, buffer_1D)
                   CALL mp2_redistribute_gamma(mp2_env%ri_grad%Gamma_P_ia(jspin)%array, ij_index, my_B_size(jspin), &
                                               my_block_size, my_group_L_size, my_j, my_ij_pairs, ngroup, &
                                               num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                               ij_map, ranges_info_array, Y_j_aP(:, :, 1:my_block_size), para_env_exchange, &
-                                              gd_array%sizes, 2)
+                                              gd_array%sizes, 2, buffer_1D)
                END IF
 
             END DO
@@ -564,6 +554,7 @@ CONTAINS
             DEALLOCATE (ij_map)
             DEALLOCATE (num_ij_pairs)
             DEALLOCATE (local_ab)
+            DEALLOCATE (buffer_1D)
 
             IF (calc_forces) THEN
                DEALLOCATE (Y_i_aP)
@@ -1466,11 +1457,12 @@ CONTAINS
 !> \param num_integ_group ...
 !> \param my_open_shell_ss ...
 !> \param calc_forces ...
+!> \param buffer_1D ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_get_block_size(mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual, &
                                     homo, virtual, dimen_RI, unit_nr, &
                                     block_size, ngroup, num_integ_group, &
-                                    my_open_shell_ss, calc_forces)
+                                    my_open_shell_ss, calc_forces, buffer_1D)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
@@ -1479,11 +1471,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
       INTEGER, INTENT(OUT)                               :: block_size, ngroup, num_integ_group
       LOGICAL, INTENT(IN)                                :: my_open_shell_ss, calc_forces
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: buffer_1D
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_block_size'
 
       INTEGER                                            :: best_block_size, handle, num_IJ_blocks
-      INTEGER(KIND=int_8)                                :: mem
+      INTEGER(KIND=int_8)                                :: buffer_size, mem
       REAL(KIND=dp)                                      :: mem_base, mem_per_blk, mem_per_repl_blk, &
                                                             mem_real
 
@@ -1537,23 +1531,24 @@ CONTAINS
             ELSE
             num_ij_blocks = PRODUCT(homo/best_block_size)
             END IF
-            IF (num_IJ_blocks > ngroup .OR. best_block_size == 1) THEN
+            ! Enforce at least one large block for each subgroup
+            IF ((num_IJ_blocks >= ngroup .AND. num_IJ_blocks > 0) .OR. best_block_size == 1) THEN
                EXIT
             ELSE
                best_block_size = best_block_size - 1
             END IF
          END DO
-      END IF
 
-      IF (SIZE(homo) == 1) THEN
-      IF (my_open_shell_ss) THEN
-         ! check that best_block_size is not bigger than sqrt(homo-1)
-         ! Diagonal elements do not have to be considered
-         best_block_size = MIN(FLOOR(SQRT(REAL(homo(1) - 1, KIND=dp))), best_block_size)
-      ELSE
-         ! check that best_block_size is not bigger than sqrt(homo)
-         best_block_size = MIN(FLOOR(SQRT(REAL(homo(1), KIND=dp))), best_block_size)
-      END IF
+         IF (SIZE(homo) == 1) THEN
+         IF (my_open_shell_ss) THEN
+            ! check that best_block_size is not bigger than sqrt(homo-1)
+            ! Diagonal elements do not have to be considered
+            best_block_size = MIN(FLOOR(SQRT(REAL(homo(1) - 1, KIND=dp))), best_block_size)
+         ELSE
+            ! check that best_block_size is not bigger than sqrt(homo)
+            best_block_size = MIN(FLOOR(SQRT(REAL(homo(1), KIND=dp))), best_block_size)
+         END IF
+         END IF
       END IF
       block_size = best_block_size
 
@@ -1562,6 +1557,13 @@ CONTAINS
             "RI_INFO| Block size:", block_size
          CALL m_flush(unit_nr)
       END IF
+
+      ! Determine recv buffer size (BI_C_recv, external_i_aL, external_ab)
+      buffer_size = MAX(INT(maxsize(gd_array), KIND=int_8)*block_size, INT(MAX(dimen_RI, MAXVAL(virtual)), KIND=int_8)) &
+                    *MAXVAL(maxsize(gd_B_virtual))
+      ! The send buffer has the same size as the recv buffer
+      IF (calc_forces) buffer_size = buffer_size*2
+      ALLOCATE (buffer_1D(buffer_size))
 
       CALL timestop(handle)
 
@@ -1595,12 +1597,13 @@ CONTAINS
 !> \param ispin ...
 !> \param jspin ...
 !> \param dgemm_counter ...
+!> \param buffer_1D ...
 ! **************************************************************************************************
    SUBROUTINE mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
                                  Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
                                  my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, sub_proc_map, local_ab, &
                                  t_ab, my_local_i_aL, my_local_j_aL, open_ss, Y_i_aP, Y_j_aP, &
-                                 local_ba, ispin, jspin, dgemm_counter)
+                                 local_ba, ispin, jspin, dgemm_counter, buffer_1D)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
@@ -1621,15 +1624,16 @@ CONTAINS
          TARGET                                          :: Y_i_aP, Y_j_aP, local_ba
       INTEGER, INTENT(IN)                                :: ispin, jspin
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), TARGET    :: buffer_1D
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_update_P_gamma'
 
       INTEGER :: a, b, b_global, handle, proc_receive, proc_send, proc_shift, rec_B_size, &
          rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, &
          send_B_virtual_start
+      INTEGER(KIND=int_8)                                :: offset
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: external_ab, send_ab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D, buffer_2_1D
       REAL(KIND=dp)                                      :: factor, P_ij_diag
       LOGICAL                                            :: alpha_beta
 
@@ -1707,10 +1711,6 @@ CONTAINS
          mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
       END IF
-      IF (para_env_sub%num_pe > 1) THEN
-         ALLOCATE (buffer_1D(INT(MAX(MAXVAL(virtual), dimen_RI), int_8)*MAXVAL(maxsize(gd_B_virtual))))
-         ALLOCATE (buffer_2_1D(INT(MAXVAL(maxsize(gd_B_virtual)), KIND=int_8)*MAX(MAXVAL(virtual), dimen_RI)))
-      END IF
       DO proc_shift = 1, para_env_sub%num_pe - 1
          proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
@@ -1756,7 +1756,9 @@ CONTAINS
                buffer_1D(1:INT(virtual(ispin), int_8)*my_B_size(ispin))
             external_ab = 0.0_dp
 
-            send_ab(1:send_B_size, 1:virtual(ispin)) => buffer_2_1D(1:INT(send_B_size, int_8)*virtual(ispin))
+            offset = INT(virtual(ispin), int_8)*my_B_size(ispin)
+
+            send_ab(1:send_B_size, 1:virtual(ispin)) => buffer_1D(offset + 1:offset + INT(send_B_size, int_8)*virtual(ispin))
             send_ab = 0.0_dp
 
             CALL offload_dgemm('N', 'T', send_B_size, virtual(ispin), my_B_size(ispin), 1.0_dp, &
@@ -1805,6 +1807,8 @@ CONTAINS
       IF (para_env_sub%num_pe > 1) THEN
          external_ab(1:my_B_size(ispin), 1:dimen_RI) => buffer_1D(1:INT(my_B_size(ispin), int_8)*dimen_RI)
          external_ab = 0.0_dp
+
+         offset = INT(my_B_size(ispin), int_8)*dimen_RI
       END IF
       !
       DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -1814,7 +1818,7 @@ CONTAINS
          CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
          CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
-         send_ab(1:send_B_size, 1:dimen_RI) => buffer_2_1D(1:INT(dimen_RI, int_8)*send_B_size)
+         send_ab(1:send_B_size, 1:dimen_RI) => buffer_1D(offset + 1:offset + INT(dimen_RI, int_8)*send_B_size)
          send_ab = 0.0_dp
          IF (.NOT. alpha_beta) THEN
             CALL offload_dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), 1.0_dp, &
@@ -1841,13 +1845,15 @@ CONTAINS
          IF (para_env_sub%num_pe > 1) THEN
             external_ab(1:my_B_size(jspin), 1:dimen_RI) => buffer_1D(1:INT(my_B_size(jspin), int_8)*dimen_RI)
             external_ab = 0.0_dp
+
+            offset = INT(my_B_size(jspin), int_8)*dimen_RI
          END IF
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
             proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
             CALL get_group_dist(gd_B_virtual(jspin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
-            send_ab(1:send_B_size, 1:dimen_RI) => buffer_2_1D(1:INT(dimen_RI, int_8)*send_B_size)
+            send_ab(1:send_B_size, 1:dimen_RI) => buffer_1D(offset + 1:offset + INT(dimen_RI, int_8)*send_B_size)
             send_ab = 0.0_dp
             CALL offload_dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
                                local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
@@ -1863,7 +1869,6 @@ CONTAINS
       ELSE
          CALL dgemm_counter_stop(dgemm_counter, virtual(ispin), dimen_RI, my_B_size(ispin))
       END IF
-      IF (para_env_sub%num_pe > 1) DEALLOCATE (buffer_2_1D)
 
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha-alpha, beta-beta and closed shell
@@ -1892,7 +1897,6 @@ CONTAINS
 
          CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), dimen_RI, virtual(ispin))
       END IF
-      IF (para_env_sub%num_pe > 1) DEALLOCATE (buffer_1D)
 
       CALL timestop(handle)
    END SUBROUTINE mp2_update_P_gamma
@@ -1917,12 +1921,13 @@ CONTAINS
 !> \param para_env_exchange ...
 !> \param sizes_array ...
 !> \param spin ...
+!> \param buffer_1D ...
 ! **************************************************************************************************
    SUBROUTINE mp2_redistribute_gamma(Gamma_P_ia, ij_index, my_B_size, &
                                      my_block_size, my_group_L_size, my_i, my_ij_pairs, ngroup, &
                                      num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                      ij_map, ranges_info_array, Y_i_aP, para_env_exchange, &
-                                     sizes_array, spin)
+                                     sizes_array, spin, buffer_1D)
 
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Gamma_P_ia
       INTEGER, INTENT(IN)                                :: ij_index, my_B_size, my_block_size, &
@@ -1937,12 +1942,13 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
       INTEGER, INTENT(IN)                                :: spin
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), TARGET    :: buffer_1D
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, Lstart_pos, &
          proc_receive, proc_send, proc_shift, rec_i, rec_ij_index, send_L_size, start_point, tag
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BI_C_rec_1D, BI_C_send_1D
+      INTEGER(KIND=int_8)                                :: offset
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: BI_C_rec, BI_C_send
 
@@ -1976,10 +1982,6 @@ CONTAINS
          CALL timestop(handle2)
 
          ! Y_i_aP(my_B_size,dimen_RI,block_size)
-         IF (para_env_exchange%num_pe > 1) THEN
-            ALLOCATE (BI_C_send_1D(INT(my_B_size, int_8)*my_block_size*MAXVAL(sizes_array)))
-            ALLOCATE (BI_C_rec_1D(INT(my_B_size, int_8)*my_block_size*my_group_L_size))
-         END IF
 
          DO proc_shift = 1, para_env_exchange%num_pe - 1
             proc_send = proc_map(para_env_exchange%mepos + proc_shift)
@@ -1987,7 +1989,10 @@ CONTAINS
 
             send_L_size = sizes_array(proc_send)
             BI_C_send(1:my_B_size, 1:my_block_size, 1:send_L_size) => &
-               BI_C_send_1D(1:INT(my_B_size, int_8)*my_block_size*send_L_size)
+               buffer_1D(1:INT(my_B_size, int_8)*my_block_size*send_L_size)
+
+            offset = INT(my_B_size, int_8)*my_block_size*send_L_size
+
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
@@ -2017,7 +2022,7 @@ CONTAINS
                rec_i = ij_map(spin, ij_counter_rec)
 
                BI_C_rec(1:my_B_size, 1:my_block_size, 1:my_group_L_size) => &
-                  BI_C_rec_1D(1:INT(my_B_size, int_8)*my_block_size*my_group_L_size)
+                  buffer_1D(offset + 1:offset + INT(my_B_size, int_8)*my_block_size*my_group_L_size)
                BI_C_rec = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, &
@@ -2045,10 +2050,7 @@ CONTAINS
 
          END DO
 
-         IF (para_env_exchange%num_pe > 1) DEALLOCATE (BI_C_send_1D, BI_C_rec_1D)
-
       ELSE
-         IF (para_env_exchange%num_pe > 1) ALLOCATE (BI_C_rec_1D(INT(my_B_size, int_8)*my_block_size*my_group_L_size))
          ! noting to send check if we have to receive
          DO proc_shift = 1, para_env_exchange%num_pe - 1
             proc_send = proc_map(para_env_exchange%mepos + proc_shift)
@@ -2063,7 +2065,7 @@ CONTAINS
                rec_i = ij_map(spin, ij_counter_rec)
 
                BI_C_rec(1:my_B_size, 1:my_block_size, 1:my_group_L_size) => &
-                  BI_C_rec_1D(1:INT(my_B_size, int_8)*my_block_size*my_group_L_size)
+                  buffer_1D(1:INT(my_B_size, int_8)*my_block_size*my_group_L_size)
 
                BI_C_rec = 0.0_dp
 
@@ -2084,8 +2086,6 @@ CONTAINS
 
             END IF
          END DO
-
-         IF (para_env_exchange%num_pe > 1) DEALLOCATE (BI_C_rec_1D)
 
       END IF
       CALL timestop(handle)
