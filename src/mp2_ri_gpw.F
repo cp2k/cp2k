@@ -1351,7 +1351,7 @@ CONTAINS
       mem_per_repl = 0.0_dp
       mem_per_repl_blk = 0.0_dp
 
-      ! BIB_C_copy/external_i_aL
+      ! BIB_C_copy
       mem_per_repl = mem_per_repl + MAXVAL(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))* &
                                            maxsize(gd_B_virtual))*8.0_dp/(1024**2)
       ! BIB_C
@@ -1360,21 +1360,25 @@ CONTAINS
       mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
       ! local_i_aL+local_j_aL
       mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
-      ! local_ab+external_ab
-      mem_base = mem_base + 2.0_dp*MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+      ! local_ab
+      mem_base = mem_base + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+      ! external_ab/external_i_aL
+      mem_base = mem_base + REAL(MAX(dimen_RI, MAXVAL(virtual)), KIND=dp)*MAXVAL(maxsize(gd_B_virtual))*8.0_dp/(1024**2)
 
       IF (calc_forces) THEN
          ! Gamma_P_ia
-         mem_per_repl = mem_per_repl + SUM(MAX(REAL(homo, KIND=dp)*maxsize(gd_array), REAL(dimen_RI, KIND=dp))* &
+         mem_per_repl = mem_per_repl + SUM(REAL(homo, KIND=dp)*maxsize(gd_array)* &
                                            maxsize(gd_B_virtual))*8.0_dp/(1024**2)
          ! Y_i_aP+Y_j_aP
          mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
          ! local_ba/t_ab
-         mem_base = mem_base + MAXVAL(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+         mem_base = mem_base + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*MAX(dimen_RI, MAXVAL(virtual))*8.0_dp/(1024**2)
          ! P_ij
          mem_base = mem_base + SUM(REAL(homo, KIND=dp)*homo)*8.0_dp/(1024**2)
          ! P_ab
          mem_base = mem_base + SUM(REAL(virtual, KIND=dp)*maxsize(gd_B_virtual))*8.0_dp/(1024**2)
+         ! send_ab/send_i_aL
+         mem_base = mem_base + REAL(MAX(dimen_RI, MAXVAL(virtual)), KIND=dp)*MAXVAL(maxsize(gd_B_virtual))*8.0_dp/(1024**2)
       END IF
 
       block_size = 1
@@ -1495,20 +1499,20 @@ CONTAINS
       mem_per_blk = 0.0_dp
       mem_per_repl_blk = 0.0_dp
 
-      ! external_i_aL
-      mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
       ! external_ab
-      mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*MAXVAL(virtual)*8.0_dp/(1024**2)
+      mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*MAX(dimen_RI, MAXVAL(virtual))*8.0_dp/(1024**2)
       ! BIB_C_rec
       mem_per_repl_blk = mem_per_repl_blk + REAL(MAXVAL(maxsize(gd_B_virtual)), KIND=dp)*maxsize(gd_array)*8.0_dp/(1024**2)
       ! local_i_aL+local_j_aL
       mem_per_blk = mem_per_blk + 2.0_dp*MAXVAL(maxsize(gd_B_virtual))*REAL(dimen_RI, KIND=dp)*8.0_dp/(1024**2)
+      ! Copy to keep arrays contiguous
+      mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*MAX(dimen_RI, MAXVAL(virtual))*8.0_dp/(1024**2)
 
       IF (calc_forces) THEN
          ! Y_i_aP+Y_j_aP+BIb_C_send
          mem_per_blk = mem_per_blk + 3.0_dp*MAXVAL(maxsize(gd_B_virtual))*dimen_RI*8.0_dp/(1024**2)
          ! send_ab
-         mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*MAXVAL(virtual)*8.0_dp/(1024**2)
+         mem_base = mem_base + MAXVAL(maxsize(gd_B_virtual))*MAX(dimen_RI, MAXVAL(virtual))*8.0_dp/(1024**2)
       END IF
 
       best_block_size = 1
@@ -1616,12 +1620,13 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: virtual
       INTEGER, DIMENSION(-para_env_sub%num_pe:), &
          INTENT(IN)                                      :: sub_proc_map
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
-         TARGET                                          :: local_ab
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), TARGET :: t_ab, my_local_i_aL, my_local_j_aL
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(INOUT), TARGET                           :: local_ab
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(IN), TARGET                              :: t_ab, my_local_i_aL, my_local_j_aL
       LOGICAL, INTENT(IN)                                :: open_ss
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
-         TARGET                                          :: Y_i_aP, Y_j_aP, local_ba
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(INOUT), TARGET                           :: Y_i_aP, Y_j_aP, local_ba
       INTEGER, INTENT(IN)                                :: ispin, jspin
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), TARGET    :: buffer_1D

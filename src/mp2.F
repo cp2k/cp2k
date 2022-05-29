@@ -258,7 +258,7 @@ CONTAINS
          mp2_env%mp2_num_proc = 1
       END IF
 
-      IF (mp2_env%mp2_num_proc <= 1 .OR. mp2_env%mp2_num_proc > para_env%num_pe) THEN
+      IF (mp2_env%mp2_num_proc < 1 .OR. mp2_env%mp2_num_proc > para_env%num_pe) THEN
          CPWARN("GROUP_SIZE is reset because of a too small or too large value.")
          mp2_env%mp2_num_proc = MAX(MIN(para_env%num_pe, mp2_env%mp2_num_proc), 1)
       END IF
