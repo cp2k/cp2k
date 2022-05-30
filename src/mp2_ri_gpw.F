@@ -249,11 +249,12 @@ CONTAINS
             t_start = m_walltime()
             DO ij_index = 1, max_ij_pairs
 
-               IF (unit_nr > 0) THEN
+               ! Prediction is unreliable if we are in the first step of the loop
+               IF (unit_nr > 0 .AND. ij_index > 1) THEN
                   decil = ij_index*10/max_ij_pairs
                   IF (decil /= (ij_index - 1)*10/max_ij_pairs) THEN
                      t_new = m_walltime()
-                     t_new = (t_new - t_start)/60.0_dp*(max_ij_pairs - ij_index + 1)/MAX(ij_index - 1, 1)
+                     t_new = (t_new - t_start)/60.0_dp*(max_ij_pairs - ij_index + 1)/(ij_index - 1)
                      WRITE (unit_nr, FMT="(T3,A)") "Percentage of finished loop: "// &
                         cp_to_string(decil*10)//". Minutes left: "//cp_to_string(t_new)
                      CALL m_flush(unit_nr)
