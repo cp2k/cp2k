@@ -115,12 +115,11 @@ CONTAINS
          name="GROUP_SIZE", &
          variants=(/"NUMBER_PROC"/), &
          description="Group size used in the computation of GPW and MME integrals and the MP2 correlation energy. "// &
-         "A smaller GROUP_SIZE (for example GROUP_SIZE = number of MPI ranks per node) "// &
-         "accelerates the computation of integrals but a too small "// &
-         "GROUP_SIZE may lead to out of memory. To use all processors set GROUP_SIZE -1 "// &
-         "(might lead to VERY high computation times). GROUP_SIZE must be a divisor of the total number "// &
-         "of MPI ranks.", &
-         usage="GROUP_SIZE 32", &
+         "The group size must be a divisor of the total number of MPI ranks. "// &
+         "A smaller group size (for example the number of MPI ranks per node) "// &
+         "accelerates the computation of integrals but a too large group size increases communication costs. "// &
+         "A too small group size may lead to out of memory.", &
+         usage="GROUP_SIZE 2", &
          default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

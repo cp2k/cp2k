@@ -16,7 +16,7 @@
             EPS_CONV 1.0E-4
             MAX_ITER 20
           &END
-          BLOCK_SIZE 1
+          BLOCK_SIZE -1
         &END RI_MP2
         &INTEGRALS
           &WFC_GPW
