@@ -445,26 +445,24 @@ CONTAINS
 !> \author  Bo Thomsen (BT)
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE save_mulliken_charges(orbpop, atomic_kind_set, qs_kind_set, particle_set, qs_env)      
+   SUBROUTINE save_mulliken_charges(orbpop, atomic_kind_set, qs_kind_set, particle_set, qs_env)
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: orbpop
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
-   
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_save
+
       CHARACTER(LEN=default_string_length)               :: description
-      TYPE(cp_result_type), POINTER                      :: results
-      INTEGER                                            :: iao, iatom, ikind, iset, isgf, &
-                                                            ishell, iso, l, natom, nset, nsgf, &
-                                                            nspin
+      INTEGER                                            :: iao, iatom, ikind, iset, isgf, ishell, &
+                                                            iso, l, natom, nset, nsgf, nspin
       INTEGER, DIMENSION(:), POINTER                     :: nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
       REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), DIMENSION(3)                        :: sumorbpop
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_save
+      TYPE(cp_result_type), POINTER                      :: results
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      
-      
+
       NULLIFY (lshell)
       NULLIFY (nshell)
       NULLIFY (orb_basis_set)
@@ -481,7 +479,7 @@ CONTAINS
       NULLIFY (results)
       CALL get_qs_env(qs_env, results=results)
       ALLOCATE (charges_save(natom))
-      
+
       iao = 1
       DO iatom = 1, natom
          sumorbpop(:) = 0.0_dp
@@ -517,16 +515,15 @@ CONTAINS
             END IF
          END IF ! atom has an orbital basis
       END DO ! next atom iatom
-      
+
       ! Store charges in results
       description = "[MULLIKEN-CHARGES]"
       CALL cp_results_erase(results=results, description=description)
-      CALL put_results(results=results, description=description, & 
+      CALL put_results(results=results, description=description, &
                        values=charges_save)
 
       DEALLOCATE (charges_save)
 
-      
    END SUBROUTINE save_mulliken_charges
 
 ! **************************************************************************************************

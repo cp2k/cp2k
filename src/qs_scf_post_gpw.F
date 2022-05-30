@@ -60,8 +60,8 @@ MODULE qs_scf_post_gpw
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
                                               comp_hirshfeld_i_charges,&
                                               create_shape_function,&
-                                              write_hirshfeld_charges,&
-                                              save_hirshfeld_charges
+                                              save_hirshfeld_charges,&
+                                              write_hirshfeld_charges
    USE hirshfeld_types,                 ONLY: create_hirshfeld_type,&
                                               hirshfeld_type,&
                                               release_hirshfeld_type,&
