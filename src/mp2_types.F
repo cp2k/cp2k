@@ -224,9 +224,9 @@ MODULE mp2_types
    END TYPE
 
    TYPE grad_util
-      TYPE(two_dim_real_array), DIMENSION(2) :: P_ij, P_ab, Gamma_PQ, Gamma_PQ_2
+      TYPE(two_dim_real_array), DIMENSION(2) :: P_ij, P_ab
       TYPE(three_dim_real_array), DIMENSION(2) :: Gamma_P_ia
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: operator_half, PQ_half
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: operator_half, PQ_half, Gamma_PQ, Gamma_PQ_2
       TYPE(dbcsr_p_type), DIMENSION(:, :), ALLOCATABLE :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: mo_coeff_o, mo_coeff_v
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:) :: P_mo, W_mo, L_jb

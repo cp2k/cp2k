@@ -198,19 +198,15 @@ CONTAINS
 
       ALLOCATE (G_PQ_local(dimen_RI, my_group_L_size))
       G_PQ_local = 0.0_dp
-      DO ispin = 1, nspins
-         G_PQ_local(my_P_start:my_P_end, :) = G_PQ_local(my_P_start:my_P_end, :) + mp2_env%ri_grad%Gamma_PQ(ispin)%array
-         DEALLOCATE (mp2_env%ri_grad%Gamma_PQ(ispin)%array)
-      END DO
+      G_PQ_local(my_P_start:my_P_end, :) = mp2_env%ri_grad%Gamma_PQ
+      DEALLOCATE (mp2_env%ri_grad%Gamma_PQ)
       G_PQ_local(my_P_start:my_P_end, :) = G_PQ_local(my_P_start:my_P_end, :)/REAL(nspins, dp)
       CALL mp_sum(G_PQ_local, para_env_sub%group)
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
          ALLOCATE (G_PQ_local_2(dimen_RI, my_group_L_size))
          G_PQ_local_2 = 0.0_dp
-         DO ispin = 1, nspins
-            G_PQ_local_2(my_P_start:my_P_end, :) = G_PQ_local_2(my_P_start:my_P_end, :) + mp2_env%ri_grad%Gamma_PQ_2(ispin)%array
-            DEALLOCATE (mp2_env%ri_grad%Gamma_PQ_2(ispin)%array)
-         END DO
+         G_PQ_local_2(my_P_start:my_P_end, :) = mp2_env%ri_grad%Gamma_PQ_2
+         DEALLOCATE (mp2_env%ri_grad%Gamma_PQ_2)
          G_PQ_local_2(my_P_start:my_P_end, :) = G_PQ_local_2(my_P_start:my_P_end, :)/REAL(nspins, dp)
          CALL mp_sum(G_PQ_local_2, para_env_sub%group)
       END IF

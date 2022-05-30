@@ -105,7 +105,7 @@ CONTAINS
                                                             pos_sub
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, Gamma_2D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, Gamma_2D, Gamma_PQ
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ia, fm_struct_RI
       TYPE(cp_fm_type), POINTER :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_2, fm_Gamma_PQ_temp, &
@@ -281,22 +281,34 @@ CONTAINS
                     para_env_sub%num_pe, ngroup, &
                     fm_Gamma)
 
-      ALLOCATE (mp2_env%ri_grad%Gamma_PQ(kspin)%array(my_P_size, my_group_L_size))
-      CALL fm2array(mp2_env%ri_grad%Gamma_PQ(kspin)%array, dimen_RI, dimen_RI, para_env, &
+      ALLOCATE (Gamma_PQ(my_P_size, my_group_L_size))
+      CALL fm2array(Gamma_PQ, dimen_RI, dimen_RI, para_env, &
                     my_P_size, my_P_start, my_P_end, &
                     my_group_L_size, my_group_L_start, my_group_L_end, &
                     group_grid_2_mepos, mepos_2_grid_group, &
                     para_env_sub%num_pe, ngroup, &
                     fm_Gamma_PQ)
+      IF (.NOT. ALLOCATED(mp2_env%ri_grad%Gamma_PQ)) THEN
+         CALL MOVE_ALLOC(Gamma_PQ, mp2_env%ri_grad%Gamma_PQ)
+      ELSE
+         mp2_env%ri_grad%Gamma_PQ(:, :) = mp2_env%ri_grad%Gamma_PQ + Gamma_PQ
+         DEALLOCATE (Gamma_PQ)
+      END IF
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         ALLOCATE (mp2_env%ri_grad%Gamma_PQ_2(kspin)%array(my_P_size, my_group_L_size))
-         CALL fm2array(mp2_env%ri_grad%Gamma_PQ_2(kspin)%array, dimen_RI, dimen_RI, para_env, &
+         ALLOCATE (Gamma_PQ(my_P_size, my_group_L_size))
+         CALL fm2array(Gamma_PQ, dimen_RI, dimen_RI, para_env, &
                        my_P_size, my_P_start, my_P_end, &
                        my_group_L_size, my_group_L_start, my_group_L_end, &
                        group_grid_2_mepos, mepos_2_grid_group, &
                        para_env_sub%num_pe, ngroup, &
                        fm_Gamma_PQ_2)
+         IF (.NOT. ALLOCATED(mp2_env%ri_grad%Gamma_PQ_2)) THEN
+            CALL MOVE_ALLOC(Gamma_PQ, mp2_env%ri_grad%Gamma_PQ_2)
+         ELSE
+            mp2_env%ri_grad%Gamma_PQ_2(:, :) = mp2_env%ri_grad%Gamma_PQ_2 + Gamma_PQ
+            DEALLOCATE (Gamma_PQ)
+         END IF
       END IF
 
       ! create the Gamma_ia_P in DBCSR style
