@@ -238,15 +238,15 @@ CONTAINS
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
          mem_min, mem_per_group, mem_real, needed_mem
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
                                                             fm_mat_S_gw
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, fm_mat_S_ab_bse, &
+      TYPE(cp_fm_p_type), DIMENSION(1)                   :: fm_mat_R_gw, fm_mat_S_ab_bse, &
                                                             fm_mat_S_ij_bse
       TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
       TYPE(two_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: BIb_C_2D, BIb_C_2D_gw
+      TYPE(two_dim_real_array), DIMENSION(1)             :: BIb_C_2D_bse_ab, BIb_C_2D_bse_ij
 
       CALL timeset(routineN, handle)
 
@@ -518,7 +518,7 @@ CONTAINS
 
          dimen_homo_square = homo(1)**2
 
-         CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
+         CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij(1)%array, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
                                  homo(1), homo(1), gd_B_occ_bse, &
                                  sub_proc_map, my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
 
@@ -531,7 +531,7 @@ CONTAINS
 
          dimen_virt_square = virtual(1)**2
 
-         CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
+         CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(1)%array, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
                                  virtual(1), virtual(1), gd_B_virt_bse, &
                                  sub_proc_map, my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
 
@@ -556,75 +556,35 @@ CONTAINS
             NULLIFY (fm_mat_Q(ispin)%matrix)
          END DO
          NULLIFY (fm_mat_Q_gemm(1)%matrix, fm_mat_S(1)%matrix)
-         IF (my_open_shell) THEN
-            CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                                  dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
-                                  mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                                  my_ia_size(1), my_ia_start(1), my_ia_end(1), &
-                                  my_group_L_size, my_group_L_start, my_group_L_end, &
-                                  para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
-                                  do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix, &
-                                  fm_mat_Q_beta=fm_mat_Q(2)%matrix)
-         ELSE
-            CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                                  dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
-                                  mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                                  my_ia_size(1), my_ia_start(1), my_ia_end(1), &
-                                  my_group_L_size, my_group_L_start, my_group_L_end, &
-                                  para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
-                                  do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix)
-         END IF
       ELSE
-      ALLOCATE (fm_mat_Q(nspins), fm_mat_Q_gemm(nspins), fm_mat_S(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (fm_mat_Q(ispin)%matrix, fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix)
-      END DO
-      CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                            dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
+         ALLOCATE (fm_mat_Q(nspins), fm_mat_Q_gemm(nspins), fm_mat_S(nspins))
+         DO ispin = 1, nspins
+            NULLIFY (fm_mat_Q(ispin)%matrix, fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix)
+         END DO
+      END IF
+
+      CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                            dimen_RI_red, dimen_ia, dimen_ia, color_rpa_group, &
                             mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                            my_ia_size(1), my_ia_start(1), my_ia_end(1), &
+                            my_ia_size, my_ia_start, my_ia_end, &
                             my_group_L_size, my_group_L_start, my_group_L_end, &
-                            para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
-                            do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix)
+                            para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
+                            do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q)
 
-      IF (my_open_shell) THEN
-
-         CALL create_integ_mat(BIb_C_2D(2)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_ia(2), dimen_ia(2), color_rpa_group, &
-                               mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               my_ia_size(2), my_ia_start(2), my_ia_end(2), &
-                               my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S(2)%matrix, nrow_block_mat, ncol_block_mat, &
-                               fm_mat_Q(1)%matrix%matrix_struct%context, &
-                               fm_mat_Q_gemm=fm_mat_Q_gemm(2)%matrix, fm_mat_Q=fm_mat_Q(2)%matrix)
-
-      END IF
-      END IF
       DEALLOCATE (BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
 
       ! for GW, we need other matrix fm_mat_S, always allocate the container to prevent crying compilers
       ALLOCATE (fm_mat_S_gw(nspins))
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
 
-         CALL create_integ_mat(BIb_C_2D_gw(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_nm_gw, dimen_ia(1), color_rpa_group, &
+         CALL create_integ_mat(BIb_C_2D_gw, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                               dimen_RI_red, [dimen_nm_gw, dimen_nm_gw], [dimen_ia(1), dimen_ia(1)], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
+                               [my_nm_gw_size, my_nm_gw_size], [my_nm_gw_start, my_nm_gw_start], [my_nm_gw_end, my_nm_gw_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S_gw(1)%matrix, nrow_block_mat, ncol_block_mat, &
+                               para_env_RPA, fm_mat_S_gw, nrow_block_mat, ncol_block_mat, &
                                fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context, &
                                fm_mat_Q=fm_mat_R_gw)
-
-         IF (my_open_shell) THEN
-            CALL create_integ_mat(BIb_C_2D_gw(2)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                                  dimen_RI_red, dimen_nm_gw, dimen_ia(1), color_rpa_group, &
-                                  mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                                  my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
-                                  my_group_L_size, my_group_L_start, my_group_L_end, &
-                                  para_env_RPA, fm_mat_S_gw(2)%matrix, nrow_block_mat, ncol_block_mat, &
-                                  fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
-
-         END IF
          DEALLOCATE (BIb_C_2D_gw)
 
       END IF
@@ -633,20 +593,19 @@ CONTAINS
       IF (do_bse) THEN
 
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_homo_square, dimen_ia(1), color_rpa_group, &
+                               dimen_RI_red, [dimen_homo_square], [dimen_ia(1)], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, &
+                               [my_ij_comb_bse_size], [my_ij_comb_bse_start], [my_ij_comb_bse_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ij_bse, nrow_block_mat, ncol_block_mat, &
                                fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_virt_square, dimen_ia(1), color_rpa_group, &
+                               dimen_RI_red, [dimen_virt_square], [dimen_ia(1)], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, &
+                               [my_ab_comb_bse_size], [my_ab_comb_bse_start], [my_ab_comb_bse_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S_ab_bse, &
-                               nrow_block_mat, ncol_block_mat, &
+                               para_env_RPA, fm_mat_S_ab_bse, nrow_block_mat, ncol_block_mat, &
                                fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
       END IF
@@ -661,8 +620,8 @@ CONTAINS
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
-                       fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
-                       fm_mat_S_ij_bse, fm_mat_S_ij_bse, &
+                       fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw(1)%matrix, &
+                       fm_mat_S_ij_bse(1)%matrix, fm_mat_S_ab_bse(1)%matrix, &
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
                        do_minimax_quad, &
                        do_im_time, mo_coeff, &
@@ -697,12 +656,12 @@ CONTAINS
             CALL cp_fm_release(fm_mat_S_gw(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_S_gw)
-         CALL cp_fm_release(fm_mat_R_gw)
+         CALL cp_fm_release(fm_mat_R_gw(1)%matrix)
       END IF
 
       IF (do_bse) THEN
-         CALL cp_fm_release(fm_mat_S_ij_bse)
-         CALL cp_fm_release(fm_mat_S_ab_bse)
+         CALL cp_fm_release(fm_mat_S_ij_bse(1)%matrix)
+         CALL cp_fm_release(fm_mat_S_ab_bse(1)%matrix)
       END IF
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
@@ -1104,7 +1063,6 @@ CONTAINS
 !> \param do_im_time ...
 !> \param fm_mat_Q_gemm ...
 !> \param fm_mat_Q ...
-!> \param fm_mat_Q_beta ...
 ! **************************************************************************************************
    SUBROUTINE create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI, dimen_ia, dimen_ia_for_block_size, color_rpa_group, &
@@ -1113,28 +1071,30 @@ CONTAINS
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
                                blacs_env_ext, blacs_env_ext_S, &
-                               do_im_time, fm_mat_Q_gemm, fm_mat_Q, &
-                               fm_mat_Q_beta)
+                               do_im_time, fm_mat_Q_gemm, fm_mat_Q)
 
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+      TYPE(two_dim_real_array), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C_2D
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
-      INTEGER, INTENT(IN) :: color_sub, ngroup, integ_group_size, dimen_RI, dimen_ia, &
-         dimen_ia_for_block_size, color_rpa_group, ext_row_block_size, ext_col_block_size, &
-         unit_nr, my_ia_size, my_ia_start, my_ia_end, my_group_L_size, my_group_L_start, &
-         my_group_L_end
+      INTEGER, INTENT(IN)                                :: color_sub, ngroup, integ_group_size, &
+                                                            dimen_RI
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia, dimen_ia_for_block_size
+      INTEGER, INTENT(IN)                                :: color_rpa_group, ext_row_block_size, &
+                                                            ext_col_block_size, unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: my_ia_size, my_ia_start, my_ia_end
+      INTEGER, INTENT(IN)                                :: my_group_L_size, my_group_L_start, &
+                                                            my_group_L_end
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: fm_mat_S
       INTEGER, INTENT(INOUT)                             :: nrow_block_mat, ncol_block_mat
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext, blacs_env_ext_S
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_mat_Q_gemm, fm_mat_Q, fm_mat_Q_beta
+      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL         :: fm_mat_Q_gemm, fm_mat_Q
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_integ_mat'
 
-      INTEGER                                            :: grid_2D(2), handle, handle2, iproc, &
-                                                            iproc_col, iproc_row, &
-                                                            mepos_in_RPA_group, &
+      INTEGER                                            :: grid_2D(2), handle, iproc, iproc_col, &
+                                                            iproc_row, ispin, mepos_in_RPA_group, &
                                                             row_col_proc_ratio, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos
       LOGICAL                                            :: my_blacs_ext, my_blacs_S_ext, &
@@ -1155,155 +1115,148 @@ CONTAINS
       my_do_im_time = .FALSE.
       IF (PRESENT(do_im_time)) my_do_im_time = do_im_time
 
-      ! create the RPA blacs env
-      IF (my_blacs_S_ext) THEN
-         NULLIFY (blacs_env)
-         blacs_env => blacs_env_ext_S
+      NULLIFY (blacs_env)
+
+      DO ispin = 1, SIZE(BIb_C_2D)
+         IF (.NOT. ASSOCIATED(blacs_env)) THEN
+            ! create the RPA blacs env
+            IF (my_blacs_S_ext) THEN
+               NULLIFY (blacs_env)
+               blacs_env => blacs_env_ext_S
+            ELSE
+               NULLIFY (blacs_env)
+               IF (para_env_RPA%num_pe > 1) THEN
+                  row_col_proc_ratio = dimen_ia_for_block_size(1)/dimen_RI
+                  row_col_proc_ratio = MAX(1, row_col_proc_ratio)
+
+                  iproc_row = MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1), para_env_RPA%num_pe) + 1
+                  DO iproc = 1, para_env_RPA%num_pe
+                     iproc_row = iproc_row - 1
+                     IF (MOD(para_env_RPA%num_pe, iproc_row) == 0) EXIT
+                  END DO
+
+                  iproc_col = para_env_RPA%num_pe/iproc_row
+                  grid_2D(1) = iproc_row
+                  grid_2D(2) = iproc_col
+               ELSE
+                  grid_2D = 1
+               END IF
+               CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2d)
+
+               IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
+                  WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                     "MATRIX_INFO| Number row processes:", grid_2D(1)
+                  WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                     "MATRIX_INFO| Number column processes:", grid_2D(2)
+               END IF
+
+               ! define the block_size for the row
+               IF (ext_row_block_size > 0) THEN
+                  nrow_block_mat = ext_row_block_size
+               ELSE
+                  nrow_block_mat = dimen_ia_for_block_size(1)/grid_2D(1)/2
+                  nrow_block_mat = MAX(nrow_block_mat, 1)
+               END IF
+
+               ! define the block_size for the column
+               IF (ext_col_block_size > 0) THEN
+                  ncol_block_mat = ext_col_block_size
+               ELSE
+                  ncol_block_mat = dimen_RI/grid_2D(2)/2
+                  ncol_block_mat = MAX(ncol_block_mat, 1)
+               END IF
+
+               IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
+                  WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                     "MATRIX_INFO| Row block size:", nrow_block_mat
+                  WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                     "MATRIX_INFO| Column block size:", ncol_block_mat
+               END IF
+            END IF
+         END IF
+
          NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia, &
-                                  ncol_global=dimen_RI, para_env=para_env_RPA)
-      ELSE
-         NULLIFY (blacs_env)
-         IF (para_env_RPA%num_pe > 1) THEN
-            row_col_proc_ratio = dimen_ia_for_block_size/dimen_RI
-            row_col_proc_ratio = MAX(1, row_col_proc_ratio)
-
-            iproc_row = MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1), para_env_RPA%num_pe) + 1
-            DO iproc = 1, para_env_RPA%num_pe
-               iproc_row = iproc_row - 1
-               IF (MOD(para_env_RPA%num_pe, iproc_row) == 0) EXIT
-            END DO
-
-            iproc_col = para_env_RPA%num_pe/iproc_row
-            grid_2D(1) = iproc_row
-            grid_2D(2) = iproc_col
+         IF (my_blacs_ext) THEN
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia(ispin), &
+                                     ncol_global=dimen_RI, para_env=para_env_RPA)
          ELSE
-            grid_2D = 1
-         END IF
-         CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2d)
-
-         IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MATRIX_INFO| Number row processes:", grid_2D(1)
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MATRIX_INFO| Number column processes:", grid_2D(2)
-         END IF
-
-         ! define the block_size for the row
-         IF (ext_row_block_size > 0) THEN
-            nrow_block_mat = ext_row_block_size
-         ELSE
-            nrow_block_mat = dimen_ia_for_block_size/grid_2D(1)/2
-            nrow_block_mat = MAX(nrow_block_mat, 1)
-         END IF
-
-         ! define the block_size for the column
-         IF (ext_col_block_size > 0) THEN
-            ncol_block_mat = ext_col_block_size
-         ELSE
-            ncol_block_mat = dimen_RI/grid_2D(2)/2
-            ncol_block_mat = MAX(ncol_block_mat, 1)
-         END IF
-
-         IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MATRIX_INFO| Row block size:", nrow_block_mat
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MATRIX_INFO| Column block size:", ncol_block_mat
-         END IF
-
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia, &
-                                  ncol_global=dimen_RI, para_env=para_env_RPA, &
-                                  nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
-
-      END IF ! external blacs_env
-
-      ! for imaginary time we do not need the fm_mat_S
-      IF (.NOT. my_do_im_time) THEN
-
-         CALL create_group_dist(gd_ia, my_ia_start, my_ia_end, my_ia_size, para_env_RPA)
-         CALL create_group_dist(gd_L, my_group_L_start, my_group_L_end, my_group_L_size, para_env_RPA)
-
-         ! create the info array
-
-         mepos_in_RPA_group = MOD(color_sub, integ_group_size)
-         ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe - 1, 0:integ_group_size - 1))
-         group_grid_2_mepos = 0
-         group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
-         CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
-
-         CALL array2fm(BIb_C_2D, fm_struct, dimen_ia, dimen_RI, para_env_RPA, &
-                       my_ia_start, my_ia_end, my_group_L_start, my_group_L_end, gd_ia, gd_L, &
-                       group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S, &
-                       integ_group_size, color_rpa_group)
-
-         CALL cp_fm_struct_release(fm_struct)
-
-         ! deallocate the info array
-         CALL release_group_dist(gd_L)
-         CALL release_group_dist(gd_ia)
-
-         ! mp_sum the local data across processes belonging to different RPA group.
-         ! first create the para_env then mp_sum
-         sub_sub_color = para_env_RPA%mepos
-         CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
-
-         CALL timeset(routineN//"_sum", handle2)
-         CALL mp_sum(fm_mat_S%local_data, para_env_exchange%group)
-         CALL timestop(handle2)
-
-         CALL cp_para_env_release(para_env_exchange)
-
-      END IF ! not imag. time
-
-      CALL cp_fm_struct_release(fm_struct)
-
-      IF (PRESENT(fm_mat_Q_gemm)) THEN
-         IF (.NOT. my_do_im_time) THEN
-            ! create the Q matrix dimen_RIxdimen_RI where the result of the mat-mat-mult will be stored
-            NULLIFY (fm_mat_Q_gemm)
-            NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia(ispin), &
                                      ncol_global=dimen_RI, para_env=para_env_RPA, &
                                      nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
-            CALL cp_fm_create(fm_mat_Q_gemm, fm_struct, name="fm_mat_Q_gemm")
+
+         END IF ! external blacs_env
+
+         ! for imaginary time we do not need the fm_mat_S
+         IF (.NOT. my_do_im_time) THEN
+
+            CALL create_group_dist(gd_ia, my_ia_start(ispin), my_ia_end(ispin), my_ia_size(ispin), para_env_RPA)
+            CALL create_group_dist(gd_L, my_group_L_start, my_group_L_end, my_group_L_size, para_env_RPA)
+
+            ! create the info array
+
+            mepos_in_RPA_group = MOD(color_sub, integ_group_size)
+            ALLOCATE (group_grid_2_mepos(0:para_env_sub%num_pe - 1, 0:integ_group_size - 1))
+            group_grid_2_mepos = 0
+            group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
+            CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
+
+            CALL array2fm(BIb_C_2D(ispin)%array, fm_struct, dimen_ia(ispin), dimen_RI, para_env_RPA, &
+                          my_ia_start(ispin), my_ia_end(ispin), my_group_L_start, my_group_L_end, gd_ia, gd_L, &
+                          group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S(ispin)%matrix, &
+                          integ_group_size, color_rpa_group)
+
+            DEALLOCATE (group_grid_2_mepos)
             CALL cp_fm_struct_release(fm_struct)
 
-            CALL cp_fm_set_all(matrix=fm_mat_Q_gemm, alpha=0.0_dp)
-         END IF
+            ! deallocate the info array
+            CALL release_group_dist(gd_L)
+            CALL release_group_dist(gd_ia)
+
+            ! mp_sum the local data across processes belonging to different RPA group.
+            ! first create the para_env then mp_sum
+            sub_sub_color = para_env_RPA%mepos
+            CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
+
+            CALL mp_sum(fm_mat_S(ispin)%matrix%local_data, para_env_exchange%group)
+
+            CALL cp_para_env_release(para_env_exchange)
+
+         END IF ! not imag. time
+
+         CALL cp_fm_struct_release(fm_struct)
+      END DO
+
+      IF (PRESENT(fm_mat_Q_gemm) .AND. .NOT. my_do_im_time) THEN
+         ! create the Q matrix dimen_RIxdimen_RI where the result of the mat-mat-mult will be stored
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
+                                  ncol_global=dimen_RI, para_env=para_env_RPA, &
+                                  nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
+         DO ispin = 1, SIZE(fm_mat_Q_gemm)
+            NULLIFY (fm_mat_Q_gemm(ispin)%matrix)
+            CALL cp_fm_create(fm_mat_Q_gemm(ispin)%matrix, fm_struct, name="fm_mat_Q_gemm")
+         END DO
+         CALL cp_fm_struct_release(fm_struct)
       END IF
 
       IF (PRESENT(fm_mat_Q)) THEN
-         ! create the Q matrix with a different blacs env
-         NULLIFY (blacs_env_Q)
+         NULLIFY(blacs_env_Q)
          IF (my_blacs_ext) THEN
             blacs_env_Q => blacs_env_ext
          ELSE
             CALL cp_blacs_env_create(blacs_env=blacs_env_Q, para_env=para_env_RPA)
          END IF
-
-         NULLIFY (fm_mat_Q)
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
                                   ncol_global=dimen_RI, para_env=para_env_RPA)
-         CALL cp_fm_create(fm_mat_Q, fm_struct, name="fm_mat_Q")
+         DO ispin = 1, SIZE(fm_mat_Q)
+            NULLIFY (fm_mat_Q(ispin)%matrix)
+            CALL cp_fm_create(fm_mat_Q(ispin)%matrix, fm_struct, name="fm_mat_Q")
+         END DO
 
          CALL cp_fm_struct_release(fm_struct)
 
-         CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)
-      END IF
-
-      IF (PRESENT(fm_mat_Q_beta)) THEN
-         NULLIFY (fm_mat_Q_beta)
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
-                                  ncol_global=dimen_RI, para_env=para_env_RPA)
-         CALL cp_fm_create(fm_mat_Q_beta, fm_struct, name="fm_mat_Q_beta")
-
-         CALL cp_fm_struct_release(fm_struct)
-
-         CALL cp_fm_set_all(matrix=fm_mat_Q_beta, alpha=0.0_dp)
+         IF (.NOT. my_blacs_ext) CALL cp_blacs_env_release(blacs_env_Q)
       END IF
 
       ! release blacs_env
