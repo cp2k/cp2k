@@ -5,26 +5,26 @@
 # the order will be regularly checked and modified...
 QS/regtest-rpa-cubic-scaling                                libint
 QS/regtest-rpa-cubic-scaling-2                              libint
-QS/regtest-double-hybrid-stress-numer-laplace               libint libxc
+QS/regtest-double-hybrid-stress-numer-laplace               libxc
 QS/regtest-ec-force-meta                                    libxc
-QS/regtest-double-hybrid-grad-laplace                       libint libxc
-QS/regtest-double-hybrid-stress-numer-meta                  libint libxc
-QS/regtest-double-hybrid-grad-numer-meta                    libint libxc
-QS/regtest-double-hybrid-stress-meta                        libint libxc
-QS/regtest-double-hybrid-grad-meta                          libint libxc
+QS/regtest-double-hybrid-grad-laplace                       libxc
+QS/regtest-double-hybrid-stress-numer-meta                  libxc
+QS/regtest-double-hybrid-grad-numer-meta                    libxc
+QS/regtest-double-hybrid-stress-meta                        libxc
+QS/regtest-double-hybrid-grad-meta                          libxc
 QS/regtest-admm-libxc                                       libint libxc
 QS/regtest-mp2-admm-stress-numer                            libint
 QS/regtest-mp2-admm-grad-numer                              libint
-QS/regtest-double-hybrid-stress-numer                       libint
-QS/regtest-double-hybrid-grad-numer                         libint
+QS/regtest-double-hybrid-stress-numer                       
+QS/regtest-double-hybrid-grad-numer                         
 QS/regtest-mp2-admm-stress                                  libint
 QS/regtest-mp2-lr-grad                                      libint
 QS/regtest-mp2-lr-stress                                    libint
 QS/regtest-ri-mp2-opt                                       libint
 QS/regtest-mp2-block                                        libint parallel mpiranks%2==0
 QS/regtest-mp2-admm-grad                                    libint
-QS/regtest-double-hybrid-stress                             libint
-QS/regtest-double-hybrid-grad                               libint
+QS/regtest-double-hybrid-stress                             
+QS/regtest-double-hybrid-grad                               
 QS/regtest-hfx-ri-2                                         libint libxc
 QS/regtest-rma                                              libint mpi3
 LIBTEST/libvori                                             libvori
@@ -113,7 +113,6 @@ QMMM/QS/regtest-1
 QS/regtest-ps-implicit-2-1
 QS/regtest-as-1                                             libint
 Fist/regtest-12
-QS/regtest-ri-rpa                                           libint
 QS/regtest-nmr-uks-1
 QS/regtest-libxc                                            libxc libint
 SE/regtest-3-2
