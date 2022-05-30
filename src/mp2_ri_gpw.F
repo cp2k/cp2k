@@ -554,7 +554,6 @@ CONTAINS
             DEALLOCATE (ij_map)
             DEALLOCATE (num_ij_pairs)
             DEALLOCATE (local_ab)
-            DEALLOCATE (buffer_1D)
 
             IF (calc_forces) THEN
                DEALLOCATE (Y_i_aP)
@@ -577,9 +576,11 @@ CONTAINS
                   my_B_size(ispin:jspin), ngroup, num_integ_group, my_group_L_size, &
                   color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                   my_B_virtual_start(ispin:jspin), my_B_virtual_end(ispin:jspin), gd_array%sizes, gd_B_virtual(ispin:jspin), &
-                  sub_proc_map, integ_group_pos2color_sub, dgemm_counter)
+                  sub_proc_map, integ_group_pos2color_sub, dgemm_counter, buffer_1D)
 
             END IF
+
+            DEALLOCATE (buffer_1D)
 
             ! Dereplicate BIb_C and Gamma_P_ia to save memory
             ! These matrices will not be needed in that fashion anymore
@@ -2124,13 +2125,14 @@ CONTAINS
 !> \param sub_proc_map ...
 !> \param integ_group_pos2color_sub ...
 !> \param dgemm_counter ...
+!> \param buffer_1D ...
 ! **************************************************************************************************
    SUBROUTINE quasi_degenerate_P_ij(mp2_env, Eigenval, homo, virtual, open_shell, &
                                     beta_beta, Bib_C, unit_nr, dimen_RI, &
                                     my_B_size, ngroup, num_integ_group, my_group_L_size, &
                                     color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                                     my_B_virtual_start, my_B_virtual_end, sizes_array, gd_B_virtual, &
-                                    sub_proc_map, integ_group_pos2color_sub, dgemm_counter)
+                                    sub_proc_map, integ_group_pos2color_sub, dgemm_counter, buffer_1D)
       TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
@@ -2150,6 +2152,7 @@ CONTAINS
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map, integ_group_pos2color_sub
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), TARGET    :: buffer_1D
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'quasi_degenerate_P_ij'
 
@@ -2164,8 +2167,8 @@ CONTAINS
       LOGICAL                                            :: alpha_beta
       REAL(KIND=dp)                                      :: amp_fac, P_ij_elem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         TARGET                                          :: BI_C_rec, external_ab, external_aL, &
-                                                            local_ab, local_aL, t_ab
+         TARGET                                          :: local_ab, local_aL, t_ab
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: BI_C_rec, external_ab, external_aL
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: ijk_map
 
       CALL timeset(routineN//"_ij_sing", handle)
@@ -2240,7 +2243,7 @@ CONTAINS
                   send_ijk_index = num_ijk(proc_send, ispin)
 
                   rec_L_size = sizes_array(proc_receive)
-                  ALLOCATE (BI_C_rec(rec_L_size, size_B_i))
+                  BI_C_rec(1:rec_L_size, 1:size_B_i) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_i)
 
                   IF (ijk_index <= send_ijk_index) THEN
                      ! something to send
@@ -2322,17 +2325,13 @@ CONTAINS
                   IF ((my_i /= my_k .AND. my_j /= my_k) .OR. alpha_beta) THEN
                      IF ((send_i /= send_k .AND. send_j /= send_k) .OR. alpha_beta) THEN
                         ! occupied k
-                        BI_C_rec = 0.0_dp
-                        DEALLOCATE (BI_C_rec)
-                        ALLOCATE (BI_C_rec(rec_L_size, size_B_k))
-                        BI_C_rec = 0.0_dp
+                        BI_C_rec(1:rec_L_size, 1:size_B_k) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k)
                         IF (ijk_index <= send_ijk_index) THEN
                            CALL mp_sendrecv(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
                                             BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
                                             para_env_exchange%group, tag)
                         ELSE
                            ! nothing to send
-                           BI_C_rec = 0.0_dp
                            CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, tag, &
                                         para_env_exchange%group)
                         END IF
@@ -2348,11 +2347,7 @@ CONTAINS
                         END DO
                      ELSE IF (.NOT. alpha_beta) THEN
                         ! occupied k
-                        BI_C_rec = 0.0_dp
-                        DEALLOCATE (BI_C_rec)
-                        ALLOCATE (BI_C_rec(rec_L_size, size_B_k))
-                        BI_C_rec = 0.0_dp
-                        BI_C_rec = 0.0_dp
+                        BI_C_rec(1:rec_L_size, 1:size_B_k) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k)
                         CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, tag, &
                                      para_env_exchange%group)
                         DO irep = 0, num_integ_group - 1
@@ -2370,8 +2365,6 @@ CONTAINS
                      CALL mp_send(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
                                   tag, para_env_exchange%group)
                   END IF
-
-                  DEALLOCATE (BI_C_rec)
                END DO
                CALL timestop(handle2)
 
@@ -2390,8 +2383,7 @@ CONTAINS
 
                   CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
-                  ALLOCATE (external_aL(dimen_RI, rec_B_size))
-                  external_aL = 0.0_dp
+                  external_aL(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, KIND=int_8)*rec_B_size)
 
                   CALL mp_sendrecv(local_aL(:, :size_B_i), proc_send, &
                                    external_aL, proc_receive, &
@@ -2401,7 +2393,6 @@ CONTAINS
                                      external_aL, dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                                      0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
                                      mp2_env%offload_gemm_ctx)
-                  DEALLOCATE (external_aL)
                END DO
                CALL dgemm_counter_stop(dgemm_counter, my_virtual, size_B_k, dimen_RI)
                CALL timestop(handle2)
@@ -2439,8 +2430,7 @@ CONTAINS
                      CALL get_group_dist(gd_B_virtual(1), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                      CALL get_group_dist(gd_B_virtual(1), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
-                     ALLOCATE (external_ab(size_B_i, rec_B_size))
-                     external_ab = 0.0_dp
+                     external_ab(1:size_B_i, 1:rec_B_size) => buffer_1D(1:INT(size_B_i, KIND=int_8)*rec_B_size)
                      CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:size_B_k), proc_send, &
                                       external_ab(1:size_B_i, 1:rec_B_size), proc_receive, para_env_sub%group, tag)
 
@@ -2453,8 +2443,6 @@ CONTAINS
                                                 - Eigenval(homo(1) + a_global, 1) - Eigenval(homo(1) + b_global, 1))
                         END DO
                      END DO
-
-                     DEALLOCATE (external_ab)
                   END DO
                END IF
                CALL timestop(handle2)
@@ -2473,8 +2461,7 @@ CONTAINS
 
                   CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
-                  ALLOCATE (external_aL(dimen_RI, rec_B_size))
-                  external_aL = 0.0_dp
+                  external_aL(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, KIND=int_8)*rec_B_size)
 
                   CALL mp_sendrecv(local_aL(:, size_B_i + 1:size_B_ij), proc_send, &
                                    external_aL, proc_receive, &
@@ -2483,7 +2470,6 @@ CONTAINS
                                      external_aL, dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
                                      0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
                                      mp2_env%offload_gemm_ctx)
-                  DEALLOCATE (external_aL)
                END DO
                CALL dgemm_counter_stop(dgemm_counter, my_virtual, size_B_k, dimen_RI)
                CALL timestop(handle2)
