@@ -547,6 +547,9 @@ CONTAINS
 
       CALL timestop(handle2)
 
+      NULLIFY (para_env_RPA)
+      CALL cp_para_env_split(para_env_RPA, para_env, color_rpa_group)
+
       ! now create the matrices needed for the calculation, Q, S and G
       ! Q and G will have omega dependence
 
@@ -598,7 +601,7 @@ CONTAINS
                                   my_ia_size(2), my_ia_start(2), my_ia_end(2), &
                                   my_group_L_size, my_group_L_start, my_group_L_end, &
                                   para_env_RPA, fm_mat_S(2)%matrix, nrow_block_mat, ncol_block_mat, &
-                                  .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, &
+                                  fm_mat_Q(1)%matrix%matrix_struct%context, &
                                   fm_mat_Q_gemm=fm_mat_Q_gemm(2)%matrix, fm_mat_Q=fm_mat_Q(2)%matrix)
 
          END IF
@@ -616,7 +619,7 @@ CONTAINS
                                my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_gw(1)%matrix, nrow_block_mat, ncol_block_mat, &
-                               .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context, &
+                               fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context, &
                                fm_mat_Q=fm_mat_R_gw)
 
          IF (my_open_shell) THEN
@@ -626,7 +629,7 @@ CONTAINS
                                   my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, &
                                   my_group_L_size, my_group_L_start, my_group_L_end, &
                                   para_env_RPA, fm_mat_S_gw(2)%matrix, nrow_block_mat, ncol_block_mat, &
-                                  .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
+                                  fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
          END IF
          DEALLOCATE (BIb_C_2D_gw)
@@ -642,7 +645,7 @@ CONTAINS
                                my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ij_bse, nrow_block_mat, ncol_block_mat, &
-                               .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
+                               fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, dimen_virt_square, dimen_ia(1), color_rpa_group, &
@@ -651,7 +654,7 @@ CONTAINS
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S_ab_bse, &
                                nrow_block_mat, ncol_block_mat, &
-                               .TRUE., fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
+                               fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
       END IF
 
@@ -1104,7 +1107,6 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param nrow_block_mat ...
 !> \param ncol_block_mat ...
-!> \param beta_case ...
 !> \param blacs_env_ext ...
 !> \param blacs_env_ext_S ...
 !> \param do_im_time ...
@@ -1125,7 +1127,7 @@ CONTAINS
                                my_ia_size, my_ia_start, my_ia_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
-                               beta_case, blacs_env_ext, blacs_env_ext_S, &
+                               blacs_env_ext, blacs_env_ext_S, &
                                do_im_time, fm_mat_Q_gemm, fm_mat_Q, fm_scaled_dm_occ_tau, &
                                fm_scaled_dm_virt_tau, mo_coeff, fm_mo_coeff_occ, &
                                fm_mo_coeff_virt, nmo, homo, &
@@ -1138,10 +1140,9 @@ CONTAINS
          dimen_ia_for_block_size, color_rpa_group, ext_row_block_size, ext_col_block_size, &
          unit_nr, my_ia_size, my_ia_start, my_ia_end, my_group_L_size, my_group_L_start, &
          my_group_L_end
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       INTEGER, INTENT(INOUT)                             :: nrow_block_mat, ncol_block_mat
-      LOGICAL, INTENT(IN), OPTIONAL                      :: beta_case
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext, blacs_env_ext_S
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
       TYPE(cp_fm_type), OPTIONAL, POINTER :: fm_mat_Q_gemm, fm_mat_Q, fm_scaled_dm_occ_tau, &
@@ -1156,17 +1157,14 @@ CONTAINS
                                                             mepos_in_RPA_group, &
                                                             row_col_proc_ratio, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos
-      LOGICAL                                            :: my_beta_case, my_blacs_ext, &
-                                                            my_blacs_S_ext, my_do_im_time
+      LOGICAL                                            :: my_blacs_ext, my_blacs_S_ext, &
+                                                            my_do_im_time
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_ia, gd_L
 
       CALL timeset(routineN, handle)
-
-      my_beta_case = .FALSE.
-      IF (PRESENT(beta_case)) my_beta_case = beta_case
 
       my_blacs_ext = .FALSE.
       IF (PRESENT(blacs_env_ext)) my_blacs_ext = .TRUE.
@@ -1176,11 +1174,6 @@ CONTAINS
 
       my_do_im_time = .FALSE.
       IF (PRESENT(do_im_time)) my_do_im_time = do_im_time
-
-      ! create the RPA para_env
-      IF (.NOT. my_beta_case) THEN
-         CALL cp_para_env_split(para_env_RPA, para_env, color_rpa_group)
-      END IF
 
       ! create the RPA blacs env
       IF (my_blacs_S_ext) THEN
