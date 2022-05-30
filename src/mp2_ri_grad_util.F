@@ -274,16 +274,14 @@ CONTAINS
 
       ! now redistribute the data, in this case we go back
       ! to the original way the integrals were distributed
-      CALL fm2array(Gamma_2D, dimen_ia, dimen_RI, para_env, &
-                    my_ia_size, my_ia_start, my_ia_end, &
+      CALL fm2array(Gamma_2D, my_ia_size, my_ia_start, my_ia_end, &
                     my_group_L_size, my_group_L_start, my_group_L_end, &
                     group_grid_2_mepos, mepos_2_grid_group, &
                     para_env_sub%num_pe, ngroup, &
                     fm_Gamma)
 
       ALLOCATE (Gamma_PQ(my_P_size, my_group_L_size))
-      CALL fm2array(Gamma_PQ, dimen_RI, dimen_RI, para_env, &
-                    my_P_size, my_P_start, my_P_end, &
+      CALL fm2array(Gamma_PQ, my_P_size, my_P_start, my_P_end, &
                     my_group_L_size, my_group_L_start, my_group_L_end, &
                     group_grid_2_mepos, mepos_2_grid_group, &
                     para_env_sub%num_pe, ngroup, &
@@ -297,8 +295,7 @@ CONTAINS
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
          ALLOCATE (Gamma_PQ(my_P_size, my_group_L_size))
-         CALL fm2array(Gamma_PQ, dimen_RI, dimen_RI, para_env, &
-                       my_P_size, my_P_start, my_P_end, &
+         CALL fm2array(Gamma_PQ, my_P_size, my_P_start, my_P_end, &
                        my_group_L_size, my_group_L_start, my_group_L_end, &
                        group_grid_2_mepos, mepos_2_grid_group, &
                        para_env_sub%num_pe, ngroup, &
@@ -919,9 +916,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief redistribute fm to local part of array
 !> \param mat2D ...
-!> \param num_rows ...
-!> \param num_cols ...
-!> \param para_env ...
 !> \param my_rows ...
 !> \param my_start_row ...
 !> \param my_end_row ...
@@ -934,8 +928,7 @@ CONTAINS
 !> \param ngroup_col ...
 !> \param fm_mat ...
 ! **************************************************************************************************
-   SUBROUTINE fm2array(mat2D, num_rows, num_cols, para_env, &
-                       my_rows, my_start_row, my_end_row, &
+   SUBROUTINE fm2array(mat2D, my_rows, my_start_row, my_end_row, &
                        my_cols, my_start_col, my_end_col, &
                        group_grid_2_mepos, mepos_2_grid_group, &
                        ngroup_row, ngroup_col, &
@@ -943,8 +936,6 @@ CONTAINS
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: mat2D
-      INTEGER, INTENT(IN)                                :: num_rows, num_cols
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: my_rows, my_start_row, my_end_row, &
                                                             my_cols, my_start_col, my_end_col
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos, mepos_2_grid_group
@@ -954,9 +945,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm2array'
 
       INTEGER :: dummy_proc, handle, handle2, i, i_global, iiB, iii, itmp(2), j_global, jjB, &
-         mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, &
-         num_rec_rows, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
-         rec_col_size, rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, &
+         mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, num_cols, &
+         num_rec_rows, num_rows, number_of_rec, number_of_send, proc_receive, proc_send, &
+         proc_shift, rec_col_size, rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, &
          ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_row_rec, map_rec_size, &
                                                             map_send_size, proc_map, req_send
@@ -964,6 +955,7 @@ CONTAINS
                                                             mepos_2_grid, sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: part_col, part_row
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
 
@@ -981,7 +973,10 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices, &
                           nrow_block=nrow_block, &
-                          ncol_block=ncol_block)
+                          ncol_block=ncol_block, &
+                          nrow_global=num_rows, &
+                          ncol_global=num_cols, &
+                          para_env=para_env)
       myprow = fm_mat%matrix_struct%context%mepos(1)
       mypcol = fm_mat%matrix_struct%context%mepos(2)
       nprow = fm_mat%matrix_struct%context%num_pe(1)
