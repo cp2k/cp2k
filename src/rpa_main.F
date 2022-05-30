@@ -550,30 +550,44 @@ CONTAINS
       ! now create the matrices needed for the calculation, Q, S and G
       ! Q and G will have omega dependence
 
+      IF (do_im_time) THEN
+         ALLOCATE (fm_mat_Q(nspins), fm_mat_Q_gemm(1), fm_mat_S(1))
+         DO ispin = 1, nspins
+            NULLIFY (fm_mat_Q(ispin)%matrix)
+         END DO
+         NULLIFY (fm_mat_Q_gemm(1)%matrix, fm_mat_S(1)%matrix)
+         IF (my_open_shell) THEN
+            CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                                  dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
+                                  mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
+                                  my_ia_size(1), my_ia_start(1), my_ia_end(1), &
+                                  my_group_L_size, my_group_L_start, my_group_L_end, &
+                                  para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
+                                  do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix, &
+                                  fm_mat_Q_beta=fm_mat_Q(2)%matrix)
+         ELSE
+            CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                                  dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
+                                  mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
+                                  my_ia_size(1), my_ia_start(1), my_ia_end(1), &
+                                  my_group_L_size, my_group_L_start, my_group_L_end, &
+                                  para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
+                                  do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix)
+         END IF
+      ELSE
       ALLOCATE (fm_mat_Q(nspins), fm_mat_Q_gemm(nspins), fm_mat_S(nspins))
       DO ispin = 1, nspins
          NULLIFY (fm_mat_Q(ispin)%matrix, fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix)
       END DO
-      IF (my_open_shell .AND. do_im_time) THEN
-         CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
-                               mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               my_ia_size(1), my_ia_start(1), my_ia_end(1), &
-                               my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
-                               do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix, &
-                               fm_mat_Q_beta=fm_mat_Q(2)%matrix)
-      ELSE
-         CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
-                               mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
-                               my_ia_size(1), my_ia_start(1), my_ia_end(1), &
-                               my_group_L_size, my_group_L_start, my_group_L_end, &
-                               para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
-                               do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix)
-      END IF
+      CALL create_integ_mat(BIb_C_2D(1)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
+                            dimen_RI_red, dimen_ia(1), dimen_ia(1), color_rpa_group, &
+                            mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
+                            my_ia_size(1), my_ia_start(1), my_ia_end(1), &
+                            my_group_L_size, my_group_L_start, my_group_L_end, &
+                            para_env_RPA, fm_mat_S(1)%matrix, nrow_block_mat, ncol_block_mat, &
+                            do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm(1)%matrix, fm_mat_Q=fm_mat_Q(1)%matrix)
 
-      IF (my_open_shell .AND. .NOT. do_im_time) THEN
+      IF (my_open_shell) THEN
 
          CALL create_integ_mat(BIb_C_2D(2)%array, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
                                dimen_RI_red, dimen_ia(2), dimen_ia(2), color_rpa_group, &
@@ -584,6 +598,7 @@ CONTAINS
                                fm_mat_Q(1)%matrix%matrix_struct%context, &
                                fm_mat_Q_gemm=fm_mat_Q_gemm(2)%matrix, fm_mat_Q=fm_mat_Q(2)%matrix)
 
+      END IF
       END IF
       DEALLOCATE (BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
 
@@ -666,19 +681,19 @@ CONTAINS
       CALL cp_para_env_release(para_env_RPA)
 
       IF (.NOT. do_im_time) THEN
-         DO ispin = 1, nspins
+         DO ispin = 1, SIZE(fm_mat_Q_gemm)
             CALL cp_fm_release(fm_mat_Q_gemm(ispin)%matrix)
             CALL cp_fm_release(fm_mat_S(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_Q_gemm, fm_mat_S)
       END IF
-      DO ispin = 1, nspins
+      DO ispin = 1, SIZE(fm_mat_Q)
          IF (ASSOCIATED(fm_mat_Q(ispin)%matrix)) CALL cp_fm_release(fm_mat_Q(ispin)%matrix)
       END DO
       DEALLOCATE (fm_mat_Q)
 
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
-         DO ispin = 1, nspins
+         DO ispin = 1, SIZE(fm_mat_S_gw)
             CALL cp_fm_release(fm_mat_S_gw(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_S_gw)
