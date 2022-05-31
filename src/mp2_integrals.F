@@ -414,10 +414,7 @@ CONTAINS
       ! clean the L^{-1} matrix
       CALL cp_fm_release(fm_matrix_L)
 
-      ! in case of imag. time we need the para_env_L later
-      IF (.NOT. do_im_time) THEN
-         CALL cp_para_env_release(para_env_L)
-      END IF
+      CALL cp_para_env_release(para_env_L)
 
       IF (calc_forces .AND. .NOT. do_im_time) THEN
          ! we need (P|Q)^(-1/2) for future use, just save it
@@ -889,8 +886,6 @@ CONTAINS
          DEALLOCATE (basis_set_ri_aux, basis_set_ao)
 
          CALL neighbor_list_3c_destroy(nl_3c)
-
-         CALL cp_para_env_release(para_env_L)
 
       END IF
 
