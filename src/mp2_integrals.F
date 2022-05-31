@@ -402,12 +402,10 @@ CONTAINS
 
       IF (.NOT. do_im_time) THEN
          ! replicate the necessary row of the L^{-1} matrix on each proc
-         CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_L, &
-                         my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+         CALL grep_Lcols(fm_matrix_L, my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
          IF (calc_forces .AND. .NOT. compare_potential_types(qs_env%mp2_env%ri_metric, &
                                                              qs_env%mp2_env%potential_parameter)) THEN
-            CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_V, &
-                            my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
+            CALL grep_Lcols(fm_matrix_V, my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
             CALL cp_fm_release(fm_matrix_V)
          END IF
       END IF
@@ -1323,18 +1321,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param para_env ...
-!> \param dimen_RI ...
 !> \param fm_matrix_L ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param my_group_L_size ...
 !> \param my_Lrows ...
 ! **************************************************************************************************
-   SUBROUTINE grep_Lcols(para_env, dimen_RI, fm_matrix_L, &
+   SUBROUTINE grep_Lcols(fm_matrix_L, &
                          my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
-      INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
@@ -1343,8 +1337,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grep_Lcols'
 
-      INTEGER :: handle, handle2, i_global, iiB, j_global, jjB, max_row_col_local, ncol_local, &
-         ncol_rec, nrow_local, nrow_rec, proc_receive, proc_receive_static, proc_send, &
+      INTEGER :: dimen_RI, handle, handle2, i_global, iiB, j_global, jjB, max_row_col_local, &
+         ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, proc_receive_static, proc_send, &
          proc_send_static, proc_shift
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
@@ -1352,8 +1346,18 @@ CONTAINS
                                                             row_indices, row_indices_rec
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_L, rec_L
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L_internal
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=fm_matrix_L, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices, &
+                          nrow_global=dimen_RI, &
+                          local_data=local_L_internal, &
+                          para_env=para_env)
 
       ALLOCATE (my_Lrows(dimen_RI, my_group_L_size))
       my_Lrows = 0.0_dp
@@ -1368,13 +1372,6 @@ CONTAINS
          proc_map(-iiB - 1) = para_env%num_pe - iiB - 1
          proc_map(para_env%num_pe + iiB) = iiB
       END DO
-
-      CALL cp_fm_get_info(matrix=fm_matrix_L, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          local_data=local_L_internal)
 
       ALLOCATE (local_L(nrow_local, ncol_local))
       local_L(:, :) = local_L_internal(1:nrow_local, 1:ncol_local)
