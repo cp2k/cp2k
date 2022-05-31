@@ -206,7 +206,12 @@ CONTAINS
       TYPE(dbt_tas_type), INTENT(OUT)                    :: matrix
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
 
-      CALL dbm_create_from_template(matrix%matrix, name=name, template=matrix_in%matrix)
+      IF (PRESENT(name)) THEN
+         CALL dbm_create_from_template(matrix%matrix, name=name, template=matrix_in%matrix)
+      ELSE
+         CALL dbm_create_from_template(matrix%matrix, name=dbm_get_name(matrix_in%matrix), &
+                                       template=matrix_in%matrix)
+      END IF
       CALL dbm_finalize(matrix%matrix)
 
       CALL dbt_tas_copy_distribution(matrix_in%dist, matrix%dist)
