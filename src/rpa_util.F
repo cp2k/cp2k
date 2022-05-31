@@ -42,6 +42,9 @@ MODULE rpa_util
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
+   USE dgemm_counter_types,             ONLY: dgemm_counter_start,&
+                                              dgemm_counter_stop,&
+                                              dgemm_counter_type
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
@@ -54,9 +57,6 @@ MODULE rpa_util
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_sum
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
-   USE mp2_types,                       ONLY: dgemm_counter_start,&
-                                              dgemm_counter_stop,&
-                                              dgemm_counter_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE rpa_gw_kpoints,                  ONLY: compute_wkp_W

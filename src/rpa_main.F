@@ -45,6 +45,9 @@ MODULE rpa_main
         dbcsr_get_info, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, &
         dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE dbt_api,                         ONLY: dbt_type
+   USE dgemm_counter_types,             ONLY: dgemm_counter_init,&
+                                              dgemm_counter_type,&
+                                              dgemm_counter_write
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -73,10 +76,7 @@ MODULE rpa_main
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
    USE mp2_ri_grad_util,                ONLY: array2fm
-   USE mp2_types,                       ONLY: dgemm_counter_init,&
-                                              dgemm_counter_type,&
-                                              dgemm_counter_write,&
-                                              mp2_type,&
+   USE mp2_types,                       ONLY: mp2_type,&
                                               three_dim_real_array,&
                                               two_dim_int_array,&
                                               two_dim_real_array
