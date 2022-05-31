@@ -1199,8 +1199,8 @@ CONTAINS
             group_grid_2_mepos(para_env_sub%mepos, mepos_in_RPA_group) = para_env_RPA%mepos
             CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
 
-            CALL array2fm(BIb_C_2D(ispin)%array, fm_struct, dimen_ia(ispin), dimen_RI, para_env_RPA, &
-                          my_ia_start(ispin), my_ia_end(ispin), my_group_L_start, my_group_L_end, gd_ia, gd_L, &
+            CALL array2fm(BIb_C_2D(ispin)%array, fm_struct, my_ia_start(ispin), my_ia_end(ispin), &
+                          my_group_L_start, my_group_L_end, gd_ia, gd_L, &
                           group_grid_2_mepos, para_env_sub%num_pe, ngroup, fm_mat_S(ispin)%matrix, &
                           integ_group_size, color_rpa_group)
 

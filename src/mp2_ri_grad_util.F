@@ -19,6 +19,7 @@ MODULE mp2_ri_grad_util
                                               cp_dbcsr_m_by_n_from_template
    USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
@@ -159,15 +160,13 @@ CONTAINS
                                ncol_global=dimen_RI, para_env=para_env)
 
       ! create the fm matrix Gamma
-      CALL array2fm(Gamma_2D, fm_struct_ia, dimen_ia, dimen_RI, para_env, &
-                    my_ia_start, my_ia_end, &
+      CALL array2fm(Gamma_2D, fm_struct_ia, my_ia_start, my_ia_end, &
                     my_group_L_start, my_group_L_end, &
                     gd_ia_new, gd_array_new, &
                     group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
                     fm_Y)
       ! create the fm matrix B_ia_P
-      CALL array2fm(BIb_C_2D, fm_struct_ia, dimen_ia, dimen_RI, para_env, &
-                    my_ia_start, my_ia_end, &
+      CALL array2fm(BIb_C_2D, fm_struct_ia, my_ia_start, my_ia_end, &
                     my_group_L_start, my_group_L_end, &
                     gd_ia_new, gd_array_new, &
                     group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
@@ -178,16 +177,14 @@ CONTAINS
                                ncol_global=dimen_RI, para_env=para_env)
 
       ! since we will need (P|Q)^(-1/2) in the future, make a copy
-      CALL array2fm(mp2_env%ri_grad%PQ_half, fm_struct_RI, dimen_RI, dimen_RI, para_env, &
-                    my_P_start, my_P_end, &
+      CALL array2fm(mp2_env%ri_grad%PQ_half, fm_struct_RI, my_P_start, my_P_end, &
                     my_group_L_start, my_group_L_end, &
                     gd_P_new, gd_array_new, &
                     group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
                     PQ_half, do_release_mat=.FALSE.)
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         CALL array2fm(mp2_env%ri_grad%operator_half, fm_struct_RI, dimen_RI, dimen_RI, para_env, &
-                       my_P_start, my_P_end, &
+         CALL array2fm(mp2_env%ri_grad%operator_half, fm_struct_RI, my_P_start, my_P_end, &
                        my_group_L_start, my_group_L_end, &
                        gd_P_new, gd_array_new, &
                        group_grid_2_mepos, para_env_sub%num_pe, ngroup, &
@@ -497,9 +494,6 @@ CONTAINS
 !> \brief redistribute local part of array to fm
 !> \param mat2D ...
 !> \param fm_struct ...
-!> \param num_rows ...
-!> \param num_cols ...
-!> \param para_env ...
 !> \param my_start_row ...
 !> \param my_end_row ...
 !> \param my_start_col ...
@@ -514,8 +508,7 @@ CONTAINS
 !> \param color_group ...
 !> \param do_release_mat whether to release the array (default: yes)
 ! **************************************************************************************************
-   SUBROUTINE array2fm(mat2D, fm_struct, num_rows, num_cols, para_env, &
-                       my_start_row, my_end_row, &
+   SUBROUTINE array2fm(mat2D, fm_struct, my_start_row, my_end_row, &
                        my_start_col, my_end_col, &
                        gd_row, gd_col, &
                        group_grid_2_mepos, ngroup_row, ngroup_col, &
@@ -524,8 +517,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: mat2D
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      INTEGER, INTENT(IN)                                :: num_rows, num_cols
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: my_start_row, my_end_row, my_start_col, &
                                                             my_end_col
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_row, gd_col
@@ -540,11 +531,11 @@ CONTAINS
       INTEGER :: dummy_proc, end_col_block, end_row_block, handle, handle2, i, i_global, i_local, &
          i_sub, iiB, iii, itmp(2), j_global, j_local, j_sub, jjB, my_num_col_blocks, &
          my_num_row_blocks, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &
-         nrow_local, num_rec_cols, number_of_rec, number_of_send, proc_receive, proc_send, &
-         proc_shift, rec_col_end, rec_col_size, rec_col_start, rec_counter, rec_pcol, rec_prow, &
-         rec_row_end, rec_row_size, rec_row_start, ref_send_pcol, ref_send_prow, send_counter, &
-         send_pcol, send_prow, size_rec_buffer, size_send_buffer, start_col_block
-      INTEGER :: start_row_block
+         nrow_local, num_cols, num_rec_cols, num_rows, number_of_rec, number_of_send, &
+         proc_receive, proc_send, proc_shift, rec_col_end, rec_col_size, rec_col_start, &
+         rec_counter, rec_pcol, rec_prow, rec_row_end, rec_row_size, rec_row_start, ref_send_pcol, &
+         ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
+      INTEGER :: start_col_block, start_row_block
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_col_rec, map_rec_size, &
                                                             map_send_size, proc_map, req_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blocks_ranges_col, blocks_ranges_row, &
@@ -553,6 +544,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: convert_pos, my_do_release_mat
       REAL(KIND=dp)                                      :: part_col, part_row
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
 
@@ -560,6 +552,8 @@ CONTAINS
 
       my_do_release_mat = .TRUE.
       IF (PRESENT(do_release_mat)) my_do_release_mat = do_release_mat
+
+      CALL cp_fm_struct_get(fm_struct, para_env=para_env, nrow_global=num_rows, ncol_global=num_cols)
 
       ! create the full matrix, (num_rows x num_cols)
       NULLIFY (fm_mat)
