@@ -24,10 +24,10 @@ QS/regtest-mp2-admm-grad                                    libint
 QS/regtest-double-hybrid-stress                             libint
 QS/regtest-double-hybrid-grad                               libint
 QS/regtest-hfx-ri-2                                         libint libxc
-QS/regtest-rma                                              libint mpi3 mpiranks==4
+QS/regtest-rma                                              libint mpi3
 LIBTEST/libvori                                             libvori
 LIBTEST/libbqb                                              libbqb
-QS/regtest-rma-3D                                           libint mpi3 mpiranks==8
+QS/regtest-rma-3D                                           libint mpi3
 TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
 TMC/regtest                                                 parallel mpiranks>1
 TMC/regtest_ana_post_proc                                   parallel mpiranks>1

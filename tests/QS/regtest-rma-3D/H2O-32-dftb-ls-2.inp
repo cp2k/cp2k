@@ -46,6 +46,7 @@
     &POISSON
       &EWALD
        EWALD_TYPE SPME
+       ALPHA 0.35
        GMAX ${GMAXVAL} ${GMAXVAL} ${GMAXVAL}
        O_SPLINE 5
       &END EWALD
