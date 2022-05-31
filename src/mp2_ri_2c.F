@@ -743,8 +743,8 @@ CONTAINS
 
       INTEGER :: best_group_size, color_L, group_size, handle, handle2, i, i_global, iatom, iiB, &
          ikind, iproc, j_global, jjB, natom, ncol_local, nkind, nrow_local, nsgf, potential_type, &
-         proc_receive, proc_receive_static, proc_send, proc_send_static, proc_shift, rec_L_end, &
-         rec_L_size, rec_L_start, strat_group_size, sub_sub_color
+         proc_receive, proc_receive_static, proc_send_static, proc_shift, rec_L_end, rec_L_size, &
+         rec_L_start, strat_group_size, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_do_im_time
@@ -869,17 +869,6 @@ CONTAINS
       sub_sub_color = para_env_sub%mepos
       CALL cp_para_env_split(para_env_exchange, para_env_L, sub_sub_color)
 
-      ! crate the proc maps
-      ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
-      DO i = 0, para_env_exchange%num_pe - 1
-         proc_map(i) = i
-         proc_map(-i - 1) = para_env_exchange%num_pe - i - 1
-         proc_map(para_env_exchange%num_pe + i) = i
-      END DO
-
-      CALL create_group_dist(gd_sub_array, my_group_L_start, &
-                             my_group_L_end, my_group_L_size, para_env_exchange)
-
       ! create the full matrix L defined in the L group
 
       CALL create_matrix_L(fm_matrix_L, blacs_env_L, dimen_RI, para_env_L, "fm_matrix_L", fm_matrix_L_extern)
@@ -891,6 +880,17 @@ CONTAINS
                                                 dimen_RI)
 
       ELSE
+
+         CALL create_group_dist(gd_sub_array, my_group_L_start, &
+                                my_group_L_end, my_group_L_size, para_env_exchange)
+
+         ! crate the proc maps
+         ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
+         DO i = 0, para_env_exchange%num_pe - 1
+            proc_map(i) = i
+            proc_map(-i - 1) = para_env_exchange%num_pe - i - 1
+            proc_map(para_env_exchange%num_pe + i) = i
+         END DO
 
          CALL cp_fm_get_info(matrix=fm_matrix_L, &
                              nrow_local=nrow_local, &
@@ -912,7 +912,6 @@ CONTAINS
          proc_receive_static = proc_map(para_env_exchange%mepos - 1)
 
          DO proc_shift = 1, para_env_exchange%num_pe - 1
-            proc_send = proc_map(para_env_exchange%mepos + proc_shift)
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             CALL get_group_dist(gd_sub_array, proc_receive, rec_L_start, rec_L_end, rec_L_size)
@@ -932,23 +931,18 @@ CONTAINS
                END IF
             END DO
 
-            DEALLOCATE (L_local_col)
-            ALLOCATE (L_local_col(dimen_RI, rec_L_size))
-            L_local_col(:, :) = L_external_col
-
-            DEALLOCATE (L_external_col)
-
+            CALL MOVE_ALLOC(L_external_col, L_local_col)
          END DO
+         DEALLOCATE (proc_map)
+
+         CALL release_group_dist(gd_sub_array)
 
       END IF
 
       DEALLOCATE (L_local_col)
 
       ! free the old exchange group stuff
-      DEALLOCATE (proc_map)
       CALL cp_para_env_release(para_env_exchange)
-
-      CALL release_group_dist(gd_sub_array)
 
       ! create the new group for the mp_sum of the local data
       sub_sub_color = para_env_L%mepos
