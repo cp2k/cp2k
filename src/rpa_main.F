@@ -1173,20 +1173,18 @@ CONTAINS
          END IF
       END IF
 
-      DO ispin = 1, SIZE(BIb_C_2D)
-         NULLIFY (fm_struct)
-         IF (my_blacs_ext) THEN
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia(ispin), &
-                                     ncol_global=dimen_RI, para_env=para_env_RPA)
-         ELSE
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia(ispin), &
-                                     ncol_global=dimen_RI, para_env=para_env_RPA, &
-                                     nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
+      IF (.NOT. my_do_im_time) THEN
+         DO ispin = 1, SIZE(BIb_C_2D)
+            NULLIFY (fm_struct)
+            IF (my_blacs_ext) THEN
+               CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia(ispin), &
+                                        ncol_global=dimen_RI, para_env=para_env_RPA)
+            ELSE
+               CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia(ispin), &
+                                        ncol_global=dimen_RI, para_env=para_env_RPA, &
+                                        nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
 
-         END IF ! external blacs_env
-
-         ! for imaginary time we do not need the fm_mat_S
-         IF (.NOT. my_do_im_time) THEN
+            END IF ! external blacs_env
 
             CALL create_group_dist(gd_ia, my_ia_start(ispin), my_ia_end(ispin), my_ia_size(ispin), para_env_RPA)
             CALL create_group_dist(gd_L, my_group_L_start, my_group_L_end, my_group_L_size, para_env_RPA)
@@ -1220,10 +1218,9 @@ CONTAINS
 
             CALL cp_para_env_release(para_env_exchange)
 
-         END IF ! not imag. time
-
-         CALL cp_fm_struct_release(fm_struct)
-      END DO
+            CALL cp_fm_struct_release(fm_struct)
+         END DO
+      END IF
 
       IF (PRESENT(fm_mat_Q_gemm) .AND. .NOT. my_do_im_time) THEN
          ! create the Q matrix dimen_RIxdimen_RI where the result of the mat-mat-mult will be stored
