@@ -125,7 +125,7 @@ CONTAINS
       cbsize_obj = dbt_tas_blk_size_arb(cbsizes)
 
       CALL dbt_tas_distribution_new(dist, mp_comm_out, row_dist_obj, col_dist_obj)
-      CALL dbt_tas_create(matrix, name, dist=dist, &
+      CALL dbt_tas_create(matrix, name=TRIM(name), dist=dist, &
                           row_blk_size=rbsize_obj, col_blk_size=cbsize_obj, own_dist=.TRUE.)
 
       max_row_size = MAXVAL(rbsizes)
@@ -324,13 +324,14 @@ CONTAINS
 
       REAL(KIND=dp), PARAMETER                           :: test_tol = 1.0E-10_dp
 
+      CHARACTER(LEN=8)                                   :: status_str
       INTEGER                                            :: comm_dbm, io_unit, mp_comm, mynode, &
                                                             numnodes
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: cd_a, cd_b, cd_c, col_block_sizes_a, &
          col_block_sizes_b, col_block_sizes_c, rd_a, rd_b, rd_c, row_block_sizes_a, &
          row_block_sizes_b, row_block_sizes_c
       INTEGER, DIMENSION(2)                              :: myploc, npdims
-      LOGICAL                                            :: transa_prv, transb_prv
+      LOGICAL                                            :: abort, transa_prv, transb_prv
       REAL(KIND=dp)                                      :: norm, rc_cs, sq_cs
       TYPE(dbm_distribution_obj)                         :: dist_a, dist_b, dist_c
       TYPE(dbm_type)                                     :: dbm_a, dbm_a_mm, dbm_b, dbm_b_mm, dbm_c, &
@@ -342,6 +343,7 @@ CONTAINS
 
       CALL dbt_tas_get_split_info(dbt_tas_info(matrix_a), mp_comm=mp_comm)
       CALL mp_environ(numnodes, mynode, mp_comm)
+      abort = .FALSE.
       io_unit = -1
       IF (mynode .EQ. 0) io_unit = unit_nr
 
@@ -431,22 +433,19 @@ CONTAINS
       norm = dbm_maxabs(dbm_c_mm_check)
 
       IF (io_unit > 0) THEN
-      IF (ABS(norm) .GT. test_tol) THEN
-         WRITE (io_unit, '(A, A, A, A, A, 1X, A)') TRIM(dbm_get_name(matrix_a%matrix)), &
-            transa, ' X ', &
-            TRIM(dbm_get_name(matrix_b%matrix)), &
-            transb, 'failed!'
+         IF (ABS(norm) > test_tol) THEN
+            status_str = " failed!"
+            abort = .TRUE.
+         ELSE
+            status_str = " passed!"
+            abort = .FALSE.
+         END IF
+         WRITE (io_unit, "(A)") &
+            TRIM(dbm_get_name(matrix_a%matrix))//" x "// &
+            TRIM(dbm_get_name(matrix_b%matrix))//TRIM(status_str)
          WRITE (io_unit, "(A,1X,E9.2,1X,E9.2)") "checksums", sq_cs, rc_cs
          WRITE (io_unit, "(A,1X,E9.2)") "difference norm", norm
-         CPABORT("")
-      ELSE
-         WRITE (io_unit, '(A, A, A, A, A, 1X, A)') TRIM(dbm_get_name(matrix_a%matrix)), &
-            transa, ' X ', &
-            TRIM(dbm_get_name(matrix_b%matrix)), &
-            transb, 'passed!'
-         WRITE (io_unit, "(A,1X,E9.2,1X,E9.2)") "checksums", sq_cs, rc_cs
-         WRITE (io_unit, "(A,1X,E9.2)") "difference norm", norm
-      END IF
+         IF (abort) CPABORT("DBT TAS test failed")
       END IF
 
       CALL dbm_release(dbm_a)
@@ -463,7 +462,7 @@ CONTAINS
 
       CALL mp_comm_free(comm_dbm)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_test_mm
 
 ! **************************************************************************************************
 !> \brief Calculate checksum of tall-and-skinny matrix consistent with dbm_checksum
