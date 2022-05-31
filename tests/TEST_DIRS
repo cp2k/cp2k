@@ -85,7 +85,6 @@ QS/regtest-tddfpt-4                                         libint
 QS/regtest-stda                                             libint
 QS/regtest-p-efield
 QS/regtest-mp2-stress                                       libint
-QS/regtest-ri-rpa                                           libint
 QS/regtest-kg                                               libxc
 QS/regtest-ec                                               libint libvori
 QS/regtest-ec-force                                         libint

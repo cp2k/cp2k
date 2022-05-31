@@ -564,11 +564,12 @@ CONTAINS
       END IF
 
       CALL create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                            dimen_RI_red, dimen_ia, dimen_ia, color_rpa_group, &
+                            dimen_RI_red, dimen_ia, color_rpa_group, &
                             mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                             my_ia_size, my_ia_start, my_ia_end, &
                             my_group_L_size, my_group_L_start, my_group_L_end, &
                             para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
+                            dimen_ia_for_block_size=dimen_ia(1), &
                             do_im_time=do_im_time, fm_mat_Q_gemm=fm_mat_Q_gemm, fm_mat_Q=fm_mat_Q)
 
       DEALLOCATE (BIb_C_2D, my_ia_end, my_ia_size, my_ia_start)
@@ -578,7 +579,7 @@ CONTAINS
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
 
          CALL create_integ_mat(BIb_C_2D_gw, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, [dimen_nm_gw, dimen_nm_gw], [dimen_ia(1), dimen_ia(1)], color_rpa_group, &
+                               dimen_RI_red, [dimen_nm_gw, dimen_nm_gw], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                [my_nm_gw_size, my_nm_gw_size], [my_nm_gw_start, my_nm_gw_start], [my_nm_gw_end, my_nm_gw_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -593,7 +594,7 @@ CONTAINS
       IF (do_bse) THEN
 
          CALL create_integ_mat(BIb_C_2D_bse_ij, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, [dimen_homo_square], [dimen_ia(1)], color_rpa_group, &
+                               dimen_RI_red, [dimen_homo_square], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                [my_ij_comb_bse_size], [my_ij_comb_bse_start], [my_ij_comb_bse_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -601,7 +602,7 @@ CONTAINS
                                fm_mat_Q(1)%matrix%matrix_struct%context, fm_mat_Q(1)%matrix%matrix_struct%context)
 
          CALL create_integ_mat(BIb_C_2D_bse_ab, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI_red, [dimen_virt_square], [dimen_ia(1)], color_rpa_group, &
+                               dimen_RI_red, [dimen_virt_square], color_rpa_group, &
                                mp2_env%block_size_row, mp2_env%block_size_col, unit_nr, &
                                [my_ab_comb_bse_size], [my_ab_comb_bse_start], [my_ab_comb_bse_end], &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
@@ -1043,7 +1044,6 @@ CONTAINS
 !> \param integ_group_size ...
 !> \param dimen_RI ...
 !> \param dimen_ia ...
-!> \param dimen_ia_for_block_size ...
 !> \param color_rpa_group ...
 !> \param ext_row_block_size ...
 !> \param ext_col_block_size ...
@@ -1058,6 +1058,7 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param nrow_block_mat ...
 !> \param ncol_block_mat ...
+!> \param dimen_ia_for_block_size ...
 !> \param blacs_env_ext ...
 !> \param blacs_env_ext_S ...
 !> \param do_im_time ...
@@ -1065,12 +1066,12 @@ CONTAINS
 !> \param fm_mat_Q ...
 ! **************************************************************************************************
    SUBROUTINE create_integ_mat(BIb_C_2D, para_env, para_env_sub, color_sub, ngroup, integ_group_size, &
-                               dimen_RI, dimen_ia, dimen_ia_for_block_size, color_rpa_group, &
+                               dimen_RI, dimen_ia, color_rpa_group, &
                                ext_row_block_size, ext_col_block_size, unit_nr, &
                                my_ia_size, my_ia_start, my_ia_end, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
                                para_env_RPA, fm_mat_S, nrow_block_mat, ncol_block_mat, &
-                               blacs_env_ext, blacs_env_ext_S, &
+                               blacs_env_ext, blacs_env_ext_S, dimen_ia_for_block_size, &
                                do_im_time, fm_mat_Q_gemm, fm_mat_Q)
 
       TYPE(two_dim_real_array), DIMENSION(:), &
@@ -1078,7 +1079,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub, ngroup, integ_group_size, &
                                                             dimen_RI
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia, dimen_ia_for_block_size
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia
       INTEGER, INTENT(IN)                                :: color_rpa_group, ext_row_block_size, &
                                                             ext_col_block_size, unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: my_ia_size, my_ia_start, my_ia_end
@@ -1088,6 +1089,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: fm_mat_S
       INTEGER, INTENT(INOUT)                             :: nrow_block_mat, ncol_block_mat
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env_ext, blacs_env_ext_S
+      INTEGER, INTENT(IN), OPTIONAL                      :: dimen_ia_for_block_size
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL         :: fm_mat_Q_gemm, fm_mat_Q
 
@@ -1106,6 +1108,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CPASSERT(PRESENT(blacs_env_ext) .OR. PRESENT(dimen_ia_for_block_size))
+
       my_blacs_ext = .FALSE.
       IF (PRESENT(blacs_env_ext)) my_blacs_ext = .TRUE.
 
@@ -1116,65 +1120,60 @@ CONTAINS
       IF (PRESENT(do_im_time)) my_do_im_time = do_im_time
 
       NULLIFY (blacs_env)
+      ! create the RPA blacs env
+      IF (my_blacs_S_ext) THEN
+         blacs_env => blacs_env_ext_S
+      ELSE
+         IF (para_env_RPA%num_pe > 1) THEN
+            row_col_proc_ratio = dimen_ia_for_block_size/dimen_RI
+            row_col_proc_ratio = MAX(1, row_col_proc_ratio)
 
-      DO ispin = 1, SIZE(BIb_C_2D)
-         IF (.NOT. ASSOCIATED(blacs_env)) THEN
-            ! create the RPA blacs env
-            IF (my_blacs_S_ext) THEN
-               NULLIFY (blacs_env)
-               blacs_env => blacs_env_ext_S
-            ELSE
-               NULLIFY (blacs_env)
-               IF (para_env_RPA%num_pe > 1) THEN
-                  row_col_proc_ratio = dimen_ia_for_block_size(1)/dimen_RI
-                  row_col_proc_ratio = MAX(1, row_col_proc_ratio)
+            iproc_row = MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1), para_env_RPA%num_pe) + 1
+            DO iproc = 1, para_env_RPA%num_pe
+               iproc_row = iproc_row - 1
+               IF (MOD(para_env_RPA%num_pe, iproc_row) == 0) EXIT
+            END DO
 
-                  iproc_row = MIN(MAX(INT(SQRT(REAL(para_env_RPA%num_pe*row_col_proc_ratio, KIND=dp))), 1), para_env_RPA%num_pe) + 1
-                  DO iproc = 1, para_env_RPA%num_pe
-                     iproc_row = iproc_row - 1
-                     IF (MOD(para_env_RPA%num_pe, iproc_row) == 0) EXIT
-                  END DO
+            iproc_col = para_env_RPA%num_pe/iproc_row
+            grid_2D(1) = iproc_row
+            grid_2D(2) = iproc_col
+         ELSE
+            grid_2D = 1
+         END IF
+         CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2d)
 
-                  iproc_col = para_env_RPA%num_pe/iproc_row
-                  grid_2D(1) = iproc_row
-                  grid_2D(2) = iproc_col
-               ELSE
-                  grid_2D = 1
-               END IF
-               CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2d)
-
-               IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                     "MATRIX_INFO| Number row processes:", grid_2D(1)
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                     "MATRIX_INFO| Number column processes:", grid_2D(2)
-               END IF
-
-               ! define the block_size for the row
-               IF (ext_row_block_size > 0) THEN
-                  nrow_block_mat = ext_row_block_size
-               ELSE
-                  nrow_block_mat = dimen_ia_for_block_size(1)/grid_2D(1)/2
-                  nrow_block_mat = MAX(nrow_block_mat, 1)
-               END IF
-
-               ! define the block_size for the column
-               IF (ext_col_block_size > 0) THEN
-                  ncol_block_mat = ext_col_block_size
-               ELSE
-                  ncol_block_mat = dimen_RI/grid_2D(2)/2
-                  ncol_block_mat = MAX(ncol_block_mat, 1)
-               END IF
-
-               IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                     "MATRIX_INFO| Row block size:", nrow_block_mat
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                     "MATRIX_INFO| Column block size:", ncol_block_mat
-               END IF
-            END IF
+         IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "MATRIX_INFO| Number row processes:", grid_2D(1)
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "MATRIX_INFO| Number column processes:", grid_2D(2)
          END IF
 
+         ! define the block_size for the row
+         IF (ext_row_block_size > 0) THEN
+            nrow_block_mat = ext_row_block_size
+         ELSE
+            nrow_block_mat = dimen_ia_for_block_size/grid_2D(1)/2
+            nrow_block_mat = MAX(nrow_block_mat, 1)
+         END IF
+
+         ! define the block_size for the column
+         IF (ext_col_block_size > 0) THEN
+            ncol_block_mat = ext_col_block_size
+         ELSE
+            ncol_block_mat = dimen_RI/grid_2D(2)/2
+            ncol_block_mat = MAX(ncol_block_mat, 1)
+         END IF
+
+         IF (unit_nr > 0 .AND. .NOT. my_do_im_time) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "MATRIX_INFO| Row block size:", nrow_block_mat
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "MATRIX_INFO| Column block size:", ncol_block_mat
+         END IF
+      END IF
+
+      DO ispin = 1, SIZE(BIb_C_2D)
          NULLIFY (fm_struct)
          IF (my_blacs_ext) THEN
             CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_ia(ispin), &
