@@ -216,13 +216,14 @@ CONTAINS
       dims_b = [dbt_tas_nblkrows_total(matrix_b), dbt_tas_nblkcols_total(matrix_b)]
       dims_c = [dbt_tas_nblkrows_total(matrix_c), dbt_tas_nblkcols_total(matrix_c)]
 
-      IF (unit_nr_prv .GT. 0) THEN
-         WRITE (unit_nr_prv, '(A)') REPEAT("-", 80)
-         WRITE (unit_nr_prv, '(A,1X,A,1X,A,1X,A,1X,A,1X,A)') "DBT TAS MATRIX MULTIPLICATION:", &
-            TRIM(dbm_get_name(matrix_a%matrix)), 'x', &
-            TRIM(dbm_get_name(matrix_b%matrix)), '=', &
+      IF (unit_nr_prv > 0) THEN
+         WRITE (unit_nr_prv, "(A)") REPEAT("-", 80)
+         WRITE (unit_nr_prv, "(A)") &
+            "DBT TAS MATRIX MULTIPLICATION: "// &
+            TRIM(dbm_get_name(matrix_a%matrix))//" x "// &
+            TRIM(dbm_get_name(matrix_b%matrix))//" = "// &
             TRIM(dbm_get_name(matrix_c%matrix))
-         WRITE (unit_nr_prv, '(A)') REPEAT("-", 80)
+         WRITE (unit_nr_prv, "(A)") REPEAT("-", 80)
       END IF
       IF (do_batched) THEN
          IF (unit_nr_prv > 0) THEN
