@@ -1217,8 +1217,6 @@ CONTAINS
             CALL mp_sum(fm_mat_S(ispin)%matrix%local_data, para_env_exchange%group)
 
             CALL cp_para_env_release(para_env_exchange)
-
-            CALL cp_fm_struct_release(fm_struct)
          END DO
       END IF
 
