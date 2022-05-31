@@ -95,9 +95,9 @@ CONTAINS
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind_nd, blk_size=blk_size)
          CALL dbt_get_block(tensor1, ind_nd, blk_data1, found)
-         CPASSERT(found)
+         IF (.NOT. found) CPABORT("Tensor block 1 not found")
          CALL dbt_get_block(tensor2_tmp, ind_nd, blk_data2, found)
-         CPASSERT(found)
+         IF (.NOT. found) CPABORT("Tensor block 2 not found")
 
          IF (.NOT. blocks_equal(blk_data1, blk_data2)) THEN
 !$OMP CRITICAL
