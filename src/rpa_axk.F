@@ -22,7 +22,9 @@ MODULE rpa_axk
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -53,6 +55,8 @@ MODULE rpa_axk
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE rpa_communication,               ONLY: gamma_fm_to_dbcsr
+   USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
+                                              remove_scaling_factor_rpa
    USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
@@ -107,11 +111,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_axk_ener'
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.0000001_dp
 
-      INTEGER :: avirt, color_sub, handle, i_global, iib, iitmp(2), iocc, j_global, jjb, kkb, &
-         L_counter, my_group_L_end, my_group_L_size, my_group_L_start, ncol_local, ngroup, &
-         nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: eigen_diff, eps_filter, trace_corr
+      INTEGER :: color_sub, handle, iib, iitmp(2), kkb, L_counter, my_group_L_end, &
+         my_group_L_size, my_group_L_start, ncol_local, ngroup
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      REAL(KIND=dp)                                      :: eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
@@ -147,10 +150,6 @@ CONTAINS
       ! Copy Q to Q_tmp
       CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_tmp)
 
-      CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local)
-
       CALL cp_fm_scale(0.50_dp, fm_mat_Q_tmp)
       ! Diagonalize Q
       CALL choose_eigv_solver(fm_mat_Q_tmp, fm_mat_U, eigenval)
@@ -162,10 +161,6 @@ CONTAINS
       CALL cp_fm_to_fm(fm_mat_U, fm_mat_Q_tmp)
 
       ! Manipulate eigenvalues to get diagonal matrix
-      CALL cp_fm_get_info(matrix=fm_mat_U, &
-                          nrow_local=nrow_local, &
-                          row_indices=row_indices)
-
       DO iib = 1, dimen_RI
          IF (ABS(eigenval(iib)) .GE. thresh) THEN
             eigenval(iib) = &
@@ -187,36 +182,22 @@ CONTAINS
                    matrix_c=fm_mat_R_half)
 
       ! get info of fm_mat_S and initialize Gamma_3
-      NULLIFY (fm_mat_Gamma_3)
-      CALL cp_fm_create(fm_mat_Gamma_3, fm_mat_S%matrix_struct)
+      NULLIFY (fm_mat_Gamma_3, fm_struct)
+      CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S%matrix_struct, nrow_global=dimen_ia, ncol_global=dimen_RI)
+      CALL cp_fm_create(fm_mat_Gamma_3, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
       CALL cp_fm_get_info(matrix=fm_mat_S, &
-                          nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
-                          row_indices=row_indices, &
                           col_indices=col_indices)
 
       ! Update G with a new value of Omega: in practice, it is G*S
 
       ! Here eig are orbital energies, don't confuse with eigenval, which are eigenvalues of Q!
 
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eig,fm_mat_S,virtual,homo,omega)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-
-            iocc = MAX(1, i_global - 1)/virtual + 1
-            avirt = i_global - (iocc - 1)*virtual
-            eigen_diff = eig(avirt + homo) - eig(iocc)
-
-            fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
-                                            SQRT(eigen_diff/(eigen_diff**2 + omega**2))
-
-         END DO
-      END DO
-!$OMP END PARALLEL DO
+      ! Scale fm_work_iaP
+      CALL calc_fm_mat_S_rpa(fm_mat_S, .TRUE., virtual, eig, &
+                             homo, omega, 0.0_dp)
 
       ! Redistribute fm_mat_R_half for "rectangular" multiplication: ia*P P*P
       NULLIFY (fm_mat_R_half_gemm)
@@ -227,28 +208,12 @@ CONTAINS
                                       fm_mat_R_half%matrix_struct%context%group)
 
       ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
-      CALL cp_gemm(transa="N", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+      CALL cp_gemm(transa="T", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                    matrix_a=fm_mat_S, matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
                    matrix_c=fm_mat_Gamma_3)
 
       ! Remove extra factor from S after the multiplication
-!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,eig,fm_mat_S,virtual,homo,omega)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-
-            iocc = MAX(1, i_global - 1)/virtual + 1
-            avirt = i_global - (iocc - 1)*virtual
-            eigen_diff = eig(avirt + homo) - eig(iocc)
-
-            fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/ &
-                                            SQRT(eigen_diff/(eigen_diff**2 + omega**2))
-
-         END DO
-      END DO
-!$OMP              END PARALLEL DO
+      CALL remove_scaling_factor_rpa(fm_mat_S, virtual, eig, homo, omega)
 
       ! Release full matrix stuff
       CALL cp_fm_release(fm_mat_Q_tmp)

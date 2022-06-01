@@ -222,7 +222,7 @@ CONTAINS
                                  hfx_sections, n_rep_hf, &
                                  rho, mat_mu_nu, fm_P_mu_nu, &
                                  fm_ao, fm_X_mo, fm_ao_mo, &
-                                 mp2_env%ri_mp2%free_hfx_buffer)
+                                 mp2_env%ri_grad%free_hfx_buffer)
 
       ! Calculate DFT exchange-correlation contribution
       CALL xc_contribution(qs_env, fm_ao, fm_ao_mo, fm_XC_mo, mo_coeff, dimen)

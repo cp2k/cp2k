@@ -154,6 +154,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_canonical_gradients(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       NULLIFY (print_key)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "PRINT", &
                                        description="Controls the printing basic info about WFC methods", &
@@ -221,7 +225,6 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="RI_MP2", &
@@ -237,49 +240,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      NULLIFY (subsection)
-      CALL create_cphf(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
                           variants=(/"MESSAGE_SIZE"/), &
                           description="Determines the blocking used for communication in RI-MP2. Larger BLOCK_SIZE "// &
                           "reduces communication but requires more memory. The default (-1) is automatic.", &
                           usage="BLOCK_SIZE 2", &
                           default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_CANONICAL", &
-                          description="Threshold for discriminate if a given ij pairs "// &
-                          "of the unrelaxed MP2 density matrix has to be "// &
-                          "calculated with a canonical reformulation based "// &
-                          "on the occupied eigenvalues differences.", &
-                          usage="EPS_CANONICAL 1.0E-8", type_of_var=real_t, &
-                          default_r_val=1.0E-7_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="FREE_HFX_BUFFER", &
-         description="Free the buffer containing the 4 center integrals used in the Hartree-Fock exchange calculation. "// &
-         "This will be effective only for gradients calculations, since for the energy only "// &
-         "case, the buffers are released by default. (Right now debugging only).", &
-         usage="FREE_HFX_BUFFER", &
-         default_l_val=.TRUE., &
-         lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
-         name="USE_OLD_GRADIENT_CODE", &
-         description="Use the original RI-MP2 gradient code.", &
-         usage="USE_OLD_GRADIENT_CODE  T", &
-         lone_keyword_l_val=.TRUE., &
-         default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -422,6 +388,60 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_ri_laplace
+
+! **************************************************************************************************
+!> \brief ...
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_canonical_gradients(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="CANONICAL_GRADIENTS", &
+                          description="Parameters influencing gradient calculations of canonical RI methods. "// &
+                          "Ignored if the IM_TIME section is set.", &
+                          n_keywords=3, n_subsections=1, repeats=.FALSE.)
+
+      NULLIFY (subsection, keyword)
+      CALL create_cphf(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_CANONICAL", &
+                          description="Threshold under which a given ij or ab pair is considered to be degenerate and "// &
+                          "its contribution to the density matrix is calculated directly. "// &
+                          "Ignored in case of energy-only calculation.", &
+                          usage="EPS_CANONICAL 1.0E-8", type_of_var=real_t, &
+                          default_r_val=1.0E-7_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="FREE_HFX_BUFFER", &
+         description="Free the buffer containing the 4 center integrals used in the Hartree-Fock exchange calculation. "// &
+         "This will be effective only for gradients calculations, since for the energy only "// &
+         "case, the buffers are released by default. (Right now debugging only).", &
+         usage="FREE_HFX_BUFFER", &
+         default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="USE_OLD_GRADIENT_CODE", &
+         description="Use the original RI-MP2 gradient code.", &
+         usage="USE_OLD_GRADIENT_CODE  T", &
+         lone_keyword_l_val=.TRUE., &
+         default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_canonical_gradients
 
 ! **************************************************************************************************
 !> \brief ...
@@ -598,7 +618,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Activates cubic-scaling RPA, GW and Laplace-SOS-MP2 calculations.", &
+                          description="Activates GW calculations.", &
                           usage="&GW .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

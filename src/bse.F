@@ -433,14 +433,14 @@ CONTAINS
       ! symmetrize the result
       CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_mat_work)
 
-      CALL cp_gemm(transa="N", transb="N", m=homo**2, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                   matrix_a=fm_mat_S_ij_bse, matrix_b=fm_mat_Q_static_bse, beta=0.0_dp, &
+      CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
+                   matrix_a=fm_mat_Q_static_bse, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
                    matrix_c=fm_mat_S_bar_ij_bse)
 
       ! fm_mat_S_bar_ia_bse has a different blacs_env as fm_mat_S_ij_bse since we take
       ! fm_mat_S from RPA. Therefore, we also need a different fm_mat_Q_static_bse_gemm
-      CALL cp_gemm(transa="N", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                   matrix_a=fm_mat_S, matrix_b=fm_mat_Q_static_bse_gemm, beta=0.0_dp, &
+      CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
+                   matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S, beta=0.0_dp, &
                    matrix_c=fm_mat_S_bar_ia_bse)
 
       CALL allocate_and_fill_local_array(B_iaQ_bse_local, fm_mat_S, gd_array, color_sub, homo, virtual, dimen_RI, para_env)
@@ -537,15 +537,15 @@ CONTAINS
          num_entries_rec = 0
 
          ! loop over RI index to get the number of sent entries
-         DO jjB = 1, ncol_local
+         DO jjB = 1, nrow_local
 
-            RI_index = col_indices(jjB)
+            RI_index = row_indices(jjB)
 
             IF (MODULO(RI_index, num_comm_cycles) /= i_comm) CYCLE
 
             imepos = mepos_from_RI_index(RI_index)
 
-            num_entries_send(imepos) = num_entries_send(imepos) + nrow_local
+            num_entries_send(imepos) = num_entries_send(imepos) + ncol_local
 
          END DO
 
@@ -574,23 +574,23 @@ CONTAINS
          entry_counter(:) = 0
 
          ! loop over RI index for filling the send-buffer
-         DO jjB = 1, ncol_local
+         DO jjB = 1, nrow_local
 
-            RI_index = col_indices(jjB)
+            RI_index = row_indices(jjB)
 
             IF (MODULO(RI_index, num_comm_cycles) /= i_comm) CYCLE
 
             imepos = mepos_from_RI_index(RI_index)
 
-            DO iiB = 1, nrow_local
+            DO iiB = 1, ncol_local
 
-               combi_index = row_indices(iiB)
+               combi_index = col_indices(iiB)
                level_small_size = MAX(1, combi_index - 1)/big_size + 1
                level_big_size = combi_index - (level_small_size - 1)*big_size
 
                entry_counter(imepos) = entry_counter(imepos) + 1
 
-               buffer_send(imepos)%msg(entry_counter(imepos)) = fm_mat_S%local_data(iiB, jjB)
+               buffer_send(imepos)%msg(entry_counter(imepos)) = fm_mat_S%local_data(jjB, iiB)
 
                buffer_send(imepos)%indx(entry_counter(imepos), 1) = RI_index
                buffer_send(imepos)%indx(entry_counter(imepos), 2) = level_small_size

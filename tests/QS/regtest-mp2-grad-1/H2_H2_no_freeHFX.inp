@@ -44,6 +44,8 @@
       &END HF
       &WF_CORRELATION
         &RI_MP2
+        &END
+        &CANONICAL_GRADIENTS
           EPS_CANONICAL  0.00001
           FREE_HFX_BUFFER .FALSE.
           &CPHF

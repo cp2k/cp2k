@@ -1,0 +1,5 @@
+RI_laplace_MP2_H2O.inp                                11      2e-08            -17.017084159135575
+RI_laplace_MP2_H2O_degen.inp                          11      2e-08            -17.017084505512827
+RI_laplace_MP2_CH3.inp                                11      7e-08             -7.226240509470074
+RI_laplace_MP2_H2O_id.inp                             11      2e-08            -17.017119108398031
+#EOF

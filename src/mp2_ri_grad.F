@@ -34,7 +34,9 @@ MODULE mp2_ri_grad
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE input_constants,                 ONLY: do_eri_gpw,&
-                                              do_eri_mme
+                                              do_eri_mme,&
+                                              ri_mp2_laplace,&
+                                              ri_mp2_method_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE message_passing,                 ONLY: &
@@ -289,7 +291,6 @@ CONTAINS
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
-            ! we recompute matrix_P_inu
             DO ispin = 1, nspins
                CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin, L_counter)%matrix, &
                                    0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
@@ -1145,24 +1146,6 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(fm_P_ij, 0.0_dp)
 
-      CALL cp_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
-                   mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
-                   a_first_col=1, &
-                   a_first_row=1, &
-                   b_first_col=1, &
-                   b_first_row=1, &
-                   c_first_col=1, &
-                   c_first_row=1)
-      ! don't know if it is better to transpose (for communication reasons)
-      ! or just recompute the transposed matrix
-      CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp, &
-                   L_mu_q, mo_coeff, 2.0_dp, fm_P_ij, &
-                   a_first_col=1, &
-                   a_first_row=1, &
-                   b_first_col=1, &
-                   b_first_row=1, &
-                   c_first_col=1, &
-                   c_first_row=1)
       ! we have it, update P_ij local
       CALL cp_fm_get_info(matrix=fm_P_ij, &
                           nrow_local=nrow_local, &
@@ -1170,21 +1153,40 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      CALL mp_sum(mp2_env%ri_grad%P_ij(kspin)%array, para_env%group)
+      IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_mp2_laplace) THEN
+         CALL cp_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
+                      mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
+                      a_first_col=1, &
+                      a_first_row=1, &
+                      b_first_col=1, &
+                      b_first_row=1, &
+                      c_first_col=1, &
+                      c_first_row=1)
+         CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp, &
+                      L_mu_q, mo_coeff, 2.0_dp, fm_P_ij, &
+                      a_first_col=1, &
+                      a_first_row=1, &
+                      b_first_col=1, &
+                      b_first_row=1, &
+                      c_first_col=1, &
+                      c_first_row=1)
 
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            ! diagonal elements and nearly degenerate ij pairs already updated
-            IF (j_global == i_global .OR. (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_mp2%eps_canonical)) THEN
-               fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
-            ELSE
-               fm_P_ij%local_data(iiB, jjB) = &
-                  factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
-            END IF
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               ! diagonal elements and nearly degenerate ij pairs already updated
+               IF (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_grad%eps_canonical) THEN
+                  fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
+               ELSE
+                  fm_P_ij%local_data(iiB, jjB) = &
+                     factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
+               END IF
+            END DO
          END DO
-      END DO
+      ELSE
+         CPABORT("Calculation of occ-occ block of density matrix is dealt with elsewhere!")
+      END IF
       ! deallocate the local P_ij
       DEALLOCATE (mp2_env%ri_grad%P_ij(kspin)%array)
       CALL timestop(handle2)
@@ -1212,6 +1214,7 @@ CONTAINS
 
       ! Fill occ-occ block
       CALL cp_fm_to_fm_submat(fm_P_ij, mp2_env%ri_grad%P_mo(kspin)%matrix, homo, homo, 1, 1, 1, 1)
+      CALL cp_fm_release(fm_P_ij)
 
       CALL cp_fm_get_info(mp2_env%ri_grad%P_mo(kspin)%matrix, &
                           nrow_local=nrow_local, &
@@ -1225,18 +1228,62 @@ CONTAINS
       nprow = mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%context%num_pe(1)
       npcol = mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%context%num_pe(2)
 
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF ((my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
-               mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(iiB, jjB) = &
-                  mp2_env%ri_grad%P_ab(kspin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
-            END IF
+      IF (mp2_env%method == ri_mp2_laplace) THEN
+         CALL cp_gemm('T', 'N', virtual, virtual, dimen, 1.0_dp, &
+                      mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%P_mo(kspin)%matrix, &
+                      a_first_col=homo + 1, &
+                      a_first_row=1, &
+                      b_first_col=homo + 1, &
+                      b_first_row=1, &
+                      c_first_col=homo + 1, &
+                      c_first_row=homo + 1)
+         CALL cp_gemm('T', 'N', virtual, virtual, dimen, -2.0_dp, &
+                      L_mu_q, mo_coeff, 2.0_dp, mp2_env%ri_grad%P_mo(kspin)%matrix, &
+                      a_first_col=homo + 1, &
+                      a_first_row=1, &
+                      b_first_col=homo + 1, &
+                      b_first_row=1, &
+                      c_first_col=homo + 1, &
+                      c_first_row=homo + 1)
+      END IF
+
+      IF (mp2_env%method == ri_mp2_method_gpw) THEN
+         ! With MP2 and RPA, we have already calculated the density matrix elements
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            IF (j_global <= homo) CYCLE
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               IF (my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) THEN
+                  mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(iiB, jjB) = &
+                     mp2_env%ri_grad%P_ab(kspin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
+               END IF
+            END DO
          END DO
-      END DO
-      ! deallocate the P_ij
-      CALL cp_fm_release(fm_P_ij)
+      ELSE IF (mp2_env%method == ri_mp2_laplace) THEN
+         ! With Laplace-SOS-MP2, we still have to calculate the matrix elements of the non-degenerate pairs
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            IF (j_global <= homo) CYCLE
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               IF (ABS(Eigenval(i_global) - Eigenval(j_global)) < mp2_env%ri_grad%eps_canonical) THEN
+                  IF (my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) THEN
+                     mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(iiB, jjB) = &
+                        mp2_env%ri_grad%P_ab(kspin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
+                  ELSE
+                     mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(iiB, jjB) = 0.0_dp
+                  END IF
+               ELSE
+                  mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(iiB, jjB) = &
+                     factor*mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(iiB, jjB)/ &
+                     (Eigenval(i_global) - Eigenval(j_global))
+               END IF
+            END DO
+         END DO
+      ELSE
+         CPABORT("Calculation of virt-virt block of density matrix is dealt with elsewhere!")
+      END IF
 
       ! send around the sub_group the local data and check if we
       ! have to update our block with external elements

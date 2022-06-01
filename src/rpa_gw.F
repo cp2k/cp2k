@@ -502,26 +502,26 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_vec_sigma_x'
 
-      INTEGER                                            :: handle, iiB, jjB, m_global, n_global, &
+      INTEGER                                            :: handle, iiB, m_global, n_global, &
                                                             ncol_local, nm_global, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: row_indices
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
 
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix=fm_mat_S_gw, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
-                          row_indices=row_indices)
+                          col_indices=col_indices)
 
       CALL mp_sync(para_env%group)
 
       ! loop over (nm) index
-      DO iiB = 1, nrow_local
+      DO iiB = 1, ncol_local
 
          ! this is needed for correct values within parallelization
          IF (MODULO(1, num_integ_group) /= color_rpa_group) CYCLE
 
-         nm_global = row_indices(iiB)
+         nm_global = col_indices(iiB)
 
          ! transform the index nm to n and m, formulae copied from Mauro's code
          n_global = MAX(1, nm_global - 1)/nmo + 1
@@ -530,15 +530,10 @@ CONTAINS
 
          IF (m_global <= homo) THEN
 
-            ! loop over auxiliary basis functions
-            DO jjB = 1, ncol_local
-
-               ! Sigma_x_n = -sum_m^occ sum_P (B_(nm)^P)^2
-               vec_Sigma_x_gw(n_global, 1) = &
-                  vec_Sigma_x_gw(n_global, 1) - &
-                  fm_mat_S_gw%local_data(iiB, jjB)**2
-
-            END DO
+            ! Sigma_x_n = -sum_m^occ sum_P (B_(nm)^P)^2
+            vec_Sigma_x_gw(n_global, 1) = &
+               vec_Sigma_x_gw(n_global, 1) - &
+               DOT_PRODUCT(fm_mat_S_gw%local_data(:, iiB), fm_mat_S_gw%local_data(:, iiB))
 
          END IF
 
@@ -1000,9 +995,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_gw'
 
-      INTEGER                                            :: handle, iiB, iquad, jjB, m_global, &
-                                                            n_global, ncol_local, nm_global, &
-                                                            nrow_local
+      INTEGER                                            :: handle, iiB, iquad, m_global, n_global, &
+                                                            ncol_local, nm_global
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: delta_corr_nn, e_fermi, omega_i, &
                                                             sign_occ_virt
@@ -1010,12 +1004,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! S_work_(nm)Q = B_(nm)P * ([1+Q]^-1-1)_PQ
-      CALL cp_gemm(transa="N", transb="N", m=dimen_nm_gw, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                   matrix_a=fm_mat_S_gw, matrix_b=fm_mat_Q, beta=0.0_dp, &
+      CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_nm_gw, k=dimen_RI, alpha=1.0_dp, &
+                   matrix_a=fm_mat_Q, matrix_b=fm_mat_S_gw, beta=0.0_dp, &
                    matrix_c=fm_mat_S_gw_work)
 
       CALL cp_fm_get_info(matrix=fm_mat_S_gw, &
-                          nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices)
@@ -1024,12 +1017,10 @@ CONTAINS
 
       vec_W_gw = 0.0_dp
 
-      DO iiB = 1, nrow_local
-         nm_global = row_indices(iiB)
-         DO jjB = 1, ncol_local
-            vec_W_gw(nm_global) = vec_W_gw(nm_global) + &
-                                  fm_mat_S_gw_work%local_data(iiB, jjB)*fm_mat_S_gw%local_data(iiB, jjB)
-         END DO
+      DO iiB = 1, ncol_local
+         nm_global = col_indices(iiB)
+         vec_W_gw(nm_global) = vec_W_gw(nm_global) + &
+                               DOT_PRODUCT(fm_mat_S_gw_work%local_data(:, iiB), fm_mat_S_gw%local_data(:, iiB))
 
          ! transform the index nm of vec_W_gw back to n and m, formulae copied from Mauro's code
          n_global = MAX(1, nm_global - 1)/nmo + 1
@@ -1057,7 +1048,7 @@ CONTAINS
             END IF
 
             ! add here the periodic correction
-            IF (do_periodic .AND. col_indices(1) == 1 .AND. n_global == m_global) THEN
+            IF (do_periodic .AND. row_indices(1) == 1 .AND. n_global == m_global) THEN
                delta_corr_nn = delta_corr(n_global)
             ELSE
                delta_corr_nn = 0.0_dp

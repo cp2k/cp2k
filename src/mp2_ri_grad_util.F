@@ -27,7 +27,9 @@ MODULE mp2_ri_grad_util
         cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_type_no_symmetry
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
@@ -52,7 +54,7 @@ MODULE mp2_ri_grad_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_ri_grad_util'
 
-   PUBLIC :: complete_gamma, array2fm, fm2array, prepare_redistribution
+   PUBLIC :: complete_gamma, array2fm, fm2array, prepare_redistribution, create_dbcsr_gamma
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
@@ -100,10 +102,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'complete_gamma'
 
-      INTEGER                                            :: dimen_ia, handle, i, my_ia_end, &
-                                                            my_ia_size, my_ia_start, my_P_end, &
-                                                            my_P_size, my_P_start, pos_group, &
-                                                            pos_sub
+      INTEGER :: dimen_ia, handle, i, ispin, kkB, my_ia_end, my_ia_size, my_ia_start, my_P_end, &
+         my_P_size, my_P_start, nspins, pos_group, pos_sub
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, Gamma_2D, Gamma_PQ
@@ -305,10 +305,21 @@ CONTAINS
          END IF
       END IF
 
+      ! allocate G_P_ia (DBCSR)
+      IF (.NOT. ALLOCATED(mp2_env%ri_grad%G_P_ia)) THEN
+         nspins = SIZE(mp2_env%ri_grad%mo_coeff_o)
+         ALLOCATE (mp2_env%ri_grad%G_P_ia(my_group_L_size, nspins))
+         DO ispin = 1, nspins
+         DO kkB = 1, my_group_L_size
+            NULLIFY (mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix)
+         END DO
+         END DO
+      END IF
+
       ! create the Gamma_ia_P in DBCSR style
       CALL create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, sub_proc_map, &
                               my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
-                              mp2_env, kspin)
+                              mp2_env%ri_grad%G_P_ia(:, kspin), mp2_env%ri_grad%mo_coeff_o(1)%matrix)
 
       DEALLOCATE (pos_info)
       DEALLOCATE (group_grid_2_mepos, mepos_2_grid_group)
@@ -618,38 +629,38 @@ CONTAINS
       convert_pos = .FALSE.
       IF (PRESENT(integ_group_size) .AND. PRESENT(color_group)) convert_pos = .TRUE.
 
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
+      DO jjB = 1, nrow_local
+         j_global = row_indices(jjB)
          ! check the group holding this element
          ! dirty way, if someone has a better idea ...
-         rec_pcol = INT(REAL(j_global - 1, KIND=dp)/part_col)
-         rec_pcol = MAX(0, rec_pcol)
-         rec_pcol = MIN(rec_pcol, ngroup_col - 1)
+         rec_prow = INT(REAL(j_global - 1, KIND=dp)/part_row)
+         rec_prow = MAX(0, rec_prow)
+         rec_prow = MIN(rec_prow, ngroup_row - 1)
          DO
-            itmp = get_limit(num_cols, ngroup_col, rec_pcol)
+            itmp = get_limit(num_rows, ngroup_row, rec_prow)
             IF (j_global >= itmp(1) .AND. j_global <= itmp(2)) EXIT
-            IF (j_global < itmp(1)) rec_pcol = rec_pcol - 1
-            IF (j_global > itmp(2)) rec_pcol = rec_pcol + 1
+            IF (j_global < itmp(1)) rec_prow = rec_prow - 1
+            IF (j_global > itmp(2)) rec_prow = rec_prow + 1
          END DO
 
          IF (convert_pos) THEN
             ! if the group is not in the same RPA group cycle
-            IF ((rec_pcol/integ_group_size) .NE. color_group) CYCLE
+            IF ((rec_prow/integ_group_size) .NE. color_group) CYCLE
             ! convert global position to position into the RPA group
-            rec_pcol = MOD(rec_pcol, integ_group_size)
+            rec_prow = MOD(rec_prow, integ_group_size)
          END IF
 
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
+         DO iiB = 1, ncol_local
+            i_global = col_indices(iiB)
             ! check the process in the group holding this element
-            rec_prow = INT(REAL(i_global - 1, KIND=dp)/part_row)
-            rec_prow = MAX(0, rec_prow)
-            rec_prow = MIN(rec_prow, ngroup_row - 1)
+            rec_pcol = INT(REAL(i_global - 1, KIND=dp)/part_col)
+            rec_pcol = MAX(0, rec_pcol)
+            rec_pcol = MIN(rec_pcol, ngroup_col - 1)
             DO
-               itmp = get_limit(num_rows, ngroup_row, rec_prow)
+               itmp = get_limit(num_cols, ngroup_col, rec_pcol)
                IF (i_global >= itmp(1) .AND. i_global <= itmp(2)) EXIT
-               IF (i_global < itmp(1)) rec_prow = rec_prow - 1
-               IF (i_global > itmp(2)) rec_prow = rec_prow + 1
+               IF (i_global < itmp(1)) rec_pcol = rec_pcol - 1
+               IF (i_global > itmp(2)) rec_pcol = rec_pcol + 1
             END DO
 
             proc_receive = group_grid_2_mepos(rec_prow, rec_pcol)
@@ -1280,26 +1291,26 @@ CONTAINS
 !> \param my_ia_end ...
 !> \param my_group_L_size ...
 !> \param gd_ia ...
-!> \param mp2_env ...
-!> \param kspin ...
+!> \param dbcsr_Gamma ...
+!> \param mo_coeff_o ...
 ! **************************************************************************************************
    SUBROUTINE create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, sub_proc_map, &
                                  my_ia_start, my_ia_end, my_group_L_size, &
-                                 gd_ia, mp2_env, kspin)
+                                 gd_ia, dbcsr_Gamma, mo_coeff_o)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       INTEGER, INTENT(IN)                                :: my_ia_start, my_ia_end, my_group_L_size
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_ia
-      TYPE(mp2_type)                                     :: mp2_env
-      INTEGER, INTENT(IN)                                :: kspin
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dbcsr_Gamma
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mo_coeff_o
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma'
 
-      INTEGER :: dummy_proc, handle, i_global, i_local, iaia, iiB, iii, ispin, itmp(2), j_global, &
+      INTEGER :: dummy_proc, handle, i_global, i_local, iaia, iiB, iii, itmp(2), j_global, &
          j_local, jjB, jjj, kkB, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &
-         nrow_local, nspins, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
+         nrow_local, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
          rec_counter, rec_iaia_end, rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, &
          ref_send_pcol, ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, &
          size_send_buffer
@@ -1317,17 +1328,6 @@ CONTAINS
          DIMENSION(:)                                    :: buffer_rec, buffer_send
 
       CALL timeset(routineN, handle)
-
-      ! allocate G_P_ia (DBCSR)
-      IF (.NOT. ALLOCATED(mp2_env%ri_grad%G_P_ia)) THEN
-         nspins = SIZE(mp2_env%ri_grad%mo_coeff_o)
-         ALLOCATE (mp2_env%ri_grad%G_P_ia(my_group_L_size, nspins))
-         DO ispin = 1, nspins
-         DO kkB = 1, my_group_L_size
-            NULLIFY (mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix)
-         END DO
-         END DO
-      END IF
 
       ! create sub blacs env
       NULLIFY (blacs_env)
@@ -1586,11 +1586,11 @@ CONTAINS
          CALL mp_waitall(req_send(:))
 
          ! now create the DBCSR matrix and copy fm_ia into it
-         ALLOCATE (mp2_env%ri_grad%G_P_ia(kkB, kspin)%matrix)
-         CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB, kspin)%matrix, &
-                                            template=mp2_env%ri_grad%mo_coeff_o(kspin)%matrix, &
+         ALLOCATE (dbcsr_Gamma(kkB)%matrix)
+         CALL cp_dbcsr_m_by_n_from_template(dbcsr_Gamma(kkB)%matrix, &
+                                            template=mo_coeff_o, &
                                             m=homo, n=virtual, sym=dbcsr_type_no_symmetry)
-         CALL copy_fm_to_dbcsr(fm_ia, mp2_env%ri_grad%G_P_ia(kkB, kspin)%matrix, keep_sparsity=.FALSE.)
+         CALL copy_fm_to_dbcsr(fm_ia, dbcsr_Gamma(kkB)%matrix, keep_sparsity=.FALSE.)
 
       END DO
 

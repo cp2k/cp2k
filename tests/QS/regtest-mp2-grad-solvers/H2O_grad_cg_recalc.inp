@@ -44,12 +44,13 @@
       &END HF
       &WF_CORRELATION
         &RI_MP2
+        &END
+        &CANONICAL_GRADIENTS
           EPS_CANONICAL 0.0001
           FREE_HFX_BUFFER .TRUE.
           &CPHF
             SOLVER_METHOD CG
             RECALC_RESIDUAL T
-            
             EPS_CONV  1.0E-4
             MAX_ITER  10
           &END

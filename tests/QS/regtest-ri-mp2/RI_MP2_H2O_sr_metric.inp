@@ -42,7 +42,7 @@
       &END HF
       &WF_CORRELATION
         &RI_MP2
-        &END RI_MP2
+        &END
         &RI
           &RI_METRIC
             POTENTIAL_TYPE SHORTRANGE
