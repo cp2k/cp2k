@@ -683,7 +683,7 @@ CONTAINS
 
       INTEGER                                            :: handle, homo, i, isize, j, jg, n_rep, &
                                                             nao, natom, nmo, nspins, nsubset, &
-                                                            output_unit, reference, unit_number
+                                                            output_unit, reference, unit_number, ispin
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
@@ -737,9 +737,7 @@ CONTAINS
       natom = SIZE(particle_set)
       nsubset = SIZE(molecule_set)
       nspins = dft_control%nspins
-      IF (nspins == 2) THEN
-         CPABORT("NYE")
-      END IF
+      dcdr_env%nspins = dft_control%nspins
 
       NULLIFY (dcdr_env%matrix_s)
       CALL build_overlap_matrix(ks_env, matrix_s=dcdr_env%matrix_s, &
@@ -811,16 +809,24 @@ CONTAINS
       CALL cp_fm_struct_create(dcdr_env%aoao_fm_struct, nrow_global=nao, &
                                ncol_global=nao, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
-      CALL cp_fm_struct_create(dcdr_env%momo_fm_struct, nrow_global=nmo, &
-                               ncol_global=nmo, para_env=para_env, &
-                               context=mo_coeff%matrix_struct%context)
       CALL cp_fm_struct_create(dcdr_env%homohomo_fm_struct, nrow_global=homo, &
                                ncol_global=homo, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
-      CALL cp_fm_struct_create(dcdr_env%likemos_fm_struct, &
-                               template_fmstruct=mo_coeff%matrix_struct)
       dcdr_env%nao = nao
-      dcdr_env%nmo = nmo
+
+      ALLOCATE(dcdr_env%nmo(nspins))
+      ALLOCATE(dcdr_env%momo_fm_struct(nspins))
+      ALLOCATE(dcdr_env%likemos_fm_struct(nspins))
+      do ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
+                         nao=nao, nmo=nmo, homo=homo)
+         CALL cp_fm_struct_create(dcdr_env%momo_fm_struct(ispin)%struct, nrow_global=nmo, &
+                                  ncol_global=nmo, para_env=para_env, &
+                                  context=mo_coeff%matrix_struct%context)
+         CALL cp_fm_struct_create(dcdr_env%likemos_fm_struct(ispin)%struct, &
+                                  template_fmstruct=mo_coeff%matrix_struct)
+         dcdr_env%nmo(ispin) = nmo
+      enddo
 
       ! Fields of reals
       ALLOCATE (dcdr_env%deltaR(3, natom))
@@ -853,13 +859,16 @@ CONTAINS
       ALLOCATE (dcdr_env%chc(nspins))
       ALLOCATE (dcdr_env%op_dR(nspins))
 
-      CALL cp_fm_create(dcdr_env%dCR(1), dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(dcdr_env%dCR_prime(1), dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(dcdr_env%mo_coeff(1), dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(dcdr_env%chc(1), dcdr_env%momo_fm_struct)
-      CALL cp_fm_create(dcdr_env%op_dR(1), dcdr_env%likemos_fm_struct)
+      do ispin = 1, nspins
+         CALL cp_fm_create(dcdr_env%dCR(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(dcdr_env%dCR_prime(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(dcdr_env%mo_coeff(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(dcdr_env%chc(ispin), dcdr_env%momo_fm_struct(ispin)%struct)
+         CALL cp_fm_create(dcdr_env%op_dR(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
 
-      CALL cp_fm_to_fm(mo_coeff, dcdr_env%mo_coeff(1))
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+         CALL cp_fm_to_fm(mo_coeff, dcdr_env%mo_coeff(ispin))
+      enddo
 
       ! DBCSR matrices
       NULLIFY (dcdr_env%hamiltonian1)
@@ -874,6 +883,7 @@ CONTAINS
       NULLIFY (dcdr_env%matrix_vhxc_perturbed_basis)
       NULLIFY (dcdr_env%matrix_hc)
       NULLIFY (dcdr_env%matrix_ppnl_1)
+      CALL dbcsr_allocate_matrix_set(dcdr_env%perturbed_dm_correction, nspins)
       CALL dbcsr_allocate_matrix_set(dcdr_env%hamiltonian1, nspins)
       CALL dbcsr_allocate_matrix_set(dcdr_env%moments, 3)
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_difdip, 3, 3)
@@ -881,15 +891,12 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_nosym_temp, 3)
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_s1, 4)
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_t1, 4)
-      CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_apply_op_constant, 1)
-      CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_d_vhxc_dR, 3)
+      CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_apply_op_constant, nspins)
+      CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_d_vhxc_dR, 3, nspins)
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_vhxc_perturbed_basis, nspins, 6)
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_hc, 3)
       CALL dbcsr_allocate_matrix_set(dcdr_env%matrix_ppnl_1, 3)
 
-      NULLIFY (dcdr_env%perturbed_dm_correction)
-      CALL dbcsr_init_p(dcdr_env%perturbed_dm_correction)
-      CALL dbcsr_copy(dcdr_env%perturbed_dm_correction, matrix_ks(1)%matrix)
 
       ! temporary no_symmetry matrix:
       DO i = 1, 3
@@ -917,7 +924,13 @@ CONTAINS
          END DO
       END DO
 
-      CALL dbcsr_init_p(dcdr_env%hamiltonian1(1)%matrix)
+      do ispin = 1, nspins
+         CALL dbcsr_init_p(dcdr_env%hamiltonian1(ispin)%matrix)
+         CALL dbcsr_init_p(dcdr_env%perturbed_dm_correction(ispin)%matrix)
+         CALL dbcsr_init_p(dcdr_env%matrix_apply_op_constant(ispin)%matrix)
+         CALL dbcsr_copy(dcdr_env%matrix_apply_op_constant(ispin)%matrix, matrix_ks(1)%matrix)
+         CALL dbcsr_copy(dcdr_env%perturbed_dm_correction(ispin)%matrix, matrix_ks(1)%matrix)
+      enddo
 
       ! overlap/kinetic matrix: s(1)    normal overlap matrix;
       !                         s(2:4)  derivatives wrt. nuclear coordinates
@@ -935,14 +948,14 @@ CONTAINS
          CALL dbcsr_copy(dcdr_env%matrix_t1(i)%matrix, dcdr_env%matrix_nosym_temp(1)%matrix)
       END DO
 
-      CALL dbcsr_init_p(dcdr_env%matrix_apply_op_constant(1)%matrix)
-      CALL dbcsr_copy(dcdr_env%matrix_apply_op_constant(1)%matrix, dcdr_env%matrix_s1(1)%matrix)
 
       ! j=1...3: derivative wrt nucleus A, 4...6: wrt nucleus B
-      DO j = 1, 6
-         CALL dbcsr_init_p(dcdr_env%matrix_vhxc_perturbed_basis(1, j)%matrix)
-         CALL dbcsr_copy(dcdr_env%matrix_vhxc_perturbed_basis(1, j)%matrix, dcdr_env%matrix_s1(1)%matrix)
-      END DO
+      do ispin = 1, nspins
+         DO j = 1, 6
+            CALL dbcsr_init_p(dcdr_env%matrix_vhxc_perturbed_basis(ispin, j)%matrix)
+            CALL dbcsr_copy(dcdr_env%matrix_vhxc_perturbed_basis(ispin, j)%matrix, dcdr_env%matrix_s1(1)%matrix)
+         END DO
+      enddo
 
       DO i = 1, 3
          CALL dbcsr_init_p(dcdr_env%matrix_hc(i)%matrix)
@@ -961,27 +974,29 @@ CONTAINS
       END DO
 
       DO i = 1, 3
-         CALL dbcsr_init_p(dcdr_env%matrix_d_vhxc_dR(i)%matrix)
-         CALL dbcsr_copy(dcdr_env%matrix_d_vhxc_dR(i)%matrix, dcdr_env%matrix_s1(1)%matrix)
+         do ispin = 1, nspins
+            CALL dbcsr_init_p(dcdr_env%matrix_d_vhxc_dR(i, ispin)%matrix)
+            CALL dbcsr_copy(dcdr_env%matrix_d_vhxc_dR(i, ispin)%matrix, dcdr_env%matrix_s1(1)%matrix)
+         END DO
 
          CALL dbcsr_init_p(dcdr_env%matrix_core_charge_1(i)%matrix)
          CALL dbcsr_copy(dcdr_env%matrix_core_charge_1(i)%matrix, dcdr_env%matrix_s1(1)%matrix)
          CALL dbcsr_set(dcdr_env%matrix_core_charge_1(i)%matrix, 0.0_dp)
-      END DO
+      enddo
 
       ! CHC
-      CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
-      CALL cp_fm_create(buf, dcdr_env%likemos_fm_struct)
+      do ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+         CALL cp_fm_create(buf, dcdr_env%likemos_fm_struct(ispin)%struct)
 
-      CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, mo_coeff, buf, nmo)
-      ! chc = mo * matrix_ks * mo
-      CALL cp_fm_get_info(buf)
-      CALL cp_fm_get_info(dcdr_env%chc(1))
-      CALL parallel_gemm('T', 'N', nmo, nmo, nao, &
-                         1.0_dp, mo_coeff, buf, &
-                         0.0_dp, dcdr_env%chc(1))
+         CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, mo_coeff, buf, nmo)
+         ! chc = mo * matrix_ks * mo
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao, &
+                            1.0_dp, mo_coeff, buf, &
+                            0.0_dp, dcdr_env%chc(ispin))
 
-      CALL cp_fm_release(buf)
+         CALL cp_fm_release(buf)
+      enddo
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -1004,6 +1019,7 @@ CONTAINS
 
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: dcdr_section
+      INTEGER :: ispin
 
       ! Destroy the logger
       logger => cp_get_default_logger()
@@ -1013,9 +1029,13 @@ CONTAINS
       DEALLOCATE (dcdr_env%list_of_atoms)
 
       CALL cp_fm_struct_release(dcdr_env%aoao_fm_struct)
-      CALL cp_fm_struct_release(dcdr_env%momo_fm_struct)
       CALL cp_fm_struct_release(dcdr_env%homohomo_fm_struct)
-      CALL cp_fm_struct_release(dcdr_env%likemos_fm_struct)
+      do ispin = 1, dcdr_env%nspins
+         CALL cp_fm_struct_release(dcdr_env%momo_fm_struct(ispin)%struct)
+         CALL cp_fm_struct_release(dcdr_env%likemos_fm_struct(ispin)%struct)
+      enddo
+      DEALLOCATE(dcdr_env%momo_fm_struct)
+      DEALLOCATE(dcdr_env%likemos_fm_struct)
 
       DEALLOCATE (dcdr_env%deltar)
       DEALLOCATE (dcdr_env%delta_basis_function)
@@ -1038,11 +1058,13 @@ CONTAINS
       END IF
 
       ! Full matrices
-      CALL cp_fm_release(dcdr_env%dCR(1))
-      CALL cp_fm_release(dcdr_env%dCR_prime(1))
-      CALL cp_fm_release(dcdr_env%mo_coeff(1))
-      CALL cp_fm_release(dcdr_env%chc(1))
-      CALL cp_fm_release(dcdr_env%op_dR(1))
+      do ispin = 1, dcdr_env%nspins
+         CALL cp_fm_release(dcdr_env%dCR(ispin))
+         CALL cp_fm_release(dcdr_env%dCR_prime(ispin))
+         CALL cp_fm_release(dcdr_env%mo_coeff(ispin))
+         CALL cp_fm_release(dcdr_env%chc(ispin))
+         CALL cp_fm_release(dcdr_env%op_dR(ispin))
+      enddo
 
       DEALLOCATE (dcdr_env%op_dR)
       DEALLOCATE (dcdr_env%dCR)
@@ -1051,7 +1073,7 @@ CONTAINS
       DEALLOCATE (dcdr_env%chc)
 
       ! DBCSR matrices
-      CALL dbcsr_deallocate_matrix(dcdr_env%perturbed_dm_correction)
+      CALL dbcsr_deallocate_matrix_set(dcdr_env%perturbed_dm_correction)
       CALL dbcsr_deallocate_matrix_set(dcdr_env%hamiltonian1)
       CALL dbcsr_deallocate_matrix_set(dcdr_env%moments)
       CALL dbcsr_deallocate_matrix_set(dcdr_env%matrix_difdip)

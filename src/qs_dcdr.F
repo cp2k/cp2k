@@ -65,6 +65,27 @@ MODULE qs_dcdr
                                               dipole_deriv_ao
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
+
+
+   USE cell_types, ONLY: cell_type, pbc
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
+                                              dbcsr_type
+   USE kinds,                           ONLY: dp
+   USE pw_methods,                      ONLY: pw_transfer
+   USE pw_types,                        ONLY: pw_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -149,15 +170,16 @@ CONTAINS
       END DO
 
       ! Operator:
-      ispin = 1
-      DO i = 1, 3
-         CALL dbcsr_set(dcdr_env%matrix_ppnl_1(i)%matrix, 0.0_dp)
-         CALL dbcsr_set(dcdr_env%matrix_hc(i)%matrix, 0.0_dp)
-         CALL dbcsr_set(dcdr_env%matrix_vhxc_perturbed_basis(ispin, i)%matrix, 0.0_dp)
-         CALL dbcsr_set(dcdr_env%matrix_vhxc_perturbed_basis(ispin, i + 3)%matrix, 0.0_dp)
-         CALL dbcsr_set(dcdr_env%matrix_d_vhxc_dR(i)%matrix, 0.0_dp)
-         CALL dbcsr_set(dcdr_env%matrix_core_charge_1(i)%matrix, 0.0_dp)
-      END DO
+      do ispin = 1, dcdr_env%nspins
+         DO i = 1, 3
+            CALL dbcsr_set(dcdr_env%matrix_ppnl_1(i)%matrix, 0.0_dp)
+            CALL dbcsr_set(dcdr_env%matrix_hc(i)%matrix, 0.0_dp)
+            CALL dbcsr_set(dcdr_env%matrix_vhxc_perturbed_basis(ispin, i)%matrix, 0.0_dp)
+            CALL dbcsr_set(dcdr_env%matrix_vhxc_perturbed_basis(ispin, i + 3)%matrix, 0.0_dp)
+            CALL dbcsr_set(dcdr_env%matrix_d_vhxc_dR(i, ispin)%matrix, 0.0_dp)
+            CALL dbcsr_set(dcdr_env%matrix_core_charge_1(i)%matrix, 0.0_dp)
+         END DO
+      enddo      
 
       CALL core_dR(qs_env, dcdr_env)  ! dcdr_env%matrix_ppnl_1, hc
       CALL d_vhxc_dR(qs_env, dcdr_env)  ! dcdr_env%matrix_d_vhxc_dR
@@ -190,14 +212,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcdr_build_op_dR'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      INTEGER                                            :: handle, nao, nmo
+      INTEGER                                            :: handle, nao, nmo, ispin
       TYPE(cp_fm_type)                                   :: buf
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: opdr_sym
 
       CALL timeset(routineN, handle)
 
       nao = dcdr_env%nao
-      nmo = dcdr_env%nmo
 
       ! allocate matrix for the sum of the perturbation terms of the operator (dbcsr matrix)
       NULLIFY (opdr_sym)
@@ -206,36 +227,40 @@ CONTAINS
       CALL dbcsr_copy(opdr_sym(1)%matrix, dcdr_env%matrix_s1(1)%matrix)  ! symmetric
       CALL dbcsr_set(opdr_sym(1)%matrix, 0.0_dp)
 
-      CALL apply_op_constant_term(qs_env, dcdr_env)  ! dcdr_env%matrix_apply_op_constant
-      ! Hartree and Exchange-Correlation contributions
-      CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_core_charge_1(dcdr_env%beta)%matrix, zero, one)
-      CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_d_vhxc_dR(dcdr_env%beta)%matrix, one, one)
-      CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_vhxc_perturbed_basis(1, dcdr_env%beta)%matrix, one, one)
+      do ispin = 1, dcdr_env%nspins
+         nmo = dcdr_env%nmo(ispin)
 
-      ! Core Hamiltonian contributions
-      CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_hc(dcdr_env%beta)%matrix, one, one)
-      CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_ppnl_1(dcdr_env%beta)%matrix, one, one)
-      CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_apply_op_constant(1)%matrix, one, one)
+         CALL apply_op_constant_term(qs_env, dcdr_env)  ! dcdr_env%matrix_apply_op_constant
+         ! Hartree and Exchange-Correlation contributions
+         CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_core_charge_1(dcdr_env%beta)%matrix, one, one)
+         CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_d_vhxc_dR(dcdr_env%beta, ispin)%matrix, one, one)
+         CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_vhxc_perturbed_basis(ispin, dcdr_env%beta)%matrix, one, one)
 
-      CALL dbcsr_desymmetrize(opdr_sym(1)%matrix, dcdr_env%hamiltonian1(1)%matrix)
-      CALL dbcsr_add(dcdr_env%hamiltonian1(1)%matrix, dcdr_env%matrix_t1(dcdr_env%beta + 1)%matrix, one, one)
+         ! Core Hamiltonian contributions
+         CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_hc(dcdr_env%beta)%matrix, zero, one)
+         CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_ppnl_1(dcdr_env%beta)%matrix, one, one)
+         CALL dbcsr_add(opdr_sym(1)%matrix, dcdr_env%matrix_apply_op_constant(ispin)%matrix, one, one)
 
-      CALL cp_dbcsr_sm_fm_multiply(dcdr_env%hamiltonian1(1)%matrix, dcdr_env%mo_coeff(1), &
-                                   dcdr_env%op_dR(1), ncol=nmo)
+         CALL dbcsr_desymmetrize(opdr_sym(1)%matrix, dcdr_env%hamiltonian1(1)%matrix)
+         CALL dbcsr_add(dcdr_env%hamiltonian1(1)%matrix, dcdr_env%matrix_t1(dcdr_env%beta + 1)%matrix, one, one)
 
-      ! The overlap derivative terms for the Sternheimer equation
-      ! buf = mo * (-mo * matrix_ks * mo)
-      CALL cp_fm_create(buf, dcdr_env%likemos_fm_struct)
-      CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
-                         -1.0_dp, dcdr_env%mo_coeff(1), dcdr_env%chc(1), &
-                         0.0_dp, buf)
+         CALL cp_dbcsr_sm_fm_multiply(dcdr_env%hamiltonian1(1)%matrix, dcdr_env%mo_coeff(ispin), &
+                                      dcdr_env%op_dR(ispin), ncol=nmo)
 
-      CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, buf, dcdr_env%op_dR(1), &
-                                   nmo, alpha=1.0_dp, beta=1.0_dp)
-      CALL cp_fm_release(buf)
+         ! The overlap derivative terms for the Sternheimer equation
+         ! buf = mo * (-mo * matrix_ks * mo)
+         CALL cp_fm_create(buf, dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
+                            -1.0_dp, dcdr_env%mo_coeff(ispin), dcdr_env%chc(ispin), &
+                            0.0_dp, buf)
 
-      ! SL multiply by -1 for response solver (H-S<H> C + dR_coupled= - (op_dR)
-      CALL cp_fm_scale(-1.0_dp, dcdr_env%op_dR(1))
+         CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, buf, dcdr_env%op_dR(ispin), &
+                                      nmo, alpha=1.0_dp, beta=1.0_dp)
+         CALL cp_fm_release(buf)
+
+         ! SL multiply by -1 for response solver (H-S<H> C + dR_coupled= - (op_dR)
+         CALL cp_fm_scale(-1.0_dp, dcdr_env%op_dR(ispin))
+      enddo
 
       CALL dbcsr_deallocate_matrix_set(opdr_sym)
 
@@ -257,10 +282,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dcdr_response_dR'
 
-      INTEGER                                            :: handle, output_unit
+      INTEGER                                            :: handle, output_unit, ispin
       LOGICAL                                            :: should_stop
-      TYPE(cp_fm_type), DIMENSION(1)                     :: h1_psi0, psi1
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: psi0_order
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: h1_psi0, psi1, psi0_order
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(section_vals_type), POINTER                   :: lr_section
@@ -269,7 +295,8 @@ CONTAINS
       NULLIFY (linres_control, lr_section, logger)
 
       CALL get_qs_env(qs_env=qs_env, &
-                      linres_control=linres_control)
+                      linres_control=linres_control,&
+                      mos=mos)
 
       logger => cp_get_default_logger()
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
@@ -281,15 +308,25 @@ CONTAINS
             "*** Self consistent optimization of the response wavefunction ***"
       END IF
 
-      psi0_order(1:1) => dcdr_env%mo_coeff(1:1)
-      CALL cp_fm_create(psi1(1), dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(h1_psi0(1), dcdr_env%likemos_fm_struct)
+      ! allocate the vectors
+      ALLOCATE (psi0_order(dcdr_env%nspins))
+      ALLOCATE (psi1(dcdr_env%nspins))
+      ALLOCATE (h1_psi0(dcdr_env%nspins))
+
+      do ispin = 1, dcdr_env%nspins
+         CALL cp_fm_create(psi1(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(h1_psi0(ispin), dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
+         psi0_order(ispin) = mo_coeff
+      enddo
 
       ! Restart
       IF (linres_control%linres_restart) THEN
          CALL dcdr_read_restart(qs_env, lr_section, psi1, dcdr_env%lambda, dcdr_env%beta, "dCdR")
       ELSE
-         CALL cp_fm_set_all(psi1(1), 0.0_dp)
+         do ispin = 1, dcdr_env%nspins
+            CALL cp_fm_set_all(psi1(ispin), 0.0_dp)
+         enddo
       END IF
 
       IF (output_unit > 0) THEN
@@ -297,8 +334,10 @@ CONTAINS
             "Response to the perturbation operator referring to atom ", dcdr_env%lambda, &
             " displaced in "//ACHAR(dcdr_env%beta + 119)
       END IF
-      CALL cp_fm_set_all(dcdr_env%dCR(1), 0.0_dp)
-      CALL cp_fm_to_fm(dcdr_env%op_dR(1), h1_psi0(1))
+      do ispin = 1, dcdr_env%nspins
+         CALL cp_fm_set_all(dcdr_env%dCR(ispin), 0.0_dp)
+         CALL cp_fm_to_fm(dcdr_env%op_dR(ispin), h1_psi0(ispin))
+      enddo
 
       linres_control%lr_triplet = .FALSE. ! we do singlet response
       linres_control%do_kernel = .TRUE.
@@ -311,7 +350,9 @@ CONTAINS
       ! psi0_order = the unperturbed wavefunction
       CALL linres_solver(p_env, qs_env, psi1, h1_psi0, psi0_order, &
                          output_unit, should_stop)
-      CALL cp_fm_to_fm(psi1(1), dcdr_env%dCR(1))
+      do ispin = 1, dcdr_env%nspins
+         CALL cp_fm_to_fm(psi1(ispin), dcdr_env%dCR(ispin))
+      enddo
 
       ! Write the new result to the restart file
       IF (linres_control%linres_restart) THEN
@@ -319,8 +360,11 @@ CONTAINS
       END IF
 
       ! clean up
-      CALL cp_fm_release(psi1(1))
-      CALL cp_fm_release(h1_psi0(1))
+      do ispin = 1, dcdr_env%nspins
+         CALL cp_fm_release(psi1(ispin))
+         CALL cp_fm_release(h1_psi0(ispin))
+      enddo
+      DEALLOCATE (psi1, h1_psi0, psi0_order)
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
 
@@ -340,7 +384,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apt_dR'
 
-      INTEGER                                            :: alpha, handle, ikind, nao, nmo
+      INTEGER                                            :: alpha, handle, ikind, nao, nmo, ispin
       LOGICAL                                            :: ghost
       REAL(dp)                                           :: apt_basis_derivative, &
                                                             apt_coeff_derivative, charge, f_spin
@@ -361,64 +405,78 @@ CONTAINS
                       particle_set=particle_set)
 
       nao = dcdr_env%nao
-      nmo = dcdr_env%nmo
-      mo_coeff => dcdr_env%mo_coeff(1)
       apt_el => dcdr_env%apt_el_dcdr
       apt_nuc => dcdr_env%apt_nuc_dcdr
 
-      f_spin = 2._dp
-
-      CALL cp_fm_create(tmp_fm_like_mos, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(overlap1_MO, dcdr_env%momo_fm_struct)
+      f_spin = 2._dp/dcdr_env%nspins
 
       ! Compute S^(1,R)_(ij)
-      CALL cp_fm_set_all(tmp_fm_like_mos, 0.0_dp)
-      CALL cp_fm_scale_and_add(0._dp, dcdr_env%dCR_prime(1), 1._dp, dcdr_env%dCR(1))
-      CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, mo_coeff, &
-                                   tmp_fm_like_mos, ncol=nmo)
-      CALL parallel_gemm("T", "N", nmo, nmo, nao, &
-                         1.0_dp, mo_coeff, tmp_fm_like_mos, &
-                         0.0_dp, overlap1_MO)
-
-      !   C^1 <- -dCR - 0.5 * mo_coeff @ S1_ij
-      !    We get the negative of the coefficients out of the linres solver
-      !    And apply the constant correction due to the overlap derivative.
-      CALL parallel_gemm("N", "N", nao, nmo, nmo, &
-                         -0.5_dp, mo_coeff, overlap1_MO, &
-                         -1.0_dp, dcdr_env%dCR_prime(1))
-
-      DO alpha = 1, 3
-         ! FIRST CONTRIBUTION: dCR * moments * mo
-         CALL cp_fm_set_all(tmp_fm_like_mos, 0._dp)
-         CALL dbcsr_desymmetrize(dcdr_env%matrix_s1(1)%matrix, dcdr_env%matrix_nosym_temp(1)%matrix)
-         CALL dbcsr_desymmetrize(dcdr_env%moments(alpha)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix)
-         CALL dbcsr_add(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix, &
-                        -dcdr_env%ref_point(alpha), 1._dp)
-         CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%dCR_prime(1), &
-                                      tmp_fm_like_mos, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_coeff_derivative)
-
-         apt_coeff_derivative = (-2._dp)*f_spin*apt_coeff_derivative
-         apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) &
-            = apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_coeff_derivative
-      END DO ! alpha
-
-      DO alpha = 1, 3
-         ! SECOND CONTRIBUTION: We assemble all combinations of r_i, d(chi)/d(idir)
-         ! difdip contains derivatives with respect to atom dcdr_env%lambda
-         ! difdip(alpha, beta): < a | r_alpha | db/dR_beta >
-         ! Multiply by the MO coefficients
+      do ispin = 1, dcdr_env%nspins
+         CALL cp_fm_create(tmp_fm_like_mos, dcdr_env%likemos_fm_struct(ispin)%struct)
+         CALL cp_fm_create(overlap1_MO, dcdr_env%momo_fm_struct(ispin)%struct)
+         nmo = dcdr_env%nmo(ispin)
+         mo_coeff => dcdr_env%mo_coeff(ispin)
          CALL cp_fm_set_all(tmp_fm_like_mos, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_difdip(alpha, dcdr_env%beta)%matrix, mo_coeff, &
+         CALL cp_fm_scale_and_add(0._dp, dcdr_env%dCR_prime(ispin), 1._dp, dcdr_env%dCR(ispin))
+         CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, mo_coeff, &
                                       tmp_fm_like_mos, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_basis_derivative)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, &
+                            1.0_dp, mo_coeff, tmp_fm_like_mos, &
+                            0.0_dp, overlap1_MO)
 
-         ! The negative sign is due to dipole_deriv_ao computing the derivatives with respect to nuclear coordinates.
-         apt_basis_derivative = -f_spin*apt_basis_derivative
-         apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) = &
-            apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_basis_derivative
+         !   C^1 <- -dCR - 0.5 * mo_coeff @ S1_ij
+         !    We get the negative of the coefficients out of the linres solver
+         !    And apply the constant correction due to the overlap derivative.
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, &
+                            -0.5_dp, mo_coeff, overlap1_MO, &
+                            -1.0_dp, dcdr_env%dCR_prime(ispin))
 
-      END DO ! alpha
+
+         DO alpha = 1, 3
+            ! FIRST CONTRIBUTION: dCR * moments * mo
+            CALL cp_fm_set_all(tmp_fm_like_mos, 0._dp)
+            CALL dbcsr_desymmetrize(dcdr_env%matrix_s1(1)%matrix, dcdr_env%matrix_nosym_temp(1)%matrix)
+            CALL dbcsr_desymmetrize(dcdr_env%moments(alpha)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix)
+            CALL dbcsr_add(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix, &
+                           -dcdr_env%ref_point(alpha), 1._dp)
+
+            CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%dCR_prime(ispin), &
+                                         tmp_fm_like_mos, ncol=nmo)
+            CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_coeff_derivative)
+
+            apt_coeff_derivative = (-2._dp)*f_spin*apt_coeff_derivative
+            apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) &
+               = apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_coeff_derivative
+
+            IF (dcdr_env%output_unit > 0) &
+               WRITE (dcdr_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") 'apt coeff_derivative: ', &
+               dcdr_env%beta, alpha, dcdr_env%lambda, apt_coeff_derivative
+         END DO ! alpha
+
+         CALL cp_fm_release(overlap1_MO)
+
+         DO alpha = 1, 3
+            ! SECOND CONTRIBUTION: We assemble all combinations of r_i, d(chi)/d(idir)
+            ! difdip contains derivatives with respect to atom dcdr_env%lambda
+            ! difdip(alpha, beta): < a | r_alpha | db/dR_beta >
+            ! Multiply by the MO coefficients
+            CALL cp_fm_set_all(tmp_fm_like_mos, 0.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_difdip(alpha, dcdr_env%beta)%matrix, mo_coeff, &
+                                         tmp_fm_like_mos, ncol=nmo)
+            CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_basis_derivative)
+
+            ! The negative sign is due to dipole_deriv_ao computing the derivatives with respect to nuclear coordinates.
+            apt_basis_derivative = -f_spin*apt_basis_derivative
+            apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) = &
+               apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_basis_derivative
+
+            IF (dcdr_env%output_unit > 0) &
+               WRITE (dcdr_env%output_unit, "(A,T30,I4,I4,I4,T45,F15.6)") 'apt basis_derivative: ', &
+               dcdr_env%beta, alpha, dcdr_env%lambda, apt_basis_derivative
+         END DO ! alpha
+
+         CALL cp_fm_release(tmp_fm_like_mos)
+      enddo !ispin
 
       ! Finally the nuclear contribution: nuclear charge * Kronecker_delta_{dcdr_env%beta,i}
       CALL get_atomic_kind(particle_set(dcdr_env%lambda)%atomic_kind, kind_number=ikind)
@@ -520,17 +578,18 @@ CONTAINS
       END IF
 
       nao = dcdr_env%nao
-      nmo = dcdr_env%nmo
+      nmo = dcdr_env%nmo(1)
       mo_coeff => dcdr_env%mo_coeff(1)
       f_spin = 2._dp
+      if (dcdr_env%nspins == 2) f_spin = 1._dp
 
       ALLOCATE (diagonal_elements(nmo))
 
       ! Allocate temporary matrices
-      CALL cp_fm_create(tmp_fm, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(tmp_fm, dcdr_env%likemos_fm_struct(1)%struct)
       DO i = 1, 3
-         CALL cp_fm_create(tmp_fm_momo(i), dcdr_env%momo_fm_struct)
-         CALL cp_fm_create(tmp_fm_like_mos(i), dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create(tmp_fm_momo(i), dcdr_env%momo_fm_struct(1)%struct)
+         CALL cp_fm_create(tmp_fm_like_mos(i), dcdr_env%likemos_fm_struct(1)%struct)
       END DO
 
       ! Build the full coefficient derivatives.
