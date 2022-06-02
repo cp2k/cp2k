@@ -267,7 +267,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: metric
 
       metric = 0.0_dp
-      CALL dgemm('T', 'N', 3, 3, 3, 1._dp, cell%hmat, 3, cell%hmat, 3, 0.0_dp, metric, 3)
+      CALL dgemm('T', 'N', 3, 3, 3, 1._dp, cell%hmat(:, :), 3, cell%hmat(:, :), 3, 0.0_dp, metric(:, :), 3)
 
       weights(1) = METRIC(1, 1) - METRIC(1, 2) - METRIC(1, 3)
       weights(2) = METRIC(2, 2) - METRIC(1, 2) - METRIC(2, 3)
@@ -2684,12 +2684,15 @@ CONTAINS
                                 rotmat(1:nstate, k:k + n2 - 1), ip_partner, para_env%group)
 
                IF (ilow1 < ilow2) THEN
-              CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1, k), nstate, rmat_loc(1 + n1, 1), n1 + n2, 0.0_dp, gmat, nstate)
-                  CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, rmat_loc(1, 1), n1 + n2, 1.0_dp, gmat, nstate)
+                  CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1:, k:), nstate, rmat_loc(1 + n1:, 1:), &
+                             n1 + n2, 0.0_dp, gmat(:, :), nstate)
+                  CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1:, 1:), nstate, rmat_loc(1:, 1:), &
+                             n1 + n2, 1.0_dp, gmat(:, :), nstate)
                ELSE
-              CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1, k), nstate, rmat_loc(1, n2 + 1), n1 + n2, 0.0_dp, gmat, nstate)
-                  CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, &
-                             rmat_loc(n2 + 1, n2 + 1), n1 + n2, 1.0_dp, gmat, nstate)
+                  CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1:, k:), nstate, &
+                             rmat_loc(1:, n2 + 1:), n1 + n2, 0.0_dp, gmat(:, :), nstate)
+                  CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1:, 1:), nstate, &
+                             rmat_loc(n2 + 1:, n2 + 1:), n1 + n2, 1.0_dp, gmat(:, :), nstate)
                END IF
 
                CALL dcopy(nstate*n1, gmat(1, 1), 1, rotmat(1, 1), 1)
