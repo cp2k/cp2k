@@ -1013,6 +1013,12 @@ MODULE input_constants
                                                wfc_mm_style_gemm = 11, &
                                                wfc_mm_style_syrk = 12
 
+   ! solvers of the z-vector equations
+   INTEGER, PARAMETER, PUBLIC               :: z_solver_pople = 1, &
+                                               z_solver_cg = 2, &
+                                               z_solver_richardson = 3, &
+                                               z_solver_sd = 4
+
    ! GW parameter
    INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_z_shot = 1, &
                                                ri_rpa_g0w0_crossing_newton = 2, &

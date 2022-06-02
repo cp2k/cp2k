@@ -34,7 +34,7 @@ MODULE input_cp2k_mp2
         ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
         ot_precond_s_inverse, ri_default, ri_rpa_g0w0_crossing_bisection, &
         ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_z_shot, wfc_mm_style_gemm, &
-        wfc_mm_style_syrk
+        wfc_mm_style_syrk, z_solver_cg, z_solver_pople, z_solver_richardson, z_solver_sd
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_kpoints,              ONLY: create_kpoint_set_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -1414,12 +1414,65 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_EVERY", &
+                          description="Restart iteration every given number of steps.", &
+                          usage="RESTART_EVERY 5", &
+                          default_i_val=5)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOLVER_METHOD", &
+                          description="Chose solver of the z-vector equations.", &
+                          usage="SOLVER_METHOD POPLE", enum_c_vals= &
+                          s2a("POPLE", "CG", "RICHARDSON", "SD"), &
+                          enum_desc=s2a("Pople's method (Default).", &
+                                        "Conjugated gradient method (equivalent to Pople).", &
+                                        "Richardson iteration", &
+                                        "Steepest Descent iteration"), &
+                          enum_i_vals=(/z_solver_pople, z_solver_cg, z_solver_richardson, z_solver_sd/), &
+                          default_i_val=z_solver_pople)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_CONV", &
                           description="Convergence threshold for the solution of the Z-vector equations. "// &
                           "The Z-vector equations have the form of a linear system of equations Ax=b, "// &
                           "convergence is achieved when |Ax-b|<=EPS_CONV.", &
                           usage="EPS_CONV 1.0E-6", type_of_var=real_t, &
                           default_r_val=1.0E-4_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_STEP_SIZE", &
+                          description="Scaling factor of each step.", &
+                          usage="SCALE_STEP_SIZE 1.0", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ENFORCE_DECREASE", &
+                          description="Restarts if residual does not decrease.", &
+                          usage="ENFORCE_DECREASE T", &
+                          lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DO_POLAK_RIBIERE", &
+                          description="Use a Polak-Ribiere update of the search vector in CG instead of the Fletcher "// &
+                          "Reeves update. Improves the convergence with modified step sizes. "// &
+                          "Ignored with other methods than CG.", &
+                          usage="ENFORCE_DECREASE T", &
+                          lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="RECALC_RESIDUAL", &
+                          description="Recalculates residual in every step.", &
+                          usage="RECALC_RESIDUAL T", &
+                          lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

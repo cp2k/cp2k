@@ -55,7 +55,11 @@ MODULE mp2_cphf
                                               hfx_init_container,&
                                               hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
-                                              ot_precond_full_all
+                                              ot_precond_full_all,&
+                                              z_solver_cg,&
+                                              z_solver_pople,&
+                                              z_solver_richardson,&
+                                              z_solver_sd
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
@@ -372,8 +376,8 @@ CONTAINS
          CALL cp_fm_set_all(P_ia(ispin)%matrix, 0.0_dp)
       END DO
 
-      CALL solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, nspins, &
-                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
+      CALL solve_z_vector_eq_low(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                  L_jb, fm_G_mu_nu, fm_back, P_ia)
 
       ! release fm stuff
@@ -646,7 +650,6 @@ CONTAINS
 !>        system of linear equation
 !> \param qs_env ...
 !> \param mp2_env ...
-!> \param para_env ...
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen ...
@@ -656,63 +659,34 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param p_env ...
-!> \param blacs_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
 !> \param fm_back ...
 !> \param P_ia ...
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, para_env, homo, virtual, dimen, unit_nr, nspins, &
-                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, blacs_env, &
+   SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                     L_jb, fm_G_mu_nu, fm_back, P_ia)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
       INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
       TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_blacs_env_type), INTENT(IN), POINTER       :: blacs_env
+      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
 
-      INTEGER :: cycle_counter, handle, i_global, iiB, iiter, ispin, j_global, jjB, max_num_iter, &
-         ncol_local, nrow_local, transf_type_in
+      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
+                                                            jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: converged
-      REAL(KIND=dp)                                      :: eps_conv, t1, t2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: conv, proj_bi_xj, temp_vals, x_norm, xi_b
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_small, b_small, xi_Axi
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: b_i, precond, residual
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Ax, xn
-      TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: fm_struct_tmp
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: precond
 
       CALL timeset(routineN, handle)
-
-      max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
-      eps_conv = mp2_env%ri_grad%cphf_eps_conv
-
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *)
-         WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations'
-         WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
-         WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
-         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-         WRITE (unit_nr, '(T4,A,T15,A,T33,A)') 'Step', 'Time', 'Convergence'
-         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-      END IF
-
-      ! set the transformation type (equal for all methods all updates)
-      transf_type_in = 3
-
-      ! set convergence flag
-      converged = .FALSE.
 
       ! Pople method
       ! change sign to L_jb
@@ -720,20 +694,12 @@ CONTAINS
          L_jb(ispin)%matrix%local_data(:, :) = -L_jb(ispin)%matrix%local_data(:, :)
       END DO
 
-      ! allocate stuff
-      ALLOCATE (xn(nspins, max_num_iter))
-      ALLOCATE (Ax(nspins, max_num_iter))
-
       ! create fm structure
-      ALLOCATE (fm_struct_tmp(nspins), precond(nspins), b_i(nspins), residual(ispin))
+      ALLOCATE (precond(nspins))
       DO ispin = 1, nspins
-         NULLIFY (fm_struct_tmp(ispin)%struct)
-         CALL cp_fm_struct_create(fm_struct_tmp(ispin)%struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=homo(ispin), ncol_global=virtual(ispin))
-
          ! create preconditioner (for now only orbital energy differences)
          NULLIFY (precond(ispin)%matrix)
-         CALL cp_fm_create(precond(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="precond")
+         CALL cp_fm_create(precond(ispin)%matrix, P_ia(ispin)%matrix%matrix_struct, name="precond")
          CALL cp_fm_set_all(precond(ispin)%matrix, 1.0_dp)
          CALL cp_fm_get_info(matrix=precond(ispin)%matrix, &
                              nrow_local=nrow_local, &
@@ -744,203 +710,594 @@ CONTAINS
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               precond(ispin)%matrix%local_data(iiB, jjB) = precond(ispin)%matrix%local_data(iiB, jjB)/ &
-                                                            (Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin))
+               precond(ispin)%matrix%local_data(iiB, jjB) = Eigenval(j_global + homo(ispin), ispin) - Eigenval(i_global, ispin)
             END DO
-         END DO
-
-         NULLIFY (b_i(ispin)%matrix)
-         CALL cp_fm_create(b_i(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="b_i")
-         CALL cp_fm_set_all(b_i(ispin)%matrix, 0.0_dp)
-         b_i(ispin)%matrix%local_data(:, :) = precond(ispin)%matrix%local_data(:, :)*L_jb(ispin)%matrix%local_data(:, :)
-
-         ! create the residual vector (r), we check convergence on the norm of
-         ! this vector r=(Ax-b)
-         NULLIFY (residual(ispin)%matrix)
-         CALL cp_fm_create(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
-         CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
-      END DO
-
-      ALLOCATE (conv(nspins))
-
-      ! allocate array containing the various scalar products
-      ALLOCATE (x_norm(max_num_iter))
-      ALLOCATE (xi_b(max_num_iter))
-      ALLOCATE (xi_Axi(max_num_iter, 0:max_num_iter))
-      x_norm = 0.0_dp
-      xi_b = 0.0_dp
-      xi_Axi = 0.0_dp
-
-      cycle_counter = 0
-      DO iiter = 1, max_num_iter
-         cycle_counter = cycle_counter + 1
-
-         t1 = m_walltime()
-
-         ! create and update x_i (orthogonalization with previous vectors)
-         DO ispin = 1, nspins
-            NULLIFY (xn(ispin, iiter)%matrix)
-            CALL cp_fm_create(xn(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="xi")
-            CALL cp_fm_set_all(xn(ispin, iiter)%matrix, 0.0_dp)
-         END DO
-
-         ALLOCATE (proj_bi_xj(iiter - 1))
-         proj_bi_xj = 0.0_dp
-         ! first compute the projection of the actual b_i into all previous x_i
-         ! already scaled with the norm of each x_i
-         DO iiB = 1, iiter - 1
-            DO ispin = 1, nspins
-               proj_bi_xj(iiB) = proj_bi_xj(iiB) + accurate_dot_product(b_i(ispin)%matrix%local_data(:, :), &
-                                                                        xn(ispin, iiB)%matrix%local_data(:, :))
-            END DO
-            proj_bi_xj(iiB) = proj_bi_xj(iiB)/x_norm(iiB)
-         END DO
-
-         CALL mp_sum(proj_bi_xj, para_env%group)
-
-         ! update actual x_i
-         DO ispin = 1, nspins
-            xn(ispin, iiter)%matrix%local_data(:, :) = b_i(ispin)%matrix%local_data(:, :)
-            DO iiB = 1, iiter - 1
-               xn(ispin, iiter)%matrix%local_data(:, :) = xn(ispin, iiter)%matrix%local_data(:, :) - &
-                                                          xn(ispin, iiB)%matrix%local_data(:, :)*proj_bi_xj(iiB)
-            END DO
-         END DO
-         DEALLOCATE (proj_bi_xj)
-
-         ! create Ax(iiter) that will store the matrix vector product for this cycle
-         DO ispin = 1, nspins
-            NULLIFY (Ax(ispin, iiter)%matrix)
-            CALL cp_fm_create(Ax(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="Ai")
-            CALL cp_fm_set_all(Ax(ispin, iiter)%matrix, 0.0_dp)
-         END DO
-
-         CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
-                               mo_coeff_o, &
-                               mo_coeff_v, Eigenval, p_env, &
-                               xn(:, iiter), fm_G_mu_nu, fm_back, transf_type_in, &
-                               Ax(:, iiter))
-
-         ! in order to reduce the number of calls to mp_sum here we
-         ! cluster all necessary scalar products into a single vector
-         ! temp_vals contains:
-         ! 1:iiter -> <Ax_i|x_j>
-         ! iiter+1 -> <x_i|b>
-         ! iiter+2 -> <x_i|x_i>
-
-         ALLOCATE (temp_vals(iiter + 2))
-         temp_vals = 0.0_dp
-         ! <Ax_i|x_j>
-         DO ispin = 1, nspins
-         DO iiB = 1, iiter
-            temp_vals(iiB) = temp_vals(iiB) + &
-                             accurate_dot_product(Ax(ispin, iiter)%matrix%local_data(:, :), &
-                                                  xn(ispin, iiB)%matrix%local_data(:, :))
-         END DO
-         ! <x_i|b>
-         temp_vals(iiter + 1) = temp_vals(iiter + 1) + accurate_dot_product(xn(ispin, iiter)%matrix%local_data(:, :), &
-                                                                            L_jb(ispin)%matrix%local_data(:, :))
-         ! norm
-         temp_vals(iiter + 2) = temp_vals(iiter + 2) + accurate_dot_product(xn(ispin, iiter)%matrix%local_data(:, :), &
-                                                                            xn(ispin, iiter)%matrix%local_data(:, :))
-         END DO
-         CALL mp_sum(temp_vals, para_env%group)
-         ! update <Ax_i|x_j>,  <x_i|b> and norm <x_i|x_i>
-         xi_Axi(iiter, 1:iiter) = temp_vals(1:iiter)
-         xi_Axi(1:iiter, iiter) = temp_vals(1:iiter)
-         xi_b(iiter) = temp_vals(iiter + 1)
-         x_norm(iiter) = temp_vals(iiter + 2)
-         DEALLOCATE (temp_vals)
-
-         ! solve reduced system
-         IF (ALLOCATED(A_small)) DEALLOCATE (A_small)
-         IF (ALLOCATED(b_small)) DEALLOCATE (b_small)
-         ALLOCATE (A_small(iiter, iiter))
-         ALLOCATE (b_small(iiter, 1))
-         A_small(1:iiter, 1:iiter) = xi_Axi(1:iiter, 1:iiter)
-         b_small(1:iiter, 1) = xi_b(1:iiter)
-
-         CALL solve_system(matrix=A_small, mysize=iiter, eigenvectors=b_small)
-
-         ! check for convergence
-         conv = 0.0_dp
-         DO ispin = 1, nspins
-            CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
-            DO iiB = 1, iiter
-               residual(ispin)%matrix%local_data(:, :) = &
-                  residual(ispin)%matrix%local_data(:, :) + &
-                  b_small(iiB, 1)*Ax(ispin, iiB)%matrix%local_data(:, :)
-            END DO
-
-            residual(ispin)%matrix%local_data(:, :) = &
-               residual(ispin)%matrix%local_data(:, :) - &
-               L_jb(ispin)%matrix%local_data(:, :)
-            conv(ispin) = accurate_dot_product(residual(ispin)%matrix%local_data(:, :), &
-                                               residual(ispin)%matrix%local_data(:, :))
-         END DO
-
-         CALL mp_sum(conv, para_env%group)
-         conv(1) = SUM(SQRT(conv))
-
-         t2 = m_walltime()
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T3,I5,T13,F6.1,11X,F14.8)') iiter, t2 - t1, conv(1)
-            CALL m_flush(unit_nr)
-         END IF
-
-         IF (conv(1) <= eps_conv) THEN
-            converged = .TRUE.
-            EXIT
-         END IF
-
-         ! update b_i for the next round
-         DO ispin = 1, nspins
-            b_i(ispin)%matrix%local_data(:, :) = b_i(ispin)%matrix%local_data(:, :) &
-                                                 + precond(ispin)%matrix%local_data(:, :) &
-                                                 *Ax(ispin, iiter)%matrix%local_data(:, :)
-         END DO
-
-      END DO
-
-      ! store solution into P_ia
-      DO iiter = 1, cycle_counter
-         DO ispin = 1, nspins
-            P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) + &
-                                                  b_small(iiter, 1)*xn(ispin, iiter)%matrix%local_data(:, :)
          END DO
       END DO
 
-      ! Release arrays
-      DEALLOCATE (x_norm)
-      DEALLOCATE (xi_b)
-      DEALLOCATE (xi_Axi)
+      DO ispin = 1, nspins
+         precond(ispin)%matrix%local_data(:, :) = 1.0_dp/precond(ispin)%matrix%local_data(:, :)
+      END DO
+
+      SELECT CASE (mp2_env%ri_grad%z_solver_method)
+      CASE (z_solver_pople)
+         CALL solve_z_vector_pople(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                   L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
+         CALL solve_z_vector_cg(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      CASE DEFAULT
+         CPABORT("Unknown solver")
+      END SELECT
 
       DO ispin = 1, nspins
          CALL cp_fm_release(precond(ispin)%matrix)
-         CALL cp_fm_release(b_i(ispin)%matrix)
-         CALL cp_fm_release(residual(ispin)%matrix)
-         CALL cp_fm_struct_release(fm_struct_tmp(ispin)%struct)
-
-         DO iiter = 1, cycle_counter
-            CALL cp_fm_release(Ax(ispin, iiter)%matrix)
-            CALL cp_fm_release(xn(ispin, iiter)%matrix)
-         END DO
       END DO
-      DEALLOCATE (precond, b_i, residual, fm_struct_tmp, Ax, xn)
+      DEALLOCATE (precond)
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-         IF (converged) THEN
-            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', cycle_counter, ' steps'
-         ELSE
-            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', cycle_counter, ' steps'
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_z_vector_eq_low
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen ...
+!> \param unit_nr ...
+!> \param nspins ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param Eigenval ...
+!> \param p_env ...
+!> \param L_jb ...
+!> \param fm_G_mu_nu ...
+!> \param fm_back ...
+!> \param P_ia ...
+!> \param precond ...
+! **************************************************************************************************
+   SUBROUTINE solve_z_vector_pople(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                   L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
+      INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
+      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
+      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
+      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: precond
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_pople'
+
+      INTEGER                                            :: cycle_counter, handle, iiB, iiter, &
+                                                            ispin, max_num_iter, transf_type_in
+      LOGICAL                                            :: converged
+      REAL(KIND=dp)                                      :: conv, eps_conv, scale_cphf, t1, t2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: proj_bi_xj, temp_vals, x_norm, xi_b
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_small, b_small, xi_Axi
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: b_i, residual
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: Ax, xn
+      TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: fm_struct_tmp
+
+      CALL timeset(routineN, handle)
+
+      eps_conv = mp2_env%ri_grad%cphf_eps_conv
+
+      IF (SQRT(accurate_dot_product_spin(L_jb, L_jb)) >= eps_conv) THEN
+
+         max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
+         scale_cphf = mp2_env%ri_grad%scale_step_size
+
+         ! set the transformation type (equal for all methods all updates)
+         transf_type_in = 3
+
+         ! set convergence flag
+         converged = .FALSE.
+
+         ALLOCATE (fm_struct_tmp(nspins), b_i(nspins), residual(nspins))
+         DO ispin = 1, nspins
+            fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
+
+            NULLIFY (b_i(ispin)%matrix)
+            CALL cp_fm_create(b_i(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="b_i")
+            CALL cp_fm_set_all(b_i(ispin)%matrix, 0.0_dp)
+            b_i(ispin)%matrix%local_data(:, :) = precond(ispin)%matrix%local_data(:, :)*L_jb(ispin)%matrix%local_data(:, :)
+
+            ! create the residual vector (r), we check convergence on the norm of
+            ! this vector r=(Ax-b)
+            NULLIFY (residual(ispin)%matrix)
+            CALL cp_fm_create(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
+            CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+         END DO
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *)
+            WRITE (unit_nr, '(T3,A)') "MP2_CPHF| Iterative solution of Z-Vector equations (Pople's method)"
+            WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
+            WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
+            WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Scaling of initial guess: ', scale_cphf
+            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+            WRITE (unit_nr, '(T4,A,T15,A,T33,A)') 'Step', 'Time', 'Convergence'
+            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+         END IF
+
+         ALLOCATE (xn(nspins, max_num_iter))
+         ALLOCATE (Ax(nspins, max_num_iter))
+         ALLOCATE (x_norm(max_num_iter))
+         ALLOCATE (xi_b(max_num_iter))
+         ALLOCATE (xi_Axi(max_num_iter, 0:max_num_iter))
+         x_norm = 0.0_dp
+         xi_b = 0.0_dp
+         xi_Axi = 0.0_dp
+
+         cycle_counter = 0
+         DO iiter = 1, max_num_iter
+            cycle_counter = cycle_counter + 1
+
+            t1 = m_walltime()
+
+            ! create and update x_i (orthogonalization with previous vectors)
+            DO ispin = 1, nspins
+               NULLIFY (xn(ispin, iiter)%matrix)
+               CALL cp_fm_create(xn(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="xi")
+               CALL cp_fm_set_all(xn(ispin, iiter)%matrix, 0.0_dp)
+            END DO
+
+            ALLOCATE (proj_bi_xj(iiter - 1))
+            proj_bi_xj = 0.0_dp
+            ! first compute the projection of the actual b_i into all previous x_i
+            ! already scaled with the norm of each x_i
+            DO iiB = 1, iiter - 1
+               proj_bi_xj(iiB) = proj_bi_xj(iiB) + accurate_dot_product_spin(b_i, xn(:, iiB))/x_norm(iiB)
+            END DO
+
+            ! update actual x_i
+            DO ispin = 1, nspins
+               xn(ispin, iiter)%matrix%local_data(:, :) = scale_cphf*b_i(ispin)%matrix%local_data(:, :)
+               DO iiB = 1, iiter - 1
+                  xn(ispin, iiter)%matrix%local_data(:, :) = xn(ispin, iiter)%matrix%local_data(:, :) - &
+                                                             xn(ispin, iiB)%matrix%local_data(:, :)*proj_bi_xj(iiB)
+               END DO
+            END DO
+            DEALLOCATE (proj_bi_xj)
+
+            ! create Ax(iiter) that will store the matrix vector product for this cycle
+            DO ispin = 1, nspins
+               NULLIFY (Ax(ispin, iiter)%matrix)
+               CALL cp_fm_create(Ax(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="Ai")
+               CALL cp_fm_set_all(Ax(ispin, iiter)%matrix, 0.0_dp)
+            END DO
+
+            CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
+                                  mo_coeff_o, &
+                                  mo_coeff_v, Eigenval, p_env, &
+                                  xn(:, iiter), fm_G_mu_nu, fm_back, transf_type_in, &
+                                  Ax(:, iiter))
+
+            ! in order to reduce the number of calls to mp_sum here we
+            ! cluster all necessary scalar products into a single vector
+            ! temp_vals contains:
+            ! 1:iiter -> <Ax_i|x_j>
+            ! iiter+1 -> <x_i|b>
+            ! iiter+2 -> <x_i|x_i>
+
+            ALLOCATE (temp_vals(iiter + 2))
+            temp_vals = 0.0_dp
+            ! <Ax_i|x_j>
+            DO iiB = 1, iiter
+               temp_vals(iiB) = temp_vals(iiB) + accurate_dot_product_spin(Ax(:, iiter), xn(:, iiB))
+            END DO
+            ! <x_i|b>
+            temp_vals(iiter + 1) = temp_vals(iiter + 1) + accurate_dot_product_spin(xn(:, iiter), L_jb)
+            ! norm
+            temp_vals(iiter + 2) = temp_vals(iiter + 2) + accurate_dot_product_spin(xn(:, iiter), xn(:, iiter))
+            ! update <Ax_i|x_j>,  <x_i|b> and norm <x_i|x_i>
+            xi_Axi(iiter, 1:iiter) = temp_vals(1:iiter)
+            xi_Axi(1:iiter, iiter) = temp_vals(1:iiter)
+            xi_b(iiter) = temp_vals(iiter + 1)
+            x_norm(iiter) = temp_vals(iiter + 2)
+            DEALLOCATE (temp_vals)
+
+            ! solve reduced system
+            IF (ALLOCATED(A_small)) DEALLOCATE (A_small)
+            IF (ALLOCATED(b_small)) DEALLOCATE (b_small)
+            ALLOCATE (A_small(iiter, iiter))
+            ALLOCATE (b_small(iiter, 1))
+            A_small(1:iiter, 1:iiter) = xi_Axi(1:iiter, 1:iiter)
+            b_small(1:iiter, 1) = xi_b(1:iiter)
+
+            CALL solve_system(matrix=A_small, mysize=iiter, eigenvectors=b_small)
+
+            ! check for convergence
+            DO ispin = 1, nspins
+               CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+               DO iiB = 1, iiter
+                  residual(ispin)%matrix%local_data(:, :) = &
+                     residual(ispin)%matrix%local_data(:, :) + &
+                     b_small(iiB, 1)*Ax(ispin, iiB)%matrix%local_data(:, :)
+               END DO
+
+               residual(ispin)%matrix%local_data(:, :) = &
+                  residual(ispin)%matrix%local_data(:, :) - &
+                  L_jb(ispin)%matrix%local_data(:, :)
+            END DO
+
+            conv = SQRT(accurate_dot_product_spin(residual, residual))
+
+            t2 = m_walltime()
+
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T3,I5,T13,F6.1,11X,F14.8)') iiter, t2 - t1, conv
+               CALL m_flush(unit_nr)
+            END IF
+
+            IF (conv <= eps_conv) THEN
+               converged = .TRUE.
+               EXIT
+            END IF
+
+            ! update b_i for the next round
+            DO ispin = 1, nspins
+               b_i(ispin)%matrix%local_data(:, :) = b_i(ispin)%matrix%local_data(:, :) &
+                                                    + precond(ispin)%matrix%local_data(:, :) &
+                                                    *Ax(ispin, iiter)%matrix%local_data(:, :)
+            END DO
+
+            scale_cphf = 1.0_dp
+
+         END DO
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+            IF (converged) THEN
+               WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', cycle_counter, ' steps'
+            ELSE
+               WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', cycle_counter, ' steps'
+            END IF
+         END IF
+
+         ! store solution into P_ia
+         DO iiter = 1, cycle_counter
+            DO ispin = 1, nspins
+               P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) + &
+                                                     b_small(iiter, 1)*xn(ispin, iiter)%matrix%local_data(:, :)
+            END DO
+         END DO
+
+         ! Release arrays
+         DEALLOCATE (x_norm)
+         DEALLOCATE (xi_b)
+         DEALLOCATE (xi_Axi)
+
+         DO ispin = 1, nspins
+            CALL cp_fm_release(b_i(ispin)%matrix)
+            CALL cp_fm_release(residual(ispin)%matrix)
+
+            DO iiter = 1, cycle_counter
+               CALL cp_fm_release(Ax(ispin, iiter)%matrix)
+               CALL cp_fm_release(xn(ispin, iiter)%matrix)
+            END DO
+         END DO
+         DEALLOCATE (b_i, residual, Ax, xn, fm_struct_tmp)
+
+      ELSE
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+            WRITE (unit_nr, '(T3,A)') 'Residual smaller than EPS_CONV. Skip solution of Z-vector equation.'
          END IF
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE solve_z_vector_eq_low
+   END SUBROUTINE solve_z_vector_pople
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen ...
+!> \param unit_nr ...
+!> \param nspins ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param Eigenval ...
+!> \param p_env ...
+!> \param L_jb ...
+!> \param fm_G_mu_nu ...
+!> \param fm_back ...
+!> \param P_ia ...
+!> \param precond ...
+! **************************************************************************************************
+   SUBROUTINE solve_z_vector_cg(qs_env, mp2_env, homo, virtual, dimen, unit_nr, nspins, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      INTEGER, INTENT(IN)                                :: nspins, unit_nr, dimen
+      INTEGER, DIMENSION(nspins), INTENT(IN)             :: virtual, homo
+      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
+      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
+      TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: precond
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cg'
+
+      INTEGER :: cycles_passed, handle, iiter, ispin, max_num_iter, restart_counter, &
+         restart_every, transf_type_in, z_solver_method
+      LOGICAL                                            :: converged, do_restart
+      REAL(KIND=dp) :: eps_conv, norm_residual, norm_residual_old, &
+         residual_dot_diff_search_vec_new, residual_dot_diff_search_vec_old, &
+         residual_dot_search_vec, residual_new_dot_diff_search_vec_old, scale_result, &
+         scale_search, scale_step_size, search_vec_dot_A_search_vec, t1, t2
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: A_dot_search_vector, diff_search_vector, &
+                                                            residual, search_vector
+      TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: fm_struct_tmp
+
+      CALL timeset(routineN, handle)
+
+      max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
+      eps_conv = mp2_env%ri_grad%cphf_eps_conv
+      z_solver_method = mp2_env%ri_grad%z_solver_method
+      restart_every = mp2_env%ri_grad%cphf_restart
+      scale_step_size = mp2_env%ri_grad%scale_step_size
+      transf_type_in = 3
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, *)
+         SELECT CASE (z_solver_method)
+         CASE (z_solver_cg)
+            IF (mp2_env%ri_grad%polak_ribiere) THEN
+               WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG with Polak-Ribiere step)'
+            ELSE
+               WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (CG with Fletcher-Reeves step)'
+            END IF
+         CASE (z_solver_richardson)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (Richardson method)'
+         CASE (z_solver_sd)
+            WRITE (unit_nr, '(T3,A)') 'MP2_CPHF| Iterative solution of Z-Vector equations (Steepest Descent method)'
+         CASE DEFAULT
+            CPABORT("Unknown solver")
+         END SELECT
+         WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
+         WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
+         WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Number of steps for restart: ', restart_every
+         WRITE (unit_nr, '(T3, A)') 'MP2_CPHF| Restart after no decrease'
+         WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Scaling factor of each step: ', scale_step_size
+         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+         WRITE (unit_nr, '(T4,A,T13,A,T28,A,T43,A)') 'Step', 'Restart', 'Time', 'Convergence'
+         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+      END IF
+
+      ALLOCATE (fm_struct_tmp(nspins), residual(nspins), diff_search_vector(nspins), &
+                search_vector(nspins), A_dot_search_vector(nspins))
+      DO ispin = 1, nspins
+         fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
+
+         NULLIFY (residual(ispin)%matrix)
+         CALL cp_fm_create(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
+         CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+
+         NULLIFY (diff_search_vector(ispin)%matrix)
+         CALL cp_fm_create(diff_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="difference search vector")
+         CALL cp_fm_set_all(diff_search_vector(ispin)%matrix, 0.0_dp)
+
+         NULLIFY (search_vector(ispin)%matrix)
+         CALL cp_fm_create(search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="search vector")
+         CALL cp_fm_set_all(search_vector(ispin)%matrix, 0.0_dp)
+
+         NULLIFY (A_dot_search_vector(ispin)%matrix)
+         CALL cp_fm_create(A_dot_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="A times search vector")
+         CALL cp_fm_set_all(A_dot_search_vector(ispin)%matrix, 0.0_dp)
+      END DO
+
+      converged = .FALSE.
+      cycles_passed = max_num_iter
+      ! By that, we enforce the setup of the matrices
+      do_restart = .TRUE.
+
+      t1 = m_walltime()
+
+      DO iiter = 1, max_num_iter
+
+         ! During the first iteration, P_ia=0 such that the application of the 2nd order matrix is zero
+         IF (do_restart) THEN
+            ! We do not consider the first step to be a restart
+            ! Do not recalculate residual if it is already enforced to save FLOPs
+            IF (.NOT. mp2_env%ri_grad%recalc_residual .OR. (iiter == 1)) THEN
+               IF (iiter > 1) THEN
+                  CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
+                                        mo_coeff_o, &
+                                        mo_coeff_v, Eigenval, p_env, &
+                                        P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
+                                        residual)
+               ELSE
+                  do_restart = .FALSE.
+
+                  DO ispin = 1, nspins
+                     CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
+                  END DO
+               END IF
+
+               DO ispin = 1, nspins
+                  residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) &
+                                                            - residual(ispin)%matrix%local_data(:, :)
+               END DO
+            END IF
+
+            DO ispin = 1, nspins
+               diff_search_vector(ispin)%matrix%local_data(:, :) = &
+                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+               search_vector(ispin)%matrix%local_data(:, :) = diff_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+
+            restart_counter = 1
+         END IF
+
+         norm_residual_old = SQRT(accurate_dot_product_spin(residual, residual))
+
+         residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
+
+         CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
+                               mo_coeff_o, &
+                               mo_coeff_v, Eigenval, p_env, &
+                               search_vector, fm_G_mu_nu, fm_back, transf_type_in, &
+                               A_dot_search_vector)
+
+         IF (z_solver_method /= z_solver_richardson) THEN
+            search_vec_dot_A_search_vec = accurate_dot_product_spin(search_vector, A_dot_search_vector)
+
+            IF (z_solver_method == z_solver_cg) THEN
+               scale_result = residual_dot_diff_search_vec_old/search_vec_dot_A_search_vec
+            ELSE
+               residual_dot_search_vec = accurate_dot_product_spin(residual, search_vector)
+               scale_result = residual_dot_search_vec/search_vec_dot_A_search_vec
+            END IF
+
+            scale_result = scale_result*scale_step_size
+
+         ELSE
+
+            scale_result = scale_step_size
+
+         END IF
+
+         DO ispin = 1, nspins
+            P_ia(ispin)%matrix%local_data(:, :) = P_ia(ispin)%matrix%local_data(:, :) &
+                                                  + scale_result*search_vector(ispin)%matrix%local_data(:, :)
+         END DO
+
+         IF (.NOT. mp2_env%ri_grad%recalc_residual) THEN
+
+            DO ispin = 1, nspins
+               residual(ispin)%matrix%local_data(:, :) = residual(ispin)%matrix%local_data(:, :) &
+                                                         - scale_result*A_dot_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE
+            CALL cphf_like_update(qs_env, homo, virtual, dimen, nspins, &
+                                  mo_coeff_o, &
+                                  mo_coeff_v, Eigenval, p_env, &
+                                  P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
+                                  residual)
+
+            DO ispin = 1, nspins
+             residual(ispin)%matrix%local_data(:, :) = L_jb(ispin)%matrix%local_data(:, :) - residual(ispin)%matrix%local_data(:, :)
+            END DO
+         END IF
+
+         norm_residual = SQRT(accurate_dot_product_spin(residual, residual))
+
+         t2 = m_walltime()
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T3,I4,T16,L1,T26,F6.1,8X,F14.8)') iiter, do_restart, t2 - t1, norm_residual
+            CALL m_flush(unit_nr)
+         END IF
+
+         IF (norm_residual <= eps_conv) THEN
+            converged = .TRUE.
+            cycles_passed = iiter
+            EXIT
+         END IF
+
+         t1 = m_walltime()
+
+         IF (z_solver_method == z_solver_richardson) THEN
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = &
+                  scale_step_size*precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE IF (z_solver_method == z_solver_sd) THEN
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = &
+                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
+         ELSE
+            IF (mp2_env%ri_grad%polak_ribiere) &
+               residual_new_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
+
+            DO ispin = 1, nspins
+               diff_search_vector(ispin)%matrix%local_data(:, :) = &
+                  precond(ispin)%matrix%local_data(:, :)*residual(ispin)%matrix%local_data(:, :)
+            END DO
+
+            residual_dot_diff_search_vec_new = accurate_dot_product_spin(residual, diff_search_vector)
+
+            scale_search = residual_dot_diff_search_vec_new/residual_dot_diff_search_vec_old
+            IF (mp2_env%ri_grad%polak_ribiere) scale_search = &
+               scale_search - residual_new_dot_diff_search_vec_old/residual_dot_diff_search_vec_old
+
+            DO ispin = 1, nspins
+               search_vector(ispin)%matrix%local_data(:, :) = scale_search*search_vector(ispin)%matrix%local_data(:, :) &
+                                                              + diff_search_vector(ispin)%matrix%local_data(:, :)
+            END DO
+
+            ! Make new to old
+            residual_dot_diff_search_vec_old = residual_dot_diff_search_vec_new
+         END IF
+
+         ! Check whether the residual decrease or restart is enforced and ask for restart
+         do_restart = (norm_residual >= norm_residual_old .OR. (MOD(restart_counter, restart_every) == 0))
+
+         restart_counter = restart_counter + 1
+         norm_residual_old = norm_residual
+
+      END DO
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+         IF (converged) THEN
+            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', cycles_passed, ' steps'
+         ELSE
+            WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', max_num_iter, ' steps'
+         END IF
+      END IF
+
+      DO ispin = 1, nspins
+         CALL cp_fm_release(residual(ispin)%matrix)
+         CALL cp_fm_release(diff_search_vector(ispin)%matrix)
+         CALL cp_fm_release(search_vector(ispin)%matrix)
+         CALL cp_fm_release(A_dot_search_vector(ispin)%matrix)
+      END DO
+      DEALLOCATE (residual, diff_search_vector, search_vector, A_dot_search_vector, fm_struct_tmp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_z_vector_cg
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix1 ...
+!> \param matrix2 ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION accurate_dot_product_spin(matrix1, matrix2) RESULT(dotproduct)
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: matrix1, matrix2
+      REAL(KIND=dp)                                      :: dotproduct
+
+      INTEGER                                            :: ispin
+
+      dotproduct = 0.0_dp
+      DO ispin = 1, SIZE(matrix1)
+         dotproduct = dotproduct + accurate_dot_product(matrix1(ispin)%matrix%local_data, matrix2(ispin)%matrix%local_data)
+      END DO
+      CALL mp_sum(dotproduct, matrix1(1)%matrix%matrix_struct%para_env%group)
+
+   END FUNCTION accurate_dot_product_spin
 
 ! **************************************************************************************************
 !> \brief ...

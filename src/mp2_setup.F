@@ -288,6 +288,12 @@ CONTAINS
 
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%MAX_ITER", i_val=mp2_env%ri_grad%cphf_max_num_iter)
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%EPS_CONV", r_val=mp2_env%ri_grad%cphf_eps_conv)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SCALE_STEP_SIZE", r_val=mp2_env%ri_grad%scale_step_size)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SOLVER_METHOD", i_val=mp2_env%ri_grad%z_solver_method)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%RESTART_EVERY", i_val=mp2_env%ri_grad%cphf_restart)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%ENFORCE_DECREASE", l_val=mp2_env%ri_grad%enforce_decrease)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%RECALC_RESIDUAL", l_val=mp2_env%ri_grad%recalc_residual)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%DO_POLAK_RIBIERE", l_val=mp2_env%ri_grad%polak_ribiere)
 
       CALL section_vals_val_get(mp2_section, "RI%ROW_BLOCK", i_val=mp2_env%block_size_row)
       CALL section_vals_val_get(mp2_section, "RI%COL_BLOCK", i_val=mp2_env%block_size_col)
