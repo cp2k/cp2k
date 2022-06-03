@@ -66,7 +66,7 @@ echo "i-Pi exit code: ${IPI_EXIT_CODE}"
 
 IPI_REVISION=$(git rev-parse --short HEAD)
 if ((IPI_EXIT_CODE)) || ((CP2K_EXIT_CODE)); then
-  echo -e "\nnSummary: Something is wrong with i-Pi commit ${IPI_REVISION}."
+  echo -e "\nSummary: Something is wrong with i-Pi commit ${IPI_REVISION}."
   echo -e "Status: FAILED\n"
 else
   echo -e "\nSummary: i-Pi commit ${IPI_REVISION} works fine."
