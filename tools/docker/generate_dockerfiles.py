@@ -161,7 +161,7 @@ RUN ./test_performance.sh "{arch}" 2>&1 | tee report.log
 # ======================================================================================
 def coverage(version: str) -> str:
     return (
-        install_cp2k(version=version, arch="local_coverage")
+        install_cp2k(version=version, arch="local_coverage", revision=True)
         + rf"""
 # Run coverage test for {version}.
 COPY ./tools/docker/scripts/test_coverage.sh .
