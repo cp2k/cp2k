@@ -131,6 +131,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="NAMD_PRINT", &
+                          description="Adjust cartesian eigenvalues / vectors to NewtonX format.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_mode_selective_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

@@ -113,15 +113,16 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL                                            :: calc_intens, calc_thchdata, &
                                                             do_mode_tracking, keep_rotations, &
-                                                            row_force, something_frozen
+                                                            lprint_namd, row_force, &
+                                                            something_frozen
       REAL(KIND=dp)                                      :: dx, inertia(3), minimum_energy, norm, &
                                                             tc_press, tc_temp, tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: H_eigval1, H_eigval2, konst, mass, pos0, &
-                                                            rmass
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian, Hint1, Hint2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: H_eigval1, H_eigval2, HeigvalDfull, &
+                                                            konst, mass, pos0, rmass
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian, Hint1, Hint2, Hint2Dfull, MatM
       REAL(KIND=dp), DIMENSION(3)                        :: D_deriv
       REAL(KIND=dp), DIMENSION(:), POINTER               :: intensities
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: D, dip_deriv, RotTrM
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: D, Dfull, dip_deriv, RotTrM
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: tmp_dip
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -162,6 +163,7 @@ CONTAINS
       CALL section_vals_val_get(vib_section, "THERMOCHEMISTRY", l_val=calc_thchdata)
       CALL section_vals_val_get(vib_section, "TC_TEMPERATURE", r_val=tc_temp)
       CALL section_vals_val_get(vib_section, "TC_PRESSURE", r_val=tc_press)
+      CALL section_vals_val_get(vib_section, "NAMD_PRINT", l_val=lprint_namd)
       tc_temp = tc_temp*kelvin
       tc_press = tc_press*pascal
 
@@ -225,6 +227,13 @@ CONTAINS
                             keep_rotations, mass_weighted=.TRUE., natoms=natoms, inertia=inertia)
             END IF
             ! Generate the suitable rototranslating basis set
+            nvib = 3*natoms - nRotTrM
+            IF (.FALSE.) THEN !option full in build_D_matrix, at the moment not enabled
+               !but dimensions of D must be adjusted in this case
+               ALLOCATE (D(3*natoms, 3*natoms))
+            ELSE
+               ALLOCATE (D(3*natoms, nvib))
+            END IF
             CALL build_D_matrix(RotTrM, nRotTrM, D, full=.FALSE., &
                                 natoms=natoms)
             !
@@ -459,6 +468,33 @@ CONTAINS
             END IF
             ! write frequencies and eigenvectors to cartesian eig file
             IF (output_unit_eig > 0) THEN
+               IF (lprint_namd) THEN
+                  !     NewtonX requires normalized Cartesian frequencies and eigenvectors
+                  !     in full matrix format (ncoord x ncoord)
+                  NULLIFY (Dfull)
+                  ALLOCATE (Dfull(ncoord, ncoord))
+                  ALLOCATE (Hint2Dfull(SIZE(Dfull, 2), SIZE(Dfull, 2)))
+                  ALLOCATE (HeigvalDfull(SIZE(Dfull, 2)))
+                  ALLOCATE (MatM(ncoord, ncoord))
+                  Dfull = 0.0_dp
+                  CALL build_D_matrix(RotTrM, nRotTrM, Dfull, full=.TRUE., natoms=natoms)
+                  Hint2Dfull(:, :) = MATMUL(TRANSPOSE(Dfull), MATMUL(Hessian, Dfull)) ! MWC -> INT
+                  CALL diamat_all(Hint2Dfull, HeigvalDfull)
+                  MatM = 0.0_dp
+                  DO i = 1, natoms
+                     DO j = 1, 3
+                        MatM((i - 1)*3 + j, (i - 1)*3 + j) = 1.0_dp/mass(i)
+                     END DO
+                  END DO
+                  ! Cartesian displacements of the normal modes
+                  Dfull = MATMUL(MatM, MATMUL(Dfull, Hint2Dfull))  !!! this is !D L / sqrt(m)
+                  ! CALL write_eigs_unformatted(output_unit_eig, ncoord, H_eigval1, Dfull)
+                  CALL write_eigs_unformatted(output_unit_eig, ncoord, HeigvalDfull, Dfull)
+                  DEALLOCATE (HeigvalDfull)
+                  DEALLOCATE (Hint2Dfull)
+                  DEALLOCATE (Dfull)
+                  DEALLOCATE (MatM)
+               END IF
                CALL write_eigs_unformatted(output_unit_eig, &
                                            ncoord, H_eigval1, Hint1)
             END IF
@@ -518,6 +554,7 @@ CONTAINS
                END IF
             END IF
             ! Deallocate working arrays
+            DEALLOCATE (RotTrM)
             DEALLOCATE (Clist)
             DEALLOCATE (Mlist)
             DEALLOCATE (H_eigval1)
@@ -757,15 +794,12 @@ CONTAINS
       END DO
       CPASSERT(dof + ifound == 3*natoms)
       IF (my_full) THEN
-         ALLOCATE (Dout(3*natoms, 3*natoms))
          Dout = D
       ELSE
-         ALLOCATE (Dout(3*natoms, nvib))
          Dout = D(:, dof + 1:)
       END IF
       DEALLOCATE (work)
       DEALLOCATE (D)
-      DEALLOCATE (mat)
       CALL timestop(handle)
    END SUBROUTINE build_D_matrix
 
