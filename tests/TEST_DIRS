@@ -118,6 +118,7 @@ QS/regtest-nmr-uks-1
 QS/regtest-libxc                                            libxc libint
 SE/regtest-3-2
 QS/regtest-gw-cubic                                         libint
+QS/regtest-gw-kpoints                                       libint
 QS/regtest-xc
 QS/regtest-almo-2
 SE/regtest-2-2

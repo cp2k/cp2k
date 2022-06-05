@@ -1224,7 +1224,17 @@ CONTAINS
          "means smaller expansion coefficients that leads to a more stable calculation at the price "// &
          "of a slightly worse RI approximation. In case the parameter 0.0 is chosen, ordinary RI is used.", &
          usage="REGULARIZATION_RI 1.0E-4", &
-         default_r_val=1.0E-2_dp)
+         default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="EPS_EIGVAL_S", &
+         description="Parameter to reduce the expansion coefficients in RI for periodic GW. Removes all "// &
+         "eigenvectors and eigenvalues of S_PQ(k) that are smaller than EPS_EIGVAL_S. ", &
+         usage="EPS_EIGVAL_S 1.0E-3", &
+         default_r_val=1.0E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1248,6 +1258,16 @@ CONTAINS
          usage="TRUNCATED_COLOUMB_RI_X", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="REL_CUTOFF_TRUNC_COLOUMB_RI_X", &
+         description="Only active in case TRUNC_COLOUMB_RI_X = True. Normally, relative cutoff = 0.5 is "// &
+         "good choice; still needs to be evaluated for RI schemes. ", &
+         usage="REL_CUTOFF_TRUNC_COLOUMB_RI_X 0.3", &
+         default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

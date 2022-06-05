@@ -65,7 +65,8 @@ MODULE rpa_kpoints
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_kpoints'
 
-   PUBLIC :: RPA_postprocessing_kp, cp_cfm_robust_cholesky, real_space_to_kpoint_transform_rpa, get_mat_cell_T_from_mat_gamma
+   PUBLIC :: RPA_postprocessing_kp, cp_cfm_robust_cholesky, real_space_to_kpoint_transform_rpa, get_mat_cell_T_from_mat_gamma, &
+             transform_P_from_real_space_to_kpoints
 
 CONTAINS
 
@@ -763,13 +764,15 @@ CONTAINS
          WRITE (unit_nr, '(T3,A,T72,F9.2)') 'GW_INFO| Relative cutoff 2: ', &
             qs_env%mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W(2)
          WRITE (unit_nr, '(T3,A,T72,F9.2)') 'GW_INFO| Cutoff radius 1 (Angstroem):', &
-            cp_unit_from_cp2k(first_cutoff, "angstrom")
+            cp_unit_from_cp2k(first_cutoff, "Angstrom")
          WRITE (unit_nr, '(T3,A,T72,F9.2)') 'GW_INFO| Cutoff radius 2 (Angstroem):', &
-            cp_unit_from_cp2k(second_cutoff, "angstrom")
+            cp_unit_from_cp2k(second_cutoff, "Angstrom")
          WRITE (unit_nr, '(T3,A,T72,F9.2)') &
             'GW_INFO| If Cutoff radius 1 = Cutoff radius 2 = 0.5: minimum image convention.'
          WRITE (unit_nr, '(T3,A,T66,ES15.2)') 'GW_INFO| RI regularization parameter: ', &
             qs_env%mp2_env%ri_rpa_im_time%regularization_RI
+         WRITE (unit_nr, '(T3,A,T66,ES15.2)') 'GW_INFO| eps_eigval_S: ', &
+            qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S
          IF (qs_env%mp2_env%ri_rpa_im_time%make_chi_pos_definite) THEN
             WRITE (unit_nr, '(T3,A,T81)') &
                'GW_INFO| Make chi(iw,k) positive definite?                                TRUE'

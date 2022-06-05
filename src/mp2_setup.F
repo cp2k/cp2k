@@ -238,6 +238,7 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
       CALL section_vals_val_get(low_scaling_section, "KPOINTS", &
                                 i_vals=mp2_env%ri_rpa_im_time%kp_grid)
+      mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
       CALL section_vals_val_get(low_scaling_section, "KPOINT_WEIGHTS_W", &
                                 i_val=mp2_env%ri_rpa_im_time%kpoint_weights_W_method)
       CALL section_vals_val_get(low_scaling_section, "EXPONENT_TAILORED_WEIGHTS", &
@@ -246,10 +247,14 @@ CONTAINS
                                 r_vals=mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W)
       CALL section_vals_val_get(low_scaling_section, "REGULARIZATION_RI", &
                                 r_val=mp2_env%ri_rpa_im_time%regularization_RI)
+      CALL section_vals_val_get(low_scaling_section, "EPS_EIGVAL_S", &
+                                r_val=mp2_env%ri_rpa_im_time%eps_eigval_S)
       CALL section_vals_val_get(low_scaling_section, "MAKE_CHI_POS_DEFINITE", &
                                 l_val=mp2_env%ri_rpa_im_time%make_chi_pos_definite)
       CALL section_vals_val_get(low_scaling_section, "TRUNC_COLOUMB_RI_X", &
                                 l_val=mp2_env%ri_rpa_im_time%trunc_coulomb_ri_x)
+      CALL section_vals_val_get(low_scaling_section, "REL_CUTOFF_TRUNC_COLOUMB_RI_X", &
+                                r_val=mp2_env%ri_rpa_im_time%rel_cutoff_trunc_coulomb_ri_x)
       CALL section_vals_val_get(low_scaling_section, "K_MESH_G_FACTOR", &
                                 i_val=mp2_env%ri_rpa_im_time%k_mesh_g_factor)
       CALL section_vals_val_get(low_scaling_section, "GREENS_FUNCTION", &

@@ -313,7 +313,7 @@ CONTAINS
          CPABORT("SVD not implemented for forces.!")
       END IF
 
-      do_kpoints_from_Gamma = SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
+      do_kpoints_from_Gamma = qs_env%mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          CALL get_qs_env(qs_env=qs_env, &
                          kpoints=kpoints)

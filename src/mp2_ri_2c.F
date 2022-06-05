@@ -260,7 +260,8 @@ CONTAINS
                                     do_kpoints, kpoints, put_mat_KS_env=.FALSE.)
 
             CALL inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
-                                                            fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints)
+                                                            fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints, &
+                                                            qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S)
 
          ELSE
             IF (calc_forces .AND. (.NOT. do_im_time)) THEN
@@ -1404,15 +1405,18 @@ CONTAINS
 !> \param fm_matrix_Sinv_Vtrunc_Sinv ...
 !> \param dimen_RI ...
 !> \param kpoints ...
+!> \param eps_eigval_S ...
 ! **************************************************************************************************
    SUBROUTINE inversion_of_S_and_mult_with_chol_dec_of_V(fm_matrix_L_RI_metric, fm_matrix_L_kpoints, &
-                                                         fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints)
+                                                         fm_matrix_Sinv_Vtrunc_Sinv, dimen_RI, kpoints, &
+                                                         eps_eigval_S)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_L_kpoints, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(kpoint_type), POINTER                         :: kpoints
+      REAL(KIND=dp), INTENT(IN)                          :: eps_eigval_S
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'inversion_of_S_and_mult_with_chol_dec_of_V'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
@@ -1449,7 +1453,7 @@ CONTAINS
          CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_Vtrunc_tmp, cone, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1)%matrix)
          CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_Vtrunc_tmp, ione, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2)%matrix)
 
-         CALL cp_cfm_robust_cholesky(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=1.0E-12_dp, exponent=-0.5_dp)
+         CALL cp_cfm_robust_cholesky(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=eps_eigval_S, exponent=-0.5_dp)
 
          ! get S^(-1) = U^(-H)U^(-1)
          CALL cp_cfm_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_tmp, cfm_matrix_S_tmp, &
@@ -1501,7 +1505,8 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(3)                              :: periodic
-      REAL(KIND=dp)                                      :: shortest_dist_cell_planes
+      REAL(KIND=dp)                                      :: rel_cutoff_trunc_coulomb_ri_x, &
+                                                            shortest_dist_cell_planes
       REAL(KIND=dp), DIMENSION(2)                        :: abs_cutoffs_chi_W
       TYPE(cell_type), POINTER                           :: cell
 
@@ -1534,9 +1539,12 @@ CONTAINS
 
       qs_env%mp2_env%ri_rpa_im_time%abs_cutoffs_chi_W(1:2) = abs_cutoffs_chi_W(1:2)
 
+      rel_cutoff_trunc_coulomb_ri_x = qs_env%mp2_env%ri_rpa_im_time%rel_cutoff_trunc_coulomb_ri_x
+
       IF (PRESENT(trunc_coulomb)) THEN
          trunc_coulomb%potential_type = do_potential_truncated
-         trunc_coulomb%cutoff_radius = (abs_cutoffs_chi_W(1) + abs_cutoffs_chi_W(2))*0.5_dp
+         trunc_coulomb%cutoff_radius = (abs_cutoffs_chi_W(1) + abs_cutoffs_chi_W(2))* &
+                                       rel_cutoff_trunc_coulomb_ri_x
          trunc_coulomb%filename = "t_c_g.dat"
          ! dummy
          trunc_coulomb%omega = 0.0_dp
