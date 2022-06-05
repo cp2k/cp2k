@@ -42,7 +42,7 @@
       &HF
         FRACTION 0.0
         &SCREENING
-          EPS_SCHWARZ 1.0E6
+          EPS_SCHWARZ 1.0E0
           SCREEN_ON_INITIAL_P TRUE
         &END
         &INTERACTION_POTENTIAL
