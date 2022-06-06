@@ -153,9 +153,11 @@ MODULE mp2_types
 
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
-      LOGICAL                  :: memory_info, make_chi_pos_definite, trunc_coulomb_ri_x, keep_quad
+      LOGICAL                  :: memory_info, make_chi_pos_definite, trunc_coulomb_ri_x, keep_quad, &
+                                  do_kpoints_from_Gamma
       REAL(KIND=dp)            :: eps_filter, &
-                                  eps_filter_factor, eps_compress, exp_tailored_weights, regularization_RI
+                                  eps_filter_factor, eps_compress, exp_tailored_weights, regularization_RI, &
+                                  eps_eigval_S, rel_cutoff_trunc_coulomb_ri_x
       REAL(KIND=dp), DIMENSION(:), POINTER :: rel_cutoffs_chi_W, tau_tj, tau_wj, tj, wj
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: weights_cos_tf_t_to_w, weights_cos_tf_w_to_t
       REAL(KIND=dp), DIMENSION(2) :: abs_cutoffs_chi_W
@@ -211,7 +213,8 @@ MODULE mp2_types
       INTEGER :: n_kp_in_kp_line, n_special_kp, nkp_self_energy, &
                  nkp_self_energy_special_kp, nkp_self_energy_monkh_pack
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: xkp_special_kp
-      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: mat_exchange_for_kp_from_gamma
+      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE :: &
+         matrix_sigma_x_minus_vxc, matrix_ks
    END TYPE
 
    TYPE ri_basis_opt

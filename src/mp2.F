@@ -697,7 +697,8 @@ CONTAINS
       DEALLOCATE (mos_mp2)
 
       ! if necessary reallocate hfx buffer
-      IF (free_hfx_buffer .AND. (.NOT. calc_forces)) THEN
+      IF (free_hfx_buffer .AND. (.NOT. calc_forces) .AND. &
+          (mp2_env%ri_g0w0%do_ri_Sigma_x .OR. .NOT. mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma)) THEN
          CALL timeset(routineN//"_alloc_hfx", handle2)
          DO irep = 1, n_rep_hf
             DO i_thread = 0, n_threads - 1

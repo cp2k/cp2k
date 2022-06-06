@@ -15,18 +15,28 @@
 !>      03.2019 Refactoring [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_main
+   USE admm_types,                      ONLY: admm_env_release
    USE bibliography,                    ONLY: &
         Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
         Wilhelm2017, Wilhelm2018, cite_reference
    USE bse,                             ONLY: do_subspace_iterations,&
                                               mult_B_with_W_and_fill_local_3c_arrays
+   USE cell_types,                      ONLY: cell_type,&
+                                              get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
+                                              cp_blacs_env_retain,&
                                               cp_blacs_env_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_p_type,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
+   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
+                                              cp_cfm_geeig_canon
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_p_type,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -39,12 +49,13 @@ MODULE rpa_main
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                              cp_para_env_retain,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_clear, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_get_info, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_desymmetrize, dbcsr_get_info, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE dbt_api,                         ONLY: dbt_type
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
@@ -52,14 +63,19 @@ MODULE rpa_main
                                               maxsize,&
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
-                                              hfx_compression_type
-   USE input_constants,                 ONLY: gw_gf_gamma,&
+                                              hfx_compression_type,&
+                                              hfx_release
+   USE input_constants,                 ONLY: cholesky_off,&
+                                              gw_gf_gamma,&
                                               gw_gf_mic,&
                                               wfc_mm_style_gemm
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE kpoint_methods,                  ONLY: rskp_transform
+   USE kpoint_methods,                  ONLY: kpoint_env_initialize,&
+                                              kpoint_initialize_mo_set,&
+                                              kpoint_initialize_mos
    USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_env_type,&
                                               kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_memory
@@ -81,12 +97,11 @@ MODULE rpa_main
                                               three_dim_real_array,&
                                               two_dim_int_array,&
                                               two_dim_real_array
-   USE qs_band_structure,               ONLY: calculate_kp_orbitals
+   USE qs_band_structure,               ONLY: calculate_kpoints_for_bs
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_env_release,&
                                               qs_environment_type
-   USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_mo_types,                     ONLY: get_mo_set
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE rpa_axk,                         ONLY: compute_axk_ener
    USE rpa_gw,                          ONLY: GW_matrix_operations,&
                                               allocate_matrices_gw,&
@@ -96,6 +111,7 @@ MODULE rpa_main
                                               deallocate_matrices_gw_im_time
    USE rpa_gw_ic,                       ONLY: calculate_ic_correction
    USE rpa_im_time,                     ONLY: compute_mat_P_omega,&
+                                              init_cell_index_rpa,&
                                               zero_mat_P_omega
    USE rpa_im_time_force_methods,       ONLY: calc_laplace_loop_forces,&
                                               calc_post_loop_forces,&
@@ -104,13 +120,16 @@ MODULE rpa_main
                                               keep_initial_quad
    USE rpa_im_time_force_types,         ONLY: im_time_force_release,&
                                               im_time_force_type
-   USE rpa_kpoints,                     ONLY: RPA_postprocessing_kp
+   USE rpa_kpoints,                     ONLY: RPA_postprocessing_kp,&
+                                              get_mat_cell_T_from_mat_gamma,&
+                                              real_space_to_kpoint_transform_rpa
    USE rpa_util,                        ONLY: RPA_postprocessing_nokp,&
                                               RPA_postprocessing_start,&
                                               alloc_im_time,&
                                               calc_mat_Q,&
                                               contract_P_omega_with_mat_L,&
                                               dealloc_im_time
+   USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -655,9 +674,9 @@ CONTAINS
 
       END IF
 
-      do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
+      do_kpoints_from_Gamma = qs_env%mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma
       IF (do_kpoints_from_Gamma) THEN
-         CALL get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual(1), Eigenval_kp)
+         CALL get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, Eigenval_kp)
       END IF
 
       ! Now start the RPA calculation
@@ -725,13 +744,11 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param kpoints ...
-!> \param virtual ...
 !> \param Eigenval_kp ...
 ! **************************************************************************************************
-   SUBROUTINE get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual, Eigenval_kp)
+   SUBROUTINE get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, Eigenval_kp)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER                                            :: virtual
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_bandstruc_and_k_dependent_MOs'
@@ -769,7 +786,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)
 
       CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_G, &
-                                          "MONKHORST-PACK", virtual, para_env%num_pe, &
+                                          "MONKHORST-PACK", para_env%num_pe, &
                                           mp_grid=nkp_grid_G(1:3))
 
       IF (qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
@@ -778,11 +795,11 @@ CONTAINS
          CALL get_kpgeneral_for_Sigma_kpoints(qs_env, kpgeneral)
 
          CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma, &
-                                             "GENERAL", virtual, para_env%num_pe, &
+                                             "GENERAL", para_env%num_pe, &
                                              kpgeneral=kpgeneral)
 
          CALL create_kp_and_calc_kp_orbitals(qs_env, qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc, &
-                                             "GENERAL", virtual, para_env%num_pe, &
+                                             "GENERAL", para_env%num_pe, &
                                              kpgeneral=kpgeneral, with_xc_terms=.FALSE.)
 
          kpoints_Sigma => qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma
@@ -808,101 +825,270 @@ CONTAINS
 
       END IF
 
+      CALL dbcsr_release(qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(1)%matrix)
+      DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(1)%matrix)
+      DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc)
+
+      CALL dbcsr_release(qs_env%mp2_env%ri_g0w0%matrix_ks(1)%matrix)
+      DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_ks(1)%matrix)
+      DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_ks)
+
+      CALL release_hfx_admm_stuff(qs_env)
+
       CALL timestop(handle)
 
    END SUBROUTINE get_bandstruc_and_k_dependent_MOs
+
+! **************************************************************************************************
+!> \brief releases part of the given qs_env in order to save memory
+!> \param qs_env the object to release
+! **************************************************************************************************
+   SUBROUTINE release_hfx_admm_stuff(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      IF (ASSOCIATED(qs_env%x_data) .AND. .NOT. qs_env%mp2_env%ri_g0w0%do_ri_Sigma_x) THEN
+         CALL hfx_release(qs_env%x_data)
+      END IF
+      IF (ASSOCIATED(qs_env%admm_env)) THEN
+         CALL admm_env_release(qs_env%admm_env)
+      END IF
+
+   END SUBROUTINE release_hfx_admm_stuff
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param kpoints ...
 !> \param scheme ...
-!> \param nadd ...
 !> \param group_size_ext ...
 !> \param mp_grid ...
 !> \param kpgeneral ...
 !> \param with_xc_terms ...
 ! **************************************************************************************************
-   SUBROUTINE create_kp_and_calc_kp_orbitals(qs_env, kpoints, scheme, nadd, &
+   SUBROUTINE create_kp_and_calc_kp_orbitals(qs_env, kpoints, scheme, &
                                              group_size_ext, mp_grid, kpgeneral, with_xc_terms)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       CHARACTER(LEN=*), INTENT(IN)                       :: scheme
-      INTEGER                                            :: nadd, group_size_ext
+      INTEGER                                            :: group_size_ext
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: mp_grid
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: kpgeneral
       LOGICAL, OPTIONAL                                  :: with_xc_terms
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_kp_and_calc_kp_orbitals'
+      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
-      INTEGER                                            :: handle, ikp, nkp
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      INTEGER                                            :: handle, i_dim, i_re_im, ikp, nkp
+      INTEGER, DIMENSION(3)                              :: cell_grid, periodic
       LOGICAL                                            :: my_with_xc_terms
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
-      TYPE(dbcsr_type), POINTER                          :: cmat, rmat, tmpmat
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-      TYPE(qs_environment_type), POINTER                 :: qs_env_kp_from_Gamma
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_cfm_type), POINTER                         :: cksmat, cmos, csmat, cwork
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type), POINTER                          :: fm_work, imos, rmos
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_desymm
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_ks_kp, mat_s_kp
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
-
-      NULLIFY (qs_env_kp_from_Gamma)
 
       my_with_xc_terms = .TRUE.
       IF (PRESENT(with_xc_terms)) my_with_xc_terms = with_xc_terms
 
-      CALL create_kp_from_gamma(qs_env, qs_env_kp_from_Gamma, with_xc_terms=my_with_xc_terms)
+      CALL get_qs_env(qs_env, &
+                      para_env=para_env, &
+                      blacs_env=blacs_env, &
+                      matrix_s=matrix_s, &
+                      scf_env=scf_env, &
+                      scf_control=scf_control, &
+                      cell=cell)
 
-      ! k-dep. MO coeff. and band structure for Green's function
-      CALL calculate_kp_orbitals(qs_env_kp_from_Gamma, kpoints, scheme, nadd=nadd, kpgeneral=kpgeneral, &
-                                 mp_grid=mp_grid, group_size_ext=group_size_ext)
+      ! get kpoints
+      CALL calculate_kpoints_for_bs(kpoints, scheme, kpgeneral=kpgeneral, mp_grid=mp_grid, &
+                                    group_size_ext=group_size_ext)
 
-      ! Save k-dependent KS-matrix into wmatrix of kpoints
-      CALL get_qs_env(qs_env_kp_from_Gamma, matrix_ks_kp=matrix_ks_kp)
+      kpoints%para_env => para_env
+      CALL cp_para_env_retain(para_env)
+      kpoints%blacs_env_all => blacs_env
+      CALL cp_blacs_env_retain(blacs_env)
+      CALL kpoint_env_initialize(kpoints)
 
-      NULLIFY (xkp, sab_nl, cell_to_index)
-      CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, sab_nl=sab_nl, cell_to_index=cell_to_index)
+      ! calculate all MOs that are accessible in the given
+      ! Gaussian AO basis, therefore nadd=1E10
+      CALL kpoint_initialize_mos(kpoints, qs_env%mos, 2000000000)
+      CALL kpoint_initialize_mo_set(kpoints)
 
-      ALLOCATE (rmat, cmat, tmpmat)
-      CALL dbcsr_create(rmat, template=matrix_ks_kp(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmat, template=matrix_ks_kp(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(tmpmat, template=matrix_ks_kp(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmat, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmat, sab_nl)
-      CALL dbcsr_reserve_all_blocks(tmpmat)
+      CALL get_cell(cell=cell, periodic=periodic)
+
+      DO i_dim = 1, 3
+         ! we have at most 3 neigboring cells per dimension and at least one because
+         ! the density response at Gamma is only divided to neighboring
+         IF (periodic(i_dim) == 1) THEN
+            cell_grid(i_dim) = MAX(MIN((kpoints%nkp_grid(i_dim)/2)*2 - 1, 1), 3)
+         ELSE
+            cell_grid(i_dim) = 1
+         END IF
+      END DO
+      CALL init_cell_index_rpa(cell_grid, kpoints%cell_to_index, kpoints%index_to_cell, cell)
+
+      ! get H(k)
+      IF (my_with_xc_terms) THEN
+         CALL mat_kp_from_mat_gamma(qs_env, mat_ks_kp, qs_env%mp2_env%ri_g0w0%matrix_ks(1)%matrix, kpoints)
+      ELSE
+         CALL mat_kp_from_mat_gamma(qs_env, mat_ks_kp, qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(1)%matrix, kpoints)
+      END IF
+
+      ! get S(k)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s, scf_env=scf_env, scf_control=scf_control)
+
+      NULLIFY (matrix_s_desymm)
+      CALL dbcsr_allocate_matrix_set(matrix_s_desymm, 1)
+      ALLOCATE (matrix_s_desymm(1)%matrix)
+      CALL dbcsr_create(matrix=matrix_s_desymm(1)%matrix, template=matrix_s(1)%matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_desymmetrize(matrix_s(1)%matrix, matrix_s_desymm(1)%matrix)
+
+      CALL mat_kp_from_mat_gamma(qs_env, mat_s_kp, matrix_s_desymm(1)%matrix, kpoints)
+
+      CALL get_kpoint_info(kpoints, nkp=nkp)
+
+      matrix_struct => kpoints%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct
+
+      CALL cp_cfm_create(cksmat, matrix_struct)
+      CALL cp_cfm_create(csmat, matrix_struct)
+      CALL cp_cfm_create(cmos, matrix_struct)
+      CALL cp_cfm_create(cwork, matrix_struct)
+      CALL cp_fm_create(fm_work, matrix_struct)
 
       DO ikp = 1, nkp
 
-         CALL dbcsr_set(rmat, 0.0_dp)
-         CALL dbcsr_set(cmat, 0.0_dp)
+         CALL copy_dbcsr_to_fm(mat_ks_kp(ikp, 1)%matrix, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix)
+         CALL cp_cfm_scale_and_add_fm(czero, cksmat, cone, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix)
 
-         ! trafo matrix_ks from real space to k-space and write into wmat
-         CALL rskp_transform(rmatrix=rmat, cmatrix=cmat, &
-                             rsmat=matrix_ks_kp, ispin=1, xkp=xkp(1:3, ikp), &
-                             cell_to_index=cell_to_index, sab_nl=sab_nl)
+         CALL copy_dbcsr_to_fm(mat_ks_kp(ikp, 2)%matrix, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix)
+         CALL cp_cfm_scale_and_add_fm(cone, cksmat, ione, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix)
 
-         CALL dbcsr_set(tmpmat, 0.0_dp)
-         CALL dbcsr_desymmetrize(rmat, tmpmat)
+         CALL copy_dbcsr_to_fm(mat_s_kp(ikp, 1)%matrix, fm_work)
+         CALL cp_cfm_scale_and_add_fm(czero, csmat, cone, fm_work)
 
-         CALL cp_fm_set_all(kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, 0.0_dp)
-         CALL copy_dbcsr_to_fm(tmpmat, kpoints%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix)
+         CALL copy_dbcsr_to_fm(mat_s_kp(ikp, 2)%matrix, fm_work)
+         CALL cp_cfm_scale_and_add_fm(cone, csmat, ione, fm_work)
 
-         CALL dbcsr_set(tmpmat, 0.0_dp)
-         CALL dbcsr_desymmetrize(cmat, tmpmat)
+         kp => kpoints%kp_env(ikp)%kpoint_env
 
-         CALL cp_fm_set_all(kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, 0.0_dp)
-         CALL copy_dbcsr_to_fm(tmpmat, kpoints%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix)
+         CALL get_mo_set(kp%mos(1, 1)%mo_set, mo_coeff=rmos, eigenvalues=eigenvalues)
+         CALL get_mo_set(kp%mos(2, 1)%mo_set, mo_coeff=imos)
+
+         IF (scf_env%cholesky_method == cholesky_off) THEN
+            CALL cp_cfm_geeig_canon(cksmat, csmat, cmos, eigenvalues, cwork, scf_control%eps_eigval)
+         ELSE
+            CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
+         END IF
+
+         CALL cp_cfm_to_fm(cmos, rmos, imos)
+
+         kp%mos(2, 1)%mo_set%eigenvalues = eigenvalues
 
       END DO
 
-      CALL qs_env_release(qs_env_kp_from_Gamma)
+      DO ikp = 1, nkp
+         DO i_re_im = 1, 2
+            CALL dbcsr_deallocate_matrix(mat_ks_kp(ikp, i_re_im)%matrix)
+         END DO
+      END DO
+      DEALLOCATE (mat_ks_kp)
 
-      CALL dbcsr_deallocate_matrix(rmat)
-      CALL dbcsr_deallocate_matrix(cmat)
-      CALL dbcsr_deallocate_matrix(tmpmat)
+      DO ikp = 1, nkp
+         DO i_re_im = 1, 2
+            CALL dbcsr_deallocate_matrix(mat_s_kp(ikp, i_re_im)%matrix)
+         END DO
+      END DO
+      DEALLOCATE (mat_s_kp)
+
+      CALL dbcsr_deallocate_matrix(matrix_s_desymm(1)%matrix)
+      DEALLOCATE (matrix_s_desymm)
+
+      CALL cp_cfm_release(cksmat)
+      CALL cp_cfm_release(csmat)
+      CALL cp_cfm_release(cwork)
+      CALL cp_cfm_release(cmos)
+      CALL cp_fm_release(fm_work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE create_kp_and_calc_kp_orbitals
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mat_kp ...
+!> \param mat_gamma ...
+!> \param kpoints ...
+! **************************************************************************************************
+   SUBROUTINE mat_kp_from_mat_gamma(qs_env, mat_kp, mat_gamma, kpoints)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_kp
+      TYPE(dbcsr_type)                                   :: mat_gamma
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_kp_from_mat_gamma'
+
+      INTEGER                                            :: handle, i_cell, i_re_im, ikp, nkp, &
+                                                            num_cells
+      INTEGER, DIMENSION(3)                              :: periodic
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_real_space
+
+      CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, cell=cell)
+      CALL get_cell(cell=cell, periodic=periodic)
+      num_cells = 3**(periodic(1) + periodic(2) + periodic(3))
+
+      NULLIFY (mat_real_space)
+      CALL dbcsr_allocate_matrix_set(mat_real_space, num_cells)
+      DO i_cell = 1, num_cells
+         ALLOCATE (mat_real_space(i_cell)%matrix)
+         CALL dbcsr_create(matrix=mat_real_space(i_cell)%matrix, &
+                           template=mat_gamma)
+         CALL dbcsr_reserve_all_blocks(mat_real_space(i_cell)%matrix)
+         CALL dbcsr_set(mat_real_space(i_cell)%matrix, 0.0_dp)
+      END DO
+
+      CALL dbcsr_copy(mat_real_space(1)%matrix, mat_gamma)
+
+      CALL get_mat_cell_T_from_mat_gamma(mat_real_space, qs_env, kpoints, 2, 0)
+
+      NULLIFY (xkp, cell_to_index)
+      CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, cell_to_index=cell_to_index)
+
+      NULLIFY (mat_kp)
+      CALL dbcsr_allocate_matrix_set(mat_kp, nkp, 2)
+      DO ikp = 1, nkp
+         DO i_re_im = 1, 2
+            ALLOCATE (mat_kp(ikp, i_re_im)%matrix)
+            CALL dbcsr_create(matrix=mat_kp(ikp, i_re_im)%matrix, template=mat_gamma)
+            CALL dbcsr_reserve_all_blocks(mat_kp(ikp, i_re_im)%matrix)
+            CALL dbcsr_set(mat_kp(ikp, i_re_im)%matrix, 0.0_dp)
+         END DO
+      END DO
+
+      CALL real_space_to_kpoint_transform_rpa(mat_kp(:, 1), mat_kp(:, 2), mat_real_space, kpoints, 0.0_dp)
+
+      DO i_cell = 1, num_cells
+         CALL dbcsr_deallocate_matrix(mat_real_space(i_cell)%matrix)
+      END DO
+      DEALLOCATE (mat_real_space)
 
       CALL timestop(handle)
 
