@@ -75,9 +75,11 @@ MODULE mp2_ri_2c
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: compare_potential_types,&
                                               libint_potential_type
+   USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_alltoall,&
                                               mp_bcast,&
+                                              mp_max,&
                                               mp_sendrecv,&
                                               mp_sum
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
@@ -120,10 +122,9 @@ CONTAINS
 !> \param eri_param ...
 !> \param para_env ...
 !> \param para_env_sub ...
-!> \param para_env_L ...
 !> \param mp2_memory ...
-!> \param fm_matrix_L ...
-!> \param fm_matrix_V ...
+!> \param my_Lrows ...
+!> \param my_Vrows ...
 !> \param fm_matrix_PQ ...
 !> \param ngroup ...
 !> \param color_sub ...
@@ -136,9 +137,7 @@ CONTAINS
 !> \param my_group_L_end ...
 !> \param gd_array ...
 !> \param calc_PQ_cond_num ...
-!> \param cond_num ...
 !> \param do_svd ...
-!> \param num_small_eigen ...
 !> \param potential ...
 !> \param ri_metric ...
 !> \param fm_matrix_L_RI_metric ...
@@ -149,21 +148,24 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param sab_orb_sub ...
 !> \param calc_forces ...
+!> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                               fm_matrix_L, fm_matrix_V, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
+   SUBROUTINE get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, mp2_memory, &
+                               my_Lrows, my_Vrows, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
                                kpoints, mo_coeff, my_group_L_size, my_group_L_start, my_group_L_end, &
-                               gd_array, calc_PQ_cond_num, cond_num, do_svd, &
-                               num_small_eigen, potential, ri_metric, &
+                               gd_array, calc_PQ_cond_num, do_svd, &
+                               potential, ri_metric, &
                                fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
-                               do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub, calc_forces)
+                               do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub, calc_forces, unit_nr)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: eri_method
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub, para_env_L
+      TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_V, fm_matrix_PQ
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: my_Lrows, my_Vrows
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
       INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -171,10 +173,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: my_group_L_size, my_group_L_start, &
                                                             my_group_L_end
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
-      LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
-      REAL(KIND=dp), INTENT(OUT)                         :: cond_num
-      LOGICAL, INTENT(IN)                                :: do_svd
-      INTEGER, INTENT(OUT)                               :: num_small_eigen
+      LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num, do_svd
       TYPE(libint_potential_type)                        :: potential, ri_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
@@ -184,13 +183,17 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       LOGICAL, INTENT(IN)                                :: calc_forces
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_2c_integrals'
 
-      INTEGER                                            :: handle, i_real_imag, i_size, j_size
-      REAL(KIND=dp)                                      :: eps_pgf_orb_old
+      INTEGER                                            :: handle, i_real_imag, i_size, j_size, &
+                                                            num_small_eigen
+      REAL(KIND=dp)                                      :: cond_num, eps_pgf_orb_old
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_kpoints
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_S_inv_work
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_S_inv_work, &
+                                                            fm_matrix_V
+      TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(libint_potential_type)                        :: trunc_coulomb
 
@@ -332,6 +335,31 @@ CONTAINS
 
       ! If the group distribution changed because of an SVD, we get the new values here
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
+
+      IF (.NOT. do_im_time) THEN
+         IF (unit_nr > 0) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") "RI_INFO| Number of groups for auxiliary basis functions", ngroup
+            IF (calc_PQ_cond_num .OR. do_svd) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T67,ES14.5)") &
+                  "RI_INFO| Condition number of the (P|Q):", cond_num
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                  "RI_INFO| Number of non-positive Eigenvalues of (P|Q):", num_small_eigen
+            END IF
+            CALL m_flush(unit_nr)
+         END IF
+
+         ! replicate the necessary row of the L^{-1} matrix on each proc
+         CALL grep_Lcols(fm_matrix_L, my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+         IF (calc_forces .AND. .NOT. compare_potential_types(qs_env%mp2_env%ri_metric, &
+                                                             qs_env%mp2_env%potential_parameter)) THEN
+            CALL grep_Lcols(fm_matrix_V, my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
+         END IF
+      END IF
+      CALL cp_fm_release(fm_matrix_L)
+      IF (calc_forces .AND. .NOT. (do_im_time .OR. compare_potential_types(qs_env%mp2_env%ri_metric, &
+                                                               qs_env%mp2_env%potential_parameter))) CALL cp_fm_release(fm_matrix_V)
+      CALL cp_para_env_release(para_env_L)
 
       CALL timestop(handle)
 
@@ -744,8 +772,8 @@ CONTAINS
 
       INTEGER :: best_group_size, color_L, group_size, handle, handle2, i, i_global, iatom, iiB, &
          ikind, iproc, j_global, jjB, natom, ncol_local, nkind, nrow_local, nsgf, potential_type, &
-         proc_receive, proc_receive_static, proc_send, proc_send_static, proc_shift, rec_L_end, &
-         rec_L_size, rec_L_start, strat_group_size, sub_sub_color
+         proc_receive, proc_receive_static, proc_send_static, proc_shift, rec_L_end, rec_L_size, &
+         rec_L_start, strat_group_size, sub_sub_color
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_do_im_time
@@ -870,17 +898,6 @@ CONTAINS
       sub_sub_color = para_env_sub%mepos
       CALL cp_para_env_split(para_env_exchange, para_env_L, sub_sub_color)
 
-      ! crate the proc maps
-      ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
-      DO i = 0, para_env_exchange%num_pe - 1
-         proc_map(i) = i
-         proc_map(-i - 1) = para_env_exchange%num_pe - i - 1
-         proc_map(para_env_exchange%num_pe + i) = i
-      END DO
-
-      CALL create_group_dist(gd_sub_array, my_group_L_start, &
-                             my_group_L_end, my_group_L_size, para_env_exchange)
-
       ! create the full matrix L defined in the L group
 
       CALL create_matrix_L(fm_matrix_L, blacs_env_L, dimen_RI, para_env_L, "fm_matrix_L", fm_matrix_L_extern)
@@ -892,6 +909,17 @@ CONTAINS
                                                 dimen_RI)
 
       ELSE
+
+         CALL create_group_dist(gd_sub_array, my_group_L_start, &
+                                my_group_L_end, my_group_L_size, para_env_exchange)
+
+         ! crate the proc maps
+         ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
+         DO i = 0, para_env_exchange%num_pe - 1
+            proc_map(i) = i
+            proc_map(-i - 1) = para_env_exchange%num_pe - i - 1
+            proc_map(para_env_exchange%num_pe + i) = i
+         END DO
 
          CALL cp_fm_get_info(matrix=fm_matrix_L, &
                              nrow_local=nrow_local, &
@@ -913,7 +941,6 @@ CONTAINS
          proc_receive_static = proc_map(para_env_exchange%mepos - 1)
 
          DO proc_shift = 1, para_env_exchange%num_pe - 1
-            proc_send = proc_map(para_env_exchange%mepos + proc_shift)
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             CALL get_group_dist(gd_sub_array, proc_receive, rec_L_start, rec_L_end, rec_L_size)
@@ -933,23 +960,18 @@ CONTAINS
                END IF
             END DO
 
-            DEALLOCATE (L_local_col)
-            ALLOCATE (L_local_col(dimen_RI, rec_L_size))
-            L_local_col(:, :) = L_external_col
-
-            DEALLOCATE (L_external_col)
-
+            CALL MOVE_ALLOC(L_external_col, L_local_col)
          END DO
+         DEALLOCATE (proc_map)
+
+         CALL release_group_dist(gd_sub_array)
 
       END IF
 
       DEALLOCATE (L_local_col)
 
       ! free the old exchange group stuff
-      DEALLOCATE (proc_map)
       CALL cp_para_env_release(para_env_exchange)
-
-      CALL release_group_dist(gd_sub_array)
 
       ! create the new group for the mp_sum of the local data
       sub_sub_color = para_env_L%mepos
@@ -1633,5 +1655,142 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE create_matrix_L
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_matrix_L ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param my_group_L_size ...
+!> \param my_Lrows ...
+! **************************************************************************************************
+   SUBROUTINE grep_Lcols(fm_matrix_L, &
+                         my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
+      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
+                                                            my_group_L_size
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: my_Lrows
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grep_Lcols'
+
+      INTEGER :: dimen_RI, handle, handle2, i_global, iiB, j_global, jjB, max_row_col_local, &
+         ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, proc_receive_static, proc_send, &
+         proc_send_static, proc_shift
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
+                                                            row_indices, row_indices_rec
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_L, rec_L
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L_internal
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=fm_matrix_L, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices, &
+                          nrow_global=dimen_RI, &
+                          local_data=local_L_internal, &
+                          para_env=para_env)
+
+      ALLOCATE (my_Lrows(dimen_RI, my_group_L_size))
+      my_Lrows = 0.0_dp
+
+      ! proc_map, vector that replicates the processor numbers also
+      ! for negative and positive number > num_pe
+      ! needed to know which is the processor, to respect to another one,
+      ! for a given shift
+      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe - 1))
+      DO iiB = 0, para_env%num_pe - 1
+         proc_map(iiB) = iiB
+         proc_map(-iiB - 1) = para_env%num_pe - iiB - 1
+         proc_map(para_env%num_pe + iiB) = iiB
+      END DO
+
+      ALLOCATE (local_L(nrow_local, ncol_local))
+      local_L(:, :) = local_L_internal(1:nrow_local, 1:ncol_local)
+
+      max_row_col_local = MAX(nrow_local, ncol_local)
+      CALL mp_max(max_row_col_local, para_env%group)
+
+      ALLOCATE (local_col_row_info(0:max_row_col_local, 2))
+      local_col_row_info = 0
+      ! 0,1 nrows
+      local_col_row_info(0, 1) = nrow_local
+      local_col_row_info(1:nrow_local, 1) = row_indices(1:nrow_local)
+      ! 0,2 ncols
+      local_col_row_info(0, 2) = ncol_local
+      local_col_row_info(1:ncol_local, 2) = col_indices(1:ncol_local)
+
+      ALLOCATE (rec_col_row_info(0:max_row_col_local, 2))
+
+      ! accumulate data on my_Lrows starting from myself
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         IF (j_global >= my_group_L_start .AND. j_global <= my_group_L_end) THEN
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               my_Lrows(i_global, j_global - my_group_L_start + 1) = local_L(iiB, jjB)
+            END DO
+         END IF
+      END DO
+
+      proc_send_static = proc_map(para_env%mepos + 1)
+      proc_receive_static = proc_map(para_env%mepos - 1)
+
+      CALL timeset(routineN//"_comm", handle2)
+
+      DO proc_shift = 1, para_env%num_pe - 1
+         proc_send = proc_map(para_env%mepos + proc_shift)
+         proc_receive = proc_map(para_env%mepos - proc_shift)
+
+         ! first exchange information on the local data
+         rec_col_row_info = 0
+         CALL mp_sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static, para_env%group)
+         nrow_rec = rec_col_row_info(0, 1)
+         ncol_rec = rec_col_row_info(0, 2)
+
+         ALLOCATE (row_indices_rec(nrow_rec))
+         row_indices_rec = rec_col_row_info(1:nrow_rec, 1)
+
+         ALLOCATE (col_indices_rec(ncol_rec))
+         col_indices_rec = rec_col_row_info(1:ncol_rec, 2)
+
+         ALLOCATE (rec_L(nrow_rec, ncol_rec))
+         rec_L = 0.0_dp
+
+         ! then send and receive the real data
+         CALL mp_sendrecv(local_L, proc_send_static, rec_L, proc_receive_static, para_env%group)
+
+         ! accumulate the received data on my_Lrows
+         DO jjB = 1, ncol_rec
+            j_global = col_indices_rec(jjB)
+            IF (j_global >= my_group_L_start .AND. j_global <= my_group_L_end) THEN
+               DO iiB = 1, nrow_rec
+                  i_global = row_indices_rec(iiB)
+                  my_Lrows(i_global, j_global - my_group_L_start + 1) = rec_L(iiB, jjB)
+               END DO
+            END IF
+         END DO
+
+         local_col_row_info(:, :) = rec_col_row_info
+         CALL MOVE_ALLOC(rec_L, local_L)
+
+         DEALLOCATE (col_indices_rec)
+         DEALLOCATE (row_indices_rec)
+      END DO
+      CALL timestop(handle2)
+
+      DEALLOCATE (local_col_row_info)
+      DEALLOCATE (rec_col_row_info)
+      DEALLOCATE (proc_map)
+      DEALLOCATE (local_L)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE grep_Lcols
 
 END MODULE mp2_ri_2c

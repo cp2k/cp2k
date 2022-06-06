@@ -77,12 +77,11 @@ CONTAINS
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param my_group_L_size ...
-!> \param dimen_RI ...
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
    SUBROUTINE gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
                                 homo, virtual, mo_coeff_o, ngroup, my_group_L_start, my_group_L_end, &
-                                my_group_L_size, dimen_RI)
+                                my_group_L_size)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
@@ -90,8 +89,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, virtual
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_start, &
-                                                            my_group_L_end, my_group_L_size, &
-                                                            dimen_RI
+                                                            my_group_L_end, my_group_L_size
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gamma_fm_to_dbcsr'
 
@@ -130,8 +128,7 @@ CONTAINS
       CALL prepare_redistribution(para_env_RPA, para_env_sub, ngroup, &
                                   group_grid_2_mepos, mepos_2_grid_group)
 
-      CALL fm2array(Gamma_2D, dimen_ia, dimen_RI, para_env_RPA, &
-                    my_ia_size, my_ia_start, my_ia_end, &
+      CALL fm2array(Gamma_2D, my_ia_size, my_ia_start, my_ia_end, &
                     my_group_L_size, my_group_L_start, my_group_L_end, &
                     group_grid_2_mepos, mepos_2_grid_group, &
                     para_env_sub%num_pe, ngroup, &

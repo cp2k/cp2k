@@ -35,7 +35,6 @@ MODULE mp2_integrals
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE cp_para_env,                     ONLY: cp_para_env_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE dbcsr_api,                       ONLY: &
@@ -249,7 +248,7 @@ CONTAINS
          mp_comm_t3c_2, my_B_all_end, my_B_all_size, my_B_all_start, my_B_occ_bse_end, &
          my_B_occ_bse_size, my_B_occ_bse_start, my_B_virt_bse_end, my_B_virt_bse_size, &
          my_B_virt_bse_start, my_group_L_end, my_group_L_size, my_group_L_start, natom, ngroup, &
-         nimg, nkind, nspins, num_small_eigen, potential_type, ri_metric_type
+         nimg, nkind, nspins, potential_type, ri_metric_type
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, my_B_size, my_B_virtual_end, &
@@ -260,15 +259,12 @@ CONTAINS
                                                             periodic
       LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp)                                      :: compression_factor, cond_num, &
-                                                            cutoff_old, mem_for_iaK, memory_3c, &
-                                                            occ, omega_pot, rc_ang, &
-                                                            relative_cutoff_old
+      REAL(KIND=dp)                                      :: compression_factor, cutoff_old, &
+                                                            mem_for_iaK, memory_3c, occ, &
+                                                            omega_pot, rc_ang, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows, my_Vrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_V
-      TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local_L
       TYPE(dbt_pgrid_type)                               :: pgrid_t3c_M, pgrid_t3c_overl
       TYPE(dbt_type)                                     :: t_3c_overl_int_template, t_3c_tmp
@@ -347,14 +343,14 @@ CONTAINS
          CPABORT("SVD with kpoints not implemented yet!")
       END IF
 
-      CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                            fm_matrix_L, fm_matrix_V, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
+      CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, mp2_memory, &
+                            my_Lrows, my_Vrows, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
                             kpoints, mo_coeff(1)%matrix, my_group_L_size, my_group_L_start, my_group_L_end, &
-                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, &
-                            num_small_eigen, qs_env%mp2_env%potential_parameter, ri_metric, &
+                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, do_svd, &
+                            qs_env%mp2_env%potential_parameter, ri_metric, &
                             fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
-                            qs_kind_set, sab_orb_sub, calc_forces)
+                            qs_kind_set, sab_orb_sub, calc_forces, unit_nr)
 
       IF (unit_nr > 0) THEN
          ASSOCIATE (ri_metric => qs_env%mp2_env%ri_metric)
@@ -386,37 +382,6 @@ CONTAINS
                   "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
             END SELECT
          END ASSOCIATE
-      END IF
-
-      IF (unit_nr > 0 .AND. .NOT. do_im_time) THEN
-         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
-         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") "RI_INFO| Number of groups for auxiliary basis functions", ngroup
-      END IF
-      IF (calc_PQ_cond_num .OR. do_svd) THEN
-         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T67,ES14.5)") &
-            "RI_INFO| Condition number of the (P|Q):", cond_num
-         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-            "RI_INFO| Number of non-positive Eigenvalues of (P|Q):", num_small_eigen
-      END IF
-      IF (unit_nr > 0) CALL m_flush(unit_nr)
-
-      IF (.NOT. do_im_time) THEN
-         ! replicate the necessary row of the L^{-1} matrix on each proc
-         CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_L, &
-                         my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
-         IF (calc_forces .AND. .NOT. compare_potential_types(qs_env%mp2_env%ri_metric, &
-                                                             qs_env%mp2_env%potential_parameter)) THEN
-            CALL grep_Lcols(para_env_L, dimen_RI, fm_matrix_V, &
-                            my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
-            CALL cp_fm_release(fm_matrix_V)
-         END IF
-      END IF
-      ! clean the L^{-1} matrix
-      CALL cp_fm_release(fm_matrix_L)
-
-      ! in case of imag. time we need the para_env_L later
-      IF (.NOT. do_im_time) THEN
-         CALL cp_para_env_release(para_env_L)
       END IF
 
       IF (calc_forces .AND. .NOT. do_im_time) THEN
@@ -890,8 +855,6 @@ CONTAINS
 
          CALL neighbor_list_3c_destroy(nl_3c)
 
-         CALL cp_para_env_release(para_env_L)
-
       END IF
 
       CALL timestop(handle)
@@ -1325,144 +1288,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_kpoints
-
-! **************************************************************************************************
-!> \brief ...
-!> \param para_env ...
-!> \param dimen_RI ...
-!> \param fm_matrix_L ...
-!> \param my_group_L_start ...
-!> \param my_group_L_end ...
-!> \param my_group_L_size ...
-!> \param my_Lrows ...
-! **************************************************************************************************
-   SUBROUTINE grep_Lcols(para_env, dimen_RI, fm_matrix_L, &
-                         my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
-      INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
-      INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
-                                                            my_group_L_size
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: my_Lrows
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grep_Lcols'
-
-      INTEGER :: handle, handle2, i_global, iiB, j_global, jjB, max_row_col_local, ncol_local, &
-         ncol_rec, nrow_local, nrow_rec, proc_receive, proc_receive_static, proc_send, &
-         proc_send_static, proc_shift
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
-                                                            row_indices, row_indices_rec
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_L, rec_L
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L_internal
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (my_Lrows(dimen_RI, my_group_L_size))
-      my_Lrows = 0.0_dp
-
-      ! proc_map, vector that replicates the processor numbers also
-      ! for negative and positive number > num_pe
-      ! needed to know which is the processor, to respect to another one,
-      ! for a given shift
-      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe - 1))
-      DO iiB = 0, para_env%num_pe - 1
-         proc_map(iiB) = iiB
-         proc_map(-iiB - 1) = para_env%num_pe - iiB - 1
-         proc_map(para_env%num_pe + iiB) = iiB
-      END DO
-
-      CALL cp_fm_get_info(matrix=fm_matrix_L, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          local_data=local_L_internal)
-
-      ALLOCATE (local_L(nrow_local, ncol_local))
-      local_L(:, :) = local_L_internal(1:nrow_local, 1:ncol_local)
-
-      max_row_col_local = MAX(nrow_local, ncol_local)
-      CALL mp_max(max_row_col_local, para_env%group)
-
-      ALLOCATE (local_col_row_info(0:max_row_col_local, 2))
-      local_col_row_info = 0
-      ! 0,1 nrows
-      local_col_row_info(0, 1) = nrow_local
-      local_col_row_info(1:nrow_local, 1) = row_indices(1:nrow_local)
-      ! 0,2 ncols
-      local_col_row_info(0, 2) = ncol_local
-      local_col_row_info(1:ncol_local, 2) = col_indices(1:ncol_local)
-
-      ALLOCATE (rec_col_row_info(0:max_row_col_local, 2))
-
-      ! accumulate data on my_Lrows starting from myself
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         IF (j_global >= my_group_L_start .AND. j_global <= my_group_L_end) THEN
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               my_Lrows(i_global, j_global - my_group_L_start + 1) = local_L(iiB, jjB)
-            END DO
-         END IF
-      END DO
-
-      proc_send_static = proc_map(para_env%mepos + 1)
-      proc_receive_static = proc_map(para_env%mepos - 1)
-
-      CALL timeset(routineN//"_comm", handle2)
-
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
-         proc_receive = proc_map(para_env%mepos - proc_shift)
-
-         ! first exchange information on the local data
-         rec_col_row_info = 0
-         CALL mp_sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static, para_env%group)
-         nrow_rec = rec_col_row_info(0, 1)
-         ncol_rec = rec_col_row_info(0, 2)
-
-         ALLOCATE (row_indices_rec(nrow_rec))
-         row_indices_rec = rec_col_row_info(1:nrow_rec, 1)
-
-         ALLOCATE (col_indices_rec(ncol_rec))
-         col_indices_rec = rec_col_row_info(1:ncol_rec, 2)
-
-         ALLOCATE (rec_L(nrow_rec, ncol_rec))
-         rec_L = 0.0_dp
-
-         ! then send and receive the real data
-         CALL mp_sendrecv(local_L, proc_send_static, rec_L, proc_receive_static, para_env%group)
-
-         ! accumulate the received data on my_Lrows
-         DO jjB = 1, ncol_rec
-            j_global = col_indices_rec(jjB)
-            IF (j_global >= my_group_L_start .AND. j_global <= my_group_L_end) THEN
-               DO iiB = 1, nrow_rec
-                  i_global = row_indices_rec(iiB)
-                  my_Lrows(i_global, j_global - my_group_L_start + 1) = rec_L(iiB, jjB)
-               END DO
-            END IF
-         END DO
-
-         local_col_row_info(:, :) = rec_col_row_info
-         CALL MOVE_ALLOC(rec_L, local_L)
-
-         DEALLOCATE (col_indices_rec)
-         DEALLOCATE (row_indices_rec)
-      END DO
-      CALL timestop(handle2)
-
-      DEALLOCATE (local_col_row_info)
-      DEALLOCATE (rec_col_row_info)
-      DEALLOCATE (proc_map)
-      DEALLOCATE (local_L)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE grep_Lcols
 
 ! **************************************************************************************************
 !> \brief ...
