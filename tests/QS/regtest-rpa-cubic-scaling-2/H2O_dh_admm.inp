@@ -1,0 +1,101 @@
+&GLOBAL
+  PROJECT  H2O_md
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE MD
+  &TIMINGS
+     THRESHOLD 0.01
+  &END
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS  1
+  &END
+&END MOTION
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    BASIS_SET_FILE_NAME  BASIS_ADMM
+    POTENTIAL_FILE_NAME  POTENTIAL
+    SORT_BASIS EXP
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+    &END
+    &MGRID
+      CUTOFF  100
+      REL_CUTOFF  20
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      SCF_GUESS RESTART
+      EPS_SCF 1.0E-7
+      MAX_SCF 100
+      &OT
+         PRECONDITIONER FULL_ALL
+         MINIMIZER DIIS
+      &END OT
+    &END SCF
+    &XC
+      # Not a very useful functional, just for testing
+      &XC_FUNCTIONAL PBE
+         &PBE
+            SCALE_X 0.55
+         &END PBE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION 0.45
+        &SCREENING
+          EPS_SCHWARZ 1.0E-8
+          SCREEN_ON_INITIAL_P FALSE
+        &END SCREENING
+      &END HF
+      &WF_CORRELATION
+        &RI_RPA
+          QUADRATURE_POINTS  3
+        &END
+        &LOW_SCALING
+          MEMORY_CUT 2
+        &END
+        &INTEGRALS
+          ERI_METHOD OS
+        &END INTEGRALS
+        &RI
+          &RI_METRIC
+            POTENTIAL_TYPE IDENTITY
+          &END
+        &END RI
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom]  6.000   6.000  6.000
+      PERIODIC NONE
+    &END CELL
+    &KIND H
+      BASIS_SET  DZVP-GTH
+      BASIS_SET  AUX_FIT FIT3
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-HF-q1
+    &END KIND
+    &KIND O
+      BASIS_SET  DZVP-GTH
+      BASIS_SET  AUX_FIT FIT3
+      BASIS_SET RI_AUX  RI_DZVP-GTH
+      POTENTIAL  GTH-HF-q6
+    &END KIND
+    &TOPOLOGY
+      COORD_FILE_NAME  H2O_gas.xyz
+      COORD_FILE_FORMAT xyz
+      &CENTER_COORDINATES
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

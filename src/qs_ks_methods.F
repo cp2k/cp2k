@@ -25,7 +25,9 @@ MODULE qs_ks_methods
    USE admm_methods,                    ONLY: admm_mo_calc_rho_aux,&
                                               admm_mo_merge_derivs,&
                                               admm_mo_merge_ks_matrix,&
-                                              admm_update_ks_atom
+                                              admm_update_ks_atom,&
+                                              calc_aux_mo_derivs_none,&
+                                              calc_mixed_overlap_force
    USE admm_types,                      ONLY: admm_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -54,7 +56,8 @@ MODULE qs_ks_methods
    USE hartree_local_types,             ONLY: ecoul_1center_type
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                               hfx_ks_matrix
-   USE input_constants,                 ONLY: do_ppl_grid,&
+   USE input_constants,                 ONLY: do_admm_purify_none,&
+                                              do_ppl_grid,&
                                               outer_scf_becke_constraint,&
                                               outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_get,&
@@ -121,7 +124,8 @@ MODULE qs_ks_methods
         sic_explicit_orbitals, sum_up_and_integrate
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type
+                                              mo_set_p_type,&
+                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -822,6 +826,9 @@ CONTAINS
          CALL calc_mo_derivatives(qs_env, ksmat, mo_derivs)
       END IF
 
+      ! ADMM overlap forces
+      IF (calculate_forces .AND. dft_control%do_admm) CALL calc_admm_ovlp_forces(qs_env)
+
       ! deal with low spin roks
       CALL low_spin_roks(energy, qs_env, dft_control, just_energy, &
                          calculate_forces, auxbas_pw_pool)
@@ -1050,6 +1057,53 @@ CONTAINS
       END IF !fm->dbcsr
 
    END SUBROUTINE calc_mo_derivatives
+
+! **************************************************************************************************
+!> \brief Calculate the forces due to the AUX/ORB basis overlap in ADMM
+!> \param qs_env ...
+!> \par History Moved here from qs_force.F (A. Bussy, 05.2022)
+! **************************************************************************************************
+   SUBROUTINE calc_admm_ovlp_forces(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      INTEGER                                            :: ispin
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, matrix_s_aux_fit, &
+                                                            matrix_s_aux_fit_vs_orb
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_type), POINTER                         :: mo_set
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      IF (dft_control%do_admm_dm) THEN
+         CPABORT("Forces with ADMM DM methods not implemented")
+      END IF
+      IF (dft_control%do_admm_mo .AND. .NOT. qs_env%run_rtp) THEN
+         NULLIFY (matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_ks_aux_fit, &
+                  mos_aux_fit, mos, admm_env)
+         CALL get_qs_env(qs_env=qs_env, &
+                         matrix_s_aux_fit=matrix_s_aux_fit, &
+                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
+                         matrix_ks_aux_fit=matrix_ks_aux_fit, &
+                         mos_aux_fit=mos_aux_fit, &
+                         mos=mos, &
+                         admm_env=admm_env)
+         DO ispin = 1, dft_control%nspins
+            mo_set => mos(ispin)%mo_set
+            CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff)
+            ! if no purification we need to calculate the H matrix for forces
+            IF (admm_env%purification_method == do_admm_purify_none) THEN
+               CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
+               CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, &
+                                            mo_coeff_aux_fit, matrix_ks_aux_fit)
+            END IF
+         END DO
+         CALL calc_mixed_overlap_force(qs_env)
+      END IF
+
+   END SUBROUTINE calc_admm_ovlp_forces
 
 ! **************************************************************************************************
 !> \brief updates the Kohn Sham matrix of the given qs_env (facility method)

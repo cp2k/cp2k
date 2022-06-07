@@ -62,11 +62,13 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 # Install CP2K using local_coverage.pdbg.
 WORKDIR /opt/cp2k
+ARG GIT_COMMIT_SHA
 COPY ./Makefile .
 COPY ./src ./src
 COPY ./exts ./exts
 COPY ./tools/build_utils ./tools/build_utils
 RUN /bin/bash -c " \
+    if [ -n "${GIT_COMMIT_SHA}" ] ; then echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi && \
     mkdir -p arch && \
     ln -vs /opt/cp2k-toolchain/install/arch/local_coverage.pdbg ./arch/ && \
     echo 'Compiling cp2k...' && \

@@ -238,6 +238,7 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%do_im_time_kpoints)
       CALL section_vals_val_get(low_scaling_section, "KPOINTS", &
                                 i_vals=mp2_env%ri_rpa_im_time%kp_grid)
+      mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma = SUM(mp2_env%ri_rpa_im_time%kp_grid) > 0
       CALL section_vals_val_get(low_scaling_section, "KPOINT_WEIGHTS_W", &
                                 i_val=mp2_env%ri_rpa_im_time%kpoint_weights_W_method)
       CALL section_vals_val_get(low_scaling_section, "EXPONENT_TAILORED_WEIGHTS", &
@@ -246,10 +247,14 @@ CONTAINS
                                 r_vals=mp2_env%ri_rpa_im_time%rel_cutoffs_chi_W)
       CALL section_vals_val_get(low_scaling_section, "REGULARIZATION_RI", &
                                 r_val=mp2_env%ri_rpa_im_time%regularization_RI)
+      CALL section_vals_val_get(low_scaling_section, "EPS_EIGVAL_S", &
+                                r_val=mp2_env%ri_rpa_im_time%eps_eigval_S)
       CALL section_vals_val_get(low_scaling_section, "MAKE_CHI_POS_DEFINITE", &
                                 l_val=mp2_env%ri_rpa_im_time%make_chi_pos_definite)
       CALL section_vals_val_get(low_scaling_section, "TRUNC_COLOUMB_RI_X", &
                                 l_val=mp2_env%ri_rpa_im_time%trunc_coulomb_ri_x)
+      CALL section_vals_val_get(low_scaling_section, "REL_CUTOFF_TRUNC_COLOUMB_RI_X", &
+                                r_val=mp2_env%ri_rpa_im_time%rel_cutoff_trunc_coulomb_ri_x)
       CALL section_vals_val_get(low_scaling_section, "K_MESH_G_FACTOR", &
                                 i_val=mp2_env%ri_rpa_im_time%k_mesh_g_factor)
       CALL section_vals_val_get(low_scaling_section, "GREENS_FUNCTION", &
@@ -259,6 +264,10 @@ CONTAINS
                                 l_val=mp2_env%ri_rpa_im_time%keep_quad)
       NULLIFY (mp2_env%ri_rpa_im_time%tau_tj)
       NULLIFY (mp2_env%ri_rpa_im_time%tau_wj)
+      NULLIFY (mp2_env%ri_rpa_im_time%tj)
+      NULLIFY (mp2_env%ri_rpa_im_time%wj)
+      NULLIFY (mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w)
+      NULLIFY (mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t)
 
       CALL section_vals_val_get(low_scaling_section, "MIN_BLOCK_SIZE", &
                                 i_val=mp2_env%ri_rpa_im_time%min_bsize)
@@ -288,6 +297,12 @@ CONTAINS
 
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%MAX_ITER", i_val=mp2_env%ri_grad%cphf_max_num_iter)
       CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%EPS_CONV", r_val=mp2_env%ri_grad%cphf_eps_conv)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SCALE_STEP_SIZE", r_val=mp2_env%ri_grad%scale_step_size)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SOLVER_METHOD", i_val=mp2_env%ri_grad%z_solver_method)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%RESTART_EVERY", i_val=mp2_env%ri_grad%cphf_restart)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%ENFORCE_DECREASE", l_val=mp2_env%ri_grad%enforce_decrease)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%RECALC_RESIDUAL", l_val=mp2_env%ri_grad%recalc_residual)
+      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%DO_POLAK_RIBIERE", l_val=mp2_env%ri_grad%polak_ribiere)
 
       CALL section_vals_val_get(mp2_section, "RI%ROW_BLOCK", i_val=mp2_env%block_size_row)
       CALL section_vals_val_get(mp2_section, "RI%COL_BLOCK", i_val=mp2_env%block_size_col)

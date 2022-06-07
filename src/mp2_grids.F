@@ -237,14 +237,14 @@ CONTAINS
             CALL get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, weights_cos_tf_t_to_w, tj, &
                                               Emin, Emax, max_error_min, num_points_per_magnitude)
 
+            ! get the weights for the cosine transform W^c(iw) -> W^c(it)
+            ALLOCATE (weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
+            weights_cos_tf_w_to_t = 0.0_dp
+
+            CALL get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, tj, &
+                                              Emin, Emax, max_error_min, num_points_per_magnitude)
+
             IF (do_gw_im_time) THEN
-
-               ! get the weights for the cosine transform W^c(iw) -> W^c(it)
-               ALLOCATE (weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
-               weights_cos_tf_w_to_t = 0.0_dp
-
-               CALL get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, tj, &
-                                                 Emin, Emax, max_error_min, num_points_per_magnitude)
 
                ! get the weights for the sine transform Sigma^sin(it) -> Sigma^sin(iw) (PRB 94, 165109 (2016), Eq. 71)
                ALLOCATE (weights_sin_tf_t_to_w(num_integ_points, num_integ_points))

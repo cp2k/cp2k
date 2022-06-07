@@ -18,6 +18,11 @@ MODULE mp2_ri_gpw
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dgemm_counter_types,             ONLY: dgemm_counter_init,&
+                                              dgemm_counter_start,&
+                                              dgemm_counter_stop,&
+                                              dgemm_counter_type,&
+                                              dgemm_counter_write
    USE group_dist_types,                ONLY: get_group_dist,&
                                               group_dist_d1_type,&
                                               maxsize,&
@@ -35,12 +40,7 @@ MODULE mp2_ri_gpw
                                               mp_sendrecv,&
                                               mp_sum
    USE mp2_ri_grad_util,                ONLY: complete_gamma
-   USE mp2_types,                       ONLY: dgemm_counter_init,&
-                                              dgemm_counter_start,&
-                                              dgemm_counter_stop,&
-                                              dgemm_counter_type,&
-                                              dgemm_counter_write,&
-                                              mp2_type,&
+   USE mp2_types,                       ONLY: mp2_type,&
                                               three_dim_real_array,&
                                               two_dim_int_array
    USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&

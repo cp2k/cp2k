@@ -531,7 +531,8 @@ CONTAINS
          nelectron, ngauss, nkind, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       LOGICAL :: all_potential_present, be_silent, do_kpoints, do_ri_hfx, do_ri_mp2, do_ri_rpa, &
-         do_ri_sos_mp2, do_wfc_im_time, e1terms, has_unit_metric, lribas, mp2_present, orb_gradient
+         do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, has_unit_metric, lribas, &
+         mp2_present, orb_gradient
       REAL(dp)                                           :: alpha, ccore, ewald_rcut, maxocc, &
                                                             verlet_skin, zeff_correction
       REAL(KIND=dp)                                      :: total_zeff_corr
@@ -834,7 +835,9 @@ CONTAINS
       END IF
 
       CALL section_vals_val_get(qs_env%input, "DFT%XC%HF%RI%_SECTION_PARAMETERS_", l_val=do_ri_hfx)
-      IF (do_ri_hfx) THEN
+      CALL section_vals_val_get(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF%RI%_SECTION_PARAMETERS_", &
+                                l_val=do_rpa_ri_exx)
+      IF (do_ri_hfx .OR. do_rpa_ri_exx) THEN
          CALL get_qs_env(qs_env, nkind=nkind)
          CALL section_vals_val_get(qs_env%input, "DFT%SORT_BASIS", i_val=sort_basis)
          DO ikind = 1, nkind

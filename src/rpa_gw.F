@@ -15,11 +15,15 @@ MODULE rpa_gw
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
-                                              cp_cfm_scale_and_add
-   USE cp_cfm_types,                    ONLY: &
-        cp_cfm_create, cp_cfm_get_info, cp_cfm_p_type, cp_cfm_release, cp_cfm_set_all, &
-        cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_p_type,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
@@ -1296,7 +1300,7 @@ CONTAINS
                                                       qs_env, para_env, &
                                                       mp2_env, num_fit_points, mo_coeff, &
                                                       do_ri_Sigma_x, vec_Sigma_x_gw(:, :, 1), unit_nr, 1, &
-                                                      starts_array_mc, ends_array_mc)
+                                                      starts_array_mc, ends_array_mc, eps_filter)
 
          END IF
 
@@ -4672,6 +4676,7 @@ CONTAINS
 !> \param ispin ...
 !> \param starts_array_mc ...
 !> \param ends_array_mc ...
+!> \param eps_filter ...
 ! **************************************************************************************************
    SUBROUTINE compute_self_energy_cubic_gw_kpoints(num_integ_points, tau_tj, tj, &
                                                    matrix_s, Eigenval, e_fermi, fm_mat_W, &
@@ -4684,7 +4689,7 @@ CONTAINS
                                                    qs_env, para_env, &
                                                    mp2_env, num_fit_points, fm_mo_coeff, &
                                                    do_ri_Sigma_x, vec_Sigma_x_gw, unit_nr, ispin, &
-                                                   starts_array_mc, ends_array_mc)
+                                                   starts_array_mc, ends_array_mc, eps_filter)
 
       INTEGER, INTENT(IN)                                :: num_integ_points
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -4718,6 +4723,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vec_Sigma_x_gw
       INTEGER, INTENT(IN)                                :: unit_nr, ispin
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_cubic_gw_kpoints'
 
@@ -4921,6 +4927,7 @@ CONTAINS
                                  map_1=[1], map_2=[2, 3], &
                                  bounds_2=bounds_RI_i, &
                                  bounds_3=bounds_ao_ao_j, &
+                                 filter_eps=eps_filter, &
                                  unit_nr=unit_nr_prv)
 
                CALL dbt_copy(t_3c_M_W_tmp, t_3c_O_W, order=[1, 2, 3], move_data=.TRUE.)
@@ -4930,12 +4937,12 @@ CONTAINS
                CALL contract_to_self_energy(t_3c_O_all, t_greens_fct_occ, t_3c_O_W, &
                                             mat_self_energy_ao_ao_neg_tau, &
                                             bounds_ao_ao_j, bounds_RI_i, unit_nr_prv, &
-                                            do_occ=.TRUE., do_virt=.FALSE.)
+                                            eps_filter, do_occ=.TRUE., do_virt=.FALSE.)
 
                CALL contract_to_self_energy(t_3c_O_all, t_greens_fct_virt, t_3c_O_W, &
                                             mat_self_energy_ao_ao_pos_tau, &
                                             bounds_ao_ao_j, bounds_RI_i, unit_nr_prv, &
-                                            do_occ=.FALSE., do_virt=.TRUE.)
+                                            eps_filter, do_occ=.FALSE., do_virt=.TRUE.)
 
             END DO ! j_mem
 
@@ -4978,23 +4985,12 @@ CONTAINS
 
       IF (count_ev_sc_GW == 1 .AND. count_sc_GW0 == 1) THEN
 
-         IF (.NOT. do_ri_Sigma_x) THEN
-
-            CALL mp_sync(para_env%group)
-
-            CALL trafo_to_mo_and_kpoints(qs_env, qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(1)%matrix, &
-                                         vec_Sigma_x_gw(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt, :), &
-                                         homo, gw_corr_lev_occ, gw_corr_lev_virt)
-
-            CALL dbcsr_release(qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(1)%matrix)
-            DEALLOCATE (qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(1)%matrix)
-            DEALLOCATE (qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma)
-         END IF
-
          CALL compute_minus_vxc_kpoints(qs_env)
 
-         mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, ispin, :) = mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, ispin, :) + &
-                                                                 vec_Sigma_x_gw(:, :)
+         IF (do_ri_Sigma_x) THEN
+            mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, ispin, :) = mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, ispin, :) + &
+                                                                    vec_Sigma_x_gw(:, :)
+         END IF
 
       END IF
 
@@ -5066,12 +5062,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_minus_vxc_kpoints'
 
       INTEGER                                            :: handle, ikp, nkp_Sigma, nmo
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_vxc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_Sigma_x_minus_vxc_mo_mo
       TYPE(cp_cfm_type), POINTER                         :: cfm_mo_coeff, ks_mat_ao_ao, &
                                                             ks_mat_no_xc_ao_ao, vxc_ao_ao, &
                                                             vxc_ao_mo, vxc_mo_mo
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_tmp_im, fm_tmp_re, fm_vxc_mo_mo
+      TYPE(cp_fm_type), POINTER                          :: fm_Sigma_x_minus_vxc_mo_mo, fm_tmp_im, &
+                                                            fm_tmp_re
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma, kpoints_Sigma_no_xc
 
@@ -5087,7 +5084,7 @@ CONTAINS
 
       matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct
 
-      NULLIFY (ks_mat_ao_ao, ks_mat_no_xc_ao_ao, vxc_ao_ao, vxc_ao_mo, vxc_mo_mo, cfm_mo_coeff, fm_vxc_mo_mo, &
+      NULLIFY (ks_mat_ao_ao, ks_mat_no_xc_ao_ao, vxc_ao_ao, vxc_ao_mo, vxc_mo_mo, cfm_mo_coeff, fm_Sigma_x_minus_vxc_mo_mo, &
                fm_tmp_re, fm_tmp_im)
       CALL cp_cfm_create(ks_mat_ao_ao, matrix_struct)
       CALL cp_cfm_create(ks_mat_no_xc_ao_ao, matrix_struct)
@@ -5095,12 +5092,12 @@ CONTAINS
       CALL cp_cfm_create(vxc_ao_mo, matrix_struct)
       CALL cp_cfm_create(vxc_mo_mo, matrix_struct)
       CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
-      CALL cp_fm_create(fm_vxc_mo_mo, matrix_struct)
+      CALL cp_fm_create(fm_Sigma_x_minus_vxc_mo_mo, matrix_struct)
       CALL cp_fm_create(fm_tmp_re, matrix_struct)
       CALL cp_fm_create(fm_tmp_im, matrix_struct)
 
       CALL cp_cfm_get_info(cfm_mo_coeff, nrow_global=nmo)
-      ALLOCATE (diag_vxc(nmo))
+      ALLOCATE (diag_Sigma_x_minus_vxc_mo_mo(nmo))
 
       DEALLOCATE (qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw)
 
@@ -5119,19 +5116,22 @@ CONTAINS
          CALL cp_fm_copy_general(kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, fm_tmp_re, para_env)
          CALL cp_fm_copy_general(kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, fm_tmp_im, para_env)
 
-         CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, ks_mat_no_xc_ao_ao)
+         CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, vxc_ao_ao)
 
-         CALL cp_cfm_scale_and_add(z_one, ks_mat_ao_ao, -z_one, ks_mat_no_xc_ao_ao)
-         CALL cp_cfm_to_cfm(ks_mat_ao_ao, vxc_ao_ao)
+!         CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, ks_mat_no_xc_ao_ao)
+
+!         CALL cp_cfm_scale_and_add(z_one, ks_mat_ao_ao, -z_one, ks_mat_no_xc_ao_ao)
+!         CALL cp_cfm_to_cfm(ks_mat_ao_ao, vxc_ao_ao)
 
          CALL cp_cfm_gemm('N', 'N', nmo, nmo, nmo, z_one, vxc_ao_ao, cfm_mo_coeff, z_zero, vxc_ao_mo)
          CALL cp_cfm_gemm('C', 'N', nmo, nmo, nmo, z_one, cfm_mo_coeff, vxc_ao_mo, z_zero, vxc_mo_mo)
 
-         CALL cp_cfm_to_fm(vxc_mo_mo, fm_vxc_mo_mo)
+         CALL cp_cfm_to_fm(vxc_mo_mo, fm_Sigma_x_minus_vxc_mo_mo)
 
-         CALL cp_fm_get_diag(fm_vxc_mo_mo, diag_vxc)
+         CALL cp_fm_get_diag(fm_Sigma_x_minus_vxc_mo_mo, diag_Sigma_x_minus_vxc_mo_mo)
 
-         qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp) = -diag_vxc(:)
+!         qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp) = -diag_Sigma_x_minus_vxc_mo_mo(:)
+         qs_env%mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1, ikp) = diag_Sigma_x_minus_vxc_mo_mo(:)
 
       END DO
 
@@ -5141,11 +5141,11 @@ CONTAINS
       CALL cp_cfm_release(vxc_ao_mo)
       CALL cp_cfm_release(vxc_mo_mo)
       CALL cp_cfm_release(cfm_mo_coeff)
-      CALL cp_fm_release(fm_vxc_mo_mo)
+      CALL cp_fm_release(fm_Sigma_x_minus_vxc_mo_mo)
       CALL cp_fm_release(fm_tmp_re)
       CALL cp_fm_release(fm_tmp_im)
 
-      DEALLOCATE (diag_vxc)
+      DEALLOCATE (diag_Sigma_x_minus_vxc_mo_mo)
 
       CALL timestop(handle)
 
@@ -5335,18 +5335,20 @@ CONTAINS
 !> \param bounds_ao_ao_j ...
 !> \param bounds_RI_i ...
 !> \param unit_nr ...
+!> \param eps_filter ...
 !> \param do_occ ...
 !> \param do_virt ...
 ! **************************************************************************************************
    SUBROUTINE contract_to_self_energy(t_3c_O_all, t_greens_fct, t_3c_O_W, &
                                       mat_self_energy_ao_ao, bounds_ao_ao_j, bounds_RI_i, &
-                                      unit_nr, do_occ, do_virt)
+                                      unit_nr, eps_filter, do_occ, do_virt)
 
       TYPE(dbt_type)                                     :: t_3c_O_all, t_greens_fct, t_3c_O_W
       TYPE(dbcsr_type), TARGET                           :: mat_self_energy_ao_ao
       INTEGER, DIMENSION(2, 2)                           :: bounds_ao_ao_j
       INTEGER, DIMENSION(2, 1)                           :: bounds_RI_i
       INTEGER                                            :: unit_nr
+      REAL(KIND=dp)                                      :: eps_filter
       LOGICAL                                            :: do_occ, do_virt
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_to_self_energy'
@@ -5375,6 +5377,7 @@ CONTAINS
                         contract_2=[3], notcontract_2=[1, 2], &
                         map_1=[3], map_2=[1, 2], &
                         bounds_2=bounds_ao_j, &
+                        filter_eps=eps_filter, &
                         unit_nr=unit_nr)
 
       CALL dbt_copy(t_3c_O_G_tmp, t_3c_O_G, order=[1, 3, 2], move_data=.TRUE.)
@@ -5391,6 +5394,7 @@ CONTAINS
                         contract_2=[1, 2], notcontract_2=[3], &
                         map_1=[1], map_2=[2], &
                         bounds_1=bounds_RI_i_ao_j, &
+                        filter_eps=eps_filter, &
                         unit_nr=unit_nr)
 
       CALL dbt_copy(t_self_energy, t_self_energy_tmp)

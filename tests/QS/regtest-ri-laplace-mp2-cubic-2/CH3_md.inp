@@ -28,6 +28,7 @@
     &END POISSON
     &QS
       METHOD GPW
+      EPS_DEFAULT 1.0E-12
     &END QS
     &SCF
       SCF_GUESS ATOMIC

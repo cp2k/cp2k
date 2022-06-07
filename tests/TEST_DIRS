@@ -3,27 +3,32 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
-QS/regtest-double-hybrid-stress-numer-laplace               libint libxc
+QS/regtest-ri-rpa                                           libint
+QS/regtest-mp2-grad-2                                       libint
+QS/regtest-mp2-grad-solvers                                 libint
+QS/regtest-rpa-cubic-scaling                                libint
+QS/regtest-rpa-cubic-scaling-2                              libint
+QS/regtest-double-hybrid-stress-numer-laplace               libxc
 QS/regtest-ec-force-meta                                    libxc
-QS/regtest-double-hybrid-grad-laplace                       libint libxc
-QS/regtest-double-hybrid-stress-numer-meta                  libint libxc
-QS/regtest-double-hybrid-grad-numer-meta                    libint libxc
-QS/regtest-double-hybrid-stress-meta                        libint libxc
-QS/regtest-double-hybrid-grad-meta                          libint libxc
+QS/regtest-double-hybrid-grad-laplace                       libxc
+QS/regtest-double-hybrid-stress-numer-meta                  libxc
+QS/regtest-double-hybrid-grad-numer-meta                    libxc
+QS/regtest-double-hybrid-stress-meta                        libxc
+QS/regtest-double-hybrid-grad-meta                          libxc
 QS/regtest-loc_powf
 QS/regtest-admm-libxc                                       libint libxc
 QS/regtest-mp2-admm-stress-numer                            libint
 QS/regtest-mp2-admm-grad-numer                              libint
-QS/regtest-double-hybrid-stress-numer                       libint
-QS/regtest-double-hybrid-grad-numer                         libint
+QS/regtest-double-hybrid-stress-numer                       
+QS/regtest-double-hybrid-grad-numer                         
 QS/regtest-mp2-admm-stress                                  libint
 QS/regtest-mp2-lr-grad                                      libint
 QS/regtest-mp2-lr-stress                                    libint
 QS/regtest-ri-mp2-opt                                       libint
 QS/regtest-mp2-block                                        libint parallel mpiranks%2==0
 QS/regtest-mp2-admm-grad                                    libint
-QS/regtest-double-hybrid-stress                             libint
-QS/regtest-double-hybrid-grad                               libint
+QS/regtest-double-hybrid-stress                             
+QS/regtest-double-hybrid-grad                               
 QS/regtest-hfx-ri-2                                         libint libxc
 QS/regtest-rma                                              libint mpi3
 LIBTEST/libvori                                             libvori
@@ -84,7 +89,6 @@ QS/regtest-tddfpt-4                                         libint
 QS/regtest-stda                                             libint
 QS/regtest-p-efield
 QS/regtest-mp2-stress                                       libint
-QS/regtest-ri-rpa                                           libint
 QS/regtest-kg                                               libxc
 QS/regtest-ec                                               libint libvori
 QS/regtest-ec-force                                         libint
@@ -101,7 +105,7 @@ Fist/regtest-7-1
 QMMM/SE/regtest-force-mixing
 QS/regtest-gpw-8
 QS/regtest-ot
-QS/regtest-mp2-grad                                         libint libvori
+QS/regtest-mp2-grad-1                                       libint libvori
 QS/regtest-plus_u
 QS/regtest-gpw-3
 QS/regtest-ps-implicit-1-3                                  fftw3
@@ -112,11 +116,11 @@ QMMM/QS/regtest-1
 QS/regtest-ps-implicit-2-1
 QS/regtest-as-1                                             libint
 Fist/regtest-12
-QS/regtest-ri-rpa                                           libint
 QS/regtest-nmr-uks-1
 QS/regtest-libxc                                            libxc libint
 SE/regtest-3-2
 QS/regtest-gw-cubic                                         libint
+QS/regtest-gw-kpoints                                       libint
 QS/regtest-xc
 QS/regtest-almo-2
 SE/regtest-2-2

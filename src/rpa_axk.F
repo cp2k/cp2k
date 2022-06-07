@@ -274,7 +274,7 @@ CONTAINS
       ! Copy Gamma_ia_P^3 to dbcsr matrix set
       CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
                              homo, virtual, mo_coeff_o, ngroup, my_group_L_start, &
-                             my_group_L_end, my_group_L_size, dimen_RI)
+                             my_group_L_end, my_group_L_size)
 
       ! Release Gamma_3
       CALL cp_fm_release(fm_mat_Gamma_3)

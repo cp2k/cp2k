@@ -3232,7 +3232,7 @@ CONTAINS
                              maxso=maxso, npgf=npgf, nset=nset, zet=zet)
 
 !  Separate the functions into purely r and purely angular parts, compute them all
-!  and use matrix mutliplication for the integral. We use f for x derivative ang g for y
+!  and use matrix mutliplication for the integral. We use f for x derivative and g for y
 
       ! Separating the functions. Note that the radial part is the same for x and y derivatives
       ALLOCATE (a1(na, nset*maxso, 3), a2(na, nset*maxso, 3))

@@ -243,7 +243,8 @@ CONTAINS
       IF (calc_forces) THEN
          CALL cite_reference(DelBen2015b)
          CALL cite_reference(Rybkin2016)
-         IF ((mp2_env%method /= ri_mp2_method_gpw) .AND. (mp2_env%method /= ri_mp2_laplace)) THEN
+         !Gradients available for RI-MP2, and low-scaling Laplace MP2/RPA
+         IF ((mp2_env%method /= ri_mp2_method_gpw) .AND. (.NOT. mp2_env%do_im_time)) THEN
             CPABORT("No forces/gradients for the selected method.")
          END IF
       END IF
@@ -429,7 +430,7 @@ CONTAINS
          free_hfx_buffer = .TRUE.
          IF (calc_forces .AND. (.NOT. mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer = .FALSE.
          IF (qs_env%x_data(1, 1)%do_hfx_ri) free_hfx_buffer = .FALSE.
-         IF (calc_forces .AND. mp2_env%method == ri_mp2_laplace) free_hfx_buffer = .FALSE.
+         IF (calc_forces .AND. mp2_env%do_im_time) free_hfx_buffer = .FALSE.
       END IF
 
       IF (.NOT. do_kpoints_cubic_RPA) THEN
@@ -696,7 +697,8 @@ CONTAINS
       DEALLOCATE (mos_mp2)
 
       ! if necessary reallocate hfx buffer
-      IF (free_hfx_buffer .AND. (.NOT. calc_forces)) THEN
+      IF (free_hfx_buffer .AND. (.NOT. calc_forces) .AND. &
+          (mp2_env%ri_g0w0%do_ri_Sigma_x .OR. .NOT. mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma)) THEN
          CALL timeset(routineN//"_alloc_hfx", handle2)
          DO irep = 1, n_rep_hf
             DO i_thread = 0, n_threads - 1
@@ -731,14 +733,14 @@ CONTAINS
       CALL hfx_release_basis_types(basis_parameter)
 
       ! if required calculate the EXX contribution from the DFT density
-      IF (mp2_env%method == ri_rpa_method_gpw) THEN
+      IF (mp2_env%method == ri_rpa_method_gpw .AND. .NOT. calc_forces) THEN
          do_exx = .FALSE.
          hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
          CALL section_vals_get(hfx_sections, explicit=do_exx)
          IF (do_exx) THEN
             do_gw = mp2_env%ri_rpa%do_ri_g0w0
             do_admm = mp2_env%ri_rpa%do_admm
-            CALL calculate_exx(qs_env, unit_nr, do_gw, do_admm, E_ex_from_GW, t3)
+            CALL calculate_exx(qs_env, unit_nr, do_gw, do_admm, .FALSE., E_ex_from_GW, t3)
          END IF
       END IF
 

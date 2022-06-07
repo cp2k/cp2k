@@ -43,6 +43,7 @@
       &END OT
     &END SCF
     &XC
+      # Not a very useful functional, just for testing
       &XC_FUNCTIONAL PBE
          &PBE
             SCALE_X 0.55

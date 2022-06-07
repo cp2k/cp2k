@@ -347,7 +347,7 @@ class TestResult:
 
     def __str__(self) -> str:
         value = f"{self.value:.10g}" if self.value else "-"
-        return f"    {self.test.name :<50s} {value :>17} {self.status :>12s} ( {self.duration:6.2f} sec)"
+        return f"    {self.test.name :<80s} {value :>17} {self.status :>12s} ( {self.duration:6.2f} sec)"
 
 
 # ======================================================================================
@@ -386,7 +386,7 @@ class Cp2kShell:
     async def sendline(self, line: str) -> None:
         if self.cfg.debug:
             print("Sending: " + line)
-        assert len(line) < 80  # input buffer size
+        assert len(line) < 1024  # input buffer size
         assert self._child and self._child.stdin
         data = (line + "\n").encode("utf8")
         self._child.stdin.write(data)

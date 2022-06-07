@@ -121,18 +121,19 @@ CONTAINS
       CHARACTER(LEN=40)                                  :: line
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, handle, homo, i_img, &
          ikp, irep, ispin, iunit, myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, &
-         n_rep_hf, nkp, nkp_Sigma, nmo, ns, nspins, print_exx, virtual
+         n_rep_hf, nkp, nkp_Sigma, nmo, ns, nspins, print_exx
       LOGICAL :: charge_constrain_tmp, do_admm_rpa, do_hfx, do_kpoints_cubic_RPA, &
          do_kpoints_from_Gamma, do_ri_Sigma_x, really_read_line
       REAL(KIND=dp) :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, eh1, ehfx, eigval_dft, eigval_hf_at_dft, &
          energy_exc, energy_exc1, energy_exc1_aux_fit, energy_exc_aux_fit, energy_total, &
-         exx_minus_vxc, hfx_fraction, t1, t2, tmp
+         exx_minus_vxc, hfx_fraction, min_direct_HF_at_DFT_gap, t1, t2, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval_kp_HF_at_DFT, vec_Sigma_x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp, vec_Sigma_x_minus_vxc_gw, &
                                                             vec_Sigma_x_minus_vxc_gw_im
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mat_exchange_for_kp_from_gamma
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, &
                                                             matrix_ks_aux_fit_hfx, rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_ks_2d, matrix_ks_kp_im, &
@@ -159,7 +160,8 @@ CONTAINS
       do_admm_rpa = mp2_env%ri_rpa%do_admm
       do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x
       do_kpoints_cubic_RPA = qs_env%mp2_env%ri_rpa_im_time%do_im_time_kpoints
-      do_kpoints_from_Gamma = SUM(qs_env%mp2_env%ri_rpa_im_time%kp_grid) > 0
+      do_kpoints_from_Gamma = qs_env%mp2_env%ri_rpa_im_time%do_kpoints_from_Gamma
+      print_exx = mp2_env%ri_g0w0%print_exx
 
       IF (do_kpoints_cubic_RPA) THEN
          CPASSERT(do_ri_Sigma_x)
@@ -186,6 +188,8 @@ CONTAINS
          ! in the admm section
          CPASSERT(admm_env%purification_method == do_admm_purify_none)
          CPASSERT(dft_control%admm_control%method == do_admm_basis_projection)
+
+         nkp = 1
 
       ELSE
 
@@ -233,6 +237,22 @@ CONTAINS
       DO ispin = 1, SIZE(matrix_ks)
          CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
       END DO
+      END IF
+
+      ! safe ks matrix for later: we will transform matrix_ks
+      ! to T-cell index and then to k-points for band structure calculation
+      IF (do_kpoints_from_Gamma) THEN
+         ! not yet there: open shell
+         ALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_ks(1))
+         DO ispin = 1, 1
+            NULLIFY (qs_env%mp2_env%ri_g0w0%matrix_ks(ispin)%matrix)
+            ALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_ks(ispin)%matrix)
+            CALL dbcsr_create(qs_env%mp2_env%ri_g0w0%matrix_ks(ispin)%matrix, &
+                              template=matrix_ks(ispin)%matrix)
+            CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, &
+                                    qs_env%mp2_env%ri_g0w0%matrix_ks(ispin)%matrix)
+
+         END DO
       END IF
 
       IF (do_kpoints_cubic_RPA) THEN
@@ -462,20 +482,21 @@ CONTAINS
                END IF
             END DO
 
-            IF (do_kpoints_from_Gamma) THEN
-               ! not yet there: open shell
-               ALLOCATE (qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(1))
+            IF (do_kpoints_from_Gamma .AND. print_exx == gw_print_exx) THEN
+               ! JW not yet there: open shell
+               ALLOCATE (mat_exchange_for_kp_from_gamma(1))
+
                DO ispin = 1, 1
-                  NULLIFY (qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(ispin)%matrix)
-                  ALLOCATE (qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(ispin)%matrix)
-                  CALL dbcsr_create(qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(ispin)%matrix, &
-                                    template=matrix_ks(ispin)%matrix)
-                  CALL dbcsr_desymmetrize(matrix_ks(ispin)%matrix, &
-                                          qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(ispin)%matrix)
+                  NULLIFY (mat_exchange_for_kp_from_gamma(ispin)%matrix)
+                  ALLOCATE (mat_exchange_for_kp_from_gamma(ispin)%matrix)
+                  CALL dbcsr_create(mat_exchange_for_kp_from_gamma(ispin)%matrix, template=matrix_ks(ispin)%matrix)
+                  CALL dbcsr_desymmetrize(matrix_ks(ispin)%matrix, mat_exchange_for_kp_from_gamma(ispin)%matrix)
                END DO
+
             END IF
 
          END IF
+
          energy_ex = ehfx
 
          ! transform Fock-Matrix (calculated in integrate_four_center, written in matrix_ks_aux_fit in case
@@ -487,6 +508,23 @@ CONTAINS
          DO ispin = 1, nspins
             CALL dbcsr_add(matrix_sigma_x_minus_vxc(ispin, 1)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, 1.0_dp)
          END DO
+
+         ! safe matrix_sigma_x_minus_vxc for later: for example, we will transform matrix_sigma_x_minus_vxc
+         ! to T-cell index and then to k-points for band structure calculation
+         IF (do_kpoints_from_Gamma) THEN
+            ! not yet there: open shell
+            ALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(1))
+            DO ispin = 1, 1
+               NULLIFY (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(ispin)%matrix)
+               ALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(ispin)%matrix)
+               CALL dbcsr_create(qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(ispin)%matrix, &
+                                 template=matrix_ks(ispin)%matrix)
+
+               CALL dbcsr_desymmetrize(matrix_sigma_x_minus_vxc(ispin, 1)%matrix, &
+                                       qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(ispin)%matrix)
+
+            END DO
+         END IF
 
          CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, mo_coeff_b)
          CALL dbcsr_set(mo_coeff_b, 0.0_dp)
@@ -579,23 +617,22 @@ CONTAINS
 
       ALLOCATE (mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo, nspins, nkp))
 
-      print_exx = mp2_env%ri_g0w0%print_exx
-
       IF (print_exx == gw_print_exx) THEN
 
          IF (do_kpoints_from_Gamma) THEN
 
             gw_corr_lev_tot = gw_corr_lev_occ + gw_corr_lev_virt
-            virtual = nmo - homo
 
             CALL get_qs_env(qs_env=qs_env, &
                             kpoints=kpoints)
+
+            CALL setup_abs_cutoffs_chi_and_trunc_coulomb_potential(qs_env)
 
             CALL compute_kpoints(qs_env, kpoints, unit_nr)
 
             ALLOCATE (Eigenval_kp(nmo, 1, nspins))
 
-            CALL get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, virtual, Eigenval_kp)
+            CALL get_bandstruc_and_k_dependent_MOs(qs_env, kpoints, Eigenval_kp)
 
             CALL compute_minus_vxc_kpoints(qs_env)
 
@@ -604,12 +641,14 @@ CONTAINS
             ALLOCATE (vec_Sigma_x(nmo, nkp_Sigma))
             vec_Sigma_x(:, :) = 0.0_dp
 
-            CALL setup_abs_cutoffs_chi_and_trunc_coulomb_potential(qs_env)
-
             CALL trafo_to_mo_and_kpoints(qs_env, &
-                                         qs_env%mp2_env%ri_g0w0%mat_exchange_for_kp_from_gamma(1)%matrix, &
+                                         mat_exchange_for_kp_from_gamma(1)%matrix, &
                                          vec_Sigma_x(homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt, :), &
                                          homo, gw_corr_lev_occ, gw_corr_lev_virt)
+
+            CALL dbcsr_release(mat_exchange_for_kp_from_gamma(1)%matrix)
+            DEALLOCATE (mat_exchange_for_kp_from_gamma(1)%matrix)
+            DEALLOCATE (mat_exchange_for_kp_from_gamma)
 
             DEALLOCATE (vec_Sigma_x_minus_vxc_gw)
 
@@ -630,6 +669,8 @@ CONTAINS
 
             ALLOCATE (Eigenval_kp_HF_at_DFT(nmo, nkp_Sigma))
             Eigenval_kp_HF_at_DFT(:, :) = Eigenval_kp(:, :, 1) + vec_Sigma_x_minus_vxc_gw(:, 1, :)
+
+            min_direct_HF_at_DFT_gap = 100.0_dp
 
             WRITE (unit_nr, '(T3,A)') ''
             WRITE (unit_nr, '(T3,A)') 'Exchange energies'
@@ -665,20 +706,28 @@ CONTAINS
                E_HOMO_GW = MAXVAL(Eigenval_kp_HF_at_DFT(homo - gw_corr_lev_occ + 1:homo, ikp))
                E_LUMO_GW = MINVAL(Eigenval_kp_HF_at_DFT(homo + 1:homo + gw_corr_lev_virt, ikp))
                E_GAP_GW = E_LUMO_GW - E_HOMO_GW
+               IF (E_GAP_GW < min_direct_HF_at_DFT_gap) min_direct_HF_at_DFT_gap = E_GAP_GW
                WRITE (unit_nr, '(T3,A)') ''
-               WRITE (unit_nr, '(T3,A,F53.2)') 'HF@PBE HOMO-LUMO gap (eV)', E_GAP_GW*evolt
+               WRITE (unit_nr, '(T3,A,F53.2)') 'HF@DFT HOMO-LUMO gap (eV)', E_GAP_GW*evolt
                WRITE (unit_nr, '(T3,A)') ''
             END DO
+
+            WRITE (unit_nr, '(T3,A)') ''
+            WRITE (unit_nr, '(T3,A)') ''
+            WRITE (unit_nr, '(T3,A,F63.3)') 'HF@DFT direct bandgap (eV)', min_direct_HF_at_DFT_gap*evolt
 
             WRITE (unit_nr, '(T3,A)') ''
             WRITE (unit_nr, '(T3,A)') 'End of exchange energies'
             WRITE (unit_nr, '(T3,A)') '------------------------'
             WRITE (unit_nr, '(T3,A)') ''
+
+            CPABORT('Stop after printing exchange energies.')
+
+         ELSE
+            CALL mp_sync(para_env%group)
          END IF
 
       END IF
-
-      CALL mp_sync(para_env%group)
 
       IF (print_exx == gw_read_exx) THEN
 
