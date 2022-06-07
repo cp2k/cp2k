@@ -1109,6 +1109,7 @@ CONTAINS
                lsm = 1
                pos(1) = 0.0_dp
                pos(2) = ds_min/gold_sec
+               ds = pos(2)
             ELSE
                IF (line_search_count .EQ. 50) THEN
                   IF (ABS(energy(line_search_count) - energy(line_search_count - 1)) < 1.0E-4_dp) THEN
