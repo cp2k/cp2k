@@ -347,7 +347,7 @@ class TestResult:
 
     def __str__(self) -> str:
         value = f"{self.value:.10g}" if self.value else "-"
-        return f"    {self.test.name :<50s} {value :>17} {self.status :>12s} ( {self.duration:6.2f} sec)"
+        return f"    {self.test.name :<80s} {value :>17} {self.status :>12s} ( {self.duration:6.2f} sec)"
 
 
 # ======================================================================================
