@@ -54,7 +54,6 @@ MODULE cp2k_shell
    USE input_cp2k_read,                 ONLY: empty_initial_variables
    USE input_section_types,             ONLY: section_type
    USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
                                               dp
    USE machine,                         ONLY: m_chdir,&
                                               m_flush,&
@@ -72,7 +71,7 @@ MODULE cp2k_shell
    PRIVATE
 
    ! Queried by ASE. Increase version after bug-fixing or behavior changes.
-   CHARACTER(LEN=*), PARAMETER                           :: CP2K_SHELL_VERSION = "5.0"
+   CHARACTER(LEN=*), PARAMETER                           :: CP2K_SHELL_VERSION = "6.0"
 
    TYPE cp2k_shell_type
       REAL(dp)                                           :: pos_fact = 1.0_dp
@@ -95,7 +94,7 @@ CONTAINS
    SUBROUTINE launch_cp2k_shell(input_declaration)
       TYPE(section_type), POINTER                        :: input_declaration
 
-      CHARACTER(LEN=default_string_length)               :: arg1, arg2, cmd
+      CHARACTER(LEN=default_path_length)                 :: arg1, arg2, cmd
       TYPE(cp2k_shell_type)                              :: shell
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -187,7 +186,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(out)                      :: cmd, arg1, arg2
       LOGICAL                                            :: success
 
-      CHARACTER(LEN=10*default_string_length)            :: line
+      CHARACTER(LEN=default_path_length)                 :: line
       INTEGER                                            :: i, iostat
 
       success = .TRUE.
@@ -360,8 +359,7 @@ CONTAINS
    SUBROUTINE info_license_command(shell)
       TYPE(cp2k_shell_type)                              :: shell
 
-      CHARACTER(LEN=default_path_length)                 :: cwd
-      CHARACTER(LEN=default_string_length)               :: dev_flag, host_name, user_name
+      CHARACTER(LEN=default_path_length)                 :: cwd, dev_flag, host_name, user_name
       INTEGER                                            :: pid
 
       IF (shell%iw > 0) THEN
@@ -424,8 +422,7 @@ CONTAINS
    SUBROUTINE write_file_command(shell)
       TYPE(cp2k_shell_type)                              :: shell
 
-      CHARACTER(LEN=10*default_string_length)            :: line
-      CHARACTER(LEN=default_path_length)                 :: out_filename
+      CHARACTER(LEN=default_path_length)                 :: line, out_filename
       INTEGER                                            :: file_unit, i, iostat, n_lines
 
       IF (shell%iw > 0) THEN
@@ -565,7 +562,7 @@ CONTAINS
       TYPE(cp2k_shell_type)                              :: shell
       CHARACTER(LEN=*), INTENT(IN)                       :: arg1
 
-      CHARACTER(LEN=10*default_string_length)            :: line
+      CHARACTER(LEN=default_path_length)                 :: line
       INTEGER                                            :: i, ierr, iostat, n_atom
       REAL(KIND=dp)                                      :: max_change
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: old_pos, pos
