@@ -898,7 +898,7 @@ CONTAINS
             WRITE (unit_nr, '(/T3,A,1X,I3,A)') &
                'RPA_LOW_SCALING_INFO| Info for time point', jquad, '    (gradients)'
             WRITE (unit_nr, '(T6,A,T56,F25.6)') &
-               'Time:', t2 - t1
+               'Execution time (s):', t2 - t1
             WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
                'Occupancy of 3c AO derivs:', REAL(nze_der_AO, dp), '/', occ_der_AO*100, '%'
             WRITE (unit_nr, '(T6,A,T63,ES7.1,1X,A1,1X,F7.3,A1)') &
