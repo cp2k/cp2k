@@ -45,7 +45,8 @@ MODULE rpa_im_time
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
-   USE machine,                         ONLY: m_walltime
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sync
    USE mp2_types,                       ONLY: mp2_type
@@ -587,6 +588,7 @@ CONTAINS
                   'Occupancy of M virt:', REAL(nze_M_virt, dp), '/', occ_M_virt*100, '%'
             END IF
             WRITE (unit_nr, *)
+            CALL m_flush(unit_nr)
          END IF
 
       END DO ! time points
