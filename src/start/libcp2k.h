@@ -157,6 +157,20 @@ void cp2k_get_forces(force_env_t force_env, double *force, int n_el);
 void cp2k_get_potential_energy(force_env_t force_env, double *e_pot);
 
 /*******************************************************************************
+ * \brief Get the size of the cell
+ * \param force_env the force environment
+ * \param cell Array containing the cell
+ ******************************************************************************/
+void cp2k_get_cell(force_env_t force_env, const double *cell);
+
+/*******************************************************************************
+ * \brief Get the size of the qmmm cell
+ * \param force_env the force environment
+ * \param cell Array containing the qmmm cell
+ ******************************************************************************/
+void cp2k_get_qmmm_cell(force_env_t force_env, const double *cell);
+
+/*******************************************************************************
  * \brief Calculate energy and forces of the system
  * \param force_env the force environment
  ******************************************************************************/
