@@ -879,12 +879,11 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="", &
-                          variants=(/"SELF_ENERGY"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="SELF_ENERGY", &
                           description="If true, print the self-energy for all levels for real energy "// &
                           "together with the straight line to see the quasiparticle energy as intersection. "// &
                           "In addition, prints the self-energy for imaginary frequencies together with the Pade fit.", &
-                          usage="SELF_ENERGY TRUE", &
+                          usage="SELF_ENERGY", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
