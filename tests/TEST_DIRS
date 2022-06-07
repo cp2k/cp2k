@@ -15,6 +15,7 @@ QS/regtest-double-hybrid-stress-numer-meta                  libxc
 QS/regtest-double-hybrid-grad-numer-meta                    libxc
 QS/regtest-double-hybrid-stress-meta                        libxc
 QS/regtest-double-hybrid-grad-meta                          libxc
+QS/regtest-loc_powf
 QS/regtest-admm-libxc                                       libint libxc
 QS/regtest-mp2-admm-stress-numer                            libint
 QS/regtest-mp2-admm-grad-numer                              libint

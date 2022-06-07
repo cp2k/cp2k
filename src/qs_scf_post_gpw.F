@@ -66,14 +66,9 @@ MODULE qs_scf_post_gpw
                                               hirshfeld_type,&
                                               release_hirshfeld_type,&
                                               set_hirshfeld_info
-   USE input_constants,                 ONLY: do_loc_both,&
-                                              do_loc_homo,&
-                                              do_loc_lumo,&
-                                              ot_precond_full_all,&
-                                              radius_covalent,&
-                                              radius_user,&
-                                              ref_charge_atomic,&
-                                              ref_charge_mulliken
+   USE input_constants,                 ONLY: &
+        do_loc_both, do_loc_homo, do_loc_lumo, do_loc_mixed, ot_precond_full_all, radius_covalent, &
+        radius_user, ref_charge_atomic, ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -249,22 +244,22 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw'
 
-      INTEGER                                            :: handle, homo, ispin, min_lumos, n_rep, &
-                                                            nhomo, nlumo, nlumo_stm, nlumo_tddft, &
-                                                            nlumos, nmo, output_unit, unit_nr
+      INTEGER :: handle, homo, ispin, min_lumos, n_rep, nchk_nmoloc, nhomo, nlumo, nlumo_stm, &
+         nlumo_tddft, nlumos, nmo, output_unit, unit_nr
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
-      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mo_cubes, do_stm, &
+      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_mo_cubes, do_stm, &
          do_wannier_cubes, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_do_mp2, &
-         my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo
+         my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo, p_loc_mixed
       REAL(dp)                                           :: e_kin
-      REAL(KIND=dp)                                      :: gap, homo_lumo(2, 2)
+      REAL(KIND=dp)                                      :: gap, homo_lumo(2, 2), total_zeff_corr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: occupied_evals, unoccupied_evals, &
-                                                            unoccupied_evals_stm
+      TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: mixed_evals, occupied_evals, &
+                                                            unoccupied_evals, unoccupied_evals_stm
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: homo_localized, lumo_localized, lumo_ptr, &
-         mo_loc_history, occupied_orbs, unoccupied_orbs, unoccupied_orbs_stm
+         mixed_localized, mixed_orbs, mo_loc_history, occupied_orbs, unoccupied_orbs, &
+         unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_p_mp2, matrix_s, &
@@ -280,7 +275,8 @@ CONTAINS
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env_homo, qs_loc_env_lumo
+      TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env_homo, qs_loc_env_lumo, &
+                                                            qs_loc_env_mixed
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -314,14 +310,16 @@ CONTAINS
                mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo, qs_loc_env_lumo, scf_control, &
                unoccupied_orbs, unoccupied_orbs_stm, mo_eigenvalues, unoccupied_evals, &
                unoccupied_evals_stm, molecule_set, mo_derivs, &
-               subsys, particles, input, print_key, kinetic_m, marked_states)
-      NULLIFY (homo_localized, lumo_localized, lumo_ptr, rho_ao)
+               subsys, particles, input, print_key, kinetic_m, marked_states, &
+               mixed_orbs, mixed_evals, qs_loc_env_mixed)
+      NULLIFY (homo_localized, lumo_localized, lumo_ptr, rho_ao, mixed_localized)
 
       has_homo = .FALSE.
       has_lumo = .FALSE.
       p_loc = .FALSE.
       p_loc_homo = .FALSE.
       p_loc_lumo = .FALSE.
+      p_loc_mixed = .FALSE.
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
@@ -408,10 +406,12 @@ CONTAINS
                        section_get_ival(localize_section, "STATES") == do_loc_both) .AND. p_loc
          p_loc_lumo = (section_get_ival(localize_section, "STATES") == do_loc_lumo .OR. &
                        section_get_ival(localize_section, "STATES") == do_loc_both) .AND. p_loc
+         p_loc_mixed = (section_get_ival(localize_section, "STATES") == do_loc_mixed) .AND. p_loc
          CALL section_vals_val_get(localize_section, "LIST_UNOCCUPIED", n_rep_val=n_rep)
       ELSE
          p_loc_homo = .FALSE.
          p_loc_lumo = .FALSE.
+         p_loc_mixed = .FALSE.
          n_rep = 0
       END IF
 
@@ -660,6 +660,63 @@ CONTAINS
          END IF
       END IF
 
+      IF (p_loc_mixed) THEN
+         IF (do_kpoints) THEN
+            CPWARN("Localization not implemented for k-point calculations!!")
+         ELSEIF (dft_control%restricted) THEN
+            IF (output_unit > 0) WRITE (output_unit, *) &
+               " Unclear how we define MOs / localization in the restricted case... skipping"
+         ELSE
+
+            ALLOCATE (mixed_orbs(dft_control%nspins))
+            ALLOCATE (mixed_evals(dft_control%nspins))
+            ALLOCATE (mixed_localized(dft_control%nspins))
+            DO ispin = 1, dft_control%nspins
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, &
+                               eigenvalues=mo_eigenvalues)
+               mixed_orbs(ispin)%matrix => mo_coeff
+               mixed_evals(ispin)%array => mo_eigenvalues
+               CALL cp_fm_create(mixed_localized(ispin)%matrix, mixed_orbs(ispin)%matrix%matrix_struct)
+               CALL cp_fm_to_fm(mixed_orbs(ispin)%matrix, mixed_localized(ispin)%matrix)
+            END DO
+
+            CALL get_qs_env(qs_env, mo_loc_history=mo_loc_history)
+            do_homo = .FALSE.
+            do_mixed = .TRUE.
+            total_zeff_corr = scf_env%sum_zeff_corr
+            CALL qs_loc_env_create(qs_loc_env_mixed)
+            CALL qs_loc_control_init(qs_loc_env_mixed, localize_section, do_homo=do_homo, do_mixed=do_mixed)
+            CALL qs_loc_init(qs_env, qs_loc_env_mixed, localize_section, mixed_localized, do_homo, &
+                             do_mo_cubes, mo_loc_history=mo_loc_history, tot_zeff_corr=total_zeff_corr, &
+                             do_mixed=do_mixed)
+
+            DO ispin = 1, dft_control%nspins
+               CALL cp_fm_get_info(mixed_localized(ispin)%matrix, ncol_global=nchk_nmoloc)
+            END DO
+
+            CALL get_localization_info(qs_env, qs_loc_env_mixed, localize_section, mixed_localized, &
+                                       wf_r, wf_g, particles, mixed_orbs, mixed_evals, marked_states)
+
+            !retain the homo_localized for future use
+            IF (qs_loc_env_mixed%localized_wfn_control%use_history) THEN
+               CALL retain_history(mo_loc_history, mixed_localized)
+               CALL set_qs_env(qs_env, mo_loc_history=mo_loc_history)
+            END IF
+
+            !write restart for localization of occupied orbitals
+            CALL loc_write_restart(qs_loc_env_mixed, loc_print_section, mos, &
+                                   mixed_localized, do_homo, do_mixed=do_mixed)
+            CALL cp_fm_vect_dealloc(mixed_localized)
+            DEALLOCATE (mixed_orbs)
+            DEALLOCATE (mixed_evals)
+            ! Print Total Dipole if the localization has been performed
+! Revisit the formalism later
+            !IF (qs_loc_env_mixed%do_localize) THEN
+            !   CALL loc_dipole(input, dft_control, qs_loc_env_mixed, logger, qs_env)
+            !END IF
+         END IF
+      END IF
+
       ! Deallocate grids needed to compute wavefunctions
       IF (((do_mo_cubes .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
@@ -670,6 +727,7 @@ CONTAINS
       IF (.NOT. do_kpoints) THEN
          IF (p_loc_homo) CALL qs_loc_env_destroy(qs_loc_env_homo)
          IF (p_loc_lumo) CALL qs_loc_env_destroy(qs_loc_env_lumo)
+         IF (p_loc_mixed) CALL qs_loc_env_destroy(qs_loc_env_mixed)
       END IF
 
       ! generate a mix of wfns, and write to a restart
