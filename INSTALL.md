@@ -352,26 +352,24 @@ should work out of the box on Nvidia hardware as well.
 
 ### 2u. OpenCL Devices
 
-:warning: **Experimental**, please report any problem.
-
 OpenCL devices are currently supported for DBCSR and can cover GPUs and other devices.
-Kernels can be automatically tuned like the CUDA/HIP backend in DBCSR.
+Kernels can be automatically tuned like for the CUDA/HIP backend in DBCSR.
 Note: the OpenCL backend uses some functionality from LIBXSMM (dependency).
 
 - Installing an OpenCL runtime depends on the operating system and the device vendor.
   Debian for instance brings two packages called `opencl-headers` and
   `ocl-icd-opencl-dev` which can be present in addition to a vendor-specific
   installation. The OpenCL header files are only necessary if CP2K/DBCSR is compiled
-  from source. Please note, some vendor implementations ship with outdated OpenCL
+  from source. Please note, some implementations ship with outdated OpenCL
   headers which can prevent using latest features (if an application discovers such
-  features only at compile-time). When building from source (at link-time), for
-  instance `libOpenCL.so` is sufficient (ICD loader) but an Installable Client
-  Driver (ICD) is still necessary to "jump" into at runtime.
+  features only at compile-time). When building from source, for instance
+  `libOpenCL.so` is sufficient (ICD loader) at link-time. However, an Installable
+  Client Driver (ICD) is finally necessary at runtime.
 - Nvidia CUDA, AMD HIP, and Intel OneAPI are fully equipped with an OpenCL runtime
   (if `opencl-headers` package is not installed, CPATH can be needed to point into
-  afore mentioned installation, similarly `LIBRARY_PATH` for finding `libOpenCL.so`
-  at link-time). Installing stand-alone OpenCL is also possible, e.g.,
-  following the instructions for on Debian (or Ubuntu) given for every
+  such an installation, similarly `LIBRARY_PATH` for finding `libOpenCL.so`
+  at link-time). Installing a minimal or stand-alone OpenCL is also possible,
+  e.g., following the instructions for Debian (or Ubuntu) as given for every
   [release](https://github.com/intel/compute-runtime/releases) of the
   [Intel Compute Runtime](https://github.com/intel/compute-runtime).
 - CP2K's toolchain supports `--enable-opencl` to select DBCSR's OpenCL backend.
@@ -386,16 +384,16 @@ Note: the OpenCL backend uses some functionality from LIBXSMM (dependency).
   limits tuned parameters to the specified GPU, and by default all tuned parameters
   are embedded (`exts/dbcsr/src/acc/opencl/smm/params/*.csv`) and applied at runtime.
   If auto-tuned parameters are not available for DBCSR, well-chosen defaults will
-  be used used to populate the necessary kernels at runtime. Refer to the toolchain
-  method (above) for an ARCH-file that blends, e.g., OpenCL and CUDA.
+  be used to populate kernels at runtime. Refer to the toolchain method (above)
+  for an ARCH-file that blends, e.g., OpenCL and CUDA.
 - Auto-tuned parameters are embedded into the binary, i.e., CP2K does not rely on
   a hard-coded location. Setting `OPENCL_LIBSMM_SMM_PARAMS=/path/to/csv-file`
   environment variable can supply parameters for an already built application,
   or `OPENCL_LIBSMM_SMM_PARAMS=0` can disable using tuned parameters.
 - The environment variable `ACC_OPENCL_VERBOSE=2` prints information about
-  kernels generated at runtime and thereby checks the installation.
-- Refer to <https://cp2k.github.io/dbcsr/> for more information, e.g.,
-  environment variables or how to tune kernels (auto tuned parameters).
+  kernels generated at runtime (and thereby checks the installation).
+- Refer to <https://cp2k.github.io/dbcsr/> for, e.g., environment variables,
+  or how to tune kernels (auto tuned parameters).
 
 ### 2v. matrix-matrix multiplication offloading on GPU using SPLA
 
