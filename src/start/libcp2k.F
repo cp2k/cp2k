@@ -30,7 +30,7 @@ MODULE libcp2k
    USE f77_interface,                   ONLY: &
         calc_energy_force, create_force_env, destroy_force_env, f_env_add_defaults, &
         f_env_rm_defaults, f_env_type, finalize_cp2k, get_cell, get_energy, get_force, get_natom, &
-        get_nparticle, get_pos, get_result_r1, get_qmmm_cell, init_cp2k, set_cell, set_pos, set_vel
+        get_nparticle, get_pos, get_qmmm_cell, get_result_r1, init_cp2k, set_cell, set_pos, set_vel
    USE force_env_types,                 ONLY: force_env_get,&
                                               use_qs_force
    USE input_cp2k,                      ONLY: create_cp2k_root_section
@@ -618,7 +618,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(active_space_env)) &
             EXIT try
 
-         ASSOCIATE (nze=>active_space_env%eri%eri(1)%csr_mat%nze_total)
+         ASSOCIATE (nze => active_space_env%eri%eri(1)%csr_mat%nze_total)
             IF (buf_coords_len < 4*nze .OR. buf_values_len < nze) &
                EXIT try
 
