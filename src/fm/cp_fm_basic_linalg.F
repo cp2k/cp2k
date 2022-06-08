@@ -18,7 +18,8 @@ MODULE cp_fm_basic_linalg
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_to_fm, &
         cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,&
+                                              cp_to_string
    USE kahan_sum,                       ONLY: accurate_dot_product,&
                                               accurate_sum
    USE kinds,                           ONLY: dp,&
@@ -2310,7 +2311,7 @@ CONTAINS
 
       INTEGER :: end_col_global, end_col_local, end_row_global, end_row_local, handle, i, j, &
          j_col, ncol_global, ncol_local, nrow_global, nrow_local, start_col_global, &
-         start_col_local, start_row_global, start_row_local, this_col
+         start_col_local, start_row_global, start_row_local, this_col, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_do_norm, my_do_print
       REAL(KIND=dp)                                      :: norm
@@ -2325,6 +2326,12 @@ CONTAINS
 
       my_do_print = .FALSE.
       IF (PRESENT(do_print) .AND. (my_do_norm)) my_do_print = do_print
+
+      unit_nr = -1
+      IF (my_do_print) THEN
+         unit_nr = cp_logger_get_default_unit_nr()
+         IF (unit_nr < 1) my_do_print = .FALSE.
+      END IF
 
       IF (SIZE(B) /= 0) THEN
          IF (PRESENT(nrows)) THEN
@@ -2396,7 +2403,7 @@ CONTAINS
          IF (my_do_norm) THEN
             norm = SQRT(accurate_dot_product(B(:, this_col), B(:, this_col)))
             B(:, this_col) = B(:, this_col)/norm
-            IF (my_do_print) WRITE (*, '(I3,F8.3)') this_col, norm
+            IF (my_do_print) WRITE (unit_nr, '(I3,F8.3)') this_col, norm
          END IF
 
          DO i = start_col_local + 1, end_col_local
@@ -2412,7 +2419,7 @@ CONTAINS
             IF (my_do_norm) THEN
                norm = SQRT(accurate_dot_product(B(:, this_col), B(:, this_col)))
                B(:, this_col) = B(:, this_col)/norm
-               IF (my_do_print) WRITE (*, '(I3,F8.3)') this_col, norm
+               IF (my_do_print) WRITE (unit_nr, '(I3,F8.3)') this_col, norm
             END IF
 
          END DO

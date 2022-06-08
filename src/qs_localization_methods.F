@@ -777,7 +777,7 @@ CONTAINS
          ! initialize c_tilde
          SELECT CASE (icinit)
          CASE (1) ! random coefficients
-            WRITE (*, *) "RANDOM INITIAL GUESS FOR C"
+            !WRITE (*, *) "RANDOM INITIAL GUESS FOR C"
             CALL cp_fm_create(tmp_fm, c_tilde%matrix_struct)
             CALL cp_fm_init_random(tmp_fm, nextra)
             CALL make_basis_simple(tmp_fm, nextra)
