@@ -631,22 +631,22 @@ CONTAINS
             prow = hash_table_get(fast_vec_col%hash_table, row)
             IF (fast_vec_col%blk_map_${nametype}$ (prow)%assigned_thread .NE. ithread) CYCLE
             pcol = hash_table_get(fast_vec_row%hash_table, col)
-#:if nametype=='d'
-            CALL dgemm('N', 'T', SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 1), &
-                 SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 2), &
-                 SIZE(data_d, 2), &
-                 1.0_dp, &
-                 data_d, &
-                 SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 1), &
-                 fast_vec_row%blk_map_${nametype}$ (pcol)%ptr, &
-                 SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 2), &
-                 1.0_dp, &
-                 fast_vec_col%blk_map_${nametype}$ (prow)%ptr, &
-                 SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 1))
-#:else
-            fast_vec_col%blk_map_${nametype}$ (prow)%ptr = fast_vec_col%blk_map_${nametype}$ (prow)%ptr + &
-                                                           MATMUL(data_d, TRANSPOSE(fast_vec_row%blk_map_${nametype}$ (pcol)%ptr))
-#:endif
+            #:if nametype=='d'
+               CALL dgemm('N', 'T', SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 1), &
+                          SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 2), &
+                          SIZE(data_d, 2), &
+                          1.0_dp, &
+                          data_d, &
+                          SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 1), &
+                          fast_vec_row%blk_map_${nametype}$ (pcol)%ptr, &
+                          SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 2), &
+                          1.0_dp, &
+                          fast_vec_col%blk_map_${nametype}$ (prow)%ptr, &
+                          SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 1))
+            #:else
+               fast_vec_col%blk_map_${nametype}$ (prow)%ptr = fast_vec_col%blk_map_${nametype}$ (prow)%ptr + &
+                                                             MATMUL(data_d, TRANSPOSE(fast_vec_row%blk_map_${nametype}$ (pcol)%ptr))
+            #:endif
          END DO
          CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
