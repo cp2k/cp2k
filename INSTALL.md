@@ -321,8 +321,6 @@ SIRIUS is a domain specific library for electronic structure calculations.
 
 ### 2t. ROCM/HIP (Support for AMD GPU)
 
-:warning: **Experimental**, please report any problem.
-
 The code for the HIP based grid backend was developed and tested on Mi100 but
 should work out of the box on Nvidia hardware as well.
 
