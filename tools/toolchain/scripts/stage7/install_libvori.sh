@@ -8,8 +8,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libvori_ver="210412"
-libvori_sha256="331886aea9d093d8c44b95a07fab13d47f101b1f94a0640d7d670eb722bf90ac"
+libvori_ver="220607"
+libvori_sha256="795e76d90952f310b0d8503d4d32668d080dbbd7b919cf869ef35fe4dfcf0858"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
