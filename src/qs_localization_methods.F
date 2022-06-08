@@ -2373,7 +2373,7 @@ CONTAINS
 
       dim2 = SIZE(czij)
 
-      CALL cp_cfm_create(rmat, czij(1)%matrix%matrix_struct)
+      !CALL cp_cfm_create(rmat, czij(1)%matrix%matrix_struct)
       CALL cp_cfm_set_all(rmat, CMPLX(0._dp, 0._dp, dp), CMPLX(1._dp, 0._dp, dp))
 
       CALL cp_cfm_get_info(rmat, nrow_global=nstate)
