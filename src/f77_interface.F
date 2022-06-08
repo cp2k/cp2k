@@ -130,7 +130,8 @@ MODULE f77_interface
    USE qmmmx_types,                     ONLY: qmmmx_env_release,&
                                               qmmmx_env_type
    USE qs_environment,                  ONLY: qs_init
-   USE qs_environment_types,            ONLY: qs_env_create,&
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_env_create,&
                                               qs_env_release,&
                                               qs_environment_type
    USE reference_manager,               ONLY: remove_all_references
@@ -179,7 +180,7 @@ MODULE f77_interface
              calc_energy, calc_force, check_input, get_natom, get_nparticle, &
              f_env_add_defaults, f_env_rm_defaults, f_env_type, &
              f_env_get_from_id, &
-             set_vel, set_cell, get_cell, get_result_r1
+             set_vel, set_cell, get_cell, get_qmmm_cell, get_result_r1
 CONTAINS
 
 ! **************************************************************************************************
@@ -1055,6 +1056,34 @@ CONTAINS
       CALL f_env_rm_defaults(f_env, ierr)
 
    END SUBROUTINE get_cell
+
+! **************************************************************************************************
+!> \brief gets the qmmm cell
+!> \param env_id id of the force_env
+!> \param cell the array with the cell matrix
+!> \param ierr will return a number different from 0 if there was an error
+!> \author Holly Judge
+! **************************************************************************************************
+   SUBROUTINE get_qmmm_cell(env_id, cell, ierr)
+
+      INTEGER, INTENT(IN)                                :: env_id
+      REAL(KIND=DP), DIMENSION(3, 3)                     :: cell
+      INTEGER, INTENT(OUT)                               :: ierr
+
+      TYPE(cell_type), POINTER                           :: cell_qmmm
+      TYPE(f_env_type), POINTER                          :: f_env
+      TYPE(qmmm_env_type), POINTER                       :: qmmm_env
+
+      NULLIFY (f_env)
+      CALL f_env_add_defaults(env_id, f_env)
+      NULLIFY (cell_qmmm)
+      CALL force_env_get(f_env%force_env, qmmm_env=qmmm_env)
+      CALL get_qs_env(qmmm_env%qs_env, cell=cell_qmmm)
+      CPASSERT(ASSOCIATED(cell_qmmm))
+      cell = cell_qmmm%hmat
+      CALL f_env_rm_defaults(f_env, ierr)
+
+   END SUBROUTINE get_qmmm_cell
 
 ! **************************************************************************************************
 !> \brief gets a result from CP2K that is a real 1D array
