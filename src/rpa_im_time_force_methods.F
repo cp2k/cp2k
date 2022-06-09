@@ -606,9 +606,9 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: dbcsr_work1, dbcsr_work2, dbcsr_work3, &
                                                             dbcsr_work_symm, exp_occ, exp_virt, &
                                                             R_occ, R_virt, Y_1, Y_2
-      TYPE(dbt_type) :: t_2c_AO, t_2c_RI, t_2c_RI_2, t_2c_tmp, t_3c_0, t_3c_1, t_3c_2, t_3c_3, &
-         t_3c_4, t_3c_5, t_3c_help_1, t_3c_help_2, t_3c_ints, t_3c_sparse, t_3c_work, t_dm_occ, &
-         t_dm_virt, t_KQKT, t_M_occ, t_M_virt, t_Q, t_R_occ, t_R_virt
+      TYPE(dbt_type) :: t_2c_AO, t_2c_RI, t_2c_RI_2, t_2c_tmp, t_3c_0, t_3c_1, t_3c_3, t_3c_4, &
+         t_3c_5, t_3c_6, t_3c_7, t_3c_help_1, t_3c_help_2, t_3c_ints, t_3c_sparse, t_3c_work, &
+         t_dm_occ, t_dm_virt, t_KQKT, t_M_occ, t_M_virt, t_Q, t_R_occ, t_R_virt
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_P
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -692,10 +692,11 @@ CONTAINS
       CALL dbt_create(t_3c_O, t_3c_0)
 
       CALL dbt_create(t_3c_O, t_3c_1)
-      CALL dbt_create(t_3c_O, t_3c_2)
       CALL dbt_create(t_3c_O, t_3c_3)
-      CALL dbt_create(t_3c_M, t_3c_4)
-      CALL dbt_create(t_3c_M, t_3c_5)
+      CALL dbt_create(t_3c_O, t_3c_4)
+      CALL dbt_create(t_3c_O, t_3c_5)
+      CALL dbt_create(t_3c_M, t_3c_6)
+      CALL dbt_create(t_3c_M, t_3c_7)
       CALL dbt_create(t_3c_M, t_3c_sparse)
       CALL dbt_create(t_3c_O, t_3c_help_1)
       CALL dbt_create(t_3c_O, t_3c_help_2)
@@ -722,7 +723,6 @@ CONTAINS
 
       CALL dbt_batched_contract_init(t_3c_0, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_1, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
-      CALL dbt_batched_contract_init(t_3c_2, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_3, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
       CALL dbt_batched_contract_init(t_M_occ, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
       CALL dbt_batched_contract_init(t_M_virt, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
@@ -730,8 +730,14 @@ CONTAINS
       CALL dbt_batched_contract_init(t_3c_ints, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_work, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
 
-      CALL dbt_batched_contract_init(t_3c_4, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
-      CALL dbt_batched_contract_init(t_3c_5, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_4, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
+                                     batch_range_3=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_5, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
+                                     batch_range_3=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_6, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
+                                     batch_range_3=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_7, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
+                                     batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_sparse, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
 
       DO jquad = 1, num_integ_points
@@ -799,7 +805,7 @@ CONTAINS
          !Deal with the 3-center quantities.
          CALL perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
                              t_KQKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, t_M_virt, t_3c_0, t_3c_1, &
-                             t_3c_2, t_3c_3, t_3c_4, t_3c_5, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
+                             t_3c_3, t_3c_4, t_3c_5, t_3c_6, t_3c_7, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
                              t_3c_ints, t_3c_work, starts_array_mc, ends_array_mc, batch_start_RI, &
                              batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, cell, particle_set, &
                              atom_of_kind, kind_of, eps_filter, occ_ddint, nze_ddint, dbcsr_nflop, &
@@ -918,7 +924,6 @@ CONTAINS
 
       CALL dbt_batched_contract_finalize(t_3c_0)
       CALL dbt_batched_contract_finalize(t_3c_1)
-      CALL dbt_batched_contract_finalize(t_3c_2)
       CALL dbt_batched_contract_finalize(t_3c_3)
       CALL dbt_batched_contract_finalize(t_M_occ)
       CALL dbt_batched_contract_finalize(t_M_virt)
@@ -928,6 +933,8 @@ CONTAINS
 
       CALL dbt_batched_contract_finalize(t_3c_4)
       CALL dbt_batched_contract_finalize(t_3c_5)
+      CALL dbt_batched_contract_finalize(t_3c_6)
+      CALL dbt_batched_contract_finalize(t_3c_7)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
       !Calculate the periodic contributions of (P|Q) to the force and the virial
@@ -957,10 +964,11 @@ CONTAINS
       END DO
       CALL dbt_destroy(t_3c_0)
       CALL dbt_destroy(t_3c_1)
-      CALL dbt_destroy(t_3c_2)
       CALL dbt_destroy(t_3c_3)
       CALL dbt_destroy(t_3c_4)
       CALL dbt_destroy(t_3c_5)
+      CALL dbt_destroy(t_3c_6)
+      CALL dbt_destroy(t_3c_7)
       CALL dbt_destroy(t_3c_sparse)
       CALL dbt_destroy(t_3c_help_1)
       CALL dbt_destroy(t_3c_help_2)
@@ -1097,9 +1105,9 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: dbcsr_work1, dbcsr_work2, dbcsr_work3, &
                                                             dbcsr_work_symm, exp_occ, exp_virt, &
                                                             R_occ, R_virt, Y_1, Y_2
-      TYPE(dbt_type) :: t_2c_AO, t_2c_RI, t_2c_RI_2, t_2c_tmp, t_3c_0, t_3c_1, t_3c_2, t_3c_3, &
-         t_3c_4, t_3c_5, t_3c_help_1, t_3c_help_2, t_3c_ints, t_3c_sparse, t_3c_work, t_dm_occ, &
-         t_dm_virt, t_KBKT, t_M_occ, t_M_virt, t_P, t_R_occ, t_R_virt
+      TYPE(dbt_type) :: t_2c_AO, t_2c_RI, t_2c_RI_2, t_2c_tmp, t_3c_0, t_3c_1, t_3c_3, t_3c_4, &
+         t_3c_5, t_3c_6, t_3c_7, t_3c_help_1, t_3c_help_2, t_3c_ints, t_3c_sparse, t_3c_work, &
+         t_dm_occ, t_dm_virt, t_KBKT, t_M_occ, t_M_virt, t_P, t_R_occ, t_R_virt
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_B
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1179,10 +1187,11 @@ CONTAINS
       CALL dbt_create(t_3c_O, t_3c_0)
 
       CALL dbt_create(t_3c_O, t_3c_1)
-      CALL dbt_create(t_3c_O, t_3c_2)
       CALL dbt_create(t_3c_O, t_3c_3)
-      CALL dbt_create(t_3c_M, t_3c_4)
-      CALL dbt_create(t_3c_M, t_3c_5)
+      CALL dbt_create(t_3c_O, t_3c_4)
+      CALL dbt_create(t_3c_O, t_3c_5)
+      CALL dbt_create(t_3c_M, t_3c_6)
+      CALL dbt_create(t_3c_M, t_3c_7)
       CALL dbt_create(t_3c_M, t_3c_sparse)
       CALL dbt_create(t_3c_O, t_3c_help_1)
       CALL dbt_create(t_3c_O, t_3c_help_2)
@@ -1286,7 +1295,6 @@ CONTAINS
 
       CALL dbt_batched_contract_init(t_3c_0, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_1, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
-      CALL dbt_batched_contract_init(t_3c_2, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_3, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
       CALL dbt_batched_contract_init(t_M_occ, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
       CALL dbt_batched_contract_init(t_M_virt, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
@@ -1294,8 +1302,14 @@ CONTAINS
       CALL dbt_batched_contract_init(t_3c_ints, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_work, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges)
 
-      CALL dbt_batched_contract_init(t_3c_4, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
-      CALL dbt_batched_contract_init(t_3c_5, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_4, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
+                                     batch_range_3=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_5, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
+                                     batch_range_3=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_6, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
+                                     batch_range_3=mc_ranges)
+      CALL dbt_batched_contract_init(t_3c_7, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
+                                     batch_range_3=mc_ranges)
       CALL dbt_batched_contract_init(t_3c_sparse, batch_range_2=mc_ranges, batch_range_3=mc_ranges)
 
       fac = 1.0_dp/fourpi*mp2_env%ri_rpa%scale_rpa
@@ -1346,7 +1360,7 @@ CONTAINS
          !Deal with the 3-center quantities.
          CALL perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
                              t_KBKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, t_M_virt, t_3c_0, t_3c_1, &
-                             t_3c_2, t_3c_3, t_3c_4, t_3c_5, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
+                             t_3c_3, t_3c_4, t_3c_5, t_3c_6, t_3c_7, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
                              t_3c_ints, t_3c_work, starts_array_mc, ends_array_mc, batch_start_RI, &
                              batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, cell, particle_set, &
                              atom_of_kind, kind_of, eps_filter, occ_ddint, nze_ddint, dbcsr_nflop, &
@@ -1470,7 +1484,6 @@ CONTAINS
 
       CALL dbt_batched_contract_finalize(t_3c_0)
       CALL dbt_batched_contract_finalize(t_3c_1)
-      CALL dbt_batched_contract_finalize(t_3c_2)
       CALL dbt_batched_contract_finalize(t_3c_3)
       CALL dbt_batched_contract_finalize(t_M_occ)
       CALL dbt_batched_contract_finalize(t_M_virt)
@@ -1480,6 +1493,8 @@ CONTAINS
 
       CALL dbt_batched_contract_finalize(t_3c_4)
       CALL dbt_batched_contract_finalize(t_3c_5)
+      CALL dbt_batched_contract_finalize(t_3c_6)
+      CALL dbt_batched_contract_finalize(t_3c_7)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
       !Calculate the periodic contributions of (P|Q) to the force and the virial
@@ -1510,10 +1525,11 @@ CONTAINS
       CALL dbt_destroy(t_P)
       CALL dbt_destroy(t_3c_0)
       CALL dbt_destroy(t_3c_1)
-      CALL dbt_destroy(t_3c_2)
       CALL dbt_destroy(t_3c_3)
       CALL dbt_destroy(t_3c_4)
       CALL dbt_destroy(t_3c_5)
+      CALL dbt_destroy(t_3c_6)
+      CALL dbt_destroy(t_3c_7)
       CALL dbt_destroy(t_3c_sparse)
       CALL dbt_destroy(t_3c_help_1)
       CALL dbt_destroy(t_3c_help_2)
@@ -1699,10 +1715,11 @@ CONTAINS
 !> \param t_M_virt ...
 !> \param t_3c_0 ...
 !> \param t_3c_1 ...
-!> \param t_3c_2 ...
 !> \param t_3c_3 ...
 !> \param t_3c_4 ...
 !> \param t_3c_5 ...
+!> \param t_3c_6 ...
+!> \param t_3c_7 ...
 !> \param t_3c_sparse ...
 !> \param t_3c_help_1 ...
 !> \param t_3c_help_2 ...
@@ -1728,7 +1745,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
                              t_KBKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, t_M_virt, t_3c_0, t_3c_1, &
-                             t_3c_2, t_3c_3, t_3c_4, t_3c_5, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
+                             t_3c_3, t_3c_4, t_3c_5, t_3c_6, t_3c_7, t_3c_sparse, t_3c_help_1, t_3c_help_2, &
                              t_3c_ints, t_3c_work, starts_array_mc, ends_array_mc, batch_start_RI, &
                              batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, cell, particle_set, &
                              atom_of_kind, kind_of, eps_filter, occ_ddint, nze_ddint, dbcsr_nflop, &
@@ -1741,8 +1758,8 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: fac
       INTEGER, INTENT(IN)                                :: cut_memory, n_mem_RI
       TYPE(dbt_type), INTENT(INOUT) :: t_KBKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, &
-         t_M_virt, t_3c_0, t_3c_1, t_3c_2, t_3c_3, t_3c_4, t_3c_5, t_3c_sparse, t_3c_help_1, &
-         t_3c_help_2, t_3c_ints, t_3c_work
+         t_M_virt, t_3c_0, t_3c_1, t_3c_3, t_3c_4, t_3c_5, t_3c_6, t_3c_7, t_3c_sparse, &
+         t_3c_help_1, t_3c_help_2, t_3c_ints, t_3c_work
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             batch_start_RI, batch_end_RI
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
@@ -1763,6 +1780,7 @@ CONTAINS
                                                             j_mem, k_mem
       INTEGER(int_8)                                     :: flop, nze
       INTEGER, DIMENSION(2, 1)                           :: ibounds, jbounds, kbounds
+      INTEGER, DIMENSION(2, 2)                           :: bounds_2c
       INTEGER, DIMENSION(2, 3)                           :: bounds_cpy
       INTEGER, DIMENSION(3)                              :: bounds_3c
       REAL(dp)                                           :: memory, occ, pref
@@ -1865,48 +1883,54 @@ CONTAINS
          CALL dbt_copy(t_3c_M, t_3c_3)
          CALL timestop(handle2)
 
-         CALL dbt_copy(t_M_occ, t_3c_2, move_data=.TRUE.)
+         CALL dbt_copy(t_M_occ, t_3c_4, move_data=.TRUE.)
 
          DO j_mem = 1, cut_memory
             jbounds(:, 1) = [starts_array_mc(j_mem), ends_array_mc(j_mem)]
 
-            CALL timeset(routineN//"_3c_dm", handle2)
-
-            !Calculate (mu nu| P) * D_occ * D_virt
-            !Note: technically need M_occ*D_virt + M_virt*D_occ, but it is equivalent to 2*M_occ*D_virt
-            CALL dbt_batched_contract_init(t_dm_virt)
-            CALL dbt_contract(2.0_dp, t_3c_2, t_dm_virt, 0.0_dp, t_3c_1, &
-                              contract_1=[3], notcontract_1=[1, 2], &
-                              contract_2=[1], notcontract_2=[2], &
-                              map_1=[1, 2], map_2=[3], filter_eps=eps_filter, &
-                              bounds_3=jbounds, flop=flop, unit_nr=unit_nr_dbcsr)
-            dbcsr_nflop = dbcsr_nflop + flop
-            CALL dbt_batched_contract_finalize(t_dm_virt)
-
-            CALL get_tensor_occupancy(t_3c_1, nze, occ)
-            nze_ddint = nze_ddint + nze
-            occ_ddint = occ_ddint + occ
-
-            CALL dbt_copy(t_3c_1, t_3c_4, move_data=.TRUE.)
-            CALL timestop(handle2)
-
-            !Calculate the contraction of the above with K*B*K^T
             bounds_cpy(:, 1) = [1, bounds_3c(1)]
             bounds_cpy(:, 2) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
             bounds_cpy(:, 3) = [starts_array_mc(j_mem), ends_array_mc(j_mem)]
-            CALL dbt_copy(t_3c_sparse, t_3c_5, bounds=bounds_cpy)
-            CALL timeset(routineN//"_3c_KBK", handle2)
-            CALL dbt_batched_contract_init(t_KBKT)
-            CALL dbt_contract(1.0_dp, t_KBKT, t_3c_4, 0.0_dp, t_3c_5, &
-                              contract_1=[2], notcontract_1=[1], &
-                              contract_2=[1], notcontract_2=[2, 3], &
-                              map_1=[1], map_2=[2, 3], filter_eps=eps_filter, &
-                              retain_sparsity=.TRUE., flop=flop, unit_nr=unit_nr_dbcsr)
-            dbcsr_nflop = dbcsr_nflop + flop
-            CALL dbt_batched_contract_finalize(t_KBKT)
-            CALL timestop(handle2)
-            CALL dbt_copy(t_3c_5, t_3c_help_1, summation=.TRUE., move_data=.TRUE.)
+            CALL dbt_copy(t_3c_sparse, t_3c_7, bounds=bounds_cpy)
 
+            DO k_mem = 1, n_mem_RI
+               bounds_2c(:, 1) = [batch_start_RI(k_mem), batch_end_RI(k_mem)]
+               bounds_2c(:, 2) = [starts_array_mc(i_mem), ends_array_mc(i_mem)]
+
+               CALL timeset(routineN//"_3c_dm", handle2)
+
+               !Calculate (mu nu| P) * D_occ * D_virt
+               !Note: technically need M_occ*D_virt + M_virt*D_occ, but it is equivalent to 2*M_occ*D_virt
+               CALL dbt_batched_contract_init(t_dm_virt)
+               CALL dbt_contract(2.0_dp, t_3c_4, t_dm_virt, 0.0_dp, t_3c_5, &
+                                 contract_1=[3], notcontract_1=[1, 2], &
+                                 contract_2=[1], notcontract_2=[2], &
+                                 map_1=[1, 2], map_2=[3], filter_eps=eps_filter, &
+                                 bounds_2=bounds_2c, bounds_3=jbounds, flop=flop, unit_nr=unit_nr_dbcsr)
+               dbcsr_nflop = dbcsr_nflop + flop
+               CALL dbt_batched_contract_finalize(t_dm_virt)
+
+               CALL get_tensor_occupancy(t_3c_5, nze, occ)
+               nze_ddint = nze_ddint + nze
+               occ_ddint = occ_ddint + occ
+
+               CALL dbt_copy(t_3c_5, t_3c_6, move_data=.TRUE.)
+               CALL timestop(handle2)
+
+               !Calculate the contraction of the above with K*B*K^T
+               CALL timeset(routineN//"_3c_KBK", handle2)
+               CALL dbt_batched_contract_init(t_KBKT)
+               CALL dbt_contract(1.0_dp, t_KBKT, t_3c_6, 0.0_dp, t_3c_7, &
+                                 contract_1=[2], notcontract_1=[1], &
+                                 contract_2=[1], notcontract_2=[2, 3], &
+                                 map_1=[1], map_2=[2, 3], filter_eps=eps_filter, &
+                                 retain_sparsity=.TRUE., flop=flop, unit_nr=unit_nr_dbcsr)
+               dbcsr_nflop = dbcsr_nflop + flop
+               CALL dbt_batched_contract_finalize(t_KBKT)
+               CALL timestop(handle2)
+               CALL dbt_copy(t_3c_7, t_3c_help_1, summation=.TRUE.)
+
+            END DO !k_mem
          END DO !j_mem
       END DO !i_mem
 
