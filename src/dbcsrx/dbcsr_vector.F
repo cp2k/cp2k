@@ -632,6 +632,9 @@ CONTAINS
             IF (fast_vec_col%blk_map_${nametype}$ (prow)%assigned_thread .NE. ithread) CYCLE
             pcol = hash_table_get(fast_vec_row%hash_table, col)
             #:if nametype=='d'
+               IF (SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 1) .EQ. 0 .OR. &
+                   SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 2) .EQ. 0 .OR. &
+                   SIZE(data_d, 2) .EQ. 0) CYCLE
                CALL dgemm('N', 'T', SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 1), &
                           SIZE(fast_vec_col%blk_map_${nametype}$ (prow)%ptr, 2), &
                           SIZE(data_d, 2), &
