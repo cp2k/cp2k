@@ -27,7 +27,8 @@ MODULE qs_dos
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE message_passing,                 ONLY: mp_max,&
-                                              mp_min
+                                              mp_min,&
+                                              mp_sum
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -65,9 +66,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dos'
 
+      CHARACTER(LEN=20)                                  :: fmtstr_data
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: handle, i, iounit, ispin, iterstep, iv, &
-                                                            iw, nhist, nmo(2), nspins
+                                                            iw, ndigits, nhist, nmo(2), nspins
       LOGICAL                                            :: append, ionode, should_output
       REAL(KIND=dp)                                      :: de, e1, e2, e_fermi(2), emax, emin, eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
@@ -94,11 +96,13 @@ CONTAINS
 
       CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%APPEND", l_val=append)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%NDIGITS", i_val=ndigits)
       IF (append .AND. iterstep > 1) THEN
          my_pos = "APPEND"
       ELSE
          my_pos = "REWIND"
       END IF
+      ndigits = MIN(MAX(ndigits, 1), 10)
 
       emin = 1.e10_dp
       emax = -1.e10_dp
@@ -162,22 +166,28 @@ CONTAINS
          IF (nspins == 2) THEN
             WRITE (UNIT=iw, FMT="(T2,A,I0,A,2F12.6)") &
                "# DOS at iteration step i = ", iterstep, ", E_Fermi[a.u.] = ", e_fermi(1:2)
-            WRITE (UNIT=iw, FMT="(T2,A, A)") "#  Energy[a.u.]  Alpha_Density     Occupation", &
-               "   Energy[a.u.]  Beta_Density      Occupation"
+            WRITE (UNIT=iw, FMT="(T2,A, A)") "#  Energy[a.u.]  Alpha_Density    Occupation", &
+               "    Energy[a.u.]  Beta_Density     Occupation"
+            ! (2(F15.8,2F15.ndigits))
+            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(2(F15.8,2F15.", ndigits, "))"
          ELSE
             WRITE (UNIT=iw, FMT="(T2,A,I0,A,F12.6)") &
                "# DOS at iteration step i = ", iterstep, ", E_Fermi[a.u.] = ", e_fermi(1)
             WRITE (UNIT=iw, FMT="(T2,A)") "#  Energy[a.u.]       Density     Occupation"
+            ! (F15.8,2F15.ndigits)
+            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,2F15.", ndigits, ")"
          END IF
          DO i = 1, nhist
             IF (nspins == 2) THEN
                e1 = ehist(i, 1)
                e2 = ehist(i, 2)
-               WRITE (UNIT=iw, FMT="(2(F15.8,2F15.4))") e1, hist(i, 1), occval(i, 1), &
+               ! fmtstr_data == "(2(F15.8,2F15.xx))"
+               WRITE (UNIT=iw, FMT=fmtstr_data) e1, hist(i, 1), occval(i, 1), &
                   e2, hist(i, 2), occval(i, 2)
             ELSE
                eval = ehist(i, 1)
-               WRITE (UNIT=iw, FMT="(F15.8,2F15.4)") eval, hist(i, 1), occval(i, 1)
+               ! fmtstr_data == "(F15.8,2F15.xx)"
+               WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1)
             END IF
          END DO
       END IF
@@ -206,9 +216,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dos_kp'
 
+      CHARACTER(LEN=16)                                  :: fmtstr_data
       CHARACTER(LEN=default_string_length)               :: my_act, my_pos
       INTEGER                                            :: handle, i, ik, iounit, ispin, iterstep, &
-                                                            iv, iw, nhist, nmo(2), nspins
+                                                            iv, iw, ndigits, nhist, nmo(2), &
+                                                            nmo_kp, nspins
       LOGICAL                                            :: append, ionode, should_output
       REAL(KIND=dp)                                      :: de, e1, e2, emax, emin, eval, wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
@@ -235,6 +247,7 @@ CONTAINS
 
       CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%APPEND", l_val=append)
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%NDIGITS", i_val=ndigits)
       ! ensure a lower value for the histogram width
       de = MAX(de, 0.00001_dp)
       IF (append .AND. iterstep > 1) THEN
@@ -242,24 +255,28 @@ CONTAINS
       ELSE
          my_pos = "REWIND"
       END IF
+      ndigits = MIN(MAX(ndigits, 1), 10)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins = dft_control%nspins
+      para_env => kpoints%para_env_inter_kp
 
       emin = 1.e10_dp
       emax = -1.e10_dp
+      nmo(:) = 0
       IF (kpoints%nkp /= 0) THEN
          DO ik = 1, SIZE(kpoints%kp_env)
             mos => kpoints%kp_env(ik)%kpoint_env%mos
             CPASSERT(ASSOCIATED(mos))
             DO ispin = 1, nspins
                mo_set => mos(1, ispin)%mo_set
-               CALL get_mo_set(mo_set=mo_set, nmo=nmo(ispin))
+               CALL get_mo_set(mo_set=mo_set, nmo=nmo_kp)
                eigenvalues => mo_set%eigenvalues
-               e1 = MINVAL(eigenvalues(1:nmo(ispin)))
-               e2 = MAXVAL(eigenvalues(1:nmo(ispin)))
+               e1 = MINVAL(eigenvalues(1:nmo_kp))
+               e2 = MAXVAL(eigenvalues(1:nmo_kp))
                emin = MIN(emin, e1)
                emax = MAX(emax, e2)
+               nmo(ispin) = MAX(nmo(ispin), nmo_kp)
             END DO
          END DO
       END IF
@@ -291,6 +308,8 @@ CONTAINS
             END DO
          END DO
       END IF
+      CALL mp_sum(hist, para_env%group)
+      CALL mp_sum(occval, para_env%group)
       DO ispin = 1, nspins
          hist(:, ispin) = hist(:, ispin)/REAL(nmo(ispin), KIND=dp)
       END DO
@@ -305,19 +324,25 @@ CONTAINS
       IF (iw > 0) THEN
          IF (nspins == 2) THEN
             WRITE (UNIT=iw, FMT="(T2,A,I0)") "# DOS at iteration step i = ", iterstep
-            WRITE (UNIT=iw, FMT="(T2,A, A)") "   Energy[a.u.]  Alpha_Density     Occupation", &
-               "   Beta_Density      Occupation"
+            WRITE (UNIT=iw, FMT="(T2,A,A)") "#  Energy[a.u.]  Alpha_Density    Occupation", &
+               "   Beta_Density     Occupation"
+            ! (F15.8,4F15.ndigits)
+            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,4F15.", ndigits, ")"
          ELSE
             WRITE (UNIT=iw, FMT="(T2,A,I0)") "# DOS at iteration step i = ", iterstep
-            WRITE (UNIT=iw, FMT="(T2,A)") "   Energy[a.u.]       Density     Occupation"
+            WRITE (UNIT=iw, FMT="(T2,A)") "#  Energy[a.u.]       Density     Occupation"
+            ! (F15.8,2F15.ndigits)
+            WRITE (UNIT=fmtstr_data, FMT="(A,I0,A)") "(F15.8,2F15.", ndigits, ")"
          END IF
          DO i = 1, nhist
             eval = emin + (i - 1)*de
             IF (nspins == 2) THEN
-               WRITE (UNIT=iw, FMT="(F15.8,4F15.4)") eval, hist(i, 1), occval(i, 1), &
+               ! fmtstr_data == "(F15.8,4F15.xx)"
+               WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1), &
                   hist(i, 2), occval(i, 2)
             ELSE
-               WRITE (UNIT=iw, FMT="(F15.8,2F15.4)") eval, hist(i, 1), occval(i, 1)
+               ! fmtstr_data == "(F15.8,2F15.xx)"
+               WRITE (UNIT=iw, FMT=fmtstr_data) eval, hist(i, 1), occval(i, 1)
             END IF
          END DO
       END IF
