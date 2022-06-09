@@ -2360,6 +2360,12 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
+                          description="Specify the number of digits used to print density and occupation", &
+                          default_i_val=4)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_dos_section
 
 ! **************************************************************************************************
