@@ -2,13 +2,13 @@
 #
 # CP2K Darwin arch file for a serial aarch64 (arm64) binary
 #
-# Tested with: GNU 11.3.0, FFTW 3.3.10, LIBINT 2.6.0, LIBBVORI 210412,
+# Tested with: GNU 11.3.0, FFTW 3.3.10, LIBINT 2.6.0, LIBBVORI 220607,
 #              LIBXC 5.2.3, OpenBLAS 0.3.20, SPGLIB 1.16.2
 #          on: Apple M1 (macOS Monterey 12.4)
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (20.05.2022)
+# Author: Matthias Krack (10.06.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -44,7 +44,7 @@ DO_CHECKS      := no
 USE_ACCELERATE := no
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
-USE_LIBVORI    := 210412
+USE_LIBVORI    := 220607
 USE_LIBXC      := 5.2.3
 USE_SPGLIB     := 1.16.2
 
