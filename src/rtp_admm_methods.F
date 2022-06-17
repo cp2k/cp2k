@@ -14,7 +14,8 @@
 ! **************************************************************************************************
 MODULE rtp_admm_methods
    USE admm_types,                      ONLY: admm_env_create,&
-                                              admm_type
+                                              admm_type,&
+                                              get_admm_env
    USE cp_control_types,                ONLY: admm_control_type,&
                                               dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -40,12 +41,13 @@ MODULE rtp_admm_methods
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: one,&
                                               zero
-   USE particle_types,                  ONLY: particle_type
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                              qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
@@ -107,15 +109,13 @@ CONTAINS
                       ks_env=ks_env, &
                       dft_control=dft_control, &
                       para_env=para_env, &
-                      matrix_s_aux_fit=matrix_s_aux_fit, &
-                      matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
                       mos=mos, &
-                      mos_aux_fit=mos_aux_fit, &
                       rtp=rtp, &
                       rho=rho, &
-                      rho_aux_fit=rho_aux_fit, &
-                      s_mstruct_changed=s_mstruct_changed, &
-                      task_list_aux_fit=task_list_aux_fit)
+                      s_mstruct_changed=s_mstruct_changed)
+      CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit, task_list_aux_fit=task_list_aux_fit, &
+                        matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, mos_aux_fit=mos_aux_fit, &
+                        rho_aux_fit=rho_aux_fit)
 
       IF (admm_env%do_gapw) THEN
          CPABORT("GAPW ADMM not implemented for real time propagation")
@@ -219,21 +219,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rtp_admm_fit_mo_coeffs'
 
-      INTEGER                                            :: handle, natoms
+      INTEGER                                            :: handle, nao_aux_fit, natoms
       LOGICAL                                            :: recalc_S
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: input, xc_section
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (xc_section, particle_set)
+      NULLIFY (xc_section, qs_kind_set)
 
       IF (.NOT. (ASSOCIATED(admm_env))) THEN
          ! setup admm environment
-         CALL get_qs_env(qs_env, input=input, particle_set=particle_set)
-         natoms = SIZE(particle_set, 1)
-         CALL admm_env_create(admm_env, admm_control, mos, mos_aux_fit, &
-                              para_env, natoms)
+         CALL get_qs_env(qs_env, input=input, natom=natoms, qs_kind_set=qs_kind_set)
+         CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
+         CALL admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
          CALL create_admm_xc_section(qs_env=qs_env, xc_section=xc_section, &
                                      admm_env=admm_env)
@@ -295,17 +294,17 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: input, xc_section
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, particle_set)
+      NULLIFY (dft_control, qs_kind_set)
 
       IF (.NOT. (ASSOCIATED(admm_env))) THEN
-         CALL get_qs_env(qs_env, input=input, particle_set=particle_set, dft_control=dft_control)
-         natoms = SIZE(particle_set, 1)
-         CALL admm_env_create(admm_env, dft_control%admm_control, mos, mos_aux_fit, para_env, natoms)
+         CALL get_qs_env(qs_env, input=input, natom=natoms, dft_control=dft_control, qs_kind_set=qs_kind_set)
+         CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
+         CALL admm_env_create(admm_env, dft_control%admm_control, mos, para_env, natoms, nao_aux_fit)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
          CALL create_admm_xc_section(qs_env=qs_env, xc_section=xc_section, &
                                      admm_env=admm_env)
@@ -431,17 +430,15 @@ CONTAINS
                                                             matrix_ks_aux_fit_im, matrix_ks_im
       TYPE(dft_control_type), POINTER                    :: dft_control
 
-      NULLIFY (admm_env, dft_control, &
-               matrix_ks, matrix_ks_im, matrix_ks_aux_fit, matrix_ks_aux_fit_im)
+      NULLIFY (admm_env, dft_control, matrix_ks, matrix_ks_im, matrix_ks_aux_fit, matrix_ks_aux_fit_im)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
                       admm_env=admm_env, &
                       dft_control=dft_control, &
                       matrix_ks=matrix_ks, &
-                      matrix_ks_im=matrix_ks_im, &
-                      matrix_ks_aux_fit=matrix_ks_aux_fit, &
-                      matrix_ks_aux_fit_im=matrix_ks_aux_fit_im)
+                      matrix_ks_im=matrix_ks_im)
+      CALL get_admm_env(admm_env, matrix_ks_aux_fit=matrix_ks_aux_fit, matrix_ks_aux_fit_im=matrix_ks_aux_fit_im)
 
       DO ispin = 1, dft_control%nspins
 

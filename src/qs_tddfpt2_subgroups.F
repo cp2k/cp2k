@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_subgroups
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
@@ -326,7 +327,8 @@ CONTAINS
             CALL get_qs_env(qs_env, dbcsr_dist=sub_env%dbcsr_dist, &
                             sab_orb=sub_env%sab_orb, task_list=sub_env%task_list_orb)
             IF (dft_control%do_admm) &
-               CALL get_qs_env(qs_env, sab_aux_fit=sub_env%sab_aux_fit, task_list_aux_fit=sub_env%task_list_aux_fit)
+               CALL get_admm_env(qs_env%admm_env, sab_aux_fit=sub_env%sab_aux_fit, &
+                                 task_list_aux_fit=sub_env%task_list_aux_fit)
             IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
                CALL get_qs_env(qs_env, task_list_soft=sub_env%task_list_orb_soft)
             END IF

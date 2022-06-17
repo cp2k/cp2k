@@ -13,7 +13,8 @@
 ! **************************************************************************************************
 MODULE rpa_gw_sigma
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE admm_utils,                      ONLY: admm_correct_for_eigenvalues
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
                                               cp_cfm_scale_and_add_fm
@@ -173,14 +174,13 @@ CONTAINS
          CALL get_qs_env(qs_env, &
                          admm_env=admm_env, &
                          matrix_ks=matrix_ks, &
-                         matrix_ks_aux_fit=matrix_ks_aux_fit, &
-                         rho_aux_fit=rho, &
                          input=input, &
                          dft_control=dft_control, &
                          para_env=para_env, &
                          ks_env=ks_env, &
-                         energy=energy, &
-                         matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
+                         energy=energy)
+         CALL get_admm_env(admm_env, matrix_ks_aux_fit=matrix_ks_aux_fit, rho_aux_fit=rho, &
+                           matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
 
          ! RPA/GW with ADMM for EXX or the exchange self-energy only implemented for
          ! ADMM_PURIFICATION_METHOD  NONE

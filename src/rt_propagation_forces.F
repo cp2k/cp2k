@@ -11,7 +11,8 @@
 ! **************************************************************************************************
 
 MODULE rt_propagation_forces
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE cp_control_types,                ONLY: dft_control_type,&
@@ -344,11 +345,11 @@ CONTAINS
 
       CALL get_qs_env(qs_env, &
                       admm_env=admm_env, &
-                      rtp=rtp, &
-                      matrix_ks_aux_fit=KS_aux_re, &
-                      matrix_ks_aux_fit_im=KS_aux_im, &
-                      matrix_s_aux_fit=matrix_s_aux_fit, &
-                      matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
+                      rtp=rtp)
+      CALL get_admm_env(admm_env, matrix_ks_aux_fit=KS_aux_re, &
+                        matrix_ks_aux_fit_im=KS_aux_im, &
+                        matrix_s_aux_fit=matrix_s_aux_fit, &
+                        matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
 
       CALL get_rtp(rtp=rtp, mos_new=mos, admm_mos=mos_admm)
 
@@ -391,10 +392,9 @@ CONTAINS
       NULLIFY (sab_aux_fit_asymm, sab_aux_fit_vs_orb, ks_env)
 !   CALL cp_fm_create(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix")
 
-      CALL get_qs_env(qs_env, &
-                      sab_aux_fit_asymm=sab_aux_fit_asymm, &
-                      sab_aux_fit_vs_orb=sab_aux_fit_vs_orb, &
-                      ks_env=ks_env)
+      CALL get_qs_env(qs_env, ks_env=ks_env)
+      CALL get_admm_env(admm_env, sab_aux_fit_asymm=sab_aux_fit_asymm, &
+                        sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
 
       ALLOCATE (matrix_w_s)
       CALL dbcsr_create(matrix_w_s, template=matrix_s_aux_fit(1)%matrix, &

@@ -13,6 +13,8 @@
 !> \author Florina Schiffmann
 ! **************************************************************************************************
 MODULE rt_hfx_utils
+   USE admm_types,                      ONLY: get_admm_env,&
+                                              set_admm_env
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
@@ -79,15 +81,15 @@ CONTAINS
       CALL qs_rho_set(rho, rho_ao_im=rho_ao_im)
 
       IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, &
-                         matrix_s_aux_fit=matrix_s_aux, &
-                         sab_aux_fit=sab_aux, &
-                         rho_aux_fit=rho_aux, &
-                         matrix_ks_aux_fit_im=matrix_ks_aux_im)
+         CALL get_admm_env(qs_env%admm_env, &
+                           matrix_s_aux_fit=matrix_s_aux, &
+                           sab_aux_fit=sab_aux, &
+                           rho_aux_fit=rho_aux, &
+                           matrix_ks_aux_fit_im=matrix_ks_aux_im)
          CALL qs_rho_get(rho_aux, rho_ao_im=rho_aux_ao_im)
          CALL rebuild_matrices(rho_aux_ao_im, matrix_ks_aux_im, sab_aux, matrix_s_aux, &
                                dft_control%nspins)
-         CALL set_ks_env(ks_env, matrix_ks_aux_fit_im=matrix_ks_aux_im)
+         CALL set_admm_env(qs_env%admm_env, matrix_ks_aux_fit_im=matrix_ks_aux_im)
          CALL qs_rho_set(rho_aux, rho_ao_im=rho_aux_ao_im)
       END IF
 

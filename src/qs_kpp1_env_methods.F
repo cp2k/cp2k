@@ -13,7 +13,8 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_kpp1_env_methods
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
@@ -766,7 +767,7 @@ CONTAINS
             IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
                CPASSERT(.NOT. do_triplet)
                admm_xc_section => admm_env%xc_section_aux
-               CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho)
+               CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho)
                CALL qs_rho_get(rho, rho_r=rho_r)
                ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
                CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &

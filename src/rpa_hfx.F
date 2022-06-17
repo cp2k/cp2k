@@ -12,6 +12,8 @@
 !> \author Jan Wilhelm, Frederick Stein
 ! **************************************************************************************************
 MODULE rpa_hfx
+   USE admm_methods,                    ONLY: admm_projection_derivative
+   USE admm_types,                      ONLY: get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
@@ -27,7 +29,6 @@ MODULE rpa_hfx
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
-   USE qs_2nd_kernel_ao,                ONLY: admm_projection_derivative
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -94,11 +95,10 @@ CONTAINS
                          input=input, &
                          para_env=para_env, &
                          energy=energy, &
-                         rho_aux_fit=rho, &
                          matrix_ks=matrix_ks, &
-                         matrix_ks_aux_fit=matrix_ks_aux_fit, &
                          virial=virial, &
                          dft_control=dft_control)
+         CALL get_admm_env(qs_env%admm_env, matrix_ks_aux_fit=matrix_ks_aux_fit, rho_aux_fit=rho)
 
          IF (.NOT. dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
             CPWARN("ADMM for RI_RPA%HF ignores the GGA correction (=EXCH_CORRECTION_FUNC NONE)")
@@ -110,7 +110,6 @@ CONTAINS
                          energy=energy, &
                          rho=rho, &
                          matrix_ks=matrix_ks, &
-                         matrix_ks_aux_fit=matrix_ks_aux_fit, &
                          virial=virial, &
                          dft_control=dft_control)
       END IF

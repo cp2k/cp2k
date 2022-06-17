@@ -10,7 +10,9 @@
 !> \author Augustin Bussy
 ! **************************************************************************************************
 MODULE rpa_im_time_force_methods
-   USE admm_types,                      ONLY: admm_type
+   USE admm_methods,                    ONLY: admm_projection_derivative
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
@@ -115,7 +117,6 @@ MODULE rpa_im_time_force_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_2nd_kernel_ao,                ONLY: admm_projection_derivative
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
@@ -2066,7 +2067,7 @@ CONTAINS
       END DO
 
       IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux)
+         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux)
          CALL dbcsr_allocate_matrix_set(p_env%p1_admm, nspins)
          CALL dbcsr_allocate_matrix_set(work_admm, nspins)
          DO ispin = 1, nspins
@@ -2209,7 +2210,7 @@ CONTAINS
          CALL dbcsr_copy(dbcsr_work(ispin)%matrix, matrix_ks(ispin)%matrix)
       END DO
       IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit)
+         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit)
          CALL dbcsr_allocate_matrix_set(work_admm, nspins)
          DO ispin = 1, nspins
             ALLOCATE (work_admm(ispin)%matrix)
@@ -2244,7 +2245,8 @@ CONTAINS
       END DO
 
       IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit, admm_env=admm_env)
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+         CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
          nao = admm_env%nao_orb
          nao_aux = admm_env%nao_aux_fit
          CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
@@ -2454,8 +2456,9 @@ CONTAINS
 
       !Auxiliary xc kernel (admm)
       IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux, &
-                         task_list_aux_fit=task_list_aux_fit, rho_aux_fit=rho_aux_fit)
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+         CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux, &
+                           task_list_aux_fit=task_list_aux_fit, rho_aux_fit=rho_aux_fit)
 
          CALL qs_rho_get(rho_aux_fit, tau_r_valid=do_tau_admm)
 
@@ -3139,7 +3142,7 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, matrix_s=matrix_s, admm_env=admm_env, &
                       sab_orb=sab_orb, sac_ppl=sac_ppl, sap_ppnl=sap_ppnl, force=force, virial=virial, &
                       particle_set=particle_set, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
-                      x_data=x_data, para_env=para_env, matrix_s_aux_fit=matrix_s_aux_fit)
+                      x_data=x_data, para_env=para_env)
       nspins = dft_control%nspins
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
@@ -3275,7 +3278,8 @@ CONTAINS
 
       !The admm projection contribution (mp2 + SCF densities). If EXX, then only mp2 density
       IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, task_list_aux_fit=task_list_aux_fit, rho_aux_fit=rho_aux_fit)
+         CALL get_admm_env(admm_env, task_list_aux_fit=task_list_aux_fit, rho_aux_fit=rho_aux_fit, &
+                           matrix_s_aux_fit=matrix_s_aux_fit)
          CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
          CALL dbcsr_allocate_matrix_set(scrm_admm, nspins)
          DO ispin = 1, nspins
@@ -3327,7 +3331,7 @@ CONTAINS
          !In case of EXX, only want to response HFX forces, as the SCF will change according to RI_RPA%HF
          IF (do_exx) THEN
             IF (dft_control%do_admm) THEN
-               CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit)
+               CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
                CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux, rho_ao_kp=dbcsr_work_p)
                IF (x_data(1, 1)%do_hfx_ri) THEN
 
@@ -3361,7 +3365,7 @@ CONTAINS
 
          ELSE !No Exx
             IF (dft_control%do_admm) THEN
-               CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit)
+               CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
                CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux, rho_ao_kp=dbcsr_work_p)
                DO ispin = 1, nspins
                   CALL dbcsr_add(rho_ao_aux(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
@@ -3583,7 +3587,7 @@ CONTAINS
             CALL qs_rho_get(rho_aux_fit, tau_r_valid=do_tau_admm)
 
             IF (.NOT. dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
-               CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit)
+               CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
                DO ispin = 1, nspins
                   CALL pw_zero(rhoz_r(ispin)%pw)
                   CALL pw_zero(rhoz_g(ispin)%pw)

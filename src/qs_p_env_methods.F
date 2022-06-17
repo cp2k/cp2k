@@ -15,7 +15,8 @@
 ! **************************************************************************************************
 MODULE qs_p_env_methods
    USE admm_methods,                    ONLY: admm_aux_reponse_density
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -156,7 +157,6 @@ CONTAINS
       NULLIFY (ao_mo_fm_pools, mo_mo_fm_pools, matrix_s, dft_control, para_env, blacs_env)
       CALL get_qs_env(qs_env, &
                       matrix_s=matrix_s, &
-                      matrix_s_aux_fit=matrix_s_aux_fit, &
                       dft_control=dft_control, &
                       para_env=para_env, &
                       blacs_env=blacs_env)
@@ -184,6 +184,7 @@ CONTAINS
       END IF
 
       IF (dft_control%do_admm) THEN
+         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
          IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             CALL qs_rho_create(p_env%rho1_admm)
          END IF
@@ -342,7 +343,7 @@ CONTAINS
       END IF
 
       IF (dft_control%do_admm .AND. .NOT. ASSOCIATED(p_env%kpp1_admm)) THEN
-         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s)
+         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s)
          nspins = dft_control%nspins
 
          CALL dbcsr_allocate_matrix_set(p_env%kpp1_admm, nspins)
@@ -419,8 +420,8 @@ CONTAINS
 
             CALL get_qs_env(qs_env, &
                             ks_env=ks_env, &
-                            dft_control=dft_control, &
-                            task_list_aux_fit=task_list)
+                            dft_control=dft_control)
+            CALL get_admm_env(qs_env%admm_env, task_list_aux_fit=task_list)
 
             CALL qs_rho_get(p_env%rho1_admm, &
                             rho_ao=rho1_ao, &

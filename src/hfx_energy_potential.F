@@ -12,6 +12,7 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE hfx_energy_potential
+   USE admm_types, ONLY: get_admm_env
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind_set
    USE bibliography, ONLY: cite_reference, &
@@ -248,7 +249,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      NULLIFY (dft_control)
+      NULLIFY (dft_control, matrix_ks_aux_fit_hfx)
 
       CALL timeset(routineN, handle)
 
@@ -279,8 +280,7 @@ CONTAINS
                                            "HF_INFO")
       END IF
 
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
-                      matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell)
 
       NULLIFY (cell_to_index)
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints)
@@ -465,6 +465,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       particle_set=particle_set, &
                       dft_control=dft_control)
+      IF (dft_control%do_admm) CALL get_admm_env(qs_env%admm_env, matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
 
       do_p_screening = screening_parameter%do_initial_p_screening
       ! Special treatment for MP2 with initial density screening

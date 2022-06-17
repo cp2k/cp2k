@@ -13,9 +13,12 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE admm_types
+   USE admm_dm_types,                   ONLY: admm_dm_release,&
+                                              admm_dm_type
    USE bibliography,                    ONLY: Guidon2010,&
                                               cite_reference
    USE cp_control_types,                ONLY: admm_control_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -24,6 +27,7 @@ MODULE admm_types
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: do_admm_blocked_projection,&
                                               do_admm_blocking_purify_full,&
                                               do_admm_charge_constrained_projection
@@ -34,17 +38,22 @@ MODULE admm_types
                                               qs_kind_type
    USE qs_local_rho_types,              ONLY: local_rho_set_release,&
                                               local_rho_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
+   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
+                                              get_mo_set,&
                                               mo_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
    USE qs_oce_types,                    ONLY: deallocate_oce_set,&
                                               oce_matrix_type
+   USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                              qs_rho_type
    USE task_list_types,                 ONLY: deallocate_task_list,&
                                               task_list_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: admm_env_create, admm_env_release, admm_type, admm_gapw_type
+   PUBLIC :: admm_env_create, admm_env_release, admm_type, admm_gapw_type, set_admm_env, get_admm_env
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
 
@@ -159,6 +168,21 @@ MODULE admm_types
       INTEGER, DIMENSION(:, :), POINTER        :: block_map => Null()
       TYPE(admm_gapw_type), POINTER            :: admm_gapw_env
       LOGICAL                                  :: do_gapw = .FALSE.
+      TYPE(admm_dm_type), POINTER              :: admm_dm => Null()
+
+      TYPE(mo_set_p_type), DIMENSION(:), &
+         POINTER                               :: mos_aux_fit
+      TYPE(neighbor_list_set_p_type), &
+         DIMENSION(:), POINTER                 :: sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), &
+         POINTER                               :: matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
+                                                  matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
+                                                  matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
+      TYPE(qs_rho_type), POINTER               :: rho_aux_fit, rho_aux_fit_buffer
+      TYPE(task_list_type), POINTER            :: task_list_aux_fit
+      TYPE(cp_fm_p_type), DIMENSION(:), &
+         POINTER                               :: mo_derivs_aux_fit
+
    END TYPE
 
 CONTAINS
@@ -169,22 +193,22 @@ CONTAINS
 !> \param admm_env The ADMM env
 !> \param admm_control ...
 !> \param mos the MO's of the orbital basis set
-!> \param mos_aux_fit the MO's of the auxiliary fitting basis set
 !> \param para_env The parallel env
 !> \param natoms ...
+!> \param nao_aux_fit ...
 !> \par History
 !>      05.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE admm_env_create(admm_env, admm_control, mos, mos_aux_fit, para_env, natoms)
+   SUBROUTINE admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(admm_control_type), POINTER                   :: admm_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: natoms
+      INTEGER, INTENT(IN)                                :: natoms, nao_aux_fit
 
       INTEGER                                            :: i, iatom, iblock, ispin, j, jatom, &
-                                                            nao_aux_fit, nao_orb, nmo, nspins
+                                                            nao_orb, nmo, nspins
       TYPE(cp_fm_struct_type), POINTER :: fm_struct_aux_aux, fm_struct_aux_nmo, fm_struct_aux_orb, &
          fm_struct_nmo_nmo, fm_struct_orb_aux, fm_struct_orb_nmo, fm_struct_orb_orb
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -195,7 +219,6 @@ CONTAINS
 
       nspins = SIZE(mos)
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nmo=nmo, nao=nao_orb)
-      CALL get_mo_set(mos_aux_fit(1)%mo_set, nao=nao_aux_fit)
       admm_env%nmo = 0
       admm_env%nao_aux_fit = nao_aux_fit
       admm_env%nao_orb = nao_orb
@@ -352,6 +375,11 @@ CONTAINS
       NULLIFY (admm_env%admm_gapw_env)
       admm_env%do_gapw = .FALSE.
 
+      NULLIFY (admm_env%mos_aux_fit, admm_env%sab_aux_fit, admm_env%sab_aux_fit_asymm, admm_env%sab_aux_fit_vs_orb)
+      NULLIFY (admm_env%matrix_ks_aux_fit, admm_env%matrix_ks_aux_fit_im, admm_env%matrix_ks_aux_fit_dft)
+      NULLIFY (admm_env%matrix_ks_aux_fit_hfx, admm_env%matrix_s_aux_fit, admm_env%matrix_s_aux_fit_vs_orb)
+      NULLIFY (admm_env%rho_aux_fit, admm_env%rho_aux_fit_buffer, admm_env%task_list_aux_fit, admm_env%mo_derivs_aux_fit)
+
    END SUBROUTINE admm_env_create
 
 ! **************************************************************************************************
@@ -446,6 +474,36 @@ CONTAINS
          CALL section_vals_release(admm_env%xc_section_aux)
 
       IF (ASSOCIATED(admm_env%admm_gapw_env)) CALL admm_gapw_env_release(admm_env%admm_gapw_env)
+      IF (ASSOCIATED(admm_env%admm_dm)) CALL admm_dm_release(admm_env%admm_dm)
+
+      IF (ASSOCIATED(admm_env%mos_aux_fit)) THEN
+         DO ispin = 1, SIZE(admm_env%mos_aux_fit)
+            IF (ASSOCIATED(admm_env%mos_aux_fit(ispin)%mo_set)) CALL deallocate_mo_set(admm_env%mos_aux_fit(ispin)%mo_set)
+         END DO
+         DEALLOCATE (admm_env%mos_aux_fit)
+      END IF
+      IF (ASSOCIATED(admm_env%mo_derivs_aux_fit)) THEN
+         DO ispin = 1, SIZE(admm_env%mo_derivs_aux_fit)
+            CALL cp_fm_release(admm_env%mo_derivs_aux_fit(ispin)%matrix)
+         END DO
+         DEALLOCATE (admm_env%mo_derivs_aux_fit)
+      END IF
+
+      IF (ASSOCIATED(admm_env%sab_aux_fit)) CALL release_neighbor_list_sets(admm_env%sab_aux_fit)
+      IF (ASSOCIATED(admm_env%sab_aux_fit_vs_orb)) CALL release_neighbor_list_sets(admm_env%sab_aux_fit_vs_orb)
+      IF (ASSOCIATED(admm_env%sab_aux_fit_asymm)) CALL release_neighbor_list_sets(admm_env%sab_aux_fit_asymm)
+
+      IF (ASSOCIATED(admm_env%matrix_ks_aux_fit)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_ks_aux_fit)
+      IF (ASSOCIATED(admm_env%matrix_ks_aux_fit_im)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_ks_aux_fit_im)
+      IF (ASSOCIATED(admm_env%matrix_ks_aux_fit_dft)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_ks_aux_fit_dft)
+      IF (ASSOCIATED(admm_env%matrix_ks_aux_fit_hfx)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_ks_aux_fit_hfx)
+      IF (ASSOCIATED(admm_env%matrix_s_aux_fit)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_s_aux_fit)
+      IF (ASSOCIATED(admm_env%matrix_s_aux_fit_vs_orb)) CALL dbcsr_deallocate_matrix_set(admm_env%matrix_s_aux_fit_vs_orb)
+
+      IF (ASSOCIATED(admm_env%rho_aux_fit)) CALL qs_rho_release(admm_env%rho_aux_fit)
+      IF (ASSOCIATED(admm_env%rho_aux_fit_buffer)) CALL qs_rho_release(admm_env%rho_aux_fit_buffer)
+
+      IF (ASSOCIATED(admm_env%task_list_aux_fit)) CALL deallocate_task_list(admm_env%task_list_aux_fit)
 
       DEALLOCATE (admm_env)
 
@@ -478,6 +536,132 @@ CONTAINS
       DEALLOCATE (admm_gapw_env)
 
    END SUBROUTINE admm_gapw_env_release
+
+! **************************************************************************************************
+!> \brief Get routine for the ADMM env
+!> \param admm_env ...
+!> \param mo_derivs_aux_fit ...
+!> \param mos_aux_fit ...
+!> \param sab_aux_fit ...
+!> \param sab_aux_fit_asymm ...
+!> \param sab_aux_fit_vs_orb ...
+!> \param matrix_s_aux_fit ...
+!> \param matrix_s_aux_fit_vs_orb ...
+!> \param task_list_aux_fit ...
+!> \param matrix_ks_aux_fit ...
+!> \param matrix_ks_aux_fit_im ...
+!> \param matrix_ks_aux_fit_dft ...
+!> \param matrix_ks_aux_fit_hfx ...
+!> \param rho_aux_fit ...
+!> \param rho_aux_fit_buffer ...
+!> \param admm_dm ...
+! **************************************************************************************************
+   SUBROUTINE get_admm_env(admm_env, mo_derivs_aux_fit, mos_aux_fit, sab_aux_fit, sab_aux_fit_asymm, &
+                           sab_aux_fit_vs_orb, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
+                           task_list_aux_fit, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
+                           matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, rho_aux_fit, &
+                           rho_aux_fit_buffer, admm_dm)
+
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: mo_derivs_aux_fit
+      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: mos_aux_fit
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: sab_aux_fit, sab_aux_fit_asymm, &
+                                                            sab_aux_fit_vs_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
+      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
+                                                            matrix_ks_aux_fit_dft, &
+                                                            matrix_ks_aux_fit_hfx
+      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_aux_fit, rho_aux_fit_buffer
+      TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
+
+      CPASSERT(ASSOCIATED(admm_env))
+
+      IF (PRESENT(mo_derivs_aux_fit)) mo_derivs_aux_fit => admm_env%mo_derivs_aux_fit
+      IF (PRESENT(mos_aux_fit)) mos_aux_fit => admm_env%mos_aux_fit
+      IF (PRESENT(sab_aux_fit)) sab_aux_fit => admm_env%sab_aux_fit
+      IF (PRESENT(sab_aux_fit_asymm)) sab_aux_fit_asymm => admm_env%sab_aux_fit_asymm
+      IF (PRESENT(sab_aux_fit_vs_orb)) sab_aux_fit_vs_orb => admm_env%sab_aux_fit_vs_orb
+      IF (PRESENT(matrix_s_aux_fit)) matrix_s_aux_fit => admm_env%matrix_s_aux_fit
+      IF (PRESENT(matrix_s_aux_fit_vs_orb)) matrix_s_aux_fit_vs_orb => admm_env%matrix_s_aux_fit_vs_orb
+      IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => admm_env%task_list_aux_fit
+      IF (PRESENT(matrix_ks_aux_fit)) matrix_ks_aux_fit => admm_env%matrix_ks_aux_fit
+      IF (PRESENT(matrix_ks_aux_fit_im)) matrix_ks_aux_fit_im => admm_env%matrix_ks_aux_fit_im
+      IF (PRESENT(matrix_ks_aux_fit_dft)) matrix_ks_aux_fit_dft => admm_env%matrix_ks_aux_fit_dft
+      IF (PRESENT(matrix_ks_aux_fit_hfx)) matrix_ks_aux_fit_hfx => admm_env%matrix_ks_aux_fit_hfx
+      IF (PRESENT(rho_aux_fit)) rho_aux_fit => admm_env%rho_aux_fit
+      IF (PRESENT(rho_aux_fit_buffer)) rho_aux_fit_buffer => admm_env%rho_aux_fit_buffer
+      IF (PRESENT(admm_dm)) admm_dm => admm_env%admm_dm
+
+   END SUBROUTINE get_admm_env
+
+! **************************************************************************************************
+!> \brief Set routine for the ADMM env
+!> \param admm_env ...
+!> \param mo_derivs_aux_fit ...
+!> \param mos_aux_fit ...
+!> \param sab_aux_fit ...
+!> \param sab_aux_fit_asymm ...
+!> \param sab_aux_fit_vs_orb ...
+!> \param matrix_s_aux_fit ...
+!> \param matrix_s_aux_fit_vs_orb ...
+!> \param task_list_aux_fit ...
+!> \param matrix_ks_aux_fit ...
+!> \param matrix_ks_aux_fit_im ...
+!> \param matrix_ks_aux_fit_dft ...
+!> \param matrix_ks_aux_fit_hfx ...
+!> \param rho_aux_fit ...
+!> \param rho_aux_fit_buffer ...
+!> \param admm_dm ...
+! **************************************************************************************************
+   SUBROUTINE set_admm_env(admm_env, mo_derivs_aux_fit, mos_aux_fit, sab_aux_fit, sab_aux_fit_asymm, &
+                           sab_aux_fit_vs_orb, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
+                           task_list_aux_fit, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
+                           matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, rho_aux_fit, &
+                           rho_aux_fit_buffer, admm_dm)
+
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: mo_derivs_aux_fit
+      TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: mos_aux_fit
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: sab_aux_fit, sab_aux_fit_asymm, &
+                                                            sab_aux_fit_vs_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
+      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
+                                                            matrix_ks_aux_fit_dft, &
+                                                            matrix_ks_aux_fit_hfx
+      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_aux_fit, rho_aux_fit_buffer
+      TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
+
+      CPASSERT(ASSOCIATED(admm_env))
+
+      IF (PRESENT(mo_derivs_aux_fit)) admm_env%mo_derivs_aux_fit => mo_derivs_aux_fit
+      IF (PRESENT(mos_aux_fit)) admm_env%mos_aux_fit => mos_aux_fit
+      IF (PRESENT(sab_aux_fit)) admm_env%sab_aux_fit => sab_aux_fit
+      IF (PRESENT(sab_aux_fit_asymm)) admm_env%sab_aux_fit_asymm => sab_aux_fit_asymm
+      IF (PRESENT(sab_aux_fit_vs_orb)) admm_env%sab_aux_fit_vs_orb => sab_aux_fit_vs_orb
+      IF (PRESENT(matrix_s_aux_fit)) admm_env%matrix_s_aux_fit => matrix_s_aux_fit
+      IF (PRESENT(matrix_s_aux_fit_vs_orb)) admm_env%matrix_s_aux_fit_vs_orb => matrix_s_aux_fit_vs_orb
+      IF (PRESENT(task_list_aux_fit)) admm_env%task_list_aux_fit => task_list_aux_fit
+      IF (PRESENT(matrix_ks_aux_fit)) admm_env%matrix_ks_aux_fit => matrix_ks_aux_fit
+      IF (PRESENT(matrix_ks_aux_fit_im)) admm_env%matrix_ks_aux_fit_im => matrix_ks_aux_fit_im
+      IF (PRESENT(matrix_ks_aux_fit_dft)) admm_env%matrix_ks_aux_fit_dft => matrix_ks_aux_fit_dft
+      IF (PRESENT(matrix_ks_aux_fit_hfx)) admm_env%matrix_ks_aux_fit_hfx => matrix_ks_aux_fit_hfx
+      IF (PRESENT(rho_aux_fit)) admm_env%rho_aux_fit => rho_aux_fit
+      IF (PRESENT(rho_aux_fit_buffer)) admm_env%rho_aux_fit_buffer => rho_aux_fit_buffer
+      IF (PRESENT(admm_dm)) admm_env%admm_dm => admm_dm
+
+   END SUBROUTINE set_admm_env
 
 END MODULE admm_types
 

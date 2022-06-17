@@ -6,7 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_fhxc_forces
-   USE admm_types,                      ONLY: admm_type
+   USE admm_methods,                    ONLY: admm_projection_derivative
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE atprop_types,                    ONLY: atprop_type
@@ -42,8 +44,8 @@ MODULE qs_tddfpt2_fhxc_forces
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_filter, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_filter, &
+        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
@@ -92,8 +94,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_force_types,                  ONLY: add_qs_force,&
-                                              qs_force_type
+   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_fxc,                          ONLY: qs_fgxc_create,&
                                               qs_fgxc_release
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -101,8 +102,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_overlap,                      ONLY: build_overlap_force,&
-                                              build_overlap_matrix
+   USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
                                               qs_rho_release,&
@@ -415,9 +415,9 @@ CONTAINS
                   CPABORT("ADMM KERNEL CORRECTION")
                END IF
                xc_section => admm_env%xc_section_aux
-               CALL get_qs_env(qs_env, admm_env=admm_env, rho_aux_fit=rho_aux_fit, &
-                               matrix_s_aux_fit=matrix_s_aux_fit, &
-                               task_list_aux_fit=task_list_aux_fit)
+               CALL get_qs_env(qs_env, admm_env=admm_env)
+               CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit, matrix_s_aux_fit=matrix_s_aux_fit, &
+                                 task_list_aux_fit=task_list_aux_fit)
                !
                NULLIFY (mfx, mgx)
                CALL dbcsr_allocate_matrix_set(mfx, nspins)
@@ -515,7 +515,7 @@ CONTAINS
                !
                IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
                fval = 2.0_dp*REAL(nspins, KIND=dp)
-               CALL admm_projection_derivative(qs_env, admm_env, mfx, matrix_px1, fval)
+               CALL admm_projection_derivative(qs_env, mfx, matrix_px1, fval)
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
                   CALL mp_sum(fodeb, para_env%group)
@@ -523,7 +523,7 @@ CONTAINS
                END IF
                IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
                fval = 2.0_dp*REAL(nspins, KIND=dp)
-               CALL admm_projection_derivative(qs_env, admm_env, mgx, matrix_p, fval)
+               CALL admm_projection_derivative(qs_env, mgx, matrix_p, fval)
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
                   CALL mp_sum(fodeb, para_env%group)
@@ -606,7 +606,7 @@ CONTAINS
          distribute_fock_matrix = .TRUE.
          !
          IF (do_admm) THEN
-            CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit)
+            CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
             NULLIFY (matrix_hfx_admm, matrix_hfx_admm_asymm)
             CALL dbcsr_allocate_matrix_set(matrix_hfx_admm, nspins)
             CALL dbcsr_allocate_matrix_set(matrix_hfx_admm_asymm, nspins)
@@ -693,8 +693,8 @@ CONTAINS
             ! ADMM Projection force
             IF (debug_forces) fodeb(1:3) = force(1)%overlap_admm(1:3, 1)
             fval = 4.0_dp*REAL(nspins, KIND=dp)*0.5_dp !0.5 for symm/anti-symm
-            CALL admm_projection_derivative(qs_env, admm_env, matrix_hfx_admm, matrix_px1, fval)
-            CALL admm_projection_derivative(qs_env, admm_env, matrix_hfx_admm_asymm, matrix_px1_asymm, fval)
+            CALL admm_projection_derivative(qs_env, matrix_hfx_admm, matrix_px1, fval)
+            CALL admm_projection_derivative(qs_env, matrix_hfx_admm_asymm, matrix_px1_asymm, fval)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
@@ -924,104 +924,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE fhxc_force
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param admm_env ...
-!> \param matrix_hfx ...
-!> \param matrix_pe ...
-!> \param fval ...
-! **************************************************************************************************
-   SUBROUTINE admm_projection_derivative(qs_env, admm_env, matrix_hfx, matrix_pe, fval)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hfx, matrix_pe
-      REAL(KIND=dp), INTENT(IN)                          :: fval
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_projection_derivative', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin, nao, natom, naux, nspins
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
-      TYPE(dbcsr_type), POINTER                          :: matrix_w_q, matrix_w_s
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux_fit_asymm, sab_aux_fit_vs_orb
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(ASSOCIATED(admm_env))
-      CPASSERT(ASSOCIATED(matrix_hfx))
-      CPASSERT(ASSOCIATED(matrix_pe))
-
-      CALL get_qs_env(qs_env, &
-                      ks_env=ks_env, &
-                      matrix_s_aux_fit=matrix_s_aux_fit, &
-                      matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                      sab_aux_fit_vs_orb=sab_aux_fit_vs_orb, &
-                      sab_aux_fit_asymm=sab_aux_fit_asymm)
-
-      ALLOCATE (matrix_w_q)
-      CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
-                      "W MATRIX AUX Q")
-      CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_q, sab_aux_fit_vs_orb)
-      ALLOCATE (matrix_w_s)
-      CALL dbcsr_create(matrix_w_s, template=matrix_s_aux_fit(1)%matrix, &
-                        name='W MATRIX AUX S', &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s, sab_aux_fit_asymm)
-
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                      natom=natom, force=force)
-      ALLOCATE (admm_force(3, natom))
-
-      nspins = SIZE(matrix_pe)
-      nao = admm_env%nao_orb
-      naux = admm_env%nao_aux_fit
-      DO ispin = 1, nspins
-         CALL copy_dbcsr_to_fm(matrix_hfx(ispin)%matrix, admm_env%work_aux_aux)
-
-         CALL cp_gemm("N", "T", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
-                      admm_env%work_aux_aux, 0.0_dp, admm_env%work_aux_aux2)
-         CALL cp_gemm("N", "N", naux, nao, naux, 1.0_dp, admm_env%work_aux_aux2, &
-                      admm_env%A, 0.0_dp, admm_env%work_aux_orb)
-         CALL copy_dbcsr_to_fm(matrix_pe(ispin)%matrix, admm_env%work_orb_orb)
-         ! admm_env%work_aux_orb2 = S-1*H(P)*A*P
-         CALL cp_gemm("N", "N", naux, nao, nao, 1.0_dp, admm_env%work_aux_orb, &
-                      admm_env%work_orb_orb, 0.0_dp, admm_env%work_aux_orb2)
-         ! admm_env%work_aux_aux = [S-1*H(P)*A*P]*A(T)
-         CALL cp_gemm("N", "T", naux, naux, nao, 1.0_dp, admm_env%work_aux_orb2, &
-                      admm_env%A, 0.0_dp, admm_env%work_aux_aux)
-         !
-         CALL copy_fm_to_dbcsr(admm_env%work_aux_orb2, matrix_w_q, keep_sparsity=.TRUE.)
-         CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s, keep_sparsity=.TRUE.)
-         !
-         CALL dbcsr_scale(matrix_w_q, -fval)
-         CALL dbcsr_scale(matrix_w_s, fval)
-         !
-         admm_force = 0.0_dp
-         CALL build_overlap_force(ks_env, admm_force, &
-                                  basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
-                                  sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s)
-         CALL build_overlap_force(ks_env, admm_force, &
-                                  basis_type_a="AUX_FIT", basis_type_b="ORB", &
-                                  sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q)
-         ! add forces
-         CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
-      END DO
-
-      DEALLOCATE (admm_force)
-      CALL dbcsr_deallocate_matrix(matrix_w_s)
-      CALL dbcsr_deallocate_matrix(matrix_w_q)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE admm_projection_derivative
 
 ! **************************************************************************************************
 !> \brief Simplified Tamm Dancoff approach (sTDA). Kernel contribution to forces

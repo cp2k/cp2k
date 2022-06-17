@@ -15,7 +15,6 @@
 !>      03.2019 Refactoring [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_main
-   USE admm_types,                      ONLY: admm_env_release
    USE bibliography,                    ONLY: &
         Bates2013, DelBen2013, DelBen2015, Ren2011, Ren2013, Wilhelm2016a, Wilhelm2016b, &
         Wilhelm2017, Wilhelm2018, cite_reference
@@ -788,7 +787,7 @@ CONTAINS
       DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_ks(1)%matrix)
       DEALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_ks)
 
-      CALL release_hfx_admm_stuff(qs_env)
+      CALL release_hfx_stuff(qs_env)
 
       CALL timestop(handle)
 
@@ -798,17 +797,14 @@ CONTAINS
 !> \brief releases part of the given qs_env in order to save memory
 !> \param qs_env the object to release
 ! **************************************************************************************************
-   SUBROUTINE release_hfx_admm_stuff(qs_env)
+   SUBROUTINE release_hfx_stuff(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       IF (ASSOCIATED(qs_env%x_data) .AND. .NOT. qs_env%mp2_env%ri_g0w0%do_ri_Sigma_x) THEN
          CALL hfx_release(qs_env%x_data)
       END IF
-      IF (ASSOCIATED(qs_env%admm_env)) THEN
-         CALL admm_env_release(qs_env%admm_env)
-      END IF
 
-   END SUBROUTINE release_hfx_admm_stuff
+   END SUBROUTINE release_hfx_stuff
 
 ! **************************************************************************************************
 !> \brief ...

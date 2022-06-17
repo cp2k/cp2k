@@ -23,24 +23,19 @@ MODULE qs_ks_methods
    USE admm_dm_methods,                 ONLY: admm_dm_calc_rho_aux,&
                                               admm_dm_merge_ks_matrix
    USE admm_methods,                    ONLY: admm_mo_calc_rho_aux,&
-                                              admm_mo_merge_derivs,&
                                               admm_mo_merge_ks_matrix,&
                                               admm_update_ks_atom,&
-                                              calc_aux_mo_derivs_none,&
-                                              calc_mixed_overlap_force
-   USE admm_types,                      ONLY: admm_type
+                                              calc_admm_mo_derivatives,&
+                                              calc_admm_ovlp_forces
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr,&
-                                              dbcsr_allocate_matrix_set,&
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_copy_columns_hack
    USE cp_ddapc,                        ONLY: qs_ks_ddapc
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -56,8 +51,7 @@ MODULE qs_ks_methods
    USE hartree_local_types,             ONLY: ecoul_1center_type
    USE hfx_admm_utils,                  ONLY: hfx_admm_init,&
                                               hfx_ks_matrix
-   USE input_constants,                 ONLY: do_admm_purify_none,&
-                                              do_ppl_grid,&
+   USE input_constants,                 ONLY: do_ppl_grid,&
                                               outer_scf_becke_constraint,&
                                               outer_scf_hirshfeld_constraint
    USE input_section_types,             ONLY: section_vals_get,&
@@ -124,8 +118,7 @@ MODULE qs_ks_methods
         sic_explicit_orbitals, sum_up_and_integrate
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_p_type,&
-                                              mo_set_type
+                                              mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -518,7 +511,7 @@ CONTAINS
                CALL admm_mo_calc_rho_aux(qs_env)
             END IF
          ELSEIF (dft_control%do_admm_dm) THEN
-            CALL admm_dm_calc_rho_aux(ks_env)
+            CALL admm_dm_calc_rho_aux(qs_env)
          END IF
       END IF
 
@@ -531,7 +524,7 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          xc_section => admm_env%xc_section_aux
-         CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_struct)
+         CALL get_admm_env(admm_env, rho_aux_fit=rho_struct)
 
          ! here we ignore a possible vdW section in admm_env%xc_section_aux
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
@@ -809,7 +802,7 @@ CONTAINS
             CALL admm_mo_merge_ks_matrix(qs_env)
          END IF
       ELSEIF (dft_control%do_admm_dm) THEN
-         CALL admm_dm_merge_ks_matrix(ks_env)
+         CALL admm_dm_merge_ks_matrix(qs_env)
       END IF
 
       ! External field (nonperiodic case)
@@ -962,31 +955,17 @@ CONTAINS
       INTEGER                                            :: ispin
       LOGICAL                                            :: uniform_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_aux_fit, mo_derivs_tmp
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type)                                   :: mo_derivs2_tmp1, mo_derivs2_tmp2
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array, mos_aux_fit
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
 
-      NULLIFY (dft_control, mo_array, mo_coeff, mo_coeff_aux_fit, mo_coeff_b, &
-               mo_derivs_aux_fit, mo_derivs_tmp, mos_aux_fit, &
-               occupation_numbers, matrix_ks_aux_fit)
+      NULLIFY (dft_control, mo_array, mo_coeff, mo_coeff_b, occupation_numbers)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       mos=mo_array)
-
-      IF (dft_control%do_admm_mo) THEN !fm->dbcsr
-         NULLIFY (mo_derivs_tmp) !fm->dbcsr
-         ALLOCATE (mo_derivs_tmp(SIZE(mo_derivs)))
-         DO ispin = 1, SIZE(mo_derivs) !fm->dbcsr
-            CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff) !fm->dbcsr
-            NULLIFY (mo_derivs_tmp(ispin)%matrix)
-            CALL cp_fm_create(mo_derivs_tmp(ispin)%matrix, mo_coeff%matrix_struct) !fm->dbcsr
-         END DO !fm->dbcsr
-      END IF !fm->dbcsr
 
       DO ispin = 1, SIZE(mo_derivs)
 
@@ -994,21 +973,6 @@ CONTAINS
                          mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin)%matrix, mo_coeff_b, &
                              0.0_dp, mo_derivs(ispin)%matrix)
-
-         IF (dft_control%do_admm_mo) THEN
-            CALL get_qs_env(qs_env, &
-                            mos_aux_fit=mos_aux_fit, &
-                            mo_derivs_aux_fit=mo_derivs_aux_fit, &
-                            matrix_ks_aux_fit=matrix_ks_aux_fit)
-            CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
-
-            CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix, &
-                                  mo_derivs_tmp(ispin)%matrix) !fm->dbcsr
-            CALL admm_mo_merge_derivs(ispin, qs_env%admm_env, mo_array(ispin)%mo_set, &
-                                      mo_coeff, mo_coeff_aux_fit, mo_derivs_tmp, mo_derivs_aux_fit, &
-                                      matrix_ks_aux_fit)
-            CALL copy_fm_to_dbcsr(mo_derivs_tmp(ispin)%matrix, mo_derivs(ispin)%matrix) !fm->dbcsr
-         END IF
 
          IF (dft_control%restricted) THEN
             ! only the first mo_set are actual variables, but we still need both
@@ -1046,64 +1010,13 @@ CONTAINS
             CALL dbcsr_release(mo_derivs2_tmp1)
             CALL dbcsr_release(mo_derivs2_tmp2)
          END IF
-
       END DO
 
-      IF (dft_control%do_admm_mo) THEN !fm->dbcsr
-         DO ispin = 1, SIZE(mo_derivs) !fm->dbcsr
-            CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix) !fm->dbcsr
-         END DO !fm->dbcsr
-         DEALLOCATE (mo_derivs_tmp) !fm->dbcsr
-      END IF !fm->dbcsr
+      IF (dft_control%do_admm_mo) THEN
+         CALL calc_admm_mo_derivatives(qs_env, mo_derivs)
+      END IF
 
    END SUBROUTINE calc_mo_derivatives
-
-! **************************************************************************************************
-!> \brief Calculate the forces due to the AUX/ORB basis overlap in ADMM
-!> \param qs_env ...
-!> \par History Moved here from qs_force.F (A. Bussy, 05.2022)
-! **************************************************************************************************
-   SUBROUTINE calc_admm_ovlp_forces(qs_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-
-      INTEGER                                            :: ispin
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, matrix_s_aux_fit, &
-                                                            matrix_s_aux_fit_vs_orb
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
-      TYPE(mo_set_type), POINTER                         :: mo_set
-
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-
-      IF (dft_control%do_admm_dm) THEN
-         CPABORT("Forces with ADMM DM methods not implemented")
-      END IF
-      IF (dft_control%do_admm_mo .AND. .NOT. qs_env%run_rtp) THEN
-         NULLIFY (matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_ks_aux_fit, &
-                  mos_aux_fit, mos, admm_env)
-         CALL get_qs_env(qs_env=qs_env, &
-                         matrix_s_aux_fit=matrix_s_aux_fit, &
-                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                         matrix_ks_aux_fit=matrix_ks_aux_fit, &
-                         mos_aux_fit=mos_aux_fit, &
-                         mos=mos, &
-                         admm_env=admm_env)
-         DO ispin = 1, dft_control%nspins
-            mo_set => mos(ispin)%mo_set
-            CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff)
-            ! if no purification we need to calculate the H matrix for forces
-            IF (admm_env%purification_method == do_admm_purify_none) THEN
-               CALL get_mo_set(mo_set=mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
-               CALL calc_aux_mo_derivs_none(ispin, qs_env%admm_env, mo_set, &
-                                            mo_coeff_aux_fit, matrix_ks_aux_fit)
-            END IF
-         END DO
-         CALL calc_mixed_overlap_force(qs_env)
-      END IF
-
-   END SUBROUTINE calc_admm_ovlp_forces
 
 ! **************************************************************************************************
 !> \brief updates the Kohn Sham matrix of the given qs_env (facility method)
@@ -1284,24 +1197,20 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: headline
       INTEGER                                            :: ic, ispin, nimg
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit, &
-                                                            matrix_ks_aux_fit_dft, &
-                                                            matrix_ks_aux_fit_hfx, matrix_s_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrixkp_ks
       TYPE(dbcsr_type), POINTER                          :: refmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux_fit, sab_orb
+         POINTER                                         :: sab_orb
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
-      NULLIFY (dft_control, ks_env, matrix_s_kp, matrix_s_aux_fit, sab_orb, sab_aux_fit, matrixkp_ks)
+      NULLIFY (dft_control, ks_env, matrix_s_kp, sab_orb, matrixkp_ks)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       matrix_s_kp=matrix_s_kp, &
                       ks_env=ks_env, &
                       sab_orb=sab_orb, &
-                      sab_aux_fit=sab_aux_fit, &
                       matrix_ks_kp=matrixkp_ks)
 
       IF (.NOT. ASSOCIATED(matrixkp_ks)) THEN
@@ -1327,59 +1236,6 @@ CONTAINS
             END DO
          END DO
          CALL set_ks_env(ks_env, matrix_ks_kp=matrixkp_ks)
-      END IF
-
-      ! Allocate matrix_ks_aux_fit if requested and put it in the QS environment
-      ! Also matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx for ADMMS
-      IF (dft_control%do_admm) THEN
-         NULLIFY (matrix_ks_aux_fit, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx)
-         CALL get_qs_env(qs_env, &
-                         matrix_ks_aux_fit=matrix_ks_aux_fit, &
-                         matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft, &
-                         matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, &
-                         matrix_s_aux_fit=matrix_s_aux_fit)
-         IF (.NOT. ASSOCIATED(matrix_ks_aux_fit)) THEN
-            refmatrix => matrix_s_aux_fit(1)%matrix
-            CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit, dft_control%nspins)
-            DO ispin = 1, dft_control%nspins
-               ALLOCATE (matrix_ks_aux_fit(ispin)%matrix)
-               CALL dbcsr_create(matrix=matrix_ks_aux_fit(ispin)%matrix, template=refmatrix, &
-                                 name="KOHN-SHAM_MATRIX for ADMM", &
-                                 matrix_type=dbcsr_type_symmetric, nze=0)
-               CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix, sab_aux_fit)
-               CALL dbcsr_set(matrix_ks_aux_fit(ispin)%matrix, 0.0_dp)
-            END DO
-            CALL set_ks_env(ks_env, matrix_ks_aux_fit=matrix_ks_aux_fit)
-         END IF
-         ! same allocation procedure for matrix_ks_aux_fit_dft
-         IF (.NOT. ASSOCIATED(matrix_ks_aux_fit_dft)) THEN
-            refmatrix => matrix_s_aux_fit(1)%matrix
-            CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_dft, dft_control%nspins)
-            DO ispin = 1, dft_control%nspins
-               ALLOCATE (matrix_ks_aux_fit_dft(ispin)%matrix)
-               CALL dbcsr_create(matrix=matrix_ks_aux_fit_dft(ispin)%matrix, template=refmatrix, &
-                                 name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY DFT EXCHANGE", &
-                                 matrix_type=dbcsr_type_symmetric, nze=0)
-               CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_dft(ispin)%matrix, sab_aux_fit)
-               CALL dbcsr_set(matrix_ks_aux_fit_dft(ispin)%matrix, 0.0_dp)
-            END DO
-            CALL set_ks_env(ks_env, matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft)
-         END IF
-         ! same allocation procedure for matrix_ks_aux_fit_hfx
-         IF (.NOT. ASSOCIATED(matrix_ks_aux_fit_hfx)) THEN
-            refmatrix => matrix_s_aux_fit(1)%matrix
-            CALL dbcsr_allocate_matrix_set(matrix_ks_aux_fit_hfx, dft_control%nspins)
-            DO ispin = 1, dft_control%nspins
-               ALLOCATE (matrix_ks_aux_fit_hfx(ispin)%matrix)
-               CALL dbcsr_create(matrix=matrix_ks_aux_fit_hfx(ispin)%matrix, template=refmatrix, &
-                                 name="AUX. KOHN-SHAM MATRIX FOR ADMM ONLY HF EXCHANGE", &
-                                 matrix_type=dbcsr_type_symmetric, nze=0)
-               CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_hfx(ispin)%matrix, sab_aux_fit)
-               CALL dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix, 0.0_dp)
-            END DO
-            CALL set_ks_env(ks_env, matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
-         END IF
-
       END IF
 
    END SUBROUTINE qs_ks_allocate_basics

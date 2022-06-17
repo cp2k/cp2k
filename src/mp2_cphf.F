@@ -12,7 +12,9 @@
 !>      11.2013 created [Mauro Del Ben]
 ! **************************************************************************************************
 MODULE mp2_cphf
-   USE admm_types,                      ONLY: admm_type
+   USE admm_methods,                    ONLY: admm_projection_derivative
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE core_ppl,                        ONLY: build_core_ppl
@@ -91,8 +93,7 @@ MODULE mp2_cphf
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_2nd_kernel_ao,                ONLY: admm_projection_derivative,&
-                                              apply_2nd_order_kernel
+   USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
@@ -483,7 +484,7 @@ CONTAINS
       END DO
 
       IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit)
+         CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux_fit)
          CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
 
          ! create mp2 DBCSR density in auxiliary basis
@@ -1716,7 +1717,7 @@ CONTAINS
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
       IF (do_hfx) THEN
          IF (dft_control%do_admm) THEN
-            CALL get_qs_env(qs_env, rho_aux_fit=rho_aux)
+            CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
             CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, nspins
                CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
@@ -1798,7 +1799,8 @@ CONTAINS
             CALL tddft_hfx_matrix(matrix_ks_aux, rho_ao_aux, qs_env, .FALSE.)
 
             IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
-               CALL get_qs_env(qs_env, ks_env=ks_env, task_list_aux_fit=task_list_aux_fit)
+               CALL get_qs_env(qs_env, ks_env=ks_env)
+               CALL get_admm_env(qs_env%admm_env, task_list_aux_fit=task_list_aux_fit)
 
                DO ispin = 1, nspins
                   CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
