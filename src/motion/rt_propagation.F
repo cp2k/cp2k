@@ -13,10 +13,13 @@
 MODULE rt_propagation
    USE bibliography,                    ONLY: Andermatt2016,&
                                               cite_reference
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_external_control,             ONLY: external_control
-   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -27,6 +30,7 @@ MODULE rt_propagation
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_iterate,&
                                               cp_rm_iter_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_p_type
    USE efield_utils,                    ONLY: calculate_ecore_efield
@@ -55,9 +59,10 @@ MODULE rt_propagation
                                               qs_environment_type
    USE qs_external_potential,           ONLY: external_c_potential,&
                                               external_e_potential
+   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
+                                              qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change
-   USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
                                               mo_set_p_type
@@ -396,14 +401,17 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
-      INTEGER                                            :: homo, ispin
+      INTEGER                                            :: homo, ispin, nao_aux_fit, nmo
       LOGICAL                                            :: energy_consistency
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools_aux_fit
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: aux_fit_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (matrix_s, dft_control)
+      NULLIFY (matrix_s, dft_control, blacs_env, para_env, qs_kind_set, aux_fit_fm_struct)
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
       SELECT CASE (rtp_control%initial_wfn)
@@ -419,7 +427,7 @@ CONTAINS
          ALLOCATE (qs_env%rtp)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CALL rt_prop_create(qs_env%rtp, qs_env%mos, qs_env%mpools, dft_control, matrix_s(1)%matrix, &
-                             rtp_control%linear_scaling, qs_env%mos_aux_fit)
+                             rtp_control%linear_scaling, qs_env%admm_env%mos_aux_fit)
 
       CASE (use_restart_wfn, use_rt_restart)
          CALL qs_energies_init(qs_env, .FALSE.)
@@ -434,23 +442,28 @@ CONTAINS
                END IF
             END DO
             IF (dft_control%do_admm) THEN
-               CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
-               CPASSERT(ASSOCIATED(qs_env%mos_aux_fit))
-               DO ispin = 1, SIZE(qs_env%mos_aux_fit)
-                  CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, homo=homo)
+               CPASSERT(ASSOCIATED(qs_env%admm_env%mos_aux_fit))
+               CALL get_qs_env(qs_env, blacs_env=blacs_env, para_env=para_env, qs_kind_set=qs_kind_set)
+               CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
+               DO ispin = 1, SIZE(qs_env%admm_env%mos_aux_fit)
+                  CALL get_mo_set(mo_set=qs_env%mos(ispin)%mo_set, nmo=nmo)
+                  CALL cp_fm_struct_create(aux_fit_fm_struct, context=blacs_env, para_env=para_env, &
+                                           nrow_global=nao_aux_fit, ncol_global=nmo)
+                  CALL get_mo_set(qs_env%admm_env%mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, homo=homo)
                   IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
-                     CALL init_mo_set(qs_env%mos_aux_fit(ispin)%mo_set, &
-                                      ao_mo_fm_pools_aux_fit(ispin)%pool, &
+                     CALL init_mo_set(qs_env%admm_env%mos_aux_fit(ispin)%mo_set, &
+                                      fm_struct=aux_fit_fm_struct, &
                                       name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
                                       "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
                   END IF
+                  CALL cp_fm_struct_release(aux_fit_fm_struct)
                END DO
             END IF
          END IF
          ALLOCATE (qs_env%rtp)
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CALL rt_prop_create(qs_env%rtp, qs_env%mos, qs_env%mpools, dft_control, matrix_s(1)%matrix, &
-                             rtp_control%linear_scaling, qs_env%mos_aux_fit)
+                             rtp_control%linear_scaling, qs_env%admm_env%mos_aux_fit)
          CALL get_restart_wfn(qs_env)
 
          qs_env%run_rtp = .TRUE.

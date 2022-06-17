@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_methods
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE bibliography,                    ONLY: Grimme2013,&
                                               Grimme2016,&
                                               Iannuzzi2005,&
@@ -548,7 +549,8 @@ CONTAINS
             !
             ! ground state ADMM!
             IF (dft_control%do_admm) THEN
-               CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
+               CALL get_qs_env(qs_env, admm_env=admm_env)
+               CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
                CALL dbcsr_allocate_matrix_set(ex_env%matrix_pe_admm, nspins)
                DO ispin = 1, nspins
                   ALLOCATE (ex_env%matrix_pe_admm(ispin)%matrix)
@@ -590,7 +592,8 @@ CONTAINS
             END DO
             ! Kernel ADMM
             IF (tddfpt_control%do_admm) THEN
-               CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
+               CALL get_qs_env(qs_env, admm_env=admm_env)
+               CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
                CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1_admm, nspins)
                CALL dbcsr_allocate_matrix_set(ex_env%matrix_px1_admm_asymm, nspins)
                DO ispin = 1, nspins

@@ -26,7 +26,6 @@ MODULE qs_scf_initialization
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_triangular,&
@@ -542,23 +541,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scf_ensure_mos'
 
       INTEGER                                            :: handle, ic, ik, ikk, ispin, nmo, nmo_mat
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_aux_fit
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools, ao_mo_fm_pools_aux_fit
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit, mo_coeff_last
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, mo_derivs
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_last
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit, mos_last_converged
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_last_converged
       TYPE(mo_set_p_type), DIMENSION(:, :), POINTER      :: mos_k
       TYPE(xas_environment_type), POINTER                :: xas_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ao_mo_fm_pools, dft_control, mos, ao_mo_fm_pools_aux_fit)
-      NULLIFY (mo_derivs, mo_coeff, mo_coeff_aux_fit, mo_derivs_aux_fit, xas_env, matrix_s)
-      NULLIFY (mos_last_converged, mo_coeff_last)
+      NULLIFY (ao_mo_fm_pools, dft_control, mos, xas_env, matrix_s, mos_last_converged, mo_coeff_last)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(scf_env%ref_count > 0)
@@ -568,7 +564,6 @@ CONTAINS
                       dft_control=dft_control, &
                       mos=mos, &
                       matrix_s_kp=matrix_s, &
-                      mos_aux_fit=mos_aux_fit, &
                       xas_env=xas_env)
       CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
       IF (dft_control%switch_surf_dip) THEN
@@ -617,40 +612,7 @@ CONTAINS
 
 !   *** finish initialization of the MOs for ADMM and derivs if needed ***
       IF (dft_control%do_admm) THEN
-         IF (dft_control%restricted) &
-            CPABORT("ROKS with ADMM is not implemented")
-         CPASSERT(ASSOCIATED(mos_aux_fit))
-         CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
-         DO ispin = 1, SIZE(mos_aux_fit)
-            CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, mo_coeff_b=mo_coeff_b)
-            IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
-               CALL init_mo_set(mos_aux_fit(ispin)%mo_set, &
-                                fm_pool=ao_mo_fm_pools_aux_fit(ispin)%pool, &
-                                name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))// &
-                                "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
-            END IF
-            IF (.NOT. ASSOCIATED(mo_coeff_b)) THEN
-               CALL cp_fm_get_info(mos_aux_fit(ispin)%mo_set%mo_coeff, ncol_global=nmo)
-               CALL dbcsr_init_p(mos_aux_fit(ispin)%mo_set%mo_coeff_b)
-               CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit)
-               CALL cp_dbcsr_m_by_n_from_row_template(mos_aux_fit(ispin)%mo_set%mo_coeff_b, &
-                                                      template=matrix_s_aux_fit(1)%matrix, n=nmo, &
-                                                      sym=dbcsr_type_no_symmetry)
-            END IF
-         END DO
-         IF (qs_env%requires_mo_derivs) THEN
-            CALL get_qs_env(qs_env, mo_derivs_aux_fit=mo_derivs_aux_fit)
-            IF (.NOT. ASSOCIATED(mo_derivs_aux_fit)) THEN
-               ALLOCATE (mo_derivs_aux_fit(nmo_mat))
-               DO ispin = 1, nmo_mat
-                  CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
-                  CALL cp_fm_create(mo_derivs_aux_fit(ispin)%matrix, mo_coeff_aux_fit%matrix_struct)
-               END DO
-               CALL set_qs_env(qs_env, mo_derivs_aux_fit=mo_derivs_aux_fit)
-            END IF
-         ELSE
-            ! nothing should be done
-         END IF
+         IF (dft_control%restricted) CPABORT("ROKS with ADMM is not implemented")
       END IF
 
 ! *** finish initialization of mos_last_converged *** [SGh]

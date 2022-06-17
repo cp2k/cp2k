@@ -36,6 +36,7 @@
 !>      Ole Schuett (2020)
 ! **************************************************************************************************
 MODULE qs_collocate_density
+   USE admm_types,                      ONLY: get_admm_env
    USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
@@ -1788,8 +1789,8 @@ CONTAINS
                          task_list_soft=task_list_soft)
       CASE ("AUX_FIT")
          CALL get_qs_env(qs_env=qs_env, &
-                         task_list_aux_fit=task_list, &
                          task_list_soft=task_list_soft)
+         CALL get_admm_env(qs_env%admm_env, task_list_aux_fit=task_list)
       END SELECT
 
       ! *** assign from pw_env
@@ -2171,8 +2172,8 @@ CONTAINS
                          task_list_soft=task_list_soft)
       CASE ("AUX_FIT")
          CALL get_qs_env(qs_env=qs_env, &
-                         task_list_aux_fit=task_list, &
                          task_list_soft=task_list_soft)
+         CALL get_admm_env(qs_env%admm_env, task_list_aux_fit=task_list)
       END SELECT
 
       ! *** assign from pw_env

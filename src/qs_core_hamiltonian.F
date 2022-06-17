@@ -170,15 +170,13 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, matrix_s, matrix_t, &
                                                             matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux_fit, sab_aux_fit_vs_orb, &
-                                                            sab_orb, sap_oce
+         POINTER                                         :: sab_orb, sap_oce
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -315,30 +313,6 @@ CONTAINS
                                       basis_type="ORB", &
                                       sab_nl=sab_orb, &
                                       eps_filter=eps_filter)
-      END IF
-
-      ! ADMM
-      IF (.NOT. calculate_forces) THEN
-         IF (dft_control%do_admm) THEN
-            NULLIFY (matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-                     sab_aux_fit, sab_aux_fit_vs_orb)
-            CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, &
-                            sab_aux_fit=sab_aux_fit)
-            CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_fit, &
-                                      matrix_name="AUX_FIT_OVERLAP", &
-                                      basis_type_a="AUX_FIT", &
-                                      basis_type_b="AUX_FIT", &
-                                      sab_nl=sab_aux_fit)
-            CALL set_ks_env(ks_env, matrix_s_aux_fit=matrix_s_aux_fit)
-            CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                            sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
-            CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_fit_vs_orb, &
-                                      matrix_name="MIXED_OVERLAP", &
-                                      basis_type_a="AUX_FIT", &
-                                      basis_type_b="ORB", &
-                                      sab_nl=sab_aux_fit_vs_orb)
-            CALL set_ks_env(ks_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
-         END IF
       END IF
 
       ! initialize H matrix

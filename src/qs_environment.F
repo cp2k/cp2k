@@ -527,8 +527,8 @@ CONTAINS
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER :: handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, maxlppl, &
-         maxlppnl, method_id, multiplicity, my_ival, n_ao, n_ao_aux_fit, n_mo_add, natom, &
-         nelectron, ngauss, nkind, output_unit, sort_basis, tnadd_method
+         maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, nelectron, ngauss, &
+         nkind, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       LOGICAL :: all_potential_present, be_silent, do_kpoints, do_ri_hfx, do_ri_mp2, do_ri_rpa, &
          do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, has_unit_metric, lribas, &
@@ -550,7 +550,7 @@ CONTAINS
                                                             ri_xas_basis, tmp_basis_set
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit, mos_last_converged
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_last_converged
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -591,7 +591,7 @@ CONTAINS
       CALL cite_reference(cp2kqs2020)
 
       ! Initialise the Quickstep environment
-      NULLIFY (mos, se_taper, mos_aux_fit)
+      NULLIFY (mos, se_taper)
       NULLIFY (dft_control)
       NULLIFY (energy)
       NULLIFY (force)
@@ -1543,26 +1543,6 @@ CONTAINS
       END IF
 
       CALL set_qs_env(qs_env, mos=mos)
-
-      ! If we use auxiliary density matrix methods , set mo_set_aux_fit
-      IF (dft_control%do_admm) THEN
-         !
-         CALL get_qs_kind_set(qs_kind_set, nelectron=nelectron, nsgf=n_ao_aux_fit, &
-                              basis_type="AUX_FIT")
-         ALLOCATE (mos_aux_fit(dft_control%nspins))
-
-         DO ispin = 1, dft_control%nspins
-            NULLIFY (mos_aux_fit(ispin)%mo_set)
-            CALL allocate_mo_set(mo_set=mos_aux_fit(ispin)%mo_set, &
-                                 nao=n_ao_aux_fit, &
-                                 nmo=n_mo(ispin), &
-                                 nelectron=nelectron_spin(ispin), &
-                                 n_el_f=REAL(nelectron_spin(ispin), dp), &
-                                 maxocc=maxocc, &
-                                 flexible_electron_count=dft_control%relax_multiplicity)
-         END DO
-         CALL set_qs_env(qs_env, mos_aux_fit=mos_aux_fit)
-      END IF
 
 ! allocate mos when switch_surf_dip is triggered [SGh]
       IF (dft_control%switch_surf_dip) THEN

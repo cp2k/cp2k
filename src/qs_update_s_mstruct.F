@@ -32,7 +32,6 @@ MODULE qs_update_s_mstruct
                                               qs_ks_did_change,&
                                               qs_ks_env_type,&
                                               set_ks_env
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild
    USE qs_rho_types,                    ONLY: qs_rho_type
    USE qs_scf_types,                    ONLY: scf_env_did_change
@@ -162,8 +161,6 @@ CONTAINS
       INTEGER                                            :: handle, isub
       LOGICAL                                            :: skip_load_balance_distributed, soft_valid
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list
 
@@ -197,20 +194,6 @@ CONTAINS
                                        reorder_rs_grid_ranks=.TRUE., soft_valid=.TRUE., &
                                        skip_load_balance_distributed=skip_load_balance_distributed)
          END IF
-      END IF
-
-      IF (dft_control%do_admm) THEN
-         ! generate the aux_fit task list
-         CALL get_ks_env(ks_env, task_list_aux_fit=task_list)
-         IF (.NOT. ASSOCIATED(task_list)) THEN
-            CALL allocate_task_list(task_list)
-            CALL set_ks_env(ks_env, task_list_aux_fit=task_list)
-         END IF
-         CALL get_ks_env(ks_env, sab_aux_fit=sab_orb)
-         CALL generate_qs_task_list(ks_env, task_list, &
-                                    reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE., basis_type="AUX_FIT", &
-                                    skip_load_balance_distributed=skip_load_balance_distributed, &
-                                    sab_orb_external=sab_orb)
       END IF
 
       IF (dft_control%qs_control%do_kg) THEN
@@ -270,8 +253,7 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: do_admm, gapw_xc
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_aux_fit_buffer, &
-                                                            rho_external, rho_xc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_external, rho_xc
 
       NULLIFY (rho)
       CALL timeset(routineN, handle)
@@ -280,8 +262,6 @@ CONTAINS
                       dft_control=dft_control, &
                       rho=rho, &
                       rho_xc=rho_xc, &
-                      rho_aux_fit=rho_aux_fit, &
-                      rho_aux_fit_buffer=rho_aux_fit_buffer, &
                       rho_external=rho_external)
 
       gapw_xc = dft_control%qs_control%gapw_xc
@@ -293,14 +273,7 @@ CONTAINS
          CALL qs_rho_rebuild(rho_xc, qs_env=qs_env, &
                              rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids)
       END IF
-      IF (do_admm) THEN
-         CALL qs_rho_rebuild(rho_aux_fit, qs_env=qs_env, &
-                             rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
-                             admm=.TRUE.)
-         CALL qs_rho_rebuild(rho_aux_fit_buffer, qs_env=qs_env, &
-                             rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
-                             admm=.TRUE.)
-      END IF
+
 ! ZMP rebuilding external density
       IF (dft_control%apply_external_density) THEN
          CALL qs_rho_rebuild(rho_external, qs_env=qs_env, &

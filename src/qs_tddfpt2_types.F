@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_types
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
@@ -271,7 +272,7 @@ CONTAINS
       IF (do_admm) THEN
          CPASSERT(do_hfx)
          CPASSERT(ASSOCIATED(sub_env%admm_A))
-         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux_fit)
+         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
          CALL dbcsr_get_info(matrix_s_aux_fit(1)%matrix, nfullrows_total=nao_aux)
       END IF
 
@@ -452,7 +453,8 @@ CONTAINS
                work_matrices%hfx_rho_ao_asymm, work_matrices%hfx_hmat_asymm)
       IF (do_hfx) THEN
          IF (do_admm) THEN
-            CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist, sab_aux_fit=sab_hfx)
+            CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist)
+            CALL get_admm_env(qs_env%admm_env, sab_aux_fit=sab_hfx)
             dbcsr_template_hfx => matrix_s_aux_fit(1)%matrix
          ELSE
             CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist, sab_orb=sab_hfx)

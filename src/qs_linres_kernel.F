@@ -12,7 +12,8 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_linres_kernel
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cp_control_types,                ONLY: dft_control_type
@@ -338,7 +339,7 @@ CONTAINS
             IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
                CPASSERT(.NOT. lr_triplet)
                xc_section_aux => admm_env%xc_section_aux
-               CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_aux)
+               CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
                CALL qs_rho_get(rho_aux, rho_r=rho_r)
                ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
                CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
@@ -832,7 +833,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, task_list_aux_fit=task_list_aux_fit)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
@@ -853,11 +854,12 @@ CONTAINS
             NULLIFY (tau_pw)
             ! calculate the xc potential
             lsd = (nspins == 2)
-            CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s)
+            CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s)
             ALLOCATE (xcmat%matrix)
             CALL dbcsr_create(xcmat%matrix, template=matrix_s(1)%matrix)
 
             CALL get_qs_env(qs_env, admm_env=admm_env)
+            CALL get_admm_env(admm_env, task_list_aux_fit=task_list_aux_fit)
             CALL qs_rho_get(p_env%rho1_admm, rho_r=rho1_aux_r, rho_g=rho1_aux_g)
             xc_section => admm_env%xc_section_aux
             bo = rho1_aux_r(1)%pw%pw_grid%bounds_local

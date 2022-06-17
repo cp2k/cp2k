@@ -51,8 +51,7 @@ MODULE qs_environment_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
-                                              has_nlcc,&
+   USE qs_kind_types,                   ONLY: has_nlcc,&
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
@@ -93,8 +92,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_env_setup'
 
-      INTEGER                                            :: handle, n_ao_aux_fit, nhistory, &
-                                                            nvariables
+      INTEGER                                            :: handle, nhistory, nvariables
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: gradient_history, outer_scf_history, &
                                                             variable_history
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -163,14 +161,6 @@ CONTAINS
       ! XXXX should get rid of the mpools
       IF (ASSOCIATED(qs_env%mos)) THEN
          CALL mpools_rebuild_fm_pools(qs_env%mpools, mos=qs_env%mos, &
-                                      blacs_env=blacs_env, para_env=para_env)
-      END IF
-
-      ! If we use auxiliary density matrix methods rebuild fm_pools
-      IF (dft_control%do_admm) THEN
-         CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao_aux_fit, &
-                              basis_type="AUX_FIT")
-         CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit, mos=qs_env%mos_aux_fit, &
                                       blacs_env=blacs_env, para_env=para_env)
       END IF
 

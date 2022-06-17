@@ -13,6 +13,7 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_rho_methods
+   USE admm_types,                      ONLY: get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -149,7 +150,7 @@ CONTAINS
 
       IF (my_admm) THEN
          CPASSERT(.NOT. do_kpoints)
-         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s, sab_aux_fit=sab_orb)
+         CALL get_admm_env(qs_env%admm_env, sab_aux_fit=sab_orb, matrix_s_aux_fit=matrix_s)
          refmatrix => matrix_s(1)%matrix
       ELSE
          CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp, sab_orb=sab_orb)

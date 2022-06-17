@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_forces
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -662,8 +663,9 @@ CONTAINS
             ! nothing to do
          ELSE
             ! add ADMM xc_section_aux terms: f_x[rhoz_ADMM]
-            CALL get_qs_env(qs_env, admm_env=admm_env, rho_aux_fit=rho_aux_fit, &
-                            matrix_s_aux_fit=msaux, task_list_aux_fit=task_list_aux_fit)
+            CALL get_qs_env(qs_env, admm_env=admm_env)
+            CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit, matrix_s_aux_fit=msaux, &
+                              task_list_aux_fit=task_list_aux_fit)
             !
             NULLIFY (mpe, mhz)
             ALLOCATE (mpe(nspins, 1))
@@ -760,7 +762,8 @@ CONTAINS
                          s_mstruct_changed=s_mstruct_changed)
          distribute_fock_matrix = .TRUE.
          IF (dft_control%do_admm) THEN
-            CALL get_qs_env(qs_env, admm_env=admm_env, matrix_s_aux_fit=msaux)
+            CALL get_qs_env(qs_env, admm_env=admm_env)
+            CALL get_admm_env(admm_env, matrix_s_aux_fit=msaux)
             NULLIFY (mpe, mhz)
             ALLOCATE (mpe(nspins, 1))
             CALL dbcsr_allocate_matrix_set(mhz, nspins, 1)

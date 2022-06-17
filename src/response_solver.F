@@ -15,7 +15,9 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE response_solver
-   USE admm_types,                      ONLY: admm_type
+   USE admm_methods,                    ONLY: admm_projection_derivative
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cell_types,                      ONLY: cell_type
@@ -43,9 +45,8 @@ MODULE response_solver
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE ec_env_types,                    ONLY: energy_correction_type
    USE ec_methods,                      ONLY: create_kernel,&
                                               ec_mos_init
@@ -107,8 +108,7 @@ MODULE response_solver
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_force_types,                  ONLY: add_qs_force,&
-                                              qs_force_type,&
+   USE qs_force_types,                  ONLY: qs_force_type,&
                                               total_qs_force
    USE qs_fxc,                          ONLY: qs_fxc_analytic,&
                                               qs_fxc_fdiff
@@ -130,8 +130,7 @@ MODULE response_solver
                                               get_mo_set,&
                                               mo_set_p_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_overlap,                      ONLY: build_overlap_force,&
-                                              build_overlap_matrix
+   USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_p_env_methods,                ONLY: p_env_create,&
                                               p_env_psi0_changed
    USE qs_p_env_types,                  ONLY: p_env_release,&
@@ -163,7 +162,7 @@ MODULE response_solver
    LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
-             ks_ref_potential, admm_projection_derivative, response_equation_new
+             ks_ref_potential, response_equation_new
 
 ! **************************************************************************************************
 
@@ -335,7 +334,7 @@ CONTAINS
             CALL cp_dbcsr_alloc_block_from_nbl(p_env%w1(ispin)%matrix, sab_orb)
          END DO
          IF (dft_control%do_admm) THEN
-            CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux)
+            CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux)
             CALL dbcsr_allocate_matrix_set(p_env%p1_admm, nspins)
             DO ispin = 1, nspins
                ALLOCATE (p_env%p1_admm(ispin)%matrix)
@@ -713,7 +712,7 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(p_env%w1(ispin)%matrix, sab_orb)
       END DO
       IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s_aux)
+         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux)
          CALL dbcsr_allocate_matrix_set(p_env%p1_admm, nspins)
          DO ispin = 1, nspins
             ALLOCATE (p_env%p1_admm(ispin)%matrix)
@@ -1532,8 +1531,9 @@ CONTAINS
             NULLIFY (mpz, mhz, mhx, mhy)
          ELSE
             ! add ADMM xc_section_aux terms: Pz*Vxc + P0*K0[rhoz]
-            CALL get_qs_env(qs_env, admm_env=admm_env, rho_aux_fit=rho_aux_fit, &
-                            matrix_s_aux_fit=scrm, task_list_aux_fit=task_list_aux_fit)
+            CALL get_qs_env(qs_env, admm_env=admm_env)
+            CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit, matrix_s_aux_fit=scrm, &
+                              task_list_aux_fit=task_list_aux_fit)
             !
             NULLIFY (mpz, mhz, mhx, mhy)
             CALL dbcsr_allocate_matrix_set(mhx, nspins, 1)
@@ -1665,8 +1665,7 @@ CONTAINS
          distribute_fock_matrix = .TRUE.
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env=qs_env, admm_env=admm_env)
-            CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=scrm)
-            CALL get_qs_env(qs_env=qs_env, rho_aux_fit=rho_aux_fit)
+            CALL get_admm_env(admm_env, matrix_s_aux_fit=scrm, rho_aux_fit=rho_aux_fit)
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
             NULLIFY (mpz, mhz, mpd, mhd)
             CALL dbcsr_allocate_matrix_set(mpz, nspins, 1)
@@ -1750,7 +1749,8 @@ CONTAINS
                END DO
             END IF
             CALL qs_rho_get(rho, rho_ao=matrix_pd)
-            CALL admm_projection_derivative(qs_env, admm_env, mhd, mhz, matrix_pd, mpa)
+            CALL admm_projection_derivative(qs_env, mhd(:, 1), mpa)
+            CALL admm_projection_derivative(qs_env, mhz(:, 1), matrix_pd)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%overlap_admm(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
@@ -2105,117 +2105,6 @@ CONTAINS
    END SUBROUTINE response_force_xtb
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param admm_env ...
-!> \param matrix_hd ...
-!> \param matrix_hz ...
-!> \param matrix_pd ...
-!> \param matrix_pz ...
-! **************************************************************************************************
-   SUBROUTINE admm_projection_derivative(qs_env, admm_env, matrix_hd, matrix_hz, matrix_pd, matrix_pz)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_hd, matrix_hz
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_pd, matrix_pz
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_projection_derivative', &
-         routineP = moduleN//':'//routineN
-
-      INTEGER                                            :: handle, ispin, nao, natom, naux, nspins
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
-      TYPE(dbcsr_type), POINTER                          :: matrix_w_q, matrix_w_s
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux_fit_asymm, sab_aux_fit_vs_orb
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(ASSOCIATED(admm_env))
-      CPASSERT(ASSOCIATED(matrix_hd))
-      CPASSERT(ASSOCIATED(matrix_pd))
-      CPASSERT(ASSOCIATED(matrix_hz))
-      CPASSERT(ASSOCIATED(matrix_pz))
-
-      CALL get_qs_env(qs_env, &
-                      ks_env=ks_env, &
-                      matrix_s_aux_fit=matrix_s_aux_fit, &
-                      matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                      sab_aux_fit_vs_orb=sab_aux_fit_vs_orb, &
-                      sab_aux_fit_asymm=sab_aux_fit_asymm)
-
-      ALLOCATE (matrix_w_q)
-      CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
-                      "W MATRIX AUX Q")
-      CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_q, sab_aux_fit_vs_orb)
-      ALLOCATE (matrix_w_s)
-      CALL dbcsr_create(matrix_w_s, template=matrix_s_aux_fit(1)%matrix, &
-                        name='W MATRIX AUX S', &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(matrix_w_s, sab_aux_fit_asymm)
-
-      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                      natom=natom, force=force)
-      ALLOCATE (admm_force(3, natom))
-
-      nspins = SIZE(matrix_pz)
-      nao = admm_env%nao_orb
-      naux = admm_env%nao_aux_fit
-      DO ispin = 1, nspins
-         CALL copy_dbcsr_to_fm(matrix_hd(ispin, 1)%matrix, admm_env%work_aux_aux)
-         CALL cp_gemm("N", "N", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
-                      admm_env%work_aux_aux, 0.0_dp, admm_env%work_aux_aux2)
-         CALL cp_gemm("N", "N", naux, nao, naux, 1.0_dp, admm_env%work_aux_aux2, &
-                      admm_env%A, 0.0_dp, admm_env%work_aux_orb)
-         CALL copy_dbcsr_to_fm(matrix_pz(ispin)%matrix, admm_env%work_orb_orb)
-         ! admm_env%work_aux_orb2 = S-1*H(D)*A*PZ
-         CALL cp_gemm("N", "N", naux, nao, nao, 1.0_dp, admm_env%work_aux_orb, &
-                      admm_env%work_orb_orb, 0.0_dp, admm_env%work_aux_orb2)
-
-         CALL copy_dbcsr_to_fm(matrix_hz(ispin, 1)%matrix, admm_env%work_aux_aux)
-         CALL cp_gemm("N", "N", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
-                      admm_env%work_aux_aux, 0.0_dp, admm_env%work_aux_aux2)
-         CALL cp_gemm("N", "N", naux, nao, naux, 1.0_dp, admm_env%work_aux_aux2, &
-                      admm_env%A, 0.0_dp, admm_env%work_aux_orb)
-         CALL copy_dbcsr_to_fm(matrix_pd(ispin)%matrix, admm_env%work_orb_orb)
-         ! admm_env%work_aux_orb2 = S-1*H(Z)*A*PD
-         CALL cp_gemm("N", "N", naux, nao, nao, 1.0_dp, admm_env%work_aux_orb, &
-                      admm_env%work_orb_orb, 1.0_dp, admm_env%work_aux_orb2)
-
-         ! admm_env%work_aux_aux = [S-1*H(D)*A*PZ+S-1*H(Z)*A*PD]*A(T)
-         CALL cp_gemm("N", "T", naux, naux, nao, 1.0_dp, admm_env%work_aux_orb2, &
-                      admm_env%A, 0.0_dp, admm_env%work_aux_aux)
-         !
-         CALL copy_fm_to_dbcsr(admm_env%work_aux_orb2, matrix_w_q, keep_sparsity=.TRUE.)
-         CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s, keep_sparsity=.TRUE.)
-! focc = 2?
-         CALL dbcsr_scale(matrix_w_q, -2.0_dp)
-         CALL dbcsr_scale(matrix_w_s, 2.0_dp)
-         !
-         admm_force = 0.0_dp
-         CALL build_overlap_force(ks_env, admm_force, &
-                                  basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
-                                  sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s)
-         CALL build_overlap_force(ks_env, admm_force, &
-                                  basis_type_a="AUX_FIT", basis_type_b="ORB", &
-                                  sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q)
-         ! add forces
-         CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
-      END DO
-
-      DEALLOCATE (admm_force)
-      CALL dbcsr_deallocate_matrix(matrix_w_s)
-      CALL dbcsr_deallocate_matrix(matrix_w_q)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE admm_projection_derivative
-
-! **************************************************************************************************
 !> \brief calculate the Kohn-Sham reference potential
 !> \param qs_env ...
 !> \param vh_rspace ...
@@ -2320,7 +2209,7 @@ CONTAINS
                CALL get_qs_env(qs_env, virial=virial)
                virial_xc = virial%pv_xc
             END IF
-            CALL get_qs_env(qs_env, rho_aux_fit=rho)
+            CALL get_admm_env(admm_env, rho_aux_fit=rho)
             xc_section => admm_env%xc_section_aux
             CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
                                vxc_rho=v_admm_rspace, vxc_tau=v_admm_tau_rspace, exc=eadmm, just_energy=.FALSE.)

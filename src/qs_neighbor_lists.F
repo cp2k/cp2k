@@ -326,9 +326,8 @@ CONTAINS
       TYPE(local_atoms_type), ALLOCATABLE, DIMENSION(:)  :: atom2d
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: saa_list, sab_all, sab_almo, &
-         sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, sab_core, sab_gcp, sab_kp, &
-         sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sab_xb, sab_xtb_nonbond, sac_ae, &
-         sac_lri, sac_ppl, sap_oce, sap_ppnl, soa_list, soo_list
+         sab_cn, sab_core, sab_gcp, sab_kp, sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, &
+         sab_xb, sab_xtb_nonbond, sac_ae, sac_lri, sac_ppl, sap_oce, sap_ppnl, soa_list, soo_list
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom
@@ -362,8 +361,6 @@ CONTAINS
       NULLIFY (sab_all)
       NULLIFY (sab_vdw)
       NULLIFY (sab_cn)
-      NULLIFY (sab_aux_fit)
-      NULLIFY (sab_aux_fit_vs_orb)
       NULLIFY (soo_list)
       NULLIFY (sab_scp)
       NULLIFY (sab_almo)
@@ -390,9 +387,6 @@ CONTAINS
 
       CALL get_ks_env(ks_env=ks_env, &
                       sab_orb=sab_orb, &
-                      sab_aux_fit=sab_aux_fit, &
-                      sab_aux_fit_vs_orb=sab_aux_fit_vs_orb, &
-                      sab_aux_fit_asymm=sab_aux_fit_asymm, &
                       sac_ae=sac_ae, &
                       sac_ppl=sac_ppl, &
                       sac_lri=sac_lri, &
@@ -604,28 +598,6 @@ CONTAINS
          CALL set_ks_env(ks_env=ks_env, sab_core=sab_core)
          CALL write_neighbor_lists(sab_core, particle_set, cell, para_env, neighbor_list_section, &
                                    "/SAB_CORE", "sab_core", "CORE CORE")
-      END IF
-
-      IF (dft_control%do_admm) THEN
-         CALL pair_radius_setup(aux_fit_present, aux_fit_present, aux_fit_radius, aux_fit_radius, pair_radius)
-         CALL build_neighbor_lists(sab_aux_fit, particle_set, atom2d, cell, pair_radius, &
-                                   mic=mic, molecular=molecule_only, subcells=subcells, nlname="sab_aux_fit")
-         CALL build_neighbor_lists(sab_aux_fit_asymm, particle_set, atom2d, cell, pair_radius, &
-                                   mic=mic, symmetric=.FALSE., molecular=molecule_only, subcells=subcells, &
-                                   nlname="sab_aux_fit_asymm")
-         CALL pair_radius_setup(aux_fit_present, orb_present, aux_fit_radius, orb_radius, pair_radius)
-         CALL build_neighbor_lists(sab_aux_fit_vs_orb, particle_set, atom2d, cell, pair_radius, &
-                                   mic=mic, symmetric=.FALSE., molecular=molecule_only, subcells=subcells, &
-                                   nlname="sab_aux_fit_vs_orb")
-
-         CALL set_ks_env(ks_env=ks_env, sab_aux_fit=sab_aux_fit)
-         CALL set_ks_env(ks_env=ks_env, sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
-         CALL set_ks_env(ks_env=ks_env, sab_aux_fit_asymm=sab_aux_fit_asymm)
-
-         CALL write_neighbor_lists(sab_aux_fit, particle_set, cell, para_env, neighbor_list_section, &
-                                   "/SAB_AUX_FIT", "sab_aux_fit", "AUX_FIT_ORBITAL AUX_FIT_ORBITAL")
-         CALL write_neighbor_lists(sab_aux_fit_vs_orb, particle_set, cell, para_env, neighbor_list_section, &
-                                   "/SAB_AUX_FIT_VS_ORB", "sab_aux_fit_vs_orb", "ORBITAL AUX_FIT_ORBITAL")
       END IF
 
       IF (dokp) THEN

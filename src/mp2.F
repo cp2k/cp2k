@@ -141,7 +141,7 @@ CONTAINS
                                                             fm_matrix_work, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_transl, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_basis_info_type)                          :: basis_info
@@ -215,7 +215,6 @@ CONTAINS
                          virial=virial, &
                          matrix_ks=matrix_ks, &
                          matrix_s=matrix_s, &
-                         matrix_ks_aux_fit=matrix_ks_aux, &
                          mp2_env=mp2_env, &
                          admm_env=admm_env)
 

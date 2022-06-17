@@ -20,7 +20,8 @@
 ! **************************************************************************************************
 
 MODULE qs_ks_utils
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -1250,14 +1251,10 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       pw_env=pw_env, &
-                      matrix_ks_aux_fit=matrix_ks_aux_fit, &
-                      matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft, &
                       v_hartree_rspace=v_rspace%pw, &
-                      rho_aux_fit=rho_aux_fit, &
                       vee=vee)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-      CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
@@ -1564,6 +1561,9 @@ CONTAINS
       ! Add contributions from ADMM if requested
       IF (dft_control%do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
+         CALL get_admm_env(admm_env, matrix_ks_aux_fit=matrix_ks_aux_fit, rho_aux_fit=rho_aux_fit, &
+                           matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft)
+         CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
          IF (ASSOCIATED(v_rspace_new_aux_fit)) THEN
             DO ispin = 1, nspins
                ! Calculate the xc potential
@@ -1580,7 +1580,7 @@ CONTAINS
                IF (admm_env%aux_exch_func .NE. do_admm_aux_exch_func_none) THEN
 
                   !GPW by default. IF GAPW, then take relevant task list and basis
-                  CALL get_qs_env(qs_env, task_list_aux_fit=task_list)
+                  CALL get_admm_env(admm_env, task_list_aux_fit=task_list)
                   basis_type = "AUX_FIT"
                   IF (admm_env%do_gapw) THEN
                      task_list => admm_env%admm_gapw_env%task_list

@@ -13,8 +13,6 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_ks_types
-   USE admm_dm_types,                   ONLY: admm_dm_release,&
-                                              admm_dm_type
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type
@@ -162,19 +160,11 @@ MODULE qs_ks_types
 
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_im => Null(), &
                                                             matrix_p_mp2 => Null(), &
-                                                            matrix_p_mp2_admm => Null(), &
-                                                            matrix_s_aux_fit => Null(), &
-                                                            matrix_s_aux_fit_vs_orb => Null(), &
-                                                            matrix_ks_aux_fit => Null(), &
-                                                            matrix_ks_aux_fit_im => Null(), &
-                                                            matrix_ks_aux_fit_dft => Null(), &
-                                                            matrix_ks_aux_fit_hfx => Null()
+                                                            matrix_p_mp2_admm => Null()
 
       TYPE(qs_rho_type), POINTER                            :: rho => Null(), &
                                                                rho_buffer => Null(), &
-                                                               rho_xc => Null(), &
-                                                               rho_aux_fit => Null(), &
-                                                               rho_aux_fit_buffer => Null()
+                                                               rho_xc => Null()
 
       TYPE(pw_p_type), POINTER                              :: rho_core => Null(), &
                                                                vppl => Null(), &
@@ -197,15 +187,11 @@ MODULE qs_ks_types
                                                                sab_xb => Null(), &
                                                                sab_xtb_nonbond => Null(), &
                                                                sab_all => Null(), &
-                                                               sab_aux_fit => Null(), &
-                                                               sab_aux_fit_vs_orb => Null(), &
-                                                               sab_aux_fit_asymm => Null(), &
                                                                sab_lrc => Null(), &
                                                                sab_almo => Null(), &
                                                                sab_kp => Null()
 
       TYPE(task_list_type), POINTER                         :: task_list => Null()
-      TYPE(task_list_type), POINTER                         :: task_list_aux_fit => Null()
       TYPE(task_list_type), POINTER                         :: task_list_soft => Null()
 
       TYPE(kpoint_type), POINTER                            :: kpoints => Null()
@@ -216,7 +202,6 @@ MODULE qs_ks_types
       TYPE(pw_env_type), POINTER                            :: pw_env => Null()
       TYPE(cp_para_env_type), POINTER                       :: para_env => Null()
       TYPE(cp_blacs_env_type), POINTER                      :: blacs_env => Null()
-      TYPE(admm_dm_type), POINTER                           :: admm_dm => Null()
    END TYPE qs_ks_env_type
 
 ! **************************************************************************************************
@@ -243,8 +228,6 @@ CONTAINS
       IF (ASSOCIATED(ks_env)) CPABORT("ks_env already associated")
       ALLOCATE (ks_env)
       CALL qs_rho_create(ks_env%rho)
-      CALL qs_rho_create(ks_env%rho_aux_fit)
-      CALL qs_rho_create(ks_env%rho_aux_fit_buffer)
       CALL qs_rho_create(ks_env%rho_xc)
       CALL qs_rho_create(ks_env%rho_buffer)
    END SUBROUTINE qs_ks_env_create
@@ -261,14 +244,8 @@ CONTAINS
 !> \param matrix_ks ...
 !> \param matrix_ks_im ...
 !> \param matrix_vxc ...
-!> \param matrix_ks_aux_fit ...
-!> \param matrix_ks_aux_fit_im ...
-!> \param matrix_ks_aux_fit_dft ...
-!> \param matrix_ks_aux_fit_hfx ...
 !> \param kinetic ...
 !> \param matrix_s ...
-!> \param matrix_s_aux_fit ...
-!> \param matrix_s_aux_fit_vs_orb ...
 !> \param matrix_s_RI_aux ...
 !> \param matrix_w ...
 !> \param matrix_p_mp2 ...
@@ -281,8 +258,6 @@ CONTAINS
 !> \param matrix_w_kp ...
 !> \param matrix_s_RI_aux_kp ...
 !> \param rho ...
-!> \param rho_aux_fit ...
-!> \param rho_aux_fit_buffer ...
 !> \param rho_buffer ...
 !> \param rho_xc ...
 !> \param vppl ...
@@ -292,9 +267,6 @@ CONTAINS
 !> \param vee ...
 !> \param neighbor_list_id ...
 !> \param sab_orb ...
-!> \param sab_aux_fit ...
-!> \param sab_aux_fit_asymm ...
-!> \param sab_aux_fit_vs_orb ...
 !> \param sab_all ...
 !> \param sac_ae ...
 !> \param sac_ppl ...
@@ -312,7 +284,6 @@ CONTAINS
 !> \param sab_almo ...
 !> \param sab_kp ...
 !> \param task_list ...
-!> \param task_list_aux_fit ...
 !> \param task_list_soft ...
 !> \param kpoints ...
 !> \param do_kpoints ...
@@ -343,55 +314,47 @@ CONTAINS
 !> \param blacs_env ...
 !> \param nelectron_total ...
 !> \param nelectron_spin ...
-!> \param admm_dm ...
 ! **************************************************************************************************
    SUBROUTINE get_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, &
                          potential_changed, forces_up_to_date, &
-                         matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, matrix_ks_aux_fit, &
-                         matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
-                         kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
+                         matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, &
+                         kinetic, matrix_s, &
                          matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          matrix_s_RI_aux_kp, &
-                         rho, rho_aux_fit, rho_aux_fit_buffer, &
+                         rho, &
                          rho_buffer, rho_xc, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
                          neighbor_list_id, &
-                         sab_orb, sab_aux_fit, sab_aux_fit_asymm, &
-                         sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
+                         sab_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
                          sab_se, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, &
-                         task_list, task_list_aux_fit, task_list_soft, &
+                         task_list, task_list_soft, &
                          kpoints, do_kpoints, &
                          atomic_kind_set, qs_kind_set, cell, cell_ref, use_ref_cell, &
                          particle_set, energy, force, local_particles, local_molecules, &
                          molecule_kind_set, molecule_set, subsys, cp_subsys, virial, results, atprop, &
                          nkind, natom, dft_control, dbcsr_dist, distribution_2d, pw_env, &
-                         para_env, blacs_env, nelectron_total, nelectron_spin, admm_dm)
+                         para_env, blacs_env, nelectron_total, nelectron_spin)
 
       TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
-         matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
-         matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-         matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm
+         matrix_vxc, kinetic, matrix_s, matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
                                                             matrix_s_kp, matrix_w_kp, &
                                                             matrix_s_RI_aux_kp
-      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_aux_fit, rho_aux_fit_buffer, &
-                                                            rho_buffer, rho_xc
+      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_buffer, rho_xc
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_aux_fit, &
-         sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, &
-         sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, &
-         sab_almo, sab_kp
-      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_aux_fit, &
-                                                            task_list_soft
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
+         sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, &
+         sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp
+      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_soft
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       LOGICAL, OPTIONAL                                  :: do_kpoints
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
@@ -424,7 +387,6 @@ CONTAINS
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
       INTEGER, OPTIONAL                                  :: nelectron_total
       INTEGER, DIMENSION(2), OPTIONAL                    :: nelectron_spin
-      TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
 
       IF (ks_env%ref_count < 1) CPABORT("get_ks_env: ks_env%ref_count<1")
       IF (.NOT. ASSOCIATED(ks_env%subsys)) CPABORT("get_ks_env: subsys not associated")
@@ -452,17 +414,9 @@ CONTAINS
       IF (PRESENT(matrix_vxc_kp)) matrix_vxc_kp => get_2d_pointer(ks_env%matrix_vxc)
 
       IF (PRESENT(matrix_ks_im)) matrix_ks_im => ks_env%matrix_ks_im
-      IF (PRESENT(matrix_ks_aux_fit)) matrix_ks_aux_fit => ks_env%matrix_ks_aux_fit
-      IF (PRESENT(matrix_ks_aux_fit_im)) matrix_ks_aux_fit_im => ks_env%matrix_ks_aux_fit_im
-      IF (PRESENT(matrix_ks_aux_fit_dft)) matrix_ks_aux_fit_dft => ks_env%matrix_ks_aux_fit_dft
-      IF (PRESENT(matrix_ks_aux_fit_hfx)) matrix_ks_aux_fit_hfx => ks_env%matrix_ks_aux_fit_hfx
-      IF (PRESENT(matrix_s_aux_fit)) matrix_s_aux_fit => ks_env%matrix_s_aux_fit
-      IF (PRESENT(matrix_s_aux_fit_vs_orb)) matrix_s_aux_fit_vs_orb => ks_env%matrix_s_aux_fit_vs_orb
       IF (PRESENT(matrix_p_mp2)) matrix_p_mp2 => ks_env%matrix_p_mp2
       IF (PRESENT(matrix_p_mp2_admm)) matrix_p_mp2_admm => ks_env%matrix_p_mp2_admm
       IF (PRESENT(rho)) rho => ks_env%rho
-      IF (PRESENT(rho_aux_fit)) rho_aux_fit => ks_env%rho_aux_fit
-      IF (PRESENT(rho_aux_fit_buffer)) rho_aux_fit_buffer => ks_env%rho_aux_fit_buffer
       IF (PRESENT(rho_buffer)) rho_buffer => ks_env%rho_buffer
       IF (PRESENT(rho_xc)) rho_xc => ks_env%rho_xc
       IF (PRESENT(rho_core)) rho_core => ks_env%rho_core
@@ -473,9 +427,6 @@ CONTAINS
 
       IF (PRESENT(neighbor_list_id)) neighbor_list_id = ks_env%neighbor_list_id
       IF (PRESENT(sab_orb)) sab_orb => ks_env%sab_orb
-      IF (PRESENT(sab_aux_fit)) sab_aux_fit => ks_env%sab_aux_fit
-      IF (PRESENT(sab_aux_fit_asymm)) sab_aux_fit_asymm => ks_env%sab_aux_fit_asymm
-      IF (PRESENT(sab_aux_fit_vs_orb)) sab_aux_fit_vs_orb => ks_env%sab_aux_fit_vs_orb
       IF (PRESENT(sab_all)) sab_all => ks_env%sab_all
       IF (PRESENT(sab_vdw)) sab_vdw => ks_env%sab_vdw
       IF (PRESENT(sab_scp)) sab_scp => ks_env%sab_scp
@@ -498,10 +449,8 @@ CONTAINS
       IF (PRESENT(pw_env)) pw_env => ks_env%pw_env
       IF (PRESENT(para_env)) para_env => ks_env%para_env
       IF (PRESENT(blacs_env)) blacs_env => ks_env%blacs_env
-      IF (PRESENT(admm_dm)) admm_dm => ks_env%admm_dm
 
       IF (PRESENT(task_list)) task_list => ks_env%task_list
-      IF (PRESENT(task_list_aux_fit)) task_list_aux_fit => ks_env%task_list_aux_fit
       IF (PRESENT(task_list_soft)) task_list_soft => ks_env%task_list_soft
 
       IF (PRESENT(kpoints)) kpoints => ks_env%kpoints
@@ -546,14 +495,8 @@ CONTAINS
 !> \param matrix_ks ...
 !> \param matrix_ks_im ...
 !> \param matrix_vxc ...
-!> \param matrix_ks_aux_fit ...
-!> \param matrix_ks_aux_fit_im ...
-!> \param matrix_ks_aux_fit_dft ...
-!> \param matrix_ks_aux_fit_hfx ...
 !> \param kinetic ...
 !> \param matrix_s ...
-!> \param matrix_s_aux_fit ...
-!> \param matrix_s_aux_fit_vs_orb ...
 !> \param matrix_s_RI_aux ...
 !> \param matrix_w ...
 !> \param matrix_p_mp2 ...
@@ -573,9 +516,6 @@ CONTAINS
 !> \param neighbor_list_id ...
 !> \param kpoints ...
 !> \param sab_orb ...
-!> \param sab_aux_fit ...
-!> \param sab_aux_fit_asymm ...
-!> \param sab_aux_fit_vs_orb ...
 !> \param sab_all ...
 !> \param sac_ae ...
 !> \param sac_ppl ...
@@ -593,7 +533,6 @@ CONTAINS
 !> \param sab_almo ...
 !> \param sab_kp ...
 !> \param task_list ...
-!> \param task_list_aux_fit ...
 !> \param task_list_soft ...
 !> \param subsys ...
 !> \param dft_control ...
@@ -602,34 +541,30 @@ CONTAINS
 !> \param pw_env ...
 !> \param para_env ...
 !> \param blacs_env ...
-!> \param admm_dm ...
 ! **************************************************************************************************
    SUBROUTINE set_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, &
                          potential_changed, forces_up_to_date, &
-                         matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
-                         matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, &
-                         matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm, &
+                         matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, &
+                         kinetic, matrix_s, &
+                         matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          matrix_s_RI_aux_kp, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
                          neighbor_list_id, &
                          kpoints, &
-                         sab_orb, sab_aux_fit, sab_aux_fit_asymm, &
-                         sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
+                         sab_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
                          sab_se, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, &
-                         task_list, task_list_aux_fit, task_list_soft, &
+                         task_list, task_list_soft, &
                          subsys, dft_control, dbcsr_dist, distribution_2d, pw_env, &
-                         para_env, blacs_env, admm_dm)
+                         para_env, blacs_env)
 
       TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
-         matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
-         matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-         matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm
+         matrix_vxc, kinetic, matrix_s, matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
@@ -638,12 +573,10 @@ CONTAINS
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_aux_fit, &
-         sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, &
-         sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, &
-         sab_almo, sab_kp
-      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_aux_fit, &
-                                                            task_list_soft
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
+         sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, &
+         sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp
+      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_soft
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(dft_control_type), OPTIONAL, POINTER          :: dft_control
       TYPE(dbcsr_distribution_type), OPTIONAL, POINTER   :: dbcsr_dist
@@ -651,7 +584,6 @@ CONTAINS
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: blacs_env
-      TYPE(admm_dm_type), OPTIONAL, POINTER              :: admm_dm
 
       IF (ks_env%ref_count < 1) CPABORT("set_ks_env: ks_env%ref_count<1")
 
@@ -685,12 +617,6 @@ CONTAINS
       IF (PRESENT(matrix_s_RI_aux_kp)) CALL set_2d_pointer(ks_env%matrix_s_RI_aux, matrix_s_RI_aux_kp)
 
       IF (PRESENT(matrix_ks_im)) ks_env%matrix_ks_im => matrix_ks_im
-      IF (PRESENT(matrix_ks_aux_fit)) ks_env%matrix_ks_aux_fit => matrix_ks_aux_fit
-      IF (PRESENT(matrix_ks_aux_fit_im)) ks_env%matrix_ks_aux_fit_im => matrix_ks_aux_fit_im
-      IF (PRESENT(matrix_ks_aux_fit_dft)) ks_env%matrix_ks_aux_fit_dft => matrix_ks_aux_fit_dft
-      IF (PRESENT(matrix_ks_aux_fit_hfx)) ks_env%matrix_ks_aux_fit_hfx => matrix_ks_aux_fit_hfx
-      IF (PRESENT(matrix_s_aux_fit)) ks_env%matrix_s_aux_fit => matrix_s_aux_fit
-      IF (PRESENT(matrix_s_aux_fit_vs_orb)) ks_env%matrix_s_aux_fit_vs_orb => matrix_s_aux_fit_vs_orb
       IF (PRESENT(matrix_p_mp2)) ks_env%matrix_p_mp2 => matrix_p_mp2
       IF (PRESENT(matrix_p_mp2_admm)) ks_env%matrix_p_mp2_admm => matrix_p_mp2_admm
       IF (PRESENT(rho_core)) ks_env%rho_core => rho_core
@@ -702,9 +628,6 @@ CONTAINS
       IF (PRESENT(neighbor_list_id)) ks_env%neighbor_list_id = neighbor_list_id
       IF (PRESENT(kpoints)) ks_env%kpoints => kpoints
       IF (PRESENT(sab_orb)) ks_env%sab_orb => sab_orb
-      IF (PRESENT(sab_aux_fit)) ks_env%sab_aux_fit => sab_aux_fit
-      IF (PRESENT(sab_aux_fit_asymm)) ks_env%sab_aux_fit_asymm => sab_aux_fit_asymm
-      IF (PRESENT(sab_aux_fit_vs_orb)) ks_env%sab_aux_fit_vs_orb => sab_aux_fit_vs_orb
       IF (PRESENT(sab_vdw)) ks_env%sab_vdw => sab_vdw
       IF (PRESENT(sab_scp)) ks_env%sab_scp => sab_scp
       IF (PRESENT(sab_all)) ks_env%sab_all => sab_all
@@ -721,10 +644,8 @@ CONTAINS
       IF (PRESENT(sab_xtb_nonbond)) ks_env%sab_xtb_nonbond => sab_xtb_nonbond
       IF (PRESENT(sab_almo)) ks_env%sab_almo => sab_almo
       IF (PRESENT(sab_kp)) ks_env%sab_kp => sab_kp
-      IF (PRESENT(admm_dm)) ks_env%admm_dm => admm_dm
 
       IF (PRESENT(task_list)) ks_env%task_list => task_list
-      IF (PRESENT(task_list_aux_fit)) ks_env%task_list_aux_fit => task_list_aux_fit
       IF (PRESENT(task_list_soft)) ks_env%task_list_soft => task_list_soft
 
       IF (PRESENT(subsys)) THEN
@@ -794,18 +715,6 @@ CONTAINS
             CALL kpoint_transitional_release(ks_env%kinetic)
             CALL kpoint_transitional_release(ks_env%matrix_s_RI_aux)
 
-            IF (ASSOCIATED(ks_env%matrix_ks_aux_fit)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
-            IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_im)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
-            IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_dft)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_dft)
-            IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_hfx)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_hfx)
-            IF (ASSOCIATED(ks_env%matrix_s_aux_fit)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit)
-            IF (ASSOCIATED(ks_env%matrix_s_aux_fit_vs_orb)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit_vs_orb)
             IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
             IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
@@ -816,16 +725,10 @@ CONTAINS
                CALL qs_rho_release(ks_env%rho_buffer)
             IF (ASSOCIATED(ks_env%rho_xc)) &
                CALL qs_rho_release(ks_env%rho_xc)
-            IF (ASSOCIATED(ks_env%rho_aux_fit)) &
-               CALL qs_rho_release(ks_env%rho_aux_fit)
-            IF (ASSOCIATED(ks_env%rho_aux_fit_buffer)) &
-               CALL qs_rho_release(ks_env%rho_aux_fit_buffer)
             IF (ASSOCIATED(ks_env%distribution_2d)) &
                CALL distribution_2d_release(ks_env%distribution_2d)
             IF (ASSOCIATED(ks_env%task_list)) &
                CALL deallocate_task_list(ks_env%task_list)
-            IF (ASSOCIATED(ks_env%task_list_aux_fit)) &
-               CALL deallocate_task_list(ks_env%task_list_aux_fit)
             IF (ASSOCIATED(ks_env%task_list_soft)) &
                CALL deallocate_task_list(ks_env%task_list_soft)
 
@@ -868,9 +771,6 @@ CONTAINS
             CALL release_neighbor_list_sets(ks_env%sab_xb)
             CALL release_neighbor_list_sets(ks_env%sab_xtb_nonbond)
             CALL release_neighbor_list_sets(ks_env%sab_all)
-            CALL release_neighbor_list_sets(ks_env%sab_aux_fit)
-            CALL release_neighbor_list_sets(ks_env%sab_aux_fit_vs_orb)
-            CALL release_neighbor_list_sets(ks_env%sab_aux_fit_asymm)
             CALL release_neighbor_list_sets(ks_env%sab_lrc)
             CALL release_neighbor_list_sets(ks_env%sab_almo)
             CALL release_neighbor_list_sets(ks_env%sab_kp)
@@ -880,7 +780,6 @@ CONTAINS
             CALL pw_env_release(ks_env%pw_env)
             CALL cp_para_env_release(ks_env%para_env)
             CALL cp_blacs_env_release(ks_env%blacs_env)
-            CALL admm_dm_release(ks_env%admm_dm)
 
             DEALLOCATE (ks_env)
          END IF
@@ -912,18 +811,6 @@ CONTAINS
             CALL kpoint_transitional_release(ks_env%kinetic)
             CALL kpoint_transitional_release(ks_env%matrix_s_RI_aux)
 
-            IF (ASSOCIATED(ks_env%matrix_ks_aux_fit)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
-            IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_im)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
-            IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_dft)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_dft)
-            IF (ASSOCIATED(ks_env%matrix_ks_aux_fit_hfx)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_hfx)
-            IF (ASSOCIATED(ks_env%matrix_s_aux_fit)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit)
-            IF (ASSOCIATED(ks_env%matrix_s_aux_fit_vs_orb)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_s_aux_fit_vs_orb)
             IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
             IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
@@ -934,14 +821,8 @@ CONTAINS
                CALL qs_rho_release(ks_env%rho_buffer)
             IF (ASSOCIATED(ks_env%rho_xc)) &
                CALL qs_rho_release(ks_env%rho_xc)
-            IF (ASSOCIATED(ks_env%rho_aux_fit)) &
-               CALL qs_rho_release(ks_env%rho_aux_fit)
-            IF (ASSOCIATED(ks_env%rho_aux_fit_buffer)) &
-               CALL qs_rho_release(ks_env%rho_aux_fit_buffer)
             IF (ASSOCIATED(ks_env%task_list)) &
                CALL deallocate_task_list(ks_env%task_list)
-            IF (ASSOCIATED(ks_env%task_list_aux_fit)) &
-               CALL deallocate_task_list(ks_env%task_list_aux_fit)
             IF (ASSOCIATED(ks_env%task_list_soft)) &
                CALL deallocate_task_list(ks_env%task_list_soft)
 
@@ -979,15 +860,11 @@ CONTAINS
             CALL release_neighbor_list_sets(ks_env%sab_xb)
             CALL release_neighbor_list_sets(ks_env%sab_xtb_nonbond)
             CALL release_neighbor_list_sets(ks_env%sab_all)
-            CALL release_neighbor_list_sets(ks_env%sab_aux_fit)
-            CALL release_neighbor_list_sets(ks_env%sab_aux_fit_vs_orb)
-            CALL release_neighbor_list_sets(ks_env%sab_aux_fit_asymm)
             CALL release_neighbor_list_sets(ks_env%sab_lrc)
             CALL release_neighbor_list_sets(ks_env%sab_almo)
             CALL release_neighbor_list_sets(ks_env%sab_kp)
             CALL kpoint_release(ks_env%kpoints)
             CALL pw_env_release(ks_env%pw_env, ks_env%para_env)
-            CALL admm_dm_release(ks_env%admm_dm)
 
          END IF
       END IF
@@ -1061,7 +938,6 @@ CONTAINS
          ks_env%s_mstruct_changed = .TRUE.
          ! *** deallocate matrices that will have the wrong structure ***
          CALL kpoint_transitional_release(ks_env%matrix_ks)
-         CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit)
          !TODO: deallocate imaginary parts as well
          !CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
          !CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_aux_fit_im)
