@@ -13,12 +13,20 @@
 #include "common/grid_library.h"
 #include "grid_replay.h"
 
-void mpi_sum_func(long *number, int mpi_comm) {
+/*******************************************************************************
+ * \brief Standin for mpi_sum, passed to grid_library_print_stats.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void mpi_sum_func(long *number, int mpi_comm) {
   *number += 0; // Nothing todo without MPI, pretend arguments are used anyways.
   mpi_comm += 0;
 }
 
-void print_func(char *message, int output_unit) {
+/*******************************************************************************
+ * \brief Wrapper for printf, passed to grid_library_print_stats.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void print_func(char *message, int output_unit) {
   output_unit += 0; // Pretend argument is used.
   printf("%s", message);
 }

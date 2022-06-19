@@ -18,6 +18,15 @@
 #include "dbm_mpi.h"
 
 /*******************************************************************************
+ * \brief Wrapper for printf, passed to dbm_library_print_stats.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void print_func(char *message, int output_unit) {
+  (void)output_unit; // mark used
+  printf("%s", message);
+}
+
+/*******************************************************************************
  * \brief Private routine for creating a distribution and an empty matrix.
  * \author Ole Schuett
  ******************************************************************************/
@@ -173,6 +182,7 @@ int main(int argc, char *argv[]) {
     printf("done :-)\n");
   }
 
+  dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, 0);
   dbm_library_finalize();
   dbm_mpi_comm_free(&comm);
   dbm_mpi_finalize();

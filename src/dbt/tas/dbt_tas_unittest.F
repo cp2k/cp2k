@@ -14,7 +14,8 @@ PROGRAM dbt_tas_unittest
                                               dbcsr_init_lib
    USE dbm_api,                         ONLY: dbm_get_name,&
                                               dbm_library_finalize,&
-                                              dbm_library_init
+                                              dbm_library_init,&
+                                              dbm_library_print_stats
    USE dbt_tas_base,                    ONLY: dbt_tas_create,&
                                               dbt_tas_destroy,&
                                               dbt_tas_info,&
@@ -161,6 +162,7 @@ PROGRAM dbt_tas_unittest
    CALL mp_comm_free(mp_comm_C)
    CALL mp_comm_free(mp_comm_Ct)
 
+   CALL dbm_library_print_stats(mp_comm, io_unit)
    CALL dbm_library_finalize()
    CALL dbcsr_finalize_lib() ! Needed for DBM_VALIDATE_AGAINST_DBCSR.
    CALL mp_world_finalize()

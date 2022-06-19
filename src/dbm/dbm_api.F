@@ -6,13 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE dbm_api
-   USE ISO_C_BINDING, ONLY: &
-      C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_F_POINTER, C_INT, C_INT64_T, C_NULL_CHAR, C_NULL_PTR, C_PTR
+   USE ISO_C_BINDING, ONLY: C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_F_POINTER, C_FUNLOC, C_FUNPTR, &
+                            C_INT, C_INT64_T, C_NULL_CHAR, C_NULL_PTR, C_PTR
    USE kinds, ONLY: default_string_length, &
                     dp, &
                     int_8
    USE message_passing, ONLY: mp_cart_rank, &
                               mp_environ
+   USE string_utilities, ONLY: strlcpy_c2f
 
 ! Uncomment the following line to enable validation.
 !#define DBM_VALIDATE_AGAINST_DBCSR
@@ -117,6 +118,7 @@ MODULE dbm_api
 
    PUBLIC :: dbm_library_init
    PUBLIC :: dbm_library_finalize
+   PUBLIC :: dbm_library_print_stats
 
    TYPE dbm_distribution_obj
       PRIVATE
@@ -1499,5 +1501,54 @@ CONTAINS
       CALL dbm_library_finalize_c()
 
    END SUBROUTINE dbm_library_finalize
+
+! **************************************************************************************************
+!> \brief Print DBM library statistics
+!> \param mpi_comm ...
+!> \param output_unit ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE dbm_library_print_stats(mpi_comm, output_unit)
+      INTEGER, INTENT(IN)                                :: mpi_comm, output_unit
+
+      INTERFACE
+         SUBROUTINE dbm_library_print_stats_c(mpi_comm, print_func, output_unit) &
+            BIND(C, name="dbm_library_print_stats")
+            IMPORT :: C_FUNPTR, C_INT
+            INTEGER(KIND=C_INT), VALUE                :: mpi_comm
+            TYPE(C_FUNPTR), VALUE                     :: print_func
+            INTEGER(KIND=C_INT), VALUE                :: output_unit
+         END SUBROUTINE dbm_library_print_stats_c
+      END INTERFACE
+
+      ! Since Fortran units groups can't be used from C, we pass a function pointer instead.
+      CALL dbm_library_print_stats_c(mpi_comm=mpi_comm, &
+                                     print_func=C_FUNLOC(print_func), &
+                                     output_unit=output_unit)
+
+   END SUBROUTINE dbm_library_print_stats
+
+! **************************************************************************************************
+!> \brief Callback to write to a Fortran output unit.
+!> \param message ...
+!> \param output_unit ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE print_func(message, output_unit) BIND(C, name="dbm_api_print_func")
+      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: message(*)
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: output_unit
+
+      CHARACTER(LEN=1000)                                :: buffer
+      INTEGER                                            :: nchars
+
+      IF (output_unit <= 0) &
+         RETURN
+
+      ! Convert C char array into Fortran string.
+      nchars = strlcpy_c2f(buffer, message)
+
+      ! Print the message.
+      WRITE (output_unit, FMT="(A)", ADVANCE="NO") buffer(1:nchars)
+   END SUBROUTINE print_func
 
 END MODULE dbm_api

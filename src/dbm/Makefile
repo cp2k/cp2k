@@ -8,7 +8,7 @@ clean:
 realclean: clean
 	rm -fv *.x
 
-CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra
+CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra -Wno-vla-parameter
 NVARCH := sm_70
 NVFLAGS := -g -O3 -lineinfo -arch $(NVARCH) -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
 

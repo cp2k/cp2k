@@ -46,6 +46,7 @@ MODULE cp2k_runs
                                               dbcsr_init_lib,&
                                               dbcsr_print_config,&
                                               dbcsr_print_statistics
+   USE dbm_api,                         ONLY: dbm_library_print_stats
    USE environment,                     ONLY: cp2k_finalize,&
                                               cp2k_init,&
                                               cp2k_read,&
@@ -423,6 +424,7 @@ CONTAINS
 
       CALL dbcsr_print_statistics()
 
+      CALL dbm_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL grid_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
 
       m_memory_max_mpi = m_memory_max
