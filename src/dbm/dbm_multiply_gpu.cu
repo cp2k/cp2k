@@ -123,15 +123,13 @@ void dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
  * \brief A very naive - but generic - matrix multiplication kernel.
  * \author Ole Schuett
  ******************************************************************************/
-__global__ static void
-process_batch_kernel(const bool transa, const bool transb, const double alpha,
-                     const dbm_task_t *batch, const double *pack_a_data,
-                     const double *pack_b_data, double *shard_c_data) {
+__global__ static void process_batch_kernel(const double alpha,
+                                            const dbm_task_t *batch,
+                                            const double *pack_a_data,
+                                            const double *pack_b_data,
+                                            double *shard_c_data) {
 
   const dbm_task_t task = batch[blockIdx.x];
-  const int lda = (transa) ? task.k : task.m;
-  const int ldb = (transb) ? task.n : task.k;
-  const int ldc = task.m;
   const double *data_a = &pack_a_data[task.offset_a];
   const double *data_b = &pack_b_data[task.offset_b];
   double *data_c = &shard_c_data[task.offset_c];
@@ -139,9 +137,9 @@ process_batch_kernel(const bool transa, const bool transb, const double alpha,
   for (int i = threadIdx.z; i < task.m; i += blockDim.z) {
     for (int j = threadIdx.y; j < task.n; j += blockDim.y) {
       for (int l = threadIdx.x; l < task.k; l += blockDim.x) {
-        const int idx_a = (transa) ? i * lda + l : l * lda + i;
-        const int idx_b = (transb) ? l * ldb + j : j * ldb + l;
-        const int idx_c = j * ldc + i;
+        const int idx_a = l * task.m + i; // transa = "N"
+        const int idx_b = l * task.n + j; // transb = "T"
+        const int idx_c = j * task.m + i;
         const double val = alpha * data_a[idx_a] * data_b[idx_b];
         atomicAddDouble(&data_c[idx_c], val);
       }
@@ -154,7 +152,6 @@ process_batch_kernel(const bool transa, const bool transb, const double alpha,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
-                                    const bool transa, const bool transb,
                                     const double alpha, const int kshard,
                                     dbm_multiply_gpu_context_t *ctx) {
   if (ntasks == 0) {
@@ -198,8 +195,8 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
   const size_t smem_per_block = 0;
   process_batch_kernel<<<nblocks, threads_per_block, smem_per_block,
                          shard_c_dev->stream>>>(
-      transa, transb, alpha, batch_dev, ctx->pack_a_dev.data,
-      ctx->pack_b_dev.data, shard_c_dev->data);
+      alpha, batch_dev, ctx->pack_a_dev.data, ctx->pack_b_dev.data,
+      shard_c_dev->data);
   OFFLOAD_CHECK(offloadGetLastError());
 
   // Wait for batch to be uploaded before refilling it.

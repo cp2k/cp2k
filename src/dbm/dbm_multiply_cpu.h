@@ -17,7 +17,6 @@
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
-                                    const bool transa, const bool transb,
                                     const double alpha,
                                     const dbm_pack_t *pack_a,
                                     const dbm_pack_t *pack_b,

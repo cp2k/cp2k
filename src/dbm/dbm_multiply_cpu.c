@@ -29,20 +29,18 @@ void dgemm_(const char *transa, const char *transb, const int *m, const int *n,
  * \brief Private convenient wrapper to hide Fortran nature of dgemm_.
  * \author Ole Schuett
  ******************************************************************************/
-static inline void dbm_dgemm(const bool transa, const bool transb, const int m,
+static inline void dbm_dgemm(const char transa, const char transb, const int m,
                              const int n, const int k, const double alpha,
                              const double *a, const int lda, const double *b,
                              const int ldb, const double beta, double *c,
                              const int ldc) {
-  const char transa_char = (transa) ? 'T' : 'N';
-  const char transb_char = (transb) ? 'T' : 'N';
 
 #if defined(__LIBXSMM)
-  libxsmm_dgemm(&transa_char, &transb_char, &m, &n, &k, &alpha, a, &lda, b,
-                &ldb, &beta, c, &ldc);
+  libxsmm_dgemm(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta,
+                c, &ldc);
 #else
-  dgemm_(&transa_char, &transb_char, &m, &n, &k, &alpha, a, &lda, b, &ldb,
-         &beta, c, &ldc);
+  dgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c,
+         &ldc);
 #endif
 }
 
@@ -66,7 +64,6 @@ static inline unsigned int hash(const dbm_task_t task) {
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
-                                    const bool transa, const bool transb,
                                     const double alpha,
                                     const dbm_pack_t *pack_a,
                                     const dbm_pack_t *pack_b,
@@ -96,9 +93,7 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
 
   // Prepare arguments for libxsmm_dmmdispatch().
   const double beta = 1.0;
-  int flags = 0;
-  flags |= (transa) ? LIBXSMM_GEMM_FLAG_TRANS_A : 0;
-  flags |= (transb) ? LIBXSMM_GEMM_FLAG_TRANS_B : 0;
+  int flags = LIBXSMM_GEMM_FLAG_TRANS_B;      // transa = "N", transb = "T"
   const int prefetch = LIBXSMM_PREFETCH_NONE; // somehow prefetching is slower
 
   // Loop over tasks.
@@ -123,11 +118,8 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
     if (kernel_func != NULL) {
       kernel_func(data_a, data_b, data_c);
     } else {
-      const int lda = (transa) ? task.k : task.m;
-      const int ldb = (transb) ? task.n : task.k;
-      const int ldc = task.m;
-      dbm_dgemm(transa, transb, task.m, task.n, task.k, alpha, data_a, lda,
-                data_b, ldb, 1.0, data_c, ldc);
+      dbm_dgemm('N', 'T', task.m, task.n, task.k, alpha, data_a, task.m, data_b,
+                task.n, 1.0, data_c, task.m);
     }
   }
 
@@ -136,14 +128,11 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
   // Fallback to BLAS when libxsmm is not available.
   for (int itask = 0; itask < ntasks; itask++) {
     const dbm_task_t task = batch[itask];
-    const int lda = (transa) ? task.k : task.m;
-    const int ldb = (transb) ? task.n : task.k;
-    const int ldc = task.m;
     const double *data_a = &pack_a->data[task.offset_a];
     const double *data_b = &pack_b->data[task.offset_b];
     double *data_c = &shard_c->data[task.offset_c];
-    dbm_dgemm(transa, transb, task.m, task.n, task.k, alpha, data_a, lda,
-              data_b, ldb, 1.0, data_c, ldc);
+    dbm_dgemm('N', 'T', task.m, task.n, task.k, alpha, data_a, task.m, data_b,
+              task.n, 1.0, data_c, task.m);
   }
 
 #endif
