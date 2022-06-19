@@ -43,6 +43,65 @@ __device__ static void atomicAddDouble(double *address, double val) {
 #endif
 }
 
+#define TILE_DIM 8
+
+/*******************************************************************************
+ * \brief A generic matrix multiplication kernel.
+ * \author Ole Schuett
+ ******************************************************************************/
+__global__ static void process_batch_kernel(const double alpha,
+                                            const dbm_task_t *batch,
+                                            const double *pack_a_data,
+                                            const double *pack_b_data,
+                                            double *shard_c_data) {
+
+  __shared__ double tile_a[TILE_DIM][TILE_DIM], tile_b[TILE_DIM][TILE_DIM];
+
+  const dbm_task_t task = batch[blockIdx.x];
+  const double *block_a = &pack_a_data[task.offset_a];
+  const double *block_b = &pack_b_data[task.offset_b];
+  double *block_c = &shard_c_data[task.offset_c];
+
+  for (int i_tile = 0; i_tile < task.m; i_tile += TILE_DIM) {
+    for (int j_tile = 0; j_tile < task.n; j_tile += TILE_DIM) {
+      double result = 0.0;
+      for (int l_tile = 0; l_tile < task.k; l_tile += TILE_DIM) {
+        // Map indicies to threads such that memory reads are coalesced.
+        const int i = i_tile + threadIdx.x;
+        const int j = j_tile + threadIdx.x; // Different from j in final loop!
+        const int l = l_tile + threadIdx.y;
+
+        // Load tile_a from global into shared memory.
+        const int idx_a = l * task.m + i; // transa = "N"
+        const bool load_a = (l < task.k && i < task.m);
+        tile_a[threadIdx.y][threadIdx.x] = (load_a) ? block_a[idx_a] : 0.0;
+
+        // Load tile_b from global into shared memory.
+        const int idx_b = l * task.n + j; // transb = "T"
+        const bool load_b = (l < task.k && j < task.n);
+        tile_b[threadIdx.y][threadIdx.x] = (load_b) ? block_b[idx_b] : 0.0;
+
+        // Multiply tiles from shared memory.
+        __syncthreads();
+#pragma unroll
+        for (int z = 0; z < TILE_DIM; z++) {
+          result += tile_a[z][threadIdx.x] * tile_b[z][threadIdx.y];
+        }
+        __syncthreads();
+      }
+
+      // Add result tile to block_c in global memory.
+      const int i = i_tile + threadIdx.x;
+      const int j = j_tile + threadIdx.y; // Different from j in inner loop!
+      if (i < task.m && j < task.n) {
+        const int idx_c = j * task.m + i;
+        // Need atomics because other thread blocks might work on same block_c.
+        atomicAddDouble(&block_c[idx_c], alpha * result);
+      }
+    }
+  }
+}
+
 /*******************************************************************************
  * \brief Internal routine for intializing the gpu backend.
  * \author Ole Schuett
@@ -122,34 +181,6 @@ void dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
 }
 
 /*******************************************************************************
- * \brief A very naive - but generic - matrix multiplication kernel.
- * \author Ole Schuett
- ******************************************************************************/
-__global__ static void process_batch_kernel(const double alpha,
-                                            const dbm_task_t *batch,
-                                            const double *pack_a_data,
-                                            const double *pack_b_data,
-                                            double *shard_c_data) {
-
-  const dbm_task_t task = batch[blockIdx.x];
-  const double *data_a = &pack_a_data[task.offset_a];
-  const double *data_b = &pack_b_data[task.offset_b];
-  double *data_c = &shard_c_data[task.offset_c];
-
-  for (int i = threadIdx.z; i < task.m; i += blockDim.z) {
-    for (int j = threadIdx.y; j < task.n; j += blockDim.y) {
-      for (int l = threadIdx.x; l < task.k; l += blockDim.x) {
-        const int idx_a = l * task.m + i; // transa = "N"
-        const int idx_b = l * task.n + j; // transb = "T"
-        const int idx_c = j * task.m + i;
-        const double val = alpha * data_a[idx_a] * data_b[idx_b];
-        atomicAddDouble(&data_c[idx_c], val);
-      }
-    }
-  }
-}
-
-/*******************************************************************************
  * \brief Internal routine for executing the tasks in given batch on the GPU.
  * \author Ole Schuett
  ******************************************************************************/
@@ -200,7 +231,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
 
   // Launch kernel.
   const int nblocks = ntasks; // TODO tune launch parameters.
-  const dim3 threads_per_block(4, 4, 4);
+  const dim3 threads_per_block(TILE_DIM, TILE_DIM, 1);
   const size_t smem_per_block = 0;
   process_batch_kernel<<<nblocks, threads_per_block, smem_per_block,
                          shard_c_dev->stream>>>(
