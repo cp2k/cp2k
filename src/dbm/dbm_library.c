@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include <assert.h>
+#include <inttypes.h>
 #include <omp.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -165,8 +166,9 @@ void dbm_library_print_stats(const int fortran_comm,
     const int n = (idx % 16) / 4;
     const int k = (idx % 4) / 1;
     char buffer[100];
-    snprintf(buffer, sizeof(buffer), " %4s  x %4s  x %4s %46li %10.2f%%\n",
-             labels[m], labels[n], labels[k], counters[i][0], percent);
+    snprintf(buffer, sizeof(buffer),
+             " %4s  x %4s  x %4s %46" PRId64 " %10.2f%%\n", labels[m],
+             labels[n], labels[k], counters[i][0], percent);
     print_func(buffer, output_unit);
   }
 
