@@ -13,7 +13,8 @@ PROGRAM dbt_unittest
    USE dbcsr_api,                       ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib
    USE dbm_api,                         ONLY: dbm_library_finalize,&
-                                              dbm_library_init
+                                              dbm_library_init,&
+                                              dbm_library_print_stats
    USE dbt_test,                        ONLY: dbt_contract_test,&
                                               dbt_reset_randmat_seed,&
                                               dbt_setup_test_tensor,&
@@ -781,6 +782,7 @@ PROGRAM dbt_unittest
 ! End tests                                                                                        !
 !--------------------------------------------------------------------------------------------------!
 
+   CALL dbm_library_print_stats(mp_comm, io_unit)
    CALL dbm_library_finalize()
    CALL dbcsr_finalize_lib() ! Needed for DBM_VALIDATE_AGAINST_DBCSR.
 

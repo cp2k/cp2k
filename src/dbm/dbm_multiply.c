@@ -160,6 +160,7 @@ static void multiply_packs(const bool transa, const bool transb,
   const float alpha2 = alpha * alpha;
 
   int64_t flop_sum = 0;
+
 #pragma omp parallel for schedule(dynamic) reduction(+ : flop_sum)
   for (int kshard = 0; kshard < matrix_c->nshards; kshard++) {
     dbm_shard_t *shard_c = &matrix_c->shards[kshard];
@@ -222,6 +223,7 @@ static void multiply_packs(const bool transa, const bool transb,
         // Count flops.
         assert(m * n * k > 0);
         flop_sum += 2 * m * n * k;
+        dbm_library_counter_increment(m, n, k);
 
         // Invalidate norm of C block because its data is going to change.
         blk_c->norm = -1.0;
