@@ -202,7 +202,17 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
       const int row_size = matrix->row_sizes[plan->blk->row];
       const int col_size = matrix->col_sizes[plan->blk->col];
       const int block_size = row_size * col_size;
-      memcpy(&data_send[plan->offset], blk_data, block_size * sizeof(double));
+      double *blk_send = &data_send[plan->offset];
+      if (trans_matrix) {
+        // Transpose block to allow for outer-product style multiplication.
+        for (int i = 0; i < row_size; i++) {
+          for (int j = 0; j < col_size; j++) {
+            blk_send[i * col_size + j] = blk_data[j * row_size + i];
+          }
+        }
+      } else {
+        memcpy(blk_send, blk_data, block_size * sizeof(double));
+      }
       assert(plan->blk->norm >= 0.0);
       blks_send[iblock] = *plan->blk;
       blks_send[iblock].offset = plan->offset; // overwrite offset
