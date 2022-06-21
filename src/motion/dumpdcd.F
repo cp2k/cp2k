@@ -7,7 +7,7 @@
 
 PROGRAM dumpdcd
 
-! Version: 3.1
+! Version: 3.2
 ! Author:  Matthias Krack (MK)
 ! History: - Creation (13.02.2012,MK)
 !          - XYZ file option added (13.02.2012,MK)
@@ -24,6 +24,7 @@ PROGRAM dumpdcd
 !          - Option -eformat added (15.02.2016,MK)
 !          - Fix box unit string for velocity dump (07.06.2020,MK)
 !          - Dump cell information to comment line of XMOL file if requested and available (15.02.2021,MK)
+!          - Write comment line compliant with REFTRAJ format (16.06.2022,MK)
 !
 ! Note: For -ekin a XYZ file is required to obtain the atomic labels.
 !       The -info and the -debug flags provide a more detailed output which is especially handy for tracing problems.
@@ -46,7 +47,7 @@ PROGRAM dumpdcd
 
    ! Parameters
    CHARACTER(LEN=*), PARAMETER :: routineN = "dumpdcd", &
-                                  version_info = routineN//" v3.1 (24.02.2021)"
+                                  version_info = routineN//" v3.2 (16.06.2022)"
 
    INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200), &
                          sp = SELECTED_REAL_KIND(6, 30)
@@ -69,7 +70,7 @@ PROGRAM dumpdcd
    CHARACTER(LEN=5), DIMENSION(:), ALLOCATABLE        :: atomic_label
    CHARACTER(LEN=80), DIMENSION(2)                    :: remark_dcd
    INTEGER                                            :: first_frame, have_unit_cell, i, iarg, iatom, &
-                                                         iframe, iskip, istat, istep, last_frame, narg, &
+                                                         iframe, istat, istep_dcd, istride_dcd, last_frame, narg, &
                                                          natom_dcd, natom_xyz, ndcd_file, nframe, &
                                                          nframe_read, nremark, stride
    LOGICAL                                            :: apply_pbc, debug, dump_frame, eformat, ekin, eo, &
@@ -79,7 +80,7 @@ PROGRAM dumpdcd
                                                          print_scaled_pbc_coordinates, trace_atoms, vel2cord
    REAL(KIND=sp)                                      :: dt_dcd
    REAL(KIND=dp)                                      :: a, a_dcd, alpha, alpha_dcd, b, b_dcd, beta, beta_dcd, c, c_dcd, &
-                                                         cell_volume, dt, eps_angle, eps_geo, eps_out_of_box, &
+                                                         cell_volume, dt, energy, eps_angle, eps_geo, eps_out_of_box, &
                                                          first_step_time, gamma, gamma_dcd, md_time_step, ndt, step_time, &
                                                          tavg, tavg_frame
    INTEGER, DIMENSION(16)                             :: idum
@@ -140,6 +141,7 @@ PROGRAM dumpdcd
    step_time = 0.0_dp
    tavg = 0.0_dp
    tavg_frame = 0.0_dp
+   energy = 0.0_dp
 
    narg = command_argument_count()
 
@@ -487,12 +489,12 @@ PROGRAM dumpdcd
       END IF
 
       ! Read 1st record of DCD file
-      READ (UNIT=input_unit) id_dcd, idum(1), istep, iskip, idum(2:7), dt_dcd, have_unit_cell, idum(8:16)
+      READ (UNIT=input_unit) id_dcd, idum(1), istep_dcd, istride_dcd, idum(2:7), dt_dcd, have_unit_cell, idum(8:16)
       IF (info) THEN
          WRITE (UNIT=error_unit, FMT="(A,2(/,A,I0),/,A,F9.3,/,A,I0)") &
             "# DCD id string   : "//id_dcd, &
-            "# Step            : ", istep, &
-            "# Print frequency : ", iskip, &
+            "# Step            : ", istep_dcd, &
+            "# Print frequency : ", istride_dcd, &
             "# Time step [fs]  : ", dt_dcd, &
             "# Unit cell       : ", have_unit_cell
       END IF
@@ -539,13 +541,19 @@ PROGRAM dumpdcd
          END IF
       END IF
 
+      ! Overwrite MD time step, if requested
+      IF (md_time_step > 0.0_dp) THEN
+         dt_dcd = REAL(md_time_step, KIND=sp)
+         dt = md_time_step
+      ELSE
+         dt = REAL(dt_dcd, KIND=dp)
+      END IF
+
       ! Dump output in DCD format => dcd2dcd functionality
       IF (output_format_dcd) THEN
          IF (vel2cord) id_dcd = "CORD"
-         ! Overwrite MD time step, if supplied
-         IF (md_time_step > 0.0_dp) dt_dcd = REAL(md_time_step, KIND=sp)
          ! Note, dt_dcd is REAL*4 and the rest is INTEGER*4
-         WRITE (UNIT=output_unit) id_dcd, idum(1), istep, iskip, idum(2:7), dt_dcd, have_unit_cell, idum(8:16)
+         WRITE (UNIT=output_unit) id_dcd, idum(1), istep_dcd, istride_dcd, idum(2:7), dt_dcd, have_unit_cell, idum(8:16)
          WRITE (UNIT=output_unit) nremark, remark_dcd(1), remark_dcd(2)
          WRITE (UNIT=output_unit) natom_dcd
       END IF
@@ -626,10 +634,8 @@ PROGRAM dumpdcd
                   ! Check consistency of DCD and cell file information
                   IF (.NOT. ignore_warnings) THEN
                      IF (md_time_step > 0.0_dp) THEN
-                        dt = md_time_step
                         string = "Time step (requested)   ="
                      ELSE
-                        dt = REAL(dt_dcd, KIND=dp)
                         string = "Time step (DCD header)  ="
                      END IF
                      ndt = (step_time - first_step_time)/dt
@@ -862,12 +868,27 @@ PROGRAM dumpdcd
                      END IF
                   ELSE
                      IF (output_format_xmol) THEN
-                        IF (have_cell_file .OR. (have_unit_cell == 1)) THEN
+                        IF (have_cell_file) THEN
                            WRITE (UNIT=output_unit, FMT="(T2,I0,/,3(1X,F14.6),3(1X,F9.3))") &
                               natom_dcd, a, b, c, alpha, beta, gamma
                         ELSE
-                           WRITE (UNIT=output_unit, FMT="(T2,I0,/,A,2(I0,A))") &
-                              natom_dcd, "Frame: ", nframe_read + 1, ", Step: ", nframe, ", "//TRIM(remark_xyz)
+                           IF (have_unit_cell == 1) THEN
+                              WRITE (UNIT=output_unit, FMT="(T2,I0,/,A,I8,A,F12.3,A,F20.10,3(A,F14.6),3(A,F8.3))") &
+                                 natom_dcd, " i = ", istep_dcd + nframe - 1, &
+                                 ", time = ", REAL((nframe - 1)**istride_dcd, KIND=dp)*dt, &
+                                 ", E = ", energy, &
+                                 ", a = ", a, &
+                                 ", b = ", b, &
+                                 ", c = ", c, &
+                                 ", alpha = ", alpha, &
+                                 ", beta  = ", beta, &
+                                 ", gamma = ", gamma
+                           ELSE
+                              WRITE (UNIT=output_unit, FMT="(T2,I0,/,A,I8,A,F12.3,A,F20.10)") &
+                                 natom_dcd, " i = ", istep_dcd + nframe - 1, &
+                                 ", time = ", REAL((nframe - 1)**istride_dcd, KIND=dp)*dt, &
+                                 ", E = ", energy
+                           END IF
                         END IF
                         DO iatom = 1, natom_dcd
                            WRITE (UNIT=output_unit, FMT=fmt_string) ADJUSTL(atomic_label(iatom)), r(iatom, 1:3)
@@ -969,7 +990,7 @@ CONTAINS
 
       error_message = "*** ERROR in "//TRIM(routine)//": "//TRIM(message)//" ***"
       WRITE (UNIT=default_error_unit, FMT="(/,A,/)") TRIM(error_message)
-      STOP "*** ABNORMAL PROGRAM TERMINATION of dumpdcd v3.1 ***"
+      STOP "*** ABNORMAL PROGRAM TERMINATION of dumpdcd v3.2 ***"
 
    END SUBROUTINE abort_program
 
@@ -1310,8 +1331,8 @@ CONTAINS
          " dumpdcd project-pos-1.dcd (without atomic labels from XYZ file)", &
          " dumpdcd -xyz project.xyz project-pos-1.dcd (single DCD file)", &
          " dumpdcd -xyz project.xyz project-pos-1.dcd project-pos-2.dcd ... (multiple DCD files are dumped consecutively)", &
-         " dumpdcd -xyz project.xyz -cell_file project-1.cell -of xmol project-pos-1.dcd (check and print cell parameter to ", &
-         "                                                                                XMOL comment line, e.g. for TRAVIS)", &
+         " dumpdcd -xyz project.xyz -cell_file project-1.cell -of xmol project-pos-1.dcd (check and print cell parameters in ", &
+         "          XMOL comment line, e.g. for TRAVIS, instead of the default REFTRAJ information)", &
          " dumpdcd -info -xyz project.xyz project-pos-1.dcd project-pos-2.dcd (print additional information)", &
          " dumpdcd -debug -xyz project.xyz project-pos-1.dcd project-pos-2.dcd (print debug information)", &
          " dumpdcd -ekin -d -xyz project.xyz project-vel-1.dcd (print the ""temperature"" of each atom)", &
@@ -1330,7 +1351,7 @@ CONTAINS
          " dumpdcd -i -disp project-pos-1.dcd (dump the displacements of all atoms w.r.t. their positions in the first frame)", &
          " dumpdcd -i -of dcd -disp project-pos-1.dcd (dump the atomic displacements as x-coordinates of a DCD CORD file)", &
          " dumpdcd -i -of dcd -ekin -v2c -xyz project.xyz project-vel-1.dcd (dump the atomic temperatures as x-coordinates of a ", &
-         "                                                                   DCD CORD file -> hack for VMD)", &
+         "          DCD CORD file -> hack for VMD)", &
          ""
 
       WRITE (UNIT=*, FMT="(T2,A)") &
