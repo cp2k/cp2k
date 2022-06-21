@@ -74,6 +74,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="OVERLAP_DELTAT", &
+                          description="Keyword for the computation of the overlap matrix between two consecutive time steps.", &
+                          usage="OVERLAP_DELTAT", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_exstate_section
 
 END MODULE input_cp2k_exstate

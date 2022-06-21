@@ -110,10 +110,10 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: description_d, description_p
       INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, iounit, ip1, ip2, iparticle1, &
          iparticle2, iseq, iw, j, k, natoms, ncoord, nfrozen, nrep, nres, nRotTrM, nvib, &
-         output_unit, output_unit_eig, prep, print_grrm, print_scine, proc_dist_type
+         output_unit, output_unit_eig, prep, print_grrm, print_namd, print_scine, proc_dist_type
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
       LOGICAL :: calc_intens, calc_thchdata, do_mode_tracking, intens_ir, intens_raman, &
-         keep_rotations, lprint_namd, row_force, something_frozen
+         keep_rotations, row_force, something_frozen
       REAL(KIND=dp)                                      :: a1, a2, a3, conver, dummy, dx, &
                                                             inertia(3), minimum_energy, norm, &
                                                             tc_press, tc_temp, tmp
@@ -167,7 +167,7 @@ CONTAINS
       CALL section_vals_val_get(vib_section, "THERMOCHEMISTRY", l_val=calc_thchdata)
       CALL section_vals_val_get(vib_section, "TC_TEMPERATURE", r_val=tc_temp)
       CALL section_vals_val_get(vib_section, "TC_PRESSURE", r_val=tc_press)
-      CALL section_vals_val_get(vib_section, "NAMD_PRINT", l_val=lprint_namd)
+
       tc_temp = tc_temp*kelvin
       tc_press = tc_press*pascal
 
@@ -520,6 +520,52 @@ CONTAINS
             END IF
             CALL cp_print_key_finished_output(print_scine, logger, force_env_section, "PRINT%SCINE")
             !
+            ! Print NEWTONX interface file
+            print_namd = cp_print_key_unit_nr(logger, print_section, "NAMD_PRINT", &
+                                              extension=".eig", file_status="REPLACE", &
+                                              file_action="WRITE", do_backup=.TRUE., &
+                                              file_form="UNFORMATTED")
+            IF (print_namd > 0) THEN
+               ! NewtonX requires normalized Cartesian frequencies and eigenvectors
+               ! in full matrix format (ncoord x ncoord)
+               NULLIFY (Dfull)
+               ALLOCATE (Dfull(ncoord, ncoord))
+               ALLOCATE (Hint2Dfull(SIZE(Dfull, 2), SIZE(Dfull, 2)))
+               ALLOCATE (HeigvalDfull(SIZE(Dfull, 2)))
+               ALLOCATE (MatM(ncoord, ncoord))
+               ALLOCATE (rmass(SIZE(Dfull, 2)))
+               Dfull = 0.0_dp
+               ! Dfull in dimension of degrees of freedom
+               CALL build_D_matrix(RotTrM, nRotTrM, Dfull, full=.TRUE., natoms=natoms)
+               ! TEST MatM = MATMUL(TRANSPOSE(Dfull),Dfull)= 1
+               ! Hessian in MWC -> Hessian in INT (Hint2Dfull)
+               Hint2Dfull(:, :) = MATMUL(TRANSPOSE(Dfull), MATMUL(Hessian, Dfull))
+               ! Heig = L^T Hint2Dfull L
+               CALL diamat_all(Hint2Dfull, HeigvalDfull)
+               ! TEST  MatM = MATMUL(TRANSPOSE(Hint2Dfull),Hint2Dfull) = 1
+               ! TEST MatM=MATMUL(TRANSPOSE(MATMUL(Dfull,Hint2Dfull)),MATMUL(Dfull,Hint2Dfull)) = 1
+               MatM = 0.0_dp
+               DO i = 1, natoms
+                  DO j = 1, 3
+                     MatM((i - 1)*3 + j, (i - 1)*3 + j) = 1.0_dp/mass(i) ! mass is sqrt(mass)
+                  END DO
+               END DO
+               ! Dfull = Cartesian displacements of the normal modes
+               Dfull = MATMUL(MatM, MATMUL(Dfull, Hint2Dfull))  !Dfull=D L / sqrt(m)
+               DO i = 1, ncoord
+                  ! Renormalize displacements
+                  norm = 1.0_dp/SUM(Dfull(:, i)*Dfull(:, i))
+                  rmass(i) = norm/massunit
+                  Dfull(:, i) = SQRT(norm)*(Dfull(:, i))
+               END DO
+               CALL write_eigs_unformatted(print_namd, ncoord, HeigvalDfull, Dfull)
+               DEALLOCATE (HeigvalDfull)
+               DEALLOCATE (Hint2Dfull)
+               DEALLOCATE (Dfull)
+               DEALLOCATE (MatM)
+               DEALLOCATE (rmass)
+            END IF !print_namd
+            !
             nvib = ncoord - nRotTrM
             ALLOCATE (H_eigval1(ncoord))
             ALLOCATE (H_eigval2(SIZE(D, 2)))
@@ -552,35 +598,7 @@ CONTAINS
             END IF
             ! write frequencies and eigenvectors to cartesian eig file
             IF (output_unit_eig > 0) THEN
-               IF (lprint_namd) THEN
-                  !     NewtonX requires normalized Cartesian frequencies and eigenvectors
-                  !     in full matrix format (ncoord x ncoord)
-                  NULLIFY (Dfull)
-                  ALLOCATE (Dfull(ncoord, ncoord))
-                  ALLOCATE (Hint2Dfull(SIZE(Dfull, 2), SIZE(Dfull, 2)))
-                  ALLOCATE (HeigvalDfull(SIZE(Dfull, 2)))
-                  ALLOCATE (MatM(ncoord, ncoord))
-                  Dfull = 0.0_dp
-                  CALL build_D_matrix(RotTrM, nRotTrM, Dfull, full=.TRUE., natoms=natoms)
-                  Hint2Dfull(:, :) = MATMUL(TRANSPOSE(Dfull), MATMUL(Hessian, Dfull)) ! MWC -> INT
-                  CALL diamat_all(Hint2Dfull, HeigvalDfull)
-                  MatM = 0.0_dp
-                  DO i = 1, natoms
-                     DO j = 1, 3
-                        MatM((i - 1)*3 + j, (i - 1)*3 + j) = 1.0_dp/mass(i)
-                     END DO
-                  END DO
-                  ! Cartesian displacements of the normal modes
-                  Dfull = MATMUL(MatM, MATMUL(Dfull, Hint2Dfull))  !!! this is !D L / sqrt(m)
-                  ! CALL write_eigs_unformatted(output_unit_eig, ncoord, H_eigval1, Dfull)
-                  CALL write_eigs_unformatted(output_unit_eig, ncoord, HeigvalDfull, Dfull)
-                  DEALLOCATE (HeigvalDfull)
-                  DEALLOCATE (Hint2Dfull)
-                  DEALLOCATE (Dfull)
-                  DEALLOCATE (MatM)
-               END IF
-               CALL write_eigs_unformatted(output_unit_eig, &
-                                           ncoord, H_eigval1, Hint1)
+               CALL write_eigs_unformatted(output_unit_eig, ncoord, H_eigval1, Hint1)
             END IF
             IF (nvib /= 0) THEN
                Hint2(:, :) = MATMUL(TRANSPOSE(D), MATMUL(Hessian, D))

@@ -143,7 +143,7 @@ CONTAINS
                                                             old_state
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm, do_exck, do_hfx, do_hfxlr, &
-                                                            is_restarted, state_change
+                                                            explicit, is_restarted, state_change
       REAL(kind=dp)                                      :: conv
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, ostrength
       TYPE(admm_type), POINTER                           :: admm_env
@@ -159,8 +159,9 @@ CONTAINS
       TYPE(kernel_env_type)                              :: kernel_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(section_vals_type), POINTER                   :: lri_section, tddfpt_print_section, &
-                                                            tddfpt_section, xc_section
+      TYPE(section_vals_type), POINTER                   :: lri_section, namd_print_section, &
+                                                            tddfpt_print_section, tddfpt_section, &
+                                                            xc_section
       TYPE(stda_env_type), TARGET                        :: stda_kernel
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
@@ -433,8 +434,6 @@ CONTAINS
          CALL cp_warn(__LOCATION__, "Skipping TDDFPT wavefunction optimization")
       END IF
 
-      CALL tddfpt_write_newtonx_output(evects, evals, gs_mos, logger, tddfpt_print_section, qs_env)
-
       IF (ASSOCIATED(matrix_ks_oep) .AND. tddfpt_control%dipole_form == tddfpt_dipole_velocity) THEN
          CALL cp_warn(__LOCATION__, &
                       "Transition dipole moments and oscillator strengths are likely to be incorrect "// &
@@ -444,6 +443,13 @@ CONTAINS
 
       ! *** print summary information ***
       log_unit = cp_logger_get_default_io_unit()
+
+      namd_print_section => section_vals_get_subs_vals(tddfpt_print_section, "NAMD_PRINT")
+      CALL section_vals_get(namd_print_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL tddfpt_write_newtonx_output(evects, evals, gs_mos, logger, tddfpt_print_section, &
+                                          matrix_s(1)%matrix, S_evects, sub_env) !qs_env, sub_env)
+      END IF
       ALLOCATE (ostrength(nstates))
       ostrength = 0.0_dp
       CALL tddfpt_print_summary(log_unit, evects, evals, ostrength, mult, &

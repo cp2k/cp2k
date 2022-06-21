@@ -106,6 +106,7 @@ MODULE qs_tddfpt2_types
       !> phase of occupied MOs; +1.0 -- positive, -1.0 -- negative;
       !> it is mainly needed to make the restart file transferable
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: phases_occ
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: phases_virt
    END TYPE tddfpt_ground_state_mos
 
 ! **************************************************************************************************

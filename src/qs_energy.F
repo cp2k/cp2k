@@ -18,6 +18,10 @@ MODULE qs_energy
    USE dm_ls_scf,                       ONLY: ls_scf
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE lri_environment_methods,         ONLY: lri_print_stat
    USE mp2,                             ONLY: mp2_main
    USE qs_energy_init,                  ONLY: qs_energies_init
@@ -63,10 +67,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_energies'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: do_consistent_energies, my_calc_forces, &
-                                                            run_rtp
+      LOGICAL                                            :: do_consistent_energies, &
+                                                            do_excited_state, loverlap_deltat, &
+                                                            my_calc_forces, run_rtp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(section_vals_type), POINTER                   :: excited_state_section
 
       CALL timeset(routineN, handle)
 
@@ -85,13 +91,25 @@ CONTAINS
          CALL qs_energies_init(qs_env, my_calc_forces)
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy)
 
+         ! *** check if only overlap matrix is needed for couplings
+         loverlap_deltat = .FALSE.
+         NULLIFY (excited_state_section)
+         excited_state_section => section_vals_get_subs_vals(qs_env%input, "DFT%EXCITED_STATES")
+         CALL section_vals_get(excited_state_section, explicit=do_excited_state)
+         IF (do_excited_state) THEN
+            CALL section_vals_val_get(excited_state_section, "OVERLAP_DELTAT", &
+                                      l_val=loverlap_deltat)
+         END IF
+
          ! *** Perform a SCF run ***
-         IF (dft_control%qs_control%do_ls_scf) THEN
-            CALL ls_scf(qs_env=qs_env)
-         ELSE IF (dft_control%qs_control%do_almo_scf) THEN
-            CALL almo_entry_scf(qs_env=qs_env, calc_forces=my_calc_forces)
-         ELSE
-            CALL scf(qs_env=qs_env)
+         IF (.NOT. loverlap_deltat) THEN
+            IF (dft_control%qs_control%do_ls_scf) THEN
+               CALL ls_scf(qs_env=qs_env)
+            ELSE IF (dft_control%qs_control%do_almo_scf) THEN
+               CALL almo_entry_scf(qs_env=qs_env, calc_forces=my_calc_forces)
+            ELSE
+               CALL scf(qs_env=qs_env)
+            END IF
          END IF
 
          IF (do_consistent_energies) THEN
@@ -114,9 +132,11 @@ CONTAINS
             CALL energy_correction(qs_env, ec_init=.TRUE., calculate_forces=.FALSE.)
          END IF
 
-         CALL qs_energies_properties(qs_env, calc_forces)
+         IF (.NOT. loverlap_deltat) THEN
+            CALL qs_energies_properties(qs_env, calc_forces)
 
-         CALL excited_state_energy(qs_env, calculate_forces=.FALSE.)
+            CALL excited_state_energy(qs_env, calculate_forces=.FALSE.)
+         END IF
 
          IF (dft_control%qs_control%lrigpw) THEN
             CALL lri_print_stat(qs_env)
