@@ -134,12 +134,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NAMD_PRINT", &
-                          description="Adjust cartesian eigenvalues / vectors to NewtonX format.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL create_mode_selective_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -208,6 +202,19 @@ CONTAINS
                                        print_level=low_print_level, &
                                        add_last=add_last_numeric, &
                                        filename="VIBRATIONS")
+      CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
+                          description="Specifies the maximum index of backup copies.", &
+                          usage="BACKUP_COPIES {int}", &
+                          default_i_val=3)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="NAMD_PRINT", &
+                                       description="Adjust cartesian eigenvalues / vectors to NewtonX format.", &
+                                       print_level=debug_print_level + 1, add_last=add_last_numeric, &
+                                       filename="FullNormalizedCartesian")
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum index of backup copies.", &
                           usage="BACKUP_COPIES {int}", &

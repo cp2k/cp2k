@@ -182,7 +182,8 @@ CONTAINS
                                            nlumo=tddfpt_control%nlumo, &
                                            blacs_env=blacs_env, cholesky_method=cholesky_restore, &
                                            matrix_ks=matrix_ks(ispin)%matrix, matrix_s=matrix_s(1)%matrix, &
-                                           mos_virt=mos_virt_spin, evals_virt=evals_virt_spin)
+                                           mos_virt=mos_virt_spin, evals_virt=evals_virt_spin, &
+                                           qs_env=qs_env)
       END DO
 
       moc = 0
@@ -236,13 +237,14 @@ CONTAINS
 !>                         (in addition to the ADDED_MOS, if present). NULL when no OT is in use.
 !> \param evals_virt       orbital energies of precomputed (OT) virtual molecular orbitals.
 !>                         NULL when no OT is in use.
+!> \param qs_env ...
 !> \par History
 !>    * 05.2016 created as tddfpt_lumos() [Sergey Chulkov]
 !>    * 06.2016 renamed, altered prototype [Sergey Chulkov]
 !>    * 04.2019 limit the number of unoccupied states, orbital energy correction [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_init_ground_state_mos(gs_mos, mo_set, nlumo, blacs_env, cholesky_method, matrix_ks, matrix_s, &
-                                           mos_virt, evals_virt)
+                                           mos_virt, evals_virt, qs_env)
       TYPE(tddfpt_ground_state_mos)                      :: gs_mos
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       INTEGER, INTENT(in)                                :: nlumo
@@ -251,16 +253,17 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: mos_virt
       REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt
+      TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos'
       REAL(kind=dp), PARAMETER                           :: eps_dp = EPSILON(0.0_dp)
 
-      INTEGER :: cholesky_method_inout, handle, icol_global, icol_local, imo, irow_global, &
+      INTEGER :: cholesky_method_inout, handle, icol_global, icol_local, imo, iounit, irow_global, &
          irow_local, nao, ncol_local, nelectrons, nmo_occ, nmo_scf, nmo_virt, nrow_local, sign_int
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: minrow_neg_array, minrow_pos_array, &
                                                             sum_sign_array
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: do_eigen
+      LOGICAL                                            :: do_eigen, print_phases
       REAL(kind=dp)                                      :: element, maxocc
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: my_block
@@ -268,17 +271,27 @@ CONTAINS
                                                             mo_occ_scf
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fm_struct, ao_mo_occ_fm_struct, &
                                                             ao_mo_virt_fm_struct, wfn_fm_struct
-      TYPE(cp_fm_type)                                   :: matrix_ks_fm, ortho_fm, work_fm
+      TYPE(cp_fm_type)                                   :: matrix_ks_fm, ortho_fm, work_fm, &
+                                                            work_fm_virt
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_extended
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), POINTER                         :: mos_extended
+      TYPE(section_vals_type), POINTER                   :: print_section
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
 
       CALL get_blacs_info(blacs_env, para_env=para_env)
 
       CALL get_mo_set(mo_set, nao=nao, nmo=nmo_scf, homo=nmo_occ, maxocc=maxocc, &
                       nelectron=nelectrons, occupation_numbers=mo_occ_scf)
+
+      print_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%PRINT")
+      CALL section_vals_val_get(print_section, "NAMD_PRINT%PRINT_PHASES", l_val=print_phases)
 
       nmo_virt = nao - nmo_occ
       IF (nlumo >= 0) &
@@ -291,6 +304,7 @@ CONTAINS
       do_eigen = .FALSE.
       ! diagonalise the Kohn-Sham matrix one more time if the number of available unoccupied states are too small
       IF (ASSOCIATED(evals_virt)) THEN
+         CPASSERT(ASSOCIATED(mos_virt))
          IF (nmo_virt > nmo_scf - nmo_occ + SIZE(evals_virt)) do_eigen = .TRUE.
       ELSE
          IF (nmo_virt > nmo_scf - nmo_occ) do_eigen = .TRUE.
@@ -309,8 +323,7 @@ CONTAINS
       ALLOCATE (gs_mos%evals_occ(nmo_occ))
       ALLOCATE (gs_mos%evals_virt(nmo_virt))
       ALLOCATE (gs_mos%phases_occ(nmo_occ))
-
-      CALL cp_fm_struct_release(ao_mo_virt_fm_struct)
+      ALLOCATE (gs_mos%phases_virt(nmo_virt))
 
       ! ++ nullify pointers
       NULLIFY (ao_ao_fm_struct, wfn_fm_struct)
@@ -457,6 +470,73 @@ CONTAINS
          gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ + 1:nmo_occ + nmo_virt)
       END IF
 
+      IF (print_phases) THEN
+         ! compute the phase of molecular orbitals;
+         ! matrix work_fm holds virtual molecular orbital coefficients distributed among all the processors
+         !CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=blacs_env)
+         CALL cp_fm_create(work_fm_virt, ao_mo_virt_fm_struct)
+
+         CALL cp_fm_to_fm(gs_mos%mos_virt, work_fm_virt, ncol=nmo_virt, source_start=1, target_start=1)
+         CALL cp_fm_get_info(work_fm_virt, nrow_local=nrow_local, ncol_local=ncol_local, &
+                             row_indices=row_indices, col_indices=col_indices, local_data=my_block)
+
+         ALLOCATE (minrow_neg_array(nmo_virt), minrow_pos_array(nmo_virt), sum_sign_array(nmo_virt))
+         minrow_neg_array(:) = nao
+         minrow_pos_array(:) = nao
+         sum_sign_array(:) = 0
+         DO icol_local = 1, ncol_local
+            icol_global = col_indices(icol_local)
+
+            DO irow_local = 1, nrow_local
+               element = my_block(irow_local, icol_local)
+
+               sign_int = 0
+               IF (element >= eps_dp) THEN
+                  sign_int = 1
+               ELSE IF (element <= -eps_dp) THEN
+                  sign_int = -1
+               END IF
+
+               sum_sign_array(icol_global) = sum_sign_array(icol_global) + sign_int
+
+               irow_global = row_indices(irow_local)
+               IF (sign_int > 0) THEN
+                  IF (minrow_pos_array(icol_global) > irow_global) &
+                     minrow_pos_array(icol_global) = irow_global
+               ELSE IF (sign_int < 0) THEN
+                  IF (minrow_neg_array(icol_global) > irow_global) &
+                     minrow_neg_array(icol_global) = irow_global
+               END IF
+            END DO
+         END DO
+
+         CALL mp_sum(sum_sign_array, para_env%group)
+         CALL mp_min(minrow_neg_array, para_env%group)
+         CALL mp_min(minrow_pos_array, para_env%group)
+         DO icol_local = 1, nmo_virt
+            IF (sum_sign_array(icol_local) > 0) THEN
+               ! most of the expansion coefficients are positive => MO's phase = +1
+               gs_mos%phases_virt(icol_local) = 1.0_dp
+            ELSE IF (sum_sign_array(icol_local) < 0) THEN
+               ! most of the expansion coefficients are negative => MO's phase = -1
+               gs_mos%phases_virt(icol_local) = -1.0_dp
+            ELSE
+               ! equal number of positive and negative expansion coefficients
+               IF (minrow_pos_array(icol_local) <= minrow_neg_array(icol_local)) THEN
+                  ! the first positive expansion coefficient has a lower index then
+                  ! the first negative expansion coefficient; MO's phase = +1
+                  gs_mos%phases_virt(icol_local) = 1.0_dp
+               ELSE
+                  ! MO's phase = -1
+                  gs_mos%phases_virt(icol_local) = -1.0_dp
+               END IF
+            END IF
+         END DO
+         DEALLOCATE (minrow_neg_array, minrow_pos_array, sum_sign_array)
+         CALL cp_fm_release(work_fm_virt)
+      END IF !print_phases
+      CALL cp_fm_struct_release(ao_mo_virt_fm_struct) ! here after print_phases
+
       CALL cp_fm_release(work_fm)
 
       IF (do_eigen) THEN
@@ -491,6 +571,9 @@ CONTAINS
 
       IF (ALLOCATED(gs_mos%evals_occ)) &
          DEALLOCATE (gs_mos%evals_occ)
+
+      IF (ALLOCATED(gs_mos%phases_virt)) &
+         DEALLOCATE (gs_mos%phases_virt)
 
       IF (ASSOCIATED(gs_mos%evals_occ_matrix)) THEN
          CALL cp_fm_release(gs_mos%evals_occ_matrix)
