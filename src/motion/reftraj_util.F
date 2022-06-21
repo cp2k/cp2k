@@ -37,7 +37,8 @@ MODULE reftraj_util
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
-                                              dp
+                                              dp,&
+                                              max_line_length
    USE machine,                         ONLY: m_flush
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
@@ -56,6 +57,7 @@ MODULE reftraj_util
    USE reftraj_types,                   ONLY: reftraj_msd_type,&
                                               reftraj_type
    USE simpar_types,                    ONLY: simpar_type
+   USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: get_limit
 #include "../base/base_uses.f90"
 
@@ -157,9 +159,10 @@ CONTAINS
       TYPE(reftraj_type), POINTER                        :: reftraj
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(LEN=10)                                  :: AA
+      CHARACTER(LEN=2)                                   :: element_symbol, element_symbol_ref0
       CHARACTER(LEN=default_path_length)                 :: filename
-      CHARACTER(LEN=default_string_length)               :: name, title
+      CHARACTER(LEN=default_string_length)               :: title
+      CHARACTER(LEN=max_line_length)                     :: errmsg
       INTEGER                                            :: first_atom, iatom, ikind, imol, &
                                                             last_atom, natom_read, nkind, nmol, &
                                                             nmolecule, nmolkind, npart
@@ -206,15 +209,25 @@ CONTAINS
       IF (para_env%mepos == para_env%source) THEN
          REWIND (msd%ref0_unit)
          READ (msd%ref0_unit, *, ERR=999, END=998) natom_read
-         CPASSERT(natom_read == reftraj%natom)
+         IF (natom_read /= reftraj%natom) THEN
+            errmsg = "The MSD reference configuration has a different number of atoms: "// &
+                     TRIM(ADJUSTL(cp_to_string(natom_read)))//" != "// &
+                     TRIM(ADJUSTL(cp_to_string(reftraj%natom)))
+            CPABORT(errmsg)
+         END IF
          READ (msd%ref0_unit, '(A)', ERR=999, END=998) title
          msd%total_mass = 0.0_dp
          msd%ref0_com = 0.0_dp
          DO iatom = 1, natom_read
-            READ (msd%ref0_unit, *, ERR=999, END=998) AA, x, y, z
-            name = TRIM(particle_set(iatom)%atomic_kind%element_symbol)
-            CPASSERT((TRIM(AA) == name))
-
+            READ (msd%ref0_unit, *, ERR=999, END=998) element_symbol_ref0, x, y, z
+            CALL uppercase(element_symbol_ref0)
+            element_symbol = TRIM(particle_set(iatom)%atomic_kind%element_symbol)
+            CALL uppercase(element_symbol)
+            IF (element_symbol /= element_symbol_ref0) THEN
+               errmsg = "The MSD reference configuration shows a mismatch: Check atom "// &
+                        TRIM(ADJUSTL(cp_to_string(iatom)))
+               CPABORT(errmsg)
+            END IF
             x = cp_unit_to_cp2k(x, "angstrom")
             y = cp_unit_to_cp2k(y, "angstrom")
             z = cp_unit_to_cp2k(z, "angstrom")
