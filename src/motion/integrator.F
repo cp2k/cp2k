@@ -31,7 +31,8 @@ MODULE integrator
    USE barostat_types,                  ONLY: barostat_type
    USE cell_types,                      ONLY: cell_type,&
                                               init_cell,&
-                                              parse_cell_line
+                                              parse_cell_line,&
+                                              set_cell_param
    USE constraint,                      ONLY: rattle_control,&
                                               shake_control,&
                                               shake_roll_control,&
@@ -65,7 +66,8 @@ MODULE integrator
         allocate_old, allocate_tmp, damp_v, damp_veps, deallocate_old, get_s_ds, &
         old_variables_type, rattle_roll_setup, set, tmp_variables_type, update_dealloc_tmp, &
         update_pv, update_veps, variable_timestep, vv_first, vv_second
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              max_line_length
    USE mathlib,                         ONLY: matmul_3x3,&
                                               transpose_3d
    USE md_environment_types,            ONLY: get_md_env,&
@@ -82,8 +84,7 @@ MODULE integrator
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type,&
                                               update_particle_set
-   USE physcon,                         ONLY: bohr,&
-                                              femtoseconds
+   USE physcon,                         ONLY: femtoseconds
    USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
    USE qmmmx_update,                    ONLY: qmmmx_update_force_env
    USE qs_environment_types,            ONLY: get_qs_env
@@ -94,6 +95,7 @@ MODULE integrator
    USE rt_propagation_types,            ONLY: rt_prop_type
    USE shell_opt,                       ONLY: optimize_shell_core
    USE simpar_types,                    ONLY: simpar_type
+   USE string_utilities,                ONLY: uppercase
    USE thermal_region_types,            ONLY: thermal_region_type,&
                                               thermal_regions_type
    USE thermostat_methods,              ONLY: apply_thermostat_baro,&
@@ -1502,13 +1504,15 @@ CONTAINS
    SUBROUTINE reftraj(md_env)
       TYPE(md_environment_type), POINTER                 :: md_env
 
-      CHARACTER(LEN=10)                                  :: AA
-      INTEGER                                            :: cell_itimes, I, nparticle, Nread, &
+      CHARACTER(LEN=2)                                   :: element_symbol, element_symbol_ref0
+      CHARACTER(LEN=max_line_length)                     :: errmsg
+      INTEGER                                            :: cell_itimes, i, nparticle, Nread, &
                                                             trj_itimes
       INTEGER, POINTER                                   :: itimes
-      LOGICAL                                            :: init, my_end, test_ok
+      LOGICAL                                            :: init, my_end, test_ok, traj_has_cell_info
       REAL(KIND=dp)                                      :: cell_time, h(3, 3), trj_epot, trj_time, &
                                                             vol
+      REAL(KIND=dp), DIMENSION(3)                        :: abc, albega
       REAL(KIND=dp), POINTER                             :: time
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1531,16 +1535,30 @@ CONTAINS
       CALL cp_subsys_get(subsys=subsys, particles=particles)
       nparticle = particles%n_els
       particle_set => particles%els
+      abc(:) = 0.0_dp
+      albega(:) = 0.0_dp
 
       ! SnapShots read from an external file (parsers calls are buffered! please
       ! don't put any additional MPI call!) [tlaino]
       CALL parser_read_line(reftraj_env%info%traj_parser, 1)
       READ (reftraj_env%info%traj_parser%input_line, FMT="(I8)") nread
-      CPASSERT(nread == nparticle)
       CALL parser_read_line(reftraj_env%info%traj_parser, 1)
       test_ok = .FALSE.
-      READ (reftraj_env%info%traj_parser%input_line, FMT="(T6,I8,T23,F12.3,T41,F20.10)", ERR=999) &
-         trj_itimes, trj_time, trj_epot
+      IF (INDEX(reftraj_env%info%traj_parser%input_line, ", a = ") > 60) THEN
+         traj_has_cell_info = .TRUE.
+         READ (reftraj_env%info%traj_parser%input_line, &
+               FMT="(T6,I8,T23,F12.3,T41,F20.10,T67,F14.6,T87,F14.6,T107,F14.6,T131,F8.3,T149,F8.3,T167,F8.3)", &
+               ERR=999) trj_itimes, trj_time, trj_epot, abc(1:3), albega(1:3)
+         ! Convert cell parameters from angstrom and degree to the internal CP2K units
+         DO i = 1, 3
+            abc(i) = cp_unit_to_cp2k(abc(i), "angstrom")
+            albega(i) = cp_unit_to_cp2k(albega(i), "deg")
+         END DO
+      ELSE
+         traj_has_cell_info = .FALSE.
+         READ (reftraj_env%info%traj_parser%input_line, FMT="(T6,I8,T23,F12.3,T41,F20.10)", ERR=999) &
+            trj_itimes, trj_time, trj_epot
+      END IF
       test_ok = .TRUE.
 999   IF (.NOT. test_ok) THEN
          ! Handling properly the error when reading the title of an XYZ
@@ -1549,16 +1567,42 @@ CONTAINS
          trj_time = 0.0_dp
          trj_epot = 0.0_dp
       END IF
+      ! Delayed print of error message until the step number is known
+      IF (nread /= nparticle) THEN
+         errmsg = "Number of atoms for step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))// &
+                  " in the trajectory file does not match the reference configuration: "// &
+                  TRIM(ADJUSTL(cp_to_string(nread)))//" != "//TRIM(ADJUSTL(cp_to_string(nparticle)))
+         CPABORT(errmsg)
+      END IF
       DO i = 1, nread - 1
          CALL parser_read_line(reftraj_env%info%traj_parser, 1)
-        READ (reftraj_env%info%traj_parser%input_line(1:LEN_TRIM(reftraj_env%info%traj_parser%input_line)), *) AA, particle_set(i)%r
-         particle_set(i)%r = particle_set(i)%r*bohr
+         READ (UNIT=reftraj_env%info%traj_parser%input_line(1:LEN_TRIM(reftraj_env%info%traj_parser%input_line)), FMT=*) &
+            element_symbol, particle_set(i)%r
+         CALL uppercase(element_symbol)
+         element_symbol_ref0 = particle_set(i)%atomic_kind%element_symbol
+         CALL uppercase(element_symbol_ref0)
+         IF (element_symbol /= element_symbol_ref0) THEN
+            errmsg = "Atomic configuration from trajectory file does not match the reference configuration: Check atom "// &
+                     TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
+            CPABORT(errmsg)
+         END IF
+         particle_set(i)%r(1) = cp_unit_to_cp2k(particle_set(i)%r(1), "angstrom")
+         particle_set(i)%r(2) = cp_unit_to_cp2k(particle_set(i)%r(2), "angstrom")
+         particle_set(i)%r(3) = cp_unit_to_cp2k(particle_set(i)%r(3), "angstrom")
       END DO
       ! End of file is properly addressed in the previous call..
       ! Let's check directly (providing some info) also for the last
       ! line of this frame..
       CALL parser_read_line(reftraj_env%info%traj_parser, 1, at_end=my_end)
-      READ (unit=reftraj_env%info%traj_parser%input_line, fmt=*) AA, particle_set(i)%r
+      READ (UNIT=reftraj_env%info%traj_parser%input_line, FMT=*) element_symbol, particle_set(i)%r
+      CALL uppercase(element_symbol)
+      element_symbol_ref0 = particle_set(i)%atomic_kind%element_symbol
+      CALL uppercase(element_symbol_ref0)
+      IF (element_symbol /= element_symbol_ref0) THEN
+         errmsg = "Atomic configuration from trajectory file does not match the reference configuration: Check atom "// &
+                  TRIM(ADJUSTL(cp_to_string(i)))//" of step "//TRIM(ADJUSTL(cp_to_string(trj_itimes)))
+         CPABORT(errmsg)
+      END IF
       particle_set(i)%r(1) = cp_unit_to_cp2k(particle_set(i)%r(1), "angstrom")
       particle_set(i)%r(2) = cp_unit_to_cp2k(particle_set(i)%r(2), "angstrom")
       particle_set(i)%r(3) = cp_unit_to_cp2k(particle_set(i)%r(3), "angstrom")
@@ -1571,7 +1615,8 @@ CONTAINS
                           "missing frames ("//cp_to_string((simpar%nsteps - 1) - reftraj_env%isnap)//").")
       END IF
 
-      IF (reftraj_env%info%variable_volume) THEN
+      ! Read cell parameters from cell file if requested and if not yet available
+      IF (reftraj_env%info%variable_volume .AND. (.NOT. traj_has_cell_info)) THEN
          CALL parser_get_next_line(reftraj_env%info%cell_parser, 1, at_end=my_end)
          CALL parse_cell_line(reftraj_env%info%cell_parser%input_line, cell_itimes, cell_time, h, vol)
          CPASSERT(trj_itimes == cell_itimes)
@@ -1598,7 +1643,9 @@ CONTAINS
       CALL get_md_env(md_env, t=time)
       time = reftraj_env%time
 
-      IF (reftraj_env%info%variable_volume) THEN
+      IF (traj_has_cell_info) THEN
+         CALL set_cell_param(cell, cell_length=abc, cell_angle=albega, do_init_cell=.TRUE.)
+      ELSE IF (reftraj_env%info%variable_volume) THEN
          cell%hmat = h
          CALL init_cell(cell)
       END IF
