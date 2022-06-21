@@ -284,7 +284,7 @@ CONTAINS
             CALL parser_get_next_line(parser, 1, at_end=my_end)
          END DO
          CALL parser_release(parser)
-         ! Conver to CP2K units
+         ! Convert to CP2K units
          DO i = 1, 3
             DO j = 1, 3
                hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
@@ -295,7 +295,7 @@ CONTAINS
          CALL parser_get_next_line(parser, 1)
          READ (parser%input_line, *) idum, hmat(:, 1), hmat(:, 2), hmat(:, 3)
          CALL parser_release(parser)
-         ! Conver to CP2K units
+         ! Convert to CP2K units
          DO i = 1, 3
             DO j = 1, 3
                hmat(j, i) = cp_unit_to_cp2k(hmat(j, i), "angstrom")
