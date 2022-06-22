@@ -71,6 +71,7 @@ MODULE voronoi_interface
    ! Global parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'voronoi_interface'
    PUBLIC :: entry_voronoi_or_bqb, finalize_libvori
+   INTEGER :: step_count = 0
 
 #if defined(__LIBVORI)
 
@@ -148,6 +149,24 @@ MODULE voronoi_interface
       INTEGER(C_INT), VALUE                              :: i
 
       END FUNCTION libvori_setRefinementFactor
+
+      INTEGER(C_INT) FUNCTION libvori_setJitter(i) BIND(C, NAME='libvori_setJitter')
+         USE ISO_C_BINDING, ONLY: C_INT
+      INTEGER(C_INT), VALUE                              :: i
+
+      END FUNCTION libvori_setJitter
+
+      INTEGER(C_INT) FUNCTION libvori_setJitterAmplitude(amp) BIND(C, NAME='libvori_setJitterAmplitude')
+         USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
+      REAL(C_DOUBLE), VALUE                              :: amp
+
+      END FUNCTION libvori_setJitterAmplitude
+
+      INTEGER(C_INT) FUNCTION libvori_setJitterSeed(seed) BIND(C, NAME='libvori_setJitterSeed')
+         USE ISO_C_BINDING, ONLY: C_INT
+      INTEGER(C_INT), VALUE                              :: seed
+
+      END FUNCTION libvori_setJitterSeed
 
       INTEGER(C_INT) FUNCTION libvori_setEMPOutput(i) BIND(C, NAME='libvori_setEMPOutput')
          USE ISO_C_BINDING, ONLY: C_INT
@@ -276,6 +295,7 @@ MODULE voronoi_interface
       INTEGER(C_INT) FUNCTION libvori_finalize() BIND(C, NAME='libvori_finalize')
          USE ISO_C_BINDING, ONLY: C_INT
       END FUNCTION libvori_finalize
+
    END INTERFACE
 
 #endif
@@ -309,11 +329,12 @@ CONTAINS
                                                             U3, ret, i, my_rank, num_pe, gid, tag, &
                                                             nkind, natom, ikind, iat, ord, source, dest, &
                                                             ip, i1, i2, reffac, radius_type, bqb_optimize, &
-                                                            bqb_history, nspins
+                                                            bqb_history, nspins, jitter_seed
       LOGICAL                                            :: outemp, bqb_skip_first, voro_skip_first, &
                                                             bqb_store_step, bqb_check, voro_sanity, &
-                                                            bqb_overwrite, vori_overwrite, ionode, molprop, gapw
-      REAL(KIND=dp)                                      :: zeff, qa, fn0, fn1
+                                                            bqb_overwrite, vori_overwrite, ionode, molprop, &
+                                                            gapw, jitter
+      REAL(KIND=dp)                                      :: zeff, qa, fn0, fn1, jitter_amplitude
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(cp_logger_type), POINTER                      :: logger
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
@@ -370,6 +391,9 @@ CONTAINS
       IF (do_voro /= 0) THEN
          CALL section_vals_val_get(input_voro, "REFINEMENT_FACTOR", i_val=reffac)
          CALL section_vals_val_get(input_voro, "OUTPUT_EMP", l_val=outemp)
+         CALL section_vals_val_get(input_voro, "JITTER", l_val=jitter)
+         CALL section_vals_val_get(input_voro, "JITTER_AMPLITUDE", r_val=jitter_amplitude)
+         CALL section_vals_val_get(input_voro, "JITTER_SEED", i_val=jitter_seed)
          CALL section_vals_val_get(input_voro, "VORONOI_RADII", i_val=radius_type)
          CALL section_vals_val_get(input_voro, "SKIP_FIRST", l_val=voro_skip_first)
          CALL section_vals_val_get(input_voro, "SANITY_CHECK", l_val=voro_sanity)
@@ -434,6 +458,9 @@ CONTAINS
          IF (do_voro /= 0) THEN
             ret = libvori_setPrefix_Voronoi()
             ret = libvori_setRefinementFactor(reffac)
+            ret = libvori_setJitter(MERGE(1, 0, jitter))
+            ret = libvori_setJitterAmplitude(jitter_amplitude*angstrom)
+            ret = libvori_setJitterSeed(jitter_seed)
             ret = libvori_setVoronoiSkipFirst(MERGE(1, 0, voro_skip_first))
             ret = libvori_setVoriOverwrite(MERGE(1, 0, vori_overwrite))
             ret = libvori_setEMPOutput(MERGE(1, 0, outemp))
@@ -621,111 +648,117 @@ CONTAINS
 
             ret = libvori_step(sim_step, sim_time)
 
+            step_count = step_count + 1
+
             IF (ret /= 0) THEN
                CPABORT("The library returned an error. Aborting.")
             END IF
 
-            ALLOCATE (voro_radii(natom))
-            ALLOCATE (voro_charge(natom))
-            ALLOCATE (voro_volume(natom))
-            ALLOCATE (voro_dipole(natom, 3))
-            ALLOCATE (voro_quadrupole(natom, 9))
-            ALLOCATE (voro_buffer(natom))
-            ALLOCATE (voro_wrapped_pos(natom, 3))
-            ALLOCATE (voro_charge_center(natom, 3))
+            IF ((step_count > 1) .OR. (.NOT. voro_skip_first)) THEN
 
-            ret = libvori_get_radius(natom, voro_radii)
+               ALLOCATE (voro_radii(natom))
+               ALLOCATE (voro_charge(natom))
+               ALLOCATE (voro_volume(natom))
+               ALLOCATE (voro_dipole(natom, 3))
+               ALLOCATE (voro_quadrupole(natom, 9))
+               ALLOCATE (voro_buffer(natom))
+               ALLOCATE (voro_wrapped_pos(natom, 3))
+               ALLOCATE (voro_charge_center(natom, 3))
 
-            ret = libvori_get_charge(natom, voro_charge)
+               ret = libvori_get_radius(natom, voro_radii)
 
-            ret = libvori_get_volume(natom, voro_volume)
+               ret = libvori_get_charge(natom, voro_charge)
 
-            DO i1 = 1, 3
-               ret = libvori_get_dipole(i1, natom, voro_buffer)
-               voro_dipole(:, i1) = voro_buffer(:)
-            END DO
+               ret = libvori_get_volume(natom, voro_volume)
 
-            DO i1 = 1, 9
-               ret = libvori_get_quadrupole(i1, natom, voro_buffer)
-               voro_quadrupole(:, i1) = voro_buffer(:)
-            END DO
-
-            DO i1 = 1, 3
-               ret = libvori_get_wrapped_pos(i1, natom, voro_buffer)
-               voro_wrapped_pos(:, i1) = voro_buffer(:)
-            END DO
-
-            DO i1 = 1, 3
-               ret = libvori_get_charge_center(i1, natom, voro_buffer)
-               voro_charge_center(:, i1) = voro_buffer(:)
-            END DO
-
-            IF (gapw) THEN
-               CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
-               nspins = dft_control%nspins
-               DO i1 = 1, natom
-                  voro_charge(i1) = voro_charge(i1) - SUM(rho0_mpole%mp_rho(i1)%Q0(1:nspins))
-                  fn0 = rho0_mpole%norm_g0l_h(1)/bohr*100._dp
-                  voro_dipole(i1, 1:3) = voro_dipole(i1, 1:3) + rho0_mpole%mp_rho(i1)%Qlm_car(2:4)/fn0
-                  qa = voro_charge(i1) - particles_c(i1)
-                  voro_charge_center(i1, 1:3) = voro_dipole(i1, 1:3)/qa
-                  fn1 = rho0_mpole%norm_g0l_h(2)/bohr/bohr*10000._dp
-                  voro_quadrupole(i1, 1) = voro_quadrupole(i1, 1) + rho0_mpole%mp_rho(i1)%Qlm_car(5)/fn1
-                  voro_quadrupole(i1, 2) = voro_quadrupole(i1, 2) + rho0_mpole%mp_rho(i1)%Qlm_car(6)/fn1
-                  voro_quadrupole(i1, 3) = voro_quadrupole(i1, 3) + rho0_mpole%mp_rho(i1)%Qlm_car(7)/fn1
-                  voro_quadrupole(i1, 4) = voro_quadrupole(i1, 4) + rho0_mpole%mp_rho(i1)%Qlm_car(6)/fn1
-                  voro_quadrupole(i1, 5) = voro_quadrupole(i1, 5) + rho0_mpole%mp_rho(i1)%Qlm_car(8)/fn1
-                  voro_quadrupole(i1, 6) = voro_quadrupole(i1, 6) + rho0_mpole%mp_rho(i1)%Qlm_car(9)/fn1
-                  voro_quadrupole(i1, 7) = voro_quadrupole(i1, 7) + rho0_mpole%mp_rho(i1)%Qlm_car(7)/fn1
-                  voro_quadrupole(i1, 8) = voro_quadrupole(i1, 8) + rho0_mpole%mp_rho(i1)%Qlm_car(9)/fn1
-                  voro_quadrupole(i1, 9) = voro_quadrupole(i1, 9) + rho0_mpole%mp_rho(i1)%Qlm_car(10)/fn1
+               DO i1 = 1, 3
+                  ret = libvori_get_dipole(i1, natom, voro_buffer)
+                  voro_dipole(:, i1) = voro_buffer(:)
                END DO
-            END IF
 
-            IF (unit_voro > 0) THEN
-               WRITE (unit_voro, FMT="(T2,I0)") natom
-               WRITE (unit_voro, FMT="(A,I8,A,F12.4,A)") "# Step ", sim_step, ",  Time ", &
-                  sim_time*femtoseconds, " fs"
-               WRITE (unit_voro, FMT="(A,9F20.10)") "# Cell ", &
-                  cell%hmat(1, 1)*angstrom, cell%hmat(2, 1)*angstrom, cell%hmat(3, 1)*angstrom, &
-                  cell%hmat(1, 2)*angstrom, cell%hmat(2, 2)*angstrom, cell%hmat(3, 2)*angstrom, &
-                  cell%hmat(1, 3)*angstrom, cell%hmat(2, 3)*angstrom, cell%hmat(3, 3)*angstrom
-               WRITE (unit_voro, FMT="(A,22A20)") "# Atom     Z", &
-                  "Radius", "Position(X)", "Position(Y)", "Position(Z)", &
-                  "Voronoi_Volume", "Z(eff)", "Charge", "Dipole(X)", "Dipole(Y)", "Dipole(Z)", &
-                  "ChargeCenter(X)", "ChargeCenter(Y)", "ChargeCenter(Z)", &
-                  "Quadrupole(XX)", "Quadrupole(XY)", "Quadrupole(XZ)", &
-                  "Quadrupole(YX)", "Quadrupole(YY)", "Quadrupole(YZ)", &
-                  "Quadrupole(ZX)", "Quadrupole(ZY)", "Quadrupole(ZZ)"
-               DO i1 = 1, natom
-                  WRITE (unit_voro, FMT="(2I6,22F20.10)") &
-                     i1, &
-                     particles_z(i1), &
-                     voro_radii(i1)/100.0_dp, &
-                     particles_r(1:3, i1)*angstrom, &
-                     voro_volume(i1)/1000000.0_dp, &
-                     particles_c(i1), &
-                     voro_charge(i1), &
-                     voro_dipole(i1, 1:3), &
-                     voro_charge_center(i1, 1:3)/100.0_dp, &
-                     voro_quadrupole(i1, 1:9)
+               DO i1 = 1, 9
+                  ret = libvori_get_quadrupole(i1, natom, voro_buffer)
+                  voro_quadrupole(:, i1) = voro_buffer(:)
                END DO
-            END IF
 
-            IF (molprop) THEN
-               CALL molecular_properties(subsys, cell, sim_step, sim_time, iounit, &
-                                         particles_r, particles_c, &
-                                         voro_charge, voro_charge_center, mp_file_name)
-            END IF
+               DO i1 = 1, 3
+                  ret = libvori_get_wrapped_pos(i1, natom, voro_buffer)
+                  voro_wrapped_pos(:, i1) = voro_buffer(:)
+               END DO
 
-            DEALLOCATE (voro_radii)
-            DEALLOCATE (voro_charge)
-            DEALLOCATE (voro_volume)
-            DEALLOCATE (voro_dipole)
-            DEALLOCATE (voro_quadrupole)
-            DEALLOCATE (voro_buffer)
-            DEALLOCATE (voro_wrapped_pos)
-            DEALLOCATE (voro_charge_center)
+               DO i1 = 1, 3
+                  ret = libvori_get_charge_center(i1, natom, voro_buffer)
+                  voro_charge_center(:, i1) = voro_buffer(:)
+               END DO
+
+               IF (gapw) THEN
+                  CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
+                  nspins = dft_control%nspins
+                  DO i1 = 1, natom
+                     voro_charge(i1) = voro_charge(i1) - SUM(rho0_mpole%mp_rho(i1)%Q0(1:nspins))
+                     fn0 = rho0_mpole%norm_g0l_h(1)/bohr*100._dp
+                     voro_dipole(i1, 1:3) = voro_dipole(i1, 1:3) + rho0_mpole%mp_rho(i1)%Qlm_car(2:4)/fn0
+                     qa = voro_charge(i1) - particles_c(i1)
+                     voro_charge_center(i1, 1:3) = voro_dipole(i1, 1:3)/qa
+                     fn1 = rho0_mpole%norm_g0l_h(2)/bohr/bohr*10000._dp
+                     voro_quadrupole(i1, 1) = voro_quadrupole(i1, 1) + rho0_mpole%mp_rho(i1)%Qlm_car(5)/fn1
+                     voro_quadrupole(i1, 2) = voro_quadrupole(i1, 2) + rho0_mpole%mp_rho(i1)%Qlm_car(6)/fn1
+                     voro_quadrupole(i1, 3) = voro_quadrupole(i1, 3) + rho0_mpole%mp_rho(i1)%Qlm_car(7)/fn1
+                     voro_quadrupole(i1, 4) = voro_quadrupole(i1, 4) + rho0_mpole%mp_rho(i1)%Qlm_car(6)/fn1
+                     voro_quadrupole(i1, 5) = voro_quadrupole(i1, 5) + rho0_mpole%mp_rho(i1)%Qlm_car(8)/fn1
+                     voro_quadrupole(i1, 6) = voro_quadrupole(i1, 6) + rho0_mpole%mp_rho(i1)%Qlm_car(9)/fn1
+                     voro_quadrupole(i1, 7) = voro_quadrupole(i1, 7) + rho0_mpole%mp_rho(i1)%Qlm_car(7)/fn1
+                     voro_quadrupole(i1, 8) = voro_quadrupole(i1, 8) + rho0_mpole%mp_rho(i1)%Qlm_car(9)/fn1
+                     voro_quadrupole(i1, 9) = voro_quadrupole(i1, 9) + rho0_mpole%mp_rho(i1)%Qlm_car(10)/fn1
+                  END DO
+               END IF
+
+               IF (unit_voro > 0) THEN
+                  WRITE (unit_voro, FMT="(T2,I0)") natom
+                  WRITE (unit_voro, FMT="(A,I8,A,F12.4,A)") "# Step ", sim_step, ",  Time ", &
+                     sim_time*femtoseconds, " fs"
+                  WRITE (unit_voro, FMT="(A,9F20.10)") "# Cell ", &
+                     cell%hmat(1, 1)*angstrom, cell%hmat(2, 1)*angstrom, cell%hmat(3, 1)*angstrom, &
+                     cell%hmat(1, 2)*angstrom, cell%hmat(2, 2)*angstrom, cell%hmat(3, 2)*angstrom, &
+                     cell%hmat(1, 3)*angstrom, cell%hmat(2, 3)*angstrom, cell%hmat(3, 3)*angstrom
+                  WRITE (unit_voro, FMT="(A,22A20)") "# Atom     Z", &
+                     "Radius", "Position(X)", "Position(Y)", "Position(Z)", &
+                     "Voronoi_Volume", "Z(eff)", "Charge", "Dipole(X)", "Dipole(Y)", "Dipole(Z)", &
+                     "ChargeCenter(X)", "ChargeCenter(Y)", "ChargeCenter(Z)", &
+                     "Quadrupole(XX)", "Quadrupole(XY)", "Quadrupole(XZ)", &
+                     "Quadrupole(YX)", "Quadrupole(YY)", "Quadrupole(YZ)", &
+                     "Quadrupole(ZX)", "Quadrupole(ZY)", "Quadrupole(ZZ)"
+                  DO i1 = 1, natom
+                     WRITE (unit_voro, FMT="(2I6,22F20.10)") &
+                        i1, &
+                        particles_z(i1), &
+                        voro_radii(i1)/100.0_dp, &
+                        particles_r(1:3, i1)*angstrom, &
+                        voro_volume(i1)/1000000.0_dp, &
+                        particles_c(i1), &
+                        voro_charge(i1), &
+                        voro_dipole(i1, 1:3), &
+                        voro_charge_center(i1, 1:3)/100.0_dp, &
+                        voro_quadrupole(i1, 1:9)
+                  END DO
+               END IF
+
+               IF (molprop) THEN
+                  CALL molecular_properties(subsys, cell, sim_step, sim_time, iounit, &
+                                            particles_r, particles_c, &
+                                            voro_charge, voro_charge_center, mp_file_name)
+               END IF
+
+               DEALLOCATE (voro_radii)
+               DEALLOCATE (voro_charge)
+               DEALLOCATE (voro_volume)
+               DEALLOCATE (voro_dipole)
+               DEALLOCATE (voro_quadrupole)
+               DEALLOCATE (voro_buffer)
+               DEALLOCATE (voro_wrapped_pos)
+               DEALLOCATE (voro_charge_center)
+
+            END IF ! not skip_first
 
             IF (iounit > 0) THEN
                WRITE (iounit, *) "VORONOI| Voronoi integration finished."
