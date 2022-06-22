@@ -31,6 +31,8 @@ MODULE input_cp2k_voronoi
    USE input_val_types,                 ONLY: integer_t,&
                                               lchar_t,&
                                               real_t
+   USE kinds,                           ONLY: dp
+   USE physcon,                         ONLY: bohr
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
@@ -148,6 +150,31 @@ CONTAINS
                           " filename.molprop is used.", &
                           usage="MOLPROP_FILE_NAME <FILENAME>", &
                           default_lc_val="__STD_OUT__", type_of_var=lchar_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="JITTER", &
+                          description="The Voronoi tessellation can have issues with highly symmetric structures."// &
+                          " This keyword displaces all atoms pseudo-randomly by a tiny amount (see JITTER_AMPLITUDE)"// &
+                          " to break symmetry. The displacement is constant over time, so that no temporal noise is"// &
+                          " introduced. The displacement is not visible to other CP2k routines (FORCE_EVAL, output)."// &
+                          " It is only applied internally in the library for the Voronoi tessellation.", &
+                          usage="JITTER T", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="JITTER_SEED", &
+                          description="Sets the random seed for the jitter. The pseudo-random number generator"// &
+                          " is re-initialized for each Voronoi tessellation so that the jitter is constant over"// &
+                          " simulation time (no temporal noise).", &
+                          usage="JITTER_SEED 1234", n_var=1, default_i_val=0, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="JITTER_AMPLITUDE", &
+                          description="Sets the maximum displacement amplitude for the jitter.", &
+                          usage="JITTER_AMPLITUDE 0.01", unit_str="angstrom", n_var=1, default_r_val=1.e-3_dp*bohr, &
+                          type_of_var=real_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
