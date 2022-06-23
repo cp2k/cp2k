@@ -846,6 +846,8 @@ CONTAINS
 
             CALL remove_scaling_factor_rpa(fm_mat_S(ispin)%matrix, virtual(ispin), Eigenval(:, ispin), homo(ispin), omega)
 
+            DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
+
          END IF
 
       END DO
@@ -1417,6 +1419,15 @@ CONTAINS
 
       CALL cp_fm_struct_get(fm_mat_S%matrix_struct, nrow_local=nrow_local, para_env=para_env)
 
+      BLOCK
+         REAL(KIND=dp) :: debug(2)
+
+         debug(1) = SUM(fm_mat_S%local_data)
+         debug(2) = SUM(fm_mat_S%local_data**2)
+         CALL mp_sum(debug, para_env%group)
+         WRITE (*, *) "Debug fm_mat_S", debug
+      END BLOCK
+
       CALL get_group_dist(gd_homo, mepos(2), sizes=my_homo)
       CALL get_group_dist(gd_virtual, mepos(1), sizes=my_virtual)
 
@@ -1465,6 +1476,15 @@ CONTAINS
          IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
 
       END DO
+
+      BLOCK
+         REAL(KIND=dp) :: debug(2)
+
+         debug(1) = SUM(mat_S_3D)
+         debug(2) = SUM(mat_S_3D**2)
+         CALL mp_sum(debug, para_env%group)
+         WRITE (*, *) "Debug mat_S_3D", debug
+      END BLOCK
 
       CALL timestop(handle)
 
