@@ -1972,6 +1972,7 @@ CONTAINS
          CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_exchange%group)
          CALL cp_para_env_release(para_env_exchange)
 
+         CALL release_group_dist(gd_virtual_sub)
       END DO
       DEALLOCATE (rpa_work%gd_homo, rpa_work%gd_virtual, rpa_work%P_ij, rpa_work%P_ab)
       IF (nspins == 1) THEN
