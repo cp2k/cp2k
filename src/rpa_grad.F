@@ -852,8 +852,6 @@ CONTAINS
 
       END DO
 
-      IF (.NOT. do_ri_sos_laplace_mp2) CALL cp_fm_release(fm_work_PQ)
-
       CALL timestop(handle)
 
    END SUBROUTINE
@@ -1922,6 +1920,16 @@ CONTAINS
          DEALLOCATE (rpa_work%P_ij(ispin)%array)
          CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
 
+         BLOCK
+            REAL(KIND=dp) :: trace
+            INTEGER :: my_i
+            trace = 0.0_dp
+            DO my_i = 1, homo(ispin)
+               trace = trace + mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_i)
+            END DO
+            WRITE (*, *) "diag P_ij", trace
+         END BLOCK
+
          itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)
          my_B_start = itmp(1)
          my_B_end = itmp(2)
@@ -1973,6 +1981,17 @@ CONTAINS
          CALL cp_para_env_release(para_env_exchange)
 
          CALL release_group_dist(gd_virtual_sub)
+
+         BLOCK
+            REAL(KIND=dp) :: trace
+            INTEGER :: my_a
+            trace = 0.0_dp
+            DO my_a = 1, my_B_size
+               trace = trace + mp2_env%ri_grad%P_ab(ispin)%array(my_a, my_a + itmp(1) - 1)
+            END DO
+            CALL mp_sum(trace, para_env_sub%group)
+            WRITE (*, *) "diag P_ab", trace
+         END BLOCK
       END DO
       DEALLOCATE (rpa_work%gd_homo, rpa_work%gd_virtual, rpa_work%P_ij, rpa_work%P_ab)
       IF (nspins == 1) THEN
