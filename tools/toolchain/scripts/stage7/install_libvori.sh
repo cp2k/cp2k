@@ -1,15 +1,14 @@
 #!/bin/bash -e
 
 # TODO: Review and if possible fix shellcheck errors.
-# shellcheck disable=all
 
-# shellcheck disable=SC1090
+# shellcheck disable=all
 
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libvori_ver="220607"
-libvori_sha256="795e76d90952f310b0d8503d4d32668d080dbbd7b919cf869ef35fe4dfcf0858"
+libvori_ver="220621"
+libvori_sha256="1cfa98c564814bddacf1c0e7f11582137d758668f6307e6eb392c72317984c14"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
