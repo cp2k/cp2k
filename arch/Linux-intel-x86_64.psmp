@@ -4,7 +4,7 @@
 #
 # Tested with: Intel 20.4/21.4/22.1 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 5.2.3, ELPA 2021.11.002,
-#              PLUMED 2.8.0, SPGLIB 1.16.2, LIBVORI 220607,
+#              PLUMED 2.8.0, SPGLIB 1.16.2, LIBVORI 220621,
 #              GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.1
 # on the Merlin cluster (PSI)
 #
@@ -13,7 +13,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (10.06.2022)
+# Author: Matthias Krack (23.06.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -49,7 +49,7 @@ USE_COSMA      := 2.5.1
 USE_ELPA       := 2021.11.002
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
-USE_LIBVORI    := 220607
+USE_LIBVORI    := 220621
 USE_LIBXC      := 5.2.3
 USE_LIBXSMM    := 1.17
 USE_PLUMED     := 2.8.0
