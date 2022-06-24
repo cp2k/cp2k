@@ -1031,7 +1031,7 @@ CONTAINS
                        1.0_dp, P_ab(1, recv_a_start), my_a_size)
          END DO
          IF (proc_shift == 0) THEN
-            debug = debug + weight*SUM(mat_S_3D*buffer_3D)
+            debug = debug - weight*SUM(mat_S_3D*buffer_3D)
          END IF
 
          DO my_i = 1, my_i_size
@@ -1054,7 +1054,7 @@ CONTAINS
                        1.0_dp, P_ab(1, recv_a_start), my_a_size)
          END DO
          IF (proc_shift == 0) THEN
-            debug = debug - weight*SUM(mat_S_3D*buffer_3D)
+            debug = debug + weight*SUM(mat_S_3D*buffer_3D)
          END IF
 
          ! Remove scaling of mat_S for later
@@ -1101,7 +1101,7 @@ CONTAINS
                     buffer_3D(1, 1, 1), my_P_size*my_a_size, &
                     1.0_dp, P_ij(1, recv_i_start), my_i_size)
          IF (proc_shift == 0) THEN
-            debug = debug - weight*SUM(mat_S_3D*buffer_3D)
+            debug = debug + weight*SUM(mat_S_3D*buffer_3D)
          END IF
 
          ! Scale both matrices
@@ -1124,7 +1124,7 @@ CONTAINS
                     buffer_3D(1, 1, 1), my_P_size*my_a_size, &
                     1.0_dp, P_ij(1, recv_i_start), my_i_size)
          IF (proc_shift == 0) THEN
-            debug = debug + weight*SUM(mat_S_3D*buffer_3D)
+            debug = debug - weight*SUM(mat_S_3D*buffer_3D)
          END IF
 
          ! Remove scaling factor of mat_S for later
