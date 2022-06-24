@@ -1930,8 +1930,8 @@ CONTAINS
       INTEGER :: handle, ispin, itmp(2), my_a_end, my_a_size, my_a_start, my_B_end, my_B_size, &
          my_B_start, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, proc_send, &
          proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, send_a_start, &
-         send_end, send_start
-      REAL(KIND=dp)                                      :: my_scale
+         send_end, send_start, my_a
+      REAL(KIND=dp)                                      :: my_scale, debug
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_a_sub, gd_virtual_sub
@@ -1987,6 +1987,13 @@ CONTAINS
          ! This group dist contains the info which parts of Pab a process is supposed to own later
          CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
 
+         debug = 0.0_dp
+         DO my_a = 1, my_a_size
+            debug = debug + rpa_work%P_ab(ispin)%array(my_a, my_a + my_a_start - 1)
+         END DO
+         CALL mp_sum(debug, para_env%group)
+         WRITE (*, *) "Diag P_ab 1", debug
+
          DO proc_shift = 0, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -2003,6 +2010,7 @@ CONTAINS
             ! Same for recv process but with reverse positions
             recv_start = MAX(my_a_start, recv_a_start)
             recv_end = MIN(my_a_end, recv_a_end)
+            WRITE (*, *) proc_shift, send_start, send_end, recv_start, recv_end
             ALLOCATE (buffer_recv(MAX(recv_end - recv_start + 1, 0), virtual(ispin)))
 
             CALL mp_sendrecv(buffer_send, proc_send, buffer_recv, proc_recv, para_env_sub%group)
