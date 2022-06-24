@@ -1002,6 +1002,8 @@ CONTAINS
       ALLOCATE (buffer_1D(MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                               INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
 
+      WRITE (*, *) "DEBUG NORM 1", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
+
       DO proc_shift = 0, grid(1) - 1
          proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
          proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
@@ -1019,6 +1021,7 @@ CONTAINS
 
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
+            WRITE (*, *) my_i
             CALL DGEMM("T", "N", my_a_size, recv_a_size, my_P_size, &
                        -weight, mat_S_3D(1, 1, my_i), my_P_size, &
                        buffer_3D(1, 1, my_i), my_P_size, &
@@ -1057,6 +1060,8 @@ CONTAINS
             END DO
          END DO
       END DO
+
+      WRITE (*, *) "DEBUG NORM 2", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
 
       DO proc_shift = 0, grid(2) - 1
          proc_i_send = MODULO(mepos(2) + proc_shift, grid(2))
@@ -1107,6 +1112,8 @@ CONTAINS
          END DO
          END DO
       END DO
+
+      WRITE (*, *) "DEBUG NORM 3", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
 
       CALL timestop(handle)
 
@@ -1976,18 +1983,19 @@ CONTAINS
          CALL release_group_dist(gd_virtual_sub)
          CALL release_group_dist(gd_a_sub)
 
+         CALL release_group_dist(gd_virtual_sub)
+         CALL release_group_dist(gd_a_sub)
+
          CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
          CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_exchange%group)
          CALL cp_para_env_release(para_env_exchange)
-
-         CALL release_group_dist(gd_virtual_sub)
 
          BLOCK
             REAL(KIND=dp) :: trace
             INTEGER :: my_a
             trace = 0.0_dp
             DO my_a = 1, my_B_size
-               trace = trace + mp2_env%ri_grad%P_ab(ispin)%array(my_a, my_a + itmp(1) - 1)
+               trace = trace + mp2_env%ri_grad%P_ab(ispin)%array(my_a, my_a + my_B_start - 1)
             END DO
             CALL mp_sum(trace, para_env_sub%group)
             WRITE (*, *) "diag P_ab", trace
