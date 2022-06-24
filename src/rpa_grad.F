@@ -1076,9 +1076,6 @@ CONTAINS
       END DO
 
       WRITE (*, *) "DEBUG Diag P_ab", debug, debug2
-      DO my_a = 1, my_a_size
-         WRITE (*, *) "DEBUG P_ab", P_ab(my_a, :)
-      END DO
       debug = 0.0_dp
 
       WRITE (*, *) "DEBUG NORM 2", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
@@ -1145,9 +1142,6 @@ CONTAINS
       END DO
 
       WRITE (*, *) "DEBUG Diag P_ij", debug, debug2
-      DO my_i = 1, my_i_size
-         WRITE (*, *) "DEBUG P_ij", P_ij(my_i, :)
-      END DO
       WRITE (*, *) "DEBUG NORM 3", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
 
       CALL timestop(handle)
