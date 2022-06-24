@@ -820,6 +820,28 @@ CONTAINS
 
             CALL cp_fm_release(fm_work_iaP)
          ELSE
+            BLOCK
+               REAL(KIND=dp) :: debug, e_diff
+               INTEGER :: ncol_local, col_local, col_global, iocc, avirt
+               INTEGER, DIMENSION(:), POINTER :: col_indices
+               TYPE(cp_para_env_type), POINTER ::para_env
+
+               CALL cp_fm_get_info(fm_mat_S(ispin)%matrix, ncol_Local=ncol_local, col_indices=col_indices, para_env=para_env)
+
+               debug = 0.0_dp
+               DO col_local = 1, ncol_local
+                  col_global = col_indices(col_local)
+                  iocc = (col_global - 1)/virtual(ispin) + 1
+                  avirt = MOD(col_global - 1, virtual(ispin)) + 1
+                  e_diff = EIgenval(homo(ispin) + avirt, ispin) - Eigenval(iocc, ispin)
+
+                  debug = debug + weight*SUM(fm_mat_S(ispin)%matrix%local_data(:, col_local)*fm_work_iaP%local_data(:, col_Local)* &
+                                             (e_diff**2 - omega**2)/(e_diff**2 + omega**2)/e_diff)
+               END DO
+               CALL mp_sum(debug, para_env%group)
+               WRITE (*, *) "DEBUG Diag", debug
+            END BLOCK
+
             ! Scale fm_work_iaP
             CALL calc_fm_mat_S_rpa(fm_work_iaP, .TRUE., virtual(ispin), Eigenval(:, ispin), &
                                    homo(ispin), omega, 0.0_dp)
