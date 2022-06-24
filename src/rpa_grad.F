@@ -820,6 +820,10 @@ CONTAINS
 
             CALL cp_fm_release(fm_work_iaP)
          ELSE
+            ! Scale fm_work_iaP
+            CALL calc_fm_mat_S_rpa(fm_work_iaP, .TRUE., virtual(ispin), Eigenval(:, ispin), &
+                                   homo(ispin), omega, 0.0_dp)
+
             ! To save memory, we add it now
             CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin)%matrix, -weight, fm_work_iaP)
 
@@ -1143,6 +1147,9 @@ CONTAINS
 
       WRITE (*, *) "DEBUG Diag P_ij", debug, debug2
       WRITE (*, *) "DEBUG NORM 3", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
+      WRITE (*, *) "DEBUG Symm.", NORM2(P_ij(:, my_i_start:my_i_start + my_i_size - 1) - &
+                                        TRANSPOSE(P_ij(:, my_i_start:my_i_start + my_i_size - 1))), &
+         NORM2(P_ab(:, my_a_start:my_a_start + my_a_size - 1) - TRANSPOSE(P_ab(:, my_a_start:my_a_start + my_a_size - 1)))
 
       CALL timestop(handle)
 
