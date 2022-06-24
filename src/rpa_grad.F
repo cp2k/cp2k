@@ -983,6 +983,7 @@ CONTAINS
          proc_shift, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, recv_i_start, &
          tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
+      REAL(KIND=dp)                                      :: debug, debug2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1003,6 +1004,8 @@ CONTAINS
                               INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
 
       WRITE (*, *) "DEBUG NORM 1", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
+
+      debug = 0.0_dp
 
       DO proc_shift = 0, grid(1) - 1
          proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
@@ -1027,6 +1030,9 @@ CONTAINS
                        buffer_3D(1, 1, my_i), my_P_size, &
                        1.0_dp, P_ab(1, recv_a_start), my_a_size)
          END DO
+         IF (proc_shift == 0) THEN
+            debug = debug + weight*SUM(mat_S_3D*buffer_3D)
+         END IF
 
          DO my_i = 1, my_i_size
             ! Scale both matrices
@@ -1047,6 +1053,9 @@ CONTAINS
                        buffer_3D(1, 1, my_i), my_P_size, &
                        1.0_dp, P_ab(1, recv_a_start), my_a_size)
          END DO
+         IF (proc_shift == 0) THEN
+            debug = debug - weight*SUM(mat_S_3D*buffer_3D)
+         END IF
 
          ! Remove scaling of mat_S for later
          DO my_i = 1, my_i_size
@@ -1060,6 +1069,17 @@ CONTAINS
             END DO
          END DO
       END DO
+
+      debug2 = 0.0_dp
+      DO my_a = 1, my_a_size
+         debug2 = debug2 + P_ab(my_a, my_a + my_a_start - 1)
+      END DO
+
+      WRITE (*, *) "DEBUG Diag P_ab", debug, debug2
+      DO my_a = 1, my_a_size
+         WRITE (*, *) "DEBUG P_ab", P_ab(my_a, :)
+      END DO
+      debug = 0.0_dp
 
       WRITE (*, *) "DEBUG NORM 2", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
 
@@ -1083,6 +1103,9 @@ CONTAINS
                     weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
                     buffer_3D(1, 1, 1), my_P_size*my_a_size, &
                     1.0_dp, P_ij(1, recv_i_start), my_i_size)
+         IF (proc_shift == 0) THEN
+            debug = debug - weight*SUM(mat_S_3D*buffer_3D)
+         END IF
 
          ! Scale both matrices
          DO my_i = 1, my_i_size
@@ -1103,6 +1126,9 @@ CONTAINS
                     -weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
                     buffer_3D(1, 1, 1), my_P_size*my_a_size, &
                     1.0_dp, P_ij(1, recv_i_start), my_i_size)
+         IF (proc_shift == 0) THEN
+            debug = debug + weight*SUM(mat_S_3D*buffer_3D)
+         END IF
 
          ! Remove scaling factor of mat_S for later
          DO my_i = 1, my_i_size
@@ -1113,6 +1139,15 @@ CONTAINS
          END DO
       END DO
 
+      debug2 = 0.0_dp
+      DO my_i = 1, my_i_size
+         debug2 = debug2 + P_ij(my_i, my_i + my_i_start - 1)
+      END DO
+
+      WRITE (*, *) "DEBUG Diag P_ij", debug, debug2
+      DO my_i = 1, my_i_size
+         WRITE (*, *) "DEBUG P_ij", P_ij(my_i, :)
+      END DO
       WRITE (*, *) "DEBUG NORM 3", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
 
       CALL timestop(handle)
