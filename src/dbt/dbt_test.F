@@ -15,7 +15,7 @@ MODULE dbt_test
    #:set ndims = range(2,maxdim+1)
 
    USE dbt_tas_base, ONLY: dbt_tas_info
-   USE dbt_tas_util, ONLY: generate_larnv_seed
+   USE dbm_tests, ONLY: generate_larnv_seed
    USE dbt_methods, ONLY: &
       dbt_copy, dbt_get_block, dbt_iterator_type, dbt_iterator_blocks_left, &
       dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, &

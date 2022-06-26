@@ -15,6 +15,7 @@ MODULE dbt_tas_test
         dbm_distribution_release, dbm_finalize, dbm_get_col_block_sizes, dbm_get_name, &
         dbm_get_row_block_sizes, dbm_maxabs, dbm_multiply, dbm_redistribute, dbm_release, &
         dbm_scale, dbm_type
+   USE dbm_tests,                       ONLY: generate_larnv_seed
    USE dbt_tas_base,                    ONLY: &
         dbt_tas_convert_to_dbm, dbt_tas_create, dbt_tas_distribution_new, dbt_tas_finalize, &
         dbt_tas_get_stored_coordinates, dbt_tas_info, dbt_tas_nblkcols_total, &
@@ -27,7 +28,6 @@ MODULE dbt_tas_test
                                               dbt_tas_mp_comm
    USE dbt_tas_types,                   ONLY: dbt_tas_distribution_type,&
                                               dbt_tas_type
-   USE dbt_tas_util,                    ONLY: generate_larnv_seed
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_cart_create,&
