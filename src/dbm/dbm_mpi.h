@@ -61,6 +61,12 @@ int dbm_mpi_comm_rank(const dbm_mpi_comm_t comm);
 int dbm_mpi_comm_size(const dbm_mpi_comm_t comm);
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Dims_create.
+ * \author Ole Schuett
+ ******************************************************************************/
+void dbm_mpi_dims_create(const int nnodes, const int ndims, int dims[]);
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Cart_create.
  * \author Ole Schuett
  ******************************************************************************/

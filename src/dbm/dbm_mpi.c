@@ -116,6 +116,21 @@ int dbm_mpi_comm_size(const dbm_mpi_comm_t comm) {
 }
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Dims_create.
+ * \author Ole Schuett
+ ******************************************************************************/
+void dbm_mpi_dims_create(const int nnodes, const int ndims, int dims[]) {
+#if defined(__parallel)
+  CHECK(MPI_Dims_create(nnodes, ndims, dims));
+#else
+  dims[0] = nnodes;
+  for (int i = 1; i < ndims; i++) {
+    dims[i] = 1;
+  }
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Cart_create.
  * \author Ole Schuett
  ******************************************************************************/
