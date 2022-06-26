@@ -98,27 +98,7 @@ void dbm_copy(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
 
 #pragma omp parallel for schedule(dynamic)
   for (int ishard = 0; ishard < matrix_a->nshards; ishard++) {
-    dbm_shard_t *shard_a = &matrix_a->shards[ishard];
-    const dbm_shard_t *shard_b = &matrix_b->shards[ishard];
-
-    free(shard_a->blocks);
-    shard_a->nblocks = shard_b->nblocks;
-    shard_a->nblocks_allocated = shard_b->nblocks_allocated;
-    shard_a->blocks = malloc(shard_b->nblocks_allocated * sizeof(dbm_block_t));
-    memcpy(shard_a->blocks, shard_b->blocks,
-           shard_b->nblocks * sizeof(dbm_block_t));
-
-    free(shard_a->hashtable);
-    shard_a->hashtable_size = shard_b->hashtable_size;
-    shard_a->hashtable = malloc(shard_b->hashtable_size * sizeof(int));
-    memcpy(shard_a->hashtable, shard_b->hashtable,
-           shard_b->hashtable_size * sizeof(int));
-
-    free(shard_a->data);
-    shard_a->data_allocated = shard_b->data_allocated;
-    shard_a->data = malloc(shard_b->data_allocated * sizeof(double));
-    shard_a->data_size = shard_b->data_size;
-    memcpy(shard_a->data, shard_b->data, shard_b->data_size * sizeof(double));
+    dbm_shard_copy(&matrix_a->shards[ishard], &matrix_b->shards[ishard]);
   }
 }
 
