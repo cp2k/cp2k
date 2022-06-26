@@ -54,6 +54,12 @@ typedef struct {
 void dbm_shard_init(dbm_shard_t *shard);
 
 /*******************************************************************************
+ * \brief Internal routine for copying content of shard_b into shard_a.
+ * \author Ole Schuett
+ ******************************************************************************/
+void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b);
+
+/*******************************************************************************
  * \brief Internal routine for releasing a shard.
  * \author Ole Schuett
  ******************************************************************************/
