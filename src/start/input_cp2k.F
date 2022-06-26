@@ -278,6 +278,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_dbm_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_eri_mme_test_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -1228,4 +1232,121 @@ CONTAINS
 
    END SUBROUTINE create_cp_dbcsr_section
 
+! **************************************************************************************************
+!> \brief Creates the DBM section for use in the test section.
+!> \param section ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE create_dbm_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="DBM", &
+                          description="Benchmark and test the dbm routines", &
+                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="N_LOOP", &
+                          description="Number of operations being timed (useful for small matrices).", &
+                          usage="N_LOOP 10", default_i_val=10)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="M", &
+                          description="Dimension 1 of C", &
+                          usage="A 1024", default_i_val=256)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="N", &
+                          description="Dimension 2 of C", &
+                          usage="A 1024", default_i_val=256)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="K", &
+                          description="Inner dimension M   ", &
+                          usage="A 1024", default_i_val=256)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSA", &
+                          description="Transpose matrix A", &
+                          usage="TRANSA", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSB", &
+                          description="Transpose matrix B", &
+                          usage="TRANSB", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BS_M", &
+                          description="Row block sizes of C", n_var=-1, &
+                          usage="BS_M 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BS_N", &
+                          description="Column block sizes of C", n_var=-1, &
+                          usage="BS_N 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BS_K", &
+                          description="Block sizes of inner dimension", n_var=-1, &
+                          usage="BS_K 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KEEPSPARSE", &
+                          description="Keep product sparse", &
+                          usage="KEEPSPARSE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ASPARSITY", &
+                          description="Sparsity of A matrix", &
+                          usage="ASPARSITY 70", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BSPARSITY", &
+                          description="Sparsity of B matrix", &
+                          usage="ASPARSITY 80", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CSPARSITY", &
+                          description="Sparsity of C matrix", &
+                          usage="ASPARSITY 90", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
+                          description="Multiplication factor", &
+                          usage="ALPHA 2.0", default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="BETA", &
+                          description="Product premultiplication factor", &
+                          usage="BETA 1.0", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FILTER_EPS", &
+                          description="Threshold for on-the-fly and final filtering.", &
+                          usage="FILTER_EPS 1.0", default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ALWAYS_CHECKSUM", &
+                          description="perform a checksum after each multiplication", &
+                          usage="ALWAYS_CHECKSUM", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_dbm_section
 END MODULE input_cp2k

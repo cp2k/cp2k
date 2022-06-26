@@ -27,10 +27,7 @@ MODULE dbt_tas_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbt_tas_util'
 
-   PUBLIC :: &
-      array_eq, &
-      swap, &
-      generate_larnv_seed
+   PUBLIC :: array_eq, swap
 
    INTERFACE swap
       MODULE PROCEDURE swap_i8
@@ -111,36 +108,5 @@ CONTAINS
       IF (SIZE(arr1) .EQ. SIZE(arr2)) array_eq_i8 = ALL(arr1 == arr2)
 ! #endif
    END FUNCTION
-
-! **************************************************************************************************
-!> \brief Generate a seed respecting the lapack constraints,
-!>        - values between 0..4095 (2**12-1)
-!>        - iseed(4) odd
-!>        also try to avoid iseed that are zero.
-!>        Have but with a unique 2D mapping (irow,icol), and a 'mini-seed' ival
-!>
-!>           TODO: Move to some utility module.
-!>
-!> \param irow 1..nrow
-!> \param nrow ...
-!> \param icol 1..ncol
-!> \param ncol ...
-!> \param ival mini-seed
-!> \return a lapack compatible seed
-!> \author Patrick Seewald
-! **************************************************************************************************
-   FUNCTION generate_larnv_seed(irow, nrow, icol, ncol, ival) RESULT(iseed)
-
-      INTEGER, INTENT(IN)                                :: irow, nrow, icol, ncol, ival
-      INTEGER                                            :: iseed(4)
-
-      INTEGER(KIND=int_8)                                :: map
-
-      map = ((irow - 1 + icol*INT(nrow, int_8))*(1 + MODULO(ival, 2**16)))*2 + 1 + 0*ncol ! ncol used
-      iseed(4) = INT(MODULO(map, 2_int_8**12)); map = map/2_int_8**12; ! keep odd
-      iseed(3) = INT(MODULO(IEOR(map, 3541_int_8), 2_int_8**12)); map = map/2_int_8**12
-      iseed(2) = INT(MODULO(IEOR(map, 1153_int_8), 2_int_8**12)); map = map/2_int_8**12
-      iseed(1) = INT(MODULO(IEOR(map, 2029_int_8), 2_int_8**12)); map = map/2_int_8**12
-   END FUNCTION generate_larnv_seed
 
 END MODULE

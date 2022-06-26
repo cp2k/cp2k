@@ -51,6 +51,7 @@ MODULE library_tests
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE dbcsr_api,                       ONLY: dbcsr_reset_randmat_seed,&
                                               dbcsr_run_tests
+   USE dbm_tests,                       ONLY: dbm_run_tests
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FWFFT,&
@@ -138,8 +139,8 @@ CONTAINS
       LOGICAL                                            :: explicit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER :: cp_dbcsr_test_section, cp_fm_gemm_test_section, &
-         eigensolver_section, eri_mme_test_section, pw_transfer_section, rs_pw_transfer_section, &
-         shg_integrals_test_section
+         dbm_test_section, eigensolver_section, eri_mme_test_section, pw_transfer_section, &
+         rs_pw_transfer_section, shg_integrals_test_section
 
       CALL timeset(routineN, handle)
 
@@ -212,12 +213,17 @@ CONTAINS
       END IF
 
       ! DBCSR tests
-      ! matrix_multiplication
-      cp_dbcsr_test_section => section_vals_get_subs_vals(root_section, &
-                                                          "TEST%CP_DBCSR")
+      cp_dbcsr_test_section => section_vals_get_subs_vals(root_section, "TEST%CP_DBCSR")
       CALL section_vals_get(cp_dbcsr_test_section, explicit=explicit)
       IF (explicit) THEN
          CALL cp_dbcsr_tests(para_env, iw, cp_dbcsr_test_section)
+      END IF
+
+      ! DBM tests
+      dbm_test_section => section_vals_get_subs_vals(root_section, "TEST%DBM")
+      CALL section_vals_get(dbm_test_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL dbm_tests(para_env, iw, dbm_test_section)
       END IF
 
       CALL cp_print_key_finished_output(iw, logger, root_section, "TEST%PROGRAM_RUN_INFO")
@@ -1484,5 +1490,64 @@ CONTAINS
                               always_checksum=always_checksum)
       END DO
    END SUBROUTINE cp_dbcsr_tests
+
+! **************************************************************************************************
+!> \brief Tests the DBM library.
+!> \param para_env ...
+!> \param iw ...
+!> \param input_section ...
+! **************************************************************************************************
+   SUBROUTINE dbm_tests(para_env, iw, input_section)
+
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      INTEGER                                            :: iw
+      TYPE(section_vals_type), POINTER                   :: input_section
+
+      INTEGER                                            :: i_rep, k, m, n, N_loop, n_rep
+      INTEGER, DIMENSION(:), POINTER                     :: bs_k, bs_m, bs_n
+      LOGICAL                                            :: always_checksum, retain_sparsity, &
+                                                            transa_p, transb_p
+      REAL(KIND=dp)                                      :: alpha, beta, filter_eps, s_a, s_b, s_c
+
+!   ---------------------------------------------------------------------------
+
+      NULLIFY (bs_m, bs_n, bs_k)
+      CALL section_vals_get(input_section, n_repetition=n_rep)
+      CALL dbcsr_reset_randmat_seed()
+      DO i_rep = 1, n_rep
+         CALL section_vals_val_get(input_section, "N_loop", i_rep_section=i_rep, i_val=N_loop)
+         CALL section_vals_val_get(input_section, "K", i_rep_section=i_rep, i_val=k)
+         CALL section_vals_val_get(input_section, "N", i_rep_section=i_rep, i_val=n)
+         CALL section_vals_val_get(input_section, "M", i_rep_section=i_rep, i_val=m)
+         CALL section_vals_val_get(input_section, "transa", i_rep_section=i_rep, l_val=transa_p)
+         CALL section_vals_val_get(input_section, "transb", i_rep_section=i_rep, l_val=transb_p)
+         CALL section_vals_val_get(input_section, "bs_m", i_rep_section=i_rep, i_vals=bs_m)
+         CALL section_vals_val_get(input_section, "bs_n", i_rep_section=i_rep, i_vals=bs_n)
+         CALL section_vals_val_get(input_section, "bs_k", i_rep_section=i_rep, i_vals=bs_k)
+         CALL section_vals_val_get(input_section, "keepsparse", i_rep_section=i_rep, l_val=retain_sparsity)
+         CALL section_vals_val_get(input_section, "asparsity", i_rep_section=i_rep, r_val=s_a)
+         CALL section_vals_val_get(input_section, "bsparsity", i_rep_section=i_rep, r_val=s_b)
+         CALL section_vals_val_get(input_section, "csparsity", i_rep_section=i_rep, r_val=s_c)
+         CALL section_vals_val_get(input_section, "alpha", i_rep_section=i_rep, r_val=alpha)
+         CALL section_vals_val_get(input_section, "beta", i_rep_section=i_rep, r_val=beta)
+         CALL section_vals_val_get(input_section, "filter_eps", i_rep_section=i_rep, r_val=filter_eps)
+         CALL section_vals_val_get(input_section, "ALWAYS_CHECKSUM", i_rep_section=i_rep, l_val=always_checksum)
+
+         CALL dbm_run_tests(mp_group=para_env%group, &
+                            io_unit=iw, &
+                            matrix_sizes=(/m, n, k/), &
+                            trs=(/transa_p, transb_p/), &
+                            bs_m=bs_m, &
+                            bs_n=bs_n, &
+                            bs_k=bs_k, &
+                            sparsities=(/s_a, s_b, s_c/), &
+                            alpha=alpha, &
+                            beta=beta, &
+                            n_loops=n_loop, &
+                            eps=filter_eps, &
+                            retain_sparsity=retain_sparsity, &
+                            always_checksum=always_checksum)
+      END DO
+   END SUBROUTINE dbm_tests
 
 END MODULE library_tests
