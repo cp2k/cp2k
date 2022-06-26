@@ -184,20 +184,21 @@ int main(int argc, char *argv[]) {
   const int nranks = dbm_mpi_comm_size(world_comm);
   const int my_rank = dbm_mpi_comm_rank(world_comm);
 
-  if (my_rank == 0) {
-    printf("MPI-ranks: %i  OpenMP-threads: %i\n\n", nranks,
-           omp_get_max_threads());
-  }
-
   if (offload_get_device_count() > 0) {
     offload_set_chosen_device(my_rank % offload_get_device_count());
   }
 
   // Create 2D cart.
-  const int dims[2] = {nranks, 1};
+  int dims[2] = {0, 0};
+  dbm_mpi_dims_create(nranks, 2, dims);
   const int periods[2] = {true, true};
   dbm_mpi_comm_t comm =
       dbm_mpi_cart_create(world_comm, 2, dims, periods, false);
+
+  if (my_rank == 0) {
+    printf("MPI-ranks: %i  MPI-cart: %i x %i  OpenMP-threads: %i\n\n", nranks,
+           dims[0], dims[1], omp_get_max_threads());
+  }
 
   bechmark_multiply(4, 4, 4, comm);
 
