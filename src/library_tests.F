@@ -223,7 +223,7 @@ CONTAINS
       dbm_test_section => section_vals_get_subs_vals(root_section, "TEST%DBM")
       CALL section_vals_get(dbm_test_section, explicit=explicit)
       IF (explicit) THEN
-         CALL dbm_tests(para_env, iw, dbm_test_section)
+         CALL run_dbm_tests(para_env, iw, dbm_test_section)
       END IF
 
       CALL cp_print_key_finished_output(iw, logger, root_section, "TEST%PROGRAM_RUN_INFO")
@@ -1497,7 +1497,7 @@ CONTAINS
 !> \param iw ...
 !> \param input_section ...
 ! **************************************************************************************************
-   SUBROUTINE dbm_tests(para_env, iw, input_section)
+   SUBROUTINE run_dbm_tests(para_env, iw, input_section)
 
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iw
@@ -1548,6 +1548,6 @@ CONTAINS
                             retain_sparsity=retain_sparsity, &
                             always_checksum=always_checksum)
       END DO
-   END SUBROUTINE dbm_tests
+   END SUBROUTINE run_dbm_tests
 
 END MODULE library_tests
