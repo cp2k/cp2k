@@ -21,6 +21,8 @@ MODULE qs_tddfpt2_operators
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
+   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+   USE hartree_local_types,             ONLY: hartree_local_type
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -29,6 +31,7 @@ MODULE qs_tddfpt2_operators
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_scale,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
@@ -39,8 +42,11 @@ MODULE qs_tddfpt2_operators
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
+   USE qs_local_rho_types,              ONLY: local_rho_type
+   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical
@@ -135,7 +141,11 @@ CONTAINS
 !> \param A_ia_rspace    action of TDDFPT operator on the trial vector expressed in a plane wave
 !>                       representation (modified on exit)
 !> \param rho_ia_g       response density in reciprocal space for the given trial vector
-!> \param pw_env         plain wave environment
+!> \param local_rho_set ...
+!> \param hartree_local ...
+!> \param qs_env ...
+!> \param sub_env        the full sub_environment needed for calculation
+!> \param gapw           Flag indicating GAPW cacluation
 !> \param work_v_gspace  work reciprocal-space grid to store Coulomb potential (modified on exit)
 !> \param work_v_rspace  work real-space grid to store Coulomb potential (modified on exit)
 !> \par History
@@ -147,21 +157,28 @@ CONTAINS
 !> \note Based on the subroutine kpp1_calc_k_p_p1() which was originally created by
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_apply_coulomb(A_ia_rspace, rho_ia_g, pw_env, work_v_gspace, work_v_rspace)
+   SUBROUTINE tddfpt_apply_coulomb(A_ia_rspace, rho_ia_g, local_rho_set, hartree_local, &
+                                   qs_env, sub_env, gapw, work_v_gspace, work_v_rspace)
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
       TYPE(pw_type), POINTER                             :: rho_ia_g
-      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(hartree_local_type), POINTER                  :: hartree_local
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
+      LOGICAL, INTENT(IN)                                :: gapw
       TYPE(pw_p_type), INTENT(inout)                     :: work_v_gspace, work_v_rspace
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_coulomb'
 
       INTEGER                                            :: handle, ispin, nspins
       REAL(kind=dp)                                      :: alpha, pair_energy
+      TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(A_ia_rspace)
+      pw_env => sub_env%pw_env
       CALL pw_env_get(pw_env, poisson_env=poisson_env)
 
       IF (nspins > 1) THEN
@@ -170,6 +187,11 @@ CONTAINS
          ! spin-restricted case: alpha == 2 due to singlet state.
          ! In case of triplet states alpha == 0, so we should not call this subroutine at all.
          alpha = 2.0_dp
+      END IF
+
+      IF (gapw) THEN
+         CPASSERT(ASSOCIATED(local_rho_set))
+         CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs%pw, rho_ia_g)
       END IF
 
       CALL pw_poisson_solve(poisson_env, rho_ia_g, pair_energy, work_v_gspace%pw)
@@ -181,6 +203,17 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_axpy(work_v_rspace%pw, A_ia_rspace(ispin)%pw, alpha)
       END DO
+
+      IF (gapw) THEN
+         CALL Vh_1c_gg_integrals(qs_env, pair_energy, &
+                                 hartree_local%ecoul_1c, &
+                                 local_rho_set, &
+                                 sub_env%para_env, tddft=.TRUE.)
+         CALL pw_scale(work_v_rspace%pw, work_v_rspace%pw%pw_grid%dvol)
+         CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
+                                    calculate_forces=.FALSE., &
+                                    local_rho_set=local_rho_set)
+      END IF
 
       CALL timestop(handle)
 

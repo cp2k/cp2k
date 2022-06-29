@@ -261,8 +261,6 @@ CONTAINS
                                                         is_rks_triplets=tddfpt_control%rks_triplets, &
                                                         qs_env=qs_env, sub_env=sub_env, &
                                                         wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub)
-
-         tddfpt_control%do_response_now = .TRUE. ! needs to be after tddfpt_construct_ground_state_orb_density
       END IF
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN

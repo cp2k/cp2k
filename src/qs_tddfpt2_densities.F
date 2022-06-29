@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_densities
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -66,6 +67,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nao, nspins
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ij_ao
+      TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
@@ -87,9 +89,27 @@ CONTAINS
       IF (nspins == 1 .AND. (.NOT. is_rks_triplets)) &
          CALL dbcsr_scale(rho_ij_ao(1)%matrix, 2.0_dp)
 
-      CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
-                             pw_env_external=sub_env%pw_env, &
-                             task_list_external=sub_env%task_list_orb)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      IF (dft_control%qs_control%gapw) THEN
+         CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
+                                local_rho_set=sub_env%local_rho_set, &
+                                pw_env_external=sub_env%pw_env, &
+                                task_list_external=sub_env%task_list_orb_soft, &
+                                para_env_external=sub_env%para_env)
+      ELSEIF (dft_control%qs_control%gapw_xc) THEN
+         CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
+                                local_rho_set=sub_env%local_rho_set, &
+                                pw_env_external=sub_env%pw_env, &
+                                task_list_external=sub_env%task_list_orb, &
+                                task_list_external_soft=sub_env%task_list_orb_soft, &
+                                para_env_external=sub_env%para_env)
+      ELSE
+         CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
+                                pw_env_external=sub_env%pw_env, &
+                                task_list_external=sub_env%task_list_orb, &
+                                para_env_external=sub_env%para_env)
+      END IF
 
       CALL timestop(handle)
 

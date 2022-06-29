@@ -468,16 +468,17 @@ CONTAINS
 !> \param para_env ...
 !> \param do_tddft   Initial implementation of TDDFT. Control parameters are read directly from
 !>                   'DFT' input section
+!> \param do_tddfpt2 New implementation of TDDFT.
 !> \param do_triplet ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_xc_2nd_deriv_atom(local_rho_set, qs_env, xc_section, para_env, do_tddft, do_triplet)
+   SUBROUTINE calculate_xc_2nd_deriv_atom(local_rho_set, qs_env, xc_section, para_env, &
+                                          do_tddft, do_tddfpt2, do_triplet)
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      LOGICAL, INTENT(IN)                                :: do_tddft
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_triplet
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddft, do_tddfpt2, do_triplet
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom'
 
@@ -487,7 +488,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: gradient_functional, lsd, lsd_singlets, &
-                                                            paw_atom, tau_f
+                                                            my_tddft, paw_atom, tau_f
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
       REAL(KIND=dp), DIMENSION(1, 1)                     :: rtau
       REAL(KIND=dp), DIMENSION(1, 1, 1, 1)               :: rrho
@@ -532,6 +533,8 @@ CONTAINS
 
       rho1_atom_set => local_rho_set%rho_atom_set
 
+      my_tddft = .FALSE.
+      IF (PRESENT(do_tddft)) my_tddft = do_tddft
       CALL section_vals_val_get(input, "DFT%LSD", l_val=lsd)
       CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", &
                                 r_val=density_cut)
@@ -539,7 +542,7 @@ CONTAINS
                                 r_val=gradient_cut)
       CALL section_vals_val_get(xc_section, "TAU_CUTOFF", &
                                 r_val=tau_cut)
-      IF (do_tddft) THEN
+      IF (my_tddft) THEN
          CALL section_vals_val_get(input, "DFT%EXCITATIONS", &
                                    i_val=excitations)
          CALL section_vals_val_get(input, "DFT%TDDFPT%LSD_SINGLETS", &
@@ -564,21 +567,19 @@ CONTAINS
          rtau = 0.0_dp
       END IF
 
-      IF (do_tddft) THEN
+      IF (my_tddft) THEN
          IF (excitations == tddfpt_excitations) THEN
             IF (nspins == 1 .AND. (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
                lsd = .TRUE.
             END IF
          END IF
-      ELSE
-         IF (PRESENT(do_triplet)) THEN
-            IF (nspins == 1 .AND. do_triplet) THEN
-               lsd = .TRUE.
-            END IF
-         END IF
+      ELSEIF (PRESENT(do_tddfpt2) .AND. PRESENT(do_triplet)) THEN
+         IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
+      ELSEIF (PRESENT(do_triplet)) THEN
+         IF (nspins == 1 .AND. do_triplet) lsd = .TRUE.
       END IF
 
-!  Here starts the loop over all the atoms
+      !  Here starts the loop over all the atoms
       DO ikind = 1, SIZE(atomic_kind_set)
 
          NULLIFY (atom_list, harmonics, grid_atom)

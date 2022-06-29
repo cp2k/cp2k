@@ -73,7 +73,8 @@ MODULE qs_rho_methods
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_methods'
 
-   PUBLIC :: qs_rho_update_rho, qs_rho_rebuild, qs_rho_copy, qs_rho_scale_and_add
+   PUBLIC :: qs_rho_update_rho, qs_rho_update_tddfpt, &
+             qs_rho_rebuild, qs_rho_copy, qs_rho_scale_and_add
    PUBLIC :: duplicate_rho_type
 
 CONTAINS
@@ -328,33 +329,126 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief updates rho_r and rho_g to the rho%rho_ao.
 !>      if use_kinetic_energy_density also computes tau_r and tau_g
+!>      this works for all ground state and ground state response methods
+!> \param rho_struct the rho structure that should be updated
+!> \param qs_env the qs_env rho_struct refers to
+!>        the integrated charge in r space
+!> \param local_rho_set ...
+!> \param task_list_external external task list
+!> \param task_list_external_soft external task list (soft_version)
+!> \param pw_env_external    external plane wave environment
+!> \param para_env_external  external MPI environment
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+   SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, &
+                                task_list_external, task_list_external_soft, &
+                                pw_env_external, para_env_external)
+      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
+      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external, &
+                                                            task_list_external_soft
+      TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_external
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_update_rho'
+
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(lri_density_type), POINTER                    :: lri_density
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      CPASSERT(ASSOCIATED(rho_struct))
+
+      CALL get_qs_env(qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      para_env=para_env)
+      IF (PRESENT(para_env_external)) para_env => para_env_external
+
+      IF (dft_control%qs_control%semi_empirical .OR. &
+          dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
+
+         CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
+
+      ELSEIF (dft_control%qs_control%lrigpw) THEN
+         CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
+         CPASSERT(.NOT. dft_control%drho_by_collocation)
+         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+         CALL get_qs_env(qs_env, ks_env=ks_env)
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+         CALL get_qs_env(qs_env, lri_env=lri_env, lri_density=lri_density)
+         CALL calculate_lri_densities(lri_env, lri_density, qs_env, rho_ao_kp, cell_to_index, &
+                                      lri_rho_struct=rho_struct, &
+                                      atomic_kind_set=atomic_kind_set, &
+                                      para_env=para_env, &
+                                      response_density=.FALSE.)
+         CALL set_qs_env(qs_env, lri_density=lri_density)
+         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+
+      ELSEIF (dft_control%qs_control%rigpw) THEN
+         CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
+         CPASSERT(.NOT. dft_control%drho_by_collocation)
+         CALL get_qs_env(qs_env, lri_env=lri_env)
+         CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
+         CALL calculate_ri_densities(lri_env, qs_env, rho_ao, &
+                                     lri_rho_struct=rho_struct, &
+                                     atomic_kind_set=atomic_kind_set, &
+                                     para_env=para_env)
+         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+
+      ELSE
+         CALL qs_rho_update_rho_low(rho_struct=rho_struct, qs_env=qs_env, &
+                                    local_rho_set=local_rho_set, &
+                                    task_list_external=task_list_external, &
+                                    task_list_external_soft=task_list_external_soft, &
+                                    pw_env_external=pw_env_external, &
+                                    para_env_external=para_env_external)
+
+      END IF
+
+   END SUBROUTINE qs_rho_update_rho
+
+! **************************************************************************************************
+!> \brief updates rho_r and rho_g to the rho%rho_ao.
+!>      if use_kinetic_energy_density also computes tau_r and tau_g
 !> \param rho_struct the rho structure that should be updated
 !> \param qs_env the qs_env rho_struct refers to
 !>        the integrated charge in r space
 !> \param local_rho_set ...
 !> \param pw_env_external    external plane wave environment
-!> \param task_list_external external task list
-!> \param tddfpt_lri_env ...
-!> \param tddfpt_lri_density ...
+!> \param task_list_external external task list (use for default and GAPW)
+!> \param task_list_external_soft external task list (soft density for GAPW_XC)
+!> \param para_env_external ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, pw_env_external, task_list_external, &
-                                tddfpt_lri_env, tddfpt_lri_density)
+   SUBROUTINE qs_rho_update_rho_low(rho_struct, qs_env, local_rho_set, pw_env_external, &
+                                    task_list_external, task_list_external_soft, &
+                                    para_env_external)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
-      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
-      TYPE(lri_environment_type), OPTIONAL, POINTER      :: tddfpt_lri_env
-      TYPE(lri_density_type), OPTIONAL, POINTER          :: tddfpt_lri_density
+      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external, &
+                                                            task_list_external_soft
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_external
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_update_rho'
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho_low'
 
       INTEGER                                            :: handle, img, ispin, nimg, nspins
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: gapw, gapw_xc, lri_response
+      LOGICAL                                            :: gapw, gapw_xc
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r, tot_rho_r_xc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -362,9 +456,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, rho_xc_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(lri_density_type), POINTER                    :: lri_density
-      TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
       TYPE(oce_matrix_type), POINTER                     :: oce
@@ -372,7 +463,6 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_xc_g, rho_g, rho_r, &
                                                             rho_xc_g, rho_xc_r, tau_g, tau_r, &
                                                             tau_xc_g, tau_xc_r
-      TYPE(pw_p_type), POINTER                           :: rho_r_sccs
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_xc
@@ -383,18 +473,14 @@ CONTAINS
 
       NULLIFY (dft_control, rho_xc, ks_env, rho_ao, rho_r, rho_g, drho_r, drho_g, tau_r, tau_g)
       NULLIFY (rho_xc_ao, rho_xc_g, rho_xc_r, drho_xc_g, tau_xc_r, tau_xc_g, tot_rho_r, tot_rho_r_xc)
-      NULLIFY (lri_env, para_env, pw_env, atomic_kind_set)
+      NULLIFY (para_env, pw_env, atomic_kind_set)
 
       CPASSERT(ASSOCIATED(rho_struct))
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
-                      task_list=task_list, &
-                      lri_env=lri_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      para_env=para_env, &
-                      pw_env=pw_env)
+                      atomic_kind_set=atomic_kind_set)
 
       CALL qs_rho_get(rho_struct, &
                       rho_r=rho_r, &
@@ -403,138 +489,39 @@ CONTAINS
                       drho_r=drho_r, &
                       drho_g=drho_g, &
                       tau_r=tau_r, &
-                      tau_g=tau_g, &
-                      rho_r_sccs=rho_r_sccs)
+                      tau_g=tau_g)
 
+      CALL get_qs_env(qs_env, task_list=task_list, &
+                      para_env=para_env, pw_env=pw_env)
       IF (PRESENT(pw_env_external)) pw_env => pw_env_external
       IF (PRESENT(task_list_external)) task_list => task_list_external
+      IF (PRESENT(para_env_external)) para_env => para_env_external
 
       nspins = dft_control%nspins
       nimg = dft_control%nimages
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
 
-      lri_response = .FALSE.
-      IF (dft_control%tddfpt2_control%do_lrigpw .AND. &
-          dft_control%tddfpt2_control%do_response_now) lri_response = .TRUE.
+      CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+      DO ispin = 1, nspins
+         rho_ao => rho_ao_kp(ispin, :)
+         CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
+                                 rho=rho_r(ispin), &
+                                 rho_gspace=rho_g(ispin), &
+                                 total_rho=tot_rho_r(ispin), &
+                                 ks_env=ks_env, soft_valid=gapw, &
+                                 task_list_external=task_list_external, &
+                                 pw_env_external=pw_env_external)
+      END DO
+      CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
-      IF (lri_response .AND. (.NOT. PRESENT(tddfpt_lri_density) .OR. &
-                              (.NOT. PRESENT(tddfpt_lri_env)))) CPABORT("no lri response density / env")
-
-      IF (dft_control%qs_control%semi_empirical) THEN
-         !
-         CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
-      ELSEIF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
-         !
-         CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE.)
-      ELSEIF ((dft_control%qs_control%lrigpw) .AND. (.NOT. dft_control%tddfpt2_control%do_response_now) &
-              .OR. (lri_response)) THEN
-         CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
-         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
-         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
-         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-         IF (.NOT. lri_response) THEN
-            CALL get_qs_env(qs_env, lri_density=lri_density)
-         ELSE
-            lri_density => tddfpt_lri_density
-            lri_env => tddfpt_lri_env
-         END IF
-         CALL calculate_lri_densities(lri_env, lri_density, qs_env, rho_ao_kp, cell_to_index, &
-                                      lri_rho_struct=rho_struct, &
-                                      atomic_kind_set=atomic_kind_set, &
-                                      para_env=para_env, &
-                                      response_density=lri_response)
-         IF (.NOT. lri_response) THEN
-            CALL set_qs_env(qs_env, lri_density=lri_density)
-         ELSE
-            tddfpt_lri_density => lri_density
-            tddfpt_lri_env => lri_env
-         END IF
-         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
-      ELSEIF (dft_control%qs_control%rigpw) THEN
-         CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
-         CALL qs_rho_get(rho_struct, rho_ao=rho_ao)
-         CALL calculate_ri_densities(lri_env, qs_env, rho_ao, &
-                                     lri_rho_struct=rho_struct, &
-                                     atomic_kind_set=atomic_kind_set, &
-                                     para_env=para_env)
-         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
-      ELSE
-         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-         DO ispin = 1, nspins
-            rho_ao => rho_ao_kp(ispin, :)
-            CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                    rho=rho_r(ispin), &
-                                    rho_gspace=rho_g(ispin), &
-                                    total_rho=tot_rho_r(ispin), &
-                                    ks_env=ks_env, soft_valid=gapw, &
-                                    task_list_external=task_list, &
-                                    pw_env_external=pw_env)
-         END DO
-         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
-
-         ! if needed compute also the gradient of the density
-         IF (dft_control%drho_by_collocation) THEN
-            CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-            CPASSERT(.NOT. PRESENT(task_list_external))
-            CPASSERT(.NOT. PRESENT(pw_env_external))
-            DO ispin = 1, nspins
-               rho_ao => rho_ao_kp(ispin, :)
-               CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
-                                        drho=drho_r(3*(ispin - 1) + 1:3*ispin), &
-                                        drho_gspace=drho_g(3*(ispin - 1) + 1:3*ispin), &
-                                        qs_env=qs_env, soft_valid=gapw)
-            END DO
-            CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
-         END IF
-
-         ! if needed compute also the kinetic energy density
-         IF (dft_control%use_kinetic_energy_density) THEN
-            CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-            DO ispin = 1, nspins
-               rho_ao => rho_ao_kp(ispin, :)
-               CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                       rho=tau_r(ispin), &
-                                       rho_gspace=tau_g(ispin), &
-                                       total_rho=dum, & ! presumably not meaningful
-                                       ks_env=ks_env, soft_valid=gapw, &
-                                       compute_tau=.TRUE., &
-                                       task_list_external=task_list, &
-                                       pw_env_external=pw_env)
-            END DO
-            CALL qs_rho_set(rho_struct, tau_r_valid=.TRUE., tau_g_valid=.TRUE.)
-         END IF
-      END IF
-
-      ! GAPW o GAPW_XC require the calculation of hard and soft local densities
-      IF (gapw) THEN
-         CPASSERT(.NOT. PRESENT(task_list_external))
-         CPASSERT(.NOT. PRESENT(pw_env_external))
-         CALL get_qs_env(qs_env=qs_env, &
-                         rho_atom_set=rho_atom_set, &
-                         qs_kind_set=qs_kind_set, &
-                         oce=oce, sab_orb=sab)
-         IF (PRESENT(local_rho_set)) rho_atom_set => local_rho_set%rho_atom_set
-         CPASSERT(ASSOCIATED(rho_atom_set))
-         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
-         CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, rho_atom_set, qs_kind_set, oce, sab, para_env)
-      END IF
       IF (gapw_xc) THEN
-         CPASSERT(.NOT. PRESENT(task_list_external))
-         CPASSERT(.NOT. PRESENT(pw_env_external))
-         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc, &
-                         rho_atom_set=rho_atom_set, &
-                         qs_kind_set=qs_kind_set, &
-                         oce=oce, sab_orb=sab)
+         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
          CALL qs_rho_get(rho_xc, &
                          rho_ao_kp=rho_xc_ao, &
                          rho_r=rho_xc_r, &
                          rho_g=rho_xc_g, &
-                         tot_rho_r=tot_rho_r_xc, &
-                         drho_g=drho_xc_g, &
-                         tau_r=tau_xc_r, &
-                         tau_g=tau_xc_g)
-         CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, rho_atom_set, qs_kind_set, oce, sab, para_env)
+                         tot_rho_r=tot_rho_r_xc)
          ! copy rho_ao into rho_xc_ao
          DO ispin = 1, nspins
             DO img = 1, nimg
@@ -547,11 +534,63 @@ CONTAINS
                                     rho=rho_xc_r(ispin), &
                                     rho_gspace=rho_xc_g(ispin), &
                                     total_rho=tot_rho_r_xc(ispin), &
-                                    ks_env=ks_env, soft_valid=gapw_xc)
+                                    ks_env=ks_env, soft_valid=gapw_xc, &
+                                    task_list_external=task_list_external_soft, &
+                                    pw_env_external=pw_env_external)
          END DO
          CALL qs_rho_set(rho_xc, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+      END IF
+
+      ! GAPW o GAPW_XC require the calculation of hard and soft local densities
+      IF (gapw .OR. gapw_xc) THEN
+         CALL get_qs_env(qs_env=qs_env, &
+                         rho_atom_set=rho_atom_set, &
+                         qs_kind_set=qs_kind_set, &
+                         oce=oce, sab_orb=sab)
+         IF (PRESENT(local_rho_set)) rho_atom_set => local_rho_set%rho_atom_set
+         CPASSERT(ASSOCIATED(rho_atom_set))
+         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+         CALL calculate_rho_atom_coeff(qs_env, rho_ao_kp, rho_atom_set, qs_kind_set, oce, sab, para_env)
+      END IF
+
+      IF (.NOT. gapw_xc) THEN
          ! if needed compute also the gradient of the density
          IF (dft_control%drho_by_collocation) THEN
+            CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+            CPASSERT(.NOT. PRESENT(task_list_external))
+            DO ispin = 1, nspins
+               rho_ao => rho_ao_kp(ispin, :)
+               CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
+                                        drho=drho_r(3*(ispin - 1) + 1:3*ispin), &
+                                        drho_gspace=drho_g(3*(ispin - 1) + 1:3*ispin), &
+                                        qs_env=qs_env, soft_valid=gapw)
+            END DO
+            CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE.)
+         END IF
+         ! if needed compute also the kinetic energy density
+         IF (dft_control%use_kinetic_energy_density) THEN
+            CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+            DO ispin = 1, nspins
+               rho_ao => rho_ao_kp(ispin, :)
+               CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
+                                       rho=tau_r(ispin), &
+                                       rho_gspace=tau_g(ispin), &
+                                       total_rho=dum, & ! presumably not meaningful
+                                       ks_env=ks_env, soft_valid=gapw, &
+                                       compute_tau=.TRUE., &
+                                       task_list_external=task_list_external, &
+                                       pw_env_external=pw_env_external)
+            END DO
+            CALL qs_rho_set(rho_struct, tau_r_valid=.TRUE., tau_g_valid=.TRUE.)
+         END IF
+      ELSE
+         CALL qs_rho_get(rho_xc, &
+                         drho_g=drho_xc_g, &
+                         tau_r=tau_xc_r, &
+                         tau_g=tau_xc_g)
+         ! if needed compute also the gradient of the density
+         IF (dft_control%drho_by_collocation) THEN
+            CPASSERT(.NOT. PRESENT(task_list_external))
             DO ispin = 1, nspins
                rho_ao => rho_xc_ao(ispin, :)
                CALL calculate_drho_elec(matrix_p_kp=rho_ao, &
@@ -570,7 +609,9 @@ CONTAINS
                                        rho_gspace=tau_xc_g(ispin), &
                                        total_rho=dum, & ! presumably not meaningful
                                        ks_env=ks_env, soft_valid=gapw_xc, &
-                                       compute_tau=.TRUE.)
+                                       compute_tau=.TRUE., &
+                                       task_list_external=task_list_external_soft, &
+                                       pw_env_external=pw_env_external)
             END DO
             CALL qs_rho_set(rho_xc, tau_r_valid=.TRUE., tau_g_valid=.TRUE.)
          END IF
@@ -578,7 +619,112 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE qs_rho_update_rho
+   END SUBROUTINE qs_rho_update_rho_low
+
+! **************************************************************************************************
+!> \brief updates rho_r and rho_g to the rho%rho_ao.
+!>      if use_kinetic_energy_density also computes tau_r and tau_g
+!> \param rho_struct the rho structure that should be updated
+!> \param qs_env the qs_env rho_struct refers to
+!>        the integrated charge in r space
+!> \param pw_env_external    external plane wave environment
+!> \param task_list_external external task list
+!> \param para_env_external ...
+!> \param tddfpt_lri_env ...
+!> \param tddfpt_lri_density ...
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! **************************************************************************************************
+   SUBROUTINE qs_rho_update_tddfpt(rho_struct, qs_env, pw_env_external, task_list_external, &
+                                   para_env_external, tddfpt_lri_env, tddfpt_lri_density)
+      TYPE(qs_rho_type), POINTER                         :: rho_struct
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
+      TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_external
+      TYPE(lri_environment_type), OPTIONAL, POINTER      :: tddfpt_lri_env
+      TYPE(lri_density_type), OPTIONAL, POINTER          :: tddfpt_lri_density
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_tddfpt'
+
+      INTEGER                                            :: handle, ispin, nspins
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: lri_response
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(task_list_type), POINTER                      :: task_list
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(rho_struct))
+
+      CALL get_qs_env(qs_env, &
+                      ks_env=ks_env, &
+                      dft_control=dft_control, &
+                      atomic_kind_set=atomic_kind_set)
+
+      CALL get_qs_env(qs_env, &
+                      task_list=task_list, &
+                      para_env=para_env, &
+                      pw_env=pw_env)
+      IF (PRESENT(pw_env_external)) pw_env => pw_env_external
+      IF (PRESENT(task_list_external)) task_list => task_list_external
+      IF (PRESENT(para_env_external)) para_env => para_env_external
+
+      CALL qs_rho_get(rho_struct, &
+                      rho_r=rho_r, &
+                      rho_g=rho_g, &
+                      tot_rho_r=tot_rho_r)
+
+      nspins = dft_control%nspins
+
+      lri_response = PRESENT(tddfpt_lri_env)
+      IF (lri_response) THEN
+         CPASSERT(PRESENT(tddfpt_lri_density))
+      END IF
+
+      CPASSERT(.NOT. dft_control%drho_by_collocation)
+      CPASSERT(.NOT. dft_control%use_kinetic_energy_density)
+      CPASSERT(.NOT. dft_control%qs_control%gapw)
+      CPASSERT(.NOT. dft_control%qs_control%gapw_xc)
+
+      IF (lri_response) THEN
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+         CALL calculate_lri_densities(tddfpt_lri_env, tddfpt_lri_density, qs_env, rho_ao_kp, cell_to_index, &
+                                      lri_rho_struct=rho_struct, &
+                                      atomic_kind_set=atomic_kind_set, &
+                                      para_env=para_env, &
+                                      response_density=lri_response)
+         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+      ELSE
+         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
+         DO ispin = 1, nspins
+            rho_ao => rho_ao_kp(ispin, :)
+            CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
+                                    rho=rho_r(ispin), &
+                                    rho_gspace=rho_g(ispin), &
+                                    total_rho=tot_rho_r(ispin), &
+                                    ks_env=ks_env, &
+                                    task_list_external=task_list_external, &
+                                    pw_env_external=pw_env_external)
+         END DO
+         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_rho_update_tddfpt
 
 ! **************************************************************************************************
 !> \brief Allocate a density structure and fill it with data from an input structure

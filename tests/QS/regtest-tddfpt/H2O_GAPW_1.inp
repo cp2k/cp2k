@@ -1,0 +1,90 @@
+##REFERENCE##
+# To get close to the reference you need a larger box, stricter convergence and
+# better converged integrals
+#
+# PBE
+# HF Energy  -76.3600550759
+#
+# Excited State   1:      Singlet-B1     7.0944 eV  174.76 nm  f=0.0271  <S**2>=0.000
+#       5 ->  6         0.70668
+# Excited State   2:      Singlet-A2     8.9854 eV  137.98 nm  f=0.0000  <S**2>=0.000
+#       5 ->  7         0.70699
+# Excited State   3:      Singlet-A1     9.3872 eV  132.08 nm  f=0.0899  <S**2>=0.000
+#       4 ->  6         0.70208
+#
+# PBE0
+# HF Energy  -76.3624232785
+#
+# Excited State   1:      Singlet-B1     7.7365 eV  160.26 nm  f=0.0285  <S**2>=0.000
+#       5 ->  6         0.70657
+# Excited State   2:      Singlet-A2     9.6344 eV  128.69 nm  f=0.0000  <S**2>=0.000
+#       5 ->  7         0.70484
+# Excited State   3:      Singlet-A1    10.0954 eV  122.81 nm  f=0.0955  <S**2>=0.000
+#       4 ->  6         0.70276
+#############
+&GLOBAL
+  PROJECT H2O_GAPW
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &PROPERTIES
+    &TDDFPT
+       NSTATES      3
+       MAX_ITER    10
+       MAX_KV      10
+       CONVERGENCE 1.0e-5
+       &XC
+         &XC_FUNCTIONAL PBE
+         &END XC_FUNCTIONAL
+       &END XC
+    &END TDDFPT
+  &END PROPERTIES
+
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+       METHOD GAPW
+    &END QS
+    &SCF
+      MAX_SCF 40
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER WAVELET
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC  6.0  6.0  6.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587 H2O
+    H   0.000000   -0.757136    0.520545 H2O
+    H   0.000000    0.757136    0.520545 H2O
+    &END COORD
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+    &KIND H
+      BASIS_SET ORB 6-311Gxx
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET ORB 6-311Gxx
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
