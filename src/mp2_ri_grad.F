@@ -142,7 +142,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind, &
                                                             virtual
       LOGICAL                                            :: alpha_beta, use_virial
-      REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor, &
+      REAL(KIND=dp)                                      :: cutoff_old, debug(3), debug_force_2c(3), &
+                                                            debug_force_3c(3), eps_filter, factor, &
                                                             relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
@@ -313,6 +314,13 @@ CONTAINS
             END IF
          END DO
 
+         IF (compare_potential_types(mp2_env%potential_parameter, mp2_env%ri_metric)) THEN
+            WRITE (*, *) "Debug 2c", -4.0_dp*force_2c(1)%forces(:, 1)
+         ELSE
+            WRITE (*, *) "Debug 2c", -4.0_dp*force_2c(1)%forces(:, 1) - 4.0_dp*force_2c_RI(1)%forces(:, 1)
+         END IF
+         WRITE (*, *) "Debug 3c", force_3c_orb_mu(1)%forces(:, 1) + force_3c_orb_nu(1)%forces(:, 1) + force_3c_aux(1)%forces(:, 1)
+
          CALL mp2_eri_deallocate_forces(force_2c)
          IF (.NOT. compare_potential_types(mp2_env%potential_parameter, mp2_env%ri_metric)) THEN
             CALL mp2_eri_deallocate_forces(force_2c_RI)
@@ -359,6 +367,8 @@ CONTAINS
          CALL timeset(routineN//"_loop", handle2)
 
          IF (use_virial) h_stress = 0.0_dp
+         debug_force_3c = 0.0_dp
+         debug_force_2c = 0.0_dp
 
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
@@ -383,6 +393,10 @@ CONTAINS
                                                   mp2_force, h_stress, para_env_sub, dft_control, psi_L)
             END IF
 
+            debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug
+
+            debug = mp2_force(1)%rho_elec(:, 1)
+
             IF (use_virial) pv_virial = virial%pv_virial
             CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
                                                   task_list_sub)
@@ -402,7 +416,11 @@ CONTAINS
                                                   h_stress, para_env_sub, kind_of, atom_of_kind, &
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
 
+            debug_force_3c = debug_force_3c + mp2_force(1)%rho_elec(:, 1) - debug
+
          END DO
+         WRITE (*, *) "Debug 2c", debug_force_2c
+         WRITE (*, *) "Debug 3c", debug_force_3c
 
          CALL timestop(handle2)
 
