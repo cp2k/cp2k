@@ -201,6 +201,7 @@ CONTAINS
                CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set)
             ELSEIF (gapw_xc) THEN
                CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
+                                      rho_xc_external=work_matrices%rho_xc_struct_sub, &
                                       local_rho_set=work_matrices%local_rho_set, &
                                       pw_env_external=sub_env%pw_env, &
                                       task_list_external=sub_env%task_list_orb, &
@@ -226,11 +227,29 @@ CONTAINS
 
          ! C_x d^{2}E_{x}^{DFT}[\rho] / d\rho^2
          ! + C_{HF} d^{2}E_{x, ADMM}^{DFT}[\rho] / d\rho^2 in case of ADMM calculation
-         CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
-                              rho_ia_struct=work_matrices%rho_orb_struct_sub, &
-                              is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                              work_v_xc=work_matrices%wpw_rspace_sub, &
-                              work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+         IF (gapw_xc) THEN
+            CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                 rho_ia_struct=work_matrices%rho_xc_struct_sub, &
+                                 is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                 work_v_xc=work_matrices%wpw_rspace_sub, &
+                                 work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+            DO ispin = 1, nspins
+               CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin)%pw, &
+                             work_matrices%A_ia_rspace_sub(ispin)%pw%pw_grid%dvol)
+               CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                                       hmat=work_matrices%A_ia_munu_sub(ispin), &
+                                       qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw_xc, &
+                                       pw_env_external=sub_env%pw_env, &
+                                       task_list_external=sub_env%task_list_orb_soft)
+               CALL pw_zero(work_matrices%A_ia_rspace_sub(ispin)%pw)
+            END DO
+         ELSE
+            CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                 rho_ia_struct=work_matrices%rho_orb_struct_sub, &
+                                 is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                 work_v_xc=work_matrices%wpw_rspace_sub, &
+                                 work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+         END IF
          IF (gapw .OR. gapw_xc) THEN
             CALL calculate_xc_2nd_deriv_atom(work_matrices%local_rho_set, qs_env, kernel_env%xc_section, &
                                              sub_env%para_env, do_tddfpt2=.TRUE., do_triplet=is_rks_triplets)
@@ -354,8 +373,15 @@ CONTAINS
                   CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., tddft=.TRUE., &
                                       rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
                ELSEIF (gapw_xc) THEN
-                  ! see calc_kpp1
-                  CPABORT("GAPW_XC in FHXC")
+                  IF (.NOT. is_rks_triplets) THEN
+                     CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                                             hmat=work_matrices%A_ia_munu_sub(ispin), &
+                                             qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
+                                             pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
+                  END IF
+                  ! rho_ia_ao will not be touched
+                  CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., tddft=.TRUE., &
+                                      rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
                ELSE
                   CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
                                           hmat=work_matrices%A_ia_munu_sub(ispin), &

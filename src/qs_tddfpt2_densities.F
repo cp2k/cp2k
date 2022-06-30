@@ -15,12 +15,15 @@ MODULE qs_tddfpt2_densities
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_scale
    USE kinds,                           ONLY: dp
+   USE pw_env_types,                    ONLY: pw_env_get
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+   USE qs_rho_methods,                  ONLY: qs_rho_copy,&
+                                              qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
@@ -43,6 +46,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Compute the ground-state charge density expressed in primary basis set.
 !> \param rho_orb_struct      ground-state density in primary basis set
+!> \param rho_xc_struct       ground-state density in primary basis set for GAPW_XC
 !> \param is_rks_triplets     indicates that the triplet excited states calculation using
 !>                            spin-unpolarised molecular orbitals has been requested
 !> \param qs_env              Quickstep environment
@@ -54,9 +58,9 @@ CONTAINS
 !>              subroutines tddfpt_construct_ground_state_orb_density() and
 !>              tddfpt_construct_aux_fit_density [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_construct_ground_state_orb_density(rho_orb_struct, is_rks_triplets, &
+   SUBROUTINE tddfpt_construct_ground_state_orb_density(rho_orb_struct, rho_xc_struct, is_rks_triplets, &
                                                         qs_env, sub_env, wfm_rho_orb)
-      TYPE(qs_rho_type), POINTER                         :: rho_orb_struct
+      TYPE(qs_rho_type), POINTER                         :: rho_orb_struct, rho_xc_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
@@ -68,6 +72,7 @@ CONTAINS
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ij_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
 
       CALL timeset(routineN, handle)
 
@@ -99,11 +104,14 @@ CONTAINS
                                 para_env_external=sub_env%para_env)
       ELSEIF (dft_control%qs_control%gapw_xc) THEN
          CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
+                                rho_xc_external=rho_xc_struct, &
                                 local_rho_set=sub_env%local_rho_set, &
                                 pw_env_external=sub_env%pw_env, &
                                 task_list_external=sub_env%task_list_orb, &
                                 task_list_external_soft=sub_env%task_list_orb_soft, &
                                 para_env_external=sub_env%para_env)
+         CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         CALL qs_rho_copy(rho_xc_struct, rho_orb_struct, auxbas_pw_pool, nspins)
       ELSE
          CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
                                 pw_env_external=sub_env%pw_env, &

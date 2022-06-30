@@ -155,6 +155,8 @@ MODULE qs_tddfpt2_types
       !
       !> electron density in terms of primary basis set
       TYPE(qs_rho_type), POINTER                         :: rho_orb_struct_sub
+      !> electron density for XC in GAPW_XC
+      TYPE(qs_rho_type), POINTER                         :: rho_xc_struct_sub
       !> electron density in terms of auxiliary basis set
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit_struct_sub
       !> group-specific copy of a Coulomb/xc-potential on a real-space grid
@@ -232,7 +234,8 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, rho_ia_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_fit, rho_ia_ao, &
+                                                            rho_xc_ao
       TYPE(dbcsr_type), POINTER                          :: dbcsr_template_hfx
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -254,6 +257,7 @@ CONTAINS
 
       NULLIFY (work_matrices%hartree_local)
       NULLIFY (work_matrices%local_rho_set)
+      NULLIFY (work_matrices%rho_xc_struct_sub)
 
       nspins = SIZE(gs_mos)
       CALL get_qs_env(qs_env, blacs_env=blacs_env, matrix_s=matrix_s)
@@ -369,6 +373,21 @@ CONTAINS
       CALL qs_rho_set(work_matrices%rho_orb_struct_sub, rho_ao=rho_ia_ao)
       CALL qs_rho_rebuild(work_matrices%rho_orb_struct_sub, qs_env, rebuild_ao=.FALSE., &
                           rebuild_grids=.TRUE., pw_env_external=sub_env%pw_env)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (dft_control%qs_control%gapw_xc) THEN
+         NULLIFY (rho_xc_ao)
+         CALL dbcsr_allocate_matrix_set(rho_xc_ao, nspins)
+         DO ispin = 1, nspins
+            CALL dbcsr_init_p(rho_xc_ao(ispin)%matrix)
+            CALL tddfpt_dbcsr_create_by_dist(rho_xc_ao(ispin)%matrix, template=matrix_s(1)%matrix, &
+                                             dbcsr_dist=sub_env%dbcsr_dist, sab=sub_env%sab_orb)
+         END DO
+         NULLIFY (work_matrices%rho_xc_struct_sub)
+         CALL qs_rho_create(work_matrices%rho_xc_struct_sub)
+         CALL qs_rho_set(work_matrices%rho_xc_struct_sub, rho_ao=rho_xc_ao)
+         CALL qs_rho_rebuild(work_matrices%rho_xc_struct_sub, qs_env, rebuild_ao=.FALSE., &
+                             rebuild_grids=.TRUE., pw_env_external=sub_env%pw_env)
+      END IF
 
       NULLIFY (work_matrices%rho_aux_fit_struct_sub)
       IF (do_admm) THEN
@@ -406,24 +425,26 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
       END DO
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
       ! GAPW initializations
       IF (dft_control%qs_control%gapw) THEN
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
                          natom=natom, &
                          qs_kind_set=qs_kind_set)
-
          CALL local_rho_set_create(work_matrices%local_rho_set)
          CALL allocate_rho_atom_internals(work_matrices%local_rho_set%rho_atom_set, atomic_kind_set, &
                                           qs_kind_set, dft_control, sub_env%para_env)
-
          CALL init_rho0(work_matrices%local_rho_set, qs_env, dft_control%qs_control%gapw_control, .TRUE.)
          CALL rho0_s_grid_create(sub_env%pw_env, work_matrices%local_rho_set%rho0_mpole)
          CALL hartree_local_create(work_matrices%hartree_local)
          CALL init_coulomb_local(work_matrices%hartree_local, natom)
       ELSEIF (dft_control%qs_control%gapw_xc) THEN
-         CPABORT("GAPW_XC in TDDFT not possible")
+         CALL get_qs_env(qs_env, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set)
+         CALL local_rho_set_create(work_matrices%local_rho_set)
+         CALL allocate_rho_atom_internals(work_matrices%local_rho_set%rho_atom_set, atomic_kind_set, &
+                                          qs_kind_set, dft_control, sub_env%para_env)
       END IF
 
       ! HFX-related globally distributed matrices
@@ -606,6 +627,10 @@ CONTAINS
       NULLIFY (work_matrices%ewald_env)
       NULLIFY (work_matrices%ewald_pw)
 
+      NULLIFY (work_matrices%hartree_local)
+      NULLIFY (work_matrices%local_rho_set)
+      NULLIFY (work_matrices%rho_xc_struct_sub)
+
       CALL timestop(handle)
 
    END SUBROUTINE stda_create_work_matrices
@@ -738,6 +763,8 @@ CONTAINS
       IF (ASSOCIATED(work_matrices%hartree_local)) THEN
          CALL hartree_local_release(work_matrices%hartree_local)
       END IF
+      ! GAPW_XC
+      CALL qs_rho_release(work_matrices%rho_xc_struct_sub)
 
       CALL timestop(handle)
 

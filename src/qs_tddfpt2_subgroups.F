@@ -348,8 +348,14 @@ CONTAINS
             CALL hartree_local_create(sub_env%hartree_local)
             CALL init_coulomb_local(sub_env%hartree_local, natom)
          ELSEIF (dft_control%qs_control%gapw_xc) THEN
-            CPABORT("GAPW_XC in TDDFT not possible")
+            CALL get_qs_env(qs_env, &
+                            atomic_kind_set=atomic_kind_set, &
+                            qs_kind_set=qs_kind_set)
+            CALL local_rho_set_create(sub_env%local_rho_set)
+            CALL allocate_rho_atom_internals(sub_env%local_rho_set%rho_atom_set, atomic_kind_set, &
+                                             qs_kind_set, dft_control, sub_env%para_env)
          END IF
+
       ELSE IF (kernel == tddfpt_kernel_stda) THEN
          sub_env%is_mgrid = .FALSE.
          NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)

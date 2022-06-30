@@ -52,7 +52,7 @@
     &END
     &SCF
       MAX_SCF 40
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC
     &END SCF
     &XC
       &XC_FUNCTIONAL PBE0

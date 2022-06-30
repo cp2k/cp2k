@@ -333,6 +333,7 @@ CONTAINS
 !> \param rho_struct the rho structure that should be updated
 !> \param qs_env the qs_env rho_struct refers to
 !>        the integrated charge in r space
+!> \param rho_xc_external ...
 !> \param local_rho_set ...
 !> \param task_list_external external task list
 !> \param task_list_external_soft external task list (soft_version)
@@ -342,11 +343,12 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, &
+   SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, rho_xc_external, local_rho_set, &
                                 task_list_external, task_list_external_soft, &
                                 pw_env_external, para_env_external)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_xc_external
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external, &
                                                             task_list_external_soft
@@ -409,6 +411,7 @@ CONTAINS
 
       ELSE
          CALL qs_rho_update_rho_low(rho_struct=rho_struct, qs_env=qs_env, &
+                                    rho_xc_external=rho_xc_external, &
                                     local_rho_set=local_rho_set, &
                                     task_list_external=task_list_external, &
                                     task_list_external_soft=task_list_external_soft, &
@@ -425,6 +428,7 @@ CONTAINS
 !> \param rho_struct the rho structure that should be updated
 !> \param qs_env the qs_env rho_struct refers to
 !>        the integrated charge in r space
+!> \param rho_xc_external rho structure for GAPW_XC
 !> \param local_rho_set ...
 !> \param pw_env_external    external plane wave environment
 !> \param task_list_external external task list (use for default and GAPW)
@@ -434,11 +438,13 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_update_rho_low(rho_struct, qs_env, local_rho_set, pw_env_external, &
+   SUBROUTINE qs_rho_update_rho_low(rho_struct, qs_env, rho_xc_external, &
+                                    local_rho_set, pw_env_external, &
                                     task_list_external, task_list_external_soft, &
                                     para_env_external)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_xc_external
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list_external, &
@@ -516,7 +522,11 @@ CONTAINS
       CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
       IF (gapw_xc) THEN
-         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
+         IF (PRESENT(rho_xc_external)) THEN
+            rho_xc => rho_xc_external
+         ELSE
+            CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
+         END IF
          CALL qs_rho_get(rho_xc, &
                          rho_ao_kp=rho_xc_ao, &
                          rho_r=rho_xc_r, &
