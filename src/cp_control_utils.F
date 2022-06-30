@@ -1577,7 +1577,32 @@ CONTAINS
             CALL section_release(section)
          END IF
 
+         WRITE (UNIT=output_unit, FMT="(A)") ""
          CALL xc_write(output_unit, xc_section, dft_control%lsd)
+
+         IF (dft_control%apply_period_efield) THEN
+            WRITE (UNIT=output_unit, FMT="(A)") ""
+            IF (dft_control%period_efield%displacement_field) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                  "PERIODIC_EFIELD| Use displacement field formulation"
+               WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,ES14.6)") &
+                  "PERIODIC_EFIELD| Displacement field filter: x", &
+                  dft_control%period_efield%d_filter(1), &
+                  "PERIODIC_EFIELD|                            y", &
+                  dft_control%period_efield%d_filter(2), &
+                  "PERIODIC_EFIELD|                            z", &
+                  dft_control%period_efield%d_filter(3)
+            END IF
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,ES14.6)") &
+               "PERIODIC_EFIELD| Polarisation vector:       x", &
+               dft_control%period_efield%polarisation(1), &
+               "PERIODIC_EFIELD|                            y", &
+               dft_control%period_efield%polarisation(2), &
+               "PERIODIC_EFIELD|                            z", &
+               dft_control%period_efield%polarisation(3), &
+               "PERIODIC_EFIELD| Intensity [a.u.]:", &
+               dft_control%period_efield%strength
+         END IF
 
          IF (dft_control%do_sccs) THEN
             IF (dft_control%qs_control%gapw) THEN
@@ -1651,6 +1676,8 @@ CONTAINS
                "SCCS| Numerical increment for the cavity surface calculation", &
                dft_control%sccs_control%delta_rho
          END IF
+
+         WRITE (UNIT=output_unit, FMT="(A)") ""
 
       END IF
 
