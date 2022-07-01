@@ -1283,9 +1283,6 @@ CONTAINS
       CALL section_vals_val_get(t_section, "DO_LRIGPW", l_val=t_control%do_lrigpw)
       CALL section_vals_val_get(t_section, "ADMM_KERNEL_CORRECTION_SYMMETRIC", l_val=t_control%admm_symm)
 
-      t_control%do_response_now = .FALSE. ! logical to control that update of response density is distinguished
-      ! from update of GS density
-
       ! read automatically generated auxiliary basis for LRI
       CALL section_vals_val_get(t_section, "AUTO_BASIS", n_rep_val=nrep)
       DO irep = 1, nrep

@@ -258,11 +258,10 @@ CONTAINS
          CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, qs_env, sub_env)
 
          CALL tddfpt_construct_ground_state_orb_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
+                                                        rho_xc_struct=work_matrices%rho_xc_struct_sub, &
                                                         is_rks_triplets=tddfpt_control%rks_triplets, &
                                                         qs_env=qs_env, sub_env=sub_env, &
                                                         wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub)
-
-         tddfpt_control%do_response_now = .TRUE. ! needs to be after tddfpt_construct_ground_state_orb_density
       END IF
 
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN

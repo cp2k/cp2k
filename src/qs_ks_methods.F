@@ -593,7 +593,7 @@ CONTAINS
             ! test for not implemented (bug) option
             IF (use_virial .AND. calculate_forces) THEN
                IF (ASSOCIATED(v_tau_rspace)) THEN
-                  CPABORT("MGGA STRESS with GAPW not implemneted")
+                  CPABORT("MGGA STRESS with GAPW/GAPW_XC not implemneted")
                END IF
             END IF
          END IF

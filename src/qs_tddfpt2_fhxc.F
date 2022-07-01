@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_fhxc
-   USE cp_control_types,                ONLY: stda_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              stda_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -22,9 +23,7 @@ MODULE qs_tddfpt2_fhxc
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
    USE kinds,                           ONLY: dp
-   USE lri_environment_types,           ONLY: lri_density_type,&
-                                              lri_environment_type,&
-                                              lri_kind_type
+   USE lri_environment_types,           ONLY: lri_kind_type
    USE message_passing,                 ONLY: mp_sum
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -38,10 +37,13 @@ MODULE qs_tddfpt2_fhxc
                                               pw_p_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
                                               integrate_v_rspace_one_center
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
-   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+   USE qs_ks_atom,                      ONLY: update_ks_atom
+   USE qs_rho_methods,                  ONLY: qs_rho_update_rho,&
+                                              qs_rho_update_tddfpt
    USE qs_rho_types,                    ONLY: qs_rho_get
    USE qs_tddfpt2_densities,            ONLY: tddfpt_construct_aux_fit_density
    USE qs_tddfpt2_lri_utils,            ONLY: tddfpt2_lri_Amat
@@ -51,6 +53,7 @@ MODULE qs_tddfpt2_fhxc
    USE qs_tddfpt2_stda_utils,           ONLY: stda_calculate_kernel
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_work_matrices
+   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -104,13 +107,13 @@ CONTAINS
                                                             nao_aux, nkind, nspins, nvects
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes
       INTEGER, DIMENSION(maxspins)                       :: nactive
+      LOGICAL                                            :: gapw, gapw_xc
       TYPE(cp_fm_type), POINTER                          :: work_aux_orb, work_orb_orb
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_xc_munu_sub, rho_ia_ao, &
                                                             rho_ia_ao_aux_fit
       TYPE(dbcsr_type), POINTER                          :: dbwork
-      TYPE(lri_density_type), POINTER                    :: lri_density
-      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_ia_g, rho_ia_g_aux_fit, rho_ia_r, &
                                                             rho_ia_r_aux_fit, tau_ia_r, &
@@ -125,6 +128,10 @@ CONTAINS
          CPASSERT(do_hfx)
          CPASSERT(ASSOCIATED(sub_env%admm_A))
       END IF
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      gapw = dft_control%qs_control%gapw
+      gapw_xc = dft_control%qs_control%gapw_xc
 
       CALL cp_fm_get_info(evects(1, 1)%matrix, nrow_global=nao)
       DO ispin = 1, nspins
@@ -171,19 +178,42 @@ CONTAINS
             END DO
          END IF
 
-         IF (.NOT. do_lrigpw) THEN
-            CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
-                                   pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
+         IF (do_lrigpw) THEN
+            CALL qs_rho_update_tddfpt(work_matrices%rho_orb_struct_sub, qs_env, &
+                                      pw_env_external=sub_env%pw_env, &
+                                      task_list_external=sub_env%task_list_orb, &
+                                      para_env_external=sub_env%para_env, &
+                                      tddfpt_lri_env=kernel_env%lri_env, &
+                                      tddfpt_lri_density=kernel_env%lri_density)
+         ELSEIF (dft_control%qs_control%lrigpw .OR. &
+                 dft_control%qs_control%rigpw) THEN
+            CALL qs_rho_update_tddfpt(work_matrices%rho_orb_struct_sub, qs_env, &
+                                      pw_env_external=sub_env%pw_env, &
+                                      task_list_external=sub_env%task_list_orb, &
+                                      para_env_external=sub_env%para_env)
          ELSE
-            NULLIFY (lri_env)
-            NULLIFY (lri_density)
-            lri_env => kernel_env%lri_env
-            lri_density => kernel_env%lri_density
-            CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
-                                   pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb, &
-                                   tddfpt_lri_env=lri_env, tddfpt_lri_density=lri_density)
-            kernel_env%lri_density => lri_density
-            kernel_env%lri_env => lri_env
+            IF (gapw) THEN
+               CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
+                                      local_rho_set=work_matrices%local_rho_set, &
+                                      pw_env_external=sub_env%pw_env, &
+                                      task_list_external=sub_env%task_list_orb_soft, &
+                                      para_env_external=sub_env%para_env)
+               CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set)
+            ELSEIF (gapw_xc) THEN
+               CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
+                                      rho_xc_external=work_matrices%rho_xc_struct_sub, &
+                                      local_rho_set=work_matrices%local_rho_set, &
+                                      pw_env_external=sub_env%pw_env, &
+                                      task_list_external=sub_env%task_list_orb, &
+                                      task_list_external_soft=sub_env%task_list_orb_soft, &
+                                      para_env_external=sub_env%para_env)
+               CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set, do_rho0=.FALSE.)
+            ELSE
+               CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
+                                      pw_env_external=sub_env%pw_env, &
+                                      task_list_external=sub_env%task_list_orb, &
+                                      para_env_external=sub_env%para_env)
+            END IF
          END IF
 
          DO ispin = 1, nspins
@@ -197,11 +227,33 @@ CONTAINS
 
          ! C_x d^{2}E_{x}^{DFT}[\rho] / d\rho^2
          ! + C_{HF} d^{2}E_{x, ADMM}^{DFT}[\rho] / d\rho^2 in case of ADMM calculation
-         CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
-                              rho_ia_struct=work_matrices%rho_orb_struct_sub, &
-                              is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                              work_v_xc=work_matrices%wpw_rspace_sub, &
-                              work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+         IF (gapw_xc) THEN
+            CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                 rho_ia_struct=work_matrices%rho_xc_struct_sub, &
+                                 is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                 work_v_xc=work_matrices%wpw_rspace_sub, &
+                                 work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+            DO ispin = 1, nspins
+               CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin)%pw, &
+                             work_matrices%A_ia_rspace_sub(ispin)%pw%pw_grid%dvol)
+               CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                                       hmat=work_matrices%A_ia_munu_sub(ispin), &
+                                       qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw_xc, &
+                                       pw_env_external=sub_env%pw_env, &
+                                       task_list_external=sub_env%task_list_orb_soft)
+               CALL pw_zero(work_matrices%A_ia_rspace_sub(ispin)%pw)
+            END DO
+         ELSE
+            CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                 rho_ia_struct=work_matrices%rho_orb_struct_sub, &
+                                 is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                 work_v_xc=work_matrices%wpw_rspace_sub, &
+                                 work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+         END IF
+         IF (gapw .OR. gapw_xc) THEN
+            CALL calculate_xc_2nd_deriv_atom(work_matrices%local_rho_set, qs_env, kernel_env%xc_section, &
+                                             sub_env%para_env, do_tddfpt2=.TRUE., do_triplet=is_rks_triplets)
+         END IF
 
          ! ADMM correction
          IF (do_admm) THEN
@@ -296,9 +348,11 @@ CONTAINS
             DO ispin = 2, nspins
                CALL pw_axpy(rho_ia_g(ispin)%pw, rho_ia_g(1)%pw)
             END DO
-
             CALL tddfpt_apply_coulomb(A_ia_rspace=work_matrices%A_ia_rspace_sub, &
-                                      rho_ia_g=rho_ia_g(1)%pw, pw_env=sub_env%pw_env, &
+                                      rho_ia_g=rho_ia_g(1)%pw, &
+                                      local_rho_set=work_matrices%local_rho_set, &
+                                      hartree_local=work_matrices%hartree_local, &
+                                      qs_env=qs_env, sub_env=sub_env, gapw=gapw, &
                                       work_v_gspace=work_matrices%wpw_gspace_sub(1), &
                                       work_v_rspace=work_matrices%wpw_rspace_sub(1))
          END IF
@@ -309,10 +363,31 @@ CONTAINS
                CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin)%pw, &
                              work_matrices%A_ia_rspace_sub(ispin)%pw%pw_grid%dvol)
 
-               CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
-                                       hmat=work_matrices%A_ia_munu_sub(ispin), &
-                                       qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
-                                       pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
+               IF (gapw) THEN
+                  CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                                          hmat=work_matrices%A_ia_munu_sub(ispin), &
+                                          qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw, &
+                                          pw_env_external=sub_env%pw_env, &
+                                          task_list_external=sub_env%task_list_orb_soft)
+                  ! rho_ia_ao will not be touched
+                  CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., tddft=.TRUE., &
+                                      rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
+               ELSEIF (gapw_xc) THEN
+                  IF (.NOT. is_rks_triplets) THEN
+                     CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                                             hmat=work_matrices%A_ia_munu_sub(ispin), &
+                                             qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
+                                             pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
+                  END IF
+                  ! rho_ia_ao will not be touched
+                  CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., tddft=.TRUE., &
+                                      rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
+               ELSE
+                  CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                                          hmat=work_matrices%A_ia_munu_sub(ispin), &
+                                          qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
+                                          pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
+               END IF
             ELSE ! for full kernel using lri
                CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin)%pw, &
                              work_matrices%A_ia_rspace_sub(ispin)%pw%pw_grid%dvol)
@@ -342,7 +417,7 @@ CONTAINS
          ! calculate Coulomb contribution to response vector for lrigpw !
          ! this is restricting lri to Coulomb only at the moment !
          IF (do_lrigpw .AND. (.NOT. is_rks_triplets)) THEN !
-            CALL tddfpt2_lri_Amat(qs_env, sub_env, lri_env, lri_v_int, work_matrices%A_ia_munu_sub)
+            CALL tddfpt2_lri_Amat(qs_env, sub_env, kernel_env%lri_env, lri_v_int, work_matrices%A_ia_munu_sub)
          END IF
 
          IF (ALLOCATED(work_matrices%evects_sub)) THEN

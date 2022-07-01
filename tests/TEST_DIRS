@@ -31,6 +31,7 @@ QS/regtest-double-hybrid-stress
 QS/regtest-double-hybrid-grad                               
 QS/regtest-hfx-ri-2                                         libint libxc
 QS/regtest-rma                                              libint mpi3
+QS/regtest-gapw_xc                                          libint
 LIBTEST/libvori                                             libvori
 LIBTEST/libbqb                                              libbqb
 QS/regtest-rma-3D                                           libint mpi3

@@ -1,0 +1,66 @@
+&GLOBAL
+ PROJECT      CO
+ IOLEVEL      MEDIUM
+ RUN_TYPE     ENERGY
+&END
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    BASIS_SET_FILE_NAME ALL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END
+    &END
+    &QS
+      METHOD       GAPW_XC
+      EPS_GVG      1.0E-8
+      EPS_PGF_ORB  1.0E-8
+      QUADRATURE   GC_LOG
+      EPSFIT       1.E-4
+      EPSISO       1.0E-12
+      EPSRHO0      1.E-8
+      LMAXN0       2
+      LMAXN1       6
+      ALPHA0_H     10
+     &END
+    &MGRID
+      CUTOFF      250
+    &END
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 5.E-7
+      EPS_DIIS 0.4
+      MAX_SCF 20
+      ADDED_MOS  1 1
+    &END SCF
+   &POISSON
+     POISSON_SOLVER MT
+     PERIODIC NONE
+    &END POISSON
+  &END SECTION DFT
+  &SUBSYS
+    &CELL
+       ABC    3.0    3.0     3.0
+       PERIODIC NONE
+    &END CELL
+    &KIND O
+      BASIS_SET  DZVP-GTH-PADE
+      POTENTIAL  GTH-PADE-q6
+      LEBEDEV_GRID 50
+      RADIAL_GRID 100
+    &END
+    &KIND  C
+      BASIS_SET  DZVP-GTH-PADE
+      POTENTIAL  GTH-PADE-q4
+      LEBEDEV_GRID 50
+      RADIAL_GRID 100
+    &END
+    &COORD
+      C         0.000000    0.000000   -0.004108
+      O        0.000000    0.000000    1.132332
+    &END
+  &END SUBSYS
+&END FORCE_EVAL

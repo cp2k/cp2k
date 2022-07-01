@@ -1,0 +1,38 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests GAPW_XC 
+CO.inp                                                 1      1e-12              -21.82227244820612
+Be_GAPW_XC.inp                                         1      1e-12              -14.04219830494389
+c8_gapw_xc.inp                                         1      1e-12              -44.14346557343610
+c8_pmix_gapw_xc.inp                                    1      1e-12              -45.08848767095832
+H2O_allnopaw.inp                                       1      1e-12              -17.12295202726917
+h2o_dist.inp                                           1      1e-12              -17.10545419707289
+H2O-gapw-xc.inp                                        1      1e-12              -17.16011166267486
+H2O-gapw_xc-gth.inp                                    1      1e-12              -17.16004267682267
+H2O-gapw-gth-pvh.inp                                   1      1e-12              -17.16011166267486
+H2O_Hnopaw_pp.inp                                      1      1e-12              -14.68017866233088
+H2O_Onopaw_gop.inp                                     1      1e-12              -17.10812476573591
+H2O_Onopaw.inp                                         1      1e-12              -17.10649912839060
+H2O_uniform_efield_GAPW.inp                            1      1e-12              -17.16886463280239
+H2S-gapw-gop.inp                                       1      1e-12              -11.25677948394968
+H2S-gapw-gop-ot.inp                                    1      1e-12              -11.25781830919806
+H2S-gapw.inp                                           1      1e-12              -11.26889653806702
+H2S-gapw-ot.inp                                        1      1e-12              -11.03322842961842
+He2-all.inp                                            1      1e-12               -5.04694327579292
+He2-all-md.inp                                         1      1e-12               -5.05329395966616
+HF_all_voronoi.inp                                     1      1e-12              -24.77473676226880
+HF_gapw_TPSS.inp                                       1      1e-12              -24.90253989256192
+HF_voronoi.inp                                         1      1e-12              -24.76676883471983
+H_hf_gapw_forcepaw.inp                                 1      1e-12               -0.42450556971821
+H_hf_gapw_nopaw_full.inp                               1      1e-12               -0.42450556971821
+H_hf_gapw_nopaw.inp                                    1      1e-12               -0.42450556971821
+Na_atom.inp                                            1      1e-12              -45.82990212711480
+H2O_constant_extpot_GAPW.inp                           1      1e-12              -17.16874448038139
+H2O_gpw_full_gapw.inp                                  1      1e-12              -17.10712931509009
+H2O_gpw.inp                                            1      1e-12              -17.10712931509009
+Li-ROKS.inp                                            1      1e-12               -6.95585820367831
+NO2-ROKS.inp                                           1      1e-12              -41.76059265519767
+#EOF

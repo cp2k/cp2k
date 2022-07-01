@@ -427,7 +427,7 @@ CONTAINS
       ELSE IF (dft_control%qs_control%xtb) THEN
          CALL write_forces(force, atomic_kind_set, 4, output_unit=output_unit, &
                            print_section=print_section)
-      ELSE IF (dft_control%qs_control%gapw) THEN
+      ELSE IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
          CALL write_forces(force, atomic_kind_set, 1, output_unit=output_unit, &
                            print_section=print_section)
       ELSE

@@ -1616,14 +1616,23 @@ CONTAINS
       ! Figure out which task_list to use.
       my_soft_valid = .FALSE.
       IF (PRESENT(soft_valid)) my_soft_valid = soft_valid
-      IF (my_soft_valid) THEN
-         !TODO: Why does soft_valid overrule task_list_external?
-         CALL get_ks_env(ks_env, task_list_soft=task_list)
-      ELSE IF (PRESENT(task_list_external)) THEN
+!     IF (my_soft_valid) THEN
+!        !TODO: Why does soft_valid overrule task_list_external?
+!        CALL get_ks_env(ks_env, task_list_soft=task_list)
+!     ELSE IF (PRESENT(task_list_external)) THEN
+!        task_list => task_list_external
+!     ELSE
+!        CALL get_ks_env(ks_env, task_list=task_list)
+!     END IF
+!deb
+      IF (PRESENT(task_list_external)) THEN
          task_list => task_list_external
+      ELSEIF (my_soft_valid) THEN
+         CALL get_ks_env(ks_env, task_list_soft=task_list)
       ELSE
          CALL get_ks_env(ks_env, task_list=task_list)
       END IF
+!deb
       CPASSERT(ASSOCIATED(task_list))
 
       ! Figure out which pw_env to use.

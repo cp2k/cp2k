@@ -43,7 +43,7 @@ MODULE qs_kernel_types
       ! response density
       TYPE(xc_rho_set_type), POINTER                     :: xc_rho1_set => Null()
       !> first and second derivatives of exchange-correlation functional
-      TYPE(xc_derivative_set_type)              :: xc_deriv_set
+      TYPE(xc_derivative_set_type)                       :: xc_deriv_set
       !> XC input section
       TYPE(section_vals_type), POINTER                   :: xc_section => Null()
       !> flags which indicate required components of the exchange-correlation functional

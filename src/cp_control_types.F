@@ -471,9 +471,6 @@ MODULE cp_control_types
       LOGICAL                              :: rks_triplets
       !> local resolution of identity for Coulomb contribution
       LOGICAL                              :: do_lrigpw
-      !> logical to distinguish response and GS density during update
-      ! in contrast to logical enabled, this is only set to true when GS finished and TDDFPT2 starts
-      LOGICAL                              :: do_response_now
       ! automatic generation of auxiliary basis for LRI-TDDFT
       INTEGER                              :: auto_basis_p_lri_aux = 1
       !> use symmetric definition of ADMM Kernel correction
