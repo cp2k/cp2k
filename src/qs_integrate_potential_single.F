@@ -564,7 +564,7 @@ CONTAINS
                              alpha_core_charge=alpha_core_charge, &
                              ccore_charge=ccore_charge)
 
-            IF (paw_atom) CYCLE
+            IF (dft_control%qs_control%gapw .AND. paw_atom) CYCLE
 
             pab(1, 1) = -ccore_charge
             IF (alpha_core_charge == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE
