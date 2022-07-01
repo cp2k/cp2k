@@ -29,7 +29,6 @@ MODULE ewalds
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi,&
                                               pi
-   USE mathlib,                         ONLY: matvec_3x3
    USE message_passing,                 ONLY: mp_sum
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -158,7 +157,7 @@ CONTAINS
                node = node + 1
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                charge(node) = charges(iparticle)
-               CALL matvec_3x3(vec, cell%h_inv, particle_set(iparticle)%r)
+               vec = MATMUL(cell%h_inv, particle_set(iparticle)%r)
                CALL structure_factor_evaluate(vec, exp_igr%lb, &
                                               exp_igr%ex(:, node), exp_igr%ey(:, node), exp_igr%ez(:, node))
             END DO
@@ -169,7 +168,7 @@ CONTAINS
                node = node + 1
                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                charge(node) = q
-               CALL matvec_3x3(vec, cell%h_inv, particle_set(iparticle)%r)
+               vec = MATMUL(cell%h_inv, particle_set(iparticle)%r)
                CALL structure_factor_evaluate(vec, exp_igr%lb, &
                                               exp_igr%ex(:, node), exp_igr%ey(:, node), exp_igr%ez(:, node))
             END DO

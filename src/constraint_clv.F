@@ -22,7 +22,6 @@ MODULE constraint_clv
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: matvec_3x3
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
                                               get_molecule_kind,&
@@ -884,7 +883,7 @@ CONTAINS
          !
          IF (my_roll) THEN
             ! If ROLL rotate forces
-            CALL matvec_3x3(f_roll, rmat, lcolv%colvar_old%dsdr(:, iatm))
+            f_roll = MATMUL(rmat, lcolv%colvar_old%dsdr(:, iatm))
          ELSE
             f_roll = lcolv%colvar_old%dsdr(:, iatm)
          END IF
@@ -930,7 +929,7 @@ CONTAINS
          tmp1 = colvar%dsdr(1:3, i)
          IF (my_roll) THEN
             tmp3 = colvar_old%dsdr(1:3, i)
-            CALL matvec_3x3(tmp2, rmat, tmp3)
+            tmp2 = MATMUL(rmat, tmp3)
          ELSE
             tmp2 = colvar_old%dsdr(1:3, i)
          END IF
@@ -964,7 +963,6 @@ CONTAINS
 
       INTEGER                                            :: iatm, ind
       LOGICAL                                            :: my_roll
-      REAL(KIND=dp)                                      :: tmp(3)
       REAL(KIND=dp), DIMENSION(3)                        :: f_roll, pos, v_roll
 
       my_roll = .FALSE.
@@ -981,9 +979,8 @@ CONTAINS
          ind = colvar%i_atom(iatm)
          IF (my_roll) THEN
             pos = particles(ind)%r
-            CALL matvec_3x3(f_roll, rmat, colvar%dsdr(:, iatm))
-            CALL matvec_3x3(tmp, veps, pos)
-            v_roll = vel(:, ind) + tmp
+            f_roll = MATMUL(rmat, colvar%dsdr(:, iatm))
+            v_roll = vel(:, ind) + MATMUL(veps, pos)
          ELSE
             f_roll = colvar%dsdr(:, iatm)
             v_roll = vel(:, ind)

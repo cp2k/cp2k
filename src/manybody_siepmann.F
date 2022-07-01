@@ -29,7 +29,6 @@ MODULE manybody_siepmann
    USE fist_nonbond_env_types,          ONLY: pos_type
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: matvec_3x3
    USE message_passing,                 ONLY: mp_sum
    USE pair_potential_types,            ONLY: pair_potential_pp_type,&
                                               pair_potential_single_type,&
@@ -768,7 +767,7 @@ CONTAINS
             pot => potparm%pot(ikind, jkind)%pot
             npairs = iend - istart + 1
             IF (pot%no_mb) CYCLE
-            CALL matvec_3x3(cell_v, cell%hmat, cvi)
+            cell_v = MATMUL(cell%hmat, cvi)
             DO i = 1, SIZE(pot%type)
                ! SIEPMANN
                IF (pot%type(i) == siepmann_type) THEN

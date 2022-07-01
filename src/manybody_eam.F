@@ -24,7 +24,6 @@ MODULE manybody_eam
                                               fist_nonbond_env_type,&
                                               pos_type
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: matvec_3x3
    USE message_passing,                 ONLY: mp_sum
    USE pair_potential_types,            ONLY: ea_type,&
                                               eam_pot_type,&
@@ -128,7 +127,7 @@ CONTAINS
                i = eam_kinds_index(ikind, jkind)
                IF (i == -1) CYCLE
                rab2_max = potparm%pot(ikind, jkind)%pot%rcutsq
-               CALL matvec_3x3(cell_v, cell%hmat, REAL(neighbor_kind_pair%cell_vector, KIND=dp))
+               cell_v = MATMUL(cell%hmat, REAL(neighbor_kind_pair%cell_vector, KIND=dp))
                DO ipair = istart, iend
                   atom_a = neighbor_kind_pair%list(1, ipair)
                   atom_b = neighbor_kind_pair%list(2, ipair)

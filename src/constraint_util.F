@@ -15,8 +15,6 @@ MODULE constraint_util
    USE colvar_methods,                  ONLY: colvar_eval_mol_f
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: matmul_3x3,&
-                                              transpose_3d
    USE message_passing,                 ONLY: mp_sum
    USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                               fixd_constraint_type,&
@@ -548,12 +546,12 @@ CONTAINS
             diag(1, 1) = vector_r(1)
             diag(2, 2) = vector_r(2)
             diag(3, 3) = vector_r(3)
-            r_shake = MATMUL_3X3(MATMUL_3X3(u, diag), TRANSPOSE_3D(u))
+            r_shake = MATMUL(MATMUL(u, diag), TRANSPOSE(u))
             diag(1, 1) = vector_v(1)
             diag(2, 2) = vector_v(2)
             diag(3, 3) = vector_v(3)
-            v_shake = MATMUL_3X3(MATMUL_3X3(u, diag), TRANSPOSE_3D(u))
-            diag = MATMUL_3x3(r_shake, v_shake)
+            v_shake = MATMUL(MATMUL(u, diag), TRANSPOSE(u))
+            diag = MATMUL(r_shake, v_shake)
             r_shake = diag
          ELSEIF (.NOT. PRESENT(u) .AND. PRESENT(vector_v) .AND. &
                  PRESENT(vector_r)) THEN
@@ -569,7 +567,7 @@ CONTAINS
             diag(1, 1) = vector_v(1)
             diag(2, 2) = vector_v(2)
             diag(3, 3) = vector_v(3)
-            v_shake = MATMUL_3x3(MATMUL_3X3(u, diag), TRANSPOSE_3D(u))
+            v_shake = MATMUL(MATMUL(u, diag), TRANSPOSE(u))
          ELSEIF (.NOT. PRESENT(u) .AND. PRESENT(vector_v)) THEN
             DO i = 1, 3
                v_shake(i, i) = vector_v(i)

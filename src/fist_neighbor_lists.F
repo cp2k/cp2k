@@ -46,7 +46,6 @@ MODULE fist_neighbor_lists
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathlib,                         ONLY: matvec_3x3
    USE memory_utilities,                ONLY: reallocate
    USE particle_types,                  ONLY: particle_type
    USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
@@ -671,7 +670,7 @@ CONTAINS
       conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
       DO iab = 1, SIZE(nonbonded%neighbor_kind_pairs)
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
-         CALL matvec_3x3(cell_v, cell%hmat, REAL(neighbor_kind_pair%cell_vector, KIND=dp))
+         cell_v = MATMUL(cell%hmat, REAL(neighbor_kind_pair%cell_vector, KIND=dp))
          DO ilist = 1, neighbor_kind_pair%npairs
             nneighbor = nneighbor + 1
             IF (output_unit > 0) THEN

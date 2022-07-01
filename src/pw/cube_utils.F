@@ -18,7 +18,6 @@
 MODULE cube_utils
 
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: matvec_3x3
    USE realspace_grid_types,            ONLY: realspace_grid_desc_type
 #include "../base/base_uses.f90"
 
@@ -115,16 +114,16 @@ CONTAINS
       lb = HUGE(lb)
       ub = -HUGE(ub)
       DO i = -1, 1
-      DO j = -1, 1
-      DO k = -1, 1
-         point(1) = rp(1) + i*radius
-         point(2) = rp(2) + j*radius
-         point(3) = rp(3) + k*radius
-         CALL matvec_3x3(res, info%dh_inv, point)
-         lb = MIN(lb, FLOOR(res))
-         ub = MAX(ub, CEILING(res))
-      END DO
-      END DO
+         DO j = -1, 1
+            DO k = -1, 1
+               point(1) = rp(1) + i*radius
+               point(2) = rp(2) + j*radius
+               point(3) = rp(3) + k*radius
+               res = MATMUL(info%dh_inv, point)
+               lb = MIN(lb, FLOOR(res))
+               ub = MAX(ub, CEILING(res))
+            END DO
+         END DO
       END DO
 
    END SUBROUTINE return_cube_nonortho

@@ -35,7 +35,6 @@ MODULE fist_nonbond_force
    USE machine,                         ONLY: m_memory
    USE mathconstants,                   ONLY: oorootpi,&
                                               sqrthalf
-   USE mathlib,                         ONLY: matvec_3x3
    USE message_passing,                 ONLY: mp_sum
    USE pair_potential_coulomb,          ONLY: potential_coulomb
    USE pair_potential_types,            ONLY: &
@@ -183,7 +182,7 @@ CONTAINS
          IF (npairs == 0) CYCLE
          list => neighbor_kind_pair%list
          cvi = neighbor_kind_pair%cell_vector
-         CALL matvec_3x3(cell_v, cell%hmat, cvi)
+         cell_v = MATMUL(cell%hmat, cvi)
          Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
             istart = neighbor_kind_pair%grp_kind_start(igrp)
             iend = neighbor_kind_pair%grp_kind_end(igrp)

@@ -48,7 +48,6 @@ MODULE manybody_potential
                                               setup_tersoff_arrays,&
                                               tersoff_energy,&
                                               tersoff_forces
-   USE mathlib,                         ONLY: matvec_3x3
    USE message_passing,                 ONLY: mp_sum
    USE pair_potential_types,            ONLY: &
         ea_type, eam_pot_type, gal21_pot_type, gal21_type, gal_pot_type, gal_type, &
@@ -199,7 +198,7 @@ CONTAINS
                DO i = 1, SIZE(pot%type)
                   IF (pot%type(i) /= tersoff_type) CYCLE
                   rab2_max = pot%set(i)%tersoff%rcutsq
-                  CALL matvec_3x3(cell_v, cell%hmat, cvi)
+                  cell_v = MATMUL(cell%hmat, cvi)
                   pot => potparm%pot(ikind, jkind)%pot
                   tersoff => pot%set(i)%tersoff
                   npairs = iend - istart + 1
@@ -281,7 +280,7 @@ CONTAINS
                DO i = 1, SIZE(pot%type)
                   IF (pot%type(i) /= siepmann_type) CYCLE
                   rab2_max = pot%set(i)%siepmann%rcutsq
-                  CALL matvec_3x3(cell_v, cell%hmat, cvi)
+                  cell_v = MATMUL(cell%hmat, cvi)
                   pot => potparm%pot(ikind, jkind)%pot
                   siepmann => pot%set(i)%siepmann
                   npairs = iend - istart + 1
@@ -367,7 +366,7 @@ CONTAINS
                DO i = 1, SIZE(pot%type)
                   IF (pot%type(i) /= gal_type) CYCLE
                   rab2_max = pot%set(i)%gal%rcutsq
-                  CALL matvec_3x3(cell_v, cell%hmat, cvi)
+                  cell_v = MATMUL(cell%hmat, cvi)
                   pot => potparm%pot(ikind, jkind)%pot
                   gal => pot%set(i)%gal
                   npairs = iend - istart + 1
@@ -447,7 +446,7 @@ CONTAINS
                DO i = 1, SIZE(pot%type)
                   IF (pot%type(i) /= gal21_type) CYCLE
                   rab2_max = pot%set(i)%gal21%rcutsq
-                  CALL matvec_3x3(cell_v, cell%hmat, cvi)
+                  cell_v = MATMUL(cell%hmat, cvi)
                   pot => potparm%pot(ikind, jkind)%pot
                   gal21 => pot%set(i)%gal21
                   npairs = iend - istart + 1
@@ -612,7 +611,7 @@ CONTAINS
             pot => potparm%pot(ikind, jkind)%pot
             IF (pot%no_mb) CYCLE
             rab2_max = pot%rcutsq
-            CALL matvec_3x3(cell_v, cell%hmat, cvi)
+            cell_v = MATMUL(cell%hmat, cvi)
             any_tersoff = any_tersoff .OR. ANY(pot%type == tersoff_type)
             any_siepmann = any_siepmann .OR. ANY(pot%type == siepmann_type)
             any_gal = any_gal .OR. ANY(pot%type == gal_type)
@@ -688,7 +687,7 @@ CONTAINS
 
                IF (pot%no_mb) CYCLE
                rab2_max = pot%rcutsq
-               CALL matvec_3x3(cell_v, cell%hmat, cvi)
+               cell_v = MATMUL(cell%hmat, cvi)
                DO i = 1, SIZE(pot%type)
                   ! TERSOFF
                   IF (pot%type(i) == tersoff_type) THEN
@@ -765,7 +764,7 @@ CONTAINS
 
                IF (pot%no_mb) CYCLE
                rab2_max = pot%rcutsq
-               CALL matvec_3x3(cell_v, cell%hmat, cvi)
+               cell_v = MATMUL(cell%hmat, cvi)
                DO i = 1, SIZE(pot%type)
                   ! SIEPMANN
                   IF (pot%type(i) == siepmann_type) THEN
@@ -847,7 +846,7 @@ CONTAINS
 
                IF (pot%no_mb) CYCLE
                rab2_max = pot%rcutsq
-               CALL matvec_3x3(cell_v, cell%hmat, cvi)
+               cell_v = MATMUL(cell%hmat, cvi)
                DO i = 1, SIZE(pot%type)
                   ! GAL19
                   IF (pot%type(i) == gal_type) THEN
@@ -925,7 +924,7 @@ CONTAINS
 
                IF (pot%no_mb) CYCLE
                rab2_max = pot%rcutsq
-               CALL matvec_3x3(cell_v, cell%hmat, cvi)
+               cell_v = MATMUL(cell%hmat, cvi)
                DO i = 1, SIZE(pot%type)
                   ! GAL21
                   IF (pot%type(i) == gal21_type) THEN

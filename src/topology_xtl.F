@@ -35,7 +35,6 @@ MODULE topology_xtl
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathlib,                         ONLY: matvec_3x3
    USE memory_utilities,                ONLY: reallocate
    USE string_table,                    ONLY: id2str,&
                                               s2s,&
@@ -262,8 +261,7 @@ CONTAINS
             READ (parser%input_line(icol:), *) ((rot_mat(ii, jj), jj=1, 3), ii=1, 3), transl_vec(1:3)
             Loop_over_unique_atoms: DO ii = 1, natom_orig
                ! Rotate and apply translation
-               CALL matvec_3x3(r1, rot_mat, atom_info%r(1:3, ii))
-               r1 = r1 + transl_vec
+               r1 = MATMUL(rot_mat, atom_info%r(1:3, ii)) + transl_vec
                ! Verify if this atom is really unique..
                check = .TRUE.
                DO jj = 1, natom

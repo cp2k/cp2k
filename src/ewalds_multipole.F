@@ -43,7 +43,6 @@ MODULE ewalds_multipole
                             oorootpi, &
                             pi, &
                             sqrthalf
-   USE mathlib, ONLY: matvec_3x3
    USE message_passing, ONLY: mp_sum
    USE parallel_rng_types, ONLY: UNIFORM, &
                                  rng_stream_type
@@ -419,7 +418,7 @@ CONTAINS
          IF (npairs == 0) CYCLE
          list => neighbor_kind_pair%list
          cvi = neighbor_kind_pair%cell_vector
-         CALL matvec_3x3(cell_v, cell%hmat, cvi)
+         cell_v = MATMUL(cell%hmat, cvi)
          Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
             istart = neighbor_kind_pair%grp_kind_start(igrp)
             iend = neighbor_kind_pair%grp_kind_end(igrp)
@@ -723,7 +722,7 @@ CONTAINS
          DO iparticle_local = 1, nparticle_local
             node = node + 1
             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-            CALL matvec_3x3(vec, cell%h_inv, particle_set(iparticle)%r)
+            vec = MATMUL(cell%h_inv, particle_set(iparticle)%r)
             CALL structure_factor_evaluate(vec, exp_igr%lb, &
                                            exp_igr%ex(:, node), exp_igr%ey(:, node), exp_igr%ez(:, node))
 
@@ -1580,7 +1579,7 @@ CONTAINS
                IF (npairs == 0) CYCLE
                list => neighbor_kind_pair%list
                cvi = neighbor_kind_pair%cell_vector
-               CALL matvec_3x3(cell_v, cell%hmat, cvi)
+               cell_v = MATMUL(cell%hmat, cvi)
                Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
                   istart = neighbor_kind_pair%grp_kind_start(igrp)
                   iend = neighbor_kind_pair%grp_kind_end(igrp)
