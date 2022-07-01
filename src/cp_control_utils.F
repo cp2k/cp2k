@@ -1602,6 +1602,10 @@ CONTAINS
                dft_control%period_efield%polarisation(3), &
                "PERIODIC_EFIELD| Intensity [a.u.]:", &
                dft_control%period_efield%strength
+            IF (SQRT(DOT_PRODUCT(dft_control%period_efield%polarisation, &
+                                 dft_control%period_efield%polarisation)) < EPSILON(0.0_dp)) THEN
+               CPABORT("Invalid (too small) polarisation vector specified for PERIODIC_EFIELD")
+            END IF
          END IF
 
          IF (dft_control%do_sccs) THEN
