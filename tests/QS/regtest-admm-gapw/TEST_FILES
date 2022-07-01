@@ -8,10 +8,13 @@ CH3-BP-MO_NO_DIAG.inp                                  1      1e-12             
 CH3-BP-CAUCHY.inp                                      1      1e-12              -7.34857884918407
 CH4-BP-CAUCHY_SUBSPACE.inp                             1      1e-12              -8.05244367959413
 H2+-BLOCKED-PURIFY-FULL.inp                            1      1e-12              -0.50560527586196
-H2O-ADMMP-OPTX.inp                                     1      1e-12              -16.84585714177486
-O2-triplet-ADMMS.inp                                   1      1e-10              -31.32005439185767
+H2O-ADMMP-OPTX.inp                                     1      1e-12             -16.84585714177486
+O2-triplet-ADMMS.inp                                   1      1e-10             -31.32005439185767
 MD-1.inp                                               1      5e-10              -8.05212222523879
 # these tests are only possible under GAPW since they involve ALL electron calculations
 H2-geo-ALL.inp                                         1      5e-10              -1.15560300364748
 MD-2-ALL.inp                                           1      5e-10              -8.05318571814679
+# GAPW_XC tests
+H2-geo-XC.inp                                          1      5e-10              -1.15201574159787
+H2O-ADMMP-XC.inp                                       1      1e-12             -16.85600729246631
 #EOF
