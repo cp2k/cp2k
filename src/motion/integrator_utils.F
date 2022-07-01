@@ -35,8 +35,6 @@ MODULE integrator_utils
         nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, npt_ia_ensemble, nve_ensemble, &
         nvt_ensemble
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: matvec_3x3,&
-                                              transpose_3d
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type
    USE message_passing,                 ONLY: mp_max,&
@@ -1480,10 +1478,10 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3)                        :: uf, ur, uv
 
-      CALL matvec_3x3(ur, TRANSPOSE_3D(u), particle_set(index)%r(:))
-      CALL matvec_3x3(uv, TRANSPOSE_3D(u), particle_set(index)%v(:))
-      CALL matvec_3x3(uf, TRANSPOSE_3D(u), particle_set(index)%f(:))
-      !
+      ur = MATMUL(TRANSPOSE(u), particle_set(index)%r(:))
+      uv = MATMUL(TRANSPOSE(u), particle_set(index)%v(:))
+      uf = MATMUL(TRANSPOSE(u), particle_set(index)%f(:))
+
       uv(1) = uv(1)*scale_v(1)*scale_v(1) + uf(1)*scale_v(1)*poly_v(1)*dm
       uv(2) = uv(2)*scale_v(2)*scale_v(2) + uf(2)*scale_v(2)*poly_v(2)*dm
       uv(3) = uv(3)*scale_v(3)*scale_v(3) + uf(3)*scale_v(3)*poly_v(3)*dm
@@ -1491,9 +1489,9 @@ CONTAINS
       ur(1) = ur(1)*scale_r(1)*scale_r(1) + uv(1)*scale_r(1)*poly_r(1)*dt
       ur(2) = ur(2)*scale_r(2)*scale_r(2) + uv(2)*scale_r(2)*poly_r(2)*dt
       ur(3) = ur(3)*scale_r(3)*scale_r(3) + uv(3)*scale_r(3)*poly_r(3)*dt
-      !
-      CALL MATVEC_3x3(pos(:, index), u, ur)
-      CALL MATVEC_3x3(vel(:, index), u, uv)
+
+      pos(:, index) = MATMUL(u, ur)
+      vel(:, index) = MATMUL(u, uv)
 
    END SUBROUTINE transform_first
 
@@ -1520,14 +1518,14 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(3)                        :: uf, uv
 
-      CALL matvec_3x3(uv, TRANSPOSE_3D(u), vel(:, index))
-      CALL matvec_3x3(uf, TRANSPOSE_3D(u), particle_set(index)%f(:))
-      !
+      uv = MATMUL(TRANSPOSE(u), vel(:, index))
+      uf = MATMUL(TRANSPOSE(u), particle_set(index)%f(:))
+
       uv(1) = uv(1)*scale_v(1)*scale_v(1) + uf(1)*scale_v(1)*poly_v(1)*dm
       uv(2) = uv(2)*scale_v(2)*scale_v(2) + uf(2)*scale_v(2)*poly_v(2)*dm
       uv(3) = uv(3)*scale_v(3)*scale_v(3) + uf(3)*scale_v(3)*poly_v(3)*dm
 
-      CALL MATVEC_3x3(vel(:, index), u, uv)
+      vel(:, index) = MATMUL(u, uv)
 
    END SUBROUTINE transform_second
 

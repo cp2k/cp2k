@@ -38,7 +38,6 @@ MODULE topology_generate_util
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathlib,                         ONLY: matvec_3x3
    USE memory_utilities,                ONLY: reallocate
    USE particle_types,                  ONLY: allocate_particle_set,&
                                               deallocate_particle_set,&
@@ -743,7 +742,7 @@ CONTAINS
                k = bond_list(iatm1)%array2(j)
                ksign = SIGN(1.0_dp, REAL(k, KIND=dp))
                k = ABS(k)
-               CALL matvec_3x3(cell_v, topology%cell%hmat, &
+               cell_v = MATMUL(topology%cell%hmat, &
                                REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector, KIND=dp))
                dr = pbc_coord(:, iatm1) - pbc_coord(:, iatm2) - ksign*cell_v
                r2 = DOT_PRODUCT(dr, dr)
@@ -791,7 +790,7 @@ CONTAINS
                k = bond_list(iatm1)%array2(j)
                ksign = SIGN(1.0_dp, REAL(k, KIND=dp))
                k = ABS(k)
-               CALL matvec_3x3(cell_v, topology%cell%hmat, &
+               cell_v = MATMUL(topology%cell%hmat, &
                                REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector, KIND=dp))
                dr = pbc_coord(:, iatm1) - pbc_coord(:, iatm2) - ksign*cell_v
                r2 = DOT_PRODUCT(dr, dr)

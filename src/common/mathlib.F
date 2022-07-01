@@ -55,15 +55,12 @@ MODULE mathlib
              inv_3x3, &
              lcm, &
              vector_product, &
-             matmul_3x3, &
-             matvec_3x3, &
              pswitch, &
              rotate_vector, &
              reflect_vector, &
-             dotprod_3d, &
-             transpose_3d, &
              expint, abnormal_value, &
-             get_diag, set_diag
+             get_diag, &
+             set_diag
 
    INTERFACE det_3x3
       MODULE PROCEDURE det_3x3_1, det_3x3_2
@@ -1399,77 +1396,6 @@ CONTAINS
       END IF
 
    END FUNCTION ei
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat1 ...
-!> \param mat2 ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION matmul_3x3(mat1, mat2)
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat1, mat2
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: matmul_3x3
-
-      matmul_3x3(1, 1) = mat1(1, 1)*mat2(1, 1) + mat1(1, 2)*mat2(2, 1) + mat1(1, 3)*mat2(3, 1)
-      matmul_3x3(1, 2) = mat1(1, 1)*mat2(1, 2) + mat1(1, 2)*mat2(2, 2) + mat1(1, 3)*mat2(3, 2)
-      matmul_3x3(1, 3) = mat1(1, 1)*mat2(1, 3) + mat1(1, 2)*mat2(2, 3) + mat1(1, 3)*mat2(3, 3)
-      matmul_3x3(2, 1) = mat1(2, 1)*mat2(1, 1) + mat1(2, 2)*mat2(2, 1) + mat1(2, 3)*mat2(3, 1)
-      matmul_3x3(2, 2) = mat1(2, 1)*mat2(1, 2) + mat1(2, 2)*mat2(2, 2) + mat1(2, 3)*mat2(3, 2)
-      matmul_3x3(2, 3) = mat1(2, 1)*mat2(1, 3) + mat1(2, 2)*mat2(2, 3) + mat1(2, 3)*mat2(3, 3)
-      matmul_3x3(3, 1) = mat1(3, 1)*mat2(1, 1) + mat1(3, 2)*mat2(2, 1) + mat1(3, 3)*mat2(3, 1)
-      matmul_3x3(3, 2) = mat1(3, 1)*mat2(1, 2) + mat1(3, 2)*mat2(2, 2) + mat1(3, 3)*mat2(3, 2)
-      matmul_3x3(3, 3) = mat1(3, 1)*mat2(1, 3) + mat1(3, 2)*mat2(2, 3) + mat1(3, 3)*mat2(3, 3)
-   END FUNCTION matmul_3x3
-
-! **************************************************************************************************
-!> \brief ...
-!> \param res ...
-!> \param mat ...
-!> \param vec ...
-! **************************************************************************************************
-   PURE SUBROUTINE matvec_3x3(res, mat, vec)
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: res
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vec
-
-      res(1) = mat(1, 1)*vec(1) + mat(1, 2)*vec(2) + mat(1, 3)*vec(3)
-      res(2) = mat(2, 1)*vec(1) + mat(2, 2)*vec(2) + mat(2, 3)*vec(3)
-      res(3) = mat(3, 1)*vec(1) + mat(3, 2)*vec(2) + mat(3, 3)*vec(3)
-   END SUBROUTINE matvec_3x3
-
-! **************************************************************************************************
-!> \brief ...
-!> \param vec1 ...
-!> \param vec2 ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION dotprod_3d(vec1, vec2)
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: vec1, vec2
-      REAL(KIND=dp)                                      :: dotprod_3d
-
-      dotprod_3d = &
-         vec1(1)*vec2(1) &
-         + vec1(2)*vec2(2) &
-         + vec1(3)*vec2(3)
-   END FUNCTION dotprod_3d
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION transpose_3d(mat)
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mat
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: transpose_3d
-
-      INTEGER                                            :: i, j
-
-      DO i = 1, 3
-         DO j = 1, 3
-            transpose_3d(j, i) = mat(i, j)
-         END DO
-      END DO
-   END FUNCTION transpose_3d
 
 ! **************************************************************************************************
 !> \brief computes the exponential integral

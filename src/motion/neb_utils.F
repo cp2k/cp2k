@@ -60,7 +60,6 @@ MODULE neb_utils
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
-   USE mathlib,                         ONLY: matvec_3x3
    USE md_run,                          ONLY: qs_mol_dyn
    USE neb_io,                          ONLY: dump_replica_coordinates,&
                                               handle_band_file_names
@@ -901,7 +900,7 @@ CONTAINS
             DO k = 1, SIZE(vels%xyz, 1)/3
                kind = (k - 1)*3
                tmp = vels%xyz(kind + 1:kind + 3, i)
-               CALL matvec_3x3(vels%xyz(kind + 1:kind + 3, i), TRANSPOSE(rot), tmp)
+               vels%xyz(kind + 1:kind + 3, i) = MATMUL(TRANSPOSE(rot), tmp)
             END DO
          END IF
          IF (PRESENT(distances)) THEN

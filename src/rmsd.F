@@ -12,8 +12,7 @@
 MODULE rmsd
 
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: diamat_all,&
-                                              matvec_3x3
+   USE mathlib,                         ONLY: diamat_all
    USE particle_types,                  ONLY: particle_type
 #include "./base/base_uses.f90"
 
@@ -278,8 +277,7 @@ CONTAINS
       ! Give back coordinates rotated in order to minimize the RMSD
       IF (my_rotate) THEN
          DO i = 1, natom
-            CALL matvec_3x3(r((i - 1)*3 + 1:(i - 1)*3 + 3), TRANSPOSE(my_rot), rp(:, i))
-            r((i - 1)*3 + 1:(i - 1)*3 + 3) = r((i - 1)*3 + 1:(i - 1)*3 + 3) + loc_tr
+            r((i - 1)*3 + 1:(i - 1)*3 + 3) = MATMUL(TRANSPOSE(my_rot), rp(:, i)) + loc_tr
          END DO
       END IF
       DEALLOCATE (w)

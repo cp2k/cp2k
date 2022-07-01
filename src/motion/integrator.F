@@ -68,8 +68,6 @@ MODULE integrator
         update_pv, update_veps, variable_timestep, vv_first, vv_second
    USE kinds,                           ONLY: dp,&
                                               max_line_length
-   USE mathlib,                         ONLY: matmul_3x3,&
-                                              transpose_3d
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type,&
                                               set_md_env
@@ -2367,7 +2365,7 @@ CONTAINS
       END DO SR
 
       ! Update h_mat
-      uh = MATMUL_3X3(TRANSPOSE_3D(tmp%u), cell%hmat)
+      uh = MATMUL(TRANSPOSE(tmp%u), cell%hmat)
 
       DO i = 1, 3
          DO j = 1, 3
@@ -2375,7 +2373,7 @@ CONTAINS
          END DO
       END DO
 
-      cell%hmat = MATMUL_3x3(tmp%u, uh)
+      cell%hmat = MATMUL(tmp%u, uh)
       ! Update the inverse
       CALL init_cell(cell)
 

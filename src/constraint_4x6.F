@@ -16,8 +16,6 @@ MODULE constraint_4x6
    USE constraint_fxd,                  ONLY: check_fixed_atom_cns_g4x6
    USE kinds,                           ONLY: dp
    USE linear_systems,                  ONLY: solve_system
-   USE mathlib,                         ONLY: dotprod_3d,&
-                                              matvec_3x3
    USE molecule_kind_types,             ONLY: fixd_constraint_type,&
                                               g4x6_constraint_type,&
                                               get_molecule_kind,&
@@ -417,47 +415,47 @@ CONTAINS
             CALL check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4, &
                                            index_a, index_b, index_c, index_d, fixd_list, lg4x6(iconst))
             ! construct matrix
-            amat(1, 1) = (imass1 + imass2)*DOTPROD_3D(r0_12, lg4x6(iconst)%fa)
-            amat(1, 2) = imass1*DOTPROD_3D(r0_12, lg4x6(iconst)%fb)
-            amat(1, 3) = imass1*DOTPROD_3D(r0_12, lg4x6(iconst)%fc)
-            amat(1, 4) = -imass2*DOTPROD_3D(r0_12, lg4x6(iconst)%fd)
-            amat(1, 5) = -imass2*DOTPROD_3D(r0_12, lg4x6(iconst)%fe)
+            amat(1, 1) = (imass1 + imass2)*DOT_PRODUCT(r0_12, lg4x6(iconst)%fa)
+            amat(1, 2) = imass1*DOT_PRODUCT(r0_12, lg4x6(iconst)%fb)
+            amat(1, 3) = imass1*DOT_PRODUCT(r0_12, lg4x6(iconst)%fc)
+            amat(1, 4) = -imass2*DOT_PRODUCT(r0_12, lg4x6(iconst)%fd)
+            amat(1, 5) = -imass2*DOT_PRODUCT(r0_12, lg4x6(iconst)%fe)
             amat(1, 6) = 0.0_dp
 
-            amat(2, 1) = imass1*DOTPROD_3D(r0_13, lg4x6(iconst)%fa)
-            amat(2, 2) = (imass1 + imass3)*DOTPROD_3D(r0_13, lg4x6(iconst)%fb)
-            amat(2, 3) = imass1*DOTPROD_3D(r0_13, lg4x6(iconst)%fc)
-            amat(2, 4) = imass3*DOTPROD_3D(r0_13, lg4x6(iconst)%fd)
+            amat(2, 1) = imass1*DOT_PRODUCT(r0_13, lg4x6(iconst)%fa)
+            amat(2, 2) = (imass1 + imass3)*DOT_PRODUCT(r0_13, lg4x6(iconst)%fb)
+            amat(2, 3) = imass1*DOT_PRODUCT(r0_13, lg4x6(iconst)%fc)
+            amat(2, 4) = imass3*DOT_PRODUCT(r0_13, lg4x6(iconst)%fd)
             amat(2, 5) = 0.0_dp
-            amat(2, 6) = -imass3*DOTPROD_3D(r0_13, lg4x6(iconst)%ff)
+            amat(2, 6) = -imass3*DOT_PRODUCT(r0_13, lg4x6(iconst)%ff)
 
-            amat(3, 1) = imass1*DOTPROD_3D(r0_14, lg4x6(iconst)%fa)
-            amat(3, 2) = imass1*DOTPROD_3D(r0_14, lg4x6(iconst)%fb)
-            amat(3, 3) = (imass1 + imass4)*DOTPROD_3D(r0_14, lg4x6(iconst)%fc)
+            amat(3, 1) = imass1*DOT_PRODUCT(r0_14, lg4x6(iconst)%fa)
+            amat(3, 2) = imass1*DOT_PRODUCT(r0_14, lg4x6(iconst)%fb)
+            amat(3, 3) = (imass1 + imass4)*DOT_PRODUCT(r0_14, lg4x6(iconst)%fc)
             amat(3, 4) = 0.0_dp
-            amat(3, 5) = imass4*DOTPROD_3D(r0_14, lg4x6(iconst)%fe)
-            amat(3, 6) = imass4*DOTPROD_3D(r0_14, lg4x6(iconst)%ff)
+            amat(3, 5) = imass4*DOT_PRODUCT(r0_14, lg4x6(iconst)%fe)
+            amat(3, 6) = imass4*DOT_PRODUCT(r0_14, lg4x6(iconst)%ff)
 
-            amat(4, 1) = -imass2*DOTPROD_3D(r0_23, lg4x6(iconst)%fa)
-            amat(4, 2) = imass3*DOTPROD_3D(r0_23, lg4x6(iconst)%fb)
+            amat(4, 1) = -imass2*DOT_PRODUCT(r0_23, lg4x6(iconst)%fa)
+            amat(4, 2) = imass3*DOT_PRODUCT(r0_23, lg4x6(iconst)%fb)
             amat(4, 3) = 0.0_dp
-            amat(4, 4) = (imass3 + imass2)*DOTPROD_3D(r0_23, lg4x6(iconst)%fd)
-            amat(4, 5) = imass2*DOTPROD_3D(r0_23, lg4x6(iconst)%fe)
-            amat(4, 6) = -imass3*DOTPROD_3D(r0_23, lg4x6(iconst)%ff)
+            amat(4, 4) = (imass3 + imass2)*DOT_PRODUCT(r0_23, lg4x6(iconst)%fd)
+            amat(4, 5) = imass2*DOT_PRODUCT(r0_23, lg4x6(iconst)%fe)
+            amat(4, 6) = -imass3*DOT_PRODUCT(r0_23, lg4x6(iconst)%ff)
 
-            amat(5, 1) = -imass2*DOTPROD_3D(r0_24, lg4x6(iconst)%fa)
+            amat(5, 1) = -imass2*DOT_PRODUCT(r0_24, lg4x6(iconst)%fa)
             amat(5, 2) = 0.0_dp
-            amat(5, 3) = imass4*DOTPROD_3D(r0_24, lg4x6(iconst)%fc)
-            amat(5, 4) = imass2*DOTPROD_3D(r0_24, lg4x6(iconst)%fd)
-            amat(5, 5) = (imass4 + imass2)*DOTPROD_3D(r0_24, lg4x6(iconst)%fe)
-            amat(5, 6) = imass4*DOTPROD_3D(r0_24, lg4x6(iconst)%ff)
+            amat(5, 3) = imass4*DOT_PRODUCT(r0_24, lg4x6(iconst)%fc)
+            amat(5, 4) = imass2*DOT_PRODUCT(r0_24, lg4x6(iconst)%fd)
+            amat(5, 5) = (imass4 + imass2)*DOT_PRODUCT(r0_24, lg4x6(iconst)%fe)
+            amat(5, 6) = imass4*DOT_PRODUCT(r0_24, lg4x6(iconst)%ff)
 
             amat(6, 1) = 0.0_dp
-            amat(6, 2) = -imass3*DOTPROD_3D(r0_34, lg4x6(iconst)%fb)
-            amat(6, 3) = imass4*DOTPROD_3D(r0_34, lg4x6(iconst)%fc)
-            amat(6, 4) = -imass3*DOTPROD_3D(r0_34, lg4x6(iconst)%fd)
-            amat(6, 5) = imass4*DOTPROD_3D(r0_34, lg4x6(iconst)%fe)
-            amat(6, 6) = (imass3 + imass4)*DOTPROD_3D(r0_34, lg4x6(iconst)%ff)
+            amat(6, 2) = -imass3*DOT_PRODUCT(r0_34, lg4x6(iconst)%fb)
+            amat(6, 3) = imass4*DOT_PRODUCT(r0_34, lg4x6(iconst)%fc)
+            amat(6, 4) = -imass3*DOT_PRODUCT(r0_34, lg4x6(iconst)%fd)
+            amat(6, 5) = imass4*DOT_PRODUCT(r0_34, lg4x6(iconst)%fe)
+            amat(6, 6) = (imass3 + imass4)*DOT_PRODUCT(r0_34, lg4x6(iconst)%ff)
             ! Store values
             lg4x6(iconst)%r0_12 = r0_12
             lg4x6(iconst)%r0_13 = r0_13
@@ -494,42 +492,42 @@ CONTAINS
                lg4x6(iconst)%lambda(4)*imass2*lg4x6(iconst)%fd - &
                lg4x6(iconst)%lambda(5)*imass2*lg4x6(iconst)%fe
          bvec(1, 1) = g4x6_list(iconst)%dab*g4x6_list(iconst)%dab &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_12, r0_12)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_12, r0_12)
          vec = lg4x6(iconst)%lambda(2)*lg4x6(iconst)%fb*(imass1 + imass3) + &
                lg4x6(iconst)%lambda(1)*imass1*lg4x6(iconst)%fa + &
                lg4x6(iconst)%lambda(3)*imass1*lg4x6(iconst)%fc + &
                lg4x6(iconst)%lambda(4)*imass3*lg4x6(iconst)%fd - &
                lg4x6(iconst)%lambda(6)*imass3*lg4x6(iconst)%ff
          bvec(2, 1) = g4x6_list(iconst)%dac*g4x6_list(iconst)%dac &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_13, r0_13)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_13, r0_13)
          vec = lg4x6(iconst)%lambda(3)*lg4x6(iconst)%fc*(imass1 + imass4) + &
                lg4x6(iconst)%lambda(1)*imass1*lg4x6(iconst)%fa + &
                lg4x6(iconst)%lambda(2)*imass1*lg4x6(iconst)%fb + &
                lg4x6(iconst)%lambda(5)*imass4*lg4x6(iconst)%fe + &
                lg4x6(iconst)%lambda(6)*imass4*lg4x6(iconst)%ff
          bvec(3, 1) = g4x6_list(iconst)%dad*g4x6_list(iconst)%dad &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_14, r0_14)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_14, r0_14)
          vec = lg4x6(iconst)%lambda(4)*lg4x6(iconst)%fd*(imass2 + imass3) - &
                lg4x6(iconst)%lambda(1)*imass2*lg4x6(iconst)%fa + &
                lg4x6(iconst)%lambda(2)*imass3*lg4x6(iconst)%fb + &
                lg4x6(iconst)%lambda(5)*imass2*lg4x6(iconst)%fe - &
                lg4x6(iconst)%lambda(6)*imass3*lg4x6(iconst)%ff
          bvec(4, 1) = g4x6_list(iconst)%dbc*g4x6_list(iconst)%dbc &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_23, r0_23)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_23, r0_23)
          vec = lg4x6(iconst)%lambda(5)*lg4x6(iconst)%fe*(imass2 + imass4) - &
                lg4x6(iconst)%lambda(1)*imass2*lg4x6(iconst)%fa + &
                lg4x6(iconst)%lambda(3)*imass4*lg4x6(iconst)%fc + &
                lg4x6(iconst)%lambda(4)*imass2*lg4x6(iconst)%fd + &
                lg4x6(iconst)%lambda(6)*imass4*lg4x6(iconst)%ff
          bvec(5, 1) = g4x6_list(iconst)%dbd*g4x6_list(iconst)%dbd &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_24, r0_24)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_24, r0_24)
          vec = lg4x6(iconst)%lambda(6)*lg4x6(iconst)%ff*(imass3 + imass4) - &
                lg4x6(iconst)%lambda(2)*imass3*lg4x6(iconst)%fb + &
                lg4x6(iconst)%lambda(3)*imass4*lg4x6(iconst)%fc - &
                lg4x6(iconst)%lambda(4)*imass3*lg4x6(iconst)%fd + &
                lg4x6(iconst)%lambda(5)*imass4*lg4x6(iconst)%fe
          bvec(6, 1) = g4x6_list(iconst)%dcd*g4x6_list(iconst)%dcd &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_34, r0_34)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_34, r0_34)
          bvec = bvec*idtsq
 
          ! get lambda
@@ -681,55 +679,55 @@ CONTAINS
             CALL check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4, &
                                            index_a, index_b, index_c, index_d, fixd_list, lg4x6(iconst))
             ! rotate fconst:
-            CALL matvec_3x3(f_roll1, r_shake, lg4x6(iconst)%fa)
-            CALL matvec_3x3(f_roll2, r_shake, lg4x6(iconst)%fb)
-            CALL matvec_3x3(f_roll3, r_shake, lg4x6(iconst)%fc)
-            CALL matvec_3x3(f_roll4, r_shake, lg4x6(iconst)%fd)
-            CALL matvec_3x3(f_roll5, r_shake, lg4x6(iconst)%fe)
-            CALL matvec_3x3(f_roll6, r_shake, lg4x6(iconst)%ff)
+            f_roll1 = MATMUL(r_shake, lg4x6(iconst)%fa)
+            f_roll2 = MATMUL(r_shake, lg4x6(iconst)%fb)
+            f_roll3 = MATMUL(r_shake, lg4x6(iconst)%fc)
+            f_roll4 = MATMUL(r_shake, lg4x6(iconst)%fd)
+            f_roll5 = MATMUL(r_shake, lg4x6(iconst)%fe)
+            f_roll6 = MATMUL(r_shake, lg4x6(iconst)%ff)
 
             ! construct matrix
-            amat(1, 1) = (imass1 + imass2)*DOTPROD_3D(r0_12, f_roll1)
-            amat(1, 2) = imass1*DOTPROD_3D(r0_12, f_roll2)
-            amat(1, 3) = imass1*DOTPROD_3D(r0_12, f_roll3)
-            amat(1, 4) = -imass2*DOTPROD_3D(r0_12, f_roll4)
-            amat(1, 5) = -imass2*DOTPROD_3D(r0_12, f_roll5)
+            amat(1, 1) = (imass1 + imass2)*DOT_PRODUCT(r0_12, f_roll1)
+            amat(1, 2) = imass1*DOT_PRODUCT(r0_12, f_roll2)
+            amat(1, 3) = imass1*DOT_PRODUCT(r0_12, f_roll3)
+            amat(1, 4) = -imass2*DOT_PRODUCT(r0_12, f_roll4)
+            amat(1, 5) = -imass2*DOT_PRODUCT(r0_12, f_roll5)
             amat(1, 6) = 0.0_dp
 
-            amat(2, 1) = imass1*DOTPROD_3D(r0_13, f_roll1)
-            amat(2, 2) = (imass1 + imass3)*DOTPROD_3D(r0_13, f_roll2)
-            amat(2, 3) = imass1*DOTPROD_3D(r0_13, f_roll3)
-            amat(2, 4) = imass3*DOTPROD_3D(r0_13, f_roll4)
+            amat(2, 1) = imass1*DOT_PRODUCT(r0_13, f_roll1)
+            amat(2, 2) = (imass1 + imass3)*DOT_PRODUCT(r0_13, f_roll2)
+            amat(2, 3) = imass1*DOT_PRODUCT(r0_13, f_roll3)
+            amat(2, 4) = imass3*DOT_PRODUCT(r0_13, f_roll4)
             amat(2, 5) = 0.0_dp
-            amat(2, 6) = -imass3*DOTPROD_3D(r0_13, f_roll6)
+            amat(2, 6) = -imass3*DOT_PRODUCT(r0_13, f_roll6)
 
-            amat(3, 1) = imass1*DOTPROD_3D(r0_14, f_roll1)
-            amat(3, 2) = imass1*DOTPROD_3D(r0_14, f_roll2)
-            amat(3, 3) = (imass1 + imass4)*DOTPROD_3D(r0_14, f_roll3)
+            amat(3, 1) = imass1*DOT_PRODUCT(r0_14, f_roll1)
+            amat(3, 2) = imass1*DOT_PRODUCT(r0_14, f_roll2)
+            amat(3, 3) = (imass1 + imass4)*DOT_PRODUCT(r0_14, f_roll3)
             amat(3, 4) = 0.0_dp
-            amat(3, 5) = imass4*DOTPROD_3D(r0_14, f_roll5)
-            amat(3, 6) = imass4*DOTPROD_3D(r0_14, f_roll6)
+            amat(3, 5) = imass4*DOT_PRODUCT(r0_14, f_roll5)
+            amat(3, 6) = imass4*DOT_PRODUCT(r0_14, f_roll6)
 
-            amat(4, 1) = -imass2*DOTPROD_3D(r0_23, f_roll1)
-            amat(4, 2) = imass3*DOTPROD_3D(r0_23, f_roll2)
+            amat(4, 1) = -imass2*DOT_PRODUCT(r0_23, f_roll1)
+            amat(4, 2) = imass3*DOT_PRODUCT(r0_23, f_roll2)
             amat(4, 3) = 0.0_dp
-            amat(4, 4) = (imass3 + imass2)*DOTPROD_3D(r0_23, f_roll4)
-            amat(4, 5) = imass2*DOTPROD_3D(r0_23, f_roll5)
-            amat(4, 6) = -imass3*DOTPROD_3D(r0_23, f_roll6)
+            amat(4, 4) = (imass3 + imass2)*DOT_PRODUCT(r0_23, f_roll4)
+            amat(4, 5) = imass2*DOT_PRODUCT(r0_23, f_roll5)
+            amat(4, 6) = -imass3*DOT_PRODUCT(r0_23, f_roll6)
 
-            amat(5, 1) = -imass2*DOTPROD_3D(r0_24, f_roll1)
+            amat(5, 1) = -imass2*DOT_PRODUCT(r0_24, f_roll1)
             amat(5, 2) = 0.0_dp
-            amat(5, 3) = imass4*DOTPROD_3D(r0_24, f_roll3)
-            amat(5, 4) = imass2*DOTPROD_3D(r0_24, f_roll4)
-            amat(5, 5) = (imass4 + imass2)*DOTPROD_3D(r0_24, f_roll5)
-            amat(5, 6) = imass4*DOTPROD_3D(r0_24, f_roll6)
+            amat(5, 3) = imass4*DOT_PRODUCT(r0_24, f_roll3)
+            amat(5, 4) = imass2*DOT_PRODUCT(r0_24, f_roll4)
+            amat(5, 5) = (imass4 + imass2)*DOT_PRODUCT(r0_24, f_roll5)
+            amat(5, 6) = imass4*DOT_PRODUCT(r0_24, f_roll6)
 
             amat(6, 1) = 0.0_dp
-            amat(6, 2) = -imass3*DOTPROD_3D(r0_34, f_roll2)
-            amat(6, 3) = imass4*DOTPROD_3D(r0_34, f_roll3)
-            amat(6, 4) = -imass3*DOTPROD_3D(r0_34, f_roll4)
-            amat(6, 5) = imass4*DOTPROD_3D(r0_34, f_roll5)
-            amat(6, 6) = (imass3 + imass4)*DOTPROD_3D(r0_34, f_roll6)
+            amat(6, 2) = -imass3*DOT_PRODUCT(r0_34, f_roll2)
+            amat(6, 3) = imass4*DOT_PRODUCT(r0_34, f_roll3)
+            amat(6, 4) = -imass3*DOT_PRODUCT(r0_34, f_roll4)
+            amat(6, 5) = imass4*DOT_PRODUCT(r0_34, f_roll5)
+            amat(6, 6) = (imass3 + imass4)*DOT_PRODUCT(r0_34, f_roll6)
             ! Store values
             lg4x6(iconst)%r0_12 = r0_12
             lg4x6(iconst)%r0_13 = r0_13
@@ -778,42 +776,42 @@ CONTAINS
                lg4x6(iconst)%lambda(4)*imass2*f_roll4 - &
                lg4x6(iconst)%lambda(5)*imass2*f_roll5
          bvec(1, 1) = g4x6_list(iconst)%dab*g4x6_list(iconst)%dab &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_12, r0_12)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_12, r0_12)
          vec = lg4x6(iconst)%lambda(2)*f_roll2*(imass1 + imass3) + &
                lg4x6(iconst)%lambda(1)*imass1*f_roll1 + &
                lg4x6(iconst)%lambda(3)*imass1*f_roll3 + &
                lg4x6(iconst)%lambda(4)*imass3*f_roll4 - &
                lg4x6(iconst)%lambda(6)*imass3*f_roll6
          bvec(2, 1) = g4x6_list(iconst)%dac*g4x6_list(iconst)%dac &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_13, r0_13)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_13, r0_13)
          vec = lg4x6(iconst)%lambda(3)*f_roll3*(imass1 + imass4) + &
                lg4x6(iconst)%lambda(1)*imass1*f_roll1 + &
                lg4x6(iconst)%lambda(2)*imass1*f_roll2 + &
                lg4x6(iconst)%lambda(5)*imass4*f_roll5 + &
                lg4x6(iconst)%lambda(6)*imass4*f_roll6
          bvec(3, 1) = g4x6_list(iconst)%dad*g4x6_list(iconst)%dad &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_14, r0_14)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_14, r0_14)
          vec = lg4x6(iconst)%lambda(4)*f_roll4*(imass2 + imass3) - &
                lg4x6(iconst)%lambda(1)*imass2*f_roll1 + &
                lg4x6(iconst)%lambda(2)*imass3*f_roll2 + &
                lg4x6(iconst)%lambda(5)*imass2*f_roll5 - &
                lg4x6(iconst)%lambda(6)*imass3*f_roll6
          bvec(4, 1) = g4x6_list(iconst)%dbc*g4x6_list(iconst)%dbc &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_23, r0_23)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_23, r0_23)
          vec = lg4x6(iconst)%lambda(5)*f_roll5*(imass2 + imass4) - &
                lg4x6(iconst)%lambda(1)*imass2*f_roll1 + &
                lg4x6(iconst)%lambda(3)*imass4*f_roll3 + &
                lg4x6(iconst)%lambda(4)*imass2*f_roll4 + &
                lg4x6(iconst)%lambda(6)*imass4*f_roll6
          bvec(5, 1) = g4x6_list(iconst)%dbd*g4x6_list(iconst)%dbd &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_24, r0_24)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_24, r0_24)
          vec = lg4x6(iconst)%lambda(6)*f_roll6*(imass3 + imass4) - &
                lg4x6(iconst)%lambda(2)*imass3*f_roll2 + &
                lg4x6(iconst)%lambda(3)*imass4*f_roll3 - &
                lg4x6(iconst)%lambda(4)*imass3*f_roll4 + &
                lg4x6(iconst)%lambda(5)*imass4*f_roll5
          bvec(6, 1) = g4x6_list(iconst)%dcd*g4x6_list(iconst)%dcd &
-                      - dtsqby2*dtsqby2*DOTPROD_3D(vec, vec) - DOTPROD_3D(r0_34, r0_34)
+                      - dtsqby2*dtsqby2*DOT_PRODUCT(vec, vec) - DOT_PRODUCT(r0_34, r0_34)
          bvec = bvec*idtsq
 
          ! get lambda
@@ -836,22 +834,14 @@ CONTAINS
          fc4 = -lg4x6(iconst)%del_lambda(3)*lg4x6(iconst)%fc - &
                lg4x6(iconst)%del_lambda(5)*lg4x6(iconst)%fe - &
                lg4x6(iconst)%del_lambda(6)*lg4x6(iconst)%ff
-         CALL MATVEC_3x3(vec, r_shake, fc1)
-         r1(:) = pos(:, index_a) + imass1*dtsqby2*vec
-         CALL MATVEC_3x3(vec, r_shake, fc2)
-         r2(:) = pos(:, index_b) + imass2*dtsqby2*vec
-         CALL MATVEC_3x3(vec, r_shake, fc3)
-         r3(:) = pos(:, index_c) + imass3*dtsqby2*vec
-         CALL MATVEC_3x3(vec, r_shake, fc4)
-         r4(:) = pos(:, index_d) + imass4*dtsqby2*vec
-         CALL MATVEC_3x3(vec, r_shake, fc1)
-         v1(:) = vel(:, index_a) + imass1*dtby2*vec
-         CALL MATVEC_3x3(vec, r_shake, fc2)
-         v2(:) = vel(:, index_b) + imass2*dtby2*vec
-         CALL MATVEC_3x3(vec, r_shake, fc3)
-         v3(:) = vel(:, index_c) + imass3*dtby2*vec
-         CALL MATVEC_3x3(vec, r_shake, fc4)
-         v4(:) = vel(:, index_d) + imass4*dtby2*vec
+         r1(:) = pos(:, index_a) + imass1*dtsqby2*MATMUL(r_shake, fc1)
+         r2(:) = pos(:, index_b) + imass2*dtsqby2*MATMUL(r_shake, fc2)
+         r3(:) = pos(:, index_c) + imass3*dtsqby2*MATMUL(r_shake, fc3)
+         r4(:) = pos(:, index_d) + imass4*dtsqby2*MATMUL(r_shake, fc4)
+         v1(:) = vel(:, index_a) + imass1*dtby2*MATMUL(r_shake, fc1)
+         v2(:) = vel(:, index_b) + imass2*dtby2*MATMUL(r_shake, fc2)
+         v3(:) = vel(:, index_c) + imass3*dtby2*MATMUL(r_shake, fc3)
+         v4(:) = vel(:, index_d) + imass4*dtby2*MATMUL(r_shake, fc4)
 
          r12 = r1 - r2
          r13 = r1 - r3
@@ -969,55 +959,55 @@ CONTAINS
          CALL check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4, &
                                         index_a, index_b, index_c, index_d, fixd_list, lg4x6(iconst))
          ! construct matrix
-         amat(1, 1) = (imass1 + imass2)*DOTPROD_3D(r12, lg4x6(iconst)%fa)
-         amat(1, 2) = imass1*DOTPROD_3D(r12, lg4x6(iconst)%fb)
-         amat(1, 3) = imass1*DOTPROD_3D(r12, lg4x6(iconst)%fc)
-         amat(1, 4) = -imass2*DOTPROD_3D(r12, lg4x6(iconst)%fd)
-         amat(1, 5) = -imass2*DOTPROD_3D(r12, lg4x6(iconst)%fe)
+         amat(1, 1) = (imass1 + imass2)*DOT_PRODUCT(r12, lg4x6(iconst)%fa)
+         amat(1, 2) = imass1*DOT_PRODUCT(r12, lg4x6(iconst)%fb)
+         amat(1, 3) = imass1*DOT_PRODUCT(r12, lg4x6(iconst)%fc)
+         amat(1, 4) = -imass2*DOT_PRODUCT(r12, lg4x6(iconst)%fd)
+         amat(1, 5) = -imass2*DOT_PRODUCT(r12, lg4x6(iconst)%fe)
          amat(1, 6) = 0.0_dp
 
-         amat(2, 1) = imass1*DOTPROD_3D(r13, lg4x6(iconst)%fa)
-         amat(2, 2) = (imass1 + imass3)*DOTPROD_3D(r13, lg4x6(iconst)%fb)
-         amat(2, 3) = imass1*DOTPROD_3D(r13, lg4x6(iconst)%fc)
-         amat(2, 4) = imass3*DOTPROD_3D(r13, lg4x6(iconst)%fd)
+         amat(2, 1) = imass1*DOT_PRODUCT(r13, lg4x6(iconst)%fa)
+         amat(2, 2) = (imass1 + imass3)*DOT_PRODUCT(r13, lg4x6(iconst)%fb)
+         amat(2, 3) = imass1*DOT_PRODUCT(r13, lg4x6(iconst)%fc)
+         amat(2, 4) = imass3*DOT_PRODUCT(r13, lg4x6(iconst)%fd)
          amat(2, 5) = 0.0_dp
-         amat(2, 6) = -imass3*DOTPROD_3D(r13, lg4x6(iconst)%ff)
+         amat(2, 6) = -imass3*DOT_PRODUCT(r13, lg4x6(iconst)%ff)
 
-         amat(3, 1) = imass1*DOTPROD_3D(r14, lg4x6(iconst)%fa)
-         amat(3, 2) = imass1*DOTPROD_3D(r14, lg4x6(iconst)%fb)
-         amat(3, 3) = (imass1 + imass4)*DOTPROD_3D(r14, lg4x6(iconst)%fc)
+         amat(3, 1) = imass1*DOT_PRODUCT(r14, lg4x6(iconst)%fa)
+         amat(3, 2) = imass1*DOT_PRODUCT(r14, lg4x6(iconst)%fb)
+         amat(3, 3) = (imass1 + imass4)*DOT_PRODUCT(r14, lg4x6(iconst)%fc)
          amat(3, 4) = 0.0_dp
-         amat(3, 5) = imass4*DOTPROD_3D(r14, lg4x6(iconst)%fe)
-         amat(3, 6) = imass4*DOTPROD_3D(r14, lg4x6(iconst)%ff)
+         amat(3, 5) = imass4*DOT_PRODUCT(r14, lg4x6(iconst)%fe)
+         amat(3, 6) = imass4*DOT_PRODUCT(r14, lg4x6(iconst)%ff)
 
-         amat(4, 1) = -imass2*DOTPROD_3D(r23, lg4x6(iconst)%fa)
-         amat(4, 2) = imass3*DOTPROD_3D(r23, lg4x6(iconst)%fb)
+         amat(4, 1) = -imass2*DOT_PRODUCT(r23, lg4x6(iconst)%fa)
+         amat(4, 2) = imass3*DOT_PRODUCT(r23, lg4x6(iconst)%fb)
          amat(4, 3) = 0.0_dp
-         amat(4, 4) = (imass3 + imass2)*DOTPROD_3D(r23, lg4x6(iconst)%fd)
-         amat(4, 5) = imass2*DOTPROD_3D(r23, lg4x6(iconst)%fe)
-         amat(4, 6) = -imass3*DOTPROD_3D(r23, lg4x6(iconst)%ff)
+         amat(4, 4) = (imass3 + imass2)*DOT_PRODUCT(r23, lg4x6(iconst)%fd)
+         amat(4, 5) = imass2*DOT_PRODUCT(r23, lg4x6(iconst)%fe)
+         amat(4, 6) = -imass3*DOT_PRODUCT(r23, lg4x6(iconst)%ff)
 
-         amat(5, 1) = -imass2*DOTPROD_3D(r24, lg4x6(iconst)%fa)
+         amat(5, 1) = -imass2*DOT_PRODUCT(r24, lg4x6(iconst)%fa)
          amat(5, 2) = 0.0_dp
-         amat(5, 3) = imass4*DOTPROD_3D(r24, lg4x6(iconst)%fc)
-         amat(5, 4) = imass2*DOTPROD_3D(r24, lg4x6(iconst)%fd)
-         amat(5, 5) = (imass4 + imass2)*DOTPROD_3D(r24, lg4x6(iconst)%fe)
-         amat(5, 6) = imass4*DOTPROD_3D(r24, lg4x6(iconst)%ff)
+         amat(5, 3) = imass4*DOT_PRODUCT(r24, lg4x6(iconst)%fc)
+         amat(5, 4) = imass2*DOT_PRODUCT(r24, lg4x6(iconst)%fd)
+         amat(5, 5) = (imass4 + imass2)*DOT_PRODUCT(r24, lg4x6(iconst)%fe)
+         amat(5, 6) = imass4*DOT_PRODUCT(r24, lg4x6(iconst)%ff)
 
          amat(6, 1) = 0.0_dp
-         amat(6, 2) = -imass3*DOTPROD_3D(r34, lg4x6(iconst)%fb)
-         amat(6, 3) = imass4*DOTPROD_3D(r34, lg4x6(iconst)%fc)
-         amat(6, 4) = -imass3*DOTPROD_3D(r34, lg4x6(iconst)%fd)
-         amat(6, 5) = imass4*DOTPROD_3D(r34, lg4x6(iconst)%fe)
-         amat(6, 6) = (imass3 + imass4)*DOTPROD_3D(r34, lg4x6(iconst)%ff)
+         amat(6, 2) = -imass3*DOT_PRODUCT(r34, lg4x6(iconst)%fb)
+         amat(6, 3) = imass4*DOT_PRODUCT(r34, lg4x6(iconst)%fc)
+         amat(6, 4) = -imass3*DOT_PRODUCT(r34, lg4x6(iconst)%fd)
+         amat(6, 5) = imass4*DOT_PRODUCT(r34, lg4x6(iconst)%fe)
+         amat(6, 6) = (imass3 + imass4)*DOT_PRODUCT(r34, lg4x6(iconst)%ff)
 
          ! construct solution vector
-         bvec(1, 1) = DOTPROD_3D(r12, v12)
-         bvec(2, 1) = DOTPROD_3D(r13, v13)
-         bvec(3, 1) = DOTPROD_3D(r14, v14)
-         bvec(4, 1) = DOTPROD_3D(r23, v23)
-         bvec(5, 1) = DOTPROD_3D(r24, v24)
-         bvec(6, 1) = DOTPROD_3D(r34, v34)
+         bvec(1, 1) = DOT_PRODUCT(r12, v12)
+         bvec(2, 1) = DOT_PRODUCT(r13, v13)
+         bvec(3, 1) = DOT_PRODUCT(r14, v14)
+         bvec(4, 1) = DOT_PRODUCT(r23, v23)
+         bvec(5, 1) = DOT_PRODUCT(r24, v24)
+         bvec(6, 1) = DOT_PRODUCT(r34, v34)
          bvec = -bvec*2.0_dp*idt
 
          ! get lambda
@@ -1077,7 +1067,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: f_roll1, f_roll2, f_roll3, f_roll4, &
                                                             f_roll5, f_roll6, fc1, fc2, fc3, fc4, &
                                                             r12, r13, r14, r23, r24, r34, v12, &
-                                                            v13, v14, v23, v24, v34, vec
+                                                            v13, v14, v23, v24, v34
       REAL(KIND=dp), DIMENSION(6)                        :: lambda
       REAL(KIND=dp), DIMENSION(6, 1)                     :: bvec
       REAL(KIND=dp), DIMENSION(6, 6)                     :: amat
@@ -1126,68 +1116,62 @@ CONTAINS
          CALL check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4, &
                                         index_a, index_b, index_c, index_d, fixd_list, lg4x6(iconst))
          ! roll the fc
-         CALL MATVEC_3x3(f_roll1, r_rattle, lg4x6(iconst)%fa)
-         CALL MATVEC_3x3(f_roll2, r_rattle, lg4x6(iconst)%fb)
-         CALL MATVEC_3x3(f_roll3, r_rattle, lg4x6(iconst)%fc)
-         CALL MATVEC_3x3(f_roll4, r_rattle, lg4x6(iconst)%fd)
-         CALL MATVEC_3x3(f_roll5, r_rattle, lg4x6(iconst)%fe)
-         CALL MATVEC_3x3(f_roll6, r_rattle, lg4x6(iconst)%ff)
+         f_roll1 = MATMUL(r_rattle, lg4x6(iconst)%fa)
+         f_roll2 = MATMUL(r_rattle, lg4x6(iconst)%fb)
+         f_roll3 = MATMUL(r_rattle, lg4x6(iconst)%fc)
+         f_roll4 = MATMUL(r_rattle, lg4x6(iconst)%fd)
+         f_roll5 = MATMUL(r_rattle, lg4x6(iconst)%fe)
+         f_roll6 = MATMUL(r_rattle, lg4x6(iconst)%ff)
          ! construct matrix
-         amat(1, 1) = (imass1 + imass2)*DOTPROD_3D(r12, f_roll1)
-         amat(1, 2) = imass1*DOTPROD_3D(r12, f_roll2)
-         amat(1, 3) = imass1*DOTPROD_3D(r12, f_roll3)
-         amat(1, 4) = -imass2*DOTPROD_3D(r12, f_roll4)
-         amat(1, 5) = -imass2*DOTPROD_3D(r12, f_roll5)
+         amat(1, 1) = (imass1 + imass2)*DOT_PRODUCT(r12, f_roll1)
+         amat(1, 2) = imass1*DOT_PRODUCT(r12, f_roll2)
+         amat(1, 3) = imass1*DOT_PRODUCT(r12, f_roll3)
+         amat(1, 4) = -imass2*DOT_PRODUCT(r12, f_roll4)
+         amat(1, 5) = -imass2*DOT_PRODUCT(r12, f_roll5)
          amat(1, 6) = 0.0_dp
 
-         amat(2, 1) = imass1*DOTPROD_3D(r13, f_roll1)
-         amat(2, 2) = (imass1 + imass3)*DOTPROD_3D(r13, f_roll2)
-         amat(2, 3) = imass1*DOTPROD_3D(r13, f_roll3)
-         amat(2, 4) = imass3*DOTPROD_3D(r13, f_roll4)
+         amat(2, 1) = imass1*DOT_PRODUCT(r13, f_roll1)
+         amat(2, 2) = (imass1 + imass3)*DOT_PRODUCT(r13, f_roll2)
+         amat(2, 3) = imass1*DOT_PRODUCT(r13, f_roll3)
+         amat(2, 4) = imass3*DOT_PRODUCT(r13, f_roll4)
          amat(2, 5) = 0.0_dp
-         amat(2, 6) = -imass3*DOTPROD_3D(r13, f_roll6)
+         amat(2, 6) = -imass3*DOT_PRODUCT(r13, f_roll6)
 
-         amat(3, 1) = imass1*DOTPROD_3D(r14, f_roll1)
-         amat(3, 2) = imass1*DOTPROD_3D(r14, f_roll2)
-         amat(3, 3) = (imass1 + imass4)*DOTPROD_3D(r14, f_roll3)
+         amat(3, 1) = imass1*DOT_PRODUCT(r14, f_roll1)
+         amat(3, 2) = imass1*DOT_PRODUCT(r14, f_roll2)
+         amat(3, 3) = (imass1 + imass4)*DOT_PRODUCT(r14, f_roll3)
          amat(3, 4) = 0.0_dp
-         amat(3, 5) = imass4*DOTPROD_3D(r14, f_roll5)
-         amat(3, 6) = imass4*DOTPROD_3D(r14, f_roll6)
+         amat(3, 5) = imass4*DOT_PRODUCT(r14, f_roll5)
+         amat(3, 6) = imass4*DOT_PRODUCT(r14, f_roll6)
 
-         amat(4, 1) = -imass2*DOTPROD_3D(r23, f_roll1)
-         amat(4, 2) = imass3*DOTPROD_3D(r23, f_roll2)
+         amat(4, 1) = -imass2*DOT_PRODUCT(r23, f_roll1)
+         amat(4, 2) = imass3*DOT_PRODUCT(r23, f_roll2)
          amat(4, 3) = 0.0_dp
-         amat(4, 4) = (imass3 + imass2)*DOTPROD_3D(r23, f_roll4)
-         amat(4, 5) = imass2*DOTPROD_3D(r23, f_roll5)
-         amat(4, 6) = -imass3*DOTPROD_3D(r23, f_roll6)
+         amat(4, 4) = (imass3 + imass2)*DOT_PRODUCT(r23, f_roll4)
+         amat(4, 5) = imass2*DOT_PRODUCT(r23, f_roll5)
+         amat(4, 6) = -imass3*DOT_PRODUCT(r23, f_roll6)
 
-         amat(5, 1) = -imass2*DOTPROD_3D(r24, f_roll1)
+         amat(5, 1) = -imass2*DOT_PRODUCT(r24, f_roll1)
          amat(5, 2) = 0.0_dp
-         amat(5, 3) = imass4*DOTPROD_3D(r24, f_roll3)
-         amat(5, 4) = imass2*DOTPROD_3D(r24, f_roll4)
-         amat(5, 5) = (imass4 + imass2)*DOTPROD_3D(r24, f_roll5)
-         amat(5, 6) = imass4*DOTPROD_3D(r24, f_roll6)
+         amat(5, 3) = imass4*DOT_PRODUCT(r24, f_roll3)
+         amat(5, 4) = imass2*DOT_PRODUCT(r24, f_roll4)
+         amat(5, 5) = (imass4 + imass2)*DOT_PRODUCT(r24, f_roll5)
+         amat(5, 6) = imass4*DOT_PRODUCT(r24, f_roll6)
 
          amat(6, 1) = 0.0_dp
-         amat(6, 2) = -imass3*DOTPROD_3D(r34, f_roll2)
-         amat(6, 3) = imass4*DOTPROD_3D(r34, f_roll3)
-         amat(6, 4) = -imass3*DOTPROD_3D(r34, f_roll4)
-         amat(6, 5) = imass4*DOTPROD_3D(r34, f_roll5)
-         amat(6, 6) = (imass3 + imass4)*DOTPROD_3D(r34, f_roll6)
+         amat(6, 2) = -imass3*DOT_PRODUCT(r34, f_roll2)
+         amat(6, 3) = imass4*DOT_PRODUCT(r34, f_roll3)
+         amat(6, 4) = -imass3*DOT_PRODUCT(r34, f_roll4)
+         amat(6, 5) = imass4*DOT_PRODUCT(r34, f_roll5)
+         amat(6, 6) = (imass3 + imass4)*DOT_PRODUCT(r34, f_roll6)
 
          ! construct solution vector
-         CALL matvec_3x3(vec, veps, r12)
-         bvec(1, 1) = DOTPROD_3D(r12, v12 + vec)
-         CALL matvec_3x3(vec, veps, r13)
-         bvec(2, 1) = DOTPROD_3D(r13, v13 + vec)
-         CALL matvec_3x3(vec, veps, r14)
-         bvec(3, 1) = DOTPROD_3D(r14, v14 + vec)
-         CALL matvec_3x3(vec, veps, r23)
-         bvec(4, 1) = DOTPROD_3D(r23, v23 + vec)
-         CALL matvec_3x3(vec, veps, r24)
-         bvec(5, 1) = DOTPROD_3D(r24, v24 + vec)
-         CALL matvec_3x3(vec, veps, r34)
-         bvec(6, 1) = DOTPROD_3D(r34, v34 + vec)
+         bvec(1, 1) = DOT_PRODUCT(r12, v12 + MATMUL(veps, r12))
+         bvec(2, 1) = DOT_PRODUCT(r13, v13 + MATMUL(veps, r13))
+         bvec(3, 1) = DOT_PRODUCT(r14, v14 + MATMUL(veps, r14))
+         bvec(4, 1) = DOT_PRODUCT(r23, v23 + MATMUL(veps, r23))
+         bvec(5, 1) = DOT_PRODUCT(r24, v24 + MATMUL(veps, r24))
+         bvec(6, 1) = DOT_PRODUCT(r34, v34 + MATMUL(veps, r34))
          bvec = -bvec*2.0_dp*idt
 
          ! get lambda
