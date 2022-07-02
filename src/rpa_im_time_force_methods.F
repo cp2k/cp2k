@@ -916,7 +916,7 @@ CONTAINS
                                   kind_of, force_data%idx_to_at_AO, pref, do_ovlp=.TRUE.)
          END IF
 
-         debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
+         !debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
          CALL dbcsr_multiply('N', 'N', 1.0_dp, Y_1, force_data%P_occ(Pspin)%matrix, 0.0_dp, dbcsr_work_symm)
@@ -1002,6 +1002,8 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_8)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
+      debug = force(1)%mp2_non_sep(:, 1)
+
       !Calculate the periodic contributions of (P|Q) to the force and the virial
       work_virial = 0.0_dp
       IF (force_data%do_periodic) THEN
@@ -1015,6 +1017,10 @@ CONTAINS
          END IF
          CALL dbcsr_clear(force_data%G_PQ)
       END IF
+
+      debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
+
+      WRITE (*, *) "Debug 2c", debug_force_2c
 
       IF (use_virial) THEN
          virial%pv_mp2 = virial%pv_mp2 + work_virial
