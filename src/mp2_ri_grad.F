@@ -36,7 +36,7 @@ MODULE mp2_ri_grad
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               ri_mp2_laplace,&
-                                              ri_mp2_method_gpw
+                                              ri_mp2_method_gpw, ri_rpa_method_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE message_passing,                 ONLY: &
