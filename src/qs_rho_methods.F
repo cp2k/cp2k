@@ -355,8 +355,6 @@ CONTAINS
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env_external
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_rho_update_rho'
-
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
