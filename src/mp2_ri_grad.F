@@ -395,7 +395,7 @@ CONTAINS
 
             debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug
 
-            debug = mp2_force(1)%rho_elec(:, 1)
+            debug = mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1)
 
             IF (use_virial) pv_virial = virial%pv_virial
             CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
@@ -416,7 +416,7 @@ CONTAINS
                                                   h_stress, para_env_sub, kind_of, atom_of_kind, &
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
 
-            debug_force_3c = debug_force_3c + mp2_force(1)%rho_elec(:, 1) - debug
+            debug_force_3c = debug_force_3c + mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1) - debug
 
          END DO
          WRITE (*, *) "Debug 2c", debug_force_2c
