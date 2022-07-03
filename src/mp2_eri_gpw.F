@@ -385,12 +385,13 @@ CONTAINS
 !> \param para_env_sub ...
 !> \param dft_control ...
 !> \param psi_L ...
+!> \param factor ...
 ! **************************************************************************************************
    SUBROUTINE integrate_potential_forces_2c(rho_r, LLL, matrix, rho_g, atomic_kind_set, &
                                             qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, pot_g, &
                                             potential_parameter, use_virial, rho_g_copy, dvg, &
                                             kind_of, atom_of_kind, G_PQ_local, force, h_stress, para_env_sub, &
-                                            dft_control, psi_L)
+                                            dft_control, psi_L, factor)
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r
       INTEGER, INTENT(IN)                                :: LLL
@@ -417,6 +418,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(pw_p_type), INTENT(INOUT)                     :: psi_L
+      REAL(KIND=dp), INTENT(IN)                          :: factor
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_2c'
 
@@ -452,7 +454,7 @@ CONTAINS
          CALL calculate_wavefunction(matrix, 1, psi_L, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                      basis_type="RI_AUX", &
-                                     external_vector=-2.0_dp*G_PQ_local)
+                                     external_vector=0.5_dp*factor*G_PQ_local)
          ! transfer to reciprocal space and calculate potential
          CALL calc_potential_gpw(psi_L, rho_g, poisson_env, pot_g, potential_parameter, no_transfer=.TRUE.)
          ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
@@ -462,7 +464,7 @@ CONTAINS
       ! integrate the potential of the single gaussian and update
       ! 2-center forces with Gamma_PQ
       CALL integrate_potential(pw_env_sub, rho_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
-                               G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
+                               -0.25_dp*factor*G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
 
       CALL timestop(handle)
    END SUBROUTINE integrate_potential_forces_2c

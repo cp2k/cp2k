@@ -144,7 +144,7 @@ CONTAINS
       LOGICAL                                            :: alpha_beta, use_virial
       REAL(KIND=dp)                                      :: cutoff_old, debug(3), debug_force_2c(3), &
                                                             debug_force_3c(3), eps_filter, factor, &
-                                                            relative_cutoff_old
+                                                            factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
@@ -249,6 +249,9 @@ CONTAINS
       CALL zero_qs_force(mp2_force)
       mp2_env%ri_grad%mp2_force => mp2_force
 
+      factor_2c = -4.0_dp
+      IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = 1.0_dp
+
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
          ALLOCATE (matrix_P_munu_local(my_group_L_size))
@@ -304,20 +307,20 @@ CONTAINS
          END DO
 
          DO ikind = 1, SIZE(force)
-            mp2_force(ikind)%mp2_non_sep(:, :) = -4.0_dp*force_2c(ikind)%forces(:, :) + &
+            mp2_force(ikind)%mp2_non_sep(:, :) = factor_2c*force_2c(ikind)%forces(:, :) + &
                                                  force_3c_orb_mu(ikind)%forces(:, :) + &
                                                  force_3c_orb_nu(ikind)%forces(:, :) + &
                                                  force_3c_aux(ikind)%forces(:, :)
 
             IF (.NOT. compare_potential_types(mp2_env%potential_parameter, mp2_env%ri_metric)) THEN
-               mp2_force(ikind)%mp2_non_sep(:, :) = mp2_force(ikind)%mp2_non_sep(:, :) - 4.0_dp*force_2c_RI(ikind)%forces
+               mp2_force(ikind)%mp2_non_sep(:, :) = mp2_force(ikind)%mp2_non_sep(:, :) + factor_2c*force_2c_RI(ikind)%forces
             END IF
          END DO
 
          IF (compare_potential_types(mp2_env%potential_parameter, mp2_env%ri_metric)) THEN
-            WRITE (*, *) "Debug 2c", -4.0_dp*force_2c(1)%forces(:, 1)
+            WRITE (*, *) "Debug 2c", factor_2c*force_2c(1)%forces(:, 1)
          ELSE
-            WRITE (*, *) "Debug 2c", -4.0_dp*force_2c(1)%forces(:, 1) - 4.0_dp*force_2c_RI(1)%forces(:, 1)
+            WRITE (*, *) "Debug 2c", factor_2c*force_2c(1)%forces(:, 1) + factor_2c*force_2c_RI(1)%forces(:, 1)
          END IF
          WRITE (*, *) "Debug 3c", force_3c_orb_mu(1)%forces(:, 1) + force_3c_orb_nu(1)%forces(:, 1) + force_3c_aux(1)%forces(:, 1)
 
@@ -382,7 +385,7 @@ CONTAINS
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                pot_g, mp2_env%potential_parameter, use_virial, &
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
-                                               mp2_force, h_stress, para_env_sub, dft_control, psi_L)
+                                               mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
@@ -390,7 +393,7 @@ CONTAINS
                                                   qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                   pot_g, mp2_env%ri_metric, use_virial, &
                                                   rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local_2(:, L_counter), &
-                                                  mp2_force, h_stress, para_env_sub, dft_control, psi_L)
+                                                  mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
             END IF
 
             debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug
