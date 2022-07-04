@@ -719,11 +719,11 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: weight
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_grad_matrix_operations'
+      INTEGER, PARAMETER                                 :: max_counter = 1
+      LOGICAL, PARAMETER                                 :: do_scale_matrix = .TRUE.
 
-      INTEGER                                            :: col_global, col_local, dimen_ia, &
-                                                            dimen_RI, handle, handle2, ispin, &
-                                                            jspin, ncol_local, nrow_local, nspins, &
-                                                            row_local
+      INTEGER :: col_global, col_local, counter, dimen_ia, dimen_RI, handle, handle2, ispin, &
+         jspin, ncol_local, nrow_local, nspins, row_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: mat_S_3D, mat_work_iaP_3D
@@ -789,9 +789,11 @@ CONTAINS
 
             CALL cp_fm_to_fm_submat_general(fm_mat_Q(jspin)%matrix, fm_mat_Q_gemm(jspin)%matrix, dimen_RI, dimen_RI, 1, 1, 1, 1, &
                                             fm_mat_Q_gemm(jspin)%matrix%matrix_struct%context%group)
-         ELSE
-            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin)%matrix, .TRUE., virtual(ispin), Eigenval(:, ispin), &
-                                   homo(ispin), omega, 0.0_dp)
+         ELSE IF (do_scale_matrix) THEN
+            DO counter = 1, max_counter
+               CALL calc_fm_mat_S_rpa(fm_mat_S(ispin)%matrix, .TRUE., virtual(ispin), Eigenval(:, ispin), &
+                                      homo(ispin), omega, 0.0_dp)
+            END DO
          END IF
 
          CALL timeset(routineN//"_contr_S", handle2)
@@ -866,7 +868,11 @@ CONTAINS
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
-            CALL remove_scaling_factor_rpa(fm_mat_S(ispin)%matrix, virtual(ispin), Eigenval(:, ispin), homo(ispin), omega)
+            IF (do_scale_matrix) THEN
+               DO counter = 1, max_counter
+                  CALL remove_scaling_factor_rpa(fm_mat_S(ispin)%matrix, virtual(ispin), Eigenval(:, ispin), homo(ispin), omega)
+               END DO
+            END IF
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 

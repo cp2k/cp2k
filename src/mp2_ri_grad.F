@@ -250,7 +250,7 @@ CONTAINS
       mp2_env%ri_grad%mp2_force => mp2_force
 
       factor_2c = -4.0_dp
-      IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = 1.0_dp
+      IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = -1.0_dp
 
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
