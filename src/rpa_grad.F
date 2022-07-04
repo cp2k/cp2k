@@ -842,10 +842,6 @@ CONTAINS
                WRITE (*, *) "DEBUG Diag", debug
             END BLOCK
 
-            ! Scale fm_work_iaP
-            CALL calc_fm_mat_S_rpa(fm_work_iaP, .TRUE., virtual(ispin), Eigenval(:, ispin), &
-                                   homo(ispin), omega, 0.0_dp)
-
             ! To save memory, we add it now
             CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin)%matrix, -weight, fm_work_iaP)
 
@@ -1548,48 +1544,6 @@ CONTAINS
          CALL mp_sum(debug, para_env%group)
          WRITE (*, *) "Debug mat_S_3D", debug
       END BLOCK
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_S_3D ...
-!> \param omega ...
-!> \param Eigenval ...
-!> \param homo ...
-!> \param gd_homo ...
-!> \param gd_virtual ...
-!> \param mepos ...
-! **************************************************************************************************
-   SUBROUTINE scale_matrix_S_rpa(mat_S_3D, omega, Eigenval, homo, gd_homo, gd_virtual, mepos)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S_3D
-      REAL(KIND=dp), INTENT(IN)                          :: omega
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(IN)                                :: homo
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_homo, gd_virtual
-      INTEGER, DIMENSION(2), INTENT(IN)                  :: mepos
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_matrix_S_rpa'
-
-      INTEGER                                            :: handle, my_a, my_a_end, my_a_start, &
-                                                            my_i, my_i_end, my_i_start
-      REAL(KIND=dp)                                      :: eigen_diff
-
-      CALL timeset(routineN, handle)
-
-      CALL get_group_dist(gd_virtual, mepos(1), my_a_start, my_a_end)
-      CALL get_group_dist(gd_homo, mepos(2), my_i_start, my_i_end)
-
-!$OMP PARALLEL DO PRIVATE(my_i,my_a,eigen_diff) SHARED(mat_S_3D,my_i_start,my_i_end,my_a_start,my_a_end,omega,homo) COLLAPSE(2)
-      DO my_i = my_i_start, my_i_end
-      DO my_a = my_a_start, my_a_end
-         eigen_diff = Eigenval(homo + my_a) - Eigenval(my_i)
-         mat_S_3D(:, my_a, my_i) = mat_S_3D(:, my_a, my_i)*SQRT(eigen_diff/(eigen_diff**2 + omega**2))
-      END DO
-      END DO
-!$OMP END PARALLEL DO
 
       CALL timestop(handle)
 
