@@ -33,6 +33,7 @@ KEEPALIVE_SKIP_DIRS = [
     "LIBTEST/libbqb",
     "QS/regtest-ec",
     "QS/regtest-gapw",
+    "QS/regtest-gapw_xc",
     "QS/regtest-gpw-1",
     "QS/regtest-mp2-grad-1",
     "QS/regtest-mp2-grad-2",
