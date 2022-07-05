@@ -353,23 +353,6 @@ CONTAINS
          END DO
          END DO
 
-         BLOCK
-            INTEGER, DIMENSION(0:num_pe_col - 1) :: my_data2recv
-            TYPE(cp_para_env_type), POINTER :: para_env_exchange
-            INTEGER:: my_prow
-
-            CALL get_blacs_info(fm_mat_S(1)%matrix%matrix_struct%context, &
-                                my_process_row=my_prow)
-            NULLIFY (para_env_exchange)
-            CALL cp_para_env_split(para_env_exchange, fm_mat_S(1)%matrix%matrix_struct%para_env, my_prow)
-            CALL mp_alltoall(data2send, my_data2recv, 1, para_env_exchange%group)
-            CALL cp_para_env_release(para_env_exchange)
-            WRITE (*, *) "sent data", data2send
-            WRITE (*, *) "found data", data2recv
-            WRITE (*, *) "actual data", my_data2recv
-            CPASSERT(ALL(my_data2recv == data2recv))
-         END BLOCK
-
          DO proc_recv = 0, num_pe_col - 1
             ALLOCATE (rpa_work%index2recv(proc_recv, ispin)%array(2, data2recv(proc_recv)))
          END DO
@@ -837,28 +820,6 @@ CONTAINS
 
             CALL cp_fm_release(fm_work_iaP)
          ELSE
-            BLOCK
-               REAL(KIND=dp) :: debug, e_diff
-               INTEGER :: ncol_local, col_local, col_global, iocc, avirt
-               INTEGER, DIMENSION(:), POINTER :: col_indices
-               TYPE(cp_para_env_type), POINTER ::para_env
-
-               CALL cp_fm_get_info(fm_mat_S(ispin)%matrix, ncol_Local=ncol_local, col_indices=col_indices, para_env=para_env)
-
-               debug = 0.0_dp
-               DO col_local = 1, ncol_local
-                  col_global = col_indices(col_local)
-                  iocc = (col_global - 1)/virtual(ispin) + 1
-                  avirt = MOD(col_global - 1, virtual(ispin)) + 1
-                  e_diff = EIgenval(homo(ispin) + avirt, ispin) - Eigenval(iocc, ispin)
-
-                  debug = debug + weight*SUM(fm_mat_S(ispin)%matrix%local_data(:, col_local)*fm_work_iaP%local_data(:, col_Local)* &
-                                             (e_diff**2 - omega**2)/(e_diff**2 + omega**2)/e_diff)
-               END DO
-               CALL mp_sum(debug, para_env%group)
-               WRITE (*, *) "DEBUG Diag", debug
-            END BLOCK
-
             ! To save memory, we add it now
             CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin)%matrix, -weight, fm_work_iaP)
 
@@ -1022,7 +983,6 @@ CONTAINS
          proc_shift, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, recv_i_start, &
          tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
-      REAL(KIND=dp)                                      :: debug, debug2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1042,10 +1002,6 @@ CONTAINS
       ALLOCATE (buffer_1D(MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                               INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
 
-      WRITE (*, *) "DEBUG NORM 1", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
-
-      debug = 0.0_dp
-
       DO proc_shift = 0, grid(1) - 1
          proc_a_send = MODULO(mepos(1) + proc_shift, grid(1))
          proc_a_recv = MODULO(mepos(1) - proc_shift, grid(1))
@@ -1063,15 +1019,11 @@ CONTAINS
 
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
-            WRITE (*, *) my_i
             CALL DGEMM("T", "N", my_a_size, recv_a_size, my_P_size, &
                        -weight, mat_S_3D(1, 1, my_i), my_P_size, &
                        buffer_3D(1, 1, my_i), my_P_size, &
                        1.0_dp, P_ab(1, recv_a_start), my_a_size)
          END DO
-         IF (proc_shift == 0) THEN
-            debug = debug - weight*SUM(mat_S_3D*buffer_3D)
-         END IF
 
          DO my_i = 1, my_i_size
             ! Scale both matrices
@@ -1092,9 +1044,6 @@ CONTAINS
                        buffer_3D(1, 1, my_i), my_P_size, &
                        1.0_dp, P_ab(1, recv_a_start), my_a_size)
          END DO
-         IF (proc_shift == 0) THEN
-            debug = debug + weight*SUM(mat_S_3D*buffer_3D)
-         END IF
 
          ! Remove scaling of mat_S for later
          DO my_i = 1, my_i_size
@@ -1108,16 +1057,6 @@ CONTAINS
             END DO
          END DO
       END DO
-
-      debug2 = 0.0_dp
-      DO my_a = 1, my_a_size
-         debug2 = debug2 + P_ab(my_a, my_a + my_a_start - 1)
-      END DO
-
-      WRITE (*, *) "DEBUG Diag P_ab", debug, debug2
-      debug = 0.0_dp
-
-      WRITE (*, *) "DEBUG NORM 2", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
 
       DO proc_shift = 0, grid(2) - 1
          proc_i_send = MODULO(mepos(2) + proc_shift, grid(2))
@@ -1139,9 +1078,6 @@ CONTAINS
                     weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
                     buffer_3D(1, 1, 1), my_P_size*my_a_size, &
                     1.0_dp, P_ij(1, recv_i_start), my_i_size)
-         IF (proc_shift == 0) THEN
-            debug = debug + weight*SUM(mat_S_3D*buffer_3D)
-         END IF
 
          ! Scale both matrices
          DO my_i = 1, my_i_size
@@ -1162,9 +1098,6 @@ CONTAINS
                     -weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
                     buffer_3D(1, 1, 1), my_P_size*my_a_size, &
                     1.0_dp, P_ij(1, recv_i_start), my_i_size)
-         IF (proc_shift == 0) THEN
-            debug = debug - weight*SUM(mat_S_3D*buffer_3D)
-         END IF
 
          ! Remove scaling factor of mat_S for later
          DO my_i = 1, my_i_size
@@ -1174,17 +1107,6 @@ CONTAINS
          END DO
          END DO
       END DO
-
-      debug2 = 0.0_dp
-      DO my_i = 1, my_i_size
-         debug2 = debug2 + P_ij(my_i, my_i + my_i_start - 1)
-      END DO
-
-      WRITE (*, *) "DEBUG Diag P_ij", debug, debug2
-      WRITE (*, *) "DEBUG NORM 3", NORM2(mat_work_iaP_3D), NORM2(mat_S_3D)
-      WRITE (*, *) "DEBUG Symm.", NORM2(P_ij(:, my_i_start:my_i_start + my_i_size - 1) - &
-                                        TRANSPOSE(P_ij(:, my_i_start:my_i_start + my_i_size - 1))), &
-         NORM2(P_ab(:, my_a_start:my_a_start + my_a_size - 1) - TRANSPOSE(P_ab(:, my_a_start:my_a_start + my_a_size - 1)))
 
       CALL timestop(handle)
 
@@ -1495,15 +1417,6 @@ CONTAINS
 
       CALL cp_fm_struct_get(fm_mat_S%matrix_struct, nrow_local=nrow_local, para_env=para_env)
 
-      BLOCK
-         REAL(KIND=dp) :: debug(2)
-
-         debug(1) = SUM(fm_mat_S%local_data)
-         debug(2) = SUM(fm_mat_S%local_data**2)
-         CALL mp_sum(debug, para_env%group)
-         WRITE (*, *) "Debug fm_mat_S", debug
-      END BLOCK
-
       CALL get_group_dist(gd_homo, mepos(2), sizes=my_homo)
       CALL get_group_dist(gd_virtual, mepos(1), sizes=my_virtual)
 
@@ -1552,15 +1465,6 @@ CONTAINS
          IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
 
       END DO
-
-      BLOCK
-         REAL(KIND=dp) :: debug(2)
-
-         debug(1) = SUM(mat_S_3D)
-         debug(2) = SUM(mat_S_3D**2)
-         CALL mp_sum(debug, para_env%group)
-         WRITE (*, *) "Debug mat_S_3D", debug
-      END BLOCK
 
       CALL timestop(handle)
 
@@ -1924,8 +1828,8 @@ CONTAINS
       INTEGER :: handle, ispin, itmp(2), my_a_end, my_a_size, my_a_start, my_B_end, my_B_size, &
          my_B_start, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, proc_send, &
          proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, send_a_start, &
-         send_end, send_start, my_a
-      REAL(KIND=dp)                                      :: my_scale, debug
+         send_end, send_start
+      REAL(KIND=dp)                                      :: my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_a_sub, gd_virtual_sub
@@ -1956,16 +1860,6 @@ CONTAINS
          DEALLOCATE (rpa_work%P_ij(ispin)%array)
          CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
 
-         BLOCK
-            REAL(KIND=dp) :: trace
-            INTEGER :: my_i
-            trace = 0.0_dp
-            DO my_i = 1, homo(ispin)
-               trace = trace + mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_i)
-            END DO
-            WRITE (*, *) "diag P_ij", trace
-         END BLOCK
-
          itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)
          my_B_start = itmp(1)
          my_B_end = itmp(2)
@@ -1980,13 +1874,6 @@ CONTAINS
          CALL create_group_dist(gd_a_sub, my_a_start, my_a_end, my_a_size, para_env_sub)
          ! This group dist contains the info which parts of Pab a process is supposed to own later
          CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
-
-         debug = 0.0_dp
-         DO my_a = 1, my_a_size
-            debug = debug + rpa_work%P_ab(ispin)%array(my_a, my_a + my_a_start - 1)
-         END DO
-         CALL mp_sum(debug, para_env%group)
-         WRITE (*, *) "Diag P_ab 1", debug
 
          DO proc_shift = 0, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
@@ -2004,7 +1891,6 @@ CONTAINS
             ! Same for recv process but with reverse positions
             recv_start = MAX(my_a_start, recv_a_start)
             recv_end = MIN(my_a_end, recv_a_end)
-            WRITE (*, *) proc_shift, send_start, send_end, recv_start, recv_end
             ALLOCATE (buffer_recv(MAX(recv_end - recv_start + 1, 0), virtual(ispin)))
 
             CALL mp_sendrecv(buffer_send, proc_send, buffer_recv, proc_recv, para_env_sub%group)
@@ -2027,16 +1913,6 @@ CONTAINS
          CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_exchange%group)
          CALL cp_para_env_release(para_env_exchange)
 
-         BLOCK
-            REAL(KIND=dp) :: trace
-            INTEGER :: my_a
-            trace = 0.0_dp
-            DO my_a = 1, my_B_size
-               trace = trace + mp2_env%ri_grad%P_ab(ispin)%array(my_a, my_a + my_B_start - 1)
-            END DO
-            CALL mp_sum(trace, para_env_sub%group)
-            WRITE (*, *) "diag P_ab", trace
-         END BLOCK
       END DO
       DEALLOCATE (rpa_work%gd_homo, rpa_work%gd_virtual, rpa_work%P_ij, rpa_work%P_ab)
       IF (nspins == 1) THEN
