@@ -58,8 +58,17 @@ CONTAINS
       NULLIFY (keyword, section, print_key)
 
       CALL section_create(section, __LOCATION__, name="print", &
-                          description="Controls the printing properties during an MD run", &
-                          n_keywords=0, n_subsections=1, repeats=.TRUE.)
+                          description="Controls the printing properties during an MD/Optimization run", &
+                          n_keywords=1, n_subsections=1, repeats=.TRUE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_INFO", &
+                          variants=(/"MEMORY"/), &
+                          description="Whether overall memory usage should be sampled and printed "// &
+                          "at each MD/Optimization step.", &
+                          usage="MEMORY_INFO LOGICAL", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "TRAJECTORY", &
                                        description="Controls the output of the trajectory", &
