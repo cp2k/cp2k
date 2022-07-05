@@ -130,17 +130,18 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: label
       INTEGER                                            :: i, iatom, ibeta, ifun, ikind, iwf, j, l, &
                                                             n, natom, nbeta, nkind, nmesh, &
-                                                            num_mag_dims, sirius_mpi_comm, vdw_func
+                                                            num_mag_dims, sirius_mpi_comm, vdw_func, nu, lu
       INTEGER, DIMENSION(:), POINTER                     :: mpi_grid_dims
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: k_grid, k_shift
       INTEGER, DIMENSION(:), POINTER                     :: kk
       LOGICAL                                            :: up, use_ref_cell
-      LOGICAL(4)                                         :: use_so, use_symmetry
+      LOGICAL(4)                                         :: use_so, use_symmetry, dft_plus_u_atom
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:)     :: fun
       REAL(KIND=C_DOUBLE), ALLOCATABLE, DIMENSION(:, :)  :: dion
       REAL(KIND=C_DOUBLE), DIMENSION(3)                  :: a1, a2, a3, v1, v2
       REAL(KIND=dp)                                      :: al, angle1, angle2, cval, focc, &
-                                                            magnetization, mass, pf, rl, zeff
+                                                            magnetization, mass, pf, rl, zeff, alpha_u, beta_u, &
+                                                            J0_u, J_u, U_u, occ_u, u_minus_J
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: beta, corden, ef, fe, locpot, rc, rp
       REAL(KIND=dp), DIMENSION(3)                        :: vr, vs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: density
@@ -285,10 +286,12 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
          NULLIFY (upf_pot, gth_potential)
          CALL get_qs_kind(qs_kind_set(ikind), upf_potential=upf_pot, gth_potential=gth_potential)
+
          IF (ASSOCIATED(upf_pot)) THEN
             CALL sirius_add_atom_type(sctx, label, fname=upf_pot%filename, &
                                       symbol=element_symbol, &
                                       mass=REAL(mass/massunit, KIND=C_DOUBLE))
+
          ELSEIF (ASSOCIATED(gth_potential)) THEN
 !
             NULLIFY (atom_grid)
@@ -393,6 +396,7 @@ CONTAINS
             DO iwf = 1, SIZE(wavefunction, 2)
                focc = wfninfo(1, iwf)
                l = NINT(wfninfo(2, iwf))
+               nu = NINT(wfninfo(3, iwf))
                IF (up) THEN
                   fun(1:nmesh) = wavefunction(1:nmesh, iwf)*rp(i)
                ELSE
@@ -402,7 +406,7 @@ CONTAINS
                END IF
                CALL sirius_add_atom_type_radial_function(sctx, &
                                                          label, "ps_atomic_wf", &
-                                                         fun(1), nmesh, l=l, occ=REAL(focc, KIND=C_DOUBLE), n=-1)
+                                                         fun(1), nmesh, l=l, occ=REAL(focc, KIND=C_DOUBLE), n=nu)
             END DO
 
 ! set total charge density of a free atom (to compute initial rho(r))
@@ -416,6 +420,39 @@ CONTAINS
             CALL sirius_add_atom_type_radial_function(sctx, label, "ps_rho_total", &
                                                       fun(1), nmesh)
 
+            CALL get_qs_kind(qs_kind_set(ikind), &
+                             dft_plus_u_atom=dft_plus_u_atom, &
+                             l_of_dft_plus_u=lu, &
+                             n_of_dft_plus_u=nu, &
+                             u_minus_j_target=u_minus_j, &
+                             U_of_dft_plus_u=U_u, &
+                             J_of_dft_plus_u=J_u, &
+                             alpha_of_dft_plus_u=alpha_u, &
+                             beta_of_dft_plus_u=beta_u, &
+                             J0_of_dft_plus_u=J0_u, &
+                             occupation_of_dft_plus_u=occ_u)
+
+            IF (dft_plus_u_atom) THEN
+               IF (nu < 1) THEN
+                  CALL cpabort("CP2K/SIRIUS (hubbard): principal quantum number not specified")
+               END IF
+
+               IF (lu < 0) THEN
+                  CALL cpabort("CP2K/SIRIUS (hubbard): l can not be negative.")
+               END IF
+
+               IF (occ_u < 0.0) THEN
+                  CALL cpabort("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
+               END IF
+
+               IF (ABS(u_minus_j) < 1e-8) THEN
+                  CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
+                                                    NINT(occ_u), U_u, J_u, alpha_u, beta_u, J0_u)
+               ELSE
+                  CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
+                                                    NINT(occ_u), u_minus_j, 0.0_dp, alpha_u, beta_u, J0_u)
+               END IF
+            END IF
             IF (ASSOCIATED(density)) DEALLOCATE (density)
             IF (ASSOCIATED(wavefunction)) DEALLOCATE (wavefunction)
             IF (ASSOCIATED(wfninfo)) DEALLOCATE (wfninfo)
@@ -426,7 +463,7 @@ CONTAINS
 !
          ELSE
             CALL cp_abort(__LOCATION__, &
-                          'CP2K/SIRIUS: atomic kind needs UPF or GTH potential definition')
+                          "CP2K/SIRIUS: atomic kind needs UPF or GTH potential definition")
          END IF
       END DO
 

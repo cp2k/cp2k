@@ -123,12 +123,19 @@ MODULE qs_kind_types
 ! **************************************************************************************************
    TYPE dft_plus_u_type
       INTEGER                                :: l = -1
+      INTEGER                                :: n = -1
       INTEGER                                :: max_scf = -1
       REAL(KIND=dp)                          :: eps_u_ramping = 0.0_dp
       REAL(KIND=dp)                          :: eps_scf = HUGE(0.0_dp)
       REAL(KIND=dp)                          :: u_minus_j_target
       REAL(KIND=dp)                          :: u_minus_j = 0.0_dp
       REAL(KIND=dp)                          :: u_ramping = 0.0_dp
+      REAL(KIND=dp)                          :: U = 0.0_dp
+      REAL(KIND=dp)                          :: J = 0.0_dp
+      REAL(KIND=dp)                          :: alpha = 0.0_dp
+      REAL(KIND=dp)                          :: beta = 0.0_dp
+      REAL(KIND=dp)                          :: J0 = 0.0_dp
+      REAL(KIND=dp)                          :: occupation = -1.0_dp
       INTEGER, DIMENSION(:), POINTER         :: orbitals => Null()
       LOGICAL                                :: init_u_ramping_each_scf = .FALSE.
       LOGICAL                                :: smear = .FALSE.
@@ -403,7 +410,14 @@ CONTAINS
 !> \param lmax_rho0 ...
 !> \param dft_plus_u_atom ...
 !> \param l_of_dft_plus_u ...
+!> \param n_of_dft_plus_u ...
 !> \param u_minus_j ...
+!> \param U_of_dft_plus_u ...
+!> \param J_of_dft_plus_u ...
+!> \param alpha_of_dft_plus_u ...
+!> \param beta_of_dft_plus_u ...
+!> \param J0_of_dft_plus_u ...
+!> \param occupation_of_dft_plus_u ...
 !> \param dispersion ...
 !> \param bs_occupation ...
 !> \param magnetization ...
@@ -440,7 +454,9 @@ CONTAINS
                           covalent_radius, vdw_radius, &
                           gpw_type_forced, harmonics, max_iso_not0, max_s_harm, grid_atom, &
                           ngrid_ang, ngrid_rad, lmax_rho0, &
-                          dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, &
+                          dft_plus_u_atom, l_of_dft_plus_u, n_of_dft_plus_u, &
+                          u_minus_j, U_of_dft_plus_u, J_of_dft_plus_u, &
+                          alpha_of_dft_plus_u, beta_of_dft_plus_u, J0_of_dft_plus_u, occupation_of_dft_plus_u, dispersion, &
                           bs_occupation, magnetization, no_optimize, addel, laddel, naddel, orbitals, &
                           max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
                           init_u_ramping_each_scf, reltmat, ghost, floating, name, element_symbol, &
@@ -476,8 +492,9 @@ CONTAINS
       TYPE(grid_atom_type), OPTIONAL, POINTER            :: grid_atom
       INTEGER, INTENT(OUT), OPTIONAL                     :: ngrid_ang, ngrid_rad, lmax_rho0
       LOGICAL, INTENT(OUT), OPTIONAL                     :: dft_plus_u_atom
-      INTEGER, INTENT(OUT), OPTIONAL                     :: l_of_dft_plus_u
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: u_minus_j
+      INTEGER, INTENT(OUT), OPTIONAL                     :: l_of_dft_plus_u, n_of_dft_plus_u
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL :: u_minus_j, U_of_dft_plus_u, J_of_dft_plus_u, &
+         alpha_of_dft_plus_u, beta_of_dft_plus_u, J0_of_dft_plus_u, occupation_of_dft_plus_u
       TYPE(qs_atom_dispersion_type), OPTIONAL, POINTER   :: dispersion
       LOGICAL, INTENT(OUT), OPTIONAL                     :: bs_occupation
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: magnetization
@@ -683,6 +700,13 @@ CONTAINS
             l_of_dft_plus_u = -1
          END IF
       END IF
+      IF (PRESENT(n_of_dft_plus_u)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            n_of_dft_plus_u = qs_kind%dft_plus_u%n
+         ELSE
+            n_of_dft_plus_u = -1
+         END IF
+      END IF
       IF (PRESENT(u_minus_j)) THEN
          IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
             u_minus_j = qs_kind%dft_plus_u%u_minus_j
@@ -697,6 +721,49 @@ CONTAINS
             u_minus_j_target = 0.0_dp
          END IF
       END IF
+      IF (PRESENT(U_of_dft_plus_u)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            U_of_dft_plus_u = qs_kind%dft_plus_u%U
+         ELSE
+            U_of_dft_plus_u = 0.0_dp
+         END IF
+      END IF
+      IF (PRESENT(J_of_dft_plus_u)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            J_of_dft_plus_u = qs_kind%dft_plus_u%J
+         ELSE
+            J_of_dft_plus_u = 0.0_dp
+         END IF
+      END IF
+      IF (PRESENT(alpha_of_dft_plus_u)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            alpha_of_dft_plus_u = qs_kind%dft_plus_u%alpha
+         ELSE
+            alpha_of_dft_plus_u = 0.0_dp
+         END IF
+      END IF
+      IF (PRESENT(beta_of_dft_plus_u)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            beta_of_dft_plus_u = qs_kind%dft_plus_u%beta
+         ELSE
+            beta_of_dft_plus_u = 0.0_dp
+         END IF
+      END IF
+      IF (PRESENT(J0_of_dft_plus_u)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            J0_of_dft_plus_u = qs_kind%dft_plus_u%J0
+         ELSE
+            J0_of_dft_plus_u = 0.0_dp
+         END IF
+      END IF
+      IF (PRESENT(occupation_of_dft_plus_u)) THEN
+         IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
+            occupation_of_dft_plus_u = qs_kind%dft_plus_u%occupation
+         ELSE
+            occupation_of_dft_plus_u = -1.0_dp
+         END IF
+      END IF
+
       IF (PRESENT(init_u_ramping_each_scf)) THEN
          IF (ASSOCIATED(qs_kind%dft_plus_u)) THEN
             init_u_ramping_each_scf = qs_kind%dft_plus_u%init_u_ramping_each_scf
@@ -1441,7 +1508,7 @@ CONTAINS
          DIMENSION(maxbas)                               :: basis_set_form, basis_set_name, &
                                                             basis_set_type
       INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, &
-         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, z
+         nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, nu, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
          section_enabled, subsection_enabled, update_input
@@ -1786,7 +1853,6 @@ CONTAINS
             spin_section => section_vals_get_subs_vals(bs_section, "BETA")
             CALL section_vals_get(spin_section, explicit=explicit)
             IF (explicit) THEN
-
                NULLIFY (add_el)
                CALL section_vals_val_get(spin_section, &
                                          keyword_name="NEL", i_vals=add_el)
@@ -1832,6 +1898,40 @@ CONTAINS
             qs_kind%dft_plus_u%l = l
             IF (l < 0) &
                CPABORT("DFT+U| Invalid orbital angular momentum quantum number specified: l < 0")
+#if defined(__SIRIUS)
+            CALL section_vals_val_get(dft_plus_u_section, &
+                                      keyword_name="N", &
+                                      i_val=nu)
+            qs_kind%dft_plus_u%n = nu
+
+            IF (nu < 0) &
+               CPABORT("DFT+U| the principal quantum number n can not be negative")
+
+            CALL section_vals_val_get(dft_plus_u_section, &
+                                      keyword_name="U", &
+                                      r_val=qs_kind%dft_plus_u%U)
+
+            CALL section_vals_val_get(dft_plus_u_section, &
+                                      keyword_name="J", &
+                                      r_val=qs_kind%dft_plus_u%J)
+
+            CALL section_vals_val_get(dft_plus_u_section, &
+                                      keyword_name="alpha", &
+                                      r_val=qs_kind%dft_plus_u%alpha)
+
+            CALL section_vals_val_get(dft_plus_u_section, &
+                                      keyword_name="beta", &
+                                      r_val=qs_kind%dft_plus_u%beta)
+
+            CALL section_vals_val_get(dft_plus_u_section, &
+                                      keyword_name="J0", &
+                                      r_val=qs_kind%dft_plus_u%J0)
+
+            CALL section_vals_val_get(dft_plus_u_section, &
+                                      keyword_name="occupation", &
+                                      r_val=qs_kind%dft_plus_u%occupation)
+#endif
+
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="U_MINUS_J", &
                                       r_val=qs_kind%dft_plus_u%u_minus_j_target)
