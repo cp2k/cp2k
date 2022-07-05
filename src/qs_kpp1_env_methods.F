@@ -276,7 +276,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao=rho_ao)
       CALL qs_rho_get(rho1, rho_g=rho1_g)
 
-! gets the tmp grids
+      ! gets the tmp grids
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
@@ -288,8 +288,7 @@ CONTAINS
       IF (gapw .OR. gapw_xc) &
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
-! *** calculate the hartree potential on the total density ***
-
+      ! *** calculate the hartree potential on the total density ***
       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -325,7 +324,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
 
-! *** calculate the xc potential ***
+      ! *** calculate the xc potential ***
       IF (gapw_xc) THEN
          CALL qs_rho_get(rho1_xc, rho_r=rho1_r, tau_r=tau1_r)
       ELSE
@@ -390,8 +389,10 @@ CONTAINS
       IF (SIZE(v_xc_tau) /= nspins) CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(2)%pw)
       END IF
 
-      IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
-                                                 do_tddft=do_tddft, do_triplet=do_triplet)
+      IF (gapw .OR. gapw_xc) THEN
+         CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
+                                          do_tddft=do_tddft, do_triplet=do_triplet)
+      END IF
 
       DO ispin = 1, SIZE(rho1_r_pw)
          CALL pw_release(rho1_r_pw(ispin)%pw)
@@ -535,6 +536,13 @@ CONTAINS
          END IF
          !  ***  Add single atom contributions to the KS matrix ***
          ! remap pointer
+         ns = SIZE(p_env%kpp1)
+         ksmat(1:ns, 1:1) => p_env%kpp1(1:ns)
+         ns = SIZE(rho_ao)
+         psmat(1:ns, 1:1) => rho_ao(1:ns)
+         CALL update_ks_atom(qs_env, ksmat, psmat, forces=my_calc_forces, tddft=.TRUE., &
+                             rho_atom_external=p_env%local_rho_set%rho_atom_set)
+      ELSEIF (gapw_xc) THEN
          ns = SIZE(p_env%kpp1)
          ksmat(1:ns, 1:1) => p_env%kpp1(1:ns)
          ns = SIZE(rho_ao)

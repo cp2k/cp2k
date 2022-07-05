@@ -247,9 +247,9 @@ CONTAINS
                                       name="p_env%psi0d")
       END IF
 
-      !----------------------!
-      ! GAPW initializations !
-      !----------------------!
+      !------------------------------!
+      ! GAPW/GAPW_XC initializations !
+      !------------------------------!
       IF (dft_control%qs_control%gapw) THEN
          CALL get_qs_env(qs_env, &
                          atomic_kind_set=atomic_kind_set, &
@@ -265,6 +265,13 @@ CONTAINS
          CALL rho0_s_grid_create(pw_env, p_env%local_rho_set%rho0_mpole)
          CALL hartree_local_create(p_env%hartree_local)
          CALL init_coulomb_local(p_env%hartree_local, natom)
+      ELSEIF (dft_control%qs_control%gapw_xc) THEN
+         CALL get_qs_env(qs_env, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set)
+         CALL local_rho_set_create(p_env%local_rho_set)
+         CALL allocate_rho_atom_internals(p_env%local_rho_set%rho_atom_set, atomic_kind_set, &
+                                          qs_kind_set, dft_control, para_env)
       END IF
 
       !------------------------!
@@ -410,6 +417,7 @@ CONTAINS
       END DO
 
       CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
+                             rho_xc_external=p_env%rho1_xc, &
                              local_rho_set=p_env%local_rho_set, &
                              qs_env=qs_env)
 
@@ -798,18 +806,22 @@ CONTAINS
          END IF
       END DO
 
-      IF (ASSOCIATED(p_env%local_rho_set)) THEN
+      IF (gapw) THEN
          CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, local_rho_set=p_env%local_rho_set)
+      ELSEIF (gapw_xc) THEN
+         CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, rho_xc_external=p_env%rho1_xc, &
+                                local_rho_set=p_env%local_rho_set)
       ELSE
          CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env)
       END IF
 
       IF (fdiff) THEN
+         CPASSERT(.NOT. (gapw .OR. gapw_xc))
          CALL kpp1_calc_k_p_p1_fdiff(qs_env=qs_env, &
                                      k_p_p1=p_env%kpp1, rho=rho, rho1=p_env%rho1)
       ELSE
          CALL kpp1_calc_k_p_p1(p_env=p_env, qs_env=qs_env, &
-                               rho1=p_env%rho1, rho1_xc=p_env%rho1)
+                               rho1=p_env%rho1, rho1_xc=p_env%rho1_xc)
       END IF
 
       DO ispin = 1, n_spins

@@ -357,7 +357,7 @@ CONTAINS
 
          IF (gapw_xc) THEN
             ! XC and Hartree are integrated separatedly
-            ! XC uses the sofft basis set only
+            ! XC uses the soft basis set only
 
             IF (nspins == 1) THEN
 
@@ -480,7 +480,6 @@ CONTAINS
       END DO
 
       IF (gapw) THEN
-
          IF (.NOT. ((nspins == 1 .AND. lr_triplet))) THEN
             CALL Vh_1c_gg_integrals(qs_env, energy_hartree_1c, &
                                     p_env%hartree_local%ecoul_1c, &
@@ -491,17 +490,22 @@ CONTAINS
                                        calculate_forces=.FALSE., &
                                        local_rho_set=p_env%local_rho_set)
          END IF
-
          ! ***  Add single atom contributions to the KS matrix ***
          ! remap pointer
          ns = SIZE(p_env%kpp1)
          ksmat(1:ns, 1:1) => p_env%kpp1(1:ns)
          ns = SIZE(rho_ao)
          psmat(1:ns, 1:1) => rho_ao(1:ns)
-
          CALL update_ks_atom(qs_env, ksmat, psmat, forces=.FALSE., tddft=.TRUE., &
                              rho_atom_external=p_env%local_rho_set%rho_atom_set)
 
+      ELSEIF (gapw_xc) THEN
+         ns = SIZE(p_env%kpp1)
+         ksmat(1:ns, 1:1) => p_env%kpp1(1:ns)
+         ns = SIZE(rho_ao)
+         psmat(1:ns, 1:1) => rho_ao(1:ns)
+         CALL update_ks_atom(qs_env, ksmat, psmat, forces=.FALSE., tddft=.TRUE., &
+                             rho_atom_external=p_env%local_rho_set%rho_atom_set)
       END IF
 
       ! KG embedding, contribution of kinetic energy functional to kernel
