@@ -353,6 +353,14 @@ CONTAINS
          END DO
          END DO
 
+         BLOCK
+            INTEGER, DIMENSION(0:num_pe_col - 1) :: my_data2recv
+            CALL mp_alltoall(data2send, my_data2recv, 1, fm_mat_S(1)%matrix%matrix_struct%para_env%group)
+            WRITE (*, *) "found data", data2recv
+            WRITE (*, *) "actual data", my_data2recv
+            CPASSERT(ALL(my_data2recv == data2recv))
+         END BLOCK
+
          DO proc_recv = 0, num_pe_col - 1
             ALLOCATE (rpa_work%index2recv(proc_recv, ispin)%array(2, data2recv(proc_recv)))
          END DO
