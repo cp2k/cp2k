@@ -53,10 +53,14 @@ MODULE md_energies
                                               section_release,&
                                               section_type,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
-                                              dp
-   USE machine,                         ONLY: m_flush
+                                              dp,&
+                                              int_8
+   USE machine,                         ONLY: m_flush,&
+                                              m_memory,&
+                                              m_memory_max
    USE md_conserved_quantities,         ONLY: calc_nfree_qm,&
                                               compute_conserved_quantity
    USE md_ener_types,                   ONLY: md_ener_type,&
@@ -64,6 +68,7 @@ MODULE md_energies
    USE md_environment_types,            ONLY: get_md_env,&
                                               md_environment_type,&
                                               set_md_env
+   USE message_passing,                 ONLY: mp_max
    USE motion_utils,                    ONLY: write_simulation_cell,&
                                               write_stress_tensor,&
                                               write_trajectory
@@ -92,7 +97,8 @@ MODULE md_energies
    PUBLIC :: initialize_md_ener, &
              md_energy, &
              md_ener_reftraj, &
-             md_write_output
+             md_write_output, &
+             sample_memory
 
 CONTAINS
 
@@ -251,9 +257,10 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: fmd, my_act, my_pos
       INTEGER                                            :: ene, ener_mix, handle, i, nat, nkind, &
                                                             shene, tempkind, trsl
+      INTEGER(KIND=int_8)                                :: max_memory
       INTEGER, POINTER                                   :: itimes
-      LOGICAL                                            :: init, is_mixed, new_file, qmmm, &
-                                                            shell_adiabatic, shell_present
+      LOGICAL                                            :: init, is_mixed, new_file, print_memory, &
+                                                            qmmm, shell_adiabatic, shell_present
       REAL(dp)                                           :: abc(3), cell_angle(3), dt, econs, &
                                                             pv_scalar, pv_xx, pv_xx_nc
       REAL(KIND=dp)                                      :: harm_shell, hugoniot
@@ -377,10 +384,17 @@ CONTAINS
                                my_act)
       END IF
 
+      ! Sample memory, if requested
+      CALL section_vals_val_get(motion_section, "PRINT%MEMORY_INFO", l_val=print_memory)
+      max_memory = 0
+      IF (print_memory) THEN
+         max_memory = sample_memory(para_env)
+      END IF
+
       ! Print md information
       CALL md_write_info_low(simpar, md_ener, qmmm, virial, reftraj, cell, abc, &
                              cell_angle, itimes, dt, time, used_time, averages, econs, pv_scalar, pv_xx, &
-                             hugoniot, nat, init, logger, motion_section, my_pos, my_act)
+                             hugoniot, nat, init, logger, motion_section, my_pos, my_act, max_memory)
 
       ! Real Output driven by the PRINT sections
       IF ((.NOT. init) .OR. (itimes == 0) .OR. simpar%ensemble == reftraj_ensemble) THEN
@@ -583,6 +597,7 @@ CONTAINS
 !> \param motion_section ...
 !> \param my_pos ...
 !> \param my_act ...
+!> \param max_memory ...
 !> \par History
 !>   - 10.2008 - Teodoro Laino [tlaino] - University of Zurich
 !>               Refactoring: split into an independent routine.
@@ -591,7 +606,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE md_write_info_low(simpar, md_ener, qmmm, virial, reftraj, cell, &
                                 abc, cell_angle, itimes, dt, time, used_time, averages, econs, pv_scalar, &
-                                pv_xx, hugoniot, nat, init, logger, motion_section, my_pos, my_act)
+                                pv_xx, hugoniot, nat, init, logger, motion_section, my_pos, my_act, &
+                                max_memory)
 
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(md_ener_type), POINTER                        :: md_ener
@@ -610,6 +626,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: motion_section
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: my_pos, my_act
+      INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
 
       INTEGER                                            :: iw
       TYPE(enumeration_type), POINTER                    :: enum
@@ -773,11 +790,32 @@ CONTAINS
                END IF
             END IF
             WRITE (iw, '(T2,A)') 'MD| '//REPEAT('*', 75)
+            IF (max_memory .NE. 0) THEN
+               WRITE (iw, '(T2,A,T73,I8)') &
+                  'MD| Estimated peak process memory after this step [MiB]', &
+                  (max_memory + (1024*1024) - 1)/(1024*1024)
+            END IF
          END IF
       END IF
       CALL section_release(section)
       CALL cp_print_key_finished_output(iw, logger, motion_section, &
                                         "MD%PRINT%PROGRAM_RUN_INFO")
    END SUBROUTINE md_write_info_low
+
+! **************************************************************************************************
+!> \brief Samples memory usage
+!> \param para_env ...
+!> \return ...
+!> \note based on what is done in start/cp2k_runs.F
+! **************************************************************************************************
+   FUNCTION sample_memory(para_env) RESULT(max_memory)
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      INTEGER(KIND=int_8)                                :: max_memory
+
+      CALL m_memory()
+      max_memory = m_memory_max
+      CALL mp_max(max_memory, para_env%group)
+
+   END FUNCTION sample_memory
 
 END MODULE md_energies

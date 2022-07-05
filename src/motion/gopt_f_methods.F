@@ -49,10 +49,11 @@ MODULE gopt_f_methods
                               default_ts_method_id, &
                               fix_none
    USE input_cp2k_restarts, ONLY: write_restart
-   USE input_section_types, ONLY: section_vals_type
+   USE input_section_types, ONLY: section_vals_type, section_vals_val_get
    USE kinds, ONLY: default_string_length, &
-                    dp
+                    dp, int_8
    USE machine, ONLY: m_flush
+   USE md_energies, ONLY: sample_memory
    USE motion_utils, ONLY: write_simulation_cell, &
                            write_stress_tensor, &
                            write_trajectory
@@ -256,6 +257,17 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
                                                             pres_tol
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      INTEGER(KIND=int_8)                                :: max_memory
+      LOGICAL                                            :: print_memory
+
+      NULLIFY (para_env)
+      CALL section_vals_val_get(gopt_env%motion_section, "PRINT%MEMORY_INFO", l_val=print_memory)
+      max_memory = 0
+      IF (print_memory) THEN
+         CALL force_env_get(force_env, para_env=para_env)
+         max_memory = sample_memory(para_env)
+      END IF
 
       SELECT CASE (gopt_env%type_id)
       CASE (default_ts_method_id, default_minimization_method_id)
@@ -270,7 +282,7 @@ CONTAINS
                CPASSERT(PRESENT(ndf))
                CPASSERT(PRESENT(dx))
                CPASSERT(PRESENT(xi))
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param)
+               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory)
             END IF
          ELSE
             CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section)
@@ -299,10 +311,11 @@ CONTAINS
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
             IF (gopt_env%cell_env%constraint_id == fix_none) THEN
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, pres_diff, pres_tol)
+               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, pres_diff, pres_tol)
             ELSE
                pres_diff_constr = gopt_env%cell_env%pres_constr - gopt_env%cell_env%pres_ext
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, pres_diff, pres_tol, pres_diff_constr)
+               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, pres_diff, &
+                                  pres_tol, pres_diff_constr)
             END IF
          END IF
       CASE (default_shellcore_method_id)
@@ -313,9 +326,10 @@ CONTAINS
             CPASSERT(PRESENT(ndf))
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
-            CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param)
+            CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory)
          END IF
       END SELECT
+
    END SUBROUTINE gopt_f_io
 
 ! **************************************************************************************************
@@ -494,7 +508,7 @@ CONTAINS
 !> \param pres_tol ...
 !> \param pres_diff_constr ...
 ! **************************************************************************************************
-   SUBROUTINE check_converg(ndf, dr, g, output_unit, conv, gopt_param, pres_diff, &
+   SUBROUTINE check_converg(ndf, dr, g, output_unit, conv, gopt_param, max_memory, pres_diff, &
                             pres_tol, pres_diff_constr)
 
       INTEGER, INTENT(IN)                                :: ndf
@@ -502,6 +516,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(OUT)                               :: conv
       TYPE(gopt_param_type), POINTER                     :: gopt_param
+      INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
 
       INTEGER                                            :: indf
@@ -634,6 +649,11 @@ CONTAINS
             END IF
          END IF
          WRITE (UNIT=output_unit, FMT="(T2,51('-'))")
+         IF (max_memory .NE. 0) THEN
+            WRITE (output_unit, '(T2,A,T73,I8)') &
+               'Estimated peak process memory after this step [MiB]', &
+               (max_memory + (1024*1024) - 1)/(1024*1024)
+         END IF
       END IF
 
       IF (conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg .AND. conv_p) conv = .TRUE.
