@@ -355,7 +355,16 @@ CONTAINS
 
          BLOCK
             INTEGER, DIMENSION(0:num_pe_col - 1) :: my_data2recv
-            CALL mp_alltoall(data2send, my_data2recv, 1, fm_mat_S(1)%matrix%matrix_struct%para_env%group)
+            TYPE(cp_para_env_type), POINTER :: para_env_exchange
+            INTEGER:: my_prow
+
+            CALL get_blacs_info(fm_mat_S(1)%matrix%matrix_struct%context, &
+                                my_process_row=my_prow)
+            NULLIFY (para_env_exchange)
+            CALL cp_para_env_split(para_env_exchange, fm_mat_S(1)%matrix%matrix_struct%para_env, my_prow)
+            CALL mp_alltoall(data2send, my_data2recv, 1, para_env_exchange%group)
+            CALL cp_para_env_release(para_env_exchange)
+            WRITE (*, *) "sent data", data2send
             WRITE (*, *) "found data", data2recv
             WRITE (*, *) "actual data", my_data2recv
             CPASSERT(ALL(my_data2recv == data2recv))
