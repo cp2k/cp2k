@@ -1906,9 +1906,6 @@ CONTAINS
          CALL release_group_dist(gd_virtual_sub)
          CALL release_group_dist(gd_a_sub)
 
-         CALL release_group_dist(gd_virtual_sub)
-         CALL release_group_dist(gd_a_sub)
-
          CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
          CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_exchange%group)
          CALL cp_para_env_release(para_env_exchange)
