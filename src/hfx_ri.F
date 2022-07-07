@@ -2371,7 +2371,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type)                                   :: dbcsr_tmp
       TYPE(dbt_type) :: rho_ao_1, rho_ao_2, t_2c_RI, t_2c_RI_tmp, t_2c_tmp, t_3c_1, t_3c_2, &
-         t_3c_3, t_3c_4, t_3c_ao_ri_ao, t_3c_help_1, t_3c_help_2, t_3c_int, t_3c_int_2, &
+         t_3c_3, t_3c_4, t_3c_5, t_3c_ao_ri_ao, t_3c_help_1, t_3c_help_2, t_3c_int, t_3c_int_2, &
          t_3c_ri_ao_ao, t_3c_sparse, t_R, t_SVS
       TYPE(dbt_type), DIMENSION(3)                       :: t_2c_der_metric, t_2c_der_RI, &
                                                             t_3c_der_AO, t_3c_der_RI, t_3c_tmp
@@ -2477,6 +2477,7 @@ CONTAINS
       CALL dbt_create(t_3c_ao_ri_ao, t_3c_2)
       CALL dbt_create(t_3c_ri_ao_ao, t_3c_3)
       CALL dbt_create(t_3c_ri_ao_ao, t_3c_4)
+      CALL dbt_create(t_3c_ri_ao_ao, t_3c_5)
       CALL dbt_create(t_3c_ri_ao_ao, t_3c_help_1)
       CALL dbt_create(t_3c_ri_ao_ao, t_3c_help_2)
 
@@ -2516,6 +2517,8 @@ CONTAINS
       CALL dbt_batched_contract_init(t_3c_2, batch_range_1=batch_ranges, batch_range_3=batch_ranges)
       CALL dbt_batched_contract_init(t_3c_3, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
       CALL dbt_batched_contract_init(t_3c_4, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_5, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
+      CALL dbt_batched_contract_init(t_3c_sparse, batch_range_2=batch_ranges, batch_range_3=batch_ranges)
 
       DO i_spin = 1, nspins
 
@@ -2597,7 +2600,7 @@ CONTAINS
                ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
                CALL dbt_batched_contract_finalize(t_SVS)
 
-               CALL dbt_copy(t_3c_4, t_3c_help_1, move_data=.TRUE., summation=.TRUE.)
+               CALL dbt_copy(t_3c_4, t_3c_5, move_data=.TRUE., summation=.TRUE.)
 
                ijbounds(:, 1) = ibounds(:, 1)
                ijbounds(:, 2) = jbounds(:, 1)
@@ -2612,9 +2615,10 @@ CONTAINS
                ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
                CALL dbt_batched_contract_finalize(t_R)
 
-               CALL dbt_copy(t_3c_4, t_3c_3)
             END DO !j_mem
          END DO !i_mem
+
+         CALL dbt_copy(t_3c_5, t_3c_help_1, move_data=.TRUE.)
 
          !The force from the 3c derivatives
          pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
@@ -2727,6 +2731,8 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_2)
       CALL dbt_batched_contract_finalize(t_3c_3)
       CALL dbt_batched_contract_finalize(t_3c_4)
+      CALL dbt_batched_contract_finalize(t_3c_5)
+      CALL dbt_batched_contract_finalize(t_3c_sparse)
 
       CALL mp_sync(para_env%group)
       t2 = m_walltime()
@@ -2744,6 +2750,7 @@ CONTAINS
       CALL dbt_destroy(t_3c_2)
       CALL dbt_destroy(t_3c_3)
       CALL dbt_destroy(t_3c_4)
+      CALL dbt_destroy(t_3c_5)
       CALL dbt_destroy(t_3c_help_1)
       CALL dbt_destroy(t_3c_help_2)
       CALL dbt_destroy(t_3c_sparse)
