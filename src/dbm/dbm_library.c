@@ -32,13 +32,15 @@ static int max_threads = 0;
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_library_init(void) {
+  assert(omp_get_num_threads() == 1);
+
   if (library_initialized) {
     fprintf(stderr, "DBM library was already initialized.\n");
     abort();
   }
 
   max_threads = omp_get_max_threads();
-  per_thread_counters = malloc(DBM_NUM_COUNTERS * sizeof(int64_t *));
+  per_thread_counters = malloc(max_threads * sizeof(int64_t *));
 
   // Using parallel regions to ensure memory is allocated near a thread's core.
 #pragma omp parallel default(none) shared(per_thread_counters)                 \
@@ -58,6 +60,8 @@ void dbm_library_init(void) {
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_library_finalize(void) {
+  assert(omp_get_num_threads() == 1);
+
   if (!library_initialized) {
     fprintf(stderr, "Error: DBM library is not initialized.\n");
     abort();
@@ -88,7 +92,7 @@ static int floorlog10(const int x) {
 }
 
 /*******************************************************************************
- * \brief Add given block multiplication to the stats.
+ * \brief Add given block multiplication to stats. This routine is thread-safe.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_library_counter_increment(const int m, const int n, const int k) {
@@ -113,6 +117,8 @@ static int compare_counters(const void *a, const void *b) {
 void dbm_library_print_stats(const int fortran_comm,
                              void (*print_func)(char *, int),
                              const int output_unit) {
+  assert(omp_get_num_threads() == 1);
+
   if (!library_initialized) {
     fprintf(stderr, "Error: DBM library is not initialized.\n");
     abort();
