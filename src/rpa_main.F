@@ -237,7 +237,7 @@ CONTAINS
       LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
-         mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real, needed_mem
+         mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
                                                             fm_mat_S_gw
@@ -353,44 +353,41 @@ CONTAINS
 
          CALL m_memory(mem)
          mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-         ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
-         ! has not been given back to the OS yet.
          CALL mp_min(mem_real, para_env%group)
 
          mem_per_rank = 0.0_dp
 
          ! B_ia_P
-         mem_per_repl = SUM(REAL(homo, KIND=dp)*virtual)*dimen_RI*8.0_dp/(1024**2)
+         mem_per_repl = mem_for_iaK
          ! Q (regular and for dgemm)
-         mem_per_repl = mem_per_repl + 2.0_dp*nspins*dimen_RI**2/para_env%num_pe*8.0_dp/(1024**2)
+         mem_per_repl = mem_per_repl + 2.0_dp*mem_for_QK
 
-         CALL rpa_grad_needed_mem(homo, virtual, dimen_RI, mem_per_rank, mem_per_repl)
+         IF (calc_forces) CALL rpa_grad_needed_mem(homo, virtual, dimen_RI_red, mem_per_rank, mem_per_repl)
 
          mem_min = mem_per_repl/para_env%num_pe + mem_per_rank
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', mem_min, ' MiB'
+            WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Available memory per MPI process:', mem_real, ' MiB'
+         END IF
+
+         ! Use only the allowed amount of memory
+         mem_real = MIN(mem_real, allowed_memory)
+         ! For the memory estimate, we require the amount of required memory per replication group and the available memory
          mem_real = mem_real - mem_per_rank
 
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
-            mem_min, ' MiB'
-
-         mem_real = allowed_memory - mem_real
-         mem_real = MAX(mem_real, mem_min)
-
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Available memory per MPI process:', &
-            mem_real, ' MiB'
-
          mem_per_group = mem_real*para_env_sub%num_pe
-
-         needed_mem = mem_for_iaK*2.0_dp + mem_for_QK*3.0_dp
 
          ! here we try to find the best rpa/laplace group size
          skip_integ_group_opt = .FALSE.
 
+         ! Check the input integration group size
          IF (input_integ_group_size > 0) THEN
             IF (MOD(input_integ_group_size, para_env_sub%num_pe) == 0) THEN
                best_integ_group_size = input_integ_group_size/para_env_sub%num_pe
                IF (MOD(ngroup, best_integ_group_size) == 0) THEN
                   num_integ_group = ngroup/best_integ_group_size
-                  IF ((num_integ_points > num_integ_group) .AND. MOD(num_integ_points, num_integ_group) == 0) THEN
+                  IF (MOD(num_integ_points, num_integ_group) == 0) THEN
                      best_num_integ_point = num_integ_points/num_integ_group
                      skip_integ_group_opt = .TRUE.
                   ELSE
@@ -414,23 +411,21 @@ CONTAINS
             DO iiB = min_integ_group_size + 1, ngroup
                integ_group_size = integ_group_size + 1
 
-               ! check that the ngroup is a multiple of  integ_group_size
+               ! check that the ngroup is a multiple of integ_group_size
                IF (MOD(ngroup, integ_group_size) /= 0) CYCLE
 
                ! check for memory
                avail_mem = integ_group_size*mem_per_group
-               IF (avail_mem < needed_mem) CYCLE
+               IF (avail_mem < mem_per_repl) CYCLE
 
-               ! check the number of integration points is a multiple of the  number of integ_group
+               ! check that the integration groups have the same size
                num_integ_group = ngroup/integ_group_size
-               IF (num_integ_points < num_integ_group) CYCLE
                IF (MOD(num_integ_points, num_integ_group) /= 0) CYCLE
 
-               ! if all the test passed then decide
-               IF ((num_integ_points/num_integ_group) < best_num_integ_point) THEN
-                  best_num_integ_point = num_integ_points/num_integ_group
-                  best_integ_group_size = integ_group_size
-               END IF
+               best_num_integ_point = num_integ_points/num_integ_group
+               best_integ_group_size = integ_group_size
+
+               EXIT
 
             END DO
          END IF
