@@ -2732,6 +2732,16 @@ CONTAINS
          END IF
       END IF
 
+      DO ispin = 1, nspins
+         v_xc(ispin)%pw%cr3d = 0.0_dp
+      END DO
+
+      IF (tau_f) THEN
+         DO ispin = 1, nspins
+            v_xc_tau(ispin)%pw%cr3d = 0.0_dp
+         END DO
+      END IF
+
       IF (laplace_f .AND. my_gapw) &
          CPABORT("Laplace-dependent functional not implemented with GAPW!")
 
