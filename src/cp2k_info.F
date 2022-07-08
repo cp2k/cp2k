@@ -38,7 +38,7 @@ MODULE cp2k_info
 #endif
 
    ! The cp2k_version string should be changed for release branches.
-   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K development version"
+   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version 2022.1"
    CHARACTER(LEN=*), PARAMETER :: cp2k_year = "2022"
    CHARACTER(LEN=*), PARAMETER :: cp2k_home = "https://www.cp2k.org/"
 
