@@ -38,7 +38,6 @@ MODULE cp2k_shell
                                               compile_revision,&
                                               cp2k_home,&
                                               cp2k_version,&
-                                              id_cp2k_version,&
                                               print_cp2k_license
    USE cp2k_runs,                       ONLY: run_input
    USE cp_files,                        ONLY: close_file,&
@@ -50,7 +49,6 @@ MODULE cp2k_shell
    USE f77_interface,                   ONLY: &
         calc_energy_force, calc_force, create_force_env, destroy_force_env, get_cell, get_energy, &
         get_force, get_natom, get_pos, get_stress_tensor, set_cell, set_pos
-   USE input_constants,                 ONLY: id_development_version
    USE input_cp2k_read,                 ONLY: empty_initial_variables
    USE input_section_types,             ONLY: section_type
    USE kinds,                           ONLY: default_path_length,&
@@ -359,7 +357,7 @@ CONTAINS
    SUBROUTINE info_license_command(shell)
       TYPE(cp2k_shell_type)                              :: shell
 
-      CHARACTER(LEN=default_path_length)                 :: cwd, dev_flag, host_name, user_name
+      CHARACTER(LEN=default_path_length)                 :: cwd, host_name, user_name
       INTEGER                                            :: pid
 
       IF (shell%iw > 0) THEN
@@ -367,8 +365,6 @@ CONTAINS
          CALL m_getpid(pid)
          CALL m_getlog(user_name)
          CALL m_hostnm(host_name)
-         dev_flag = ""
-         IF (id_cp2k_version == id_development_version) dev_flag = " (Development Version)"
          WRITE (UNIT=shell%iw, FMT="(A,A)") &
             " PROGRAM STARTED ON ", TRIM(host_name)
          WRITE (UNIT=shell%iw, FMT="(A,A)") &
@@ -379,7 +375,7 @@ CONTAINS
             " PROGRAM STARTED IN ", TRIM(cwd)
          WRITE (UNIT=shell%iw, FMT="(/,T2,A,T31,A50)") &
             "CP2K| version string: ", &
-            ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
+            ADJUSTR(TRIM(cp2k_version))
          WRITE (UNIT=shell%iw, FMT="(T2,A,T41,A40)") &
             "CP2K| source code revision number:", &
             ADJUSTR(compile_revision)

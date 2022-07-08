@@ -46,7 +46,6 @@ PROGRAM cp2k
    USE cp2k_info,                       ONLY: compile_revision,&
                                               cp2k_flags,&
                                               cp2k_version,&
-                                              id_cp2k_version,&
                                               print_cp2k_license
    USE cp2k_runs,                       ONLY: run_input,&
                                               write_xml_file
@@ -56,14 +55,12 @@ PROGRAM cp2k
                                               default_para_env,&
                                               finalize_cp2k,&
                                               init_cp2k
-   USE input_constants,                 ONLY: id_development_version
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_section_types,             ONLY: section_release,&
                                               section_type
    USE iso_fortran_env,                 ONLY: compiler_options,&
                                               compiler_version
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length
+   USE kinds,                           ONLY: default_path_length
    USE machine,                         ONLY: default_output_unit
 #include "../base/base_uses.f90"
 
@@ -71,7 +68,6 @@ PROGRAM cp2k
 
    CHARACTER(LEN=default_path_length)   :: input_file_name, output_file_name, &
                                            arg_att, command
-   CHARACTER(LEN=default_string_length) :: dev_flag
    CHARACTER(LEN=default_path_length), &
       DIMENSION(:, :), ALLOCATABLE      :: initial_variables, initial_variables_tmp
    CHARACTER(LEN=:), ALLOCATABLE        :: compiler_options_string
@@ -329,11 +325,7 @@ PROGRAM cp2k
          ! write the version string
          IF (print_version) THEN
             IF (default_para_env%ionode) THEN
-               dev_flag = ""
-               IF (id_cp2k_version == id_development_version) &
-                  dev_flag = " (Development Version)"
-               WRITE (output_unit, "(T2,A)") &
-                  cp2k_version//TRIM(dev_flag), &
+               WRITE (output_unit, "(T2,A)") cp2k_version, &
                   "Source code revision "//TRIM(compile_revision), &
                   TRIM(cp2k_flags())
                compiler_options_string = compiler_options()

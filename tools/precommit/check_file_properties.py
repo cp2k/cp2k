@@ -54,7 +54,6 @@ FLAG_EXCEPTIONS = (
     r"__PILAENV_BLOCKSIZE",
     r"__PW_CUDA_NO_HOSTALLOC",
     r"__PW_CUDA_NO_HOSTALLOC",
-    r"__RELEASE_VERSION",
     r"__T_C_G0",
     r"__YUKAWA",
     r"__cplusplus",
