@@ -15,8 +15,6 @@
 ! **************************************************************************************************
 MODULE cp2k_info
 
-   USE input_constants,                 ONLY: id_development_version,&
-                                              id_release_version
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: m_datum,&
@@ -29,17 +27,9 @@ MODULE cp2k_info
    IMPLICIT NONE
    PRIVATE
 
-   PUBLIC :: cp2k_year, cp2k_version, cp2k_home, id_cp2k_version, cp2k_flags
+   PUBLIC :: cp2k_version, cp2k_year, cp2k_home, cp2k_flags
    PUBLIC :: compile_arch, compile_date, compile_host, compile_revision
    PUBLIC :: print_cp2k_license, get_runtime_info, write_restart_header
-
-   ! the version string of CP2K intended to be adjust after releases and branches
-#if defined(__RELEASE_VERSION)
-   INTEGER, PARAMETER          :: id_cp2k_version = id_release_version ! (Uncomment for release     version)
-#else
-   INTEGER, PARAMETER          :: id_cp2k_version = id_development_version ! (Uncomment for development version)
-!  INTEGER, PARAMETER          :: id_cp2k_version = 2                      ! (Uncomment for branch      version)
-#endif
 
 #if defined(__COMPILE_REVISION)
    CHARACTER(LEN=*), PARAMETER :: compile_revision = __COMPILE_REVISION
@@ -47,9 +37,9 @@ MODULE cp2k_info
    CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
 #endif
 
-   CHARACTER(LEN=*), PARAMETER :: version_nr = "10.0"
+   ! The cp2k_version string should be changed for release branches.
+   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K development version"
    CHARACTER(LEN=*), PARAMETER :: cp2k_year = "2022"
-   CHARACTER(LEN=*), PARAMETER :: cp2k_version = "CP2K version "//TRIM(version_nr)
    CHARACTER(LEN=*), PARAMETER :: cp2k_home = "https://www.cp2k.org/"
 
    ! compile time information
