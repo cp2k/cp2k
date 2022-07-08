@@ -105,32 +105,39 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param mem_per_rank ...
 !> \param mem_per_repl ...
+!> \param do_ri_sos_laplace_mp2 ...
 !> \return ...
 ! **************************************************************************************************
-   PURE SUBROUTINE rpa_grad_needed_mem(homo, virtual, dimen_RI, mem_per_rank, mem_per_repl)
+   PURE SUBROUTINE rpa_grad_needed_mem(homo, virtual, dimen_RI, mem_per_rank, mem_per_repl, do_ri_sos_laplace_mp2)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), INTENT(INOUT)                       :: mem_per_rank, mem_per_repl
+      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
 
-      REAL(KIND=dp)                                      :: mem_aK, mem_iaK, mem_iK, mem_KL, &
-                                                            mem_pab, mem_pij
+      REAL(KIND=dp)                                      :: mem_iaK, mem_KL, mem_pab, mem_pij
 
       mem_iaK = SUM(REAL(virtual, KIND=dp)*homo)*dimen_RI
       mem_pij = SUM(REAL(homo, KIND=dp)**2)
       mem_pab = SUM(REAL(virtual, KIND=dp)**2)
-      mem_aK = REAL(MAXVAL(virtual), KIND=dp)*dimen_RI
-      mem_iK = REAL(MAXVAL(homo), KIND=dp)*dimen_RI
       mem_KL = REAL(dimen_RI, KIND=dp)*dimen_RI
 
       ! Required matrices iaK
       ! Ytot_iaP = sum_tau Y_iaP(tau)
-      ! Y_iaP(tau) = S_iaP(tau)*Q_PQ(tau) (once, will be allocated when necessary)
-      ! Y_iPa (x2) or Y_aPi (x2) for reordering, they are allocated when necessary
+      ! Y_iaP(tau) = S_iaP(tau)*Q_PQ(tau) (work array)
       ! Required matrices density matrices
-      ! Pij (local and summed)
-      ! Pab (local and summed)
+      ! Pij (local)
+      ! Pab (local)
+      ! Additionally with SOS-MP2
+      ! Send and receive buffers for degenerate orbital pairs (rough estimate: everything)
+      ! Additionally with RPA
+      ! copy of work matrix
+      ! receive buffer for calculation of density matrix
+      ! copy of matrix Q
       mem_per_rank = mem_per_rank + (mem_pij + mem_pab)*8.0_dp/(1024**2)
-      mem_per_repl = mem_per_repl + (3.0_dp*mem_iaK + mem_KL)*8.0_dp/(1024**2)
+      mem_per_repl = mem_per_repl + (mem_iaK + 2.0_dp*mem_iaK/SIZE(homo) + mem_KL)*8.0_dp/(1024**2)
+      IF (.NOT. do_ri_sos_laplace_mp2) THEN
+         mem_per_repl = mem_per_rank + (mem_iaK/SIZE(homo) + mem_KL)*8.0_dp/(1024**2)
+      END IF
 
    END SUBROUTINE rpa_grad_needed_mem
 

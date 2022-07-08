@@ -362,7 +362,7 @@ CONTAINS
          ! Q (regular and for dgemm)
          mem_per_repl = mem_per_repl + 2.0_dp*mem_for_QK
 
-         IF (calc_forces) CALL rpa_grad_needed_mem(homo, virtual, dimen_RI_red, mem_per_rank, mem_per_repl)
+         IF (calc_forces) CALL rpa_grad_needed_mem(homo, virtual, dimen_RI_red, mem_per_rank, mem_per_repl, do_ri_sos_laplace_mp2)
 
          mem_min = mem_per_repl/para_env%num_pe + mem_per_rank
 
