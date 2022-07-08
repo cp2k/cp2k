@@ -2,15 +2,15 @@
 #
 # CP2K (GNU aarch64) arch file for a serial static ARM64 binary
 #
-# Tested with: GNU 11.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 11.3.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 5.2.3, OpenBLAS 0.3.20, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (23.06.2022)
+# Author: Matthias Krack (08.07.2022)
 #
 # \
-	if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
+   if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
       echo "ERROR: Script ${0##*/} must be sourced"; \
       echo "Usage: source ${0##*/}"; \
       exit 1; \
@@ -21,11 +21,10 @@
    cd ../..; \
    echo; \
    echo "Check the output above for error messages and consistency!"; \
-	echo "If everything is OK, you can build a CP2K production binary with"; \
-	echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
-   echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
-	return
+   echo "If everything is OK, you can build a CP2K production binary with"; \
+   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+   echo "Further checks are performed, if DO_CHECKS=yes is added."; \
+   return
 
 # Set options
 DO_CHECKS      := no
@@ -144,7 +143,12 @@ FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
-LDFLAGS        += $(FCFLAGS) -static
+# The LeakSanitizer does not work with static linking
+ifeq ($(DO_CHECKS), yes)
+   LDFLAGS        += $(FCFLAGS)
+else
+   LDFLAGS        += $(FCFLAGS) -static
+endif
 
 LIBS           += -ldl -lstdc++
 

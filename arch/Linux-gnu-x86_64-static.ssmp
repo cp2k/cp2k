@@ -2,13 +2,13 @@
 #
 # CP2K (GNU) arch file for a serial static x86_64 binary
 #
-# Tested with: GNU 11.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 12.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 5.2.3, OpenBLAS 0.3.20, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Add "generic" as argument to compile for a generic x86_64 target.
 #
-# Author: Matthias Krack (23.06.2022)
+# Author: Matthias Krack (08.07.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -158,7 +158,12 @@ FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
-LDFLAGS        += $(FCFLAGS) -static
+# The LeakSanitizer does not work with static linking
+ifeq ($(DO_CHECKS), yes)
+   LDFLAGS        += $(FCFLAGS)
+else
+   LDFLAGS        += $(FCFLAGS) -static
+endif
 
 LIBS           += -ldl -lstdc++
 
