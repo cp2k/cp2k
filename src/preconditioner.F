@@ -16,6 +16,7 @@ MODULE preconditioner
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_norm
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type

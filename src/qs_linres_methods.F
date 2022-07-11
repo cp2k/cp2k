@@ -19,7 +19,7 @@ MODULE qs_linres_methods
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                              cp_fm_trace
+                                              cp_fm_trace, cp_fm_norm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -44,8 +44,10 @@ MODULE qs_linres_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_checksum,&
                                               dbcsr_copy,&
+                                              dbcsr_filter,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
+                                              dbcsr_dot,&
                                               dbcsr_type
    USE input_constants,                 ONLY: do_loc_none,&
                                               op_loc_berry,&
@@ -601,6 +603,9 @@ CONTAINS
             CALL dbcsr_copy(p_env%p1(ispin)%matrix, matrix_s(1)%matrix)
          END DO
          CALL build_dm_response(c0, v, p_env%p1)
+         DO ispin = 1, nspins
+            CALL dbcsr_filter(p_env%p1(ispin)%matrix, linres_control%eps_filter)
+         ENDDO
 
          chksum = 0.0_dp
          DO ispin = 1, nspins

@@ -56,6 +56,7 @@ MODULE qs_p_env_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_dot,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
