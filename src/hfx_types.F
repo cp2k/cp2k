@@ -106,7 +106,8 @@ MODULE hfx_types
              hfx_pgf_product_list, hfx_block_range_type, &
              alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax, &
              hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types, &
-             hfx_ri_type, hfx_compression_type, block_ind_type, hfx_ri_init, hfx_ri_release
+             hfx_ri_type, hfx_compression_type, block_ind_type, hfx_ri_init, hfx_ri_release, &
+             compare_hfx_sections
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -2817,6 +2818,167 @@ CONTAINS
       END DO
 
    END SUBROUTINE alloc_containers
+
+! **************************************************************************************************
+!> \brief Compares the non-technical parts of two HFX input section and check whether they are the same
+!>        Ignore things that would not change results (MEMORY, LOAD_BALANCE)
+!> \param hfx_section1 ...
+!> \param hfx_section2 ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION compare_hfx_sections(hfx_section1, hfx_section2) RESULT(is_identical)
+
+      TYPE(section_vals_type), POINTER                   :: hfx_section1, hfx_section2
+      LOGICAL                                            :: is_identical
+
+      CHARACTER(LEN=default_path_length)                 :: cval1, cval2
+      INTEGER                                            :: irep, ival1, ival2, n_rep_hf1, n_rep_hf2
+      LOGICAL                                            :: lval1, lval2
+      REAL(dp)                                           :: rval1, rval2
+      TYPE(section_vals_type), POINTER                   :: hfx_sub_section1, hfx_sub_section2
+
+      is_identical = .TRUE.
+
+      CALL section_vals_get(hfx_section1, n_repetition=n_rep_hf1)
+      CALL section_vals_get(hfx_section2, n_repetition=n_rep_hf2)
+      is_identical = n_rep_hf1 == n_rep_hf2
+      IF (.NOT. is_identical) RETURN
+
+      DO irep = 1, n_rep_hf1
+         CALL section_vals_val_get(hfx_section1, "FRACTION", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_section2, "FRACTION", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_section1, "PW_HFX", l_val=lval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_section2, "PW_HFX", l_val=lval2, i_rep_section=irep)
+         IF (lval1 .NEQV. lval2) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_section1, "PW_HFX_BLOCKSIZE", i_val=ival1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_section2, "PW_HFX_BLOCKSIZE", i_val=ival2, i_rep_section=irep)
+         IF (ival1 .NE. ival2) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_section1, "TREAT_LSD_IN_CORE", l_val=lval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_section2, "TREAT_LSD_IN_CORE", l_val=lval2, i_rep_section=irep)
+         IF (lval1 .NEQV. lval2) is_identical = .FALSE.
+
+         hfx_sub_section1 => section_vals_get_subs_vals(hfx_section1, "INTERACTION_POTENTIAL", i_rep_section=irep)
+         hfx_sub_section2 => section_vals_get_subs_vals(hfx_section2, "INTERACTION_POTENTIAL", i_rep_section=irep)
+
+         CALL section_vals_val_get(hfx_sub_section1, "OMEGA", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "OMEGA", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "POTENTIAL_TYPE", i_val=ival1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "POTENTIAL_TYPE", i_val=ival2, i_rep_section=irep)
+         IF (ival1 .NE. ival2) is_identical = .FALSE.
+         IF (.NOT. is_identical) RETURN
+
+         IF (ival1 == do_potential_truncated .OR. ival1 == do_potential_mix_cl_trunc) THEN
+            CALL section_vals_val_get(hfx_sub_section1, "CUTOFF_RADIUS", r_val=rval1, i_rep_section=irep)
+            CALL section_vals_val_get(hfx_sub_section2, "CUTOFF_RADIUS", r_val=rval2, i_rep_section=irep)
+            IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+            CALL section_vals_val_get(hfx_sub_section1, "T_C_G_DATA", c_val=cval1, i_rep_section=irep)
+            CALL section_vals_val_get(hfx_sub_section2, "T_C_G_DATA", c_val=cval2, i_rep_section=irep)
+            IF (cval1 .NE. cval2) is_identical = .FALSE.
+         END IF
+
+         CALL section_vals_val_get(hfx_sub_section1, "SCALE_COULOMB", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "SCALE_COULOMB", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "SCALE_GAUSSIAN", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "SCALE_GAUSSIAN", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "SCALE_LONGRANGE", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "SCALE_LONGRANGE", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         hfx_sub_section1 => section_vals_get_subs_vals(hfx_section1, "PERIODIC", i_rep_section=irep)
+         hfx_sub_section2 => section_vals_get_subs_vals(hfx_section2, "PERIODIC", i_rep_section=irep)
+
+         CALL section_vals_val_get(hfx_sub_section1, "NUMBER_OF_SHELLS", i_val=ival1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "NUMBER_OF_SHELLS", i_val=ival2, i_rep_section=irep)
+         IF (ival1 .NE. ival2) is_identical = .FALSE.
+
+         hfx_sub_section1 => section_vals_get_subs_vals(hfx_section1, "RI", i_rep_section=irep)
+         hfx_sub_section2 => section_vals_get_subs_vals(hfx_section2, "RI", i_rep_section=irep)
+
+         CALL section_vals_val_get(hfx_sub_section1, "_SECTION_PARAMETERS_", l_val=lval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "_SECTION_PARAMETERS_", l_val=lval2, i_rep_section=irep)
+         IF (lval1 .NEQV. lval2) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "CUTOFF_RADIUS", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "CUTOFF_RADIUS", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "EPS_EIGVAL", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "EPS_EIGVAL", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "EPS_FILTER", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "EPS_FILTER", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "EPS_FILTER_2C", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "EPS_FILTER_2C", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "EPS_FILTER_MO", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "EPS_FILTER_MO", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "EPS_PGF_ORB", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "EPS_PGF_ORB", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "MAX_BLOCK_SIZE_MO", i_val=ival1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "MAX_BLOCK_SIZE_MO", i_val=ival2, i_rep_section=irep)
+         IF (ival1 .NE. ival2) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "MIN_BLOCK_SIZE", i_val=ival1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "MIN_BLOCK_SIZE", i_val=ival2, i_rep_section=irep)
+         IF (ival1 .NE. ival2) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "OMEGA", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "OMEGA", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "RI_FLAVOR", i_val=ival1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "RI_FLAVOR", i_val=ival2, i_rep_section=irep)
+         IF (ival1 .NE. ival2) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "RI_METRIC", i_val=ival1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "RI_METRIC", i_val=ival2, i_rep_section=irep)
+         IF (ival1 .NE. ival2) is_identical = .FALSE.
+
+         hfx_sub_section1 => section_vals_get_subs_vals(hfx_section1, "SCREENING", i_rep_section=irep)
+         hfx_sub_section2 => section_vals_get_subs_vals(hfx_section2, "SCREENING", i_rep_section=irep)
+
+         CALL section_vals_val_get(hfx_sub_section1, "EPS_SCHWARZ", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "EPS_SCHWARZ", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "EPS_SCHWARZ_FORCES", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "EPS_SCHWARZ_FORCES", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "P_SCREEN_CORRECTION_FACTOR", r_val=rval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "P_SCREEN_CORRECTION_FACTOR", r_val=rval2, i_rep_section=irep)
+         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "SCREEN_ON_INITIAL_P", l_val=lval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "SCREEN_ON_INITIAL_P", l_val=lval2, i_rep_section=irep)
+         IF (lval1 .NEQV. lval2) is_identical = .FALSE.
+
+         CALL section_vals_val_get(hfx_sub_section1, "SCREEN_P_FORCES", l_val=lval1, i_rep_section=irep)
+         CALL section_vals_val_get(hfx_sub_section2, "SCREEN_P_FORCES", l_val=lval2, i_rep_section=irep)
+         IF (lval1 .NEQV. lval2) is_identical = .FALSE.
+
+      END DO
+
+   END FUNCTION compare_hfx_sections
 
 END MODULE hfx_types
 
