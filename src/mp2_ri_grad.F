@@ -255,6 +255,8 @@ CONTAINS
       IF (use_virial) THEN
          h_debug_2c = 0.0_dp
          h_debug_3c = 0.0_dp
+         WRITE (*, *) para_env%mepos, "Debug 2c virial0", h_debug_2c
+         WRITE (*, *) para_env%mepos, "Debug 3c virial0", h_debug_3c
       END IF
 
       ! prepare integral derivatives with mme method
@@ -381,19 +383,21 @@ CONTAINS
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
+            !WRITE (*, *) para_env%mepos, "Debug 2c virial1", h_debug_2c
 
             CALL G_P_transform_MO_to_AO(matrix_P_munu%matrix, matrix_P_munu_nosym, mat_munu%matrix, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
             debug = mp2_force(1)%rho_elec(:, 1)
-            IF (use_virial) h_debug_local = h_stress + virial%pv_virial
+            !IF (use_virial) h_debug_local = h_stress
 
             CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                pot_g, mp2_env%potential_parameter, use_virial, &
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
                                                mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
+            IF (use_virial) h_debug_local = h_stress
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
@@ -405,9 +409,9 @@ CONTAINS
             END IF
 
             debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug
+            !IF (use_virial) h_debug_2c = h_debug_2c + h_stress - h_debug_local
 
             debug = mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1)
-            IF (use_virial) h_debug_2c = h_debug_2c + (virial%pv_virial + h_stress - h_debug_local)
 
             IF (use_virial) pv_virial = virial%pv_virial
             IF (use_virial) h_debug_local = h_stress + virial%pv_virial
@@ -415,7 +419,7 @@ CONTAINS
                                                   task_list_sub)
             IF (use_virial) THEN
                h_stress = h_stress + (virial%pv_virial - pv_virial)
-               h_debug_2c = h_debug_2c + h_stress - h_debug_local
+               !  h_debug_3c = h_debug_3c + h_stress - h_debug_local
                virial%pv_virial = pv_virial
             END IF
 
@@ -424,7 +428,7 @@ CONTAINS
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                    eps_filter)
 
-            IF (use_virial) h_debug_local = h_stress
+            IF (use_virial) h_debug_local = h_stress + virial%pv_virial - pv_virial
 
             CALL integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
                                                   mp2_env%ri_metric, &
@@ -433,7 +437,13 @@ CONTAINS
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
 
             debug_force_3c = debug_force_3c + mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1) - debug
-            IF (use_virial) h_debug_3c = h_debug_3c + h_stress - h_debug_local
+            !IF (use_virial) h_debug_3c = h_debug_3c + h_stress - h_debug_local
+
+            IF (use_virial) WRITE (*, *) para_env%mepos, h_debug_2c, h_debug_3c
+
+            IF (use_virial) THEN
+               !WRITE (*, *) para_env%mepos, "Debug 2c virial2", h_debug_2c
+            END IF
 
          END DO
 
