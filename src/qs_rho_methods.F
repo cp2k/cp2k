@@ -22,6 +22,7 @@ MODULE qs_rho_methods
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_dot,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&

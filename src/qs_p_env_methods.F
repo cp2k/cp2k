@@ -55,6 +55,7 @@ MODULE qs_p_env_methods
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_dot,&
                                               dbcsr_copy,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
@@ -402,12 +403,11 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
 
       IF (dft_control%do_admm) CALL admm_aux_reponse_density(qs_env, p_env%p1, p_env%p1_admm)
 

@@ -315,11 +315,13 @@ CONTAINS
       IF (deriv2_analytic) THEN
          CALL qs_rho_get(rho1a, rho_r=rho1_r, tau_r=tau1_r)
          CALL qs_fxc_analytic(rho, rho1_r, tau1_r, xc_section, auxbas_pw_pool, lr_triplet, v_xc, v_xc_tau)
-         IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
-                                                    do_tddft=.FALSE., do_triplet=lr_triplet)
+         IF (gapw .OR. gapw_xc) THEN
+            CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
+                                             do_tddft=.FALSE., do_triplet=lr_triplet)
+         END IF
       ELSE
          CALL qs_fxc_fdiff(ks_env, rho, rho1a, xc_section, 6, lr_triplet, v_xc, v_xc_tau)
-         CPASSERT(.NOT. gapw)
+         CPASSERT( (.NOT. gapw) .AND. (.NOT. gapw_xc))
       END IF
 
       DO ispin = 1, nspins

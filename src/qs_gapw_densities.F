@@ -128,12 +128,13 @@ CONTAINS
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
          CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom)
 
-!     Calculate rho1_h and rho1_s on the radial grids centered on the atomic position
-         IF (paw_atom) &
+         !Calculate rho1_h and rho1_s on the radial grids centered on the atomic position
+         IF (paw_atom) THEN
             CALL calculate_rho_atom(para_env, rho_atom_set, my_kind_set(ikind), &
                                     atom_list, natom, nspins, rho1_h_tot, rho1_s_tot)
+         END IF
 
-!     Calculate rho0_h and rho0_s on the radial grids centered on the atomic position
+         !Calculate rho0_h and rho0_s on the radial grids centered on the atomic position
          IF (my_do_rho0) &
             CALL calculate_rho0_atom(gapw_control, rho_atom_set, rho0_atom_set, rho0_mpole, &
                                      atom_list, natom, ikind, my_kind_set(ikind), rho0_h_tot)
@@ -151,7 +152,7 @@ CONTAINS
 
          IF (my_do_rho0) THEN
             rho0_mpole%total_rho0_h = -rho0_h_tot
-!         Put the rho0_soft on the global grid
+            !Put the rho0_soft on the global grid
             CALL put_rho0_on_grid(qs_env, rho0_mpole, tot_rs_int)
             IF (ABS(rho0_h_tot) .GE. 1.0E-5_dp) THEN
                IF (ABS(1.0_dp - ABS(tot_rs_int/rho0_h_tot)) .GT. 1.0E-3_dp) THEN

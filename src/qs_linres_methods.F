@@ -19,7 +19,7 @@ MODULE qs_linres_methods
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                              cp_fm_trace
+                                              cp_fm_trace, cp_fm_norm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -44,8 +44,10 @@ MODULE qs_linres_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_checksum,&
                                               dbcsr_copy,&
+                                              dbcsr_filter,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
+                                              dbcsr_dot,&
                                               dbcsr_type
    USE input_constants,                 ONLY: do_loc_none,&
                                               op_loc_berry,&
@@ -66,6 +68,7 @@ MODULE qs_linres_methods
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_linres_kernel,                ONLY: apply_op_2
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_loc_methods,                  ONLY: qs_loc_driver
@@ -600,6 +603,9 @@ CONTAINS
             CALL dbcsr_copy(p_env%p1(ispin)%matrix, matrix_s(1)%matrix)
          END DO
          CALL build_dm_response(c0, v, p_env%p1)
+         DO ispin = 1, nspins
+            CALL dbcsr_filter(p_env%p1(ispin)%matrix, linres_control%eps_filter)
+         ENDDO
 
          chksum = 0.0_dp
          DO ispin = 1, nspins
@@ -615,6 +621,11 @@ CONTAINS
 
             CALL get_qs_env(qs_env, rho=rho) ! that could be called before
             CALL qs_rho_update_rho(rho, qs_env=qs_env) ! that could be called before
+!           IF (dft_control%qs_control%gapw) THEN
+!              CALL prepare_gapw_den(qs_env)
+!           ELSEIF (dft_control%qs_control%gapw_xc) THEN
+!              CALL prepare_gapw_den(qs_env, do_rho0=.FALSE.)
+!           END IF
 
             DO ispin = 1, nspins
                CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
