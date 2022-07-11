@@ -1165,7 +1165,9 @@ CONTAINS
       LOGICAL                                            :: memory_info, use_virial
       REAL(dp) :: debug(3), debug_force_2c(3), debug_force_3c(3), eps_filter, fac, occ, occ_ddint, &
          occ_der_AO, occ_der_RI, occ_KBK, omega, pref, spin_fac, t1, t2, tau, weight
-      REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
+      REAL(dp), DIMENSION(3, 3)                          :: virial_debug_2c, virial_debug_3c, &
+                                                            virial_debug_local, work_virial, &
+                                                            work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1394,6 +1396,10 @@ CONTAINS
 
       debug_force_2c = 0.0_dp
       debug_force_3c = 0.0_dp
+      IF (use_virial) THEN
+         virial_debug_2c = 0.0_dp
+         virial_debug_3c = 0.0_dp
+      END IF
 
       DO jquad = 1, num_integ_points
          tau = tau_tj(jquad)
@@ -1413,6 +1419,7 @@ CONTAINS
          CALL dbt_destroy(t_2c_tmp)
 
          debug = force(1)%mp2_non_sep(:, 1)
+         IF (use_virial) virial_debug_local = work_virial
 
          CALL perform_2c_ops(force, work_virial, t_KBKT, force_data, fac, t_B(jquad), t_P, t_2c_RI, &
                              t_2c_RI_2, use_virial, cell, particle_set, atom_of_kind, kind_of, &
@@ -1420,6 +1427,7 @@ CONTAINS
          CALL get_tensor_occupancy(t_KBKT, nze_KBK, occ_KBK)
 
          debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
+         IF (use_virial) virial_debug_2c = virial_debug_2c + work_virial - virial_debug_local
 
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
          CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, &
@@ -1442,6 +1450,7 @@ CONTAINS
          CALL dbt_destroy(t_2c_tmp)
 
          debug = force(1)%mp2_non_sep(:, 1)
+         IF (use_virial) virial_debug_local = work_virial
 
          !Deal with the 3-center quantities.
          CALL perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
@@ -1453,6 +1462,7 @@ CONTAINS
                              unit_nr_dbcsr, mp2_env)
 
          debug_force_3c = debug_force_3c + force(1)%mp2_non_sep(:, 1) - debug
+         IF (use_virial) virial_debug_3c = virial_debug_3c + work_virial - virial_debug_local
 
          CALL timeset(routineN//"_dbcsr", handle2)
          !We go back to DBCSR matrices from now on
@@ -1494,6 +1504,9 @@ CONTAINS
          CALL dbt_copy_matrix_to_tensor(dbcsr_work2, t_2c_tmp)
          CALL dbt_copy(t_2c_tmp, t_2c_AO, move_data=.TRUE.)
 
+         debug = force(1)%overlap(:, 1)
+         IF (use_virial) virial_debug_local = work_virial
+
          pref = -1.0_dp*fac
          IF (use_virial) THEN
             CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
@@ -1503,6 +1516,9 @@ CONTAINS
             CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
                                   kind_of, force_data%idx_to_at_AO, pref, do_ovlp=.TRUE.)
          END IF
+
+         debug_force_2c = debug_force_2c + force(1)%overlap(:, 1) - debug
+         IF (use_virial) virial_debug_2c = virial_debug_2c + work_virial - virial_debug_local
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
          CALL dbcsr_multiply('N', 'N', fac*tau, Y_1, force_data%P_occ(ispin)%matrix, 1.0_dp, &
@@ -1587,6 +1603,7 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
       debug = force(1)%mp2_non_sep(:, 1)
+      IF (use_virial) virial_debug_local = work_virial
 
       !Calculate the periodic contributions of (P|Q) to the force and the virial
       work_virial = 0.0_dp
@@ -1603,9 +1620,27 @@ CONTAINS
       END IF
 
       debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
+      IF (use_virial) virial_debug_2c = virial_debug_2c + work_virial - virial_debug_local
 
-      WRITE (*, *) "Debug 2c", debug_force_2c
-      WRITE (*, *) "Debug 3c", debug_force_3c
+      BLOCK
+         TYPE(cp_para_env_type), POINTER :: para_env
+         CALL get_qs_env(qs_env, para_env=para_env)
+         CALL mp_sum(debug_force_2c, para_env%group)
+         CALL mp_sum(debug_force_3c, para_env%group)
+         IF (use_virial) THEN
+            CALL mp_sum(virial_debug_2c, para_env%group)
+            CALL mp_sum(virial_debug_3c, para_env%group)
+         END IF
+      END BLOCK
+      IF (unit_nr > 0) THEN
+
+         IF (use_virial) THEN
+            WRITE (unit_nr, *) "Debug 2c virial", virial_debug_2c
+            WRITE (unit_nr, *) "Debug 3c virial", virial_debug_3c
+         END IF
+         WRITE (unit_nr, *) "Debug 2c", debug_force_2c
+         WRITE (unit_nr, *) "Debug 3c", debug_force_3c
+      END IF
 
       IF (use_virial) THEN
          virial%pv_mp2 = virial%pv_mp2 + work_virial

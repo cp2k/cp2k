@@ -833,6 +833,8 @@ CONTAINS
             END IF
          END DO
 !$OMP END PARALLEL DO
+      CASE (do_potential_id)
+         pw%cc = 0.0_dp
       CASE DEFAULT
          CPABORT("Unknown potential type")
       END SELECT

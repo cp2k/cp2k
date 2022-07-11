@@ -431,12 +431,6 @@ CONTAINS
             IF (use_virial) h_debug_3c = h_debug_3c + h_stress - h_debug_local
 
          END DO
-         WRITE (*, *) "Debug 2c", debug_force_2c
-         WRITE (*, *) "Debug 3c", debug_force_3c
-         IF (use_virial) THEN
-            WRITE (*, *) "Debug 2c virial", h_debug_2c
-            WRITE (*, *) "Debug 3c virial", h_debug_3c
-         END IF
 
          CALL timestop(handle2)
 
@@ -456,6 +450,21 @@ CONTAINS
          CALL dbcsr_release(matrix_P_munu%matrix)
          DEALLOCATE (matrix_P_munu%matrix)
 
+      END IF
+
+      CALL mp_sum(debug_force_2c, para_env%group)
+      CALL mp_sum(debug_force_3c, para_env%group)
+      IF (use_virial) THEN
+         CALL mp_sum(h_debug_2c, para_env%group)
+         CALL mp_sum(h_debug_3c, para_env%group)
+      END IF
+      IF (para_env%mepos == 0) THEN
+         WRITE (*, *) "Debug 2c", debug_force_2c
+         WRITE (*, *) "Debug 3c", debug_force_3c
+         IF (use_virial) THEN
+            WRITE (*, *) "Debug 2c virial", h_debug_2c
+            WRITE (*, *) "Debug 3c virial", h_debug_3c
+         END IF
       END IF
 
       IF (use_virial) mp2_env%ri_grad%mp2_virial = h_stress
