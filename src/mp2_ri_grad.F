@@ -386,6 +386,9 @@ CONTAINS
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
+            debug = mp2_force(1)%rho_elec(:, 1)
+            IF (use_virial) h_debug_local = h_stress
+
             CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                pot_g, mp2_env%potential_parameter, use_virial, &
@@ -404,6 +407,7 @@ CONTAINS
             debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug
 
             debug = mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1)
+            IF (use_virial) h_debug_2c = h_debug_2c + (virial%pv_virial - h_debug_local)
 
             IF (use_virial) pv_virial = virial%pv_virial
             CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
