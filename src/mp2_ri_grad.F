@@ -147,7 +147,8 @@ CONTAINS
                                                             factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_2c, h_debug_3c, h_debug_local, &
+                                                            h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
@@ -251,6 +252,10 @@ CONTAINS
 
       factor_2c = -4.0_dp
       IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = -1.0_dp
+      IF (use_virial) THEN
+         h_debug_2c = 0.0_dp
+         h_debug_3c = 0.0_dp
+      END IF
 
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
@@ -405,6 +410,7 @@ CONTAINS
                                                   task_list_sub)
             IF (use_virial) THEN
                h_stress = h_stress + (virial%pv_virial - pv_virial)
+               h_debug_2c = h_debug_2c + (virial%pv_virial - pv_virial)
                virial%pv_virial = pv_virial
             END IF
 
@@ -413,6 +419,8 @@ CONTAINS
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                    eps_filter)
 
+            IF (use_virial) h_debug_local = h_stress
+
             CALL integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
                                                   mp2_env%ri_metric, &
                                                   ks_env, poisson_env, pot_g, use_virial, rho_g_copy, dvg, &
@@ -420,10 +428,15 @@ CONTAINS
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
 
             debug_force_3c = debug_force_3c + mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1) - debug
+            IF (use_virial) h_debug_3c = h_debug_3c + h_stress - h_debug_local
 
          END DO
          WRITE (*, *) "Debug 2c", debug_force_2c
          WRITE (*, *) "Debug 3c", debug_force_3c
+         IF (use_virial) THEN
+            WRITE (*, *) "Debug 2c virial", h_debug_2c
+            WRITE (*, *) "Debug 3c virial", h_debug_3c
+         END IF
 
          CALL timestop(handle2)
 
