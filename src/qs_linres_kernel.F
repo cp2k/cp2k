@@ -321,7 +321,7 @@ CONTAINS
          END IF
       ELSE
          CALL qs_fxc_fdiff(ks_env, rho, rho1a, xc_section, 6, lr_triplet, v_xc, v_xc_tau)
-         CPASSERT( (.NOT. gapw) .AND. (.NOT. gapw_xc))
+         CPASSERT((.NOT. gapw) .AND. (.NOT. gapw_xc))
       END IF
 
       DO ispin = 1, nspins

@@ -19,7 +19,7 @@ MODULE qs_linres_methods
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                              cp_fm_trace, cp_fm_norm
+                                              cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -47,7 +47,6 @@ MODULE qs_linres_methods
                                               dbcsr_filter,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
-                                              dbcsr_dot,&
                                               dbcsr_type
    USE input_constants,                 ONLY: do_loc_none,&
                                               op_loc_berry,&
@@ -605,7 +604,7 @@ CONTAINS
          CALL build_dm_response(c0, v, p_env%p1)
          DO ispin = 1, nspins
             CALL dbcsr_filter(p_env%p1(ispin)%matrix, linres_control%eps_filter)
-         ENDDO
+         END DO
 
          chksum = 0.0_dp
          DO ispin = 1, nspins
@@ -621,11 +620,11 @@ CONTAINS
 
             CALL get_qs_env(qs_env, rho=rho) ! that could be called before
             CALL qs_rho_update_rho(rho, qs_env=qs_env) ! that could be called before
-!           IF (dft_control%qs_control%gapw) THEN
-!              CALL prepare_gapw_den(qs_env)
-!           ELSEIF (dft_control%qs_control%gapw_xc) THEN
-!              CALL prepare_gapw_den(qs_env, do_rho0=.FALSE.)
-!           END IF
+            IF (dft_control%qs_control%gapw) THEN
+               CALL prepare_gapw_den(qs_env)
+            ELSEIF (dft_control%qs_control%gapw_xc) THEN
+               CALL prepare_gapw_den(qs_env, do_rho0=.FALSE.)
+            END IF
 
             DO ispin = 1, nspins
                CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)

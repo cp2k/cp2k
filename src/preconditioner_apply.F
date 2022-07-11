@@ -14,7 +14,6 @@
 ! **************************************************************************************************
 MODULE preconditioner_apply
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_norm
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
