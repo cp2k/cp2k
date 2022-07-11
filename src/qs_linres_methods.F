@@ -44,7 +44,6 @@ MODULE qs_linres_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_checksum,&
                                               dbcsr_copy,&
-                                              dbcsr_filter,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
