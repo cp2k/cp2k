@@ -43,6 +43,7 @@ MODULE qs_tddfpt2_methods
                                               dbcsr_type_antisymmetric
    USE exstates_types,                  ONLY: excited_energy_type
    USE header,                          ONLY: tddfpt_header
+   USE hfx_types,                       ONLY: compare_hfx_sections
    USE input_constants,                 ONLY: tddfpt_dipole_velocity,&
                                               tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
@@ -685,8 +686,8 @@ CONTAINS
                                                             explicit_root, expot, exvdw, exwfn
       REAL(kind=dp)                                      :: C_hf
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input, tddfpt_section, &
-                                                            xc_root, xc_sub
+      TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_section_gs, input, &
+                                                            tddfpt_section, xc_root, xc_sub
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       NULLIFY (dft_control, input)
@@ -782,6 +783,14 @@ CONTAINS
                CALL section_vals_val_get(hfx_section, "FRACTION", r_val=C_hf)
                do_hfx = (C_hf /= 0.0_dp)
             END IF
+            !TDDFPT only works if the kernel has the same HF section as the DFT%XC one
+            IF (do_hfx) THEN
+               hfx_section_gs => section_vals_get_subs_vals(input, "DFT%XC%HF")
+               IF (.NOT. compare_hfx_sections(hfx_section, hfx_section_gs)) THEN
+                  CPABORT("TDDFPT Kernel must use the same HF section as DFT%XC or no HF at all.")
+               END IF
+            END IF
+
             do_admm = do_hfx .AND. dft_control%do_admm
             IF (do_admm) THEN
                ! 'admm_env%xc_section_primary' and 'admm_env%xc_section_aux' need to be redefined
