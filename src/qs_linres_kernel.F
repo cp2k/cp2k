@@ -50,7 +50,8 @@ MODULE qs_linres_kernel
                                               section_vals_val_get
    USE kg_correction,                   ONLY: kg_ekin_subset
    USE kg_environment_types,            ONLY: kg_environment_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE lri_environment_types,           ONLY: lri_density_type,&
                                               lri_environment_type,&
                                               lri_kind_type
@@ -89,6 +90,7 @@ MODULE qs_linres_kernel
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: linres_control_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_methods,                ONLY: p_env_finish_kpp1
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
@@ -819,21 +821,26 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_xc_admm'
 
-      INTEGER                                            :: handle, ispin, nspins
+      CHARACTER(LEN=default_string_length)               :: basis_type
+      INTEGER                                            :: handle, ispin, ns, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: lsd
+      LOGICAL                                            :: gapw, lsd
       REAL(KIND=dp)                                      :: alpha
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type)                                 :: xcmat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ksmat, psmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux_fit
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, tau_pw, v_xc, &
                                                             v_xc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
-      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
+      TYPE(task_list_type), POINTER                      :: task_list
       TYPE(xc_rho_cflags_type)                           :: needs
       TYPE(xc_rho_set_type)                              :: rho1_set
 
@@ -846,8 +853,6 @@ CONTAINS
             ! nothing to do
          ELSE
             CALL get_qs_env(qs_env=qs_env, linres_control=linres_control)
-            CPASSERT(.NOT. dft_control%qs_control%gapw)
-            CPASSERT(.NOT. dft_control%qs_control%gapw_xc)
             CPASSERT(.NOT. dft_control%qs_control%lrigpw)
             CPASSERT(.NOT. linres_control%lr_triplet)
 
@@ -866,6 +871,8 @@ CONTAINS
 
             CALL get_qs_env(qs_env, admm_env=admm_env)
             CALL get_admm_env(admm_env, task_list_aux_fit=task_list_aux_fit)
+            gapw = admm_env%do_gapw
+
             CALL qs_rho_get(p_env%rho1_admm, rho_r=rho1_aux_r, rho_g=rho1_aux_g)
             xc_section => admm_env%xc_section_aux
             bo = rho1_aux_r(1)%pw%pw_grid%bounds_local
@@ -891,6 +898,19 @@ CONTAINS
             END IF
             CALL xc_rho_set_release(rho1_set)
 
+            basis_type = "AUX_FIT"
+            CALL get_qs_env(qs_env=qs_env, task_list_aux_fit=task_list)
+            CALL get_qs_env(qs_env=qs_env, para_env=para_env)
+            IF (admm_env%do_gapw) THEN
+               CALL prepare_gapw_den(qs_env, local_rho_set=p_env%local_rho_set_admm, &
+                                     do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+               CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set_admm, qs_env, xc_section, para_env, &
+                                                do_tddft=.FALSE., do_triplet=.FALSE., &
+                                                kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+               basis_type = "AUX_FIT_SOFT"
+               task_list => admm_env%admm_gapw_env%task_list
+            END IF
+
             alpha = 1.0_dp
             IF (nspins == 1) alpha = 2.0_dp
 
@@ -900,9 +920,21 @@ CONTAINS
                CALL dbcsr_set(xcmat%matrix, 0.0_dp)
                CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=xcmat, qs_env=qs_env, &
                                        calculate_forces=.FALSE., basis_type="AUX_FIT", &
-                                       task_list_external=task_list_aux_fit)
+                                       task_list_external=task_list)
                CALL dbcsr_add(p_env%kpp1_admm(ispin)%matrix, xcmat%matrix, 1.0_dp, alpha)
             END DO
+
+            IF (admm_env%do_gapw) THEN
+               CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit)
+               ns = SIZE(p_env%kpp1_admm)
+               ksmat(1:ns, 1:1) => p_env%kpp1_admm(1:ns)
+               NULLIFY (psmat)
+               CALL update_ks_atom(qs_env, ksmat, psmat, forces=.FALSE., tddft=.TRUE., &
+                                   rho_atom_external=p_env%local_rho_set_admm%rho_atom_set, &
+                                   kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                   oce_external=admm_env%admm_gapw_env%oce, &
+                                   sab_external=sab_aux_fit)
+            END IF
 
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)

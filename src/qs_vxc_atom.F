@@ -470,15 +470,18 @@ CONTAINS
 !>                   'DFT' input section
 !> \param do_tddfpt2 New implementation of TDDFT.
 !> \param do_triplet ...
+!> \param kind_set_external ...
 ! **************************************************************************************************
    SUBROUTINE calculate_xc_2nd_deriv_atom(local_rho_set, qs_env, xc_section, para_env, &
-                                          do_tddft, do_tddfpt2, do_triplet)
+                                          do_tddft, do_tddfpt2, do_triplet, kind_set_external)
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddft, do_tddfpt2, do_triplet
+      TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: kind_set_external
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom'
 
@@ -501,7 +504,7 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set, qs_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr1_h, dr1_s, dr_h, dr_s, r1_h, r1_s, &
                                                             r_h, r_s
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r1_h_d, r1_s_d, r_h_d, r_s_d
@@ -530,6 +533,11 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set, &
                       rho_atom_set=rho_atom_set)
+      IF (PRESENT(kind_set_external)) THEN
+         my_kind_set => kind_set_external
+      ELSE
+         my_kind_set => qs_kind_set
+      END IF
 
       rho1_atom_set => local_rho_set%rho_atom_set
 
@@ -584,7 +592,7 @@ CONTAINS
 
          NULLIFY (atom_list, harmonics, grid_atom)
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
-         CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, &
+         CALL get_qs_kind(my_kind_set(ikind), paw_atom=paw_atom, &
                           harmonics=harmonics, grid_atom=grid_atom)
          IF (.NOT. paw_atom) CYCLE
 
@@ -716,10 +724,10 @@ CONTAINS
                                    w=weight, vxc=vxc_s, vxg=vxg_s)
 
             IF (gradient_functional) THEN
-               CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, qs_kind_set(ikind), &
+               CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, my_kind_set(ikind), &
                                rho1_atom, nspins)
             ELSE
-               CALL gaVxcgb_noGC(vxc_h, vxc_s, qs_kind_set(ikind), &
+               CALL gaVxcgb_noGC(vxc_h, vxc_s, my_kind_set(ikind), &
                                  rho1_atom, nspins)
             END IF
 

@@ -2496,12 +2496,12 @@ CONTAINS
 !> \param dm ...
 !> \param dm_admm ...
 ! **************************************************************************************************
-   SUBROUTINE admm_aux_reponse_density(qs_env, dm, dm_admm)
+   SUBROUTINE admm_aux_response_density(qs_env, dm, dm_admm)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: dm
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dm_admm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_aux_reponse_density'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_aux_response_density'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, ncol, nspins
       TYPE(admm_type), POINTER                           :: admm_env
@@ -2532,6 +2532,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE admm_aux_reponse_density
+   END SUBROUTINE admm_aux_response_density
 
 END MODULE admm_methods

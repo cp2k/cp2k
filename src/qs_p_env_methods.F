@@ -14,8 +14,9 @@
 !>      22-08-2002, TCH, started development
 ! **************************************************************************************************
 MODULE qs_p_env_methods
-   USE admm_methods,                    ONLY: admm_aux_reponse_density
-   USE admm_types,                      ONLY: admm_type,&
+   USE admm_methods,                    ONLY: admm_aux_response_density
+   USE admm_types,                      ONLY: admm_gapw_type,&
+                                              admm_type,&
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -68,7 +69,8 @@ MODULE qs_p_env_methods
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE preconditioner_types,            ONLY: init_preconditioner
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_types,                        ONLY: pw_p_type
@@ -82,17 +84,20 @@ MODULE qs_p_env_methods
                                               kpp1_create,&
                                               kpp1_did_change
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_local_rho_types,              ONLY: local_rho_set_create
    USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
    USE qs_rho0_methods,                 ONLY: init_rho0
-   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
+   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
+                                              calculate_rho_atom_coeff
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                               qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_create,&
@@ -143,6 +148,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_env_create'
 
       INTEGER                                            :: handle, n_ao, n_mo, n_spins, natom, spin
+      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
+      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools, mo_mo_fm_pools
@@ -199,6 +206,14 @@ CONTAINS
                                name="p_env%p1_admm-"//TRIM(ADJUSTL(cp_to_string(spin))))
                CALL dbcsr_set(p_env%p1_admm(spin)%matrix, 0.0_dp)
             END DO
+         END IF
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+         IF (admm_env%do_gapw) THEN
+            CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
+            admm_gapw_env => admm_env%admm_gapw_env
+            CALL local_rho_set_create(p_env%local_rho_set_admm)
+            CALL allocate_rho_atom_internals(p_env%local_rho_set_admm%rho_atom_set, atomic_kind_set, &
+                                             admm_gapw_env%admm_kind_set, dft_control, para_env)
          END IF
       END IF
 
@@ -397,9 +412,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'p_env_update_rho'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, ispin
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux_fit
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_aux, rho_r_aux
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list
@@ -408,7 +428,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
-      IF (dft_control%do_admm) CALL admm_aux_reponse_density(qs_env, p_env%p1, p_env%p1_admm)
+      IF (dft_control%do_admm) CALL admm_aux_response_density(qs_env, p_env%p1, p_env%p1_admm)
 
       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
       DO ispin = 1, SIZE(rho1_ao)
@@ -422,19 +442,19 @@ CONTAINS
 
       IF (dft_control%do_admm) THEN
          IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
-
             NULLIFY (ks_env, rho1_ao, rho_g_aux, rho_r_aux, task_list)
 
-            CALL get_qs_env(qs_env, &
-                            ks_env=ks_env, &
-                            dft_control=dft_control)
+            CALL get_qs_env(qs_env, ks_env=ks_env, admm_env=admm_env)
+            basis_type = "AUX_FIT"
             CALL get_admm_env(qs_env%admm_env, task_list_aux_fit=task_list)
-
+            IF (admm_env%do_gapw) THEN
+               basis_type = "AUX_FIT_SOFT"
+               task_list => admm_env%admm_gapw_env%task_list
+            END IF
             CALL qs_rho_get(p_env%rho1_admm, &
                             rho_ao=rho1_ao, &
                             rho_g=rho_g_aux, &
                             rho_r=rho_r_aux)
-
             DO ispin = 1, SIZE(rho1_ao)
                CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
                CALL calculate_rho_elec(ks_env=ks_env, &
@@ -442,9 +462,16 @@ CONTAINS
                                        rho=rho_r_aux(ispin), &
                                        rho_gspace=rho_g_aux(ispin), &
                                        soft_valid=.FALSE., &
-                                       basis_type="AUX_FIT", &
+                                       basis_type=basis_type, &
                                        task_list_external=task_list)
             END DO
+            IF (admm_env%do_gapw) THEN
+               CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit, para_env=para_env)
+               CALL calculate_rho_atom_coeff(qs_env, rho1_ao, &
+                                             rho_atom_set=p_env%local_rho_set_admm%rho_atom_set, &
+                                             qs_kind_set=admm_env%admm_gapw_env%admm_kind_set, &
+                                             oce=admm_env%admm_gapw_env%oce, sab=sab_aux_fit, para_env=para_env)
+            END IF
          END IF
       END IF
 
