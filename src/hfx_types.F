@@ -1059,7 +1059,7 @@ CONTAINS
                                   orb_basis_type, ri_basis_type, para_env, unit_nr, unit_nr_dbcsr, &
                                   nelectron_total, t_c_filename=t_c_filename)
 
-      IF (dft_control%smear) THEN
+      IF (dft_control%smear .AND. ri_data%flavor == ri_mo) THEN
          CPABORT("RI_FLAVOR MO is not consistent with smearing. Please use RI_FLAVOR RHO.")
       END IF
 
