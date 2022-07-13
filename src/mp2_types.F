@@ -28,6 +28,8 @@ MODULE mp2_types
                                               ri_mp2_laplace,&
                                               ri_mp2_method_gpw,&
                                               ri_rpa_method_gpw
+   USE input_section_types,             ONLY: section_vals_release,&
+                                              section_vals_type
    USE iso_c_binding,                   ONLY: c_ptr
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
@@ -124,6 +126,9 @@ MODULE mp2_types
       INTEGER                  :: mm_style
       TYPE(hfx_type), DIMENSION(:, :), POINTER &
          :: x_data => NULL()
+      TYPE(section_vals_type), POINTER         :: xc_section_primary => Null(), &
+                                                  xc_section_aux => Null()
+      LOGICAL                  :: reuse_hfx
       LOGICAL                  :: minimax_quad
       LOGICAL                  :: do_ri_g0w0
       LOGICAL                  :: do_admm
@@ -299,9 +304,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! release the HFX section for the EXX calculation
-      IF (ASSOCIATED(mp2_env%ri_rpa%x_data)) THEN
-         CALL hfx_release(mp2_env%ri_rpa%x_data)
+      IF (.NOT. mp2_env%ri_rpa%reuse_hfx) THEN
+         IF (ASSOCIATED(mp2_env%ri_rpa%x_data)) CALL hfx_release(mp2_env%ri_rpa%x_data)
       END IF
+      IF (ASSOCIATED(mp2_env%ri_rpa%xc_section_aux)) CALL section_vals_release(mp2_env%ri_rpa%xc_section_aux)
+      IF (ASSOCIATED(mp2_env%ri_rpa%xc_section_primary)) CALL section_vals_release(mp2_env%ri_rpa%xc_section_primary)
 
       IF (mp2_env%eri_method .EQ. do_eri_mme) CALL cp_eri_mme_finalize(mp2_env%eri_mme_param)
       IF (ASSOCIATED(mp2_env%eri_mme_param)) DEALLOCATE (mp2_env%eri_mme_param)

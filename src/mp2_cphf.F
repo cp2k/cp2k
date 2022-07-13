@@ -1798,7 +1798,7 @@ CONTAINS
             ! Calculate kernel
             CALL tddft_hfx_matrix(matrix_ks_aux, rho_ao_aux, qs_env, .FALSE.)
 
-            IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
                CALL get_qs_env(qs_env, ks_env=ks_env)
                CALL get_admm_env(qs_env%admm_env, task_list_aux_fit=task_list_aux_fit)
 

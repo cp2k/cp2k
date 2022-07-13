@@ -300,7 +300,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
-      IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+      IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
          CALL get_qs_env(qs_env=qs_env, linres_control=linres_control)
          CPASSERT(.NOT. dft_control%qs_control%gapw)
          CPASSERT(.NOT. dft_control%qs_control%gapw_xc)

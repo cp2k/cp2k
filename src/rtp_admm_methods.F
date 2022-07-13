@@ -234,7 +234,7 @@ CONTAINS
          CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
          CALL admm_env_create(admm_env, admm_control, mos, para_env, natoms, nao_aux_fit)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         CALL create_admm_xc_section(qs_env=qs_env, xc_section=xc_section, &
+         CALL create_admm_xc_section(x_data=qs_env%x_data, xc_section=xc_section, &
                                      admm_env=admm_env)
 
          IF (admm_control%method /= do_admm_basis_projection) THEN
@@ -306,7 +306,7 @@ CONTAINS
          CALL get_qs_kind_set(qs_kind_set, nsgf=nao_aux_fit, basis_type="AUX_FIT")
          CALL admm_env_create(admm_env, dft_control%admm_control, mos, para_env, natoms, nao_aux_fit)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         CALL create_admm_xc_section(qs_env=qs_env, xc_section=xc_section, &
+         CALL create_admm_xc_section(x_data=qs_env%x_data, xc_section=xc_section, &
                                      admm_env=admm_env)
       END IF
 

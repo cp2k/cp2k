@@ -1526,7 +1526,7 @@ CONTAINS
       END IF
 
       IF (dft_control%do_admm) THEN
-         IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
+         IF (qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
             NULLIFY (mpz, mhz, mhx, mhy)
          ELSE
@@ -2203,7 +2203,7 @@ CONTAINS
 
       NULLIFY (v_admm_rspace, v_admm_tau_rspace)
       IF (dft_control%do_admm) THEN
-         IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+         IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             ! For the virial, we have to save the pv_xc component because it will be reset in qs_vxc_create
             IF (PRESENT(h_stress)) THEN
                CALL get_qs_env(qs_env, virial=virial)

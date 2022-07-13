@@ -775,7 +775,7 @@ CONTAINS
 
       ! ADMM Correction
       IF (dft_control%do_admm) THEN
-         IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+         IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
                CPASSERT(.NOT. do_triplet)
                admm_xc_section => admm_env%xc_section_aux

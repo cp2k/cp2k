@@ -407,7 +407,7 @@ CONTAINS
          CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
          IF (do_admm .AND. tddfpt_control%admm_xc_correction) THEN
-            IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
+            IF (qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
                ! nothing to do
             ELSE
                IF (.NOT. tddfpt_control%admm_symm) THEN

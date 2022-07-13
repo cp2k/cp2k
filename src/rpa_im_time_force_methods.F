@@ -162,6 +162,9 @@ MODULE rpa_im_time_force_methods
                                               rs_grid_retain
    USE response_solver,                 ONLY: ks_ref_potential,&
                                               response_equation_new
+   USE rpa_hfx,                         ONLY: calc_ri_rpa_admm_xc_contributions,&
+                                              ri_rpa_post_hfx,&
+                                              ri_rpa_pre_hfx
    USE rpa_im_time,                     ONLY: compute_mat_dm_global
    USE rpa_im_time_force_types,         ONLY: im_time_force_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
@@ -240,6 +243,10 @@ CONTAINS
 
       CALL get_qs_env(qs_env, natom=natom, nkind=nkind, dft_control=dft_control, para_env=para_env, &
                       particle_set=particle_set, qs_kind_set=qs_kind_set, cell=cell)
+
+      IF (dft_control%qs_control%gapw) THEN
+         CPABORT("Low-scaling RPA/SOS-MP2 forces only available with GPW")
+      END IF
 
       do_periodic = .FALSE.
       IF (ANY(cell%perd == 1)) do_periodic = .TRUE.
@@ -2180,6 +2187,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_exx_to_rhs'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
+      LOGICAL                                            :: calc_ints
       REAL(dp)                                           :: dummy_real1, dummy_real2
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, matrix_ks, matrix_s_aux, &
@@ -2236,7 +2244,7 @@ CONTAINS
          END IF
          IF (dft_control%do_admm) THEN
             !note: factor -1.0 taken care of later, after HFX ADMM contribution is taken
-            IF (.NOT. dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
+            IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
                CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=work_admm(ispin), &
                                        qs_env=qs_env, calculate_forces=.FALSE., basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
@@ -2272,15 +2280,34 @@ CONTAINS
          END DO
       END IF
 
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
+      DEALLOCATE (vh_rspace)
+      DO ispin = 1, nspins
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
+         IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
+         IF (ASSOCIATED(vadmm_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+      END DO
+      DEALLOCATE (vxc_rspace)
+      IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
+      IF (ASSOCIATED(vadmm_rspace)) DEALLOCATE (vadmm_rspace)
+
       !Add the HF contribution from RI_RPA to the ks matrix
+      CALL ri_rpa_pre_hfx(qs_env)
+      calc_ints = .TRUE.
+      IF (qs_env%mp2_env%ri_rpa%reuse_hfx) calc_ints = .FALSE.
       hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
       IF (qs_env%mp2_env%ri_rpa%do_admm) THEN
          DO ispin = 1, nspins
             CALL dbcsr_set(work_admm(ispin)%matrix, 0.0_dp)
          END DO
 
-         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., .TRUE., hfx_section, &
+         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., calc_ints, hfx_section, &
                                qs_env%mp2_env%ri_rpa%x_data)
+
+         !ADMM XC correction
+         CALL calc_ri_rpa_admm_xc_contributions(qs_env, dbcsr_work, work_admm, dummy_real1, &
+                                                dummy_real2, .FALSE., .FALSE.)
 
          DO ispin = 1, nspins
             CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
@@ -2293,25 +2320,15 @@ CONTAINS
          END DO
 
       ELSE
-         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., .TRUE., hfx_section, qs_env%mp2_env%ri_rpa%x_data)
+         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., calc_ints, hfx_section, qs_env%mp2_env%ri_rpa%x_data)
       END IF
+      CALL ri_rpa_post_hfx(qs_env)
 
       !Update the RHS
       DO ispin = 1, nspins
          CALL dbcsr_add(force_data%sum_O_tau(ispin)%matrix, dbcsr_work(ispin)%matrix, 1.0_dp, 1.0_dp)
       END DO
 
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
-      DEALLOCATE (vh_rspace)
-      DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
-         IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
-         IF (ASSOCIATED(vadmm_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
-      END DO
-      DEALLOCATE (vxc_rspace)
-      IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
-      IF (ASSOCIATED(vadmm_rspace)) DEALLOCATE (vadmm_rspace)
       CALL dbcsr_deallocate_matrix_set(dbcsr_work)
       IF (dft_control%do_admm) THEN
          CALL dbcsr_deallocate_matrix_set(work_admm)
@@ -2489,7 +2506,7 @@ CONTAINS
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, ker_tau_admm(ispin)%matrix, keep_sparsity=.TRUE.)
          END DO
 
-         IF (.NOT. dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
+         IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             DO ispin = 1, nspins
                CALL pw_zero(rhoz_r(ispin)%pw)
                CALL pw_zero(rhoz_g(ispin)%pw)
@@ -3290,7 +3307,7 @@ CONTAINS
          END DO
 
          IF (use_virial) pv_loc = virial%pv_virial
-         IF (.NOT. dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
+         IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             DO ispin = 1, nspins
                IF (do_exx) THEN
                   CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), &
@@ -3586,7 +3603,7 @@ CONTAINS
             END DO
             CALL qs_rho_get(rho_aux_fit, tau_r_valid=do_tau_admm)
 
-            IF (.NOT. dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
+            IF (.NOT. admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
                CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
                DO ispin = 1, nspins
                   CALL pw_zero(rhoz_r(ispin)%pw)

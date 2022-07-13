@@ -62,6 +62,8 @@ MODULE rpa_rse
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
+   USE rpa_hfx,                         ONLY: ri_rpa_post_hfx,&
+                                              ri_rpa_pre_hfx
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -350,6 +352,7 @@ CONTAINS
          CALL dbcsr_set(P_mu_nu(is)%matrix, 0.0_dp)
       END DO
 
+      CALL ri_rpa_pre_hfx(qs_env)
       DO is = 1, ns
          CALL copy_fm_to_dbcsr(fm_P_mu_nu(is)%matrix, P_mu_nu(1)%matrix, keep_sparsity=.TRUE.)
 
@@ -395,6 +398,7 @@ CONTAINS
                       fm_X_ao_mo, mo_coeff(is)%matrix, 1.0_dp, fm_X_mo(is)%matrix)
 
       END DO
+      CALL ri_rpa_post_hfx(qs_env)
 
       ! Release dbcsr objects
       DO is = 1, SIZE(P_mu_nu)

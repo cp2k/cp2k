@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT G0W0_H2O_PBE0_ADMM
+  PROJECT  G0W0_OH_PBE_ADMM
   PRINT_LEVEL MEDIUM
   RUN_TYPE ENERGY
   &TIMINGS
@@ -9,16 +9,19 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME HFX_BASIS
-    BASIS_SET_FILE_NAME BASIS_ADMM
-    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    UKS
+    MULTIPLICITY 2
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    BASIS_SET_FILE_NAME  BASIS_ADMM
+    SORT_BASIS EXP
+    POTENTIAL_FILE_NAME  GTH_POTENTIALS
     &MGRID
       CUTOFF  100
       REL_CUTOFF  20
     &END MGRID
     &POISSON
       PERIODIC NONE
-      POISSON_SOLVER WAVELET
+      POISSON_SOLVER MT
     &END POISSON
     &QS
       METHOD GPW
@@ -37,34 +40,24 @@
     &XC
       &XC_FUNCTIONAL PBE
         &PBE
-          SCALE_X 0.7500000
+          SCALE_X 1.0000000
           SCALE_C 1.0000000
         &END
       &END XC_FUNCTIONAL
-      &HF
-        FRACTION 0.2500000
-        &SCREENING
-          EPS_SCHWARZ 1.0E-6
-          SCREEN_ON_INITIAL_P FALSE
-        &END SCREENING
-      &END HF
       &WF_CORRELATION
-        &INTEGRALS
-        &WFC_GPW
-          CUTOFF  100
-          REL_CUTOFF 20
-        &END WFC_GPW
-        &END INTEGRALS
+        &LOW_SCALING
+          MEMORY_CUT 1
+        &END LOW_SCALING
         &RI_RPA
           ADMM
           &HF
             FRACTION 1.0000000
             &SCREENING
-              EPS_SCHWARZ 1.0E-6
+              EPS_SCHWARZ 1.0E-8
               SCREEN_ON_INITIAL_P FALSE
             &END SCREENING
           &END HF
-          RPA_NUM_QUAD_POINTS 10
+          RPA_NUM_QUAD_POINTS 20
           &GW
             CORR_MOS_OCC          10
             CORR_MOS_VIRT         10
@@ -73,8 +66,7 @@
             CROSSING_SEARCH       Z_SHOT
             FERMI_LEVEL_OFFSET    2.0E-2
             EV_GW_ITER            1
-            UPDATE_XC_ENERGY
-            RI_SIGMA_X FALSE
+            RI_SIGMA_X            FALSE
           &END GW
         &END RI_RPA
         MEMORY  200.
@@ -82,29 +74,28 @@
       &END
     &END XC
     &AUXILIARY_DENSITY_MATRIX_METHOD
-      METHOD BASIS_PROJECTION
       ADMM_PURIFICATION_METHOD NONE
-    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &END
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  6.000   6.000  6.000
+      ABC [angstrom]  8.000   8.000  8.000
       PERIODIC NONE
     &END CELL
     &KIND H
-      BASIS_SET DZVP-GTH
-      BASIS_SET RI_AUX RI_DZVP-GTH
+      BASIS_SET  DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
       BASIS_SET AUX_FIT cFIT3
-      POTENTIAL GTH-PBE-q1
+      POTENTIAL  GTH-PBE-q1
     &END KIND
     &KIND O
-      BASIS_SET DZVP-GTH
-      BASIS_SET RI_AUX RI_DZVP-GTH
+      BASIS_SET  DZVP-GTH
+      BASIS_SET RI_AUX  RI_DZVP-GTH
       BASIS_SET AUX_FIT cFIT3
-      POTENTIAL GTH-PBE-q6
+      POTENTIAL  GTH-PBE-q6
     &END KIND
     &TOPOLOGY
-      COORD_FILE_NAME H2O_gas.xyz
+      COORD_FILE_NAME  OH_radical_gas.xyz
       COORD_FILE_FORMAT xyz
       &CENTER_COORDINATES
       &END

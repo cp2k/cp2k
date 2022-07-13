@@ -136,7 +136,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
       LOGICAL                                            :: do_admm, do_exx, do_gw, has_unit_metric, &
                                                             omit_headers, perform_ec
-      REAL(dp)                                           :: dummy_real
+      REAL(dp)                                           :: dummy_real, dummy_real2(2)
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -328,7 +328,7 @@ CONTAINS
                do_admm = qs_env%mp2_env%ri_rpa%do_admm
                output_unit = cp_logger_get_default_io_unit()
                dummy_real = 0.0_dp
-               CALL calculate_exx(qs_env, output_unit, do_gw, do_admm, .TRUE., dummy_real, dummy_real)
+               CALL calculate_exx(qs_env, output_unit, do_gw, do_admm, .TRUE., dummy_real, dummy_real2, dummy_real)
             END IF
          END IF
       ELSEIF (.NOT. perform_ec) THEN

@@ -191,7 +191,7 @@ CONTAINS
 
       IF (dft_control%do_admm) THEN
          CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
-         IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+         IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             CALL qs_rho_create(p_env%rho1_admm)
          END IF
 
@@ -377,7 +377,7 @@ CONTAINS
             CALL dbcsr_set(p_env%kpp1_admm(ispin)%matrix, 0.0_dp)
          END DO
 
-         IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+         IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             CALL qs_rho_rebuild(p_env%rho1_admm, qs_env=qs_env, admm=.TRUE.)
          END IF
 
@@ -390,7 +390,7 @@ CONTAINS
          END IF
 
          IF (dft_control%do_admm) THEN
-            IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
                CALL qs_rho_rebuild(p_env%rho1_admm, qs_env=qs_env, admm=.TRUE.)
             END IF
          END IF
@@ -440,7 +440,7 @@ CONTAINS
                              qs_env=qs_env)
 
       IF (dft_control%do_admm) THEN
-         IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+         IF (qs_env%admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             NULLIFY (ks_env, rho1_ao, rho_g_aux, rho_r_aux, task_list)
 
             CALL get_qs_env(qs_env, ks_env=ks_env, admm_env=admm_env)
