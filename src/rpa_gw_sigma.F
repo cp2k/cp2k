@@ -15,7 +15,6 @@ MODULE rpa_gw_sigma
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
-   USE admm_utils,                      ONLY: admm_correct_for_eigenvalues
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
                                               cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -80,6 +79,9 @@ MODULE rpa_gw_sigma
                                               qs_rho_type
    USE rpa_gw,                          ONLY: compute_minus_vxc_kpoints,&
                                               trafo_to_mo_and_kpoints
+   USE rpa_hfx,                         ONLY: calc_ri_rpa_admm_xc_contributions,&
+                                              ri_rpa_post_hfx,&
+                                              ri_rpa_pre_hfx
    USE rpa_main,                        ONLY: get_bandstruc_and_k_dependent_MOs
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -102,17 +104,18 @@ CONTAINS
 !> \param mp2_env ...
 !> \param mos_mp2 ...
 !> \param energy_ex ...
+!> \param energy_xc_admm ...
 !> \param t3 ...
 !> \param unit_nr ...
 !> \par History
 !>      04.2015 created
 !> \author Jan Wilhelm
 ! **************************************************************************************************
-   SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, energy_ex, t3, unit_nr)
+   SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, energy_ex, energy_xc_admm, t3, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_mp2
-      REAL(KIND=dp), INTENT(OUT)                         :: energy_ex, t3
+      REAL(KIND=dp), INTENT(OUT)                         :: energy_ex, energy_xc_admm(2), t3
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_vec_Sigma_x_minus_vxc_gw', &
@@ -122,8 +125,8 @@ CONTAINS
       CHARACTER(LEN=40)                                  :: line
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, handle, homo, i_img, &
          ikp, irep, ispin, iunit, myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, &
-         n_rep_hf, nkp, nkp_Sigma, nmo, ns, nspins, print_exx
-      LOGICAL :: charge_constrain_tmp, do_admm_rpa, do_hfx, do_kpoints_cubic_RPA, &
+         n_rep_hf, nkp, nkp_Sigma, nmo, nspins, print_exx
+      LOGICAL :: calc_ints, charge_constrain_tmp, do_admm_rpa, do_hfx, do_kpoints_cubic_RPA, &
          do_kpoints_from_Gamma, do_ri_Sigma_x, really_read_line
       REAL(KIND=dp) :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, eh1, ehfx, eigval_dft, eigval_hf_at_dft, &
          energy_exc, energy_exc1, energy_exc1_aux_fit, energy_exc_aux_fit, energy_total, &
@@ -136,7 +139,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mat_exchange_for_kp_from_gamma
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, &
-                                                            matrix_ks_aux_fit_hfx, rho_ao
+                                                            matrix_ks_aux_fit_hfx, rho_ao, &
+                                                            rho_ao_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: matrix_ks_2d, matrix_ks_kp_im, &
          matrix_ks_kp_re, matrix_ks_transl, matrix_sigma_x_minus_vxc, matrix_sigma_x_minus_vxc_im, &
          rho_ao_2d
@@ -145,14 +149,15 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_Sigma
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, xc_section, &
                                                             xc_section_admm_aux, &
                                                             xc_section_admm_prim
 
       NULLIFY (admm_env, matrix_ks, matrix_ks_aux_fit, rho_ao, matrix_sigma_x_minus_vxc, input, &
                xc_section, xc_section_admm_aux, xc_section_admm_prim, hfx_sections, rho, &
-               dft_control, para_env, ks_env, mo_coeff, matrix_sigma_x_minus_vxc_im, matrix_ks_aux_fit_hfx)
+               dft_control, para_env, ks_env, mo_coeff, matrix_sigma_x_minus_vxc_im, matrix_ks_aux_fit_hfx, &
+               rho_aux_fit, rho_ao_aux_fit)
 
       CALL timeset(routineN, handle)
 
@@ -168,76 +173,49 @@ CONTAINS
          CPASSERT(do_ri_Sigma_x)
       END IF
 
-      ! In case we do admm for RPA/GW, get the aux. density matrix rho_aux_fit, otherwise
-      ! just the normal density matrix rho
-      IF (do_admm_rpa) THEN
+      IF (do_kpoints_cubic_RPA) THEN
+
+         CALL get_qs_env(qs_env, &
+                         admm_env=admm_env, &
+                         matrix_ks_kp=matrix_ks_transl, &
+                         rho=rho, &
+                         input=input, &
+                         dft_control=dft_control, &
+                         para_env=para_env, &
+                         kpoints=kpoints, &
+                         ks_env=ks_env, &
+                         energy=energy)
+         nkp = kpoints%nkp
+
+      ELSE
+
          CALL get_qs_env(qs_env, &
                          admm_env=admm_env, &
                          matrix_ks=matrix_ks, &
+                         rho=rho, &
                          input=input, &
                          dft_control=dft_control, &
                          para_env=para_env, &
                          ks_env=ks_env, &
                          energy=energy)
-         CALL get_admm_env(admm_env, matrix_ks_aux_fit=matrix_ks_aux_fit, rho_aux_fit=rho, &
-                           matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
-
-         ! RPA/GW with ADMM for EXX or the exchange self-energy only implemented for
-         ! ADMM_PURIFICATION_METHOD  NONE
-         ! METHOD                    BASIS_PROJECTION
-         ! in the admm section
-         CPASSERT(admm_env%purification_method == do_admm_purify_none)
-         CPASSERT(dft_control%admm_control%method == do_admm_basis_projection)
-
          nkp = 1
+         CALL qs_rho_get(rho, rho_ao=rho_ao)
 
-      ELSE
+         IF (do_admm_rpa) THEN
+            CALL get_admm_env(admm_env, matrix_ks_aux_fit=matrix_ks_aux_fit, rho_aux_fit=rho_aux_fit, &
+                              matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx)
+            CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
 
-         IF (do_kpoints_cubic_RPA) THEN
-
-            CALL get_qs_env(qs_env, &
-                            admm_env=admm_env, &
-                            matrix_ks_kp=matrix_ks_transl, &
-                            rho=rho, &
-                            input=input, &
-                            dft_control=dft_control, &
-                            para_env=para_env, &
-                            kpoints=kpoints, &
-                            ks_env=ks_env, &
-                            energy=energy)
-
-            nkp = kpoints%nkp
-
-         ELSE
-
-            CALL get_qs_env(qs_env, &
-                            admm_env=admm_env, &
-                            matrix_ks=matrix_ks, &
-                            rho=rho, &
-                            input=input, &
-                            dft_control=dft_control, &
-                            para_env=para_env, &
-                            ks_env=ks_env, &
-                            energy=energy)
-
-            nkp = 1
-
+            ! RPA/GW with ADMM for EXX or the exchange self-energy only implemented for
+            ! ADMM_PURIFICATION_METHOD  NONE
+            ! METHOD                    BASIS_PROJECTION
+            ! in the admm section
+            CPASSERT(admm_env%purification_method == do_admm_purify_none)
+            CPASSERT(dft_control%admm_control%method == do_admm_basis_projection)
          END IF
-
       END IF
 
       nspins = dft_control%nspins
-
-      IF (.NOT. do_kpoints_cubic_RPA) THEN
-         CALL qs_rho_get(rho, rho_ao=rho_ao)
-      END IF
-
-      ! If ADMM we should make the ks matrix up-to-date
-      IF (dft_control%do_admm) THEN
-      DO ispin = 1, SIZE(matrix_ks)
-         CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
-      END DO
-      END IF
 
       ! safe ks matrix for later: we will transform matrix_ks
       ! to T-cell index and then to k-points for band structure calculation
@@ -338,7 +316,7 @@ CONTAINS
          ! the same for the primary basis
          xc_section_admm_prim => section_vals_get_subs_vals(admm_env%xc_section_primary, &
                                                             "XC_FUNCTIONAL")
-         CALL section_vals_val_get(xc_section_admm_aux, "_SECTION_PARAMETERS_", &
+         CALL section_vals_val_get(xc_section_admm_prim, "_SECTION_PARAMETERS_", &
                                    i_val=myfun_prim)
          CALL section_vals_val_set(xc_section_admm_prim, "_SECTION_PARAMETERS_", &
                                    i_val=xc_none)
@@ -450,20 +428,22 @@ CONTAINS
          ehfx = 0.0_dp
          IF (.NOT. do_ri_Sigma_x) THEN
 
+            CALL ri_rpa_pre_hfx(qs_env)
+            calc_ints = .NOT. qs_env%mp2_env%ri_rpa%reuse_hfx
+
             ! add here HFX (=Sigma_exchange) to matrix_sigma_x_minus_vxc
             DO irep = 1, n_rep_hf
-               ns = SIZE(rho_ao)
-               rho_ao_2d(1:ns, 1:1) => rho_ao(1:ns)
-               ns = SIZE(matrix_ks)
                IF (do_admm_rpa) THEN
-                  matrix_ks_2d(1:ns, 1:1) => matrix_ks_aux_fit(1:ns)
+                  matrix_ks_2d(1:nspins, 1:1) => matrix_ks_aux_fit(1:nspins)
+                  rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
                ELSE
-                  matrix_ks_2d(1:ns, 1:1) => matrix_ks(1:ns)
+                  matrix_ks_2d(1:nspins, 1:1) => matrix_ks(1:nspins)
+                  rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
                END IF
 
                IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
                   CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
-                                        rho_ao=rho_ao_2d, geometry_did_change=.TRUE., nspins=nspins, &
+                                        rho_ao=rho_ao_2d, geometry_did_change=calc_ints, nspins=nspins, &
                                         hf_fraction=qs_env%mp2_env%ri_rpa%x_data(irep, 1)%general_parameter%fraction)
 
                   IF (do_admm_rpa) THEN
@@ -476,11 +456,18 @@ CONTAINS
                ELSE
                   CALL integrate_four_center(qs_env, qs_env%mp2_env%ri_rpa%x_data, matrix_ks_2d, eh1, &
                                              rho_ao_2d, hfx_sections, &
-                                             para_env, .TRUE., irep, .TRUE., &
+                                             para_env, calc_ints, irep, .TRUE., &
                                              ispin=1)
                   ehfx = ehfx + eh1
                END IF
             END DO
+
+            !ADMM XC correction
+            IF (do_admm_rpa) THEN
+               CALL calc_ri_rpa_admm_xc_contributions(qs_env, matrix_ks, matrix_ks_aux_fit, &
+                                                      energy_xc_admm(1), energy_xc_admm(2), &
+                                                      .FALSE., .FALSE.)
+            END IF
 
             IF (do_kpoints_from_Gamma .AND. print_exx == gw_print_exx) THEN
                ! JW not yet there: open shell
@@ -495,6 +482,7 @@ CONTAINS
 
             END IF
 
+            CALL ri_rpa_post_hfx(qs_env)
          END IF
 
          energy_ex = ehfx

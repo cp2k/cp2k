@@ -343,7 +343,7 @@ CONTAINS
 
       ! ADMM Correction
       IF (dft_control%do_admm) THEN
-         IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+         IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
                CPASSERT(.NOT. lr_triplet)
                xc_section_aux => admm_env%xc_section_aux
@@ -854,7 +854,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
       IF (dft_control%do_admm) THEN
-         IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
+         IF (qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
          ELSE
             CALL get_qs_env(qs_env=qs_env, linres_control=linres_control)

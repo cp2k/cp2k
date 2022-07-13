@@ -659,7 +659,7 @@ CONTAINS
       END IF
 
       IF (dft_control%do_admm) THEN
-         IF (dft_control%admm_control%aux_exch_func == do_admm_aux_exch_func_none) THEN
+         IF (qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
          ELSE
             ! add ADMM xc_section_aux terms: f_x[rhoz_ADMM]

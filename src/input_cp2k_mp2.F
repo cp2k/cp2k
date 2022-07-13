@@ -536,10 +536,10 @@ CONTAINS
          keyword, __LOCATION__, &
          name="ADMM", &
          description="Decide whether to perform ADMM in the exact exchange calc. for RPA and/or GW. "// &
-         "Not really recommended. In most cases, the Hartree-Fock exchange is not expensive "// &
-         "and there is no need for ADMM. Only in case of diffuse functions for periodic systems "// &
-         "(only reasonable for GW bandgap calculations) exact exchange can be expensive and then, "// &
-         "we recommend using RI for exchange.", &
+         "The ADMM XC correction is governed by the AUXILIARY_DENSITY_MATRIX_METHOD section in &DFT. "// &
+         "In most cases, the Hartree-Fock exchange is not too expensive and there is no need for ADMM, "// &
+         "ADMM can however provide significant speedup and memory savings in case of diffuse basis sets. "// &
+         "If it is a GW bandgap calculations, RI_SIGMA_X can also be used. ", &
          usage="ADMM", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)

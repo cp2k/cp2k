@@ -2824,12 +2824,15 @@ CONTAINS
 !>        Ignore things that would not change results (MEMORY, LOAD_BALANCE)
 !> \param hfx_section1 ...
 !> \param hfx_section2 ...
+!> \param is_identical ...
+!> \param same_except_frac ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION compare_hfx_sections(hfx_section1, hfx_section2) RESULT(is_identical)
+   SUBROUTINE compare_hfx_sections(hfx_section1, hfx_section2, is_identical, same_except_frac)
 
       TYPE(section_vals_type), POINTER                   :: hfx_section1, hfx_section2
-      LOGICAL                                            :: is_identical
+      LOGICAL, INTENT(OUT)                               :: is_identical
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: same_except_frac
 
       CHARACTER(LEN=default_path_length)                 :: cval1, cval2
       INTEGER                                            :: irep, ival1, ival2, n_rep_hf1, n_rep_hf2
@@ -2838,6 +2841,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: hfx_sub_section1, hfx_sub_section2
 
       is_identical = .TRUE.
+      IF (PRESENT(same_except_frac)) same_except_frac = .FALSE.
 
       CALL section_vals_get(hfx_section1, n_repetition=n_rep_hf1)
       CALL section_vals_get(hfx_section2, n_repetition=n_rep_hf2)
@@ -2845,10 +2849,6 @@ CONTAINS
       IF (.NOT. is_identical) RETURN
 
       DO irep = 1, n_rep_hf1
-         CALL section_vals_val_get(hfx_section1, "FRACTION", r_val=rval1, i_rep_section=irep)
-         CALL section_vals_val_get(hfx_section2, "FRACTION", r_val=rval2, i_rep_section=irep)
-         IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
-
          CALL section_vals_val_get(hfx_section1, "PW_HFX", l_val=lval1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_section2, "PW_HFX", l_val=lval2, i_rep_section=irep)
          IF (lval1 .NEQV. lval2) is_identical = .FALSE.
@@ -2978,7 +2978,20 @@ CONTAINS
 
       END DO
 
-   END FUNCTION compare_hfx_sections
+      !Test of the fraction
+      IF (is_identical) THEN
+         DO irep = 1, n_rep_hf1
+            CALL section_vals_val_get(hfx_section1, "FRACTION", r_val=rval1, i_rep_section=irep)
+            CALL section_vals_val_get(hfx_section2, "FRACTION", r_val=rval2, i_rep_section=irep)
+            IF (ABS(rval1 - rval2) > EPSILON(1.0_dp)) is_identical = .FALSE.
+         END DO
+
+         IF (PRESENT(same_except_frac)) THEN
+            IF (.NOT. is_identical) same_except_frac = .TRUE.
+         END IF
+      END IF
+
+   END SUBROUTINE compare_hfx_sections
 
 END MODULE hfx_types
 

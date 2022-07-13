@@ -238,7 +238,7 @@ CONTAINS
          IF (dft_control%do_admm) THEN
             IF (ASSOCIATED(admm_env%xc_section_primary)) CALL section_vals_release(admm_env%xc_section_primary)
             IF (ASSOCIATED(admm_env%xc_section_aux)) CALL section_vals_release(admm_env%xc_section_aux)
-            CALL create_admm_xc_section(qs_env, xc_section, admm_env)
+            CALL create_admm_xc_section(qs_env%x_data, xc_section, admm_env)
 
             ALLOCATE (backup_mos(SIZE(mos)))
             DO i = 1, SIZE(mos)
@@ -278,7 +278,7 @@ CONTAINS
          IF (dft_control%do_admm) THEN
             IF (ASSOCIATED(admm_env%xc_section_primary)) CALL section_vals_release(admm_env%xc_section_primary)
             IF (ASSOCIATED(admm_env%xc_section_aux)) CALL section_vals_release(admm_env%xc_section_aux)
-            CALL create_admm_xc_section(qs_env, xc_section, admm_env)
+            CALL create_admm_xc_section(qs_env%x_data, xc_section, admm_env)
 
             DO i = 1, SIZE(mos)
                CALL reassign_allocated_mos(mos(i)%mo_set, backup_mos(i)%mo_set)

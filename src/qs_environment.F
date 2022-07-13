@@ -95,7 +95,8 @@ MODULE qs_environment
                                               qs_header,&
                                               se_header,&
                                               xtb_header
-   USE hfx_types,                       ONLY: hfx_create
+   USE hfx_types,                       ONLY: compare_hfx_sections,&
+                                              hfx_create
    USE input_constants,                 ONLY: &
         dispersion_d3, do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, &
         do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, &
@@ -258,10 +259,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_motion_section
 
       INTEGER                                            :: ikind, method_id, nelectron_total, nkind
-      LOGICAL                                            :: do_admm_rpa, do_et, do_exx, do_hfx, &
-                                                            do_kpoints, is_semi, mp2_present, &
-                                                            my_qmmm, qmmm_decoupl, silent, &
-                                                            use_ref_cell
+      LOGICAL :: do_admm_rpa, do_et, do_exx, do_hfx, do_kpoints, is_identical, is_semi, &
+         mp2_present, my_qmmm, qmmm_decoupl, same_except_frac, silent, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -278,10 +277,8 @@ CONTAINS
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(rel_control_type), POINTER                    :: rel_control
       TYPE(scf_control_type), POINTER                    :: scf_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, ec_section, &
-                                                            et_coupling_section, hfx_section, &
-                                                            kpoint_section, mp2_section, &
-                                                            transport_section
+      TYPE(section_vals_type), POINTER :: dft_section, ec_section, et_coupling_section, &
+         hfx_section, kpoint_section, mp2_section, rpa_hfx_section, transport_section
 
       NULLIFY (my_cell, my_cell_ref, atomic_kind_set, particle_set, &
                qs_kind_set, kpoint_section, dft_section, ec_section, &
@@ -424,19 +421,28 @@ CONTAINS
          CALL read_mp2_section(qs_env%input, qs_env%mp2_env)
          ! create the EXX section if necessary
          do_exx = .FALSE.
-         hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
-         CALL section_vals_get(hfx_section, explicit=do_exx)
+         rpa_hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
+         CALL section_vals_get(rpa_hfx_section, explicit=do_exx)
          IF (do_exx) THEN
-            ! Retrieve particle_set and atomic_kind_set (needed for both kinds of initialization)
 
             ! do_exx in call of hfx_create decides whether to go without ADMM (do_exx=.TRUE.) or with
             ! ADMM (do_exx=.FALSE.)
             CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", l_val=do_admm_rpa)
 
-            CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, hfx_section, atomic_kind_set, &
-                            qs_kind_set, particle_set, dft_control, my_cell, do_exx=(.NOT. do_admm_rpa), &
-                            nelectron_total=nelectron_total)
+            ! Reuse the HFX integrals from the qs_env if applicable
+            qs_env%mp2_env%ri_rpa%reuse_hfx = .TRUE.
+            IF (.NOT. do_hfx) qs_env%mp2_env%ri_rpa%reuse_hfx = .FALSE.
+            CALL compare_hfx_sections(hfx_section, rpa_hfx_section, is_identical, same_except_frac)
+            IF (.NOT. (is_identical .OR. same_except_frac)) qs_env%mp2_env%ri_rpa%reuse_hfx = .FALSE.
+            IF (dft_control%do_admm .AND. .NOT. do_admm_rpa) qs_env%mp2_env%ri_rpa%reuse_hfx = .FALSE.
 
+            IF (.NOT. qs_env%mp2_env%ri_rpa%reuse_hfx) THEN
+               CALL hfx_create(qs_env%mp2_env%ri_rpa%x_data, para_env, rpa_hfx_section, atomic_kind_set, &
+                               qs_kind_set, particle_set, dft_control, my_cell, do_exx=(.NOT. do_admm_rpa), &
+                               nelectron_total=nelectron_total)
+            ELSE
+               qs_env%mp2_env%ri_rpa%x_data => qs_env%x_data
+            END IF
          END IF
       END IF
 

@@ -694,7 +694,8 @@ CONTAINS
 
       CHARACTER(len=20)                                  :: nstates_str
       LOGICAL                                            :: exar, exf, exgcp, exhf, exhfxk, exk, &
-                                                            explicit_root, expot, exvdw, exwfn
+                                                            explicit_root, expot, exvdw, exwfn, &
+                                                            same_hfx
       REAL(kind=dp)                                      :: C_hf
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_section_gs, input, &
@@ -797,7 +798,8 @@ CONTAINS
             !TDDFPT only works if the kernel has the same HF section as the DFT%XC one
             IF (do_hfx) THEN
                hfx_section_gs => section_vals_get_subs_vals(input, "DFT%XC%HF")
-               IF (.NOT. compare_hfx_sections(hfx_section, hfx_section_gs)) THEN
+               CALL compare_hfx_sections(hfx_section, hfx_section_gs, same_hfx)
+               IF (.NOT. same_hfx) THEN
                   CPABORT("TDDFPT Kernel must use the same HF section as DFT%XC or no HF at all.")
                END IF
             END IF

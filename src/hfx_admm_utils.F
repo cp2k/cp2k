@@ -142,18 +142,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param do_mp2_hfx ...
 ! **************************************************************************************************
-   SUBROUTINE hfx_admm_init(qs_env, do_mp2_hfx)
+   SUBROUTINE hfx_admm_init(qs_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(in), OPTIONAL                      :: do_mp2_hfx
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_admm_init'
 
       INTEGER                                            :: handle, ispin, n_rep_hf, nao_aux_fit, &
                                                             natoms, nelectron, nmo
-      LOGICAL                                            :: do_hfx, my_do_mp2_hfx, s_mstruct_changed
+      LOGICAL                                            :: s_mstruct_changed
       REAL(dp)                                           :: maxocc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -168,9 +166,6 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, xc_section
-
-      my_do_mp2_hfx = .FALSE.
-      IF (PRESENT(do_mp2_hfx)) my_do_mp2_hfx = do_mp2_hfx
 
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, hfx_sections, mos, mos_aux_fit, para_env, &
@@ -189,17 +184,7 @@ CONTAINS
                       dft_control=dft_control, &
                       input=input)
 
-      IF (my_do_mp2_hfx) THEN
-         hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
-      ELSE
-         hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
-      END IF
-
-      CALL section_vals_get(hfx_sections, explicit=do_hfx)
-
-      !! ** ADMM can only be used with HFX
-      IF (.NOT. do_hfx) &
-         CPABORT("Wavefunction fitting requested without Hartree-Fock.")
+      hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
 
       CALL section_vals_get(hfx_sections, n_repetition=n_rep_hf)
       IF (n_rep_hf > 1) &
@@ -212,7 +197,7 @@ CONTAINS
          CALL admm_env_create(admm_env, dft_control%admm_control, mos, para_env, natoms, nao_aux_fit)
          CALL set_qs_env(qs_env, admm_env=admm_env)
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
-         CALL create_admm_xc_section(qs_env=qs_env, xc_section=xc_section, &
+         CALL create_admm_xc_section(x_data=qs_env%x_data, xc_section=xc_section, &
                                      admm_env=admm_env)
 
          ! Initialize the GAPW data types
@@ -1038,7 +1023,7 @@ CONTAINS
 !>        Ex,hf = Ex,hf' + (cfun-cfun')
 !>        for all cases of operators.
 !>
-!> \param qs_env the qs environment
+!> \param x_data ...
 !> \param xc_section the original xc_section
 !> \param admm_env the ADMM environment
 !> \par History
@@ -1046,8 +1031,8 @@ CONTAINS
 !>      05.2021 simplify for case of no correction [JGH]
 !> \author Manuel Guidon
 ! **************************************************************************************************
-   SUBROUTINE create_admm_xc_section(qs_env, xc_section, admm_env)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE create_admm_xc_section(x_data, xc_section, admm_env)
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(admm_type), POINTER                           :: admm_env
 
@@ -1064,8 +1049,6 @@ CONTAINS
 
       logger => cp_get_default_logger()
       NULLIFY (admm_env%xc_section_aux, admm_env%xc_section_primary)
-
-      CALL get_qs_env(qs_env)
 
       !! ** Duplicate existing xc-section
       CALL section_vals_duplicate(xc_section, admm_env%xc_section_aux)
@@ -1095,8 +1078,13 @@ CONTAINS
          CALL section_vals_remove_values(xc_fun)
       END DO
 
-      hfx_potential_type = qs_env%x_data(1, 1)%potential_parameter%potential_type
-      hfx_fraction = qs_env%x_data(1, 1)%general_parameter%fraction
+      IF (ASSOCIATED(x_data)) THEN
+         hfx_potential_type = x_data(1, 1)%potential_parameter%potential_type
+         hfx_fraction = x_data(1, 1)%general_parameter%fraction
+      ELSE
+         CPWARN("ADMM requested without a DFT%XC%HF section. It will be ignored for the SCF.")
+         admm_env%aux_exch_func = do_admm_aux_exch_func_none
+      END IF
 
       !in case of no admm exchange corr., no auxiliary exchange functional needed
       IF (admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
@@ -1115,7 +1103,7 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "PBE%SCALE_C", &
                                       r_val=0.0_dp)
          CASE (do_potential_short)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            omega = x_data(1, 1)%potential_parameter%omega
             CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
@@ -1125,7 +1113,7 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
                                       r_val=omega)
          CASE (do_potential_truncated)
-            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            cutoff_radius = x_data(1, 1)%potential_parameter%cutoff_radius
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
@@ -1139,7 +1127,7 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X0", &
                                       r_val=-hfx_fraction)
          CASE (do_potential_long)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            omega = x_data(1, 1)%potential_parameter%omega
             CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
@@ -1149,9 +1137,9 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
                                       r_val=omega)
          CASE (do_potential_mix_cl)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
-            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
-            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            omega = x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = x_data(1, 1)%potential_parameter%scale_longrange
             CALL section_vals_val_set(xc_fun_section, "XWPBE%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "XWPBE%SCALE_X", &
@@ -1161,10 +1149,10 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "XWPBE%OMEGA", &
                                       r_val=omega)
          CASE (do_potential_mix_cl_trunc)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
-            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
-            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
-            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            omega = x_data(1, 1)%potential_parameter%omega
+            cutoff_radius = x_data(1, 1)%potential_parameter%cutoff_radius
+            scale_coulomb = x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = x_data(1, 1)%potential_parameter%scale_longrange
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
@@ -1216,7 +1204,7 @@ CONTAINS
                                          r_val=scale_x)
             END IF
          CASE (do_potential_short)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            omega = x_data(1, 1)%potential_parameter%omega
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1244,7 +1232,7 @@ CONTAINS
                                          r_val=scale_x)
             END IF
          CASE (do_potential_long)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            omega = x_data(1, 1)%potential_parameter%omega
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1280,7 +1268,7 @@ CONTAINS
                                          r_val=omega)
             END IF
          CASE (do_potential_truncated)
-            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            cutoff_radius = x_data(1, 1)%potential_parameter%cutoff_radius
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1333,10 +1321,10 @@ CONTAINS
                                          r_val=scale_x)
             END IF
          CASE (do_potential_mix_cl_trunc)
-            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
-            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
-            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            cutoff_radius = x_data(1, 1)%potential_parameter%cutoff_radius
+            omega = x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = x_data(1, 1)%potential_parameter%scale_longrange
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1400,9 +1388,9 @@ CONTAINS
                                          r_val=omega)
             END IF
          CASE (do_potential_mix_cl)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
-            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
-            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            omega = x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = x_data(1, 1)%potential_parameter%scale_longrange
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1451,7 +1439,7 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
                                       r_val=-hfx_fraction)
          CASE (do_potential_short)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            omega = x_data(1, 1)%potential_parameter%omega
             CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
@@ -1459,7 +1447,7 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_OMEGA", &
                                       r_val=omega)
          CASE (do_potential_truncated)
-            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            cutoff_radius = x_data(1, 1)%potential_parameter%cutoff_radius
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
@@ -1471,7 +1459,7 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
                                       r_val=-hfx_fraction)
          CASE (do_potential_long)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            omega = x_data(1, 1)%potential_parameter%omega
             CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
@@ -1483,9 +1471,9 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
                                       r_val=-hfx_fraction)
          CASE (do_potential_mix_cl)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
-            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
-            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            omega = x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = x_data(1, 1)%potential_parameter%scale_longrange
             CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "GGA_X_WPBEH%SCALE", &
@@ -1497,10 +1485,10 @@ CONTAINS
             CALL section_vals_val_set(xc_fun_section, "GGA_X_PBE%SCALE", &
                                       r_val=-hfx_fraction*(scale_longrange + scale_coulomb))
          CASE (do_potential_mix_cl_trunc)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
-            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
-            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
-            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            omega = x_data(1, 1)%potential_parameter%omega
+            cutoff_radius = x_data(1, 1)%potential_parameter%cutoff_radius
+            scale_coulomb = x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = x_data(1, 1)%potential_parameter%scale_longrange
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%_SECTION_PARAMETERS_", &
                                       l_val=.TRUE.)
             CALL section_vals_val_set(xc_fun_section, "PBE_HOLE_T_C_LR%SCALE_X", &
@@ -1552,7 +1540,7 @@ CONTAINS
                                          r_val=scale_x)
             END IF
          CASE (do_potential_short)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            omega = x_data(1, 1)%potential_parameter%omega
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1578,7 +1566,7 @@ CONTAINS
                                          r_val=scale_x)
             END IF
          CASE (do_potential_long)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
+            omega = x_data(1, 1)%potential_parameter%omega
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1629,7 +1617,7 @@ CONTAINS
                                          r_val=scale_x)
             END IF
          CASE (do_potential_truncated)
-            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
+            cutoff_radius = x_data(1, 1)%potential_parameter%cutoff_radius
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1681,10 +1669,10 @@ CONTAINS
                                          r_val=scale_x)
             END IF
          CASE (do_potential_mix_cl_trunc)
-            cutoff_radius = qs_env%x_data(1, 1)%potential_parameter%cutoff_radius
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
-            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
-            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            cutoff_radius = x_data(1, 1)%potential_parameter%cutoff_radius
+            omega = x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = x_data(1, 1)%potential_parameter%scale_longrange
             ifun = 0
             funct_found = .FALSE.
             DO
@@ -1763,9 +1751,9 @@ CONTAINS
                                          r_val=scale_x)
             END IF
          CASE (do_potential_mix_cl)
-            omega = qs_env%x_data(1, 1)%potential_parameter%omega
-            scale_coulomb = qs_env%x_data(1, 1)%potential_parameter%scale_coulomb
-            scale_longrange = qs_env%x_data(1, 1)%potential_parameter%scale_longrange
+            omega = x_data(1, 1)%potential_parameter%omega
+            scale_coulomb = x_data(1, 1)%potential_parameter%scale_coulomb
+            scale_longrange = x_data(1, 1)%potential_parameter%scale_longrange
             ifun = 0
             funct_found = .FALSE.
             DO

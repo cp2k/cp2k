@@ -127,9 +127,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, nelec
       LOGICAL :: calc_ex, do_admm, do_admm_rpa_exx, do_dynamic_load_balancing, do_exx, do_gw, &
          do_kpoints_cubic_RPA, free_hfx_buffer, update_xc_energy
-      REAL(KIND=dp) :: E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, Emp2_AB_Cou, &
-         Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, maxocc, &
-         mem_real, t1, t2, t3
+      REAL(KIND=dp) :: E_admm_from_GW(2), E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
+         Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, Emp2_ex, &
+         Emp2_S, Emp2_T, maxocc, mem_real, t1, t2, t3
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Auto
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: C
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -299,6 +299,9 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
       do_admm_rpa_exx = mp2_env%ri_rpa%do_admm
       CALL hfx_create_basis_types(basis_parameter, basis_info, qs_kind_set, do_admm_rpa_exx)
+      IF (do_admm_rpa_exx .AND. .NOT. dft_control%do_admm) THEN
+         CPABORT("Need an ADMM input section for ADMM RI_RPA EXX to work")
+      END IF
 
       dimen = 0
       max_nset = 0
@@ -430,6 +433,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          IF (calc_forces .AND. (.NOT. mp2_env%ri_grad%free_hfx_buffer)) free_hfx_buffer = .FALSE.
          IF (qs_env%x_data(1, 1)%do_hfx_ri) free_hfx_buffer = .FALSE.
          IF (calc_forces .AND. mp2_env%do_im_time) free_hfx_buffer = .FALSE.
+         IF (mp2_env%ri_rpa%reuse_hfx) free_hfx_buffer = .FALSE.
       END IF
 
       IF (.NOT. do_kpoints_cubic_RPA) THEN
@@ -443,7 +447,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       ! calculate the matrix sigma_x - vxc for G0W0
       t3 = 0
       IF (mp2_env%ri_rpa%do_ri_g0w0) THEN
-         CALL compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, E_ex_from_GW, t3, unit_nr)
+         CALL compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, E_ex_from_GW, E_admm_from_GW, t3, unit_nr)
       END IF
 
       IF (free_hfx_buffer) THEN
@@ -676,6 +680,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
                mp2_env%ri_rpa%rse_corr_diag
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'Full singles correction (RSE) =', &
                mp2_env%ri_rpa%rse_corr
+            IF (dft_control%do_admm) CPABORT("RPA RSE not implemented with RI_RPA%ADMM on")
          END IF
       END IF
       IF (unit_nr > 0) WRITE (unit_nr, *)
@@ -739,7 +744,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
          IF (do_exx) THEN
             do_gw = mp2_env%ri_rpa%do_ri_g0w0
             do_admm = mp2_env%ri_rpa%do_admm
-            CALL calculate_exx(qs_env, unit_nr, do_gw, do_admm, .FALSE., E_ex_from_GW, t3)
+            CALL calculate_exx(qs_env, unit_nr, do_gw, do_admm, .FALSE., E_ex_from_GW, E_admm_from_GW, t3)
          END IF
       END IF
 
