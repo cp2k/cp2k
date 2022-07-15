@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.5.1"
-cosma_sha256="085b7787597374244bbb1eb89bc69bf58c35f6c85be805e881e1c0b25166c3ce"
+cosma_ver="2.6.0"
+cosma_sha256="88405e382b37d247b67403dc3386758b1d2f133a46a902b4be08ffbc43397539"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -161,6 +161,13 @@ export COSMA_VERSION=${cosma_ver}
 export CP_LIBS="IF_MPI(${COSMA_LIBS}|) \${CP_LIBS}"
 EOF
   cat "${BUILDDIR}/setup_cosma" >> $SETUPFILE
+
+  cat << EOF >> ${INSTALLDIR}/lsan.supp
+# leaks related to COSMA (probably, only the last one is actually needed)
+leak:cosma::communicator::communicator
+leak:cosma::cosma_context<double>::register_state
+leak:cosma::pxgemm<double>
+EOF
 fi
 
 load "${BUILDDIR}/setup_cosma"
