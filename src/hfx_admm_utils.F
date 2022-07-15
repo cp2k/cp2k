@@ -219,12 +219,6 @@ CONTAINS
          IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) &
             CALL init_admm_gapw(qs_env)
 
-         !TODO: go over the whole code and find where some ADMM specific actions are done, see if they
-         !      should be moved (e.g. ADMM overlap derivatives and such) (look for TODOs)
-         !TODO: allow for ADMM without HFX, then force no GGA exchange correction and no HFX calculation
-         !TODO: or talk to Juerg first options: one ADMM per HF section (but hard to change current logic)
-         !                                      one ADMM overall, but allow for no HF
-
          ! ADMM neighbor lists and overlap matrices
          CALL admm_init_hamiltonians(admm_env, qs_env)
 
