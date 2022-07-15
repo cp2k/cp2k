@@ -58,28 +58,33 @@ MODULE qs_p_env_types
 !>      for the moment no smearing of the orbitals.
 ! **************************************************************************************************
    TYPE qs_p_env_type
-
-      LOGICAL :: orthogonal_orbitals
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: kpp1 => NULL(), kpp1_admm => NULL(), p1 => NULL(), w1 => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: p1_admm => NULL()
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: m_epsilon => NULL(), &
-                                                   psi0d => NULL(), S_psi0 => NULL(), Smo_inv => NULL()
-      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env => NULL()
+      LOGICAL                                                      :: orthogonal_orbitals
+      TYPE(qs_kpp1_env_type), POINTER                              :: kpp1_env => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: kpp1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: kpp1_admm => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: p1 => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: p1_admm => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER                    :: w1 => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: m_epsilon => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: psi0d => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: S_psi0 => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: Smo_inv => NULL()
       TYPE(qs_rho_type), POINTER :: rho1 => NULL()
       TYPE(qs_rho_type), POINTER :: rho1_xc => NULL()
       TYPE(qs_rho_type), POINTER :: rho1_admm => NULL()
-      INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
-                               n_ao ! no of basis functions
+      INTEGER, DIMENSION(2)                                        :: n_mo, & ! no of molecular orbitals
+                                                                      n_ao ! no of basis functions
       ! GAPW stuff
-      TYPE(hartree_local_type), POINTER                 :: hartree_local => NULL()
-      TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
+      TYPE(hartree_local_type), POINTER                            :: hartree_local => NULL()
+      TYPE(local_rho_type), POINTER                                :: local_rho_set => NULL()
+      TYPE(local_rho_type), POINTER                                :: local_rho_set_admm => NULL()
 
       ! Linear Response Modules
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0 => NULL()
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER                    :: PS_psi0 => NULL()
 
       ! preconditioner matrix should be symmetric and positive definite
-      TYPE(preconditioner_type), DIMENSION(:), POINTER :: preconditioner => NULL()
-      LOGICAL :: new_preconditioner
+      LOGICAL                                                      :: new_preconditioner
+      TYPE(preconditioner_type), DIMENSION(:), POINTER             :: preconditioner => NULL()
 
    END TYPE qs_p_env_type
 
@@ -122,6 +127,9 @@ CONTAINS
       END IF
       IF (ASSOCIATED(p_env%hartree_local)) THEN
          CALL hartree_local_release(p_env%hartree_local)
+      END IF
+      IF (ASSOCIATED(p_env%local_rho_set_admm)) THEN
+         CALL local_rho_set_release(p_env%local_rho_set_admm)
       END IF
       IF (ASSOCIATED(p_env%PS_psi0)) THEN
          CALL cp_fm_vect_dealloc(p_env%PS_psi0)

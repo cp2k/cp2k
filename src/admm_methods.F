@@ -101,12 +101,12 @@ MODULE admm_methods
    PUBLIC :: admm_mo_calc_rho_aux, &
              admm_mo_merge_ks_matrix, &
              admm_mo_merge_derivs, &
+             admm_aux_response_density, &
              calc_mixed_overlap_force, &
              calc_aux_mo_derivs_none, &
              scale_dm, &
              admm_fit_mo_coeffs, &
              admm_update_ks_atom, &
-             admm_aux_reponse_density, &
              calc_admm_mo_derivatives, &
              calc_admm_ovlp_forces, &
              admm_projection_derivative
@@ -2496,12 +2496,12 @@ CONTAINS
 !> \param dm ...
 !> \param dm_admm ...
 ! **************************************************************************************************
-   SUBROUTINE admm_aux_reponse_density(qs_env, dm, dm_admm)
+   SUBROUTINE admm_aux_response_density(qs_env, dm, dm_admm)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: dm
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dm_admm
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_aux_reponse_density'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_aux_response_density'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, ncol, nspins
       TYPE(admm_type), POINTER                           :: admm_env
@@ -2532,6 +2532,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE admm_aux_reponse_density
+   END SUBROUTINE admm_aux_response_density
 
 END MODULE admm_methods

@@ -66,6 +66,7 @@ MODULE qs_linres_methods
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_linres_kernel,                ONLY: apply_op_2
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_loc_methods,                  ONLY: qs_loc_driver
@@ -615,6 +616,11 @@ CONTAINS
 
             CALL get_qs_env(qs_env, rho=rho) ! that could be called before
             CALL qs_rho_update_rho(rho, qs_env=qs_env) ! that could be called before
+            IF (dft_control%qs_control%gapw) THEN
+               CALL prepare_gapw_den(qs_env)
+            ELSEIF (dft_control%qs_control%gapw_xc) THEN
+               CALL prepare_gapw_den(qs_env, do_rho0=.FALSE.)
+            END IF
 
             DO ispin = 1, nspins
                CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)

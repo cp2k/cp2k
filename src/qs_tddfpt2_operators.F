@@ -351,6 +351,9 @@ CONTAINS
                                         xc_section=kernel_env%xc_section, gapw=.FALSE., tddfpt_fac=kernel_env%beta)
 
       DEALLOCATE (rho_ia_g2, rho_ia_r2)
+      IF (ASSOCIATED(tau_ia_r2)) THEN
+         DEALLOCATE (tau_ia_r2)
+      END IF
 
       CALL timestop(handle)
 

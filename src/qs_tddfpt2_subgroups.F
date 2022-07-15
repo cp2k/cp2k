@@ -146,6 +146,7 @@ MODULE qs_tddfpt2_subgroups
       !> GAPW local atomic grids
       TYPE(hartree_local_type), POINTER                  :: hartree_local => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
+      TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
    END TYPE tddfpt_subgroup_env_type
 
 ! **************************************************************************************************
@@ -311,12 +312,20 @@ CONTAINS
                                           reorder_grid_ranks=.TRUE.)
             END IF
 
-            IF (dft_control%do_admm) &
+            IF (dft_control%do_admm) THEN
                CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit, sab=sub_env%sab_aux_fit, &
                                           basis_type="AUX_FIT", distribution_2d=sub_env%dist_2d, &
                                           pw_env=sub_env%pw_env, qs_env=qs_env, soft_valid=.FALSE., &
                                           skip_load_balance=qs_control%skip_load_balance_distributed, &
                                           reorder_grid_ranks=.FALSE.)
+               IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
+                  CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit_soft, sab=sub_env%sab_aux_fit, &
+                                             basis_type="AUX_FIT", distribution_2d=sub_env%dist_2d, &
+                                             pw_env=sub_env%pw_env, qs_env=qs_env, soft_valid=.TRUE., &
+                                             skip_load_balance=qs_control%skip_load_balance_distributed, &
+                                             reorder_grid_ranks=.FALSE.)
+               END IF
+            END IF
 
             IF (tddfpt_control%mgrid_is_explicit) &
                CALL restore_qs_mgrid(qs_control, mgrid_saved)
@@ -326,9 +335,13 @@ CONTAINS
 
             CALL get_qs_env(qs_env, dbcsr_dist=sub_env%dbcsr_dist, &
                             sab_orb=sub_env%sab_orb, task_list=sub_env%task_list_orb)
-            IF (dft_control%do_admm) &
-               CALL get_admm_env(qs_env%admm_env, sab_aux_fit=sub_env%sab_aux_fit, &
+            IF (dft_control%do_admm) THEN
+               CALL get_admm_env(admm_env, sab_aux_fit=sub_env%sab_aux_fit, &
                                  task_list_aux_fit=sub_env%task_list_aux_fit)
+               IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
+                  sub_env%task_list_aux_fit_soft => admm_env%admm_gapw_env%task_list
+               END IF
+            END IF
             IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
                CALL get_qs_env(qs_env, task_list_soft=sub_env%task_list_orb_soft)
             END IF
@@ -356,6 +369,17 @@ CONTAINS
             CALL local_rho_set_create(sub_env%local_rho_set)
             CALL allocate_rho_atom_internals(sub_env%local_rho_set%rho_atom_set, atomic_kind_set, &
                                              qs_kind_set, dft_control, sub_env%para_env)
+         END IF
+
+         ! ADMM/GAPW
+         IF (dft_control%do_admm) THEN
+            IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+               CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
+               CALL local_rho_set_create(sub_env%local_rho_set_admm)
+               CALL allocate_rho_atom_internals(sub_env%local_rho_set_admm%rho_atom_set, atomic_kind_set, &
+                                                admm_env%admm_gapw_env%admm_kind_set, &
+                                                dft_control, sub_env%para_env)
+            END IF
          END IF
 
       ELSE IF (kernel == tddfpt_kernel_stda) THEN
@@ -431,6 +455,9 @@ CONTAINS
       END IF
       IF (ASSOCIATED(sub_env%hartree_local)) THEN
          CALL hartree_local_release(sub_env%hartree_local)
+      END IF
+      IF (ASSOCIATED(sub_env%local_rho_set_admm)) THEN
+         CALL local_rho_set_release(sub_env%local_rho_set_admm)
       END IF
 
       ! if TDDFPT-specific plane-wave environment has not been requested,
