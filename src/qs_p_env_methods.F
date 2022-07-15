@@ -84,8 +84,7 @@ MODULE qs_p_env_methods
                                               kpp1_create,&
                                               kpp1_did_change
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: get_ks_env,&
-                                              qs_ks_did_change,&
+   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_local_rho_types,              ONLY: local_rho_set_create
@@ -466,7 +465,8 @@ CONTAINS
                                        task_list_external=task_list)
             END DO
             IF (admm_env%do_gapw) THEN
-               CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit, para_env=para_env)
+               CALL get_qs_env(qs_env, para_env=para_env)
+               CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
                CALL calculate_rho_atom_coeff(qs_env, rho1_ao, &
                                              rho_atom_set=p_env%local_rho_set_admm%rho_atom_set, &
                                              qs_kind_set=admm_env%admm_gapw_env%admm_kind_set, &

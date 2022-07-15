@@ -101,12 +101,12 @@ MODULE admm_methods
    PUBLIC :: admm_mo_calc_rho_aux, &
              admm_mo_merge_ks_matrix, &
              admm_mo_merge_derivs, &
+             admm_aux_response_density, &
              calc_mixed_overlap_force, &
              calc_aux_mo_derivs_none, &
              scale_dm, &
              admm_fit_mo_coeffs, &
              admm_update_ks_atom, &
-             admm_aux_reponse_density, &
              calc_admm_mo_derivatives, &
              calc_admm_ovlp_forces, &
              admm_projection_derivative

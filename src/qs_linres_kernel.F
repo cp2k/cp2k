@@ -875,7 +875,6 @@ CONTAINS
             CALL dbcsr_create(xcmat%matrix, template=matrix_s(1)%matrix)
 
             CALL get_qs_env(qs_env, admm_env=admm_env)
-            CALL get_admm_env(admm_env, task_list_aux_fit=task_list_aux_fit)
             gapw = admm_env%do_gapw
 
             CALL qs_rho_get(p_env%rho1_admm, rho_r=rho1_aux_r, rho_g=rho1_aux_g)
@@ -904,8 +903,8 @@ CONTAINS
             CALL xc_rho_set_release(rho1_set)
 
             basis_type = "AUX_FIT"
-            CALL get_qs_env(qs_env=qs_env, task_list_aux_fit=task_list)
-            CALL get_qs_env(qs_env=qs_env, para_env=para_env)
+            CALL get_qs_env(qs_env, para_env=para_env)
+            CALL get_admm_env(admm_env, task_list_aux_fit=task_list)
             IF (admm_env%do_gapw) THEN
                CALL prepare_gapw_den(qs_env, local_rho_set=p_env%local_rho_set_admm, &
                                      do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
@@ -932,7 +931,7 @@ CONTAINS
             END DO
 
             IF (admm_env%do_gapw) THEN
-               CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit)
+               CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
                ns = SIZE(p_env%kpp1_admm)
                ksmat(1:ns, 1:1) => p_env%kpp1_admm(1:ns)
                NULLIFY (psmat)

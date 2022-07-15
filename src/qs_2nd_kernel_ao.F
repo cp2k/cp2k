@@ -19,14 +19,14 @@ MODULE qs_2nd_kernel_ao
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_set_all
-   USE cp_gemm_interface,               ONLY: cp_gemm
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_p_type, dbcsr_release, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+                                              cp_fm_p_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_set
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               do_admm_basis_projection,&

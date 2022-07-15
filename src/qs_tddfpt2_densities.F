@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_densities
-   USE admm_types,                      ONLY: admm_type
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
@@ -210,7 +211,7 @@ CONTAINS
                                  pw_env_external=sub_env%pw_env, task_list_external=task_list)
       END DO
       IF (admm_env%do_gapw) THEN
-         CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit)
+         CALL get_admm_env(qs_env%admm_env, sab_aux_fit=sab_aux_fit)
          CALL calculate_rho_atom_coeff(qs_env, rho_ao_aux_fit, &
                                        rho_atom_set=local_rho_set%rho_atom_set, &
                                        qs_kind_set=admm_env%admm_gapw_env%admm_kind_set, &
