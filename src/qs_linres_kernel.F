@@ -934,7 +934,7 @@ CONTAINS
                CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
                ns = SIZE(p_env%kpp1_admm)
                ksmat(1:ns, 1:1) => p_env%kpp1_admm(1:ns)
-               NULLIFY (psmat)
+               psmat(1:ns, 1:1) => p_env%p1_admm(1:ns)
                CALL update_ks_atom(qs_env, ksmat, psmat, forces=.FALSE., tddft=.TRUE., &
                                    rho_atom_external=p_env%local_rho_set_admm%rho_atom_set, &
                                    kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
