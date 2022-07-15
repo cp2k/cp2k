@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE qs_tddfpt2_densities
+   USE admm_types,                      ONLY: admm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
@@ -14,19 +15,25 @@ MODULE qs_tddfpt2_densities
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_scale
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_local_rho_types,              ONLY: local_rho_type
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
    USE qs_rho_methods,                  ONLY: qs_rho_copy,&
                                               qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
+   USE task_list_types,                 ONLY: task_list_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -102,6 +109,7 @@ CONTAINS
                                 pw_env_external=sub_env%pw_env, &
                                 task_list_external=sub_env%task_list_orb_soft, &
                                 para_env_external=sub_env%para_env)
+         CALL prepare_gapw_den(qs_env, local_rho_set=sub_env%local_rho_set)
       ELSEIF (dft_control%qs_control%gapw_xc) THEN
          CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
                                 rho_xc_external=rho_xc_struct, &
@@ -112,6 +120,7 @@ CONTAINS
                                 para_env_external=sub_env%para_env)
          CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL qs_rho_copy(rho_xc_struct, rho_orb_struct, auxbas_pw_pool, nspins)
+         CALL prepare_gapw_den(qs_env, local_rho_set=sub_env%local_rho_set, do_rho0=.FALSE.)
       ELSE
          CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
                                 pw_env_external=sub_env%pw_env, &
@@ -127,6 +136,7 @@ CONTAINS
 !> \brief Project a charge density expressed in primary basis set into the auxiliary basis set.
 !> \param rho_orb_struct      response density in primary basis set
 !> \param rho_aux_fit_struct  response density in auxiliary basis set (modified on exit)
+!> \param local_rho_set       GAPW density of auxiliary basis set density
 !> \param qs_env              Quickstep environment
 !> \param sub_env             parallel (sub)group environment
 !> \param wfm_rho_orb         work dense matrix with shape [nao x nao] distributed among
@@ -142,31 +152,46 @@ CONTAINS
 !>              tddfpt_construct_ground_state_orb_density() and tddfpt_construct_aux_fit_density()
 !>              in order to avoid code duplication [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_construct_aux_fit_density(rho_orb_struct, rho_aux_fit_struct, qs_env, sub_env, &
+   SUBROUTINE tddfpt_construct_aux_fit_density(rho_orb_struct, rho_aux_fit_struct, local_rho_set, &
+                                               qs_env, sub_env, &
                                                wfm_rho_orb, wfm_rho_aux_fit, wfm_aux_orb)
       TYPE(qs_rho_type), POINTER                         :: rho_orb_struct, rho_aux_fit_struct
+      TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(cp_fm_type), POINTER                          :: wfm_rho_orb, wfm_rho_aux_fit, wfm_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_construct_aux_fit_density'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
       REAL(kind=dp), DIMENSION(:), POINTER               :: tot_rho_aux_fit_r
+      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_aux_fit, rho_ao_orb
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux_fit
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_aux_fit_g, rho_aux_fit_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(task_list_type), POINTER                      :: task_list
 
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(sub_env%admm_A))
 
-      CALL get_qs_env(qs_env, ks_env=ks_env)
+      CALL get_qs_env(qs_env, ks_env=ks_env, admm_env=admm_env)
       CALL qs_rho_get(rho_orb_struct, rho_ao=rho_ao_orb)
       CALL qs_rho_get(rho_aux_fit_struct, rho_ao=rho_ao_aux_fit, rho_g=rho_aux_fit_g, &
                       rho_r=rho_aux_fit_r, tot_rho_r=tot_rho_aux_fit_r)
 
       nspins = SIZE(rho_ao_orb)
+
+      IF (admm_env%do_gapw) THEN
+         basis_type = "AUX_FIT_SOFT"
+         task_list => sub_env%task_list_aux_fit_soft
+      ELSE
+         basis_type = "AUX_FIT"
+         task_list => sub_env%task_list_aux_fit
+      END IF
 
       CALL cp_fm_get_info(sub_env%admm_A, nrow_global=nao_aux, ncol_global=nao)
       DO ispin = 1, nspins
@@ -181,9 +206,18 @@ CONTAINS
          CALL calculate_rho_elec(matrix_p=rho_ao_aux_fit(ispin)%matrix, &
                                  rho=rho_aux_fit_r(ispin), rho_gspace=rho_aux_fit_g(ispin), &
                                  total_rho=tot_rho_aux_fit_r(ispin), ks_env=ks_env, &
-                                 soft_valid=.FALSE., basis_type="AUX_FIT", &
-                                 pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_aux_fit)
+                                 soft_valid=.FALSE., basis_type=basis_type, &
+                                 pw_env_external=sub_env%pw_env, task_list_external=task_list)
       END DO
+      IF (admm_env%do_gapw) THEN
+         CALL get_qs_env(qs_env, sab_aux_fit=sab_aux_fit)
+         CALL calculate_rho_atom_coeff(qs_env, rho_ao_aux_fit, &
+                                       rho_atom_set=local_rho_set%rho_atom_set, &
+                                       qs_kind_set=admm_env%admm_gapw_env%admm_kind_set, &
+                                       oce=admm_env%admm_gapw_env%oce, sab=sab_aux_fit, para_env=sub_env%para_env)
+         CALL prepare_gapw_den(qs_env, local_rho_set=local_rho_set, &
+                               do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+      END IF
 
       CALL timestop(handle)
 

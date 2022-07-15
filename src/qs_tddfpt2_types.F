@@ -197,6 +197,7 @@ MODULE qs_tddfpt2_types
       !> GAPW local atomic grids
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(local_rho_type), POINTER                      :: local_rho_set_admm
    END TYPE tddfpt_work_matrices
 
 CONTAINS
@@ -229,6 +230,7 @@ CONTAINS
       INTEGER                                            :: handle, igroup, ispin, istate, nao, &
                                                             nao_aux, natom, ngroups, nspins
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
@@ -258,6 +260,7 @@ CONTAINS
 
       NULLIFY (work_matrices%hartree_local)
       NULLIFY (work_matrices%local_rho_set)
+      NULLIFY (work_matrices%local_rho_set_admm)
       NULLIFY (work_matrices%rho_xc_struct_sub)
 
       nspins = SIZE(gs_mos)
@@ -456,6 +459,13 @@ CONTAINS
             CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist)
             CALL get_admm_env(qs_env%admm_env, sab_aux_fit=sab_hfx)
             dbcsr_template_hfx => matrix_s_aux_fit(1)%matrix
+            IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+               CALL get_qs_env(qs_env, admm_env=admm_env, atomic_kind_set=atomic_kind_set)
+               CALL local_rho_set_create(work_matrices%local_rho_set_admm)
+               CALL allocate_rho_atom_internals(work_matrices%local_rho_set_admm%rho_atom_set, &
+                                                atomic_kind_set, admm_env%admm_gapw_env%admm_kind_set, &
+                                                dft_control, sub_env%para_env)
+            END IF
          ELSE
             CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist, sab_orb=sab_hfx)
             dbcsr_template_hfx => matrix_s(1)%matrix
@@ -631,6 +641,7 @@ CONTAINS
 
       NULLIFY (work_matrices%hartree_local)
       NULLIFY (work_matrices%local_rho_set)
+      NULLIFY (work_matrices%local_rho_set_admm)
       NULLIFY (work_matrices%rho_xc_struct_sub)
 
       CALL timestop(handle)
@@ -761,6 +772,9 @@ CONTAINS
       ! GAPW
       IF (ASSOCIATED(work_matrices%local_rho_set)) THEN
          CALL local_rho_set_release(work_matrices%local_rho_set)
+      END IF
+      IF (ASSOCIATED(work_matrices%local_rho_set_admm)) THEN
+         CALL local_rho_set_release(work_matrices%local_rho_set_admm)
       END IF
       IF (ASSOCIATED(work_matrices%hartree_local)) THEN
          CALL hartree_local_release(work_matrices%hartree_local)

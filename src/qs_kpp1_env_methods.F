@@ -83,6 +83,7 @@ MODULE qs_kpp1_env_methods
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
@@ -233,6 +234,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, scf_section
 
       CALL timeset(routineN, handle)
@@ -390,7 +392,9 @@ CONTAINS
       END IF
 
       IF (gapw .OR. gapw_xc) THEN
-         CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
+         CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
+         rho1_atom_set => p_env%local_rho_set%rho_atom_set
+         CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
                                           do_tddft=do_tddft, do_triplet=do_triplet)
       END IF
 

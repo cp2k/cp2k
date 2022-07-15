@@ -276,6 +276,7 @@ CONTAINS
 
             CALL tddfpt_construct_aux_fit_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
                                                   rho_aux_fit_struct=work_matrices%rho_aux_fit_struct_sub, &
+                                                  local_rho_set=sub_env%local_rho_set_admm, &
                                                   qs_env=qs_env, sub_env=sub_env, &
                                                   wfm_rho_orb=work_matrices%rho_ao_orb_fm_sub, &
                                                   wfm_rho_aux_fit=work_matrices%rho_ao_aux_fit_fm_sub, &

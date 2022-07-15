@@ -94,6 +94,7 @@ MODULE qs_linres_kernel
    USE qs_p_env_methods,                ONLY: p_env_finish_kpp1
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
@@ -202,6 +203,7 @@ CONTAINS
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho1_xc, rho1a, rho_aux
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
 
       CALL timeset(routineN, handle)
@@ -318,7 +320,9 @@ CONTAINS
          CALL qs_rho_get(rho1a, rho_r=rho1_r, tau_r=tau1_r)
          CALL qs_fxc_analytic(rho, rho1_r, tau1_r, xc_section, auxbas_pw_pool, lr_triplet, v_xc, v_xc_tau)
          IF (gapw .OR. gapw_xc) THEN
-            CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set, qs_env, xc_section, para_env, &
+            CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
+            rho1_atom_set => p_env%local_rho_set%rho_atom_set
+            CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
                                              do_tddft=.FALSE., do_triplet=lr_triplet)
          END IF
       ELSE
@@ -839,6 +843,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_aux_g, rho1_aux_r, tau_pw, v_xc, &
                                                             v_xc_tau
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_fun_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list
       TYPE(xc_rho_cflags_type)                           :: needs
@@ -904,7 +909,9 @@ CONTAINS
             IF (admm_env%do_gapw) THEN
                CALL prepare_gapw_den(qs_env, local_rho_set=p_env%local_rho_set_admm, &
                                      do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
-               CALL calculate_xc_2nd_deriv_atom(p_env%local_rho_set_admm, qs_env, xc_section, para_env, &
+               rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
+               rho1_atom_set => p_env%local_rho_set%rho_atom_set
+               CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
                                                 do_tddft=.FALSE., do_triplet=.FALSE., &
                                                 kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                basis_type = "AUX_FIT_SOFT"

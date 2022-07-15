@@ -29,7 +29,6 @@ MODULE qs_vxc_atom
                                               nsoset
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                               paw_proj_set_type
-   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -39,7 +38,6 @@ MODULE qs_vxc_atom
                                               has_nlcc,&
                                               qs_kind_type
    USE qs_linres_types,                 ONLY: nablavks_atom_type
-   USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                               rho_atom_coeff,&
                                               rho_atom_type
@@ -462,7 +460,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param local_rho_set ...
+!> \param rho_atom_set ...
+!> \param rho1_atom_set ...
 !> \param qs_env ...
 !> \param xc_section ...
 !> \param para_env ...
@@ -472,10 +471,10 @@ CONTAINS
 !> \param do_triplet ...
 !> \param kind_set_external ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_xc_2nd_deriv_atom(local_rho_set, qs_env, xc_section, para_env, &
+   SUBROUTINE calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
                                           do_tddft, do_tddfpt2, do_triplet, kind_set_external)
 
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set, rho1_atom_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -503,12 +502,10 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set, qs_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr1_h, dr1_s, dr_h, dr_s, r1_h, r1_s, &
                                                             r_h, r_s
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r1_h_d, r1_s_d, r_h_d, r_s_d
-      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho1_atom, rho_atom
       TYPE(section_vals_type), POINTER                   :: input, xc_fun_section
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -520,26 +517,22 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, energy)
+      NULLIFY (qs_kind_set)
       NULLIFY (rho_h, rho_s, drho_h, drho_s, weight)
       NULLIFY (rho1_h, rho1_s, drho1_h, drho1_s)
       NULLIFY (vxc_h, vxc_s, vxg_h, vxg_s)
       NULLIFY (tau_h, tau_s, tau1_h, tau1_s)
 
       CALL get_qs_env(qs_env=qs_env, &
-                      para_env=para_env, &
-                      energy=energy, &
                       input=input, &
                       qs_kind_set=qs_kind_set, &
-                      atomic_kind_set=atomic_kind_set, &
-                      rho_atom_set=rho_atom_set)
+                      atomic_kind_set=atomic_kind_set)
+
       IF (PRESENT(kind_set_external)) THEN
          my_kind_set => kind_set_external
       ELSE
          my_kind_set => qs_kind_set
       END IF
-
-      rho1_atom_set => local_rho_set%rho_atom_set
 
       my_tddft = .FALSE.
       IF (PRESENT(do_tddft)) my_tddft = do_tddft

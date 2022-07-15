@@ -22,9 +22,6 @@
       EXCH_SCALING_MODEL NONE
       METHOD BASIS_PROJECTION
     &END
-    &EXCITED_STATES T
-       STATE 1
-    &END EXCITED_STATES
     &SCF
       SCF_GUESS ATOMIC 
       &OT
@@ -45,10 +42,10 @@
           SCALE_X 0.75
           SCALE_C 1.0
         &END
-        &PBE_HOLE_T_C_LR
-          CUTOFF_RADIUS 2.0
-          SCALE_X 0.25
-        &END
+        #&PBE_HOLE_T_C_LR
+        #  CUTOFF_RADIUS 2.0
+        #  SCALE_X 0.25
+        #&END
       &END XC_FUNCTIONAL
       &HF
         &SCREENING
@@ -110,5 +107,5 @@
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT ftest
-  RUN_TYPE ENERGY_FORCE
+  RUN_TYPE ENERGY
 &END GLOBAL

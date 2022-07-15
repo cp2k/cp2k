@@ -1,0 +1,166 @@
+# GPW     State    Excitation        Transition dipole (a.u.)        Oscillator
+#         number   energy (eV)       x           y           z     strength (a.u.)
+#         ------------------------------------------------------------------------
+# TDDFPT|      1       9.60596   3.6419E-01  7.4416E-08  3.0317E-07   3.12150E-02
+# TDDFPT|      2      11.60274   7.7372E-08 -2.9399E-07 -1.5821E-07   3.33862E-14
+# TDDFPT|      3      12.01143  -1.4513E-07  7.2795E-08  5.7194E-01   9.62634E-02
+# TDDFPT|      4      14.53057  -3.0133E-08  3.3025E-01 -3.5556E-08   3.88271E-02
+# TDDFPT|      5      15.98254   3.9952E-08 -8.2281E-01 -1.0598E-09   2.65093E-01
+
+# GAPW    State    Excitation        Transition dipole (a.u.)        Oscillator
+#         number   energy (eV)       x           y           z     strength (a.u.)
+#         ------------------------------------------------------------------------
+# TDDFPT|      1       9.64373  -3.6482E-01 -7.6782E-08 -2.5542E-07   3.14463E-02
+# TDDFPT|      2      11.69324  -7.8670E-08  2.9597E-07  1.6949E-07   3.50973E-14
+# TDDFPT|      3      12.06353   4.5523E-08 -7.1777E-08 -5.7378E-01   9.73024E-02
+# TDDFPT|      4      14.58554   2.9865E-08 -3.0556E-01  8.4459E-08   3.33638E-02
+# TDDFPT|      5      16.03568  -4.1063E-08  8.3313E-01  2.7119E-07   2.72694E-01
+
+# GPW     State    Excitation        Transition dipole (a.u.)        Oscillator
+# ADMM    number   energy (eV)       x           y           z     strength (a.u.)
+#         ------------------------------------------------------------------------
+# TDDFPT|      1       9.96970  -3.5079E-01 -4.6816E-08 -7.6533E-08   3.00560E-02
+# TDDFPT|      2      11.99625  -1.4887E-07  1.2551E-07  1.6072E-07   1.87344E-14
+# TDDFPT|      3      12.30662  -4.5048E-08  1.3854E-08  5.6519E-01   9.63130E-02
+# TDDFPT|      4      14.85514  -5.8706E-09  3.1351E-01 -3.8501E-07   3.57708E-02
+# TDDFPT|      5      16.32599  -1.5250E-08  8.3713E-01  1.9368E-07   2.80301E-01
+
+# GAPW    State    Excitation        Transition dipole (a.u.)        Oscillator
+# ADMM    number   energy (eV)       x           y           z     strength (a.u.)
+#         ------------------------------------------------------------------------
+# TDDFPT|      1      10.00775  -3.5145E-01 -4.7990E-08 -8.5368E-08   3.02854E-02
+# TDDFPT|      2      12.08890   1.4932E-07 -1.2246E-07 -2.6974E-07   3.25944E-14
+# TDDFPT|      3      12.35959  -4.2690E-08  1.5301E-08  5.6713E-01   9.73934E-02
+# TDDFPT|      4      14.90739   4.9352E-09 -2.8806E-01 -2.7248E-07   3.03068E-02
+# TDDFPT|      5      16.38355   1.5262E-08 -8.4725E-01  5.9801E-07   2.88128E-01
+
+# GPW     State    Excitation        Transition dipole (a.u.)        Oscillator
+# ADMM    number   energy (eV)       x           y           z     strength (a.u.)
+# PBEX    ------------------------------------------------------------------------
+# TDDFPT|      1       9.95033   3.6560E-01  7.0444E-08  1.5169E-07   3.25850E-02
+# TDDFPT|      2      12.01404   1.9510E-07 -1.8384E-07 -2.3564E-07   3.74951E-14
+# TDDFPT|      3      12.29508  -6.7890E-08  9.4202E-08  5.5881E-01   9.40633E-02
+# TDDFPT|      4      14.87922   9.4347E-09 -3.1354E-01  3.0371E-07   3.58374E-02
+# TDDFPT|      5      16.35766  -2.2981E-08  8.2175E-01  1.5810E-07   2.70618E-01
+
+# GAPW    State    Excitation        Transition dipole (a.u.)        Oscillator
+# ADMM    number   energy (eV)       x           y           z     strength (a.u.)
+# PBEX    ------------------------------------------------------------------------
+# TDDFPT|      1       9.94584  -3.6580E-01 -6.3862E-08  6.1737E-07   3.26060E-02
+# TDDFPT|      2      12.04251   2.0416E-07 -1.6553E-07 -1.1940E-07   2.45874E-14
+# TDDFPT|      3      12.32143   1.5420E-07 -1.0626E-07 -5.5894E-01   9.43090E-02
+# TDDFPT|      4      14.89843  -9.7621E-09  3.0046E-01 -6.0159E-07   3.29514E-02
+# TDDFPT|      5      16.38306   3.1444E-08 -8.2802E-01  1.1774E-08   2.75190E-01
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &PROPERTIES
+    &TDDFPT
+       KERNEL FULL
+       ADMM_KERNEL_CORRECTION_SYMMETRIC
+       NSTATES      5
+       MAX_ITER    50
+       CONVERGENCE [eV] 1.0e-7
+       RKS_TRIPLETS F
+    &END TDDFPT
+  &END PROPERTIES
+  &DFT
+    &QS
+      METHOD GAPW
+    &END QS
+    BASIS_SET_FILE_NAME BASIS_SET
+    BASIS_SET_FILE_NAME BASIS_ADMM
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD NONE
+      EXCH_CORRECTION_FUNC PBEX   
+      EXCH_SCALING_MODEL NONE
+      METHOD BASIS_PROJECTION
+    &END
+    &SCF
+      SCF_GUESS ATOMIC 
+      &OT
+         PRECONDITIONER FULL_SINGLE_INVERSE
+         MINIMIZER DIIS
+      &END
+      &OUTER_SCF
+         MAX_SCF  10
+         EPS_SCF 1.0E-6
+      &END
+      MAX_SCF  50
+      EPS_SCF 1.0E-6
+    &END SCF
+
+    &XC
+      &XC_FUNCTIONAL
+        &BECKE88
+          SCALE_X 0.95238
+        &END
+        &BECKE88_LR
+          OMEGA 0.33
+          SCALE_X -0.94979
+        &END
+        &LYP
+          SCALE_C 1.0
+        &END
+        &XALPHA
+          SCALE_X -0.13590
+        &END
+      &END XC_FUNCTIONAL
+      &HF
+       &SCREENING
+         EPS_SCHWARZ 1.0E-7
+       &END
+       &MEMORY
+         MAX_MEMORY 100
+       &END
+       &INTERACTION_POTENTIAL
+         POTENTIAL_TYPE MIX_CL_TRUNC
+         OMEGA 0.33
+         SCALE_LONGRANGE 0.94979
+         SCALE_COULOMB 0.18352
+         CUTOFF_RADIUS 2.5
+         T_C_G_DATA t_c_g.dat
+       &END
+      &END
+    &END XC
+
+    &MGRID
+       CUTOFF  200
+       REL_CUTOFF  40
+    &END
+    &POISSON
+       PERIODIC NONE
+       POISSON_SOLVER MT
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 4.0 4.0 4.0
+      PERIODIC NONE
+    &END
+    &COORD
+    O   0.000000    0.000000    0.000000
+    H   0.000000   -0.757136    0.580545
+    H   0.000000    0.757136    0.580545
+    &END COORD
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+    &KIND H
+      BASIS_SET DZV-GTH-PADE
+      BASIS_SET AUX_FIT FIT3
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET AUX_FIT FIT3
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ftest
+  RUN_TYPE ENERGY
+&END GLOBAL
