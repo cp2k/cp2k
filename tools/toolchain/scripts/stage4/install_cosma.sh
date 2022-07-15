@@ -161,6 +161,13 @@ export COSMA_VERSION=${cosma_ver}
 export CP_LIBS="IF_MPI(${COSMA_LIBS}|) \${CP_LIBS}"
 EOF
   cat "${BUILDDIR}/setup_cosma" >> $SETUPFILE
+
+  cat << EOF >> ${INSTALLDIR}/lsan.supp
+# leaks related to COSMA (probably, only the last one is actually needed)
+leak:cosma::communicator::communicator
+leak:cosma::cosma_context<double>::register_state
+leak:cosma::pxgemm<double>
+EOF
 fi
 
 load "${BUILDDIR}/setup_cosma"
