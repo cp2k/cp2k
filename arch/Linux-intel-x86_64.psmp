@@ -5,7 +5,7 @@
 # Tested with: Intel 20.4/21.4/22.1 , Intel MPI, Intel MKL,
 #              LIBINT 2.6.0, LIBXC 5.2.3, ELPA 2021.11.002,
 #              PLUMED 2.8.0, SPGLIB 1.16.2, LIBVORI 220621,
-#              GSL 2.7, COSMA 2.5.1, SIRIUS 7.3.1
+#              GSL 2.7, COSMA 2.6.0, SIRIUS 7.3.1
 # on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
@@ -13,7 +13,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (23.06.2022)
+# Author: Matthias Krack (16.07.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -45,7 +45,7 @@
 # Set options
 DO_CHECKS      := no
 SHARED         := no
-USE_COSMA      := 2.5.1
+USE_COSMA      := 2.6.0
 USE_ELPA       := 2021.11.002
 USE_LIBINT     := 2.6.0
 USE_LIBPEXSI   := 1.2.0
