@@ -14,19 +14,20 @@ from subprocess import PIPE, STDOUT
 import subprocess
 import traceback
 from urllib.request import urlopen, Request
+from http.client import HTTPResponse
 from urllib.error import HTTPError
 import uuid
 from difflib import unified_diff
 from pathlib import Path
 import shutil
+from typing import cast, Iterator
 
 SCRATCH_DIR = Path("./obj/precommit")
 CACHE_FILE = SCRATCH_DIR / "cache.json"
 SERVER = os.environ.get("CP2K_PRECOMMIT_SERVER", "https://precommit.cp2k.org")
 
-
 # ======================================================================================
-def main():
+def main() -> None:
     # Parse command line arguments.
     parser = argparse.ArgumentParser(
         description="Check source code for formatting and linter problems."
@@ -47,7 +48,7 @@ def main():
         "-j",
         "--num_workers",
         type=int,
-        default=min(16, os.cpu_count() + 2),
+        default=min(16, (os.cpu_count() or 0) + 2),
         help="number of parallel workers",
     )
     parser.add_argument(
@@ -168,7 +169,7 @@ def main():
 
 
 # ======================================================================================
-def print_box(fn, message):
+def print_box(fn: str, message: str) -> None:
     print("+" + "-" * 160 + "+")
     print(f"| {fn:^158s} |")
     print("+" + "-" * 160 + "+")
@@ -178,7 +179,7 @@ def print_box(fn, message):
 
 
 # ======================================================================================
-def process_file(fn, allow_modifications):
+def process_file(fn: str, allow_modifications: bool) -> None:
     # Make a backup copy.
     orig_content = Path(fn).read_bytes()
     bak_fn = SCRATCH_DIR / f"{Path(fn).name}_{time()}.bak"
@@ -222,17 +223,18 @@ def process_file(fn, allow_modifications):
 
     elif not allow_modifications:
         bak_fn.replace(fn)  # restore origin content
+        diff: Iterator[str]
         try:
             orig_lines = orig_content.decode("utf8").split("\n")
             new_lines = new_content.decode("utf8").split("\n")
             diff = unified_diff(orig_lines, new_lines, "before", "after", lineterm="")
         except Exception:
-            diff = []  #
+            diff = iter([])
         raise Exception(f"File modified:\n" + "\n".join(diff))
 
 
 # ======================================================================================
-def run_prettify(fn):
+def run_prettify(fn: str) -> None:
     if fn in ("./src/base/base_uses.f90", "./src/common/util.F"):
         return  # Skipping because of prettify bugs.
 
@@ -242,12 +244,12 @@ def run_prettify(fn):
 
 
 # ======================================================================================
-def run_check_file_properties(fn):
+def run_check_file_properties(fn: str) -> None:
     run_local_tool("./tools/precommit/check_file_properties.py", fn)
 
 
 # ======================================================================================
-def check_data_files():
+def check_data_files() -> None:
     potential_files = [f"./data/{x}_POTENTIALS" for x in ("GTH", "HF", "NLCC", "ALL")]
     expected_content = "".join([Path(fn).read_text() for fn in potential_files])
     if Path("./data/POTENTIAL").read_text() != expected_content:
@@ -255,14 +257,14 @@ def check_data_files():
 
 
 # ======================================================================================
-def run_local_tool(*cmd, timeout=20):
+def run_local_tool(*cmd: str, timeout: int = 20) -> None:
     p = subprocess.run(cmd, timeout=timeout, stdout=PIPE, stderr=STDOUT)
     if p.returncode != 0:
         raise Exception(p.stdout.decode("utf8"))
 
 
 # ======================================================================================
-def run_remote_tool(tool, fn):
+def run_remote_tool(tool: str, fn: str) -> None:
     url = f"{SERVER}/{tool}"
     r = http_post(url, fn)
     if r.status == 304:
@@ -274,7 +276,7 @@ def run_remote_tool(tool, fn):
 
 
 # ======================================================================================
-def http_post(url, fn):
+def http_post(url: str, fn: str) -> HTTPResponse:
     # This would be so much easier with the Requests library where it'd be a one-liner:
     #    return requests.post(url, files={Path(fn).name: Path(fn).read_bytes()})
 
@@ -289,13 +291,15 @@ def http_post(url, fn):
         ]
     )
     headers = {
-        "Content-Length": len(data),
+        "Content-Length": f"{len(data)}",
         "Content-Type": f"multipart/form-data; boundary={boundary}",
     }
     try:
-        return urlopen(Request(url, data=data, headers=headers), timeout=60)
+        response = urlopen(Request(url, data=data, headers=headers), timeout=60)
+        return cast(HTTPResponse, response)
     except HTTPError as err:
-        return err  # HTTPError has .status and .read() just like a normal HTTPResponse.
+        # HTTPError has .status and .read() just like a normal HTTPResponse.
+        return cast(HTTPResponse, err)
 
 
 # ======================================================================================
