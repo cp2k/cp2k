@@ -1282,6 +1282,7 @@ CONTAINS
       CALL section_vals_val_get(t_section, "RKS_TRIPLETS", l_val=t_control%rks_triplets)
       CALL section_vals_val_get(t_section, "DO_LRIGPW", l_val=t_control%do_lrigpw)
       CALL section_vals_val_get(t_section, "ADMM_KERNEL_CORRECTION_SYMMETRIC", l_val=t_control%admm_symm)
+      CALL section_vals_val_get(t_section, "ADMM_KERNEL_XC_CORRECTION", l_val=t_control%admm_xc_correction)
 
       ! read automatically generated auxiliary basis for LRI
       CALL section_vals_val_get(t_section, "AUTO_BASIS", n_rep_val=nrep)

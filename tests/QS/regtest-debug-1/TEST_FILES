@@ -10,5 +10,4 @@ h2o_periodic.inp                                      87      1e-05             
 h2o_gga.inp                                           87      1e-05             0.165143521103E+02
 h2o_gapw.inp                                          87      1e-05             0.170288288429E+02
 h2o_gapw_xc.inp                                       87      1e-05             0.170142638188E+02
-h2o_admm_gapw.inp                                     87      1e-05             0.165349668089E+02
 #EOF

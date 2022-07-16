@@ -57,6 +57,7 @@ QS/regtest-cdft-hirshfeld
 SIRIUS/regtest-1                                            sirius
 QS/regtest-embed                                            libint
 QS/regtest-pod
+QS/regtest-tddfpt-admm                                      libint
 QS/regtest-debug-1
 QS/regtest-debug-2                                          libint
 QS/regtest-debug-3                                          libint

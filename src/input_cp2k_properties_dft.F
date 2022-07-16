@@ -1386,6 +1386,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ADMM_KERNEL_XC_CORRECTION", &
+                          description="Use/Ignore ADMM correction xc functional for TD kernel."// &
+                          "XC correction functional is defined in ground state XC section.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ADMM_KERNEL_CORRECTION_SYMMETRIC", &
                           description="ADMM correction functional in kernel is applied symmetrically."// &
                           "Original implementation is using a non-symmetric formula.", &

@@ -475,6 +475,8 @@ MODULE cp_control_types
       INTEGER                              :: auto_basis_p_lri_aux = 1
       !> use symmetric definition of ADMM Kernel correction
       LOGICAL                              :: admm_symm
+      !> Use/Ignore possible ADMM Kernel XC correction
+      LOGICAL                              :: admm_xc_correction
       !
       ! DIPOLE_MOMENTS subsection
       !
