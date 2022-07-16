@@ -269,10 +269,17 @@ CONTAINS
       IF (tddfpt_control%kernel == tddfpt_kernel_full) THEN
          IF (do_admm) THEN
             ! Full kernel with ADMM
-            CALL create_kernel_env(kernel_env=full_kernel_env, &
-                                   rho_struct_sub=work_matrices%rho_orb_struct_sub, &
-                                   xc_section=admm_env%xc_section_primary, &
-                                   is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+            IF (tddfpt_control%admm_xc_correction) THEN
+               CALL create_kernel_env(kernel_env=full_kernel_env, &
+                                      rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                      xc_section=admm_env%xc_section_primary, &
+                                      is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+            ELSE
+               CALL create_kernel_env(kernel_env=full_kernel_env, &
+                                      rho_struct_sub=work_matrices%rho_orb_struct_sub, &
+                                      xc_section=xc_section, &
+                                      is_rks_triplets=tddfpt_control%rks_triplets, sub_env=sub_env)
+            END IF
 
             CALL tddfpt_construct_aux_fit_density(rho_orb_struct=work_matrices%rho_orb_struct_sub, &
                                                   rho_aux_fit_struct=work_matrices%rho_aux_fit_struct_sub, &
@@ -869,12 +876,15 @@ CONTAINS
             CALL xc_write(log_unit, xc_section, lsd)
             IF (tddfpt_control%do_hfx) THEN
                IF (tddfpt_control%do_admm) THEN
-                  WRITE (log_unit, "(T2,A,T62,A19)") "KERNEL|", "ADMM exact exchange"
+                  WRITE (log_unit, "(T2,A,T62,A19)") "KERNEL|", "ADMM Exact Exchange"
+                  IF (tddfpt_control%admm_xc_correction) THEN
+                     WRITE (log_unit, "(T2,A,T60,A21)") "KERNEL|", "Apply ADMM Kernel XC Correction"
+                  END IF
                   IF (tddfpt_control%admm_symm) THEN
-                     WRITE (log_unit, "(T2,A,T60,A21)") "KERNEL|", "symmetric ADMM kernel"
+                     WRITE (log_unit, "(T2,A,T60,A21)") "KERNEL|", "Symmetric ADMM Kernel"
                   END IF
                ELSE
-                  WRITE (log_unit, "(T2,A,T67,A14)") "KERNEL|", "exact exchange"
+                  WRITE (log_unit, "(T2,A,T67,A14)") "KERNEL|", "Exact Exchange"
                END IF
             END IF
             IF (tddfpt_control%do_lrigpw) THEN

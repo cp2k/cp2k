@@ -364,7 +364,8 @@ CONTAINS
             ! full TDDFPT kernel
             CALL fhxc_kernel(Aop_evects, evects, is_rks_triplets, do_hfx, do_admm, qs_env, &
                              kernel_env%full_kernel, kernel_env_admm_aux, sub_env, work_matrices, &
-                             tddfpt_control%admm_symm, do_lri_response)
+                             tddfpt_control%admm_symm, tddfpt_control%admm_xc_correction, &
+                             do_lri_response)
          ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
             ! sTDA kernel
             CALL stda_kernel(Aop_evects, evects, is_rks_triplets, qs_env, tddfpt_control%stda_control, &
