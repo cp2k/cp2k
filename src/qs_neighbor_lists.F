@@ -1320,7 +1320,7 @@ CONTAINS
                                           include_ab = .TRUE.
                                           IF (my_mic) THEN
                                              ! only if rab is minimum image the pair will be included
-                                             ! ideally the range of the pair list is < L/2 so 
+                                             ! ideally the range of the pair list is < L/2 so
                                              ! that this never triggers
                                              rab_pbc(:) = pbc(rab(:), cell)
                                              IF (SUM((rab_pbc - rab)**2) > EPSILON(1.0_dp)) THEN
