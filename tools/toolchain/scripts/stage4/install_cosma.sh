@@ -89,6 +89,7 @@ case "$with_cosma" in
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
           -DBUILD_SHARED_LIBS=NO \
           -DCOSMA_BLAS=CUDA \
+          -DCOSMA_WITH_NCCL=ON \
           -DCOSMA_SCALAPACK=${cosma_sl} \
           -DCOSMA_WITH_TESTS=NO \
           -DCOSMA_WITH_APPS=NO \

@@ -117,7 +117,7 @@ LIBS="${CP_LIBS} -lstdc++"
 CXXFLAGS+=" --std=c++11 \$(DFLAGS) -Wno-deprecated-declarations"
 # CUDA handling
 if [ "${ENABLE_CUDA}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
-  CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
+  CUDA_LIBS="-lcudart -lnvrtc -lcuda -lcufft -lcublas -lrt -lnccl IF_DEBUG(-lnvToolsExt|)"
   CUDA_DFLAGS="-D__OFFLOAD_CUDA -D__DBCSR_ACC IF_DEBUG(-D__OFFLOAD_PROFILING|)"
   LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
   DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
