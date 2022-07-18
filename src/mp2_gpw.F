@@ -556,7 +556,7 @@ CONTAINS
          END IF
 
          ! Release some memory for AXK
-         IF (mp2_env%ri_rpa%do_ri_axk .OR. calc_forces) THEN
+         IF (mp2_env%ri_rpa%do_ri_axk .OR. (calc_forces .AND. do_im_time)) THEN
 
             CALL dbcsr_release(mat_munu%matrix)
             DEALLOCATE (mat_munu%matrix)
@@ -577,32 +577,33 @@ CONTAINS
                gd_array, gd_B_virtual, &
                Eigenval, nmo, homo, dimen_RI_red, unit_nr, calc_forces, calc_ex)
 
-            ! if we need forces time to calculate the MP2 non-separable contribution
-            ! and start coputing the Lagrangian
-            IF (calc_forces) THEN
-
-               CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, &
-                                       particle_set, atomic_kind_set, qs_kind_set, &
-                                       mo_coeff, nmo, homo, dimen_RI, Eigenval, &
-                                       my_group_L_start, my_group_L_end, my_group_L_size, &
-                                       sab_orb_sub, mat_munu, blacs_env_sub)
-
-               DO ispin = 1, nspins
-                  CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
-                  DEALLOCATE (mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
-
-                  CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
-                  DEALLOCATE (mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
-               END DO
-               DEALLOCATE (mp2_env%ri_grad%mo_coeff_o, mp2_env%ri_grad%mo_coeff_v)
-
-               CALL dbcsr_release(mat_munu%matrix)
-               DEALLOCATE (mat_munu%matrix)
-
-               CALL release_neighbor_list_sets(sab_orb_sub)
-
-            END IF
          END IF
+      END IF
+
+      ! if we need forces time to calculate the MP2 non-separable contribution
+      ! and start computing the Lagrangian
+      IF (calc_forces .AND. .NOT. do_im_time) THEN
+
+         CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, &
+                                 particle_set, atomic_kind_set, qs_kind_set, &
+                                 mo_coeff, nmo, homo, dimen_RI, Eigenval, &
+                                 my_group_L_start, my_group_L_end, my_group_L_size, &
+                                 sab_orb_sub, mat_munu, blacs_env_sub)
+
+         DO ispin = 1, nspins
+            CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
+            DEALLOCATE (mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
+
+            CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
+            DEALLOCATE (mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
+         END DO
+         DEALLOCATE (mp2_env%ri_grad%mo_coeff_o, mp2_env%ri_grad%mo_coeff_v)
+
+         CALL dbcsr_release(mat_munu%matrix)
+         DEALLOCATE (mat_munu%matrix)
+
+         CALL release_neighbor_list_sets(sab_orb_sub)
+
       END IF
 
       !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
@@ -629,7 +630,7 @@ CONTAINS
       CALL cp_para_env_release(para_env_sub)
 
       ! finally solve the z-vector equation if forces are required
-      IF (calc_forces .AND. (.NOT. do_im_time)) THEN
+      IF (calc_forces .AND. .NOT. do_im_time) THEN
          CALL solve_z_vector_eq(qs_env, mp2_env, para_env, dft_control, &
                                 mo_coeff, nmo, homo, Eigenval, unit_nr)
       END IF

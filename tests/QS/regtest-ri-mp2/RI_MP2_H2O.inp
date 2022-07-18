@@ -42,7 +42,7 @@
       &END HF
       &WF_CORRELATION
         &RI_MP2
-        &END RI_MP2
+        &END
         &INTEGRALS
           &WFC_GPW
             CUTOFF  100

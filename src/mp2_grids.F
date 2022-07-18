@@ -373,14 +373,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_scaling_factor'
 
-      INTEGER                                            :: handle, icycle, jquad, nrow_local, &
-                                                            nrow_local_beta, nspins
+      INTEGER                                            :: handle, icycle, jquad, ncol_local, &
+                                                            ncol_local_beta, nspins
       LOGICAL                                            :: my_open_shell
       REAL(KIND=dp) :: a_high, a_low, a_scaling, conv_param, eps, first_deriv, left_term, &
          right_term, right_term_ref, right_term_ref_beta, step
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cottj, D_ia, D_ia_beta, iaia_RI, &
                                                             iaia_RI_beta, M_ia, M_ia_beta
-      TYPE(cp_para_env_type), POINTER                    :: para_env_row, para_env_row_beta
+      TYPE(cp_para_env_type), POINTER                    :: para_env_col, para_env_col_beta
 
       CALL timeset(routineN, handle)
 
@@ -396,14 +396,14 @@ CONTAINS
          cottj(jquad) = 1.0_dp/TAN(tj_ext(jquad))
       END DO
 
-      CALL calc_ia_ia_integrals(para_env_RPA, homo(1), virtual(1), nrow_local, right_term_ref, Eigenval(:, 1, 1), &
+      CALL calc_ia_ia_integrals(para_env_RPA, homo(1), virtual(1), ncol_local, right_term_ref, Eigenval(:, 1, 1), &
                                 D_ia, iaia_RI, M_ia, fm_mat_S(1)%matrix, &
-                                para_env_row)
+                                para_env_col)
 
       ! In the open shell case do point 1-2-3 for the beta spin
       IF (my_open_shell) THEN
-         CALL calc_ia_ia_integrals(para_env_RPA, homo(2), virtual(2), nrow_local_beta, right_term_ref_beta, Eigenval(:, 1, 2), &
-                                   D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S(2)%matrix, para_env_row_beta)
+         CALL calc_ia_ia_integrals(para_env_RPA, homo(2), virtual(2), ncol_local_beta, right_term_ref_beta, Eigenval(:, 1, 2), &
+                                   D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S(2)%matrix, para_env_col_beta)
 
          right_term_ref = right_term_ref + right_term_ref_beta
       END IF
@@ -428,8 +428,8 @@ CONTAINS
 
          CALL calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
                                 M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
-                                nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
-                                para_env, para_env_row, para_env_row_beta)
+                                ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
+                                para_env, para_env_col, para_env_col_beta)
          left_term = left_term/4.0_dp/pi*a_scaling
 
          IF (ABS(left_term) > ABS(right_term) .OR. ABS(left_term + right_term) <= conv_param) EXIT
@@ -448,8 +448,8 @@ CONTAINS
 
                CALL calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
                                       M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
-                                      nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
-                                      para_env, para_env_row, para_env_row_beta)
+                                      ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
+                                      para_env, para_env_col, para_env_col_beta)
                left_term = left_term/4.0_dp/pi*a_scaling
 
                IF (ABS(left_term) > ABS(right_term)) THEN
@@ -472,13 +472,13 @@ CONTAINS
       DEALLOCATE (iaia_RI)
       DEALLOCATE (D_ia)
       DEALLOCATE (M_ia)
-      CALL cp_para_env_release(para_env_row)
+      CALL cp_para_env_release(para_env_col)
 
       IF (my_open_shell) THEN
          DEALLOCATE (iaia_RI_beta)
          DEALLOCATE (D_ia_beta)
          DEALLOCATE (M_ia_beta)
-         CALL cp_para_env_release(para_env_row_beta)
+         CALL cp_para_env_release(para_env_col_beta)
       END IF
 
       CALL timestop(handle)
@@ -490,43 +490,42 @@ CONTAINS
 !> \param para_env_RPA ...
 !> \param homo ...
 !> \param virtual ...
-!> \param nrow_local ...
+!> \param ncol_local ...
 !> \param right_term_ref ...
 !> \param Eigenval ...
 !> \param D_ia ...
 !> \param iaia_RI ...
 !> \param M_ia ...
 !> \param fm_mat_S ...
-!> \param para_env_row ...
+!> \param para_env_col ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, homo, virtual, nrow_local, right_term_ref, Eigenval, &
-                                   D_ia, iaia_RI, M_ia, fm_mat_S, para_env_row)
+   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, homo, virtual, ncol_local, right_term_ref, Eigenval, &
+                                   D_ia, iaia_RI, M_ia, fm_mat_S, para_env_col)
 
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       INTEGER, INTENT(IN)                                :: homo, virtual
-      INTEGER, INTENT(OUT)                               :: nrow_local
+      INTEGER, INTENT(OUT)                               :: ncol_local
       REAL(KIND=dp), INTENT(OUT)                         :: right_term_ref
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: D_ia, iaia_RI, M_ia
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
-      TYPE(cp_para_env_type), POINTER                    :: para_env_row
+      TYPE(cp_para_env_type), POINTER                    :: para_env_col
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ia_ia_integrals'
 
       INTEGER                                            :: avirt, color_col, color_row, handle, &
-                                                            i_global, iiB, iocc, jjB, ncol_local
+                                                            i_global, iiB, iocc, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigen_diff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: iaia_RI_dp
-      TYPE(cp_para_env_type), POINTER                    :: para_env_col
+      TYPE(cp_para_env_type), POINTER                    :: para_env_row
 
       CALL timeset(routineN, handle)
 
       ! calculate the (ia|ia) RI integrals
       ! ----------------------------------
       ! 1) get info fm_mat_S
-      !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G)
       CALL cp_fm_get_info(matrix=fm_mat_S, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
@@ -534,24 +533,22 @@ CONTAINS
                           col_indices=col_indices)
 
       ! allocate the local buffer of iaia_RI integrals (dp kind)
-      ALLOCATE (iaia_RI_dp(nrow_local))
+      ALLOCATE (iaia_RI_dp(ncol_local))
       iaia_RI_dp = 0.0_dp
 
       ! 2) perform the local multiplication SUM_K (ia|K)*(ia|K)
-      DO jjB = 1, ncol_local
-         DO iiB = 1, nrow_local
-            iaia_RI_dp(iiB) = iaia_RI_dp(iiB) + fm_mat_S%local_data(iiB, jjB)*fm_mat_S%local_data(iiB, jjB)
-         END DO
+      DO iiB = 1, ncol_local
+         iaia_RI_dp(iiB) = iaia_RI_dp(iiB) + DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
       END DO
 
-      ! 3) sum the result with the processes of the RPA_group having the same rows
-      !          _______K_______               _
+      ! 3) sum the result with the processes of the RPA_group having the same columns
+      !          _______ia______               _
       !         |   |   |   |   |             | |
       !     --> | 1 | 5 | 9 | 13|   SUM -->   | |
       !         |___|__ |___|___|             |_|
       !         |   |   |   |   |             | |
       !     --> | 2 | 6 | 10| 14|   SUM -->   | |
-      !      ia |___|___|___|___|             |_|   (ia|ia)_RI
+      !       K |___|___|___|___|             |_|   (ia|ia)_RI
       !         |   |   |   |   |             | |
       !     --> | 3 | 7 | 11| 15|   SUM -->   | |
       !         |___|___|___|___|             |_|
@@ -560,14 +557,14 @@ CONTAINS
       !         |___|___|___|___|             |_|
       !
 
-      color_row = fm_mat_S%matrix_struct%context%mepos(1)
-      CALL cp_para_env_split(para_env_row, para_env_RPA, color_row)
+      color_col = fm_mat_S%matrix_struct%context%mepos(2)
+      CALL cp_para_env_split(para_env_col, para_env_RPA, color_col)
 
-      CALL mp_sum(iaia_RI_dp, para_env_row%group)
+      CALL mp_sum(iaia_RI_dp, para_env_col%group)
 
       ! convert the iaia_RI_dp into double-double precision
-      ALLOCATE (iaia_RI(nrow_local))
-      DO iiB = 1, nrow_local
+      ALLOCATE (iaia_RI(ncol_local))
+      DO iiB = 1, ncol_local
          iaia_RI(iiB) = iaia_RI_dp(iiB)
       END DO
       DEALLOCATE (iaia_RI_dp)
@@ -575,12 +572,12 @@ CONTAINS
       ! 4) calculate the right hand term, D_ia is the matrix containing the
       ! orbital energy differences, M_ia is the diagonal of the full RPA 'excitation'
       ! matrix
-      ALLOCATE (D_ia(nrow_local))
+      ALLOCATE (D_ia(ncol_local))
 
-      ALLOCATE (M_ia(nrow_local))
+      ALLOCATE (M_ia(ncol_local))
 
-      DO iiB = 1, nrow_local
-         i_global = row_indices(iiB)
+      DO iiB = 1, ncol_local
+         i_global = col_indices(iiB)
 
          iocc = MAX(1, i_global - 1)/virtual + 1
          avirt = i_global - (iocc - 1)*virtual
@@ -589,24 +586,24 @@ CONTAINS
          D_ia(iiB) = eigen_diff
       END DO
 
-      DO iiB = 1, nrow_local
+      DO iiB = 1, ncol_local
          M_ia(iiB) = D_ia(iiB)*D_ia(iiB) + 2.0_dp*D_ia(iiB)*iaia_RI(iiB)
       END DO
 
       right_term_ref = 0.0_dp
-      DO iiB = 1, nrow_local
+      DO iiB = 1, ncol_local
          right_term_ref = right_term_ref + (SQRT(M_ia(iiB)) - D_ia(iiB) - iaia_RI(iiB))
       END DO
       right_term_ref = right_term_ref/2.0_dp
 
-      ! sum the result with the processes of the RPA_group having the same col
-      color_col = fm_mat_S%matrix_struct%context%mepos(2)
-      CALL cp_para_env_split(para_env_col, para_env_RPA, color_col)
+      ! sum the result with the processes of the RPA_group having the same row
+      color_row = fm_mat_S%matrix_struct%context%mepos(1)
+      CALL cp_para_env_split(para_env_row, para_env_RPA, color_row)
 
-      ! allocate communication array for columns
-      CALL mp_sum(right_term_ref, para_env_col%group)
+      ! allocate communication array for rows
+      CALL mp_sum(right_term_ref, para_env_row%group)
 
-      CALL cp_para_env_release(para_env_col)
+      CALL cp_para_env_release(para_env_row)
 
       CALL timestop(handle)
 
@@ -625,18 +622,18 @@ CONTAINS
 !> \param D_ia ...
 !> \param D_ia_beta ...
 !> \param M_ia_beta ...
-!> \param nrow_local ...
-!> \param nrow_local_beta ...
+!> \param ncol_local ...
+!> \param ncol_local_beta ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
 !> \param para_env ...
-!> \param para_env_row ...
-!> \param para_env_row_beta ...
+!> \param para_env_col ...
+!> \param para_env_col_beta ...
 ! **************************************************************************************************
    SUBROUTINE calculate_objfunc(a_scaling, left_term, first_deriv, num_integ_points, my_open_shell, &
                                 M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
-                                nrow_local, nrow_local_beta, num_integ_group, color_rpa_group, &
-                                para_env, para_env_row, para_env_row_beta)
+                                ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
+                                para_env, para_env_col, para_env_col_beta)
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
       REAL(KIND=dp), INTENT(INOUT)                       :: left_term, first_deriv
       INTEGER, INTENT(IN)                                :: num_integ_points
@@ -644,10 +641,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: M_ia, cottj, wj, D_ia, D_ia_beta, &
                                                             M_ia_beta
-      INTEGER, INTENT(IN)                                :: nrow_local, nrow_local_beta, &
+      INTEGER, INTENT(IN)                                :: ncol_local, ncol_local_beta, &
                                                             num_integ_group, color_rpa_group
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_row
-      TYPE(cp_para_env_type), POINTER                    :: para_env_row_beta
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_col
+      TYPE(cp_para_env_type), POINTER                    :: para_env_col_beta
 
       INTEGER                                            :: iiB, jquad
       REAL(KIND=dp)                                      :: first_deriv_beta, left_term_beta, omega
@@ -661,9 +658,9 @@ CONTAINS
          IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
          omega = a_scaling*cottj(jquad)
 
-         DO iiB = 1, nrow_local
+         DO iiB = 1, ncol_local
             ! parallelize over ia elements in the para_env_row group
-            IF (MODULO(iiB, para_env_row%num_pe) /= para_env_row%mepos) CYCLE
+            IF (MODULO(iiB, para_env_col%num_pe) /= para_env_col%mepos) CYCLE
             ! calculate left_term
             left_term = left_term + wj(jquad)* &
                         (LOG(1.0_dp + (M_ia(iiB) - D_ia(iiB)**2)/(omega**2 + D_ia(iiB)**2)) - &
@@ -673,9 +670,9 @@ CONTAINS
          END DO
 
          IF (my_open_shell) THEN
-            DO iiB = 1, nrow_local_beta
+            DO iiB = 1, ncol_local_beta
                ! parallelize over ia elements in the para_env_row group
-               IF (MODULO(iiB, para_env_row_beta%num_pe) /= para_env_row_beta%mepos) CYCLE
+               IF (MODULO(iiB, para_env_col_beta%num_pe) /= para_env_col_beta%mepos) CYCLE
                ! calculate left_term
                left_term_beta = left_term_beta + wj(jquad)* &
                                 (LOG(1.0_dp + (M_ia_beta(iiB) - D_ia_beta(iiB)**2)/(omega**2 + D_ia_beta(iiB)**2)) - &

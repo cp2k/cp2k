@@ -38,7 +38,7 @@
             &END HF
             &WF_CORRELATION
                 &RI_MP2
-                &END RI_MP2
+                &END
                 &INTEGRALS
                   ERI_METHOD MME
                   &WFC_GPW

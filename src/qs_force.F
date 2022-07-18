@@ -32,7 +32,8 @@ MODULE qs_force
    USE efield_utils,                    ONLY: calculate_ecore_efield
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
-   USE input_constants,                 ONLY: ri_mp2_method_gpw,&
+   USE input_constants,                 ONLY: ri_mp2_laplace,&
+                                              ri_mp2_method_gpw,&
                                               ri_rpa_method_gpw
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -336,7 +337,9 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
-         IF (qs_env%mp2_env%method == ri_mp2_method_gpw) THEN
+         IF ((qs_env%mp2_env%method == ri_mp2_method_gpw .OR. qs_env%mp2_env%method == ri_mp2_laplace .OR. &
+              qs_env%mp2_env%method == ri_rpa_method_gpw) &
+             .AND. .NOT. qs_env%mp2_env%do_im_time) THEN
             CALL update_mp2_forces(qs_env)
          END IF
       END IF

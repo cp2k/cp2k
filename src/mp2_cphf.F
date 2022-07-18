@@ -281,7 +281,7 @@ CONTAINS
       CALL section_vals_get(hfx_sections, explicit=do_hfx, n_repetition=n_rep_hf)
       IF (do_hfx) THEN
          ! here we check if we have to reallocate the HFX container
-         IF (mp2_env%ri_mp2%free_hfx_buffer .AND. (.NOT. qs_env%x_data(1, 1)%do_hfx_ri)) THEN
+         IF (mp2_env%ri_grad%free_hfx_buffer .AND. (.NOT. qs_env%x_data(1, 1)%do_hfx_ri)) THEN
             CALL timeset(routineN//"_alloc_hfx", handle2)
             n_threads = 1
 !$          n_threads = omp_get_max_threads()
@@ -320,7 +320,7 @@ CONTAINS
          ! set up parameters for P_screening
          restore_p_screen = qs_env%x_data(1, 1)%screening_parameter%do_initial_p_screening
          IF (qs_env%x_data(1, 1)%screening_parameter%do_initial_p_screening) THEN
-            IF (mp2_env%ri_mp2%free_hfx_buffer) THEN
+            IF (mp2_env%ri_grad%free_hfx_buffer) THEN
                mp2_env%p_screen = .FALSE.
             ELSE
                mp2_env%p_screen = .TRUE.
@@ -363,7 +363,7 @@ CONTAINS
                             mo_coeff_v, Eigenval, p_env, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, &
                             L_jb, &
-                            recalc_hfx_integrals=mp2_env%ri_mp2%free_hfx_buffer)
+                            recalc_hfx_integrals=mp2_env%ri_grad%free_hfx_buffer)
 
       ! at this point Lagrangian is completed ready to solve the Z-vector equations
       ! P_ia will contain the solution of these equations

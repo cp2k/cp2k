@@ -243,7 +243,7 @@ CONTAINS
          CALL cite_reference(DelBen2015b)
          CALL cite_reference(Rybkin2016)
          !Gradients available for RI-MP2, and low-scaling Laplace MP2/RPA
-         IF ((mp2_env%method /= ri_mp2_method_gpw) .AND. (.NOT. mp2_env%do_im_time)) THEN
+IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw .OR. mp2_env%method == ri_mp2_laplace)) THEN
             CPABORT("No forces/gradients for the selected method.")
          END IF
       END IF
@@ -427,7 +427,7 @@ CONTAINS
       free_hfx_buffer = .FALSE.
       IF (ASSOCIATED(qs_env%x_data)) THEN
          free_hfx_buffer = .TRUE.
-         IF (calc_forces .AND. (.NOT. mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer = .FALSE.
+         IF (calc_forces .AND. (.NOT. mp2_env%ri_grad%free_hfx_buffer)) free_hfx_buffer = .FALSE.
          IF (qs_env%x_data(1, 1)%do_hfx_ri) free_hfx_buffer = .FALSE.
          IF (calc_forces .AND. mp2_env%do_im_time) free_hfx_buffer = .FALSE.
       END IF
@@ -436,7 +436,7 @@ CONTAINS
       IF (virial%pv_numer) THEN
          ! in the case of numerical stress we don't have to free the HFX integrals
          free_hfx_buffer = .FALSE.
-         mp2_env%ri_mp2%free_hfx_buffer = .FALSE.
+         mp2_env%ri_grad%free_hfx_buffer = .FALSE.
       END IF
       END IF
 

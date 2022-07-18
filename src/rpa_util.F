@@ -69,7 +69,7 @@ MODULE rpa_util
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_util'
 
    PUBLIC :: RPA_postprocessing_nokp, alloc_im_time, calc_mat_Q, RPA_postprocessing_start, &
-             dealloc_im_time, contract_P_omega_with_mat_L
+             dealloc_im_time, contract_P_omega_with_mat_L, calc_fm_mat_S_rpa, remove_scaling_factor_rpa
 
 CONTAINS
 
@@ -649,11 +649,9 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param first_cycle ...
-!> \param count_ev_sc_GW ...
 !> \param iter_sc_GW0 ...
 !> \param virtual ...
 !> \param Eigenval ...
-!> \param Eigenval_last ...
 !> \param Eigenval_scf ...
 !> \param homo ...
 !> \param omega ...
@@ -669,14 +667,14 @@ CONTAINS
 !> \param fm_mat_Q_static_bse_gemm ...
 !> \param dgemm_counter ...
 ! **************************************************************************************************
-   SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
-                         Eigenval, Eigenval_last, Eigenval_scf, &
+   SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, iter_sc_GW0, virtual, &
+                         Eigenval, Eigenval_scf, &
                          homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
                          do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
-      INTEGER, INTENT(IN)                                :: count_ev_sc_GW, iter_sc_GW0, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last, Eigenval_scf
+      INTEGER, INTENT(IN)                                :: iter_sc_GW0, virtual
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_scf
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
       INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
@@ -694,13 +692,13 @@ CONTAINS
 
       IF (do_ri_sos_laplace_mp2) THEN
          ! the first index of tau_tj starts with 0 (see mp2_weights)
-         CALL calc_fm_mat_S_laplace(fm_mat_S, first_cycle, homo, virtual, Eigenval, omega, omega_old)
+         CALL calc_fm_mat_S_laplace(fm_mat_S, homo, virtual, Eigenval, omega - omega_old)
       ELSE
          IF (iter_sc_GW0 == 1) THEN
-            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, &
+            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
                                    homo, omega, omega_old)
          ELSE
-            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval_scf, Eigenval_scf, &
+            CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval_scf, &
                                    homo, omega, omega_old)
          END IF
       END IF
@@ -718,100 +716,115 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_mat_S ...
-!> \param first_cycle ...
-!> \param count_ev_sc_GW ...
 !> \param virtual ...
-!> \param Eigenval ...
 !> \param Eigenval_last ...
 !> \param homo ...
-!> \param omega ...
 !> \param omega_old ...
 ! **************************************************************************************************
-   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, count_ev_sc_GW, virtual, Eigenval, Eigenval_last, homo, &
-                                omega, omega_old)
+   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, homo, omega_old)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
-      LOGICAL, INTENT(IN)                                :: first_cycle
-      INTEGER, INTENT(IN)                                :: count_ev_sc_GW, virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, Eigenval_last
+      INTEGER, INTENT(IN)                                :: virtual
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_last
       INTEGER, INTENT(IN)                                :: homo
-      REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
+      REAL(KIND=dp), INTENT(IN)                          :: omega_old
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_fm_mat_S_rpa'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_scaling_factor_rpa'
 
       INTEGER                                            :: avirt, handle, i_global, iiB, iocc, &
-                                                            j_global, jjB, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+                                                            ncol_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(KIND=dp)                                      :: eigen_diff
 
       CALL timeset(routineN, handle)
 
       ! get info of fm_mat_S
       CALL cp_fm_get_info(matrix=fm_mat_S, &
-                          nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
-                          row_indices=row_indices, &
                           col_indices=col_indices)
 
-      ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
-      IF (first_cycle .AND. count_ev_sc_GW > 1) THEN
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,fm_mat_S,virtual,homo,omega_old)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
+!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,fm_mat_S,virtual,homo,omega_old)
+      DO iiB = 1, ncol_local
+         i_global = col_indices(iiB)
 
-               iocc = MAX(1, i_global - 1)/virtual + 1
-               avirt = i_global - (iocc - 1)*virtual
-               eigen_diff = Eigenval_last(avirt + homo) - Eigenval_last(iocc)
+         iocc = MAX(1, i_global - 1)/virtual + 1
+         avirt = i_global - (iocc - 1)*virtual
+         eigen_diff = Eigenval_last(avirt + homo) - Eigenval_last(iocc)
 
-               fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)/ &
-                                               SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
+         fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
+                                       SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
 
-            END DO
-         END DO
+      END DO
 
-      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE remove_scaling_factor_rpa
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_S ...
+!> \param first_cycle ...
+!> \param virtual ...
+!> \param Eigenval ...
+!> \param homo ...
+!> \param omega ...
+!> \param omega_old ...
+! **************************************************************************************************
+   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, homo, &
+                                omega, omega_old)
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      LOGICAL, INTENT(IN)                                :: first_cycle
+      INTEGER, INTENT(IN)                                :: virtual
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: homo
+      REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_fm_mat_S_rpa'
+
+      INTEGER                                            :: avirt, handle, i_global, iiB, iocc, &
+                                                            ncol_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      REAL(KIND=dp)                                      :: eigen_diff
+
+      CALL timeset(routineN, handle)
+
+      ! get info of fm_mat_S
+      CALL cp_fm_get_info(matrix=fm_mat_S, &
+                          ncol_local=ncol_local, &
+                          col_indices=col_indices)
 
       ! update G matrix with the new value of omega
       IF (first_cycle) THEN
          ! In this case just update the matrix (symmetric form) with
          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_S,virtual,homo,omega)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,homo,omega)
+         DO iiB = 1, ncol_local
+            i_global = col_indices(iiB)
 
-               iocc = MAX(1, i_global - 1)/virtual + 1
-               avirt = i_global - (iocc - 1)*virtual
-               eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
+            iocc = MAX(1, i_global - 1)/virtual + 1
+            avirt = i_global - (iocc - 1)*virtual
+            eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
 
-               fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
-                                               SQRT(eigen_diff/(eigen_diff**2 + omega**2))
+            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
+                                          SQRT(eigen_diff/(eigen_diff**2 + omega**2))
 
-            END DO
          END DO
       ELSE
          ! In this case the update has to remove the old omega component thus
          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-!$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
-!$OMP                    fm_mat_S,virtual,homo,omega,omega_old)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,homo,omega,omega_old)
+         DO iiB = 1, ncol_local
+            i_global = col_indices(iiB)
 
-               iocc = MAX(1, i_global - 1)/virtual + 1
-               avirt = i_global - (iocc - 1)*virtual
-               eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
+            iocc = MAX(1, i_global - 1)/virtual + 1
+            avirt = i_global - (iocc - 1)*virtual
+            eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
 
-               fm_mat_S%local_data(iiB, jjB) = fm_mat_S%local_data(iiB, jjB)* &
-                                               SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
+            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
+                                          SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
 
-            END DO
          END DO
       END IF
 
@@ -848,12 +861,12 @@ CONTAINS
       SELECT CASE (mm_style)
       CASE (wfc_mm_style_gemm)
          ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
-         CALL cp_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=alpha, &
+         CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=alpha, &
                       matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
                       matrix_c=fm_mat_Q_gemm)
       CASE (wfc_mm_style_syrk)
          ! will only compute the upper half of the matrix, which is fine, since we only use it for cholesky later
-         CALL cp_fm_syrk(uplo='U', trans='T', k=dimen_ia, alpha=alpha, matrix_a=fm_mat_S, &
+         CALL cp_fm_syrk(uplo='U', trans='N', k=dimen_ia, alpha=alpha, matrix_a=fm_mat_S, &
                          ia=1, ja=1, beta=0.0_dp, matrix_c=fm_mat_Q_gemm)
       CASE DEFAULT
          CPABORT("")

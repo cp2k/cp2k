@@ -99,8 +99,6 @@ MODULE mp2_types
    TYPE mp2_laplace_type
       INTEGER       :: n_quadrature
       INTEGER       :: integ_group_size
-      LOGICAL       :: mo_sos
-      REAL(dp)      :: threshold
    END TYPE
 
    TYPE mp2_direct_type
@@ -117,10 +115,7 @@ MODULE mp2_types
 
    TYPE ri_mp2_type
       INTEGER                  :: block_size
-      REAL(dp)                 :: eps_canonical
-      LOGICAL                  :: free_hfx_buffer
       LOGICAL                  :: print_dgemm_info
-      LOGICAL                  :: use_old_grad
    END TYPE
 
    TYPE ri_rpa_type
@@ -231,6 +226,9 @@ MODULE mp2_types
       TYPE(qs_p_env_type), POINTER :: p_env => NULL()
       TYPE(qs_force_type), DIMENSION(:), POINTER :: mp2_force => NULL()
       REAL(KIND=dp), DIMENSION(3, 3) :: mp2_virial
+      REAL(dp)                 :: eps_canonical
+      LOGICAL                  :: free_hfx_buffer
+      LOGICAL                  :: use_old_grad
    END TYPE
 
    TYPE mp2_type

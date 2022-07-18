@@ -41,7 +41,7 @@
       &END HF
       &WF_CORRELATION
         &RI_MP2
-        &END RI_MP2
+        &END
         &INTEGRALS
           &WFC_GPW
             CUTOFF  50
@@ -51,7 +51,7 @@
           &END WFC_GPW
         &END INTEGRALS
         MEMORY  500.0
-        NUMBER_PROC  1
+        NUMBER_PROC  2
       &END
     &END XC
     UKS

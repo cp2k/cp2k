@@ -24,7 +24,7 @@ MODULE group_dist_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'group_dist_types'
 
    PUBLIC :: group_dist_d0_type, group_dist_d1_type, &
-             create_group_dist, get_group_dist, release_group_dist, maxsize
+             create_group_dist, get_group_dist, release_group_dist, maxsize, group_dist_proc
 
    ! Type to represent start, end and size of one group (usually the own group)
    TYPE group_dist_d0_type
@@ -65,7 +65,7 @@ CONTAINS
 !> \param pos ...
 ! **************************************************************************************************
    PURE SUBROUTINE create_group_dist_d0(this, ngroups, dimen, pos)
-      TYPE(group_dist_d1_type), INTENT(INOUT)            :: this
+      TYPE(group_dist_d0_type), INTENT(INOUT)            :: this
       INTEGER, INTENT(IN)                                :: ngroups, dimen, pos
 
       INTEGER, DIMENSION(2)                              :: itmp
@@ -272,4 +272,28 @@ CONTAINS
       res = MAXVAL(this%sizes)
 
    END FUNCTION maxsize
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \param pos ...
+!> \return ...
+! **************************************************************************************************
+   ELEMENTAL FUNCTION group_dist_proc(this, pos) RESULT(proc)
+      TYPE(group_dist_d1_type), INTENT(IN)               :: this
+      INTEGER, INTENT(IN)                                :: pos
+      INTEGER                                            :: proc
+
+      INTEGER                                            :: p
+
+      proc = -1
+      DO p = 0, SIZE(this%sizes) - 1
+         IF (pos <= this%ends(p) .AND. pos >= this%starts(p)) THEN
+            proc = p
+            RETURN
+         END IF
+      END DO
+
+   END FUNCTION group_dist_proc
+
 END MODULE group_dist_types

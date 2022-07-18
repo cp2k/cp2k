@@ -71,6 +71,8 @@
       &WF_CORRELATION
         &RI_MP2
           BLOCK_SIZE  1
+        &END
+        &CANONICAL_GRADIENTS
           EPS_CANONICAL 1.0E-7
           FREE_HFX_BUFFER .FALSE.
           &CPHF

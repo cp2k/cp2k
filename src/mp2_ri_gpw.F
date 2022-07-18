@@ -682,6 +682,7 @@ CONTAINS
          CALL cp_para_env_split(para_env_P, para_env, sub_P_color)
          DO ispin = 1, nspins
             CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_P%group)
+            CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
          END DO
          ! release para_env_P
          CALL cp_para_env_release(para_env_P)
@@ -2597,7 +2598,7 @@ CONTAINS
          DO iiB = 1, homo(ispin)
             ! diagonal elements already updated
             DO jjB = iiB + 1, homo(ispin)
-               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) < mp2_env%ri_mp2%eps_canonical) &
+               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) < mp2_env%ri_grad%eps_canonical) &
                   num_sing_ij = num_sing_ij + 1
             END DO
          END DO
@@ -2621,7 +2622,7 @@ CONTAINS
          DO iiB = 1, homo(ispin)
             ! diagonal elements already updated
             DO jjB = iiB + 1, homo(ispin)
-               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) >= mp2_env%ri_mp2%eps_canonical) CYCLE
+               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) >= mp2_env%ri_grad%eps_canonical) CYCLE
                DO kkB = 1, my_homo
                   ijk_counter = ijk_counter + 1
                   ijk_map(ispin)%array(ijk_counter, 1) = iiB

@@ -55,7 +55,7 @@
           &END HF
         &END RI_RPA
         MEMORY  200.
-        NUMBER_PROC  1
+        NUMBER_PROC  2
       &END
     &END XC
   &END DFT

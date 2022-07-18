@@ -58,7 +58,7 @@
       &END HF
       &WF_CORRELATION
         &RI_MP2
-        &END RI_MP2
+        &END
         &INTEGRALS
           &INTERACTION_POTENTIAL
             POTENTIAL_TYPE LONGRANGE

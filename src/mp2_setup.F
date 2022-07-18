@@ -69,8 +69,9 @@ CONTAINS
                                                             do_ri_sos_mp2, do_rpa
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: eri_mme_section, gw_section, &
-                                                            low_scaling_section, mp2_section
+      TYPE(section_vals_type), POINTER                   :: cphf_section, eri_mme_section, &
+                                                            gw_section, low_scaling_section, &
+                                                            mp2_section
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
@@ -284,25 +285,12 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%SIZE_INTEG_GROUP", i_val=mp2_env%ri_laplace%integ_group_size)
 
       CALL section_vals_val_get(mp2_section, "RI_MP2%_SECTION_PARAMETERS_", l_val=do_ri_mp2)
-      mp2_env%ri_mp2%use_old_grad = .FALSE.
       IF (do_ri_mp2) THEN
          CALL check_method(mp2_env%method)
          mp2_env%method = ri_mp2_method_gpw
-         CALL section_vals_val_get(mp2_section, "RI_MP2%USE_OLD_GRADIENT_CODE", l_val=mp2_env%ri_mp2%use_old_grad)
       END IF
       CALL section_vals_val_get(mp2_section, "RI_MP2%BLOCK_SIZE", i_val=mp2_env%ri_mp2%block_size)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%EPS_CANONICAL", r_val=mp2_env%ri_mp2%eps_canonical)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%FREE_HFX_BUFFER", l_val=mp2_env%ri_mp2%free_hfx_buffer)
       CALL section_vals_val_get(mp2_section, "RI_MP2%PRINT_DGEMM_INFO", l_val=mp2_env%ri_mp2%print_dgemm_info)
-
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%MAX_ITER", i_val=mp2_env%ri_grad%cphf_max_num_iter)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%EPS_CONV", r_val=mp2_env%ri_grad%cphf_eps_conv)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SCALE_STEP_SIZE", r_val=mp2_env%ri_grad%scale_step_size)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%SOLVER_METHOD", i_val=mp2_env%ri_grad%z_solver_method)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%RESTART_EVERY", i_val=mp2_env%ri_grad%cphf_restart)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%ENFORCE_DECREASE", l_val=mp2_env%ri_grad%enforce_decrease)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%RECALC_RESIDUAL", l_val=mp2_env%ri_grad%recalc_residual)
-      CALL section_vals_val_get(mp2_section, "RI_MP2%CPHF%DO_POLAK_RIBIERE", l_val=mp2_env%ri_grad%polak_ribiere)
 
       CALL section_vals_val_get(mp2_section, "RI%ROW_BLOCK", i_val=mp2_env%block_size_row)
       CALL section_vals_val_get(mp2_section, "RI%COL_BLOCK", i_val=mp2_env%block_size_col)
@@ -376,6 +364,22 @@ CONTAINS
       ! Set some parameters in case of P screening
       mp2_env%not_last_hfx = .TRUE.
       mp2_env%p_screen = .TRUE.
+
+      ! Set the CPHF section
+      CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%FREE_HFX_BUFFER", l_val=mp2_env%ri_grad%free_hfx_buffer)
+      CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%EPS_CANONICAL", r_val=mp2_env%ri_grad%eps_canonical)
+      CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%USE_OLD_GRADIENT_CODE", l_val=mp2_env%ri_grad%use_old_grad)
+      cphf_section => section_vals_get_subs_vals(mp2_section, "CANONICAL_GRADIENTS%CPHF")
+      IF (ASSOCIATED(cphf_section)) THEN
+         CALL section_vals_val_get(cphf_section, "MAX_ITER", i_val=mp2_env%ri_grad%cphf_max_num_iter)
+         CALL section_vals_val_get(cphf_section, "EPS_CONV", r_val=mp2_env%ri_grad%cphf_eps_conv)
+         CALL section_vals_val_get(cphf_section, "SCALE_STEP_SIZE", r_val=mp2_env%ri_grad%scale_step_size)
+         CALL section_vals_val_get(cphf_section, "SOLVER_METHOD", i_val=mp2_env%ri_grad%z_solver_method)
+         CALL section_vals_val_get(cphf_section, "RESTART_EVERY", i_val=mp2_env%ri_grad%cphf_restart)
+         CALL section_vals_val_get(cphf_section, "ENFORCE_DECREASE", l_val=mp2_env%ri_grad%enforce_decrease)
+         CALL section_vals_val_get(cphf_section, "RECALC_RESIDUAL", l_val=mp2_env%ri_grad%recalc_residual)
+         CALL section_vals_val_get(cphf_section, "DO_POLAK_RIBIERE", l_val=mp2_env%ri_grad%polak_ribiere)
+      END IF
 
       ! print some info about the MP2 parameters
       unit_nr = cp_print_key_unit_nr(logger, mp2_section, "PRINT", &

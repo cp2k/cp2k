@@ -44,9 +44,11 @@
       &WF_CORRELATION
         &RI_MP2
           BLOCK_SIZE  -1
+        &END
+        &CANONICAL_GRADIENTS
           EPS_CANONICAL 0.1
           FREE_HFX_BUFFER .TRUE.
-        &END RI_MP2
+        &END
         &INTEGRALS
         &WFC_GPW
           CUTOFF  20
