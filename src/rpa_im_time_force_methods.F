@@ -595,8 +595,9 @@ CONTAINS
                                                             mc_ranges_RI
       INTEGER, DIMENSION(:, :), POINTER                  :: dummy_ptr
       LOGICAL                                            :: memory_info, use_virial
-      REAL(dp) :: debug(3), debug_force_2c(3), debug_force_3c(3), eps_filter, fac, occ, occ_ddint, &
-         occ_der_AO, occ_der_RI, occ_KQK, omega, pref, t1, t2, tau
+      REAL(dp)                                           :: eps_filter, fac, occ, occ_ddint, &
+                                                            occ_der_AO, occ_der_RI, occ_KQK, &
+                                                            omega, pref, t1, t2, tau
       REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -744,9 +745,6 @@ CONTAINS
       CALL dbt_batched_contract_init(t_3c_sparse, batch_range_1=mc_ranges_RI, batch_range_2=mc_ranges, &
                                      batch_range_3=mc_ranges)
 
-      debug_force_2c = 0.0_dp
-      debug_force_3c = 0.0_dp
-
       DO jquad = 1, num_integ_points
          tau = tau_tj(jquad)
          omega = tau_wj(jquad)
@@ -784,14 +782,10 @@ CONTAINS
          dbcsr_nflop = dbcsr_nflop + flop
          CALL dbt_clear(t_2c_RI)
 
-         debug = force(1)%mp2_non_sep(:, 1)
-
          CALL perform_2c_ops(force, work_virial, t_KQKT, force_data, fac, t_Q, t_P(Pspin), t_2c_RI, &
                              t_2c_RI_2, use_virial, cell, particle_set, atom_of_kind, kind_of, &
                              eps_filter, dbcsr_nflop, unit_nr_dbcsr)
          CALL get_tensor_occupancy(t_KQKT, nze_KQK, occ_KQK)
-
-         debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
 
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
          CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, &
@@ -813,8 +807,6 @@ CONTAINS
          CALL dbt_filter(t_dm_virt, eps_filter)
          CALL dbt_destroy(t_2c_tmp)
 
-         debug = force(1)%mp2_non_sep(:, 1)
-
          !Deal with the 3-center quantities.
          CALL perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
                              t_KQKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, t_M_virt, t_3c_0, t_3c_1, &
@@ -823,8 +815,6 @@ CONTAINS
                              batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, cell, particle_set, &
                              atom_of_kind, kind_of, eps_filter, occ_ddint, nze_ddint, dbcsr_nflop, &
                              unit_nr_dbcsr, mp2_env)
-
-         debug_force_3c = debug_force_3c + force(1)%mp2_non_sep(:, 1) - debug
 
          CALL timeset(routineN//"_dbcsr", handle2)
          !We go back to DBCSR matrices from now on
@@ -862,8 +852,6 @@ CONTAINS
          CALL dbt_copy_matrix_to_tensor(dbcsr_work2, t_2c_tmp)
          CALL dbt_copy(t_2c_tmp, t_2c_AO, move_data=.TRUE.)
 
-         debug = force(1)%mp2_non_sep(:, 1)
-
          pref = -1.0_dp*fac
          IF (use_virial) THEN
             CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
@@ -873,8 +861,6 @@ CONTAINS
             CALL get_2c_der_force(force, t_2c_AO, force_data%t_2c_der_ovlp, atom_of_kind, &
                                   kind_of, force_data%idx_to_at_AO, pref, do_ovlp=.TRUE.)
          END IF
-
-         !debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
          CALL dbcsr_multiply('N', 'N', 1.0_dp, Y_1, force_data%P_occ(Pspin)%matrix, 0.0_dp, dbcsr_work_symm)
@@ -941,9 +927,6 @@ CONTAINS
          CALL dbt_destroy(t_2c_tmp)
       END DO !jquad
 
-      WRITE (*, *) "Debug 2c", debug_force_2c
-      WRITE (*, *) "Debug 3c", debug_force_3c
-
       CALL dbt_batched_contract_finalize(t_3c_0)
       CALL dbt_batched_contract_finalize(t_3c_1)
       CALL dbt_batched_contract_finalize(t_3c_3)
@@ -960,8 +943,6 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_8)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
-      debug = force(1)%mp2_non_sep(:, 1)
-
       !Calculate the periodic contributions of (P|Q) to the force and the virial
       work_virial = 0.0_dp
       IF (force_data%do_periodic) THEN
@@ -975,10 +956,6 @@ CONTAINS
          END IF
          CALL dbcsr_clear(force_data%G_PQ)
       END IF
-
-      debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
-
-      WRITE (*, *) "Debug 2c", debug_force_2c
 
       IF (use_virial) THEN
          virial%pv_mp2 = virial%pv_mp2 + work_virial
@@ -1121,8 +1098,10 @@ CONTAINS
                                                             mc_ranges_RI
       INTEGER, DIMENSION(:, :), POINTER                  :: dummy_ptr
       LOGICAL                                            :: memory_info, use_virial
-      REAL(dp) :: debug(3), debug_force_2c(3), debug_force_3c(3), eps_filter, fac, occ, occ_ddint, &
-         occ_der_AO, occ_der_RI, occ_KBK, omega, pref, spin_fac, t1, t2, tau, weight
+      REAL(dp)                                           :: eps_filter, fac, occ, occ_ddint, &
+                                                            occ_der_AO, occ_der_RI, occ_KBK, &
+                                                            omega, pref, spin_fac, t1, t2, tau, &
+                                                            weight
       REAL(dp), DIMENSION(3, 3)                          :: work_virial, work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1347,9 +1326,6 @@ CONTAINS
       fac = 1.0_dp/fourpi*mp2_env%ri_rpa%scale_rpa
       IF (open_shell) fac = 0.5_dp*fac
 
-      debug_force_2c = 0.0_dp
-      debug_force_3c = 0.0_dp
-
       DO jquad = 1, num_integ_points
          tau = tau_tj(jquad)
          occ_ddint = 0; nze_ddint = 0
@@ -1367,14 +1343,10 @@ CONTAINS
          CALL dbt_filter(t_P, eps_filter)
          CALL dbt_destroy(t_2c_tmp)
 
-         debug = force(1)%mp2_non_sep(:, 1)
-
          CALL perform_2c_ops(force, work_virial, t_KBKT, force_data, fac, t_B(jquad), t_P, t_2c_RI, &
                              t_2c_RI_2, use_virial, cell, particle_set, atom_of_kind, kind_of, &
                              eps_filter, dbcsr_nflop, unit_nr_dbcsr)
          CALL get_tensor_occupancy(t_KBKT, nze_KBK, occ_KBK)
-
-         debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
 
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
          CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, &
@@ -1396,8 +1368,6 @@ CONTAINS
          CALL dbt_filter(t_dm_virt, eps_filter)
          CALL dbt_destroy(t_2c_tmp)
 
-         debug = force(1)%mp2_non_sep(:, 1)
-
          !Deal with the 3-center quantities.
          CALL perform_3c_ops(force, work_virial, t_R_occ, t_R_virt, force_data, fac, cut_memory, n_mem_RI, &
                              t_KBKT, t_dm_occ, t_dm_virt, t_3c_O, t_3c_M, t_M_occ, t_M_virt, t_3c_0, t_3c_1, &
@@ -1406,8 +1376,6 @@ CONTAINS
                              batch_end_RI, t_3c_O_compressed, t_3c_O_ind, use_virial, cell, particle_set, &
                              atom_of_kind, kind_of, eps_filter, occ_ddint, nze_ddint, dbcsr_nflop, &
                              unit_nr_dbcsr, mp2_env)
-
-         debug_force_3c = debug_force_3c + force(1)%mp2_non_sep(:, 1) - debug
 
          CALL timeset(routineN//"_dbcsr", handle2)
          !We go back to DBCSR matrices from now on
@@ -1541,8 +1509,6 @@ CONTAINS
       CALL dbt_batched_contract_finalize(t_3c_8)
       CALL dbt_batched_contract_finalize(t_3c_sparse)
 
-      debug = force(1)%mp2_non_sep(:, 1)
-
       !Calculate the periodic contributions of (P|Q) to the force and the virial
       work_virial = 0.0_dp
       IF (force_data%do_periodic) THEN
@@ -1556,11 +1522,6 @@ CONTAINS
          END IF
          CALL dbcsr_clear(force_data%G_PQ)
       END IF
-
-      debug_force_2c = debug_force_2c + force(1)%mp2_non_sep(:, 1) - debug
-
-      WRITE (*, *) "Debug 2c", debug_force_2c
-      WRITE (*, *) "Debug 3c", debug_force_3c
 
       IF (use_virial) THEN
          virial%pv_mp2 = virial%pv_mp2 + work_virial
