@@ -134,6 +134,7 @@ MODULE rpa_im_time_force_methods
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
+   USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_create,&
                                               linres_control_release,&

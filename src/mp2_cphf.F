@@ -111,6 +111,7 @@ MODULE mp2_cphf
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
+   USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_linres_types,                 ONLY: linres_control_create,&

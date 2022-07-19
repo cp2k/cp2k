@@ -78,7 +78,6 @@ MODULE response_solver
    USE physcon,                         ONLY: pascal
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_integral_ab,&
@@ -94,14 +93,9 @@ MODULE response_solver
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_create,&
-                                              pw_p_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_p_type
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_collocate_density,            ONLY: calculate_rho_elec
-   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
-                                              calculate_ecore_self
    USE qs_density_matrices,             ONLY: calculate_whz_matrix,&
                                               calculate_wz_matrix
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -135,7 +129,6 @@ MODULE response_solver
                                               qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_vxc,                          ONLY: qs_vxc_create
    USE task_list_types,                 ONLY: task_list_type
    USE virial_methods,                  ONLY: one_third_sum_diag
    USE virial_types,                    ONLY: virial_type
@@ -158,7 +151,7 @@ MODULE response_solver
    LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
-             ks_ref_potential, response_equation_new
+             response_equation_new
 
 ! **************************************************************************************************
 

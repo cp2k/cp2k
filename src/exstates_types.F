@@ -31,6 +31,7 @@ MODULE exstates_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'exstates_types'
 
    PUBLIC :: excited_energy_type, exstate_release, exstate_create
+   PUBLIC :: exstate_matrix_release, exstate_potential_release
 
 ! *****************************************************************************
 !> \brief Contains information on the excited states energy
@@ -56,7 +57,7 @@ MODULE exstates_types
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: fingerprint
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fingerprint
    END TYPE excited_energy_type
 
 CONTAINS
@@ -71,7 +72,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exstate_release', &
          routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: iab, is
+      INTEGER                                            :: is
 
       IF (ASSOCIATED(ex_env)) THEN
 
@@ -89,6 +90,30 @@ CONTAINS
             END DO
             DEALLOCATE (ex_env%cpmos)
          END IF
+         !
+         CALL exstate_matrix_release(ex_env)
+         !
+         CALL exstate_potential_release(ex_env)
+         !
+         IF (ASSOCIATED(ex_env%fingerprint)) THEN
+            DEALLOCATE (ex_env%fingerprint)
+            NULLIFY (ex_env%fingerprint)
+         END IF
+
+         DEALLOCATE (ex_env)
+
+      END IF
+
+   END SUBROUTINE exstate_release
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ex_env ...
+! **************************************************************************************************
+   SUBROUTINE exstate_matrix_release(ex_env)
+      TYPE(excited_energy_type), POINTER                 :: ex_env
+
+      IF (ASSOCIATED(ex_env)) THEN
          IF (ASSOCIATED(ex_env%matrix_pe)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_pe)
          NULLIFY (ex_env%matrix_pe)
          IF (ASSOCIATED(ex_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_hz)
@@ -105,7 +130,20 @@ CONTAINS
          NULLIFY (ex_env%matrix_px1_admm_asymm)
          IF (ASSOCIATED(ex_env%matrix_wx1)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_wx1)
          NULLIFY (ex_env%matrix_wx1)
-         !
+      END IF
+
+   END SUBROUTINE exstate_matrix_release
+
+! **************************************************************************************************
+!> \brief ...
+!> \param ex_env ...
+! **************************************************************************************************
+   SUBROUTINE exstate_potential_release(ex_env)
+      TYPE(excited_energy_type), POINTER                 :: ex_env
+
+      INTEGER                                            :: iab
+
+      IF (ASSOCIATED(ex_env)) THEN
          IF (ASSOCIATED(ex_env%vh_rspace)) THEN
             CALL pw_release(ex_env%vh_rspace)
             DEALLOCATE (ex_env%vh_rspace)
@@ -131,16 +169,9 @@ CONTAINS
             END DO
             DEALLOCATE (ex_env%vadmm_rspace)
          END IF
-         IF (ASSOCIATED(ex_env%fingerprint)) THEN
-            DEALLOCATE (ex_env%fingerprint)
-            NULLIFY (ex_env%fingerprint)
-         END IF
-
-         DEALLOCATE (ex_env)
-
       END IF
 
-   END SUBROUTINE exstate_release
+   END SUBROUTINE exstate_potential_release
 
 ! **************************************************************************************************
 !> \brief Allocates and intitializes exstate_env
