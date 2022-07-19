@@ -12,12 +12,14 @@
       &END XC_FUNCTIONAL
       &WF_CORRELATION
         &RI_MP2
+          BLOCK_SIZE -1
+        &END RI_MP2
+        &CANONICAL_GRADIENTS
           &CPHF
             EPS_CONV 1.0E-4
             MAX_ITER 20
           &END
-          BLOCK_SIZE -1
-        &END RI_MP2
+        &END
         &INTEGRALS
           &WFC_GPW
             CUTOFF      40
