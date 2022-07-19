@@ -1928,7 +1928,7 @@ CONTAINS
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3, A, 1X, I3, 1X, A, 1X, I3)") &
                   "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
 
-               IF (.NOT. do_im_time .AND. jquad == 1 .AND. count_ev_sc_gw > 1) THEN
+               IF (first_cycle .AND. count_ev_sc_gw > 1) THEN
                   IF (iter_sc_gw0 == 1) THEN
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin)%matrix, virtual(ispin), &
