@@ -44,6 +44,10 @@
           EPS_SCHWARZ 1.0E-6
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 1.5
+        &END
       &END HF
       &WF_CORRELATION
         &RI_RPA
