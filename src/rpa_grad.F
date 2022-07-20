@@ -1410,12 +1410,16 @@ CONTAINS
       INTEGER :: col_local, handle, my_a, my_homo, my_i, my_pcol, my_prow, my_virtual, nrow_local, &
          num_pe_col, proc_recv, proc_send, proc_shift, recv_size, send_size, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
+      REAL(KIND=dp)                                      :: debug(2)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
       tag = 46
+
+      debug(1) = SUM(fm_mat_S%local_data)
+      debug(2) = SUM(fm_mat_S%local_data**2)
 
       CALL get_blacs_info(fm_mat_S%matrix_struct%context, my_process_row=my_prow, my_process_column=my_pcol, &
                           number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
@@ -1470,6 +1474,13 @@ CONTAINS
          IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
 
       END DO
+
+      debug(1) = debug(1) - SUM(mat_S_3D)
+      debug(2) = debug(2) - SUM(mat_S_3D**2)
+      CALL mp_sum(debug, para_env%group)
+      IF (para_env%mepos == 0) WRITE (*, *) "Debug mat_S_3D", debug
+      CPASSERT(ABS(debug(1)) <= 1.0E-10)
+      CPASSERT(ABS(debug(1)) <= 1.0E-10)
 
       CALL timestop(handle)
 
