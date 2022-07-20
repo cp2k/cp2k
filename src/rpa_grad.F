@@ -1844,8 +1844,9 @@ CONTAINS
       INTEGER :: handle, ispin, itmp(2), my_a, my_a_end, my_a_size, my_a_start, my_B_end, &
          my_B_size, my_B_start, my_i, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, &
          proc_send, proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, &
-         send_a_start, send_end, send_start
-      REAL(KIND=dp)                                      :: debug_a, debug_i, my_scale
+         send_a_start, send_end, send_start, sent_data
+      REAL(KIND=dp)                                      :: debug_1(2), debug_2(2), debug_a, &
+                                                            debug_i, my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_a_sub, gd_virtual_sub
@@ -1897,6 +1898,15 @@ CONTAINS
          ! This group dist contains the info which parts of Pab a process is supposed to own later
          CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
 
+         debug_1(1) = SUM(rpa_work%P_ab(ispin)%array)
+         debug_1(2) = 0.0_dp
+         DO my_a = my_a_start, my_a_end
+            debug_1(2) = debug_1(2) + rpa_work%P_ab(ispin)%array(my_a - my_a_start + 1, my_a)
+         END DO
+         CALL mp_sum(debug_1, para_env%group)
+
+         sent_data = 0
+
          DO proc_shift = 0, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -1904,26 +1914,31 @@ CONTAINS
             CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end)
             CALL get_group_dist(gd_a_sub, proc_recv, recv_a_start, recv_a_end)
 
-            ! Calculate global indices of the common range of own matrix and send process
-            send_start = MAX(my_a_start, send_a_start)
-            send_end = MIN(my_a_end, send_a_end)
+            ! Calculate local indices of the common range of own matrix and send process
+            send_start = MAX(1, send_a_start - my_a_start + 1)
+            send_end = MIN(my_a_size, send_a_end - my_a_start + 1)
             ALLOCATE (buffer_send(MAX(send_end - send_start + 1, 0), virtual(ispin)))
-            buffer_send(:, :) = rpa_work%P_ab(ispin)%array(send_start - my_a_start + 1:send_end - my_a_start + 1, :)
+            buffer_send(:, :) = rpa_work%P_ab(ispin)%array(send_start:send_end, :)
+
+            sent_data = sent_data + send_end - send_start + 1
 
             ! Same for recv process but with reverse positions
-            recv_start = MAX(my_a_start, recv_a_start)
-            recv_end = MIN(my_a_end, recv_a_end)
+            recv_start = MAX(1, recv_a_start - my_B_start + 1)
+            recv_end = MIN(my_B_size, recv_a_end - my_B_start + 1)
             ALLOCATE (buffer_recv(MAX(recv_end - recv_start + 1, 0), virtual(ispin)))
 
             CALL mp_sendrecv(buffer_send, proc_send, buffer_recv, proc_recv, para_env_sub%group)
             DEALLOCATE (buffer_send)
 
-            mp2_env%ri_grad%P_ab(ispin)%array(recv_start - my_B_start + 1:recv_end - my_B_start + 1, :) = my_scale*buffer_recv
+            mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) = &
+               mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) + my_scale*buffer_recv
 
             DEALLOCATE (buffer_recv)
 
          END DO
          DEALLOCATE (rpa_work%P_ab(ispin)%array)
+
+         CPASSERT(sent_data == my_a_size)
 
          CALL release_group_dist(gd_virtual_sub)
          CALL release_group_dist(gd_a_sub)
@@ -1932,12 +1947,20 @@ CONTAINS
          CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_exchange%group)
          CALL cp_para_env_release(para_env_exchange)
 
+         debug_2(1) = SUM(mp2_env%ri_grad%P_ab(ispin)%array)
+
          debug_a = 0.0_dp
          DO my_a = my_B_start, my_B_end
             debug_a = debug_a + mp2_env%ri_grad%P_ab(ispin)%array(my_a - my_B_start + 1, my_a)
          END DO
+         debug_2(2) = debug_a
          CALL mp_sum(debug_a, para_env_sub%group)
-         IF (para_env%mepos == 0) WRITE (*, *) "Diag P_ab", debug_a
+         CALL mp_sum(debug_2, para_env_sub%group)
+         IF (para_env%mepos == 0) THEN
+            WRITE (*, *) "Diag P_ab", debug_a
+            WRITE (*, *) "Sum P_ab", debug_1(1) - debug_2(1)
+            WRITE (*, *) "Diag P_ab2", debug_1(2) - debug_2(2)
+         END IF
 
          CPASSERT(ABS(debug_i + debug_a) <= 1.0E-10_dp)
 
