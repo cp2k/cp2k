@@ -3,5 +3,5 @@ CH3_block_mp2.inp                               11      3e-10             -7.284
 H2O_block_lr.inp                                11      3e-10            -16.850610874885060
 H2O_block_rpa.inp                               11      3e-10            -17.145691221375799
 H2O_block_mp2_grad.inp                          11      4e-08            -16.990050036582446
-H2O_block_sos_mp2_grad.inp                      11      1e-07            -17.017084521210176
+H2O_block_sos_mp2_grad.inp                      11      1e-07            -17.129603561168270
 #EOF

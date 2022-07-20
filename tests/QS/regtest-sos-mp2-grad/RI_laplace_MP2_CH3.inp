@@ -21,7 +21,7 @@
       REL_CUTOFF  20
     &END MGRID
     &POISSON
-      PERIODIC NONE
+      PERIODIC XYZ
       POISSON_SOLVER WAVELET
     &END POISSON
     &QS
@@ -39,18 +39,23 @@
       &HF
         FRACTION 1.0000000
         &SCREENING
-          EPS_SCHWARZ 1.0E-6
+          EPS_SCHWARZ 1.0E-3
+          EPS_SCHWARZ_FORCES 1.0E-3
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS 1.5
+        &END
       &END HF
       &WF_CORRELATION
         &RI_SOS_MP2
-          QUADRATURE_POINTS  5
+          QUADRATURE_POINTS  4
         &END
         &INTEGRALS
           &WFC_GPW
-            CUTOFF  50
-            REL_CUTOFF 20
+            CUTOFF  20
+            REL_CUTOFF 5
           &END WFC_GPW
           ERI_METHOD GPW
         &END INTEGRALS
@@ -63,8 +68,8 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom]  8.000   8.000   8.000
-      PERIODIC NONE
+      ABC [angstrom]  4.500   4.500   4.500
+      PERIODIC XYZ
     &END CELL
     &KIND H
       BASIS_SET  DZVP-GTH
