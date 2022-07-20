@@ -1503,9 +1503,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_grad_finalize'
 
-      INTEGER :: dimen_ia, dimen_RI, handle, i, iiB, ispin, my_group_L_end, &
-         my_group_L_size, my_group_L_start, my_ia_end, my_ia_size, my_ia_start, my_P_end, &
-         my_P_size, my_P_start, ngroup, nspins, pos_group, pos_sub, proc
+      INTEGER :: dimen_ia, dimen_RI, handle, i, iiB, ispin, my_group_L_end, my_group_L_size, &
+         my_group_L_start, my_ia_end, my_ia_size, my_ia_start, my_P_end, my_P_size, my_P_start, &
+         ngroup, nspins, pos_group, pos_sub, proc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group
       REAL(KIND=dp)                                      :: my_scale

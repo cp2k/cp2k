@@ -36,7 +36,8 @@ MODULE mp2_ri_grad
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               ri_mp2_laplace,&
-                                              ri_mp2_method_gpw, ri_rpa_method_gpw
+                                              ri_mp2_method_gpw,&
+                                              ri_rpa_method_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE message_passing,                 ONLY: &
@@ -147,8 +148,7 @@ CONTAINS
                                                             factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_2c, h_debug_3c, h_debug_local, &
-                                                            h_stress, pv_virial
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_local, h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
@@ -252,12 +252,6 @@ CONTAINS
 
       factor_2c = -4.0_dp
       IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = -1.0_dp
-      IF (use_virial) THEN
-         h_debug_2c = 0.0_dp
-         h_debug_3c = 0.0_dp
-         WRITE (*, *) para_env%mepos, "Debug 2c virial0", h_debug_2c
-         WRITE (*, *) para_env%mepos, "Debug 3c virial0", h_debug_3c
-      END IF
 
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
@@ -383,14 +377,12 @@ CONTAINS
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
-            !WRITE (*, *) para_env%mepos, "Debug 2c virial1", h_debug_2c
 
             CALL G_P_transform_MO_to_AO(matrix_P_munu%matrix, matrix_P_munu_nosym, mat_munu%matrix, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
             debug = mp2_force(1)%rho_elec(:, 1)
-            !IF (use_virial) h_debug_local = h_stress
 
             CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
@@ -409,7 +401,6 @@ CONTAINS
             END IF
 
             debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug
-            !IF (use_virial) h_debug_2c = h_debug_2c + h_stress - h_debug_local
 
             debug = mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1)
 
@@ -437,13 +428,6 @@ CONTAINS
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
 
             debug_force_3c = debug_force_3c + mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1) - debug
-            !IF (use_virial) h_debug_3c = h_debug_3c + h_stress - h_debug_local
-
-            IF (use_virial) WRITE (*, *) para_env%mepos, h_debug_2c, h_debug_3c
-
-            IF (use_virial) THEN
-               !WRITE (*, *) para_env%mepos, "Debug 2c virial2", h_debug_2c
-            END IF
 
          END DO
 
@@ -469,17 +453,9 @@ CONTAINS
 
       CALL mp_sum(debug_force_2c, para_env%group)
       CALL mp_sum(debug_force_3c, para_env%group)
-      IF (use_virial) THEN
-         CALL mp_sum(h_debug_2c, para_env%group)
-         CALL mp_sum(h_debug_3c, para_env%group)
-      END IF
       IF (para_env%mepos == 0) THEN
          WRITE (*, *) "Debug 2c", debug_force_2c
          WRITE (*, *) "Debug 3c", debug_force_3c
-         IF (use_virial) THEN
-            WRITE (*, *) "Debug 2c virial", h_debug_2c
-            WRITE (*, *) "Debug 3c virial", h_debug_3c
-         END IF
       END IF
 
       IF (use_virial) mp2_env%ri_grad%mp2_virial = h_stress
