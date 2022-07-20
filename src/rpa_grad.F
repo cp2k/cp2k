@@ -853,8 +853,6 @@ CONTAINS
 
             CALL remove_scaling_factor_rpa(fm_mat_S(ispin)%matrix, virtual(ispin), Eigenval(:, ispin), homo(ispin), omega)
 
-            DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
-
          END IF
 
       END DO

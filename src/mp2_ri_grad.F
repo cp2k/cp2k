@@ -143,12 +143,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind, &
                                                             virtual
       LOGICAL                                            :: alpha_beta, use_virial
-      REAL(KIND=dp)                                      :: cutoff_old, debug(3), debug_force_2c(3), &
-                                                            debug_force_3c(3), eps_filter, factor, &
+      REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor, &
                                                             factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_local, h_stress, pv_virial
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
@@ -371,8 +370,6 @@ CONTAINS
          CALL timeset(routineN//"_loop", handle2)
 
          IF (use_virial) h_stress = 0.0_dp
-         debug_force_3c = 0.0_dp
-         debug_force_2c = 0.0_dp
 
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
@@ -389,7 +386,6 @@ CONTAINS
                                                pot_g, mp2_env%potential_parameter, use_virial, &
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
                                                mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
-            IF (use_virial) h_debug_local = h_stress
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
@@ -400,17 +396,11 @@ CONTAINS
                                                   mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
             END IF
 
-            debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug
-
-            debug = mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1)
-
             IF (use_virial) pv_virial = virial%pv_virial
-            IF (use_virial) h_debug_local = h_stress + virial%pv_virial
             CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
                                                   task_list_sub)
             IF (use_virial) THEN
                h_stress = h_stress + (virial%pv_virial - pv_virial)
-               !  h_debug_3c = h_debug_3c + h_stress - h_debug_local
                virial%pv_virial = pv_virial
             END IF
 
@@ -419,15 +409,11 @@ CONTAINS
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                    eps_filter)
 
-            IF (use_virial) h_debug_local = h_stress + virial%pv_virial - pv_virial
-
             CALL integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
                                                   mp2_env%ri_metric, &
                                                   ks_env, poisson_env, pot_g, use_virial, rho_g_copy, dvg, &
                                                   h_stress, para_env_sub, kind_of, atom_of_kind, &
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
-
-            debug_force_3c = debug_force_3c + mp2_force(1)%rho_elec(:, 1) + force(1)%rho_elec(:, 1) - debug
 
          END DO
 
@@ -449,13 +435,6 @@ CONTAINS
          CALL dbcsr_release(matrix_P_munu%matrix)
          DEALLOCATE (matrix_P_munu%matrix)
 
-      END IF
-
-      CALL mp_sum(debug_force_2c, para_env%group)
-      CALL mp_sum(debug_force_3c, para_env%group)
-      IF (para_env%mepos == 0) THEN
-         WRITE (*, *) "Debug 2c", debug_force_2c
-         WRITE (*, *) "Debug 3c", debug_force_3c
       END IF
 
       IF (use_virial) mp2_env%ri_grad%mp2_virial = h_stress
@@ -1180,37 +1159,48 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_mp2_laplace) THEN
-         CALL cp_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
-                      mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-         CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp, &
-                      L_mu_q, mo_coeff, 2.0_dp, fm_P_ij, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
+      IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_mp2_laplace .OR. mp2_env%method == ri_rpa_method_gpw) THEN
 
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               ! diagonal elements and nearly degenerate ij pairs already updated
-               IF (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_grad%eps_canonical) THEN
-                  fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
-               ELSE
-                  fm_P_ij%local_data(iiB, jjB) = &
-                     factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
-               END IF
+         IF (.NOT. mp2_env%method == ri_rpa_method_gpw) THEN
+            CALL cp_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
+                         mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
+                         a_first_col=1, &
+                         a_first_row=1, &
+                         b_first_col=1, &
+                         b_first_row=1, &
+                         c_first_col=1, &
+                         c_first_row=1)
+            CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp, &
+                         L_mu_q, mo_coeff, 2.0_dp, fm_P_ij, &
+                         a_first_col=1, &
+                         a_first_row=1, &
+                         b_first_col=1, &
+                         b_first_row=1, &
+                         c_first_col=1, &
+                         c_first_row=1)
+
+            DO jjB = 1, ncol_local
+               j_global = col_indices(jjB)
+               DO iiB = 1, nrow_local
+                  i_global = row_indices(iiB)
+                  ! diagonal elements and nearly degenerate ij pairs already updated
+                  IF (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_grad%eps_canonical) THEN
+                     fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
+                  ELSE
+                     fm_P_ij%local_data(iiB, jjB) = &
+                        factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
+                  END IF
+               END DO
             END DO
-         END DO
+         ELSE
+            DO jjB = 1, ncol_local
+               j_global = col_indices(jjB)
+               DO iiB = 1, nrow_local
+                  i_global = row_indices(iiB)
+                  fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
+               END DO
+            END DO
+         END IF
       ELSE
          CPABORT("Calculation of occ-occ block of density matrix is dealt with elsewhere!")
       END IF
@@ -1274,7 +1264,7 @@ CONTAINS
                       c_first_row=homo + 1)
       END IF
 
-      IF (mp2_env%method == ri_mp2_method_gpw) THEN
+      IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw) THEN
          ! With MP2 and RPA, we have already calculated the density matrix elements
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
