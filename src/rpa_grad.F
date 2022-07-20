@@ -1830,11 +1830,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_grad_work_finalize'
 
-      INTEGER :: handle, ispin, itmp(2), my_a_end, my_a_size, my_a_start, my_B_end, my_B_size, &
-         my_B_start, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, proc_send, &
-         proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, send_a_start, &
-         send_end, send_start
-      REAL(KIND=dp)                                      :: my_scale
+      INTEGER :: handle, ispin, itmp(2), my_a, my_a_end, my_a_size, my_a_start, my_B_end, &
+         my_B_size, my_B_start, my_i, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, &
+         proc_send, proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, &
+         send_a_start, send_end, send_start
+      REAL(KIND=dp)                                      :: debug_a, debug_i, my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_a_sub, gd_virtual_sub
@@ -1864,6 +1864,12 @@ CONTAINS
          mp2_env%ri_grad%P_ij(ispin)%array(my_i_start:my_i_end, :) = my_scale*rpa_work%P_ij(ispin)%array
          DEALLOCATE (rpa_work%P_ij(ispin)%array)
          CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
+
+         debug_i = 0.0_dp
+         DO my_i = 1, homo(ispin)
+            debug_i = debug_i + mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_i)
+         END DO
+         IF (para_env%mepos == 0) WRITE (*, *) "Diag P_ij", debug_i
 
          itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)
          my_B_start = itmp(1)
@@ -1914,6 +1920,15 @@ CONTAINS
          CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
          CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_exchange%group)
          CALL cp_para_env_release(para_env_exchange)
+
+         debug_a = 0.0_dp
+         DO my_a = my_B_start, my_B_end
+            debug_a = debug_a + mp2_env%ri_grad%P_ab(ispin)%array(my_a - my_B_start + 1, my_a)
+         END DO
+         CALL mp_sum(debug_a, para_env_sub%group)
+         IF (para_env%mepos == 0) WRITE (*, *) "Diag P_ab", debug_a
+
+         CPASSERT(ABS(debug_i + debug_a) <= 1.0E-10_dp)
 
       END DO
       DEALLOCATE (rpa_work%gd_homo, rpa_work%gd_virtual, rpa_work%P_ij, rpa_work%P_ab)
