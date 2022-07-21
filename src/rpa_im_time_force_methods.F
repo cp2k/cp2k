@@ -1163,11 +1163,11 @@ CONTAINS
                                                             mc_ranges_RI
       INTEGER, DIMENSION(:, :), POINTER                  :: dummy_ptr
       LOGICAL                                            :: memory_info, use_virial
-      REAL(dp) :: debug(3), debug_force_2c(3), debug_force_3c(3), eps_filter, fac, occ, occ_ddint, &
-         occ_der_AO, occ_der_RI, occ_KBK, omega, pref, spin_fac, t1, t2, tau, weight, debug_force_2c_metric(3)
-      REAL(dp), DIMENSION(3, 3)                          :: virial_debug_2c, virial_debug_3c, &
-                                                            virial_debug_local, work_virial, &
-                                                            work_virial_ovlp, virial_debug_2c_metric
+      REAL(dp) :: debug(3), debug_force_2c(3), debug_force_2c_metric(3), debug_force_3c(3), &
+         eps_filter, fac, occ, occ_ddint, occ_der_AO, occ_der_RI, occ_KBK, omega, pref, spin_fac, &
+         t1, t2, tau, weight
+      REAL(dp), DIMENSION(3, 3) :: virial_debug_2c, virial_debug_2c_metric, virial_debug_3c, &
+         virial_debug_local, work_virial, work_virial_ovlp
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1303,6 +1303,12 @@ CONTAINS
 
          CALL dbcsr_add_on_diag(dbcsr_work_symm, -1.0_dp)
 
+         BLOCK
+            REAL(KIND=dp) :: debug
+            debug = dbcsr_frobenius_norm(dbcsr_work_symm)
+            IF (para_env%mepos == 0) WRITE (*, *) "fm_mat_Q", debug
+         END BLOCK
+
          DO jquad = 1, num_integ_points
             tau = tau_tj(jquad)
 
@@ -1395,11 +1401,11 @@ CONTAINS
       IF (open_shell) fac = 0.5_dp*fac
 
       debug_force_2c = 0.0_dp
-debug_force_2c_metric = 0.0_dp
+      debug_force_2c_metric = 0.0_dp
       debug_force_3c = 0.0_dp
       IF (use_virial) THEN
          virial_debug_2c = 0.0_dp
-virial_debug_2c_metric = 0.0_dp
+         virial_debug_2c_metric = 0.0_dp
          virial_debug_3c = 0.0_dp
       END IF
 

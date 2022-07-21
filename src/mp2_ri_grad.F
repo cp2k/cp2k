@@ -143,13 +143,13 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind, &
                                                             virtual
       LOGICAL                                            :: alpha_beta, use_virial
-      REAL(KIND=dp)                                      :: cutoff_old, debug_force_2c(3), &
-                                                            debug_force_local(3), eps_filter, &
-                                                            factor, factor_2c, relative_cutoff_old, debug_force_2c_metric(3)
+      REAL(KIND=dp) :: cutoff_old, debug_force_2c(3), debug_force_2c_metric(3), &
+         debug_force_local(3), eps_filter, factor, factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_force_2c, h_debug_local, &
-                                                            h_stress, pv_virial, h_debug_force_2c_metric
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_force_2c, &
+                                                            h_debug_force_2c_metric, &
+                                                            h_debug_local, h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
@@ -255,7 +255,7 @@ CONTAINS
       IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = -1.0_dp
 
       debug_force_2c = 0.0_dp
-debug_force_2c_metric = 0.0_dp
+      debug_force_2c_metric = 0.0_dp
       IF (use_virial) h_debug_force_2c = 0.0_dp
       IF (use_virial) h_debug_force_2c_metric = 0.0_dp
 

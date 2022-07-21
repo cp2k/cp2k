@@ -764,6 +764,12 @@ CONTAINS
             END DO
          END DO
 
+         BLOCK
+            REAL(KIND=dp) :: debug
+            CALL cp_fm_frobenius_norm(fm_mat_Q(1)%matrix, debug)
+            IF (fm_mat_Q(1)%matrix%matrix_struct%para_env%mepos == 0) WRITE (*, *) "fm_mat_Q", debug
+         END BLOCK
+
          CALL timeset(routineN//"_PQ", handle2)
          CALL dgemm_counter_start(dgemm_counter)
          CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=weight, &
