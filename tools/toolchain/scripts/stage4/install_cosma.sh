@@ -6,8 +6,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.6.0"
-cosma_sha256="88405e382b37d247b67403dc3386758b1d2f133a46a902b4be08ffbc43397539"
+cosma_ver="2.6.0-fixed"
+cosma_sha256="fe58c013d53d6386dd5f00b33abcd38adea75f2ee94f193502d375a7de6a57a0"
+
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -35,7 +36,7 @@ case "$with_cosma" in
         echo "COSMA-v${cosma_ver}.tar.gz is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${cosma_sha256} \
-          "https://github.com/eth-cscs/COSMA/releases/download/v${cosma_ver}/COSMA-v${cosma_ver}.tar.gz" \
+          "https://github.com/eth-cscs/COSMA/releases/download/2.6.0-fixed/COSMA-v${cosma_ver}.tar.gz" \
           -o COSMA-v${cosma_ver}.tar.gz
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
