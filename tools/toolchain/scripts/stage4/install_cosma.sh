@@ -7,7 +7,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 cosma_ver="2.6.0-fixed"
-cosma_sha256="fe58c013d53d6386dd5f00b33abcd38adea75f2ee94f193502d375a7de6a57a0"
+cosma_sha256="dc70fe6492813f9a3f037b1cc7b602fb0148ee83ee3609099268b53fca575ce8"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
