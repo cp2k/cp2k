@@ -143,11 +143,13 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind, &
                                                             virtual
       LOGICAL                                            :: alpha_beta, use_virial
-      REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor, &
-                                                            factor_2c, relative_cutoff_old
+      REAL(KIND=dp)                                      :: cutoff_old, debug_force_2c(3), &
+                                                            debug_force_local(3), eps_filter, &
+                                                            factor, factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_force_2c, h_debug_local, &
+                                                            h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
@@ -251,6 +253,8 @@ CONTAINS
 
       factor_2c = -4.0_dp
       IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = -1.0_dp
+      debug_force_2c = 0.0_dp
+      IF (use_virial) h_debug_force_2c = 0.0_dp
 
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
@@ -379,7 +383,8 @@ CONTAINS
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
-            debug = mp2_force(1)%rho_elec(:, 1)
+            debug_force_local = mp2_force(1)%rho_elec(:, 1)
+            IF (use_virial) h_debug_local = h_stress + virial%pv_virial
 
             CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
@@ -395,6 +400,9 @@ CONTAINS
                                                   rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local_2(:, L_counter), &
                                                   mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
             END IF
+
+            debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug_force_local
+            IF (use_virial) h_debug_force_2c = h_debug_force_2c + h_stress + virial%pv_virial - h_debug_local
 
             IF (use_virial) pv_virial = virial%pv_virial
             CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
@@ -435,6 +443,13 @@ CONTAINS
          CALL dbcsr_release(matrix_P_munu%matrix)
          DEALLOCATE (matrix_P_munu%matrix)
 
+      END IF
+
+      CALL mp_sum(debug_force_2c, para_env%group)
+      IF (use_virial) CALL mp_sum(h_debug_force_2c, para_env%group)
+      IF (para_env%mepos == 0) THEN
+         WRITE (*, *) "Debug 2c", debug_force_2c
+         IF (use_virial) WRITE (*, *) "Virial 2c", h_debug_force_2c
       END IF
 
       IF (use_virial) mp2_env%ri_grad%mp2_virial = h_stress
@@ -1159,50 +1174,45 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_mp2_laplace .OR. mp2_env%method == ri_rpa_method_gpw) THEN
+      IF (.NOT. mp2_env%method == ri_rpa_method_gpw) THEN
+         CALL cp_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
+                      mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
+                      a_first_col=1, &
+                      a_first_row=1, &
+                      b_first_col=1, &
+                      b_first_row=1, &
+                      c_first_col=1, &
+                      c_first_row=1)
+         CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp, &
+                      L_mu_q, mo_coeff, 2.0_dp, fm_P_ij, &
+                      a_first_col=1, &
+                      a_first_row=1, &
+                      b_first_col=1, &
+                      b_first_row=1, &
+                      c_first_col=1, &
+                      c_first_row=1)
 
-         IF (.NOT. mp2_env%method == ri_rpa_method_gpw) THEN
-            CALL cp_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
-                         mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-            CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp, &
-                         L_mu_q, mo_coeff, 2.0_dp, fm_P_ij, &
-                         a_first_col=1, &
-                         a_first_row=1, &
-                         b_first_col=1, &
-                         b_first_row=1, &
-                         c_first_col=1, &
-                         c_first_row=1)
-
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  ! diagonal elements and nearly degenerate ij pairs already updated
-                  IF (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_grad%eps_canonical) THEN
-                     fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
-                  ELSE
-                     fm_P_ij%local_data(iiB, jjB) = &
-                        factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
-                  END IF
-               END DO
-            END DO
-         ELSE
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               ! diagonal elements and nearly degenerate ij pairs already updated
+               IF (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_grad%eps_canonical) THEN
                   fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
-               END DO
+               ELSE
+                  fm_P_ij%local_data(iiB, jjB) = &
+                     factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
+               END IF
             END DO
-         END IF
+         END DO
       ELSE
-         CPABORT("Calculation of occ-occ block of density matrix is dealt with elsewhere!")
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
+            END DO
+         END DO
       END IF
       ! deallocate the local P_ij
       DEALLOCATE (mp2_env%ri_grad%P_ij(kspin)%array)
@@ -1353,6 +1363,28 @@ CONTAINS
       DEALLOCATE (ab_rec)
       DEALLOCATE (mepos_2_grid)
       DEALLOCATE (sizes)
+
+      BLOCK
+         REAL(KIND=dp) :: trace(3)
+         trace = 0.0_dp
+         DO iiB = 1, ncol_local
+            i_global = col_indices(iiB)
+            DO jjB = 1, nrow_local
+               j_global = row_indices(jjB)
+               IF (i_global == j_global) THEN
+                  trace(1) = trace(1) + mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(jjB, iiB)
+                  IF (i_global <= homo) THEN
+                     trace(2) = trace(2) + mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(jjB, iiB)
+                  ELSE
+                     trace(3) = trace(3) + mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(jjB, iiB)
+                  END IF
+               END IF
+            END DO
+         END DO
+         CALL mp_sum(trace, para_env%group)
+         WRITE (*, *) "Trace P_mo", trace
+         CPASSERT(ABS(trace(1)) <= 1.0E-10)
+      END BLOCK
 
       ! deallocate the local P_ab
       DEALLOCATE (mp2_env%ri_grad%P_ab(kspin)%array)

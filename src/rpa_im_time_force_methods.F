@@ -1504,8 +1504,8 @@ CONTAINS
          CALL dbt_copy_matrix_to_tensor(dbcsr_work2, t_2c_tmp)
          CALL dbt_copy(t_2c_tmp, t_2c_AO, move_data=.TRUE.)
 
-         debug = force(1)%overlap(:, 1)
-         IF (use_virial) virial_debug_local = work_virial
+         debug = force(1)%mp2_non_sep(:, 1)
+         IF (use_virial) virial_debug_local = work_virial_ovlp
 
          pref = -1.0_dp*fac
          IF (use_virial) THEN
@@ -1518,7 +1518,7 @@ CONTAINS
          END IF
 
          debug_force_2c = debug_force_2c + force(1)%overlap(:, 1) - debug
-         IF (use_virial) virial_debug_2c = virial_debug_2c + work_virial - virial_debug_local
+         IF (use_virial) virial_debug_2c = virial_debug_2c + work_virial_ovlp - virial_debug_local
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
          CALL dbcsr_multiply('N', 'N', fac*tau, Y_1, force_data%P_occ(ispin)%matrix, 1.0_dp, &

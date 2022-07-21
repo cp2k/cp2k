@@ -1904,6 +1904,7 @@ CONTAINS
             debug_1(2) = debug_1(2) + rpa_work%P_ab(ispin)%array(my_a - my_a_start + 1, my_a)
          END DO
          CALL mp_sum(debug_1, para_env%group)
+         debug_1 = debug_1*my_scale
 
          sent_data = 0
 
@@ -1958,11 +1959,12 @@ CONTAINS
          CALL mp_sum(debug_2, para_env_sub%group)
          IF (para_env%mepos == 0) THEN
             WRITE (*, *) "Diag P_ab", debug_a
-            WRITE (*, *) "Sum P_ab", debug_1(1) - debug_2(1)
-            WRITE (*, *) "Diag P_ab2", debug_1(2) - debug_2(2)
+            WRITE (*, *) "Diag P_ab1", debug_1
+            WRITE (*, *) "Diag P_ab2", debug_2
          END IF
 
          CPASSERT(ABS(debug_i + debug_a) <= 1.0E-10_dp)
+         CPASSERT(ALL(ABS(debug_1 - debug_2) <= 1.0E-10_dp))
 
       END DO
       DEALLOCATE (rpa_work%gd_homo, rpa_work%gd_virtual, rpa_work%P_ij, rpa_work%P_ab)
