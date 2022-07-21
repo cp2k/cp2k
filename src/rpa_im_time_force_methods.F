@@ -1164,10 +1164,10 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: dummy_ptr
       LOGICAL                                            :: memory_info, use_virial
       REAL(dp) :: debug(3), debug_force_2c(3), debug_force_3c(3), eps_filter, fac, occ, occ_ddint, &
-         occ_der_AO, occ_der_RI, occ_KBK, omega, pref, spin_fac, t1, t2, tau, weight
+         occ_der_AO, occ_der_RI, occ_KBK, omega, pref, spin_fac, t1, t2, tau, weight, debug_force_2c_metric(3)
       REAL(dp), DIMENSION(3, 3)                          :: virial_debug_2c, virial_debug_3c, &
                                                             virial_debug_local, work_virial, &
-                                                            work_virial_ovlp
+                                                            work_virial_ovlp, virial_debug_2c_metric
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1395,9 +1395,11 @@ CONTAINS
       IF (open_shell) fac = 0.5_dp*fac
 
       debug_force_2c = 0.0_dp
+debug_force_2c_metric = 0.0_dp
       debug_force_3c = 0.0_dp
       IF (use_virial) THEN
          virial_debug_2c = 0.0_dp
+virial_debug_2c_metric = 0.0_dp
          virial_debug_3c = 0.0_dp
       END IF
 
@@ -1517,8 +1519,8 @@ CONTAINS
                                   kind_of, force_data%idx_to_at_AO, pref, do_ovlp=.TRUE.)
          END IF
 
-         debug_force_2c = debug_force_2c + force(1)%overlap(:, 1) - debug
-         IF (use_virial) virial_debug_2c = virial_debug_2c + work_virial_ovlp - virial_debug_local
+         debug_force_2c_metric = debug_force_2c_metric + force(1)%overlap(:, 1) - debug
+         IF (use_virial) virial_debug_2c_metric = virial_debug_2c_metric + work_virial_ovlp - virial_debug_local
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
          CALL dbcsr_multiply('N', 'N', fac*tau, Y_1, force_data%P_occ(ispin)%matrix, 1.0_dp, &
@@ -1626,9 +1628,11 @@ CONTAINS
          TYPE(cp_para_env_type), POINTER :: para_env
          CALL get_qs_env(qs_env, para_env=para_env)
          CALL mp_sum(debug_force_2c, para_env%group)
+         CALL mp_sum(debug_force_2c_metric, para_env%group)
          CALL mp_sum(debug_force_3c, para_env%group)
          IF (use_virial) THEN
             CALL mp_sum(virial_debug_2c, para_env%group)
+            CALL mp_sum(virial_debug_2c_metric, para_env%group)
             CALL mp_sum(virial_debug_3c, para_env%group)
          END IF
       END BLOCK
@@ -1636,9 +1640,11 @@ CONTAINS
 
          IF (use_virial) THEN
             WRITE (unit_nr, *) "Debug 2c virial", virial_debug_2c
+            WRITE (unit_nr, *) "Debug 2c virial metric", virial_debug_2c_metric
             WRITE (unit_nr, *) "Debug 3c virial", virial_debug_3c
          END IF
          WRITE (unit_nr, *) "Debug 2c", debug_force_2c
+         WRITE (unit_nr, *) "Debug 2c metric", debug_force_2c_metric
          WRITE (unit_nr, *) "Debug 3c", debug_force_3c
       END IF
 

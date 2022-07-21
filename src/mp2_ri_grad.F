@@ -145,11 +145,11 @@ CONTAINS
       LOGICAL                                            :: alpha_beta, use_virial
       REAL(KIND=dp)                                      :: cutoff_old, debug_force_2c(3), &
                                                             debug_force_local(3), eps_filter, &
-                                                            factor, factor_2c, relative_cutoff_old
+                                                            factor, factor_2c, relative_cutoff_old, debug_force_2c_metric(3)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_force_2c, h_debug_local, &
-                                                            h_stress, pv_virial
+                                                            h_stress, pv_virial, h_debug_force_2c_metric
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
@@ -253,8 +253,11 @@ CONTAINS
 
       factor_2c = -4.0_dp
       IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = -1.0_dp
+
       debug_force_2c = 0.0_dp
+debug_force_2c_metric = 0.0_dp
       IF (use_virial) h_debug_force_2c = 0.0_dp
+      IF (use_virial) h_debug_force_2c_metric = 0.0_dp
 
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
@@ -392,6 +395,12 @@ CONTAINS
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
                                                mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
 
+            debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug_force_local
+            IF (use_virial) h_debug_force_2c = h_debug_force_2c + h_stress + virial%pv_virial - h_debug_local
+
+            debug_force_local = mp2_force(1)%rho_elec(:, 1)
+            IF (use_virial) h_debug_local = h_stress + virial%pv_virial
+
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
                CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
@@ -401,8 +410,8 @@ CONTAINS
                                                   mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
             END IF
 
-            debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug_force_local
-            IF (use_virial) h_debug_force_2c = h_debug_force_2c + h_stress + virial%pv_virial - h_debug_local
+            debug_force_2c_metric = debug_force_2c_metric + mp2_force(1)%rho_elec(:, 1) - debug_force_local
+            IF (use_virial) h_debug_force_2c_metric = h_debug_force_2c_metric + h_stress + virial%pv_virial - h_debug_local
 
             IF (use_virial) pv_virial = virial%pv_virial
             CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
@@ -446,10 +455,14 @@ CONTAINS
       END IF
 
       CALL mp_sum(debug_force_2c, para_env%group)
+      CALL mp_sum(debug_force_2c_metric, para_env%group)
       IF (use_virial) CALL mp_sum(h_debug_force_2c, para_env%group)
+      IF (use_virial) CALL mp_sum(h_debug_force_2c_metric, para_env%group)
       IF (para_env%mepos == 0) THEN
          WRITE (*, *) "Debug 2c", debug_force_2c
+         WRITE (*, *) "Debug 2c metric", debug_force_2c_metric
          IF (use_virial) WRITE (*, *) "Virial 2c", h_debug_force_2c
+         IF (use_virial) WRITE (*, *) "Virial 2c metric", h_debug_force_2c_metric
       END IF
 
       IF (use_virial) mp2_env%ri_grad%mp2_virial = h_stress
