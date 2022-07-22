@@ -1614,13 +1614,14 @@ CONTAINS
          description="Which interaction potential should be used "// &
          "(Coulomb, TShPSC operator).", &
          usage="POTENTIAL_TYPE TSHPSC", &
-         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED", "MIX_CL"), &
+         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED", "MIX_CL", "IDENTITY"), &
          enum_i_vals=(/do_potential_coulomb, &
                        do_potential_TShPSC, &
                        do_potential_long, &
                        do_potential_short, &
                        do_potential_truncated, &
-                       do_potential_mix_cl/), &
+                       do_potential_mix_cl, &
+                       do_potential_id/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
                        "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li>"// &
                        "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "// &
@@ -1631,7 +1632,8 @@ CONTAINS
                        "Longrange Coulomb potential: erf(w*r)/r)", &
                        "Shortrange Coulomb potential: erfc(w*r)/r", &
                        "Truncated Coulomb potential", &
-                       "Mixed Coulomb/Longrange Coulomb potential"), &
+                       "Mixed Coulomb/Longrange Coulomb potential", &
+                       "Delta potential"), &
          default_i_val=do_potential_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
