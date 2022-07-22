@@ -1195,7 +1195,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw'
 
-      INTEGER                                            :: handle, my_potential_type
+      INTEGER                                            :: comp(3), handle, idir, my_potential_type
       LOGICAL                                            :: my_transfer
 
       CALL timeset(routineN, handle)
@@ -1221,6 +1221,15 @@ CONTAINS
          IF (my_transfer) CALL pw_transfer(pot_g%pw, pot_r%pw)
       ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output
+         CALL pw_copy(rho_g%pw, pot_g%pw)
+         IF (PRESENT(dvg)) THEN
+         DO idir = 1, 3
+            CALL pw_copy(pot_g%pw, dvg(idir)%pw)
+            comp = 0
+            comp(idir) = 1
+            CALL pw_derive(dvg(idir)%pw, comp)
+         END DO
+         END IF
          IF (my_transfer) CALL pw_transfer(rho_g%pw, pot_r%pw)
       END IF
 
