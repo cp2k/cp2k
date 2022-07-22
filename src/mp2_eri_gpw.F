@@ -426,6 +426,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      MARK_USED(atom_of_kind)
+      MARK_USED(kind_of)
+      MARK_USED(force)
+      MARK_USED(h_stress)
+      MARK_USED(para_env_sub)
+
       ! calculate potential associated to the single aux function
       CALL timeset(routineN//"_wf_pot", handle2)
       ! pseudo psi_L
@@ -748,10 +754,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: e_hartree
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug
 
+      MARK_USED(dvg)
+
       h_debug = h_stress
 
-      ! add the volume contribution to the virial coming from
-      ! the 3-center integrals (mu nu|P)
+      ! add the volume contribution
       CALL timeset(routineN, handle)
       e_hartree = 0.0_dp
       e_hartree = pw_integral_ab(rho_g_copy%pw, pot_g%pw)
@@ -770,7 +777,6 @@ CONTAINS
          END DO
       END DO
 
-      WRITE (*, *) "Virial potential", h_stress - h_debug, e_hartree/REAL(para_env_sub%num_pe, dp), SUM(rho_g%pw%cc)
       CALL timestop(handle)
    END SUBROUTINE virial_gpw_potential
 
@@ -842,7 +848,6 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown potential type")
       END SELECT
-      WRITE (*, *) "Sum pw", SUM(pw%cc)
 
    END SUBROUTINE factor_virial_gpw
 

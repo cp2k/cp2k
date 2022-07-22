@@ -147,10 +147,9 @@ CONTAINS
          debug_force_local(3), eps_filter, factor, factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug_force_2c, &
-                                                            h_debug_force_2c_metric, &
-                                                            h_debug_force_3c, h_debug_local, &
-                                                            h_stress, pv_virial
+      REAL(KIND=dp), DIMENSION(3, 3) :: h_debug_force_2c, h_debug_force_2c_metric, &
+         h_debug_force_2c_metric_2, h_debug_force_3c, h_debug_local, h_debug_local_2, h_stress, &
+         pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
@@ -261,6 +260,7 @@ CONTAINS
       IF (use_virial) h_debug_force_2c = 0.0_dp
       IF (use_virial) h_debug_force_3c = 0.0_dp
       IF (use_virial) h_debug_force_2c_metric = 0.0_dp
+      IF (use_virial) h_debug_force_2c_metric_2 = 0.0_dp
 
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
@@ -380,7 +380,14 @@ CONTAINS
          CALL timeset(routineN//"_loop", handle2)
 
          IF (use_virial) h_stress = 0.0_dp
-         IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress 0", h_stress
+
+         debug_force_2c = 0.0_dp
+         debug_force_3c = 0.0_dp
+         debug_force_2c_metric = 0.0_dp
+         IF (use_virial) h_debug_force_2c = 0.0_dp
+         IF (use_virial) h_debug_force_3c = 0.0_dp
+         IF (use_virial) h_debug_force_2c_metric = 0.0_dp
+         IF (use_virial) h_debug_force_2c_metric_2 = 0.0_dp
 
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
@@ -400,7 +407,7 @@ CONTAINS
                                                mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
 
             debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug_force_local
-            IF (use_virial) THEN
+            IF (use_virial .AND. para_env%mepos == 0) THEN
                WRITE (*, *) SUM(h_debug_force_2c)
                WRITE (*, *) SUM(h_stress)
                WRITE (*, *) SUM(virial%pv_virial)
@@ -411,7 +418,8 @@ CONTAINS
             IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress ", L_counter, h_stress
 
             debug_force_local = mp2_force(1)%rho_elec(:, 1)
-            IF (use_virial) h_debug_local = h_stress + virial%pv_virial
+            IF (use_virial) h_debug_local = h_stress
+            IF (use_virial) h_debug_local_2 = virial%pv_virial
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
@@ -423,9 +431,10 @@ CONTAINS
             END IF
 
             debug_force_2c_metric = debug_force_2c_metric + mp2_force(1)%rho_elec(:, 1) - debug_force_local
-            IF (use_virial) h_debug_force_2c_metric = h_debug_force_2c_metric + h_stress + virial%pv_virial - h_debug_local
+            IF (use_virial) h_debug_force_2c_metric = h_debug_force_2c_metric + h_stress - h_debug_local
+            IF (use_virial) h_debug_force_2c_metric_2 = h_debug_force_2c_metric_2 + virial%pv_virial - h_debug_local_2
 
-            IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress metric", L_counter, h_stress
+            !IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress metric", L_counter, h_stress
 
             debug_force_local = force(1)%rho_elec(:, 1)
             IF (use_virial) h_debug_local = virial%pv_virial
@@ -452,7 +461,7 @@ CONTAINS
                                                   h_stress, para_env_sub, kind_of, atom_of_kind, &
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
 
-            IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress 3c", L_counter, h_stress
+            !IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress 3c", L_counter, h_stress
          END DO
 
          CALL timestop(handle2)
@@ -480,6 +489,8 @@ CONTAINS
       CALL mp_sum(debug_force_3c, para_env%group)
       IF (use_virial) CALL mp_sum(h_debug_force_2c, para_env%group)
       IF (use_virial) CALL mp_sum(h_debug_force_2c_metric, para_env%group)
+      IF (use_virial) CALL mp_sum(h_debug_force_2c_metric_2, para_env%group)
+
       IF (use_virial) CALL mp_sum(h_debug_force_3c, para_env%group)
       IF (para_env%mepos == 0) THEN
          WRITE (*, *) "Debug 2c", debug_force_2c
@@ -487,6 +498,7 @@ CONTAINS
          WRITE (*, *) "Debug 3c", debug_force_3c
          IF (use_virial) WRITE (*, *) "Virial 2c", h_debug_force_2c
          IF (use_virial) WRITE (*, *) "Virial 2c metric", h_debug_force_2c_metric
+         IF (use_virial) WRITE (*, *) "Virial 2c metric 2", h_debug_force_2c_metric_2
          IF (use_virial) WRITE (*, *) "Virial 3c", h_debug_force_3c
       END IF
 
