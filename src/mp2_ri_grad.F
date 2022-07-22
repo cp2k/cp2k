@@ -377,6 +377,7 @@ CONTAINS
          CALL timeset(routineN//"_loop", handle2)
 
          IF (use_virial) h_stress = 0.0_dp
+         IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress 0", h_stress
 
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
@@ -398,6 +399,8 @@ CONTAINS
             debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug_force_local
             IF (use_virial) h_debug_force_2c = h_debug_force_2c + h_stress + virial%pv_virial - h_debug_local
 
+            IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress ", L_counter, h_stress
+
             debug_force_local = mp2_force(1)%rho_elec(:, 1)
             IF (use_virial) h_debug_local = h_stress + virial%pv_virial
 
@@ -412,6 +415,8 @@ CONTAINS
 
             debug_force_2c_metric = debug_force_2c_metric + mp2_force(1)%rho_elec(:, 1) - debug_force_local
             IF (use_virial) h_debug_force_2c_metric = h_debug_force_2c_metric + h_stress + virial%pv_virial - h_debug_local
+
+            IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress metric", L_counter, h_stress
 
             IF (use_virial) pv_virial = virial%pv_virial
             CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
@@ -432,6 +437,7 @@ CONTAINS
                                                   h_stress, para_env_sub, kind_of, atom_of_kind, &
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
 
+            IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress 3c", L_counter, h_stress
          END DO
 
          CALL timestop(handle2)

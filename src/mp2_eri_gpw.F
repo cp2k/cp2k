@@ -469,7 +469,6 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE integrate_potential_forces_2c
 
-   ! If virial, then extract it from virial%pv_virial
 ! **************************************************************************************************
 !> \brief Takes the precomputed potential of an RI wave-function and determines matrix element and
 !>        gradients with product of Gaussians
@@ -747,6 +746,9 @@ CONTAINS
       INTEGER                                            :: alpha, beta, handle
       INTEGER, DIMENSION(3)                              :: comp
       REAL(KIND=dp)                                      :: e_hartree
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug
+
+      h_debug = h_stress
 
       ! add the volume contribution to the virial coming from
       ! the 3-center integrals (mu nu|P)
@@ -767,6 +769,8 @@ CONTAINS
             h_stress(beta, alpha) = h_stress(alpha, beta)
          END DO
       END DO
+
+      WRITE (*, *) "Virial potential", h_stress - h_debug, e_hartree/REAL(para_env_sub%num_pe, dp), SUM(rho_g%pw%cc)
       CALL timestop(handle)
    END SUBROUTINE virial_gpw_potential
 
@@ -777,7 +781,7 @@ CONTAINS
 !> \param potential_parameter parameters of potential V(g)
 ! **************************************************************************************************
    SUBROUTINE factor_virial_gpw(pw, potential_parameter)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: i
@@ -838,6 +842,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown potential type")
       END SELECT
+      WRITE (*, *) "Sum pw", SUM(pw%cc)
 
    END SUBROUTINE factor_virial_gpw
 
