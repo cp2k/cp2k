@@ -175,6 +175,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      WRITE (*, *) "my_group_L", my_group_L_start, my_group_L_end, my_group_L_size, mp2_env%eri_method == do_eri_gpw
+
       eri_method = mp2_env%eri_method
       eri_param => mp2_env%eri_mme_param
 
@@ -252,7 +254,10 @@ CONTAINS
       mp2_env%ri_grad%mp2_force => mp2_force
 
       factor_2c = -4.0_dp
-      IF (mp2_env%method == ri_rpa_method_gpw) factor_2c = -1.0_dp
+      IF (mp2_env%method == ri_rpa_method_gpw) THEN
+         factor_2c = -1.0_dp
+         IF (alpha_beta) factor_2c = -2.0_dp
+      END IF
 
       debug_force_2c = 0.0_dp
       debug_force_3c = 0.0_dp
@@ -389,9 +394,12 @@ CONTAINS
          IF (use_virial) h_debug_force_2c_metric = 0.0_dp
          IF (use_virial) h_debug_force_2c_metric_2 = 0.0_dp
 
+         WRITE (*, *) "L_group", my_group_L_start, my_group_L_end
+
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
+            WRITE (*, *) "LLL", LLL
 
             CALL G_P_transform_MO_to_AO(matrix_P_munu%matrix, matrix_P_munu_nosym, mat_munu%matrix, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &

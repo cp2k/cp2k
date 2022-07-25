@@ -1570,8 +1570,20 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(fm_PQ, 0.0_dp)
 
+      BLOCK
+         REAL(KIND=dp) :: debug
+         CALL cp_fm_frobenius_norm(rpa_grad%fm_Gamma_PQ, debug)
+         IF (para_env%mepos == 0) WRITE (*, *) "fm_Gamma_PQ", debug
+      END BLOCK
+
       ! We still have to left- and right multiply it with PQhalf
       CALL dereplicate_and_sum_fm(rpa_grad%fm_Gamma_PQ, fm_PQ)
+
+      BLOCK
+         REAL(KIND=dp) :: debug
+         CALL cp_fm_frobenius_norm(fm_PQ, debug)
+         IF (para_env%mepos == 0) WRITE (*, *) "fm_PQ", debug
+      END BLOCK
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
 
@@ -1652,6 +1664,12 @@ CONTAINS
          CALL cp_fm_release(fm_work_PQ_2)
          CALL cp_fm_release(fm_work_PQ)
       END IF
+
+      BLOCK
+         REAL(KIND=dp) :: debug
+         CALL cp_fm_frobenius_norm(fm_PQ, debug)
+         IF (para_env%mepos == 0) WRITE (*, *) "fm_PQ ready", debug
+      END BLOCK
 
       ALLOCATE (mp2_env%ri_grad%Gamma_PQ(my_P_size, my_group_L_size))
       CALL fm2array(mp2_env%ri_grad%Gamma_PQ, &

@@ -471,6 +471,7 @@ CONTAINS
       ! 2-center forces with Gamma_PQ
       CALL integrate_potential(pw_env_sub, rho_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
                                -0.25_dp*factor*G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
+      WRITE (*, *) "Test 2c", factor, NORM2(G_PQ_local)
 
       CALL timestop(handle)
    END SUBROUTINE integrate_potential_forces_2c
@@ -938,6 +939,7 @@ CONTAINS
             my_virial_a = 0.0_dp
             my_virial_b = 0.0_dp
          END IF
+         WRITE (*, *) "iatom", iatom
 
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -1005,6 +1007,7 @@ CONTAINS
 
          force(ikind)%rho_elec(:, atom_a) = &
             force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b
+         WRITE (*, *) force_a + force_b
          IF (use_virial) THEN
             h_stress = h_stress + my_virial_a + my_virial_b
          END IF
