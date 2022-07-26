@@ -318,8 +318,6 @@ CONTAINS
 
             proc_homo_send = group_dist_proc(rpa_work%gd_homo(ispin), iocc)
             proc_virtual_send = group_dist_proc(rpa_work%gd_virtual(ispin), avirt)
-            CPASSERT(proc_homo_send >= 0)
-            CPASSERT(proc_virtual_send >= 0)
 
             proc_send = proc_homo_send*proc_virtual + proc_virtual_send
 
@@ -454,8 +452,6 @@ CONTAINS
 
       tag = 44
 
-      CPASSERT(.NOT. ALLOCATED(sos_mp2_work%index2send))
-      CPASSERT(.NOT. ALLOCATED(sos_mp2_work%index2recv))
       CALL get_blacs_info(fm_mat_S%matrix_struct%context, number_of_process_columns=num_pe_col)
       ALLOCATE (sos_mp2_work%index2send(0:num_pe_col - 1), &
                 sos_mp2_work%index2recv(0:num_pe_col - 1))
@@ -763,12 +759,6 @@ CONTAINS
             END IF
             END DO
          END DO
-
-         BLOCK
-            REAL(KIND=dp) :: debug
-            CALL cp_fm_frobenius_norm(fm_mat_Q(1)%matrix, debug)
-            IF (fm_mat_Q(1)%matrix%matrix_struct%para_env%mepos == 0) WRITE (*, *) "fm_mat_Q", debug
-         END BLOCK
 
          CALL timeset(routineN//"_PQ", handle2)
          CALL dgemm_counter_start(dgemm_counter)
@@ -1416,16 +1406,12 @@ CONTAINS
       INTEGER :: col_local, handle, my_a, my_homo, my_i, my_pcol, my_prow, my_virtual, nrow_local, &
          num_pe_col, proc_recv, proc_send, proc_shift, recv_size, send_size, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
-      REAL(KIND=dp)                                      :: debug(2)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
       tag = 46
-
-      debug(1) = SUM(fm_mat_S%local_data)
-      debug(2) = SUM(fm_mat_S%local_data**2)
 
       CALL get_blacs_info(fm_mat_S%matrix_struct%context, my_process_row=my_prow, my_process_column=my_pcol, &
                           number_of_process_columns=num_pe_col, blacs2mpi=blacs2mpi)
@@ -1480,13 +1466,6 @@ CONTAINS
          IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
 
       END DO
-
-      debug(1) = debug(1) - SUM(mat_S_3D)
-      debug(2) = debug(2) - SUM(mat_S_3D**2)
-      CALL mp_sum(debug, para_env%group)
-      IF (para_env%mepos == 0) WRITE (*, *) "Debug mat_S_3D", debug
-      CPASSERT(ABS(debug(1)) <= 1.0E-10)
-      CPASSERT(ABS(debug(1)) <= 1.0E-10)
 
       CALL timestop(handle)
 
@@ -1570,20 +1549,8 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(fm_PQ, 0.0_dp)
 
-      BLOCK
-         REAL(KIND=dp) :: debug
-         CALL cp_fm_frobenius_norm(rpa_grad%fm_Gamma_PQ, debug)
-         IF (para_env%mepos == 0) WRITE (*, *) "fm_Gamma_PQ", debug
-      END BLOCK
-
       ! We still have to left- and right multiply it with PQhalf
       CALL dereplicate_and_sum_fm(rpa_grad%fm_Gamma_PQ, fm_PQ)
-
-      BLOCK
-         REAL(KIND=dp) :: debug
-         CALL cp_fm_frobenius_norm(fm_PQ, debug)
-         IF (para_env%mepos == 0) WRITE (*, *) "fm_PQ", debug
-      END BLOCK
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
 
@@ -1664,12 +1631,6 @@ CONTAINS
          CALL cp_fm_release(fm_work_PQ_2)
          CALL cp_fm_release(fm_work_PQ)
       END IF
-
-      BLOCK
-         REAL(KIND=dp) :: debug
-         CALL cp_fm_frobenius_norm(fm_PQ, debug)
-         IF (para_env%mepos == 0) WRITE (*, *) "fm_PQ ready", debug
-      END BLOCK
 
       ALLOCATE (mp2_env%ri_grad%Gamma_PQ(my_P_size, my_group_L_size))
       CALL fm2array(mp2_env%ri_grad%Gamma_PQ, &
@@ -1865,12 +1826,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_grad_work_finalize'
 
-      INTEGER :: handle, ispin, itmp(2), my_a, my_a_end, my_a_size, my_a_start, my_B_end, &
-         my_B_size, my_B_start, my_i, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, &
-         proc_send, proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, &
-         send_a_start, send_end, send_start, sent_data
-      REAL(KIND=dp)                                      :: debug_1(2), debug_2(2), debug_a, &
-                                                            debug_i, my_scale
+      INTEGER :: handle, ispin, itmp(2), my_a_end, my_a_size, my_a_start, my_B_end, my_B_size, &
+         my_B_start, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, proc_send, &
+         proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, send_a_start, &
+         send_end, send_start, sent_data
+      REAL(KIND=dp)                                      :: my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_a_sub, gd_virtual_sub
@@ -1901,12 +1861,6 @@ CONTAINS
          DEALLOCATE (rpa_work%P_ij(ispin)%array)
          CALL mp_sum(mp2_env%ri_grad%P_ij(ispin)%array, para_env%group)
 
-         debug_i = 0.0_dp
-         DO my_i = 1, homo(ispin)
-            debug_i = debug_i + mp2_env%ri_grad%P_ij(ispin)%array(my_i, my_i)
-         END DO
-         IF (para_env%mepos == 0) WRITE (*, *) "Diag P_ij", debug_i
-
          itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)
          my_B_start = itmp(1)
          my_B_end = itmp(2)
@@ -1921,14 +1875,6 @@ CONTAINS
          CALL create_group_dist(gd_a_sub, my_a_start, my_a_end, my_a_size, para_env_sub)
          ! This group dist contains the info which parts of Pab a process is supposed to own later
          CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
-
-         debug_1(1) = SUM(rpa_work%P_ab(ispin)%array)
-         debug_1(2) = 0.0_dp
-         DO my_a = my_a_start, my_a_end
-            debug_1(2) = debug_1(2) + rpa_work%P_ab(ispin)%array(my_a - my_a_start + 1, my_a)
-         END DO
-         CALL mp_sum(debug_1, para_env%group)
-         debug_1 = debug_1*my_scale
 
          sent_data = 0
 
@@ -1963,32 +1909,12 @@ CONTAINS
          END DO
          DEALLOCATE (rpa_work%P_ab(ispin)%array)
 
-         CPASSERT(sent_data == my_a_size)
-
          CALL release_group_dist(gd_virtual_sub)
          CALL release_group_dist(gd_a_sub)
 
          CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
          CALL mp_sum(mp2_env%ri_grad%P_ab(ispin)%array, para_env_exchange%group)
          CALL cp_para_env_release(para_env_exchange)
-
-         debug_2(1) = SUM(mp2_env%ri_grad%P_ab(ispin)%array)
-
-         debug_a = 0.0_dp
-         DO my_a = my_B_start, my_B_end
-            debug_a = debug_a + mp2_env%ri_grad%P_ab(ispin)%array(my_a - my_B_start + 1, my_a)
-         END DO
-         debug_2(2) = debug_a
-         CALL mp_sum(debug_a, para_env_sub%group)
-         CALL mp_sum(debug_2, para_env_sub%group)
-         IF (para_env%mepos == 0) THEN
-            WRITE (*, *) "Diag P_ab", debug_a
-            WRITE (*, *) "Diag P_ab1", debug_1
-            WRITE (*, *) "Diag P_ab2", debug_2
-         END IF
-
-         CPASSERT(ABS(debug_i + debug_a) <= 1.0E-10_dp)
-         CPASSERT(ALL(ABS(debug_1 - debug_2) <= 1.0E-10_dp))
 
       END DO
       DEALLOCATE (rpa_work%gd_homo, rpa_work%gd_virtual, rpa_work%P_ij, rpa_work%P_ab)

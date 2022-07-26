@@ -143,13 +143,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind, &
                                                             virtual
       LOGICAL                                            :: alpha_beta, use_virial
-      REAL(KIND=dp) :: cutoff_old, debug_force_2c(3), debug_force_2c_metric(3), debug_force_3c(3), &
-         debug_force_local(3), eps_filter, factor, factor_2c, relative_cutoff_old
+      REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor, &
+                                                            factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
-      REAL(KIND=dp), DIMENSION(3, 3) :: h_debug_force_2c, h_debug_force_2c_metric, &
-         h_debug_force_2c_metric_2, h_debug_force_3c, h_debug_local, h_debug_local_2, h_stress, &
-         pv_virial
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
@@ -174,8 +172,6 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
-
-      WRITE (*, *) "my_group_L", my_group_L_start, my_group_L_end, my_group_L_size, mp2_env%eri_method == do_eri_gpw
 
       eri_method = mp2_env%eri_method
       eri_param => mp2_env%eri_mme_param
@@ -259,14 +255,6 @@ CONTAINS
          IF (alpha_beta) factor_2c = -2.0_dp
       END IF
 
-      debug_force_2c = 0.0_dp
-      debug_force_3c = 0.0_dp
-      debug_force_2c_metric = 0.0_dp
-      IF (use_virial) h_debug_force_2c = 0.0_dp
-      IF (use_virial) h_debug_force_3c = 0.0_dp
-      IF (use_virial) h_debug_force_2c_metric = 0.0_dp
-      IF (use_virial) h_debug_force_2c_metric_2 = 0.0_dp
-
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
          ALLOCATE (matrix_P_munu_local(my_group_L_size))
@@ -332,13 +320,6 @@ CONTAINS
             END IF
          END DO
 
-         IF (compare_potential_types(mp2_env%potential_parameter, mp2_env%ri_metric)) THEN
-            WRITE (*, *) "Debug 2c", factor_2c*force_2c(1)%forces(:, 1)
-         ELSE
-            WRITE (*, *) "Debug 2c", factor_2c*force_2c(1)%forces(:, 1) + factor_2c*force_2c_RI(1)%forces(:, 1)
-         END IF
-         WRITE (*, *) "Debug 3c", force_3c_orb_mu(1)%forces(:, 1) + force_3c_orb_nu(1)%forces(:, 1) + force_3c_aux(1)%forces(:, 1)
-
          CALL mp2_eri_deallocate_forces(force_2c)
          IF (.NOT. compare_potential_types(mp2_env%potential_parameter, mp2_env%ri_metric)) THEN
             CALL mp2_eri_deallocate_forces(force_2c_RI)
@@ -386,48 +367,19 @@ CONTAINS
 
          IF (use_virial) h_stress = 0.0_dp
 
-         debug_force_2c = 0.0_dp
-         debug_force_3c = 0.0_dp
-         debug_force_2c_metric = 0.0_dp
-         IF (use_virial) h_debug_force_2c = 0.0_dp
-         IF (use_virial) h_debug_force_3c = 0.0_dp
-         IF (use_virial) h_debug_force_2c_metric = 0.0_dp
-         IF (use_virial) h_debug_force_2c_metric_2 = 0.0_dp
-
-         WRITE (*, *) "L_group", my_group_L_start, my_group_L_end
-
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
-            WRITE (*, *) "LLL", LLL
 
             CALL G_P_transform_MO_to_AO(matrix_P_munu%matrix, matrix_P_munu_nosym, mat_munu%matrix, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
-
-            debug_force_local = mp2_force(1)%rho_elec(:, 1)
-            IF (use_virial) h_debug_local = h_stress + virial%pv_virial
 
             CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                pot_g, mp2_env%potential_parameter, use_virial, &
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
                                                mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
-
-            debug_force_2c = debug_force_2c + mp2_force(1)%rho_elec(:, 1) - debug_force_local
-            IF (use_virial .AND. para_env%mepos == 0) THEN
-               WRITE (*, *) SUM(h_debug_force_2c)
-               WRITE (*, *) SUM(h_stress)
-               WRITE (*, *) SUM(virial%pv_virial)
-               WRITE (*, *) SUM(h_debug_local)
-            END IF
-            IF (use_virial) h_debug_force_2c = h_debug_force_2c + h_stress + virial%pv_virial - h_debug_local
-
-            IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress ", L_counter, h_stress
-
-            debug_force_local = mp2_force(1)%rho_elec(:, 1)
-            IF (use_virial) h_debug_local = h_stress
-            IF (use_virial) h_debug_local_2 = virial%pv_virial
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
@@ -438,15 +390,6 @@ CONTAINS
                                                   mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
             END IF
 
-            debug_force_2c_metric = debug_force_2c_metric + mp2_force(1)%rho_elec(:, 1) - debug_force_local
-            IF (use_virial) h_debug_force_2c_metric = h_debug_force_2c_metric + h_stress - h_debug_local
-            IF (use_virial) h_debug_force_2c_metric_2 = h_debug_force_2c_metric_2 + virial%pv_virial - h_debug_local_2
-
-            !IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress metric", L_counter, h_stress
-
-            debug_force_local = force(1)%rho_elec(:, 1)
-            IF (use_virial) h_debug_local = virial%pv_virial
-
             IF (use_virial) pv_virial = virial%pv_virial
             CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
                                                   task_list_sub)
@@ -454,9 +397,6 @@ CONTAINS
                h_stress = h_stress + (virial%pv_virial - pv_virial)
                virial%pv_virial = pv_virial
             END IF
-
-            debug_force_3c = debug_force_3c + force(1)%rho_elec(:, 1) - debug_force_local
-            IF (use_virial) h_debug_force_3c = h_debug_force_3c + virial%pv_virial - h_debug_local
 
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
@@ -468,8 +408,6 @@ CONTAINS
                                                   ks_env, poisson_env, pot_g, use_virial, rho_g_copy, dvg, &
                                                   h_stress, para_env_sub, kind_of, atom_of_kind, &
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
-
-            !IF (use_virial .AND. para_env%mepos == 0) WRITE (*, *) "h_stress 3c", L_counter, h_stress
          END DO
 
          CALL timestop(handle2)
@@ -490,24 +428,6 @@ CONTAINS
          CALL dbcsr_release(matrix_P_munu%matrix)
          DEALLOCATE (matrix_P_munu%matrix)
 
-      END IF
-
-      CALL mp_sum(debug_force_2c, para_env%group)
-      CALL mp_sum(debug_force_2c_metric, para_env%group)
-      CALL mp_sum(debug_force_3c, para_env%group)
-      IF (use_virial) CALL mp_sum(h_debug_force_2c, para_env%group)
-      IF (use_virial) CALL mp_sum(h_debug_force_2c_metric, para_env%group)
-      IF (use_virial) CALL mp_sum(h_debug_force_2c_metric_2, para_env%group)
-
-      IF (use_virial) CALL mp_sum(h_debug_force_3c, para_env%group)
-      IF (para_env%mepos == 0) THEN
-         WRITE (*, *) "Debug 2c", debug_force_2c
-         WRITE (*, *) "Debug 2c metric", debug_force_2c_metric
-         WRITE (*, *) "Debug 3c", debug_force_3c
-         IF (use_virial) WRITE (*, *) "Virial 2c", h_debug_force_2c
-         IF (use_virial) WRITE (*, *) "Virial 2c metric", h_debug_force_2c_metric
-         IF (use_virial) WRITE (*, *) "Virial 2c metric 2", h_debug_force_2c_metric_2
-         IF (use_virial) WRITE (*, *) "Virial 3c", h_debug_force_3c
       END IF
 
       IF (use_virial) mp2_env%ri_grad%mp2_virial = h_stress
@@ -1421,28 +1341,6 @@ CONTAINS
       DEALLOCATE (ab_rec)
       DEALLOCATE (mepos_2_grid)
       DEALLOCATE (sizes)
-
-      BLOCK
-         REAL(KIND=dp) :: trace(3)
-         trace = 0.0_dp
-         DO iiB = 1, ncol_local
-            i_global = col_indices(iiB)
-            DO jjB = 1, nrow_local
-               j_global = row_indices(jjB)
-               IF (i_global == j_global) THEN
-                  trace(1) = trace(1) + mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(jjB, iiB)
-                  IF (i_global <= homo) THEN
-                     trace(2) = trace(2) + mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(jjB, iiB)
-                  ELSE
-                     trace(3) = trace(3) + mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(jjB, iiB)
-                  END IF
-               END IF
-            END DO
-         END DO
-         CALL mp_sum(trace, para_env%group)
-         WRITE (*, *) "Trace P_mo", trace
-         CPASSERT(ABS(trace(1)) <= 1.0E-10)
-      END BLOCK
 
       ! deallocate the local P_ab
       DEALLOCATE (mp2_env%ri_grad%P_ab(kspin)%array)

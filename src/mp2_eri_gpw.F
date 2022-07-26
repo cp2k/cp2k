@@ -426,12 +426,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(atom_of_kind)
-      MARK_USED(kind_of)
-      MARK_USED(force)
-      MARK_USED(h_stress)
-      MARK_USED(para_env_sub)
-
       ! calculate potential associated to the single aux function
       CALL timeset(routineN//"_wf_pot", handle2)
       ! pseudo psi_L
@@ -752,11 +746,6 @@ CONTAINS
       INTEGER                                            :: alpha, beta, handle
       INTEGER, DIMENSION(3)                              :: comp
       REAL(KIND=dp)                                      :: e_hartree
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_debug
-
-      MARK_USED(dvg)
-
-      h_debug = h_stress
 
       ! add the volume contribution
       CALL timeset(routineN, handle)
