@@ -1208,6 +1208,9 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
+         IF (ASSOCIATED(v_xc_tau)) THEN
+            CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
+         END IF
       END DO
 
       ! take trial density to build G^{H}[B]

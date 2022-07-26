@@ -111,8 +111,7 @@ MODULE response_solver
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type,&
                                               total_qs_force
-   USE qs_fxc,                          ONLY: qs_fxc_analytic,&
-                                              qs_fxc_fdiff
+   USE qs_fxc,                          ONLY: qs_fxc_fdiff
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -160,7 +159,7 @@ MODULE response_solver
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'response_solver'
 
    LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
-   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
+   LOGICAL, PARAMETER                   :: debug_forces = .FALSE.
 
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
              ks_ref_potential, response_equation_new
@@ -170,10 +169,10 @@ MODULE response_solver
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Initializes solver of linear response equation for Harris functional Lagrangian
+!> \brief Initializes solver of linear response equation for energy correction
 !>
 !> \param qs_env ...
-!> \param ec_env Environment of Harris energy correction
+!> \param ec_env Environment of energy correction
 !>
 !> \date    01.2020
 !> \author  Fabian Belleflamme
@@ -308,7 +307,7 @@ CONTAINS
             END DO
          END IF
 
-         ! initialized p_env
+         ! initialize p_env
          IF (ASSOCIATED(ec_env%p_env)) THEN
             CALL p_env_release(ec_env%p_env)
             DEALLOCATE (ec_env%p_env)
@@ -794,19 +793,20 @@ CONTAINS
 !> \param matrix_wz Energy-weighted linear response density
 !> \param zehartree Hartree volume response contribution to stress tensor
 !> \param zexc XC volume response contribution to stress tensor
+!> \param zexc_aux_fit ADMM XC volume response contribution to stress tensor
 !> \param rhopz_r Response density on real space grid
 !> \param p_env ...
 !> \param ex_env ...
 ! **************************************************************************************************
    SUBROUTINE response_force(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, &
                              matrix_hz, matrix_pz, matrix_pz_admm, matrix_wz, &
-                             zehartree, zexc, rhopz_r, p_env, ex_env)
+                             zehartree, zexc, zexc_aux_fit, rhopz_r, p_env, ex_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace, vtau_rspace, vadmm_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz, matrix_pz, matrix_pz_admm, &
                                                             matrix_wz
-      REAL(KIND=dp), OPTIONAL                            :: zehartree, zexc
+      REAL(KIND=dp), OPTIONAL                            :: zehartree, zexc, zexc_aux_fit
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: rhopz_r
       TYPE(qs_p_env_type), OPTIONAL                      :: p_env
@@ -818,10 +818,10 @@ CONTAINS
                                                             nao, nao_aux, natom, nder, nimages, &
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL :: deriv2_analytic, distribute_fock_matrix, do_ex, do_hfx, hfx_treat_lsd_in_core, &
+      LOGICAL :: distribute_fock_matrix, do_ex, do_hfx, hfx_treat_lsd_in_core, &
          resp_only, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
-                                                            eps_ppnl, exc, fconv, focc
+                                                            eps_ppnl, exc, exc_aux_fit, fconv, focc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot, sttot2
@@ -856,7 +856,7 @@ CONTAINS
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhoz_aux
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
@@ -877,7 +877,7 @@ CONTAINS
          CPASSERT(PRESENT(p_env))
       END IF
 
-      NULLIFY (ks_env, sab_orb, sac_ppl, sap_ppnl, virial)
+      NULLIFY (ks_env, sab_orb, sac_ppl, sap_ppnl, tauz_r, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       force=force, &
@@ -1123,9 +1123,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(vtau_rspace)) THEN
-         IF (use_virial) &
-            CALL cp_abort(__LOCATION__, "Stress tensor of the Harris functional with "// &
-                          "tau-dependent functionals not implemented!")
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
          DO ispin = 1, nspins
@@ -1264,7 +1261,7 @@ CONTAINS
          h_stress(:, :) = 0.0_dp
          ! calculate associated hartree potential
          ! This term appears twice in the derivation of the equations
-         ! v_H{n_in]*n_z and v_H[n_z]*n_in
+         ! v_H[n_in]*n_z and v_H[n_z]*n_in
          ! due to symmetry we only need to call this routine once,
          ! and count the Volume and Green function contribution
          ! which is stored in h_stress twice
@@ -1524,15 +1521,14 @@ CONTAINS
       END IF
       CALL dbcsr_deallocate_matrix_set(scrm)
 
-      ! Stress-tensor volume contributions
-      ! These need to be applied at the end of qs_force
-      IF (use_virial) THEN
-         ! Adding mixed Hartree energy twice, due to symmetry
-         zehartree = zehartree + 2.0_dp*ehartree
-         zexc = zexc + exc
-      END IF
+      ! -----------------------------------------
+      ! Apply ADMM exchange correction
+      ! -----------------------------------------
 
       IF (dft_control%do_admm) THEN
+         ! volume term
+         exc_aux_fit = 0.0_dp
+
          IF (qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
             NULLIFY (mpz, mhz, mhx, mhy)
@@ -1568,7 +1564,13 @@ CONTAINS
             END DO
             !
             xc_section => admm_env%xc_section_aux
+            ! Stress-tensor: integration contribution direct term
+            ! int Pz*v_xc[rho_admm]
+            IF (use_virial) THEN
+               pv_loc = virial%pv_virial
+            END IF
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
             DO ispin = 1, nspins
                CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, &
                                        hmat=mhx(ispin, 1), pmat=mpz(ispin, 1), &
@@ -1579,6 +1581,16 @@ CONTAINS
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*Vxc(rho_admm)", fodeb
+            END IF
+            IF (debug_stress .AND. use_virial) THEN
+               stdeb = fconv*(virial%pv_virial - pv_loc)
+               CALL mp_sum(stdeb, para_env%group)
+               IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+                  'STRESS| INT 1st Pz*dVxc(rho_admm)   ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+            END IF
+            ! Stress-tensor Pz_admm*v_xc[rho_admm]
+            IF (use_virial) THEN
+               virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
             END IF
             !
             NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhoz_g_aux, rhoz_r_aux)
@@ -1600,21 +1612,59 @@ CONTAINS
                                        task_list_external=task_list_aux_fit)
             END DO
             !
+            ! Add ADMM volume contribution to stress tensor
+            IF (use_virial) THEN
+
+               ! Stress tensor volume term: \int v_xc[n_in_admm]*n_z_admm
+               ! vadmm_rspace already scaled, we need to unscale it!
+               DO ispin = 1, nspins
+                  exc_aux_fit = exc_aux_fit + pw_integral_ab(rhoz_r_aux(ispin)%pw, vadmm_rspace(ispin)%pw)/ &
+                                vadmm_rspace(ispin)%pw%pw_grid%dvol
+               END DO
+
+               IF (debug_stress) THEN
+                  stdeb = -1.0_dp*fconv*exc_aux_fit
+                  IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T43,2(1X,ES19.11))") &
+                     'STRESS| VOL 1st eps_XC[n_in_admm]*n_z_admm', one_third_sum_diag(stdeb), det_3x3(stdeb)
+               END IF
+
+            END IF
+            !
             NULLIFY (v_xc)
-            deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
-            IF (deriv2_analytic) THEN
-               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, Null(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
-            ELSE
-               CPABORT("NYA 00005")
-               NULLIFY (rhoz_aux)
-               CALL qs_rho_create(rhoz_aux)
-               CALL qs_rho_set(rhoz_aux, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux)
-               CALL qs_fxc_fdiff(ks_env, rho_aux_fit, rhoz_aux, xc_section, 6, .FALSE., v_xc, tau_r)
-               DEALLOCATE (rhoz_aux)
+
+            IF (use_virial) virial%pv_xc = 0.0_dp
+
+            CALL create_kernel(qs_env=qs_env, &
+                               vxc=v_xc, &
+                               vxc_tau=v_xc_tau, &
+                               rho=rho_aux_fit, &
+                               rho1_r=rhoz_r_aux, &
+                               rho1_g=rhoz_g_aux, &
+                               tau1_r=tau_r_aux, &
+                               xc_section=xc_section, &
+                               compute_virial=use_virial, &
+                               virial_xc=virial%pv_xc)
+
+            ! Stress-tensor ADMM-kernel GGA contribution
+            IF (use_virial) THEN
+               virial%pv_exc = virial%pv_exc + virial%pv_xc
+               virial%pv_virial = virial%pv_virial + virial%pv_xc
+            END IF
+
+            IF (debug_stress .AND. use_virial) THEN
+               stdeb = 1.0_dp*fconv*virial%pv_xc
+               CALL mp_sum(stdeb, para_env%group)
+               IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+                  'STRESS| GGA 2nd Pin_admm*dK*rhoz_admm', one_third_sum_diag(stdeb), det_3x3(stdeb)
             END IF
             !
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
+            ! Stress-tensor Pin*dK*rhoz_admm
+            IF (use_virial) THEN
+               virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
+            END IF
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
             DO ispin = 1, nspins
                CALL dbcsr_set(mhy(ispin, 1)%matrix, 0.0_dp)
                CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
@@ -1627,6 +1677,16 @@ CONTAINS
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*dK*rhoz_admm ", fodeb
+            END IF
+            IF (debug_stress .AND. use_virial) THEN
+               stdeb = fconv*(virial%pv_virial - pv_loc)
+               CALL mp_sum(stdeb, para_env%group)
+               IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+                  'STRESS| INT 2nd Pin*dK*rhoz_admm   ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+            END IF
+            ! Stress-tensor Pin*dK*rhoz_admm
+            IF (use_virial) THEN
+               virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
             END IF
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
@@ -1654,8 +1714,12 @@ CONTAINS
             CALL dbcsr_release(dbwork)
             DEALLOCATE (dbwork)
             CALL dbcsr_deallocate_matrix_set(mpz)
-         END IF
-      END IF
+         END IF ! qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none
+      END IF ! do_admm
+
+      ! -----------------------------------------
+      !  HFX
+      ! -----------------------------------------
 
       ! HFX
       hfx_section => section_vals_get_subs_vals(xc_section, "HF")
@@ -1667,10 +1731,15 @@ CONTAINS
                                    i_rep_section=1)
          mspin = 1
          IF (hfx_treat_lsd_in_core) mspin = nspins
+         IF (use_virial) virial%pv_fock_4c = 0.0_dp
          !
          CALL get_qs_env(qs_env=qs_env, rho=rho, x_data=x_data, &
                          s_mstruct_changed=s_mstruct_changed)
          distribute_fock_matrix = .TRUE.
+
+         ! -----------------------------------------
+         !  HFX-ADMM
+         ! -----------------------------------------
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env=qs_env, admm_env=admm_env)
             CALL get_admm_env(admm_env, matrix_s_aux_fit=scrm, rho_aux_fit=rho_aux_fit)
@@ -1773,6 +1842,9 @@ CONTAINS
             END IF
             DEALLOCATE (mpd)
          ELSE
+            ! -----------------------------------------
+            !  conventional HFX
+            ! -----------------------------------------
             ALLOCATE (mpz(nspins, 1), mhz(nspins, 1))
             DO ispin = 1, nspins
                mhz(ispin, 1)%matrix => matrix_hz(ispin)%matrix
@@ -1796,9 +1868,16 @@ CONTAINS
             DEALLOCATE (mhz, mpz)
          END IF
 
+         ! -----------------------------------------
+         !  HFX FORCES
+         ! -----------------------------------------
+
          resp_only = .TRUE.
          IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
          IF (dft_control%do_admm) THEN
+            ! -----------------------------------------
+            !  HFX-ADMM FORCES
+            ! -----------------------------------------
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
             NULLIFY (matrix_pza)
             CALL dbcsr_allocate_matrix_set(matrix_pza, nspins)
@@ -1826,6 +1905,9 @@ CONTAINS
             END IF
             CALL dbcsr_deallocate_matrix_set(matrix_pza)
          ELSE
+            ! -----------------------------------------
+            !  conventional HFX FORCES
+            ! -----------------------------------------
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
             IF (x_data(1, 1)%do_hfx_ri) THEN
 
@@ -1837,11 +1919,36 @@ CONTAINS
                CALL derivatives_four_center(qs_env, matrix_p, mpa, hfx_section, para_env, &
                                             1, use_virial, resp_only=resp_only)
             END IF
+         END IF ! do_admm
+
+         IF (use_virial) THEN
+            virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
+            virial%pv_virial = virial%pv_virial - virial%pv_fock_4c
+            virial%pv_calculate = .FALSE.
          END IF
+
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%fock_4c(1:3, 1) - fodeb(1:3)
             CALL mp_sum(fodeb, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*hfx ", fodeb
+         END IF
+         IF (debug_stress) THEN
+            stdeb = -1.0_dp*fconv*virial%pv_fock_4c
+            CALL mp_sum(stdeb, para_env%group)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| Pz*hfx  ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
+      END IF ! do_hfx
+
+      ! Stress-tensor volume contributions
+      ! These need to be applied at the end of qs_force
+      IF (use_virial) THEN
+         ! Adding mixed Hartree energy twice, due to symmetry
+         zehartree = zehartree + 2.0_dp*ehartree
+         zexc = zexc + exc
+         ! ADMM contribution handled differently in qs_force
+         IF (dft_control%do_admm) THEN
+            zexc_aux_fit = zexc_aux_fit + exc_aux_fit
          END IF
       END IF
 
@@ -2324,6 +2431,12 @@ CONTAINS
             DEALLOCATE (v_admm_rspace(ispin)%pw)
          END DO
          DEALLOCATE (v_admm_rspace)
+      END IF
+      IF (ASSOCIATED(v_admm_tau_rspace)) THEN
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_admm_tau_rspace(ispin)%pw)
+         END DO
+         DEALLOCATE (v_admm_tau_rspace)
       END IF
 
       CALL timestop(handle)
