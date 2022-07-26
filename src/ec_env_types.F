@@ -70,8 +70,9 @@ MODULE ec_env_types
       INTEGER                                          :: mao_iolevel
       ! energy components
       REAL(KIND=dp)                                    :: etotal
-      REAL(KIND=dp)                                    :: eband, exc, ehartree, vhxc
-      REAL(KIND=dp)                                    :: edispersion, efield_nuclear
+      REAL(KIND=dp)                                    :: eband, ecore, exc, ehartree, vhxc
+      REAL(KIND=dp)                                    :: edispersion, efield_elec, &
+                                                          efield_nuclear, exc_aux_fit
       ! forces
       TYPE(qs_force_type), DIMENSION(:), POINTER       :: force => Null()
       ! full neighbor lists and corresponding task list

@@ -118,6 +118,7 @@ MODULE qs_linres_kernel
 
    ! *** Public subroutines ***
    PUBLIC :: apply_op_2
+   PUBLIC :: hfx_matrix
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_kernel'
 
