@@ -979,10 +979,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
-      INTEGER :: handle, my_a, my_a_size, my_a_start, my_i, my_i_size, my_i_start, my_P_size, &
-         my_prow, proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, proc_recv, proc_send, &
-         proc_shift, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, recv_i_start, &
-         tag
+      INTEGER :: handle, handle2, my_a, my_a_size, my_a_start, my_i, my_i_size, my_i_start, &
+         my_P_size, my_prow, proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, proc_recv, &
+         proc_send, proc_shift, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, &
+         recv_i_start, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D
@@ -1014,9 +1014,11 @@ CONTAINS
 
          buffer_3D(1:my_P_size, 1:recv_a_size, 1:my_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
+         CALL timeset(routineN//"_comm", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           buffer_3D, blacs2mpi(my_prow, proc_recv), &
                           para_env%group, tag)
+         CALL timestop(handle2)
 
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
@@ -1070,9 +1072,11 @@ CONTAINS
 
          buffer_3D(1:my_P_size, 1:my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
+         CALL timeset(routineN//"_comm", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           buffer_3D, blacs2mpi(my_prow, proc_recv), &
                           para_env%group, tag)
+         CALL timestop(handle2)
 
          ! This loop imitates the actual tensor contraction
          CALL DGEMM("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
