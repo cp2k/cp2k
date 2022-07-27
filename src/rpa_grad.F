@@ -1086,7 +1086,7 @@ CONTAINS
                           para_env%group, tag)
          CALL timestop(handle2)
 
-         CALL timeset(routineN//"_comm_i", handle2)
+         CALL timeset(routineN//"_dgemm_i", handle2)
          ! This loop imitates the actual tensor contraction
          CALL DGEMM("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
                     weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
