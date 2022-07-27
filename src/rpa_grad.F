@@ -1979,12 +1979,14 @@ CONTAINS
       CALL get_blacs_info(fm_sub%matrix_struct%context, blacs2mpi=blacs2mpi_sub, mpi2blacs=mpi2blacs_sub)
       CALL get_blacs_info(fm_global%matrix_struct%context, blacs2mpi=blacs2mpi_global, mpi2blacs=mpi2blacs_global)
 
-      CALL timeset(routineN//"_exchange", handle2)
-      NULLIFY (para_env_exchange)
-      CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
-      CALL mp_sum(fm_sub%local_data, para_env_exchange%group)
-      CALL cp_para_env_release(para_env_exchange)
-      CALL timestop(handle2)
+      IF (para_env%num_pe /= para_env_sub%num_pe) THEN
+         CALL timeset(routineN//"_exchange", handle2)
+         NULLIFY (para_env_exchange)
+         CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
+         CALL mp_sum(fm_sub%local_data, para_env_exchange%group)
+         CALL cp_para_env_release(para_env_exchange)
+         CALL timestop(handle2)
+      END IF
 
       ALLOCATE (subgroup2mepos(0:para_env_sub%num_pe - 1))
       CALL mp_allgather(para_env%mepos, subgroup2mepos, para_env_sub%group)
@@ -2024,59 +2026,61 @@ CONTAINS
 !$OMP    END PARALLEL DO
       CALL timestop(handle2)
 
-      ! Loop over all processes in para_env_sub
-      DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
-         proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+      IF (para_env_sub%num_pe > 1) THEN
+         ! Loop over all processes in para_env_sub
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+            proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
-         proc_send_global = subgroup2mepos(proc_send)
-         prow_send = mpi2blacs_global(1, proc_send_global)
-         pcol_send = mpi2blacs_global(2, proc_send_global)
-         elements2send_col = data2send_col(pcol_send)
-         elements2send_row = data2send_row(prow_send)
+            proc_send_global = subgroup2mepos(proc_send)
+            prow_send = mpi2blacs_global(1, proc_send_global)
+            pcol_send = mpi2blacs_global(2, proc_send_global)
+            elements2send_col = data2send_col(pcol_send)
+            elements2send_row = data2send_row(prow_send)
 
-         CALL timeset(routineN//"_pack", handle2)
-         ! Loop over local data and pack the buffer
-         ! Transpose the matrix already
-         ALLOCATE (send_buffer(elements2send_row, elements2send_col))
+            CALL timeset(routineN//"_pack", handle2)
+            ! Loop over local data and pack the buffer
+            ! Transpose the matrix already
+            ALLOCATE (send_buffer(elements2send_row, elements2send_col))
 !$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
 !$OMP                SHARED(elements2send_col,elements2send_row,send_buffer,fm_sub,&
 !$OMP                       index2send_col,index2send_row,pcol_send,prow_send)
-         DO row_local = 1, elements2send_col
-            DO col_local = 1, elements2send_row
-               send_buffer(col_local, row_local) = &
-                  fm_sub%local_data(index2send_col(pcol_send)%array(row_local), &
-                                    index2send_row(prow_send)%array(col_local))
+            DO row_local = 1, elements2send_col
+               DO col_local = 1, elements2send_row
+                  send_buffer(col_local, row_local) = &
+                     fm_sub%local_data(index2send_col(pcol_send)%array(row_local), &
+                                       index2send_row(prow_send)%array(col_local))
+               END DO
             END DO
-         END DO
 !$OMP    END PARALLEL DO
-         CALL timestop(handle2)
+            CALL timestop(handle2)
 
-         prow_recv = mpi2blacs_sub(1, proc_recv)
-         pcol_recv = mpi2blacs_sub(2, proc_recv)
-         elements2recv_col = data2recv_col(pcol_recv)
-         elements2recv_row = data2recv_row(prow_recv)
+            prow_recv = mpi2blacs_sub(1, proc_recv)
+            pcol_recv = mpi2blacs_sub(2, proc_recv)
+            elements2recv_col = data2recv_col(pcol_recv)
+            elements2recv_row = data2recv_row(prow_recv)
 
-         ! Send data
-         ALLOCATE (recv_buffer(elements2recv_col, elements2recv_row))
-         CALL mp_sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, para_env_sub%group, 1)
-         IF (ALLOCATED(send_buffer)) DEALLOCATE (send_buffer)
+            ! Send data
+            ALLOCATE (recv_buffer(elements2recv_col, elements2recv_row))
+            CALL mp_sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, para_env_sub%group, 1)
+            IF (ALLOCATED(send_buffer)) DEALLOCATE (send_buffer)
 
-         CALL timeset(routineN//"_unpack", handle2)
+            CALL timeset(routineN//"_unpack", handle2)
 !$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
 !$OMP                SHARED(elements2recv_col,elements2recv_row,recv_buffer,fm_global,&
 !$OMP                       index2recv_col,index2recv_row,pcol_recv,prow_recv)
-         DO col_local = 1, elements2recv_col
-            DO row_local = 1, elements2recv_row
-               fm_global%local_data(index2recv_col(pcol_recv)%array(col_local), &
-                                    index2recv_row(prow_recv)%array(row_local)) &
-                  = recv_buffer(col_local, row_local)
+            DO col_local = 1, elements2recv_col
+               DO row_local = 1, elements2recv_row
+                  fm_global%local_data(index2recv_col(pcol_recv)%array(col_local), &
+                                       index2recv_row(prow_recv)%array(row_local)) &
+                     = recv_buffer(col_local, row_local)
+               END DO
             END DO
-         END DO
 !$OMP    END PARALLEL DO
-         CALL timestop(handle2)
-         IF (ALLOCATED(recv_buffer)) DEALLOCATE (recv_buffer)
-      END DO
+            CALL timestop(handle2)
+            IF (ALLOCATED(recv_buffer)) DEALLOCATE (recv_buffer)
+         END DO
+      END IF
 
       DEALLOCATE (data2send_col, data2send_row, data2recv_col, data2recv_row)
       DO proc_shift = 0, npcol_global - 1
