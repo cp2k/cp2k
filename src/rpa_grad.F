@@ -1833,9 +1833,10 @@ CONTAINS
       INTEGER :: handle, ispin, itmp(2), my_a_end, my_a_size, my_a_start, my_B_end, my_B_size, &
          my_B_start, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, proc_send, &
          proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, send_a_start, &
-         send_end, send_start
+         send_end, send_start, size_recv_buffer, size_send_buffer
       REAL(KIND=dp)                                      :: my_scale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_recv_1D, buffer_send_1D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_a_sub, gd_virtual_sub
 
@@ -1892,33 +1893,60 @@ CONTAINS
             mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) &
             + my_scale*rpa_work%P_ab(ispin)%array(send_start:send_end, :)
 
-         DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
-            proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+         IF (para_env_sub%num_pe > 1) THEN
+            size_send_buffer = 0
+            size_recv_buffer = 0
+            DO proc_shift = 1, para_env_sub%num_pe - 1
+               proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+               proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
-            CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end)
-            CALL get_group_dist(gd_a_sub, proc_recv, recv_a_start, recv_a_end)
+               CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end)
+               CALL get_group_dist(gd_a_sub, proc_recv, recv_a_start, recv_a_end)
 
-            ! Calculate local indices of the common range of own matrix and send process
-            send_start = MAX(1, send_a_start - my_a_start + 1)
-            send_end = MIN(my_a_size, send_a_end - my_a_start + 1)
-            ALLOCATE (buffer_send(MAX(send_end - send_start + 1, 0), virtual(ispin)))
-            buffer_send(:, :) = rpa_work%P_ab(ispin)%array(send_start:send_end, :)
+               ! Calculate local indices of the common range of own matrix and send process
+               send_start = MAX(1, send_a_start - my_a_start + 1)
+               send_end = MIN(my_a_size, send_a_end - my_a_start + 1)
 
-            ! Same for recv process but with reverse positions
-            recv_start = MAX(1, recv_a_start - my_B_start + 1)
-            recv_end = MIN(my_B_size, recv_a_end - my_B_start + 1)
-            ALLOCATE (buffer_recv(MAX(recv_end - recv_start + 1, 0), virtual(ispin)))
+               size_send_buffer = MAX(size_send_buffer, MAX(send_end - send_start + 1, 0)*virtual(ispin))
 
-            CALL mp_sendrecv(buffer_send, proc_send, buffer_recv, proc_recv, para_env_sub%group)
-            DEALLOCATE (buffer_send)
+               ! Same for recv process but with reverse positions
+               recv_start = MAX(1, recv_a_start - my_B_start + 1)
+               recv_end = MIN(my_B_size, recv_a_end - my_B_start + 1)
 
-            mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) = &
-               mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) + my_scale*buffer_recv
+               size_recv_buffer = MAX(size_recv_buffer, MAX(recv_end - recv_start + 1, 0)*virtual(ispin))
+            END DO
+            ALLOCATE (buffer_send_1D(size_send_buffer), buffer_recv_1D(size_recv_buffer))
 
-            DEALLOCATE (buffer_recv)
+            DO proc_shift = 1, para_env_sub%num_pe - 1
+               proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+               proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
-         END DO
+               CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end)
+               CALL get_group_dist(gd_a_sub, proc_recv, recv_a_start, recv_a_end)
+
+               ! Calculate local indices of the common range of own matrix and send process
+               send_start = MAX(1, send_a_start - my_a_start + 1)
+               send_end = MIN(my_a_size, send_a_end - my_a_start + 1)
+               buffer_send(1:MAX(send_end - send_start + 1, 0), 1:virtual(ispin)) &
+                  => buffer_send_1D(1:MAX(send_end - send_start + 1, 0)*virtual(ispin))
+               buffer_send(:, :) = rpa_work%P_ab(ispin)%array(send_start:send_end, :)
+
+               ! Same for recv process but with reverse positions
+               recv_start = MAX(1, recv_a_start - my_B_start + 1)
+               recv_end = MIN(my_B_size, recv_a_end - my_B_start + 1)
+               buffer_recv(1:MAX(recv_end - recv_start + 1, 0), 1:virtual(ispin)) &
+                  => buffer_recv_1D(1:MAX(recv_end - recv_start + 1, 0)*virtual(ispin))
+
+               CALL mp_sendrecv(buffer_send, proc_send, buffer_recv, proc_recv, para_env_sub%group)
+
+               mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) = &
+                  mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) + my_scale*buffer_recv
+
+            END DO
+
+            IF (ALLOCATED(buffer_send_1D)) DEALLOCATE (buffer_send_1D)
+            IF (ALLOCATED(buffer_recv_1D)) DEALLOCATE (buffer_recv_1D)
+         END IF
          DEALLOCATE (rpa_work%P_ab(ispin)%array)
 
          CALL release_group_dist(gd_virtual_sub)
