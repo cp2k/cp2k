@@ -936,12 +936,12 @@ CONTAINS
       num_ab_pairs = SIZE(sos_mp2_work_virt%pair_list, 2)
       IF (num_ij_pairs > 0) THEN
          CALL calc_Pij_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_occ%pair_list, &
-                             virtual, homo, sos_mp2_work_occ%P, Eigenval, omega, weight, &
+                             virtual, sos_mp2_work_occ%P(homo + 1:), Eigenval(:homo), omega, weight, &
                              sos_mp2_work_occ%index2send, sos_mp2_work_occ%index2recv)
       END IF
       IF (num_ab_pairs > 0) THEN
          CALL calc_Pab_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_virt%pair_list, &
-                             virtual, homo, sos_mp2_work_virt%P, Eigenval, omega, weight, &
+                             virtual, sos_mp2_work_virt%P(virtual + 1:), Eigenval(homo + 1:), omega, weight, &
                              sos_mp2_work_virt%index2send, sos_mp2_work_virt%index2recv)
       END IF
 
@@ -1142,7 +1142,6 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param pair_list ...
 !> \param virtual ...
-!> \param homo ...
 !> \param P_ij ...
 !> \param Eigenval ...
 !> \param omega ...
@@ -1150,10 +1149,10 @@ CONTAINS
 !> \param index2send ...
 !> \param index2recv ...
 ! **************************************************************************************************
-   SUBROUTINE calc_Pij_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, homo, P_ij, Eigenval, omega, weight, index2send, index2recv)
+   SUBROUTINE calc_Pij_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ij, Eigenval, omega, weight, index2send, index2recv)
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
-      INTEGER, INTENT(IN)                                :: virtual, homo
+      INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ij
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
@@ -1249,8 +1248,8 @@ CONTAINS
                trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
             END DO
 
-            P_ij(homo + ij_counter) = P_ij(homo + ij_counter) &
-                                      - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+            P_ij(ij_counter) = P_ij(ij_counter) &
+                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
          END DO
 
          DEALLOCATE (buffer_recv)
@@ -1266,7 +1265,6 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param pair_list ...
 !> \param virtual ...
-!> \param homo ...
 !> \param P_ab ...
 !> \param Eigenval ...
 !> \param omega ...
@@ -1274,10 +1272,10 @@ CONTAINS
 !> \param index2send ...
 !> \param index2recv ...
 ! **************************************************************************************************
-   SUBROUTINE calc_Pab_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, homo, P_ab, Eigenval, omega, weight, index2send, index2recv)
+   SUBROUTINE calc_Pab_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ab, Eigenval, omega, weight, index2send, index2recv)
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
-      INTEGER, INTENT(IN)                                :: virtual, homo
+      INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ab
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
@@ -1327,8 +1325,8 @@ CONTAINS
 
             trace = ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, fm_work_iaP%local_data(:, col_local), 1)
 
-            P_ab(virtual + ab_counter) = P_ab(virtual + ab_counter) &
-                                      - trace*sinh_over_x(0.5_dp*(Eigenval(homo + my_a) - Eigenval(homo + my_b))*omega)*omega*weight
+            P_ab(ab_counter) = P_ab(ab_counter) &
+                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
 
             EXIT
 
@@ -1399,8 +1397,8 @@ CONTAINS
                trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
             END DO
 
-            P_ab(virtual + ab_counter) = P_ab(virtual + ab_counter) &
-                                      - trace*sinh_over_x(0.5_dp*(Eigenval(homo + my_a) - Eigenval(homo + my_b))*omega)*omega*weight
+            P_ab(ab_counter) = P_ab(ab_counter) &
+                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
 
          END DO
 
