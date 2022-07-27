@@ -47,7 +47,13 @@ MODULE pw_env_methods
    USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                               gaussian_gridlevel,&
                                               init_gaussian_gridlevel
-   USE input_constants,                 ONLY: xc_vdw_fun_nonloc
+   USE input_constants,                 ONLY: do_method_gapw,&
+                                              do_method_gapw_xc,&
+                                              do_method_gpw,&
+                                              do_method_lrigpw,&
+                                              do_method_ofgpw,&
+                                              do_method_rigpw,&
+                                              xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -704,18 +710,33 @@ CONTAINS
          CASE default
             CPABORT("Invalid Poisson solver selected")
          END SELECT
-         IF ((poisson_params%solver .NE. pw_poisson_wavelet) .AND. &
-             (poisson_params%solver .NE. pw_poisson_implicit)) THEN
+         IF ((poisson_params%solver /= pw_poisson_wavelet) .AND. &
+             (poisson_params%solver /= pw_poisson_implicit)) THEN
             IF (SUM(poisson_params%periodic(1:3)) == 0) THEN
-               WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
+               WRITE (UNIT=iounit, FMT="(T2,A,T77,A4)") &
                   "POISSON| Periodicity", "NONE"
             ELSE
                string = ""
                IF (poisson_params%periodic(1) == 1) string = TRIM(string)//"X"
                IF (poisson_params%periodic(2) == 1) string = TRIM(string)//"Y"
                IF (poisson_params%periodic(3) == 1) string = TRIM(string)//"Z"
-               WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
-                  "POISSON| Periodicity", string
+               WRITE (UNIT=iounit, FMT="(T2,A,T78,A3)") &
+                  "POISSON| Periodicity", ADJUSTR(string)
+            END IF
+         END IF
+      END IF
+
+      IF ((dft_control%qs_control%method_id == do_method_gpw) .OR. &
+          (dft_control%qs_control%method_id == do_method_gapw) .OR. &
+          (dft_control%qs_control%method_id == do_method_gapw_xc) .OR. &
+          (dft_control%qs_control%method_id == do_method_lrigpw) .OR. &
+          (dft_control%qs_control%method_id == do_method_rigpw) .OR. &
+          (dft_control%qs_control%method_id == do_method_ofgpw)) THEN
+         IF ((poisson_params%solver /= pw_poisson_wavelet) .AND. &
+             (poisson_params%solver /= pw_poisson_implicit)) THEN
+            IF (ANY(my_cell%perd(1:3) /= poisson_params%periodic(1:3))) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "The selected periodicities in the sections &CELL and &POISSON do not match")
             END IF
          END IF
       END IF

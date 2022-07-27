@@ -478,6 +478,7 @@ CONTAINS
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell_ref
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: label
 
+      CHARACTER(LEN=3)                                   :: string
       CHARACTER(LEN=default_string_length)               :: my_label, unit_str
       INTEGER                                            :: output_unit
       REAL(KIND=dp)                                      :: alpha, beta, gamma, val
@@ -530,6 +531,17 @@ CONTAINS
          ELSE
             WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
                TRIM(my_label)//" Numerically orthorhombic: ", " NO"
+         END IF
+         IF (SUM(cell%perd(1:3)) == 0) THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
+               TRIM(my_label)//" Periodicity", "NONE"
+         ELSE
+            string = ""
+            IF (cell%perd(1) == 1) string = TRIM(string)//"X"
+            IF (cell%perd(2) == 1) string = TRIM(string)//"Y"
+            IF (cell%perd(3) == 1) string = TRIM(string)//"Z"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
+               TRIM(my_label)//" Periodicity", ADJUSTR(string)
          END IF
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, subsys_section, &
