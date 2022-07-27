@@ -1930,6 +1930,8 @@ CONTAINS
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="occupation", &
                                       r_val=qs_kind%dft_plus_u%occupation)
+#else
+            nu = 0; 
 #endif
 
             CALL section_vals_val_get(dft_plus_u_section, &
