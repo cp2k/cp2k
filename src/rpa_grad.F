@@ -286,11 +286,11 @@ CONTAINS
                 rpa_work%P_ij(nspins), rpa_work%P_ab(nspins))
 
       ! Determine new process grid
-      proc_virtual = MAX(1, CEILING(SQRT(REAL(num_pe_col, KIND=dp))))
-      DO WHILE (MOD(num_pe_col, proc_virtual) /= 0)
-         proc_virtual = proc_virtual - 1
+      proc_homo = MAX(1, CEILING(SQRT(REAL(num_pe_col, KIND=dp))))
+      DO WHILE (MOD(num_pe_col, proc_homo) /= 0)
+         proc_homo = proc_homo - 1
       END DO
-      proc_homo = num_pe_col/proc_virtual
+      proc_virtual = num_pe_col/proc_homo
 
       rpa_work%grid(1) = proc_virtual
       rpa_work%grid(2) = proc_homo
@@ -1014,12 +1014,13 @@ CONTAINS
 
          buffer_3D(1:my_P_size, 1:recv_a_size, 1:my_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
-         CALL timeset(routineN//"_comm", handle2)
+         CALL timeset(routineN//"_comm_a", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           buffer_3D, blacs2mpi(my_prow, proc_recv), &
                           para_env%group, tag)
          CALL timestop(handle2)
 
+         CALL timeset(routineN//"_dgemm_a", handle2)
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
             CALL DGEMM("T", "N", my_a_size, recv_a_size, my_P_size, &
@@ -1027,7 +1028,9 @@ CONTAINS
                        buffer_3D(1, 1, my_i), my_P_size, &
                        1.0_dp, P_ab(1, recv_a_start), my_a_size)
          END DO
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_scale_a", handle2)
          DO my_i = 1, my_i_size
             ! Scale both matrices
             DO my_a = 1, my_a_size
@@ -1039,7 +1042,9 @@ CONTAINS
                                           (omega/(Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1)))
             END DO
          END DO
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_dgemm_a", handle2)
          DO my_i = 1, my_i_size
             ! Repeat contraction
             CALL DGEMM("T", "N", my_a_size, recv_a_size, my_P_size, &
@@ -1047,7 +1052,9 @@ CONTAINS
                        buffer_3D(1, 1, my_i), my_P_size, &
                        1.0_dp, P_ab(1, recv_a_start), my_a_size)
          END DO
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_scale_a", handle2)
          ! Remove scaling of mat_S for later
          DO my_i = 1, my_i_size
             DO my_a = 1, my_a_size
@@ -1059,6 +1066,7 @@ CONTAINS
                                           ((Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1))/omega)
             END DO
          END DO
+         CALL timestop(handle2)
       END DO
 
       DO proc_shift = 0, grid(2) - 1
@@ -1072,18 +1080,21 @@ CONTAINS
 
          buffer_3D(1:my_P_size, 1:my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
-         CALL timeset(routineN//"_comm", handle2)
+         CALL timeset(routineN//"_comm_i", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           buffer_3D, blacs2mpi(my_prow, proc_recv), &
                           para_env%group, tag)
          CALL timestop(handle2)
 
+         CALL timeset(routineN//"_comm_i", handle2)
          ! This loop imitates the actual tensor contraction
          CALL DGEMM("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
                     weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
                     buffer_3D(1, 1, 1), my_P_size*my_a_size, &
                     1.0_dp, P_ij(1, recv_i_start), my_i_size)
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_scale_i", handle2)
          ! Scale both matrices
          DO my_i = 1, my_i_size
          DO my_a = 1, my_a_size
@@ -1097,13 +1108,17 @@ CONTAINS
                                        (omega/(Eigenval(homo + my_a + my_a_start - 1) - Eigenval(my_i + recv_i_start - 1)))
          END DO
          END DO
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_dgemm_i", handle2)
          ! Repeat contraction
          CALL DGEMM("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
                     -weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
                     buffer_3D(1, 1, 1), my_P_size*my_a_size, &
                     1.0_dp, P_ij(1, recv_i_start), my_i_size)
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_scale_i", handle2)
          ! Remove scaling factor of mat_S for later
          DO my_i = 1, my_i_size
          DO my_a = 1, my_a_size
@@ -1111,6 +1126,7 @@ CONTAINS
                                       ((Eigenval(homo + my_a + my_a_start - 1) - Eigenval(my_i + recv_i_start - 1))/omega)
          END DO
          END DO
+         CALL timestop(handle2)
       END DO
 
       CALL timestop(handle)
