@@ -1880,7 +1880,19 @@ CONTAINS
          ! This group dist contains the info which parts of Pab a process is supposed to own later
          CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
 
-         DO proc_shift = 0, para_env_sub%num_pe - 1
+         ! Calculate local indices of the common range of own matrix and send process
+         send_start = MAX(1, my_B_start - my_a_start + 1)
+         send_end = MIN(my_a_size, my_B_end - my_a_start + 1)
+
+         ! Same for recv process but with reverse positions
+         recv_start = MAX(1, my_a_start - my_B_start + 1)
+         recv_end = MIN(my_B_size, my_a_end - my_B_start + 1)
+
+         mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) = &
+            mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) &
+            + my_scale*rpa_work%P_ab(ispin)%array(send_start:send_end, :)
+
+         DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
