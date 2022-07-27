@@ -1833,7 +1833,7 @@ CONTAINS
       INTEGER :: handle, ispin, itmp(2), my_a_end, my_a_size, my_a_start, my_B_end, my_B_size, &
          my_B_start, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, proc_send, &
          proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, send_a_start, &
-         send_end, send_start, sent_data
+         send_end, send_start
       REAL(KIND=dp)                                      :: my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
@@ -1880,8 +1880,6 @@ CONTAINS
          ! This group dist contains the info which parts of Pab a process is supposed to own later
          CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
 
-         sent_data = 0
-
          DO proc_shift = 0, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -1894,8 +1892,6 @@ CONTAINS
             send_end = MIN(my_a_size, send_a_end - my_a_start + 1)
             ALLOCATE (buffer_send(MAX(send_end - send_start + 1, 0), virtual(ispin)))
             buffer_send(:, :) = rpa_work%P_ab(ispin)%array(send_start:send_end, :)
-
-            sent_data = sent_data + send_end - send_start + 1
 
             ! Same for recv process but with reverse positions
             recv_start = MAX(1, recv_a_start - my_B_start + 1)
