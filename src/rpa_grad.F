@@ -1163,7 +1163,7 @@ CONTAINS
       INTEGER :: avirt, col_global, col_local, counter, first_p_pos(2), first_p_pos_col, handle, &
          handle2, ij_counter, iocc, my_col_local, my_i, my_j, my_pcol, my_prow, ncol_block, &
          ncol_local, nrow_local, num_ij_pairs, num_pe_col, pcol, pcol_recv, pcol_send, proc_shift, &
-         tag
+         recv_size, send_size, size_recv_buffer, size_send_buffer, tag
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp)                                      :: ddot, trace
@@ -1211,76 +1211,104 @@ CONTAINS
          END DO
       END DO
 
-      DO proc_shift = 1, num_pe_col - 1
-         pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
-         pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+      IF (num_pe_col > 1) THEN
+         size_send_buffer = 0
+         size_recv_buffer = 0
+         DO proc_shift = 1, num_pe_col - 1
+            pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
-         CALL timeset(routineN//"_send", handle2)
-         ! Collect indices and exchange
+            IF (ALLOCATED(index2send(pcol_send)%array)) &
+               size_send_buffer = MAX(size_send_buffer, SIZE(index2send(pcol_send)%array))
 
-         ALLOCATE (buffer_send(nrow_local, SIZE(index2send(pcol_send)%array)))
-
-         counter = 0
-         DO col_local = 1, ncol_local
-            col_global = col_indices(col_local)
-
-            iocc = MAX(1, col_global - 1)/virtual + 1
-            avirt = col_global - (iocc - 1)*virtual
-
-            DO ij_counter = 1, num_ij_pairs
-
-               my_i = pair_list(1, ij_counter)
-               my_j = pair_list(2, ij_counter)
-
-               IF (iocc /= my_j) CYCLE
-               pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
-               IF (pcol /= pcol_send) CYCLE
-
-               counter = counter + 1
-
-               buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
-
-               EXIT
-
-            END DO
+            IF (ALLOCATED(index2recv(pcol_recv)%array)) &
+               size_recv_buffer = MAX(size_recv_buffer, SIZE(index2recv(pcol_recv)%array))
          END DO
 
-         ALLOCATE (buffer_recv(nrow_local, SIZE(index2recv(pcol_recv)%array)))
-         !
-         CALL mp_sendrecv(buffer_send, blacs2mpi(my_prow, pcol_send), &
-                          buffer_recv, blacs2mpi(my_prow, pcol_recv), &
-                          para_env%group, tag)
-         DEALLOCATE (buffer_send)
-         CALL timestop(handle2)
+         ALLOCATE (buffer_send(nrow_local, size_send_buffer), buffer_recv(nrow_local, size_recv_buffer))
 
-         DO ij_counter = 1, num_ij_pairs
-            ! Collect the contributions of the matrix elements
+         DO proc_shift = 1, num_pe_col - 1
+            pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
-            my_i = pair_list(1, ij_counter)
-            my_j = pair_list(2, ij_counter)
+            ! Collect data and exchange
+            send_size = 0
+            IF (ALLOCATED(index2send(pcol_send)%array)) send_size = SIZE(index2send(pcol_send)%array)
 
-            trace = 0.0_dp
+            IF (send_size > 0) THEN
+               counter = 0
+               DO col_local = 1, ncol_local
+                  col_global = col_indices(col_local)
 
-            DO col_local = 1, SIZE(index2recv(pcol_recv)%array)
-               col_global = index2recv(pcol_recv)%array(col_local)
+                  iocc = MAX(1, col_global - 1)/virtual + 1
+                  avirt = col_global - (iocc - 1)*virtual
 
-               iocc = MAX(1, col_global - 1)/virtual + 1
-               IF (iocc /= my_j) CYCLE
-               avirt = col_global - (iocc - 1)*virtual
-               pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
-               IF (pcol /= my_pcol) CYCLE
+                  DO ij_counter = 1, num_ij_pairs
 
-               my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     my_i = pair_list(1, ij_counter)
+                     my_j = pair_list(2, ij_counter)
 
-               trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
-            END DO
+                     IF (iocc /= my_j) CYCLE
+                     pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     IF (pcol /= pcol_send) CYCLE
 
-            P_ij(ij_counter) = P_ij(ij_counter) &
-                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+                     counter = counter + 1
+
+                     buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
+
+                     EXIT
+
+                  END DO
+               END DO
+            END IF
+
+            recv_size = 0
+            IF (ALLOCATED(index2recv(pcol_recv)%array)) recv_size = SIZE(index2recv(pcol_recv)%array)
+            CALL timeset(routineN//"_send", handle2)
+            IF (recv_size > 0) THEN
+               IF (send_size > 0) THEN
+                  CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
+                                   buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), &
+                                   para_env%group, tag)
+               ELSE
+                  CALL mp_recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag, para_env%group)
+               END IF
+               CALL timestop(handle2)
+
+               DO ij_counter = 1, num_ij_pairs
+                  ! Collect the contributions of the matrix elements
+
+                  my_i = pair_list(1, ij_counter)
+                  my_j = pair_list(2, ij_counter)
+
+                  trace = 0.0_dp
+
+                  DO col_local = 1, recv_size
+                     col_global = index2recv(pcol_recv)%array(col_local)
+
+                     iocc = MAX(1, col_global - 1)/virtual + 1
+                     IF (iocc /= my_j) CYCLE
+                     avirt = col_global - (iocc - 1)*virtual
+                     pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     IF (pcol /= my_pcol) CYCLE
+
+                     my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+
+                     trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
+                  END DO
+
+                  P_ij(ij_counter) = P_ij(ij_counter) &
+                                     - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+               END DO
+            ELSE IF (send_size > 0) THEN
+               CALL timeset(routineN//"_send", handle2)
+               CALL mp_send(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), tag, para_env%group)
+               CALL timestop(handle2)
+            END IF
          END DO
-
-         DEALLOCATE (buffer_recv)
-      END DO
+         IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
+         IF (ALLOCATED(buffer_recv)) DEALLOCATE (buffer_recv)
+      END IF
 
       CALL timestop(handle)
 
