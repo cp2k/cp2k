@@ -1309,7 +1309,33 @@ CONTAINS
 
       tag = 43
 
-      DO proc_shift = 0, num_pe_col - 1
+      DO col_local = 1, ncol_local
+         col_global = col_indices(col_local)
+
+         iocc = MAX(1, col_global - 1)/virtual + 1
+         avirt = col_global - (iocc - 1)*virtual
+
+         DO ab_counter = 1, num_ab_pairs
+
+            my_a = pair_list(1, ab_counter)
+            my_b = pair_list(2, ab_counter)
+
+            IF (avirt /= my_b) CYCLE
+            pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            IF (pcol /= my_pcol) CYCLE
+            my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+
+            trace = ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, fm_work_iaP%local_data(:, col_local), 1)
+
+            P_ab(virtual + ab_counter) = P_ab(virtual + ab_counter) &
+                                      - trace*sinh_over_x(0.5_dp*(Eigenval(homo + my_a) - Eigenval(homo + my_b))*omega)*omega*weight
+
+            EXIT
+
+         END DO
+      END DO
+
+      DO proc_shift = 1, num_pe_col - 1
          pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
          pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
