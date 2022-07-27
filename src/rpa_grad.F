@@ -1427,11 +1427,20 @@ CONTAINS
 
       ALLOCATE (mat_S_3D(nrow_local, my_virtual, my_homo))
 
-      DO proc_shift = 0, num_pe_col - 1
+      IF (ALLOCATED(index2send(my_pcol)%array)) THEN
+         DO col_local = 1, SIZE(index2send(my_pcol)%array)
+            my_a = index2recv(my_pcol)%array(1, col_local)
+            my_i = index2recv(my_pcol)%array(2, col_local)
+            mat_S_3D(:, my_a, my_i) = fm_mat_S%local_data(:, index2send(my_pcol)%array(col_local))
+         END DO
+      END IF
+
+      DO proc_shift = 1, num_pe_col - 1
          proc_send = MODULO(my_pcol + proc_shift, num_pe_col)
          proc_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
-         send_size = SIZE(index2send(proc_send)%array)
+         send_size = 0
+         IF (ALLOCATED(index2send(proc_send)%array)) send_size = SIZE(index2send(proc_send)%array)
          IF (send_size > 0) THEN
             ALLOCATE (buffer_send(nrow_local, send_size))
 
@@ -1440,7 +1449,8 @@ CONTAINS
             END DO
          END IF
 
-         recv_size = SIZE(index2recv(proc_recv)%array, 2)
+         recv_size = 0
+         IF (ALLOCATED(index2recv(proc_recv)%array)) recv_size = SIZE(index2recv(proc_recv)%array, 2)
          IF (recv_size > 0) THEN
             ALLOCATE (buffer_recv(nrow_local, recv_size))
 
@@ -1456,8 +1466,8 @@ CONTAINS
             IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
 
             DO col_local = 1, recv_size
-               my_i = index2recv(proc_recv)%array(2, col_local)
                my_a = index2recv(proc_recv)%array(1, col_local)
+               my_i = index2recv(proc_recv)%array(2, col_local)
                mat_S_3D(:, my_a, my_i) = buffer_recv(:, col_local)
             END DO
 
