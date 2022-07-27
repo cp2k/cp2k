@@ -1408,7 +1408,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_fm_mat_S'
 
       INTEGER :: col_local, handle, my_a, my_homo, my_i, my_pcol, my_prow, my_virtual, nrow_local, &
-         num_pe_col, proc_recv, proc_send, proc_shift, recv_size, send_size, tag
+         num_pe_col, proc_recv, proc_send, proc_shift, recv_size, send_size, size_recv_buffer, &
+         size_send_buffer, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1435,51 +1436,64 @@ CONTAINS
          END DO
       END IF
 
-      DO proc_shift = 1, num_pe_col - 1
-         proc_send = MODULO(my_pcol + proc_shift, num_pe_col)
-         proc_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+      IF (num_pe_col > 1) THEN
+         size_send_buffer = 0
+         size_recv_buffer = 0
+         DO proc_shift = 1, num_pe_col - 1
+            proc_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            proc_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
-         send_size = 0
-         IF (ALLOCATED(index2send(proc_send)%array)) send_size = SIZE(index2send(proc_send)%array)
-         IF (send_size > 0) THEN
-            ALLOCATE (buffer_send(nrow_local, send_size))
+            send_size = 0
+            IF (ALLOCATED(index2send(proc_send)%array)) send_size = SIZE(index2send(proc_send)%array)
+            size_send_buffer = MAX(size_send_buffer, send_size)
 
-            DO col_local = 1, send_size
-               buffer_send(:, col_local) = fm_mat_S%local_data(:, index2send(proc_send)%array(col_local))
-            END DO
-         END IF
+            recv_size = 0
+            IF (ALLOCATED(index2recv(proc_recv)%array)) recv_size = SIZE(index2recv(proc_recv)%array)
+            size_recv_buffer = MAX(size_recv_buffer, recv_size)
 
-         recv_size = 0
-         IF (ALLOCATED(index2recv(proc_recv)%array)) recv_size = SIZE(index2recv(proc_recv)%array, 2)
-         IF (recv_size > 0) THEN
-            ALLOCATE (buffer_recv(nrow_local, recv_size))
+         END DO
 
+         ALLOCATE (buffer_send(nrow_local, size_send_buffer), buffer_recv(nrow_local, size_recv_buffer))
+
+         DO proc_shift = 1, num_pe_col - 1
+            proc_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            proc_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+
+            send_size = 0
+            IF (ALLOCATED(index2send(proc_send)%array)) send_size = SIZE(index2send(proc_send)%array)
             IF (send_size > 0) THEN
-               CALL mp_sendrecv(buffer_send, blacs2mpi(my_prow, proc_send), &
-                                buffer_recv, blacs2mpi(my_prow, proc_recv), &
-                                para_env%group, tag)
-            ELSE
-               CALL mp_recv(buffer_recv, blacs2mpi(my_prow, proc_recv), &
+               DO col_local = 1, send_size
+                  buffer_send(:, col_local) = fm_mat_S%local_data(:, index2send(proc_send)%array(col_local))
+               END DO
+            END IF
+
+            recv_size = 0
+            IF (ALLOCATED(index2recv(proc_recv)%array)) recv_size = SIZE(index2recv(proc_recv)%array, 2)
+            IF (recv_size > 0) THEN
+               IF (send_size > 0) THEN
+                  CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, proc_send), &
+                                   buffer_recv(:, :recv_size), blacs2mpi(my_prow, proc_recv), &
+                                   para_env%group, tag)
+               ELSE
+                  CALL mp_recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, proc_recv), &
+                               tag, para_env%group)
+               END IF
+
+               DO col_local = 1, recv_size
+                  my_a = index2recv(proc_recv)%array(1, col_local)
+                  my_i = index2recv(proc_recv)%array(2, col_local)
+                  mat_S_3D(:, my_a, my_i) = buffer_recv(:, col_local)
+               END DO
+            ELSE IF (send_size > 0) THEN
+               CALL mp_send(buffer_send(:, :send_size), blacs2mpi(my_prow, proc_send), &
                             tag, para_env%group)
             END IF
 
-            IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
-
-            DO col_local = 1, recv_size
-               my_a = index2recv(proc_recv)%array(1, col_local)
-               my_i = index2recv(proc_recv)%array(2, col_local)
-               mat_S_3D(:, my_a, my_i) = buffer_recv(:, col_local)
-            END DO
-
-            DEALLOCATE (buffer_recv)
-         ELSE IF (send_size > 0) THEN
-            CALL mp_send(buffer_send, blacs2mpi(my_prow, proc_send), &
-                         tag, para_env%group)
-         END IF
+         END DO
 
          IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
-
-      END DO
+         IF (ALLOCATED(buffer_recv)) DEALLOCATE (buffer_recv)
+      END IF
 
       CALL timestop(handle)
 
