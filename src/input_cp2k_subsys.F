@@ -2246,7 +2246,6 @@ CONTAINS
                           n_keywords=3, &
                           n_subsections=1, &
                           repeats=.FALSE.)
-
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, &
@@ -2270,19 +2269,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-#if defined(__SIRIUS)
-      CALL keyword_create(keyword, __LOCATION__, &
-                          name="N", &
-                          description="principal quantum number of the"// &
-                          "orbitals to which the correction is applied. Ignored unless pwdft is used for the calculations", &
-                          repeats=.FALSE., &
-                          n_var=1, &
-                          type_of_var=integer_t, &
-                          default_i_val=-1, &
-                          usage="N 2")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, &
                           name="U_MINUS_J", &
                           variants=(/"U_EFF"/), &
@@ -2293,6 +2279,18 @@ CONTAINS
                           default_r_val=0.0_dp, &
                           unit_str="au_e", &
                           usage="U_MINUS_J [eV] 1.4")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="N", &
+                          description="principal quantum number of the"// &
+                          "orbitals to which the correction is applied. Ignored unless pwdft is used for the calculations", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=-1, &
+                          usage="N 2")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2366,7 +2364,6 @@ CONTAINS
                           usage="occupation 6")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-#endif
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="U_RAMPING", &
