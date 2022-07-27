@@ -1945,7 +1945,8 @@ CONTAINS
          mypcol_global, myprow_global, ncol_block_global, ncol_block_sub, ncol_local_global, &
          ncol_local_sub, npcol_global, npcol_sub, nprow_global, nprow_sub, nrow_block_global, &
          nrow_block_sub, nrow_local_global, nrow_local_sub, pcol_recv, pcol_send, proc_recv, &
-         proc_send, proc_send_global, proc_shift, prow_recv, prow_send, row_local
+         proc_send, proc_send_global, proc_shift, prow_recv, prow_send, row_local, tag
+      INTEGER(int_8)                                     :: size_recv_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv_col, data2recv_row, &
                                                             data2send_col, data2send_row, &
                                                             subgroup2mepos
@@ -1953,12 +1954,15 @@ CONTAINS
                                                             row_indices_global, row_indices_sub
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi_global, blacs2mpi_sub, &
                                                             mpi2blacs_global, mpi2blacs_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: recv_buffer, send_buffer
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer_1D, send_buffer_1D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: recv_buffer, send_buffer
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_exchange, para_env_sub
       TYPE(one_dim_int_array), ALLOCATABLE, DIMENSION(:) :: index2recv_col, index2recv_row, &
                                                             index2send_col, index2send_row
 
       CALL timeset(routineN, handle)
+
+      tag = 1
 
       nprow_sub = fm_sub%matrix_struct%context%num_pe(1)
       npcol_sub = fm_sub%matrix_struct%context%num_pe(2)
@@ -2027,6 +2031,30 @@ CONTAINS
       CALL timestop(handle2)
 
       IF (para_env_sub%num_pe > 1) THEN
+         size_send_buffer = 0_int_8
+         size_recv_buffer = 0_int_8
+         ! Loop over all processes in para_env_sub
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+            proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+
+            proc_send_global = subgroup2mepos(proc_send)
+            prow_send = mpi2blacs_global(1, proc_send_global)
+            pcol_send = mpi2blacs_global(2, proc_send_global)
+            elements2send_col = data2send_col(pcol_send)
+            elements2send_row = data2send_row(prow_send)
+
+            size_send_buffer = MAX(size_send_buffer, INT(elements2send_col, int_8)*elements2send_row)
+
+            prow_recv = mpi2blacs_sub(1, proc_recv)
+            pcol_recv = mpi2blacs_sub(2, proc_recv)
+            elements2recv_col = data2recv_col(pcol_recv)
+            elements2recv_row = data2recv_row(prow_recv)
+
+            size_recv_buffer = MAX(size_recv_buffer, INT(elements2recv_col, int_8)*elements2recv_row)
+         END DO
+         ALLOCATE (send_buffer_1D(size_send_buffer), recv_buffer_1D(size_recv_buffer))
+
          ! Loop over all processes in para_env_sub
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
@@ -2041,7 +2069,7 @@ CONTAINS
             CALL timeset(routineN//"_pack", handle2)
             ! Loop over local data and pack the buffer
             ! Transpose the matrix already
-            ALLOCATE (send_buffer(elements2send_row, elements2send_col))
+          send_buffer(1:elements2send_row, 1:elements2send_col) => send_buffer_1D(1:INT(elements2send_row, int_8)*elements2send_col)
 !$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
 !$OMP                SHARED(elements2send_col,elements2send_row,send_buffer,fm_sub,&
 !$OMP                       index2send_col,index2send_row,pcol_send,prow_send)
@@ -2061,9 +2089,13 @@ CONTAINS
             elements2recv_row = data2recv_row(prow_recv)
 
             ! Send data
-            ALLOCATE (recv_buffer(elements2recv_col, elements2recv_row))
-            CALL mp_sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, para_env_sub%group, 1)
-            IF (ALLOCATED(send_buffer)) DEALLOCATE (send_buffer)
+          recv_buffer(1:elements2recv_col, 1:elements2recv_row) => recv_buffer_1D(1:INT(elements2recv_row, int_8)*elements2recv_col)
+            IF (SIZE(recv_buffer) > 0_int_8) THEN
+            IF (SIZE(send_buffer) > 0_int_8) THEN
+               CALL mp_sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, para_env_sub%group, tag)
+            ELSE
+               CALL mp_recv(recv_buffer, proc_recv, tag, para_env_sub%group)
+            END IF
 
             CALL timeset(routineN//"_unpack", handle2)
 !$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
@@ -2078,7 +2110,9 @@ CONTAINS
             END DO
 !$OMP    END PARALLEL DO
             CALL timestop(handle2)
-            IF (ALLOCATED(recv_buffer)) DEALLOCATE (recv_buffer)
+            ELSE IF (SIZE(send_buffer) > 0_int_8) THEN
+            CALL mp_send(send_buffer, proc_send, tag, para_env_sub%group)
+            END IF
          END DO
       END IF
 
