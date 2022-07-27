@@ -59,7 +59,6 @@ case "$with_plumed" in
         CXXFLAGS="${CXXFLAGS//-g/-g0} ${GSL_CFLAGS}" \
         LDFLAGS="${LDFLAGS} ${GSL_LDFLAGS}" \
         LIBS="${libs}" \
-        --disable-shared \
         --prefix=${pkg_install_dir} \
         --libdir="${pkg_install_dir}/lib" \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
