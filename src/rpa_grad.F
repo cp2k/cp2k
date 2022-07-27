@@ -2000,51 +2000,29 @@ CONTAINS
       CALL get_elements2send(data2recv_row, nprow_sub, col_indices_global, nrow_block_sub, first_p_pos_sub(1), index2recv_row)
       CALL timestop(handle2)
 
-      ! Copy the local data first
+      CALL timeset(routineN//"_local", handle2)
+      ! Loop over local data and transpose
       prow_send = mpi2blacs_global(1, para_env%mepos)
       pcol_send = mpi2blacs_global(2, para_env%mepos)
-      elements2send_col = data2send_col(pcol_send)
-      elements2send_row = data2send_row(prow_send)
-
-      CALL timeset(routineN//"_pack", handle2)
-      ! Loop over local data and pack the buffer
-      ! Transpose the matrix already
-      ALLOCATE (send_buffer(elements2send_row, elements2send_col))
-!$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
-!$OMP                SHARED(elements2send_col,elements2send_row,send_buffer,fm_sub,&
-!$OMP                       index2send_col,index2send_row,pcol_send,prow_send)
-      DO row_local = 1, elements2send_col
-         DO col_local = 1, elements2send_row
-            send_buffer(col_local, row_local) = &
-               fm_sub%local_data(index2send_col(pcol_send)%array(row_local), &
-                                 index2send_row(prow_send)%array(col_local))
-         END DO
-      END DO
-!$OMP    END PARALLEL DO
-      CALL timestop(handle2)
-
       prow_recv = mpi2blacs_sub(1, para_env_sub%mepos)
       pcol_recv = mpi2blacs_sub(2, para_env_sub%mepos)
       elements2recv_col = data2recv_col(pcol_recv)
       elements2recv_row = data2recv_row(prow_recv)
 
-      ! Send data
-      CALL MOVE_ALLOC(send_buffer, recv_buffer)
-
-      CALL timeset(routineN//"_unpack", handle2)
 !$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
 !$OMP                SHARED(elements2recv_col,elements2recv_row,recv_buffer,fm_global,&
-!$OMP                       index2recv_col,index2recv_row,pcol_recv,prow_recv)
+!$OMP                       index2recv_col,index2recv_row,pcol_recv,prow_recv, &
+!$OMP                       fm_sub,index2send_col,index2send_row,pcol_send,prow_send)
       DO col_local = 1, elements2recv_col
          DO row_local = 1, elements2recv_row
             fm_global%local_data(index2recv_col(pcol_recv)%array(col_local), &
                                  index2recv_row(prow_recv)%array(row_local)) &
-               = recv_buffer(col_local, row_local)
+               = fm_sub%local_data(index2send_col(pcol_send)%array(row_local), &
+                                   index2send_row(prow_send)%array(col_local))
          END DO
       END DO
 !$OMP    END PARALLEL DO
       CALL timestop(handle2)
-      IF (ALLOCATED(recv_buffer)) DEALLOCATE (recv_buffer)
 
       ! Loop over all processes in para_env_sub
       DO proc_shift = 1, para_env_sub%num_pe - 1
