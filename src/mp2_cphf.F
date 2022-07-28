@@ -72,7 +72,8 @@ MODULE mp2_cphf
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
-   USE mp2_types,                       ONLY: mp2_type
+   USE mp2_types,                       ONLY: mp2_type,&
+                                              ri_rpa_method_gpw
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -126,6 +127,7 @@ MODULE mp2_cphf
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE response_solver,                 ONLY: ks_ref_potential
+   USE rpa_hfx,                         ONLY: add_exx_to_rhs
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type,&
                                               zero_virial
@@ -181,7 +183,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
-                                                            do_hfx, restore_p_screen
+                                                            do_exx, do_hfx, restore_p_screen
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
                                                             P_mo, W_mo
@@ -197,7 +199,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
-      TYPE(section_vals_type), POINTER                   :: hfx_sections, input
+      TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_sections, input
 
       CALL timeset(routineN, handle)
 
@@ -326,6 +328,16 @@ CONTAINS
                mp2_env%p_screen = .TRUE.
             END IF
          END IF
+      END IF
+
+      ! Add exx part for RPA
+      do_exx = .FALSE.
+      IF (qs_env%mp2_env%method == ri_rpa_method_gpw) THEN
+         hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
+         CALL section_vals_get(hfx_section, explicit=do_exx)
+      END IF
+      IF (do_exx) THEN
+         CALL add_exx_to_rhs(P_mu_nu, qs_env)
       END IF
 
       ! Prepare arrays for linres code
