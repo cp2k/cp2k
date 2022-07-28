@@ -376,13 +376,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, __LOCATION__, name="SIZE_INTEG_GROUP", &
-         variants=(/"LAPLACE_GROUP_SIZE"/), &
-         description="Group size for the integration in the Laplace method, that is the number of processes involved in "// &
-         "the computation of each integration point. SIZE_INTEG_GROUP has to be a multiple "// &
-         "of GROUP_SIZE in the WF_CORRELATION section. The default (-1) "// &
-         "is automatic.", &
-         usage="SIZE_INTEG_GROUP 16", &
+         keyword, __LOCATION__, name="NUM_INTEG_GROUPS", &
+         description="Number of groups for the integration in the Laplace method. Each groups processes "// &
+         "the same amount of quadrature points. It must be a divisor of the number of quadrature points and "// &
+         "NUM_INTEG_GROUPS*GROUP_SIZE must be a divisor of the total number of processes. The default (-1) is automatic.", &
+         usage="SIZE_INTEG_GROUP 2", &
          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -475,13 +473,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SIZE_FREQ_INTEG_GROUP", &
-                          variants=(/"RPA_GROUP_SIZE"/), &
-                          description="Group size for frequency integration, that is the number of processes involved in "// &
-                          "the computation of each integration point. SIZE_FREQ_INTEG_GROUP has to be a multiple "// &
-                          "of GROUP_SIZE in the WF_CORRELATION section. The default (-1) "// &
-                          "is automatic.", &
-                          usage="SIZE_FREQ_INTEG_GROUP 16", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_INTEG_GROUPS", &
+                          description="Number of groups for the integration in the Laplace method. Each groups processes "// &
+                          "the same amount of quadrature points. It must be a divisor of the number of quadrature points and "// &
+                          "NUM_INTEG_GROUPS*GROUP_SIZE must be a divisor of the total number of processes. "// &
+                          "The default (-1) is automatic.", &
+                          usage="SIZE_INTEG_GROUP 2", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

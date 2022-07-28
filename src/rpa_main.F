@@ -226,7 +226,7 @@ CONTAINS
 
       INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_homo_square, &
          dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, i, ierr, iiB, &
-         input_integ_group_size, integ_group_size, ispin, jjB, min_integ_group_size, &
+         input_num_integ_groups, integ_group_size, ispin, jjB, min_integ_group_size, &
          my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
          my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
          my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, &
@@ -285,7 +285,7 @@ CONTAINS
 
       IF (do_ri_sos_laplace_mp2) THEN
          num_integ_points = mp2_env%ri_laplace%n_quadrature
-         input_integ_group_size = mp2_env%ri_laplace%integ_group_size
+         input_num_integ_groups = mp2_env%ri_laplace%num_integ_groups
 
          ! check the range for the minimax approximation
          Emin = HUGE(dp)
@@ -312,7 +312,7 @@ CONTAINS
          CPASSERT(num_integ_points >= 1)
       ELSE
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
-         input_integ_group_size = mp2_env%ri_rpa%rpa_integ_group_size
+         input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
 
          IF (my_do_gw .AND. do_minimax_quad) THEN
             IF (num_integ_points > 34) THEN
@@ -381,23 +381,18 @@ CONTAINS
          ! here we try to find the best rpa/laplace group size
          skip_integ_group_opt = .FALSE.
 
-         ! Check the input integration group size
-         IF (input_integ_group_size > 0) THEN
-            IF (MOD(input_integ_group_size, para_env_sub%num_pe) == 0) THEN
-               best_integ_group_size = input_integ_group_size/para_env_sub%num_pe
-               IF (MOD(ngroup, best_integ_group_size) == 0) THEN
-                  num_integ_group = ngroup/best_integ_group_size
-                  IF (MOD(num_integ_points, num_integ_group) == 0) THEN
-                     best_num_integ_point = num_integ_points/num_integ_group
-                     skip_integ_group_opt = .TRUE.
-                  ELSE
-                     IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'NUM_QUAD_POINTS not multiple of the number of INTEG_GROUP'
-                  END IF
+         ! Check the input number of integration groups
+         IF (input_num_integ_groups > 0) THEN
+            IF (MOD(num_integ_points, input_num_integ_groups) == 0) THEN
+               IF (MOD(ngroup, input_num_integ_groups) == 0) THEN
+                  best_integ_group_size = ngroup/input_num_integ_groups
+                  best_num_integ_point = num_integ_points/input_num_integ_groups
+                  skip_integ_group_opt = .TRUE.
                ELSE
-                  IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Total number of groups not multiple of SIZE_INTEG_GROUP'
+                  IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Total number of groups not multiple of NUM_INTEG_GROUPS'
                END IF
             ELSE
-               IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'SIZE_INTEG_GROUP not multiple of GROUP_SIZE'
+               IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'NUM_QUAD_POINTS not multiple of NUM_INTEG_GROUPS'
             END IF
          END IF
 
