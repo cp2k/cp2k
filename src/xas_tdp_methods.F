@@ -104,9 +104,11 @@ MODULE xas_tdp_methods
    USE qs_loc_utils,                    ONLY: qs_loc_control_init,&
                                               qs_loc_env_init,&
                                               set_loc_centers
+   USE qs_mo_io,                        ONLY: write_mo_set_low
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
+                                              duplicate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_p_type,&
@@ -453,7 +455,7 @@ CONTAINS
                                                                                   xas_tdp_control, xas_tdp_env)
                         CALL xas_tdp_post(tddfpt_spin_cons, current_state, xas_tdp_env, &
                                           xas_tdp_section, qs_env)
-                        CALL write_donor_state_restart(tddfpt_spin_cons, current_state, xas_tdp_section)
+                        CALL write_donor_state_restart(tddfpt_spin_cons, current_state, xas_tdp_section, qs_env)
                      END IF
 
                      IF (xas_tdp_control%do_spin_flip) THEN
@@ -462,7 +464,7 @@ CONTAINS
                         !no dipole in spin-flip (spin-forbidden)
                         CALL xas_tdp_post(tddfpt_spin_flip, current_state, xas_tdp_env, &
                                           xas_tdp_section, qs_env)
-                        CALL write_donor_state_restart(tddfpt_spin_flip, current_state, xas_tdp_section)
+                        CALL write_donor_state_restart(tddfpt_spin_flip, current_state, xas_tdp_section, qs_env)
                      END IF
 
                      IF (xas_tdp_control%do_singlet) THEN
@@ -473,7 +475,7 @@ CONTAINS
                                                                                   xas_tdp_control, xas_tdp_env)
                         CALL xas_tdp_post(tddfpt_singlet, current_state, xas_tdp_env, &
                                           xas_tdp_section, qs_env)
-                        CALL write_donor_state_restart(tddfpt_singlet, current_state, xas_tdp_section)
+                        CALL write_donor_state_restart(tddfpt_singlet, current_state, xas_tdp_section, qs_env)
                      END IF
 
                      IF (xas_tdp_control%do_triplet) THEN
@@ -482,7 +484,7 @@ CONTAINS
                         !no dipole for triplets by construction
                         CALL xas_tdp_post(tddfpt_triplet, current_state, xas_tdp_env, &
                                           xas_tdp_section, qs_env)
-                        CALL write_donor_state_restart(tddfpt_triplet, current_state, xas_tdp_section)
+                        CALL write_donor_state_restart(tddfpt_triplet, current_state, xas_tdp_section, qs_env)
                      END IF
 
 !                    Include the SOC if required, only for 2p donor stataes
@@ -2444,12 +2446,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_tdp_post'
 
       CHARACTER(len=default_string_length)               :: domo, domon, excite, pos, xas_mittle
-      INTEGER                                            :: handle, ic, ido_mo, imo, irep, ispin, &
-                                                            n_dependent, n_rep, nao, ncubes, &
-                                                            ndo_mo, ndo_so, nlumo, nmo, nspins, &
-                                                            output_unit
+      INTEGER :: ex_state_idx, handle, ic, ido_mo, imo, irep, ispin, n_dependent, n_rep, nao, &
+         ncubes, ndo_mo, ndo_so, nlumo, nmo, nspins, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: bounds, list, state_list
-      LOGICAL                                            :: append_cube, do_cubes, do_pdos
+      LOGICAL                                            :: append_cube, do_cubes, do_pdos, &
+                                                            do_wfn_restart
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -2459,6 +2460,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, restart_mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -2466,11 +2468,11 @@ CONTAINS
 
       NULLIFY (atomic_kind_set, particle_set, qs_kind_set, mo_set, lr_evals, lr_coeffs, mo_coeff)
       NULLIFY (mo_struct, para_env, blacs_env, fm_struct, matrix_s, work_fm, print_key, logger)
-      NULLIFY (bounds, state_list, list)
+      NULLIFY (bounds, state_list, list, restart_mos, mos)
 
       !Tests on what to do
       logger => cp_get_default_logger()
-      do_pdos = .FALSE.; do_cubes = .FALSE.
+      do_pdos = .FALSE.; do_cubes = .FALSE.; do_wfn_restart = .FALSE.
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, xas_tdp_section, &
                                            "PRINT%PDOS"), cp_p_file)) do_pdos = .TRUE.
@@ -2478,14 +2480,17 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, xas_tdp_section, &
                                            "PRINT%CUBES"), cp_p_file)) do_cubes = .TRUE.
 
-      IF (.NOT. (do_pdos .OR. do_cubes)) RETURN
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, xas_tdp_section, &
+                                           "PRINT%RESTART_WFN"), cp_p_file)) do_wfn_restart = .TRUE.
+
+      IF (.NOT. (do_pdos .OR. do_cubes .OR. do_wfn_restart)) RETURN
 
       CALL timeset(routineN, handle)
 
       !Initialization
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, particle_set=particle_set, &
                       qs_kind_set=qs_kind_set, para_env=para_env, blacs_env=blacs_env, &
-                      matrix_s=matrix_s)
+                      matrix_s=matrix_s, mos=mos)
 
       SELECT CASE (ex_type)
       CASE (tddfpt_spin_cons)
@@ -2527,6 +2532,47 @@ CONTAINS
       CALL cp_fm_struct_create(mo_struct, context=blacs_env, para_env=para_env, &
                                nrow_global=nao, ncol_global=nmo)
       CALL cp_fm_create(mo_coeff, mo_struct)
+
+      !Dump the TDDFT excited state AMEW wavefunction into a file for restart in RTP
+      IF (do_wfn_restart) THEN
+         IF (.NOT. (nspins == 1 .AND. donor_state%state_type == xas_1s_type)) THEN
+            CPABORT("RESTART.wfn file only available for RKS K-edge XAS spectroscopy")
+         END IF
+
+         CALL section_vals_val_get(xas_tdp_section, "PRINT%RESTART_WFN%EXCITED_STATE_INDEX", n_rep_val=n_rep)
+
+         DO irep = 1, n_rep
+            CALL section_vals_val_get(xas_tdp_section, "PRINT%RESTART_WFN%EXCITED_STATE_INDEX", &
+                                      i_rep_val=irep, i_val=ex_state_idx)
+            CPASSERT(ex_state_idx <= SIZE(lr_evals))
+
+            ALLOCATE (restart_mos(2))
+            DO ispin = 1, 2
+               CALL duplicate_mo_set(restart_mos(ispin)%mo_set, mos(1)%mo_set)
+            END DO
+
+            CALL cp_fm_to_fm_submat(msource=lr_coeffs, mtarget=restart_mos(1)%mo_set%mo_coeff, nrow=nao, &
+                                    ncol=1, s_firstrow=1, s_firstcol=ex_state_idx, t_firstrow=1, &
+                                    t_firstcol=donor_state%mo_indices(1, 1))
+
+            xas_mittle = 'xasat'//TRIM(ADJUSTL(cp_to_string(donor_state%at_index)))//'_'//TRIM(domo)// &
+                         '_'//TRIM(excite)//'_idx'//TRIM(ADJUSTL(cp_to_string(ex_state_idx)))
+            output_unit = cp_print_key_unit_nr(logger, xas_tdp_section, "PRINT%RESTART_WFN", &
+                                               extension=".wfn", file_status="REPLACE", &
+                                               file_action="WRITE", file_form="UNFORMATTED", &
+                                               middle_name=xas_mittle)
+
+            CALL write_mo_set_low(restart_mos, particle_set=particle_set, &
+                                  qs_kind_set=qs_kind_set, ires=output_unit)
+
+            CALL cp_print_key_finished_output(output_unit, logger, xas_tdp_section, "PRINT%RESTART_WFN")
+
+            DO ispin = 1, 2
+               CALL deallocate_mo_set(restart_mos(ispin)%mo_set)
+            END DO
+            DEALLOCATE (restart_mos)
+         END DO
+      END IF
 
       !PDOS related stuff
       IF (do_pdos) THEN
@@ -3149,27 +3195,31 @@ CONTAINS
 !> \param ex_type singlet, triplet, etc.
 !> \param donor_state ...
 !> \param xas_tdp_section ...
+!> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE write_donor_state_restart(ex_type, donor_state, xas_tdp_section)
+   SUBROUTINE write_donor_state_restart(ex_type, donor_state, xas_tdp_section, qs_env)
 
       INTEGER, INTENT(IN)                                :: ex_type
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_donor_state_restart'
 
       CHARACTER(len=default_path_length)                 :: filename
       CHARACTER(len=default_string_length)               :: domo, excite, my_middle
-      INTEGER                                            :: ex_atom, handle, nao, ndo_mo, nex, &
-                                                            nspins, output_unit, rst_unit, &
+      INTEGER                                            :: ex_atom, handle, ispin, nao, ndo_mo, &
+                                                            nex, nspins, output_unit, rst_unit, &
                                                             state_type
+      INTEGER, DIMENSION(:, :), POINTER                  :: mo_indices
       LOGICAL                                            :: do_print
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(section_vals_type), POINTER                   :: print_key
 
-      NULLIFY (logger, lr_coeffs, lr_evals, print_key)
+      NULLIFY (logger, lr_coeffs, lr_evals, print_key, mos)
 
       !Initialization
       logger => cp_get_default_logger()
@@ -3221,6 +3271,7 @@ CONTAINS
       CALL cp_fm_get_info(lr_coeffs, nrow_global=nao)
       state_type = donor_state%state_type
       ex_atom = donor_state%at_index
+      mo_indices => donor_state%mo_indices
 
       !Opening restart file
       rst_unit = -1
@@ -3242,9 +3293,16 @@ CONTAINS
       IF (rst_unit > 0) THEN
          WRITE (rst_unit) ex_atom, state_type, ndo_mo, ex_type
          WRITE (rst_unit) nao, nex, nspins
+         WRITE (rst_unit) mo_indices(:, :)
          WRITE (rst_unit) lr_evals(:)
       END IF
       CALL cp_fm_write_unformatted(lr_coeffs, rst_unit)
+
+      !The MOs as well (because the may have been localized)
+      CALL get_qs_env(qs_env, mos=mos)
+      DO ispin = 1, nspins
+         CALL cp_fm_write_unformatted(mos(ispin)%mo_set%mo_coeff, rst_unit)
+      END DO
 
       !closing
       CALL cp_print_key_finished_output(rst_unit, logger, xas_tdp_section, "PRINT%RESTART")
@@ -3269,17 +3327,19 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'read_donor_state_restart'
 
-      INTEGER                                            :: group, handle, nao, nex, nspins, &
+      INTEGER                                            :: group, handle, ispin, nao, nex, nspins, &
                                                             output_unit, read_params(7), rst_unit, &
                                                             source
+      INTEGER, DIMENSION(:, :), POINTER                  :: mo_indices
       LOGICAL                                            :: file_exists
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 
-      NULLIFY (lr_evals, lr_coeffs, para_env, fm_struct, blacs_env)
+      NULLIFY (lr_evals, lr_coeffs, para_env, fm_struct, blacs_env, mos)
 
       CALL timeset(routineN, handle)
 
@@ -3321,6 +3381,13 @@ CONTAINS
       nex = read_params(6)
       nspins = read_params(7)
 
+      ALLOCATE (mo_indices(donor_state%ndo_mo, nspins))
+      IF (rst_unit > 0) THEN
+         READ (rst_unit) mo_indices(1:donor_state%ndo_mo, 1:nspins)
+      END IF
+      CALL mp_bcast(mo_indices, source, group)
+      donor_state%mo_indices => mo_indices
+
       !read evals
       ALLOCATE (lr_evals(nex))
       IF (rst_unit > 0) READ (rst_unit) lr_evals(1:nex)
@@ -3332,6 +3399,12 @@ CONTAINS
       CALL cp_fm_create(lr_coeffs, fm_struct)
       CALL cp_fm_read_unformatted(lr_coeffs, rst_unit)
       CALL cp_fm_struct_release(fm_struct)
+
+      !read MO coeffs and replace in qs_env
+      CALL get_qs_env(qs_env, mos=mos)
+      DO ispin = 1, nspins
+         CALL cp_fm_read_unformatted(mos(ispin)%mo_set%mo_coeff, rst_unit)
+      END DO
 
       !closing file
       IF (para_env%ionode) THEN
@@ -3388,6 +3461,7 @@ CONTAINS
       !clean-up
       CALL xas_tdp_env_release(xas_tdp_env)
       CALL free_ds_memory(donor_state)
+      DEALLOCATE (donor_state%mo_indices)
       DEALLOCATE (donor_state)
 
    END SUBROUTINE restart_calculation

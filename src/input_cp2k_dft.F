@@ -7973,6 +7973,20 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="RESTART_WFN", &
+                                       description="Controles the dumping of a MO restart file for a given "// &
+                                       "excited state index. Only for K-edge RKS calculations. "// &
+                                       "Can be repeated to get multiple *.wfn files at once.", &
+                                       print_level=debug_print_level, filename="", common_iter_levels=1)
+      CALL keyword_create(keyword, __LOCATION__, name="EXCITED_STATE_INDEX", variants=(/"INDEX"/), &
+                          description="The index of the excited state that should be dumped", &
+                          usage="INDEX {int}", default_i_val=1, repeats=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
       CALL create_pdos_section(print_key)
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
