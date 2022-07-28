@@ -371,7 +371,11 @@ CONTAINS
       ! In case of the external density computed forces probably also
       ! need to be stored outside qs_env. We can then remove the
       ! attribute 'OPTIONAL' from the argument 'local_rho_set'.
-      CPASSERT(.NOT. (calculate_forces .AND. PRESENT(local_rho_set)))
+
+      ! CPASSERT(.NOT. (calculate_forces .AND. PRESENT(local_rho_set)))
+      IF (calculate_forces .AND. PRESENT(local_rho_set)) THEN
+         CPWARN("Forces and External Density")
+      END IF
 
       NULLIFY (atomic_kind_set, qs_kind_set, dft_control, particle_set)
       NULLIFY (cell, force, pw_env, rho0_mpole, rho_atom_set)

@@ -832,9 +832,8 @@ CONTAINS
                                                             nao, nao_aux, natom, nder, nimages, &
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: distribute_fock_matrix, do_ex, do_hfx, &
-                                                            hfx_treat_lsd_in_core, resp_only, &
-                                                            s_mstruct_changed, use_virial
+      LOGICAL :: deriv2_analytic, distribute_fock_matrix, do_ex, do_hfx, gapw, gapw_xc, &
+         hfx_treat_lsd_in_core, resp_only, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
                                                             eps_ppnl, exc, exc_aux_fit, fconv, focc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
@@ -904,6 +903,8 @@ CONTAINS
                       sap_ppnl=sap_ppnl, &
                       virial=virial)
       nspins = dft_control%nspins
+      gapw = dft_control%qs_control%gapw
+      gapw_xc = dft_control%qs_control%gapw_xc
 
       IF (debug_forces) THEN
          CALL get_qs_env(qs_env, natom=natom, atomic_kind_set=atomic_kind_set)
@@ -1123,7 +1124,7 @@ CONTAINS
          CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace)
          CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                  hmat=scrm(ispin), pmat=mpa(ispin), &
-                                 qs_env=qs_env, calculate_forces=.TRUE.)
+                                 qs_env=qs_env, gapw=gapw, calculate_forces=.TRUE.)
       END DO
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
@@ -1138,6 +1139,10 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(vtau_rspace)) THEN
+         CPASSERT(.NOT. gapw)
+         IF (use_virial) &
+            CALL cp_abort(__LOCATION__, "Stress tensor of the Harris functional with "// &
+                          "tau-dependent functionals not implemented!")
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
          DO ispin = 1, nspins
@@ -1235,8 +1240,9 @@ CONTAINS
       CALL pw_zero(rhoz_tot_gspace)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
-                                 rho=rhoz_r(ispin)%pw, rho_gspace=rhoz_g(ispin)%pw)
-         CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace)
+                                 rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin), &
+                                 soft_valid=gapw)
+         CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace%pw)
       END DO
 
       IF (ASSOCIATED(vtau_rspace)) THEN
@@ -1416,7 +1422,7 @@ CONTAINS
                                  v_rspace=v_xc(ispin)%pw, &
                                  hmat=matrix_hz(ispin), &
                                  pmat=matrix_p(ispin, 1), &
-                                 calculate_forces=.TRUE.)
+                                 gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
       END DO
 
       IF (debug_forces) THEN
@@ -1432,6 +1438,7 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(v_xc_tau)) THEN
+         CPASSERT(.NOT. (gapw .OR. gapw_xc))
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
          DO ispin = 1, nspins

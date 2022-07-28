@@ -37,7 +37,7 @@
       EPS_SCF 1.0E-7
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PADE
       &END XC_FUNCTIONAL
     &END XC
     &PRINT

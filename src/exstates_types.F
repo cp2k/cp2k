@@ -20,8 +20,10 @@ MODULE exstates_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_type,&
+                                              pw_release
+   USE qs_local_rho_types,              ONLY: local_rho_set_release,&
+                                              local_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -57,6 +59,8 @@ MODULE exstates_types
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
+      TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
+      TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fingerprint
    END TYPE excited_energy_type
 
@@ -147,6 +151,7 @@ CONTAINS
          IF (ASSOCIATED(ex_env%vh_rspace)) THEN
             CALL pw_release(ex_env%vh_rspace)
             DEALLOCATE (ex_env%vh_rspace)
+            NULLIFY (ex_env%vh_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vxc_rspace)
@@ -154,6 +159,7 @@ CONTAINS
                DEALLOCATE (ex_env%vxc_rspace(iab)%pw)
             END DO
             DEALLOCATE (ex_env%vxc_rspace)
+            NULLIFY (ex_env%vxc_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vtau_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vtau_rspace)
@@ -161,6 +167,7 @@ CONTAINS
                DEALLOCATE (ex_env%vtau_rspace(iab)%pw)
             END DO
             DEALLOCATE (ex_env%vtau_rspace)
+            NULLIFY (ex_env%vtau_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vadmm_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vadmm_rspace)
@@ -168,6 +175,15 @@ CONTAINS
                DEALLOCATE (ex_env%vadmm_rspace(iab)%pw)
             END DO
             DEALLOCATE (ex_env%vadmm_rspace)
+            NULLIFY (ex_env%vadmm_rspace)
+         END IF
+         IF (ASSOCIATED(ex_env%local_rho_set)) THEN
+            CALL local_rho_set_release(ex_env%local_rho_set)
+            NULLIFY (ex_env%local_rho_set)
+         END IF
+         IF (ASSOCIATED(ex_env%local_rho_set_admm)) THEN
+            CALL local_rho_set_release(ex_env%local_rho_set_admm)
+            NULLIFY (ex_env%local_rho_set_admm)
          END IF
       END IF
 

@@ -98,7 +98,8 @@ MODULE qs_tddfpt2_forces
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_ks_atom,                      ONLY: update_ks_atom
-   USE qs_ks_reference,                 ONLY: ks_ref_potential
+   USE qs_ks_reference,                 ONLY: ks_ref_potential,&
+                                              ks_ref_potential_atom
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_local_rho_types,              ONLY: local_rho_set_create,&
                                               local_rho_set_release,&
@@ -175,8 +176,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: ehartree, exc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_type), POINTER                             :: vh_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, td_force
 
       CALL timeset(routineN, handle)
@@ -199,14 +198,9 @@ CONTAINS
       ELSE
          !
          CALL exstate_potential_release(ex_env)
-         NULLIFY (vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace)
-         ALLOCATE (vh_rspace)
-         CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, ehartree, exc)
-         ex_env%vh_rspace => vh_rspace
-         ex_env%vxc_rspace => vxc_rspace
-         ex_env%vtau_rspace => vtau_rspace
-         ex_env%vadmm_rspace => vadmm_rspace
-         !
+         CALL ks_ref_potential(qs_env, ex_env%vh_rspace, ex_env%vxc_rspace, &
+                               ex_env%vtau_rspace, ex_env%vadmm_rspace, ehartree, exc)
+         CALL ks_ref_potential_atom(qs_env, ex_env%local_rho_set, ex_env%local_rho_set_admm)
          CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, &
                                   work_matrices, debug_forces)
       END IF
@@ -704,7 +698,7 @@ CONTAINS
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
             rho1_atom_set => local_rho_set%rho_atom_set
             CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                             do_tddft=.FALSE., do_triplet=.FALSE.)
+                                             do_tddft=.TRUE., do_triplet=.FALSE.)
          END IF
       ELSE
          CPABORT("NYA 00006")

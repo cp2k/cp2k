@@ -95,6 +95,7 @@ CONTAINS
 !> \param kind_set_external ...
 !> \param oce_external ...
 !> \param sab_external ...
+!> \param kscale ...
 !> \par History
 !>      created [MI]
 !>      the loop over the spins is done internally [03-05,MI]
@@ -103,7 +104,7 @@ CONTAINS
 !>      Allow for external kind_set, rho_atom_set, oce, sab 12.2019 (A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE update_ks_atom(qs_env, ksmat, pmat, forces, tddft, rho_atom_external, &
-                             kind_set_external, oce_external, sab_external)
+                             kind_set_external, oce_external, sab_external, kscale)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(*), INTENT(INOUT)    :: ksmat, pmat
@@ -116,6 +117,7 @@ CONTAINS
       TYPE(oce_matrix_type), OPTIONAL, POINTER           :: oce_external
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_external
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kscale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'update_ks_atom'
 
@@ -192,6 +194,7 @@ CONTAINS
          IF (nspins == 1) factor = 2.0_dp
          CPASSERT(nimages == 1)
       END IF
+      IF (PRESENT(kscale)) factor = factor*kscale
 
       IF (PRESENT(rho_atom_external)) my_rho_atom => rho_atom_external
       IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external

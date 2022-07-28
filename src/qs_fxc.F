@@ -261,9 +261,9 @@ CONTAINS
          CALL pw_scale(fxc_rho(ispin)%pw, oeps1)
       END DO
       IF (ASSOCIATED(fxc_tau)) THEN
-      DO ispin = 1, nspins
-         CALL pw_scale(fxc_tau(ispin)%pw, oeps1)
-      END DO
+         DO ispin = 1, nspins
+            CALL pw_scale(fxc_tau(ispin)%pw, oeps1)
+         END DO
       END IF
 
       CALL timestop(handle)
