@@ -184,6 +184,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
                                                             do_exx, do_hfx, restore_p_screen
+      REAL(KIND=dp)                                      :: focc
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
                                                             P_mo, W_mo
@@ -338,6 +339,17 @@ CONTAINS
       END IF
       IF (do_exx) THEN
          CALL add_exx_to_rhs(P_mu_nu, qs_env)
+
+         focc = 2.0_dp
+         IF (nspins == 1) focc = 4.0_dp
+         !focc = 0.0_dp
+         DO ispin = 1, nspins
+            CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)
+            CALL cp_gemm("N", "N", dimen, homo(ispin), dimen, 1.0_dp, &
+                         fm_G_mu_nu, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_back)
+            CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, 1.0_dp, &
+                         fm_back, mo_coeff_v(ispin)%matrix, focc, L_jb(ispin)%matrix)
+         END DO
       END IF
 
       ! Prepare arrays for linres code
