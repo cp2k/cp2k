@@ -948,12 +948,12 @@ CONTAINS
 
             ! mp_sum the local data across processes belonging to different RPA group.
             ! first create the para_env then mp_sum
-            sub_sub_color = para_env_RPA%mepos
-            CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
-
-            CALL mp_sum(fm_mat_S(ispin)%matrix%local_data, para_env_exchange%group)
-
-            CALL cp_para_env_release(para_env_exchange)
+            IF (para_env_RPA%num_pe /= para_env%num_pe) THEN
+               sub_sub_color = para_env_RPA%mepos
+               CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
+               CALL mp_sum(fm_mat_S(ispin)%matrix%local_data, para_env_exchange%group)
+               CALL cp_para_env_release(para_env_exchange)
+            END IF
          END DO
       END IF
 
