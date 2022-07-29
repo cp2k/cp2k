@@ -1,5 +1,5 @@
 &GLOBAL
-  PROJECT  CH3_md_periodic_admm
+  PROJECT  CH3_md_periodic
   PRINT_LEVEL MEDIUM
   RUN_TYPE MD
   &TIMINGS
@@ -16,18 +16,15 @@
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME  HFX_BASIS
-    BASIS_SET_FILE_NAME  BASIS_ADMM
     SORT_BASIS EXP
     POTENTIAL_FILE_NAME  POTENTIAL
-    &AUXILIARY_DENSITY_MATRIX_METHOD
-      ADMM_PURIFICATION_METHOD NONE
-    &END
     &MGRID
-      CUTOFF  200
+      CUTOFF  250
       REL_CUTOFF  30
     &END MGRID
     &QS
       METHOD GPW
+      EPS_DEFAULT 1.0E-12
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -35,27 +32,12 @@
       MAX_SCF 100
     &END SCF
     &XC
-      # RPA@PBE0 with ADMM
-      2ND_DERIV_ANALYTICAL FALSE
+      # RPA@PBE 
       &XC_FUNCTIONAL PBE
-         &PBE
-            SCALE_X 0.75
-         &END 
       &END XC_FUNCTIONAL 
-      &HF
-         FRACTION 0.25
-         &SCREENING
-           EPS_SCHWARZ 1.0E-8
-         &END SCREENING
-         &INTERACTION_POTENTIAL
-            POTENTIAL_TYPE TRUNCATED
-            CUTOFF_RADIUS 2.0
-         &END INTERACTION_POTENTIAL
-      &END HF
       &WF_CORRELATION
         &RI_RPA
           QUADRATURE_POINTS  3
-          ADMM
           &HF
             FRACTION 1.00
             &SCREENING
@@ -65,9 +47,6 @@
                POTENTIAL_TYPE TRUNCATED
                CUTOFF_RADIUS 2.0
             &END INTERACTION_POTENTIAL
-            &RI
-               EPS_FILTER 1.0E-12
-            &END
           &END HF
         &END
         &LOW_SCALING
@@ -93,13 +72,11 @@
     &KIND H
       BASIS_SET  DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      BASIS_SET AUX_FIT FIT3
       POTENTIAL  GTH-HF-q1
     &END KIND
     &KIND C
       BASIS_SET  DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
-      BASIS_SET AUX_FIT FIT3
       POTENTIAL  GTH-HF-q4
     &END KIND
     &TOPOLOGY
