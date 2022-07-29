@@ -51,6 +51,7 @@ MODULE rpa_main
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
+                                              maxsize,&
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
@@ -713,7 +714,8 @@ CONTAINS
 
       INTEGER :: ia_global, iiB, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, occ_low, &
          proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BIb_C_rec_1D
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: BIb_C_rec
 
       itmp = get_limit(dimen_ia, para_env_sub%num_pe, para_env_sub%mepos)
       my_ia_start = itmp(1)
@@ -737,35 +739,38 @@ CONTAINS
          END DO
       END DO
 
-      DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+      IF (para_env_sub%num_pe > 1) THEN
+         ALLOCATE (BIb_C_rec_1D(INT(my_group_L_size, int_8)*maxsize(gd_B_virtual)*MIN(homo, occ_chunk)))
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-         CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
-         ! do this in chunks to avoid high memory overhead  for both BIb_C_rec and buffers in mp_sendrecv
-         ALLOCATE (BIb_C_rec(my_group_L_size, rec_B_size, MIN(homo, occ_chunk)))
-
-         DO occ_low = 1, homo, occ_chunk
-            occ_high = MIN(homo, occ_low + occ_chunk - 1)
-            CALL mp_sendrecv(BIb_C(:, :, occ_low:occ_high), proc_send, &
-                             BIb_C_rec(:, :, 1:occ_high - occ_low + 1), proc_receive, &
-                             para_env_sub%group)
+            ! do this in chunks to avoid high memory overhead
+            DO occ_low = 1, homo, occ_chunk
+               occ_high = MIN(homo, occ_low + occ_chunk - 1)
+               BIb_C_rec(1:my_group_L_size, 1:rec_B_size, 1:occ_high - occ_low + 1) => &
+                  BIb_C_rec_1D(1:INT(my_group_L_size, int_8)*rec_B_size*(occ_high - occ_low + 1))
+               CALL mp_sendrecv(BIb_C(:, :, occ_low:occ_high), proc_send, &
+                                BIb_C_rec(:, :, 1:occ_high - occ_low + 1), proc_receive, &
+                                para_env_sub%group)
 !$OMP          PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
 !$OMP                   SHARED(occ_low,occ_high,rec_B_size,virtual,rec_B_virtual_start,my_ia_start,my_ia_end,BIb_C_rec,BIb_C_2D,&
 !$OMP                          my_group_L_size)
-            DO iiB = occ_low, occ_high
-               DO jjB = 1, rec_B_size
-                  ia_global = (iiB - 1)*virtual + rec_B_virtual_start + jjB - 1
-                  IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
+               DO iiB = occ_low, occ_high
+                  DO jjB = 1, rec_B_size
+                     ia_global = (iiB - 1)*virtual + rec_B_virtual_start + jjB - 1
+                     IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
                      BIb_C_2D(1:my_group_L_size, ia_global - my_ia_start + 1) = BIb_C_rec(1:my_group_L_size, jjB, iiB - occ_low + 1)
-                  END IF
+                     END IF
+                  END DO
                END DO
             END DO
-         END DO
 
-         DEALLOCATE (BIb_C_rec)
-      END DO
+         END DO
+         DEALLOCATE (BIb_C_rec_1D)
+      END IF
 
    END SUBROUTINE calculate_BIb_C_2D
 
