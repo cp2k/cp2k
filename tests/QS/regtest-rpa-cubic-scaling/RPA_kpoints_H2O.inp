@@ -52,6 +52,7 @@
           MEMORY_CUT 1
           !MEMORY_INFO
           DO_KPOINTS
+          DO_EXTRAPOLATE_KPOINTS FALSE
         &END LOW_SCALING
         &RI_RPA
           RPA_NUM_QUAD_POINTS  6

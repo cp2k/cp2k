@@ -536,116 +536,116 @@ CONTAINS
       ! by SUM(periodic) == 3
       ALLOCATE (wkp_V(nkp), wkp_W(nkp))
 
+      ! for exchange part of self-energy, we use truncated Coulomb operator that should be fine
+      ! with uniform weights (without k-point extrapolation)
+      IF (ALLOCATED(qs_env%mp2_env%ri_rpa_im_time%wkp_V)) THEN
+         wkp_V(:) = qs_env%mp2_env%ri_rpa_im_time%wkp_V(:)
+      ELSE
+         wkp_V(:) = wkp(:)
+      END IF
+
       IF (kpoint_weights_W_method == kp_weights_W_uniform) THEN
 
-         wkp_V(:) = wkp(:)
+         !  in the k-point weights wkp, there might be k-point extrapolation included
          wkp_W(:) = wkp(:)
 
       ELSE IF (kpoint_weights_W_method == kp_weights_W_tailored .OR. &
                kpoint_weights_W_method == kp_weights_W_auto) THEN
 
-         IF (SUM(periodic) == 1 .OR. SUM(periodic) == 2) THEN
+         IF (kpoint_weights_W_method == kp_weights_W_tailored) &
+            exp_kpoints = qs_env%mp2_env%ri_rpa_im_time%exp_tailored_weights
 
-            wkp_V(:) = wkp(:)
-            wkp_W(:) = wkp(:)
+         IF (kpoint_weights_W_method == kp_weights_W_auto) THEN
+            IF (SUM(periodic) == 2) exp_kpoints = -1.0_dp
+         END IF
 
-         ELSE IF (SUM(periodic) == 3) THEN
+         ! first, compute the integral of f(k)=1/k^2 and 1/k on super fine grid
+         nsuperfine = 500
+         integral = 0.0_dp
 
-            IF (kpoint_weights_W_method == kp_weights_W_tailored) &
-               exp_kpoints = qs_env%mp2_env%ri_rpa_im_time%exp_tailored_weights
-            IF (kpoint_weights_W_method == kp_weights_W_auto) exp_kpoints = -2.0_dp
+         IF (periodic(1) == 1) THEN
+            n_x = nsuperfine
+         ELSE
+            n_x = 1
+         END IF
+         IF (periodic(2) == 1) THEN
+            n_y = nsuperfine
+         ELSE
+            n_y = 1
+         END IF
+         IF (periodic(3) == 1) THEN
+            n_z = nsuperfine
+         ELSE
+            n_z = 1
+         END IF
 
-            ! first, compute the integral of f(k)=1/k^2 and 1/k on super fine grid
-            nsuperfine = 500
-            integral = 0.0_dp
+         ! actually, there is the factor *det_3x3(h_inv) missing to account for the
+         ! integration volume but for wkp det_3x3(h_inv) is needed
+         weight = 1.0_dp/(REAL(n_x, dp)*REAL(n_y, dp)*REAL(n_z, dp))
+         DO i_x = 1, n_x
+            DO j_y = 1, n_y
+               DO k_z = 1, n_z
 
-            IF (periodic(1) == 1) THEN
-               n_x = nsuperfine
-            ELSE
-               n_x = 1
-            END IF
-            IF (periodic(2) == 1) THEN
-               n_y = nsuperfine
-            ELSE
-               n_y = 1
-            END IF
-            IF (periodic(3) == 1) THEN
-               n_z = nsuperfine
-            ELSE
-               n_z = 1
-            END IF
+                  IF (periodic(1) == 1) THEN
+                     x_vec(1) = (REAL(i_x - nsuperfine/2, dp) - 0.5_dp)/REAL(nsuperfine, dp)
+                  ELSE
+                     x_vec(1) = 0.0_dp
+                  END IF
+                  IF (periodic(2) == 1) THEN
+                     x_vec(2) = (REAL(j_y - nsuperfine/2, dp) - 0.5_dp)/REAL(nsuperfine, dp)
+                  ELSE
+                     x_vec(2) = 0.0_dp
+                  END IF
+                  IF (periodic(3) == 1) THEN
+                     x_vec(3) = (REAL(k_z - nsuperfine/2, dp) - 0.5_dp)/REAL(nsuperfine, dp)
+                  ELSE
+                     x_vec(3) = 0.0_dp
+                  END IF
 
-            ! actually, there is the factor *det_3x3(h_inv) missing to account for the
-            ! integration volume but for wkp det_3x3(h_inv) is needed
-            weight = 1.0_dp/(REAL(n_x, dp)*REAL(n_y, dp)*REAL(n_z, dp))
-            DO i_x = 1, n_x
-               DO j_y = 1, n_y
-                  DO k_z = 1, n_z
+                  k_vec = MATMUL(h_inv(1:3, 1:3), x_vec)
+                  k_sq = k_vec(1)**2 + k_vec(2)**2 + k_vec(3)**2
+                  integral = integral + weight*k_sq**(exp_kpoints*0.5_dp)
 
-                     IF (periodic(1) == 1) THEN
-                        x_vec(1) = (REAL(i_x - nsuperfine/2, dp) - 0.5_dp)/REAL(nsuperfine, dp)
-                     ELSE
-                        x_vec(1) = 0.0_dp
-                     END IF
-                     IF (periodic(2) == 1) THEN
-                        x_vec(2) = (REAL(j_y - nsuperfine/2, dp) - 0.5_dp)/REAL(nsuperfine, dp)
-                     ELSE
-                        x_vec(2) = 0.0_dp
-                     END IF
-                     IF (periodic(3) == 1) THEN
-                        x_vec(3) = (REAL(k_z - nsuperfine/2, dp) - 0.5_dp)/REAL(nsuperfine, dp)
-                     ELSE
-                        x_vec(3) = 0.0_dp
-                     END IF
-
-                     k_vec = MATMUL(h_inv(1:3, 1:3), x_vec)
-                     k_sq = k_vec(1)**2 + k_vec(2)**2 + k_vec(3)**2
-                     integral = integral + weight*k_sq**(exp_kpoints*0.5_dp)
-
-                  END DO
                END DO
             END DO
+         END DO
 
-            num_lin_eqs = nkp + 2
+         num_lin_eqs = nkp + 2
 
-            ALLOCATE (matrix_lin_eqs(num_lin_eqs, num_lin_eqs))
-            matrix_lin_eqs(:, :) = 0.0_dp
+         ALLOCATE (matrix_lin_eqs(num_lin_eqs, num_lin_eqs))
+         matrix_lin_eqs(:, :) = 0.0_dp
 
-            DO ikp = 1, nkp
+         DO ikp = 1, nkp
 
-               k_vec = MATMUL(h_inv(1:3, 1:3), xkp(1:3, ikp))
-               k_sq = k_vec(1)**2 + k_vec(2)**2 + k_vec(3)**2
+            k_vec = MATMUL(h_inv(1:3, 1:3), xkp(1:3, ikp))
+            k_sq = k_vec(1)**2 + k_vec(2)**2 + k_vec(3)**2
 
-               matrix_lin_eqs(ikp, ikp) = 2.0_dp
-               matrix_lin_eqs(ikp, nkp + 1) = 1.0_dp
-               matrix_lin_eqs(nkp + 1, ikp) = 1.0_dp
+            matrix_lin_eqs(ikp, ikp) = 2.0_dp
+            matrix_lin_eqs(ikp, nkp + 1) = 1.0_dp
+            matrix_lin_eqs(nkp + 1, ikp) = 1.0_dp
 
-               matrix_lin_eqs(ikp, nkp + 2) = k_sq**(exp_kpoints*0.5_dp)
-               matrix_lin_eqs(nkp + 2, ikp) = k_sq**(exp_kpoints*0.5_dp)
+            matrix_lin_eqs(ikp, nkp + 2) = k_sq**(exp_kpoints*0.5_dp)
+            matrix_lin_eqs(nkp + 2, ikp) = k_sq**(exp_kpoints*0.5_dp)
 
-            END DO
+         END DO
 
-            CALL invmat(matrix_lin_eqs, info)
-            ! check whether inversion was successful
-            CPASSERT(info == 0)
+         CALL invmat(matrix_lin_eqs, info)
+         ! check whether inversion was successful
+         CPASSERT(info == 0)
 
-            ALLOCATE (right_side(num_lin_eqs))
-            right_side = 0.0_dp
-            right_side(nkp + 1) = 1.0_dp
-            ! divide integral by two because CP2K k-mesh already considers symmetry k <-> -k
-            right_side(nkp + 2) = integral
+         ALLOCATE (right_side(num_lin_eqs))
+         right_side = 0.0_dp
+         right_side(nkp + 1) = 1.0_dp
+         ! divide integral by two because CP2K k-mesh already considers symmetry k <-> -k
+         right_side(nkp + 2) = integral
 
-            ALLOCATE (wkp_tmp(num_lin_eqs))
+         ALLOCATE (wkp_tmp(num_lin_eqs))
 
-            wkp_tmp(1:num_lin_eqs) = MATMUL(matrix_lin_eqs, right_side)
+         wkp_tmp(1:num_lin_eqs) = MATMUL(matrix_lin_eqs, right_side)
 
-            wkp_V(1:nkp) = wkp_tmp(1:nkp)
+         wkp_W(1:nkp) = wkp_tmp(1:nkp)
 
-            DEALLOCATE (matrix_lin_eqs, right_side, wkp_tmp)
-
-            wkp_W(:) = wkp_V(:)
-
-         END IF
+         DEALLOCATE (matrix_lin_eqs, right_side, wkp_tmp)
 
       END IF
 

@@ -373,10 +373,10 @@ CONTAINS
                   "RI_INFO| Omega:     ", ri_metric%omega
             CASE (do_potential_id)
                WRITE (unit_nr, FMT="(T3,A,T73,A)") &
-                  "RI_INFO| RI metric: ", "IDENTITY"
+                  "RI_INFO| RI metric: ", "OVERLAP"
             CASE (do_potential_truncated)
                WRITE (unit_nr, FMT="(T3,A,T72,A)") &
-                  "RI_INFO| RI metric: ", "TRUNCATED"
+                  "RI_INFO| RI metric: ", "TRUNCATED COULOMB"
                rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
                WRITE (unit_nr, '(T3,A,T61,F20.2)') &
                   "RI_INFO| Cutoff Radius [angstrom]:     ", rc_ang
@@ -1201,9 +1201,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_kpoints'
 
-      INTEGER                                            :: handle, i, i_dim, ix, iy, iz, nkp, &
-                                                            num_dim
-      INTEGER, DIMENSION(3)                              :: nkp_grid, periodic
+      INTEGER                                            :: handle, i, i_dim, ix, iy, iz, &
+                                                            n_periodic_dir, nkp, nkp_extra, &
+                                                            nkp_orig
+      INTEGER, DIMENSION(3)                              :: nkp_grid, nkp_grid_extra, periodic
+      LOGICAL                                            :: do_extrapolate_kpoints
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1224,39 +1226,89 @@ CONTAINS
       kpoints%use_real_wfn = .FALSE.
       kpoints%eps_geo = 1.e-6_dp
       nkp_grid(1:3) = qs_env%mp2_env%ri_rpa_im_time%kp_grid(1:3)
-      num_dim = periodic(1) + periodic(2) + periodic(3)
+      do_extrapolate_kpoints = qs_env%mp2_env%ri_rpa_im_time%do_extrapolate_kpoints
+      n_periodic_dir = periodic(1) + periodic(2) + periodic(3)
 
       DO i_dim = 1, 3
          IF (periodic(i_dim) == 1) THEN
             CPASSERT(MODULO(nkp_grid(i_dim), 2) == 0)
          END IF
+         IF (periodic(i_dim) == 0) THEN
+            CPASSERT(nkp_grid(i_dim) == 1)
+         END IF
       END DO
 
-      IF (num_dim == 3) THEN
-         nkp = nkp_grid(1)*nkp_grid(2)*nkp_grid(3)/2
-      ELSE IF (num_dim == 2) THEN
-         nkp = MAX(nkp_grid(1)*nkp_grid(2)/2, nkp_grid(1)*nkp_grid(3)/2, nkp_grid(2)*nkp_grid(3)/2)
-      ELSE IF (num_dim == 1) THEN
-         nkp = MAX(nkp_grid(1)/2, nkp_grid(2)/2, nkp_grid(3)/2)
+      nkp_orig = nkp_grid(1)*nkp_grid(2)*nkp_grid(3)/2
+
+      IF (do_extrapolate_kpoints) THEN
+
+         CPASSERT(qs_env%mp2_env%ri_rpa_im_time%kpoint_weights_W_method == kp_weights_W_uniform)
+
+         DO i_dim = 1, 3
+            IF (periodic(i_dim) == 1) nkp_grid_extra(i_dim) = nkp_grid(i_dim) + 2
+            IF (periodic(i_dim) == 0) nkp_grid_extra(i_dim) = 1
+         END DO
+
+         qs_env%mp2_env%ri_rpa_im_time%kp_grid_extra(1:3) = nkp_grid_extra(1:3)
+
+         nkp_extra = nkp_grid_extra(1)*nkp_grid_extra(2)*nkp_grid_extra(3)/2
+
+      ELSE
+
+         nkp_grid_extra(1:3) = 0
+         nkp_extra = 0
+
       END IF
+
+      nkp = nkp_orig + nkp_extra
+
+      qs_env%mp2_env%ri_rpa_im_time%nkp_orig = nkp_orig
+      qs_env%mp2_env%ri_rpa_im_time%nkp_extra = nkp_extra
 
       ALLOCATE (kpoints%xkp(3, nkp), kpoints%wkp(nkp))
 
       kpoints%nkp_grid(1:3) = nkp_grid(1:3)
       kpoints%nkp = nkp
-      kpoints%wkp(:) = 1.0_dp/REAL(nkp, KIND=dp)
+
+      ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%wkp_V(nkp))
+      IF (do_extrapolate_kpoints) THEN
+         kpoints%wkp(1:nkp_orig) = 1.0_dp/REAL(nkp_orig, KIND=dp) &
+                                   /(1.0_dp - SQRT(REAL(nkp_extra, KIND=dp)/REAL(nkp_orig, KIND=dp)))
+         kpoints%wkp(nkp_orig + 1:nkp) = 1.0_dp/REAL(nkp_extra, KIND=dp) &
+                                         /(1.0_dp - SQRT(REAL(nkp_orig, KIND=dp)/REAL(nkp_extra, KIND=dp)))
+         qs_env%mp2_env%ri_rpa_im_time%wkp_V(1:nkp_orig) = 0.0_dp
+         qs_env%mp2_env%ri_rpa_im_time%wkp_V(nkp_orig + 1:nkp) = 1.0_dp/REAL(nkp_extra, KIND=dp)
+      ELSE
+         kpoints%wkp(:) = 1.0_dp/REAL(nkp, KIND=dp)
+         qs_env%mp2_env%ri_rpa_im_time%wkp_V(:) = kpoints%wkp(:)
+      END IF
 
       i = 0
       DO ix = 1, nkp_grid(1)
          DO iy = 1, nkp_grid(2)
             DO iz = 1, nkp_grid(3)
 
+               IF (i == nkp_orig) CYCLE
                i = i + 1
-               IF (i > nkp) CYCLE
 
                kpoints%xkp(1, i) = REAL(2*ix - nkp_grid(1) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(1), KIND=dp))
                kpoints%xkp(2, i) = REAL(2*iy - nkp_grid(2) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(2), KIND=dp))
                kpoints%xkp(3, i) = REAL(2*iz - nkp_grid(3) - 1, KIND=dp)/(2._dp*REAL(nkp_grid(3), KIND=dp))
+
+            END DO
+         END DO
+      END DO
+
+      DO ix = 1, nkp_grid_extra(1)
+         DO iy = 1, nkp_grid_extra(2)
+            DO iz = 1, nkp_grid_extra(3)
+
+               i = i + 1
+               IF (i > nkp) CYCLE
+
+               kpoints%xkp(1, i) = REAL(2*ix - nkp_grid_extra(1) - 1, KIND=dp)/(2._dp*REAL(nkp_grid_extra(1), KIND=dp))
+               kpoints%xkp(2, i) = REAL(2*iy - nkp_grid_extra(2) - 1, KIND=dp)/(2._dp*REAL(nkp_grid_extra(2), KIND=dp))
+               kpoints%xkp(3, i) = REAL(2*iz - nkp_grid_extra(3) - 1, KIND=dp)/(2._dp*REAL(nkp_grid_extra(3), KIND=dp))
 
             END DO
          END DO
@@ -1268,8 +1320,15 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
 
-         WRITE (UNIT=unit_nr, FMT="(T3,A,T69,3I4)") "KPOINT_INFO| K-point mesh for V and W:", nkp_grid(1:3)
-         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,I6)") "KPOINT_INFO| Number of kpoints for V and W:", nkp
+         IF (do_extrapolate_kpoints) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T69,3I4)") "KPOINT_INFO| K-point mesh for V (leading to Sigma^x):", nkp_grid(1:3)
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T69)") "KPOINT_INFO| K-point extrapolation for W^c is used (W^c leads to Sigma^c):"
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T69,3I4)") "KPOINT_INFO| K-point mesh 1 for W^c:", nkp_grid(1:3)
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T69,3I4)") "KPOINT_INFO| K-point mesh 2 for W^c:", nkp_grid_extra(1:3)
+         ELSE
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T69,3I4)") "KPOINT_INFO| K-point mesh for V and W:", nkp_grid(1:3)
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,I6)") "KPOINT_INFO| Number of kpoints for V and W:", nkp
+         END IF
 
          SELECT CASE (qs_env%mp2_env%ri_rpa_im_time%kpoint_weights_W_method)
          CASE (kp_weights_W_tailored)
