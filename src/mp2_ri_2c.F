@@ -100,7 +100,7 @@ MODULE mp2_ri_2c
    USE qs_tensors,                      ONLY: build_2c_integrals,&
                                               build_2c_neighbor_lists
    USE rpa_communication,               ONLY: communicate_buffer
-   USE rpa_kpoints,                     ONLY: cp_cfm_robust_cholesky
+   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_robust_cholesky
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"

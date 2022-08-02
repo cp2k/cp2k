@@ -11,7 +11,7 @@
 !>      07.2020 separated from mp2.F [F. Stein, code by Jan Wilhelm]
 !> \author Jan Wilhelm, Frederick Stein
 ! **************************************************************************************************
-MODULE rpa_gw_sigma
+MODULE rpa_gw_sigma_x
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
@@ -79,10 +79,10 @@ MODULE rpa_gw_sigma
                                               qs_rho_type
    USE rpa_gw,                          ONLY: compute_minus_vxc_kpoints,&
                                               trafo_to_mo_and_kpoints
+   USE rpa_gw_kpoints_util,             ONLY: get_bandstruc_and_k_dependent_MOs
    USE rpa_hfx,                         ONLY: calc_ri_rpa_admm_xc_contributions,&
                                               ri_rpa_post_hfx,&
                                               ri_rpa_pre_hfx
-   USE rpa_main,                        ONLY: get_bandstruc_and_k_dependent_MOs
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -92,7 +92,7 @@ MODULE rpa_gw_sigma
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_sigma'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_sigma_x'
 
    PUBLIC :: compute_vec_Sigma_x_minus_vxc_gw
 
@@ -1041,5 +1041,5 @@ CONTAINS
 
    END SUBROUTINE
 
-END MODULE rpa_gw_sigma
+END MODULE rpa_gw_sigma_x
 
