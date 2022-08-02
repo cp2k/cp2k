@@ -1280,8 +1280,8 @@ CONTAINS
 
             recv_size = 0
             IF (ALLOCATED(index2recv(pcol_recv)%array)) recv_size = SIZE(index2recv(pcol_recv)%array)
-            CALL timeset(routineN//"_send", handle2)
             IF (recv_size > 0) THEN
+               CALL timeset(routineN//"_send", handle2)
                IF (send_size > 0) THEN
                   CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
                                    buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), &
@@ -1457,8 +1457,8 @@ CONTAINS
 
             recv_size = 0
             IF (ALLOCATED(index2recv(pcol_recv)%array)) recv_size = SIZE(index2recv(pcol_recv)%array)
-            CALL timeset(routineN//"_send", handle2)
             IF (recv_size > 0) THEN
+               CALL timeset(routineN//"_send", handle2)
                IF (send_size > 0) THEN
                   CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
                                    buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), &
