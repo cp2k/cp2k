@@ -769,9 +769,10 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: from, iatom, icol, j, jatom, katom, &
                                                             natom, to
-      REAL(KIND=dp)                                      :: fint
+      REAL(KIND=dp)                                      :: fint, pint
 
       fint = 42.255_dp*massunit*debye**2*bohr**2
+      pint = 0.01_dp
       natom = SIZE(D, 1)
       WRITE (UNIT=iw, FMT="(/,T2,'VIB|',T30,'NORMAL MODES - CARTESIAN DISPLACEMENTS')")
       WRITE (UNIT=iw, FMT="(T2,'VIB|')")
@@ -787,8 +788,8 @@ CONTAINS
                (fint*intensities_d(icol)**2, icol=from, to)
          END IF
          IF (ASSOCIATED(intensities_p)) THEN
-            WRITE (UNIT=iw, FMT="(T2,'VIB|Raman (A^3/amu)  ',3(1X,F12.6,8X))") &
-               (intensities_p(icol), icol=from, to)
+            WRITE (UNIT=iw, FMT="(T2,'VIB|Raman (A^4/amu)  ',3(1X,F12.6,8X))") &
+               (pint*intensities_p(icol), icol=from, to)
          END IF
          WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,F12.6,8X))") &
             (m(icol), icol=from, to)
