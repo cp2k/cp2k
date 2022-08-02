@@ -37,7 +37,8 @@ MODULE vibrational_analysis
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE cp_result_methods,               ONLY: get_results
+   USE cp_result_methods,               ONLY: get_results,&
+                                              test_for_result
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE f77_interface,                   ONLY: f_env_add_defaults,&
@@ -106,24 +107,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vb_anal'
       CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: lab = (/"X", "Y", "Z"/)
 
-      CHARACTER(LEN=default_string_length)               :: description
-      INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, iparticle1, &
+      CHARACTER(LEN=default_string_length)               :: description_d, description_p
+      INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, iounit, ip1, ip2, iparticle1, &
          iparticle2, iseq, iw, j, k, natoms, ncoord, nfrozen, nrep, nres, nRotTrM, nvib, &
          output_unit, output_unit_eig, prep, print_grrm, print_scine, proc_dist_type
       INTEGER, DIMENSION(:), POINTER                     :: Clist, Mlist
-      LOGICAL                                            :: calc_intens, calc_thchdata, &
-                                                            do_mode_tracking, keep_rotations, &
-                                                            lprint_namd, row_force, &
-                                                            something_frozen
-      REAL(KIND=dp)                                      :: dx, inertia(3), minimum_energy, norm, &
-                                                            tc_press, tc_temp, tmp
+      LOGICAL :: calc_intens, calc_thchdata, do_mode_tracking, intens_ir, intens_raman, &
+         keep_rotations, lprint_namd, row_force, something_frozen
+      REAL(KIND=dp)                                      :: a1, a2, a3, dx, inertia(3), &
+                                                            minimum_energy, norm, tc_press, &
+                                                            tc_temp, tmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: H_eigval1, H_eigval2, HeigvalDfull, &
                                                             konst, mass, pos0, rmass
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Hessian, Hint1, Hint2, Hint2Dfull, MatM
       REAL(KIND=dp), DIMENSION(3)                        :: D_deriv
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: intensities
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: P_deriv
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: din, intensities_d, intensities_p, pin
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: D, Dfull, dip_deriv, RotTrM
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: tmp_dip
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: polar_deriv, tmp_dip
+      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: tmp_polar
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(f_env_type), POINTER                          :: f_env
@@ -134,7 +136,7 @@ CONTAINS
                                                             vib_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities, &
+      NULLIFY (D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities_d, intensities_p, &
                vib_section, print_section)
       logger => cp_get_default_logger()
       vib_section => section_vals_get_subs_vals(input, "VIBRATIONAL_ANALYSIS")
@@ -143,6 +145,7 @@ CONTAINS
                                          print_section, &
                                          "PROGRAM_RUN_INFO", &
                                          extension=".vibLog")
+      iounit = cp_logger_get_default_io_unit(logger)
       ! for output of cartesian frequencies and eigenvectors of the
       ! Hessian that can be used for initialisation of MD calculations
       output_unit_eig = cp_print_key_unit_nr(logger, &
@@ -166,6 +169,9 @@ CONTAINS
       CALL section_vals_val_get(vib_section, "NAMD_PRINT", l_val=lprint_namd)
       tc_temp = tc_temp*kelvin
       tc_press = tc_press*pascal
+
+      intens_ir = .FALSE.
+      intens_raman = .FALSE.
 
       mode_tracking_section => section_vals_get_subs_vals(vib_section, "MODE_SELECTIVE")
       CALL section_vals_get(mode_tracking_section, explicit=do_mode_tracking)
@@ -198,9 +204,12 @@ CONTAINS
             ALLOCATE (pos0(ncoord))
             ALLOCATE (Hessian(ncoord, ncoord))
             IF (calc_intens) THEN
-               description = '[DIPOLE]'
+               description_d = '[DIPOLE]'
                ALLOCATE (tmp_dip(ncoord, 3, 2))
                tmp_dip = 0._dp
+               description_p = '[POLAR]'
+               ALLOCATE (tmp_polar(ncoord, 3, 3, 2))
+               tmp_polar = 0._dp
             END IF
             Clist = 0
             DO i = 1, natoms
@@ -258,13 +267,28 @@ CONTAINS
                DO j = 1, nrep
                   IF (calc_intens) THEN
                      IF (icoord + j <= ncoord) THEN
-                        CALL get_results(results=rep_env%results(j)%results, &
-                                         description=description, &
-                                         n_rep=nres)
-                        CALL get_results(results=rep_env%results(j)%results, &
-                                         description=description, &
-                                         values=tmp_dip(icoord + j, :, 1), &
-                                         nval=nres)
+                        IF (test_for_result(results=rep_env%results(j)%results, &
+                                            description=description_d)) THEN
+                           CALL get_results(results=rep_env%results(j)%results, &
+                                            description=description_d, &
+                                            n_rep=nres)
+                           CALL get_results(results=rep_env%results(j)%results, &
+                                            description=description_d, &
+                                            values=tmp_dip(icoord + j, :, 1), &
+                                            nval=nres)
+                           intens_ir = .TRUE.
+                        END IF
+                        IF (test_for_result(results=rep_env%results(j)%results, &
+                                            description=description_p)) THEN
+                           CALL get_results(results=rep_env%results(j)%results, &
+                                            description=description_p, &
+                                            n_rep=nres)
+                           CALL get_results(results=rep_env%results(j)%results, &
+                                            description=description_p, &
+                                            values=tmp_polar(icoord + j, :, :, 1), &
+                                            nval=nres)
+                           intens_raman = .TRUE.
+                        END IF
                      END IF
                   END IF
                   IF (icoord + j <= ncoord) THEN
@@ -312,14 +336,30 @@ CONTAINS
                   IF (calc_intens) THEN
                      IF (icoord + j <= ncoord) THEN
                         k = (icoord + j + 2)/3
-                        CALL get_results(results=rep_env%results(j)%results, &
-                                         description=description, &
-                                         n_rep=nres)
-                        CALL get_results(results=rep_env%results(j)%results, &
-                                         description=description, &
-                                         values=tmp_dip(icoord + j, :, 2), &
-                                         nval=nres)
-                        tmp_dip(icoord + j, :, 1) = (tmp_dip(icoord + j, :, 1) - tmp_dip(icoord + j, :, 2))/(2.0_dp*Dx*mass(k))
+                        IF (test_for_result(results=rep_env%results(j)%results, &
+                                            description=description_d)) THEN
+                           CALL get_results(results=rep_env%results(j)%results, &
+                                            description=description_d, &
+                                            n_rep=nres)
+                           CALL get_results(results=rep_env%results(j)%results, &
+                                            description=description_d, &
+                                            values=tmp_dip(icoord + j, :, 2), &
+                                            nval=nres)
+                           tmp_dip(icoord + j, :, 1) = (tmp_dip(icoord + j, :, 1) - &
+                                                        tmp_dip(icoord + j, :, 2))/(2.0_dp*Dx*mass(k))
+                        END IF
+                        IF (test_for_result(results=rep_env%results(j)%results, &
+                                            description=description_p)) THEN
+                           CALL get_results(results=rep_env%results(j)%results, &
+                                            description=description_p, &
+                                            n_rep=nres)
+                           CALL get_results(results=rep_env%results(j)%results, &
+                                            description=description_p, &
+                                            values=tmp_polar(icoord + j, :, :, 2), &
+                                            nval=nres)
+                           tmp_polar(icoord + j, :, :, 1) = (tmp_polar(icoord + j, :, :, 1) - &
+                                                             tmp_polar(icoord + j, :, :, 2))/(2.0_dp*Dx*mass(k))
+                        END IF
                      END IF
                   END IF
                   IF (icoord + j <= ncoord) THEN
@@ -354,7 +394,6 @@ CONTAINS
                         tmp = -tmp/(2.0_dp*Dx*mass(ip1)*mass(ip2))*1E6_dp
                         ! Mass weighted Hessian
                         Hessian(iseq, icoord + j) = tmp
-
                      END DO
                   END IF
                END DO
@@ -454,9 +493,13 @@ CONTAINS
             IF (calc_intens) THEN
                ALLOCATE (dip_deriv(3, SIZE(D, 2)))
                dip_deriv = 0.0_dp
+               ALLOCATE (polar_deriv(3, 3, SIZE(D, 2)))
+               polar_deriv = 0.0_dp
             END IF
-            ALLOCATE (intensities(SIZE(D, 2)))
-            intensities = 0._dp
+            ALLOCATE (intensities_d(SIZE(D, 2)))
+            ALLOCATE (intensities_p(SIZE(D, 2)))
+            intensities_d = 0._dp
+            intensities_p = 0._dp
             Hint1(:, :) = Hessian
             CALL diamat_all(Hint1, H_eigval1)
             IF (output_unit > 0) THEN
@@ -504,6 +547,11 @@ CONTAINS
                   DO i = 1, 3
                      dip_deriv(i, :) = MATMUL(tmp_dip(:, i, 1), D)
                   END DO
+                  DO i = 1, 3
+                     DO j = 1, 3
+                        polar_deriv(i, j, :) = MATMUL(tmp_polar(:, i, j, 1), D)
+                     END DO
+                  END DO
                END IF
                CALL diamat_all(Hint2, H_eigval2)
                IF (output_unit > 0) THEN
@@ -533,20 +581,44 @@ CONTAINS
                      DO j = 1, nvib
                         D_deriv(:) = D_deriv(:) + dip_deriv(:, j)*Hint2(j, i)
                      END DO
-                     intensities(i) = SQRT(DOT_PRODUCT(D_deriv, D_deriv))
+                     intensities_d(i) = SQRT(DOT_PRODUCT(D_deriv, D_deriv))
+                     P_deriv = 0._dp
+                     DO j = 1, nvib
+                        P_deriv(:, :) = P_deriv(:, :) + polar_deriv(:, :, j)*Hint2(j, i)
+                     END DO
+                     ! this is wron, just for testing
+                     a1 = (P_deriv(1, 1) + P_deriv(2, 2) + P_deriv(3, 3))/3.0_dp
+                     a2 = (P_deriv(1, 1) - P_deriv(2, 2))**2 + &
+                          (P_deriv(2, 2) - P_deriv(3, 3))**2 + &
+                          (P_deriv(3, 3) - P_deriv(1, 1))**2
+                     a3 = (P_deriv(1, 2)**2 + P_deriv(2, 3)**2 + P_deriv(3, 1)**2)/6.0_dp
+                     intensities_p(i) = 45.0_dp*a1*a1 + 7.0_dp/2.0_dp*(a2 + 6.0_dp*a3)
                   END IF
                   ! Convert frequencies to cm^-1
                   H_eigval2(i) = SIGN(1.0_dp, H_eigval2(i))*SQRT(ABS(H_eigval2(i))*massunit)*vibfac/1000.0_dp
                END DO
+               IF (calc_intens) THEN
+                  IF (iounit > 0) THEN
+                     IF (.NOT. intens_ir) THEN
+                        WRITE (iounit, '(T2,"VIB| No IR intensities available. Check input")')
+                     END IF
+                     IF (.NOT. intens_raman) THEN
+                        WRITE (iounit, '(T2,"VIB| No Raman intensities available. Check input")')
+                     END IF
+                  END IF
+               END IF
                ! Dump Info
                iw = cp_logger_get_default_io_unit(logger)
                IF (iw > 0) THEN
-                  CALL vib_out(iw, nvib, D, konst, rmass, H_eigval2, particles, Mlist, intensities)
+                  NULLIFY (din, pin)
+                  IF (intens_ir) din => intensities_d
+                  IF (intens_raman) pin => intensities_p
+                  CALL vib_out(iw, nvib, D, konst, rmass, H_eigval2, particles, Mlist, din, pin)
                END IF
                IF (.NOT. something_frozen .AND. calc_thchdata) THEN
                   CALL get_thch_values(H_eigval2, iw, mass, nvib, inertia, 1, minimum_energy, tc_temp, tc_press)
                END IF
-               CALL write_vibrations_molden(input, particles, H_eigval2, D, intensities, calc_intens, &
+               CALL write_vibrations_molden(input, particles, H_eigval2, D, intensities_d, calc_intens, &
                                             dump_only_positive=.FALSE., logger=logger, list=Mlist)
             ELSE
                IF (output_unit > 0) THEN
@@ -569,9 +641,12 @@ CONTAINS
             DEALLOCATE (Hessian)
             IF (calc_intens) THEN
                DEALLOCATE (dip_deriv)
+               DEALLOCATE (polar_deriv)
                DEALLOCATE (tmp_dip)
+               DEALLOCATE (tmp_polar)
             END IF
-            DEALLOCATE (intensities)
+            DEALLOCATE (intensities_d)
+            DEALLOCATE (intensities_p)
             CALL f_env_rm_defaults(f_env, ierr)
          END IF
       END IF
@@ -679,16 +754,17 @@ CONTAINS
 !> \param freq ...
 !> \param particles ...
 !> \param Mlist ...
-!> \param intensities ...
+!> \param intensities_d ...
+!> \param intensities_p ...
 !> \author Teodoro Laino 08.2006
 ! **************************************************************************************************
-   SUBROUTINE vib_out(iw, nvib, D, k, m, freq, particles, Mlist, intensities)
+   SUBROUTINE vib_out(iw, nvib, D, k, m, freq, particles, Mlist, intensities_d, intensities_p)
       INTEGER, INTENT(IN)                                :: iw, nvib
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: D
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: k, m, freq
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
       INTEGER, DIMENSION(:), POINTER                     :: Mlist
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: intensities
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: intensities_d, intensities_p
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: from, iatom, icol, j, jatom, katom, &
@@ -706,9 +782,13 @@ CONTAINS
             (icol, icol=from, to)
          WRITE (UNIT=iw, FMT="(T2,'VIB|Frequency (cm^-1)',3(1X,F12.6,8X))") &
             (freq(icol), icol=from, to)
-         IF (ASSOCIATED(intensities)) THEN
+         IF (ASSOCIATED(intensities_d)) THEN
             WRITE (UNIT=iw, FMT="(T2,'VIB|IR int (KM/Mole) ',3(1X,F12.6,8X))") &
-               (fint*intensities(icol)**2, icol=from, to)
+               (fint*intensities_d(icol)**2, icol=from, to)
+         END IF
+         IF (ASSOCIATED(intensities_p)) THEN
+            WRITE (UNIT=iw, FMT="(T2,'VIB|Raman (A^3/amu)  ',3(1X,F12.6,8X))") &
+               (intensities_p(icol), icol=from, to)
          END IF
          WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,F12.6,8X))") &
             (m(icol), icol=from, to)
