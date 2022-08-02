@@ -426,8 +426,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_by_lattice_sum'
 
-      INTEGER                                            :: handle, i_dim, i_real_imag, ikp, nkp
-      INTEGER, DIMENSION(3)                              :: periodic
+      INTEGER                                            :: handle, i_dim, i_real_imag, ikp, nkp, &
+                                                            nkp_extra, nkp_orig
+      INTEGER, DIMENSION(3)                              :: nkp_grid_orig, periodic
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl, matrix_v_RI_kp
@@ -465,6 +466,66 @@ CONTAINS
          END DO
       END DO
 
+      CALL allocate_matrix_v_RI_kp(matrix_v_RI_kp, matrix_s_RI_aux_transl, nkp)
+
+      IF (qs_env%mp2_env%ri_rpa_im_time%do_extrapolate_kpoints) THEN
+
+         nkp_orig = qs_env%mp2_env%ri_rpa_im_time%nkp_orig
+         nkp_extra = qs_env%mp2_env%ri_rpa_im_time%nkp_extra
+
+         CALL build_2c_coulomb_matrix_kp(matrix_v_RI_kp, kpoints, basis_type="RI_AUX", &
+                                         cell=cell, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                                         atomic_kind_set=atomic_kind_set, &
+                                         size_lattice_sum=qs_env%mp2_env%mp2_gpw%size_lattice_sum, &
+                                         operator_type=operator_coulomb, ikp_start=1, ikp_end=nkp_orig)
+
+         nkp_grid_orig = kpoints%nkp_grid
+         kpoints%nkp_grid(1:3) = qs_env%mp2_env%ri_rpa_im_time%kp_grid_extra(1:3)
+
+         CALL build_2c_coulomb_matrix_kp(matrix_v_RI_kp, kpoints, basis_type="RI_AUX", &
+                                         cell=cell, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                                         atomic_kind_set=atomic_kind_set, &
+                                         size_lattice_sum=qs_env%mp2_env%mp2_gpw%size_lattice_sum, &
+                                         operator_type=operator_coulomb, ikp_start=nkp_orig + 1, ikp_end=nkp)
+
+         kpoints%nkp_grid = nkp_grid_orig
+
+      ELSE
+
+         CALL build_2c_coulomb_matrix_kp(matrix_v_RI_kp, kpoints, basis_type="RI_AUX", &
+                                         cell=cell, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                                         atomic_kind_set=atomic_kind_set, &
+                                         size_lattice_sum=qs_env%mp2_env%mp2_gpw%size_lattice_sum, &
+                                         operator_type=operator_coulomb, ikp_start=1, ikp_end=nkp)
+
+      END IF
+
+      DO ikp = 1, nkp
+
+         CALL copy_dbcsr_to_fm(matrix_v_RI_kp(ikp, 1)%matrix, fm_matrix_L_kpoints(ikp, 1)%matrix)
+         CALL copy_dbcsr_to_fm(matrix_v_RI_kp(ikp, 2)%matrix, fm_matrix_L_kpoints(ikp, 2)%matrix)
+
+      END DO
+
+      CALL dbcsr_deallocate_matrix_set(matrix_v_RI_kp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_V_by_lattice_sum
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix_v_RI_kp ...
+!> \param matrix_s_RI_aux_transl ...
+!> \param nkp ...
+! **************************************************************************************************
+   SUBROUTINE allocate_matrix_v_RI_kp(matrix_v_RI_kp, matrix_s_RI_aux_transl, nkp)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_RI_kp, matrix_s_RI_aux_transl
+      INTEGER                                            :: nkp
+
+      INTEGER                                            :: ikp
+
       NULLIFY (matrix_v_RI_kp)
       CALL dbcsr_allocate_matrix_set(matrix_v_RI_kp, nkp, 2)
 
@@ -484,24 +545,7 @@ CONTAINS
 
       END DO
 
-      CALL build_2c_coulomb_matrix_kp(matrix_v_RI_kp, kpoints, basis_type="RI_AUX", &
-                                      cell=cell, particle_set=particle_set, qs_kind_set=qs_kind_set, &
-                                      atomic_kind_set=atomic_kind_set, &
-                                      size_lattice_sum=qs_env%mp2_env%mp2_gpw%size_lattice_sum, &
-                                      operator_type=operator_coulomb)
-
-      DO ikp = 1, nkp
-
-         CALL copy_dbcsr_to_fm(matrix_v_RI_kp(ikp, 1)%matrix, fm_matrix_L_kpoints(ikp, 1)%matrix)
-         CALL copy_dbcsr_to_fm(matrix_v_RI_kp(ikp, 2)%matrix, fm_matrix_L_kpoints(ikp, 2)%matrix)
-
-      END DO
-
-      CALL dbcsr_deallocate_matrix_set(matrix_v_RI_kp)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_V_by_lattice_sum
+   END SUBROUTINE allocate_matrix_v_RI_kp
 
 ! **************************************************************************************************
 !> \brief ...

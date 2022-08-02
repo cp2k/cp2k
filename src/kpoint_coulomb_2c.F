@@ -61,9 +61,11 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param size_lattice_sum ...
 !> \param operator_type ...
+!> \param ikp_start ...
+!> \param ikp_end ...
 ! **************************************************************************************************
    SUBROUTINE build_2c_coulomb_matrix_kp(matrix_v_kp, kpoints, basis_type, cell, particle_set, qs_kind_set, &
-                                         atomic_kind_set, size_lattice_sum, operator_type)
+                                         atomic_kind_set, size_lattice_sum, operator_type, ikp_start, ikp_end)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -72,7 +74,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      INTEGER                                            :: size_lattice_sum, operator_type
+      INTEGER                                            :: size_lattice_sum, operator_type, &
+                                                            ikp_start, ikp_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_2c_coulomb_matrix_kp'
 
@@ -87,7 +90,7 @@ CONTAINS
 
       CALL lattice_sum(matrix_v_kp, kpoints, basis_type, cell, particle_set, &
                        qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp, &
-                       operator_type)
+                       operator_type, ikp_start, ikp_end)
 
       CALL deallocate_tmp(matrix_v_L_tmp)
 
@@ -107,10 +110,12 @@ CONTAINS
 !> \param size_lattice_sum ...
 !> \param matrix_v_L_tmp ...
 !> \param operator_type ...
+!> \param ikp_start ...
+!> \param ikp_end ...
 ! **************************************************************************************************
    SUBROUTINE lattice_sum(matrix_v_kp, kpoints, basis_type, cell, particle_set, &
                           qs_kind_set, atomic_kind_set, size_lattice_sum, matrix_v_L_tmp, &
-                          operator_type)
+                          operator_type, ikp_start, ikp_end)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -121,7 +126,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       INTEGER                                            :: size_lattice_sum
       TYPE(dbcsr_type), POINTER                          :: matrix_v_L_tmp
-      INTEGER                                            :: operator_type
+      INTEGER                                            :: operator_type, ikp_start, ikp_end
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lattice_sum'
 
@@ -221,7 +226,7 @@ CONTAINS
                END DO
 
                ! add exp(iq*vec_L) * (P 0 | Q vec_L) to V_PQ(q)
-               DO ik = 1, nkp
+               DO ik = ikp_start, ikp_end
 
                   ! coskl and sinkl are identical for all i_x_outer, j_y_outer, k_z_outer
                   coskl = COS(twopi*DOT_PRODUCT(vec_s(1:3), kpoints%xkp(1:3, ik)))
@@ -248,7 +253,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL set_blocks_to_matrix_v_kp(matrix_v_kp, blocks_of_v_kp)
+      CALL set_blocks_to_matrix_v_kp(matrix_v_kp, blocks_of_v_kp, ikp_start, ikp_end)
 
       CALL deallocate_blocks_of_v_kp(blocks_of_v_kp)
       CALL deallocate_blocks_of_v_L(blocks_of_v_L)
@@ -262,12 +267,15 @@ CONTAINS
 !> \brief ...
 !> \param matrix_v_kp ...
 !> \param blocks_of_v_kp ...
+!> \param ikp_start ...
+!> \param ikp_end ...
 ! **************************************************************************************************
-   SUBROUTINE set_blocks_to_matrix_v_kp(matrix_v_kp, blocks_of_v_kp)
+   SUBROUTINE set_blocks_to_matrix_v_kp(matrix_v_kp, blocks_of_v_kp, ikp_start, ikp_end)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_v_kp
       TYPE(two_d_util_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: blocks_of_v_kp
+      INTEGER                                            :: ikp_start, ikp_end
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_blocks_to_matrix_v_kp'
 
@@ -277,7 +285,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      DO ik = 1, SIZE(matrix_v_kp, 1)
+      DO ik = ikp_start, ikp_end
 
          DO i_real_im = 1, 2
 

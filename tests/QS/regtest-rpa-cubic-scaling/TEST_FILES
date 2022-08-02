@@ -3,8 +3,8 @@ Cubic_RPA_H2O_check_filtering.inp                     11      1e-08            -
 Cubic_RPA_2x_H2_check_filtering.inp                   11      1e-08             -2.119159936957426
 Cubic_RPA_CH3.inp                                     11      3e-07             -7.414901056476346
 Cubic_RPA_H2O_standard_svd.inp                        11      1e-08            -17.160104846594532
-RPA_kpoints_H2O.inp                                   11      1e-08            -17.384612021546573
-RPA_kpoints_H2O_batched.inp                           11      1e-08            -17.384612040108440
+RPA_kpoints_H2O.inp                                   11      1e-08            -17.383888363367134
+RPA_kpoints_H2O_batched.inp                           11      1e-08            -17.383888384535968
 Cubic_RPA_H2O_admm.inp                                11      1e-08            -17.147065793237985
 Cubic_RPA_CH3_ri-hfx.inp                              11      1e-08             -7.414775787676669
 Cubic_RPA_H2O_ri-hfx.inp                              11      1e-08            -17.159865017693086

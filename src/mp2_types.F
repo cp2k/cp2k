@@ -146,18 +146,19 @@ MODULE mp2_types
    TYPE ri_rpa_im_time_type
       INTEGER                  :: cut_memory
       LOGICAL                  :: memory_info, make_chi_pos_definite, trunc_coulomb_ri_x, keep_quad, &
-                                  do_kpoints_from_Gamma
+                                  do_kpoints_from_Gamma, do_extrapolate_kpoints
       REAL(KIND=dp)            :: eps_filter, &
                                   eps_filter_factor, eps_compress, exp_tailored_weights, regularization_RI, &
                                   eps_eigval_S, rel_cutoff_trunc_coulomb_ri_x
       REAL(KIND=dp), DIMENSION(:), POINTER :: rel_cutoffs_chi_W, tau_tj, tau_wj, tj, wj
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: weights_cos_tf_t_to_w, weights_cos_tf_w_to_t
       REAL(KIND=dp), DIMENSION(2) :: abs_cutoffs_chi_W
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: Eigenval_Gamma
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: Eigenval_Gamma, wkp_V
       INTEGER                  :: group_size_P, group_size_3c, kpoint_weights_W_method, k_mesh_g_factor
       INTEGER, DIMENSION(:), POINTER     :: kp_grid
+      INTEGER, DIMENSION(3) ::  kp_grid_extra
       LOGICAL                  :: do_im_time_kpoints
-      INTEGER                  :: min_bsize, min_bsize_mo, periodic_gf
+      INTEGER                  :: min_bsize, min_bsize_mo, periodic_gf, nkp_orig, nkp_extra
       TYPE(kpoint_type), POINTER :: kpoints_G, kpoints_Sigma, kpoints_Sigma_no_xc
       INTEGER, ALLOCATABLE, DIMENSION(:)      :: starts_array_mc_RI, ends_array_mc_RI, &
                                                  starts_array_mc_block_RI, &

@@ -1210,7 +1210,7 @@ CONTAINS
                        "(3D: alpha = -2 for 3D, 2D: alpha = -1 for exchange self-energy, uniform "// &
                        "weights for correlation self-energy).", &
                        "Choose the same weight for every k-point (original Monkhorst-Pack method)."), &
-         default_i_val=kp_weights_W_auto)
+         default_i_val=kp_weights_W_uniform)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1253,7 +1253,7 @@ CONTAINS
          description="Parameter to reduce the expansion coefficients in RI for periodic GW. Removes all "// &
          "eigenvectors and eigenvalues of S_PQ(k) that are smaller than EPS_EIGVAL_S. ", &
          usage="EPS_EIGVAL_S 1.0E-3", &
-         default_r_val=1.0E-5_dp)
+         default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1271,21 +1271,33 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="TRUNC_COLOUMB_RI_X", &
-         description="If true, use the truncated Coulomb operator for the exchange-self-energy in "// &
-         "periodic GW.", &
-         usage="TRUNCATED_COLOUMB_RI_X", &
-         default_l_val=.FALSE., &
+         name="DO_EXTRAPOLATE_KPOINTS", &
+         description="If true, use a larger k-mesh to extrapolate the k-point integration of W. "// &
+         "For example, in 2D, when using  KPOINTS 4 4 1, an additional 6x6x1 mesh will be used to "// &
+         "extrapolate the k-point integration of W with N_k^-0.5, where Nk is the number of k-points.", &
+         usage="DO_EXTRAPOLATE_KPOINTS FALSE", &
+         default_l_val=.TRUE., &
          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="REL_CUTOFF_TRUNC_COLOUMB_RI_X", &
-         description="Only active in case TRUNC_COLOUMB_RI_X = True. Normally, relative cutoff = 0.5 is "// &
+         name="TRUNC_COULOMB_RI_X", &
+         description="If true, use the truncated Coulomb operator for the exchange-self-energy in "// &
+         "periodic GW.", &
+         usage="TRUNC_COULOMB_RI_X", &
+         default_l_val=.TRUE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="REL_CUTOFF_TRUNC_COULOMB_RI_X", &
+         description="Only active in case TRUNC_COULOMB_RI_X = True. Normally, relative cutoff = 0.5 is "// &
          "good choice; still needs to be evaluated for RI schemes. ", &
-         usage="REL_CUTOFF_TRUNC_COLOUMB_RI_X 0.3", &
+         usage="REL_CUTOFF_TRUNC_COULOMB_RI_X 0.3", &
          default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
