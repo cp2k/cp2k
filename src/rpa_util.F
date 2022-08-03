@@ -59,7 +59,7 @@ MODULE rpa_util
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE rpa_gw_kpoints,                  ONLY: compute_wkp_W
+   USE rpa_gw_kpoints_util,             ONLY: compute_wkp_W
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -68,7 +68,7 @@ MODULE rpa_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_util'
 
-   PUBLIC :: RPA_postprocessing_nokp, alloc_im_time, calc_mat_Q, RPA_postprocessing_start, &
+   PUBLIC :: compute_Erpa_by_freq_int, alloc_im_time, calc_mat_Q, Q_trace_and_add_unit_matrix, &
              dealloc_im_time, contract_P_omega_with_mat_L, calc_fm_mat_S_rpa, remove_scaling_factor_rpa
 
 CONTAINS
@@ -889,14 +889,14 @@ CONTAINS
 !> \param fm_mat_Q ...
 !> \param para_env_RPA ...
 ! **************************************************************************************************
-   SUBROUTINE RPA_postprocessing_start(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA)
+   SUBROUTINE Q_trace_and_add_unit_matrix(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA)
 
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(OUT)    :: trace_Qomega
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'RPA_postprocessing_start'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'Q_trace_and_add_unit_matrix'
 
       INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
                                                             ncol_local, nrow_local
@@ -928,7 +928,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE RPA_postprocessing_start
+   END SUBROUTINE Q_trace_and_add_unit_matrix
 
 ! **************************************************************************************************
 !> \brief ...
@@ -939,7 +939,7 @@ CONTAINS
 !> \param Erpa ...
 !> \param wjquad ...
 ! **************************************************************************************************
-   SUBROUTINE RPA_postprocessing_nokp(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wjquad)
+   SUBROUTINE compute_Erpa_by_freq_int(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wjquad)
 
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(IN)     :: trace_Qomega
@@ -948,7 +948,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       REAL(KIND=dp), INTENT(IN)                          :: wjquad
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'RPA_postprocessing_nokp'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Erpa_by_freq_int'
 
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
@@ -993,6 +993,8 @@ CONTAINS
       END DO
       CALL mp_sum(Q_log, para_env_RPA%group)
 
+      ! the following frequency integration is Eq. (27) in M. Del Ben et al., JCTC 9, 2654 (2013)
+      ! (https://doi.org/10.1021/ct4002202)
       FComega = 0.0_dp
       DO iiB = 1, dimen_RI
          IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
@@ -1004,7 +1006,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE RPA_postprocessing_nokp
+   END SUBROUTINE compute_Erpa_by_freq_int
 
 ! **************************************************************************************************
 !> \brief ...

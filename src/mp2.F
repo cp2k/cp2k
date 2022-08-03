@@ -89,7 +89,7 @@ MODULE mp2
    USE qs_scf_methods,                  ONLY: eigensolver,&
                                               eigensolver_symm
    USE qs_scf_types,                    ONLY: qs_scf_env_type
-   USE rpa_gw_sigma,                    ONLY: compute_vec_Sigma_x_minus_vxc_gw
+   USE rpa_gw_sigma_x,                  ONLY: compute_vec_Sigma_x_minus_vxc_gw
    USE rpa_hfx,                         ONLY: calculate_exx
    USE scf_control_types,               ONLY: scf_control_type
    USE virial_types,                    ONLY: virial_type

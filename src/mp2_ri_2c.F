@@ -100,7 +100,7 @@ MODULE mp2_ri_2c
    USE qs_tensors,                      ONLY: build_2c_integrals,&
                                               build_2c_neighbor_lists
    USE rpa_communication,               ONLY: communicate_buffer
-   USE rpa_kpoints,                     ONLY: cp_cfm_robust_cholesky
+   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_matrix_exponential
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -1519,13 +1519,13 @@ CONTAINS
          CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_Vtrunc_tmp, cone, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1)%matrix)
          CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_Vtrunc_tmp, ione, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 2)%matrix)
 
-         CALL cp_cfm_robust_cholesky(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=eps_eigval_S, exponent=-0.5_dp)
+         CALL cp_cfm_matrix_exponential(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=eps_eigval_S, exponent=-0.5_dp)
 
          ! get S^(-1) = U^(-H)U^(-1)
          CALL cp_cfm_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_tmp, cfm_matrix_S_tmp, &
                           czero, cfm_matrix_S_inv_tmp)
 
-         CALL cp_cfm_robust_cholesky(cfm_matrix_L_tmp, cfm_matrix_S_tmp, threshold=0.0_dp, exponent=0.5_dp)
+         CALL cp_cfm_matrix_exponential(cfm_matrix_L_tmp, cfm_matrix_S_tmp, threshold=0.0_dp, exponent=0.5_dp)
 
          ! get K = S^(-1)*L, where L is the Cholesky decomposition of V = L^T*L
          CALL cp_cfm_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_L_tmp, &

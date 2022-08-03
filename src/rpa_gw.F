@@ -102,9 +102,9 @@ MODULE rpa_gw
    USE qs_tensors_types,                ONLY: create_2c_tensor
    USE rpa_gw_ic,                       ONLY: apply_ic_corr
    USE rpa_gw_im_time_util,             ONLY: get_tensor_3c_overl_int_gw
-   USE rpa_im_time,                     ONLY: compute_periodic_dm
-   USE rpa_kpoints,                     ONLY: get_mat_cell_T_from_mat_gamma,&
+   USE rpa_gw_kpoints_util,             ONLY: get_mat_cell_T_from_mat_gamma,&
                                               real_space_to_kpoint_transform_rpa
+   USE rpa_im_time,                     ONLY: compute_periodic_dm
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -113,8 +113,9 @@ MODULE rpa_gw
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw'
 
-   PUBLIC :: allocate_matrices_gw_im_time, allocate_matrices_gw, GW_matrix_operations, compute_QP_energies, &
-             deallocate_matrices_gw_im_time, deallocate_matrices_gw, compute_minus_vxc_kpoints, trafo_to_mo_and_kpoints
+   PUBLIC :: allocate_matrices_gw_im_time, allocate_matrices_gw, compute_GW_self_energy, compute_QP_energies, &
+             deallocate_matrices_gw_im_time, deallocate_matrices_gw, compute_minus_vxc_kpoints, trafo_to_mo_and_kpoints, &
+             get_fermi_level_offset, compute_W_cubic_GW
 
 CONTAINS
 
@@ -741,30 +742,22 @@ CONTAINS
 !> \param jquad ...
 !> \param nmo ...
 !> \param num_fit_points ...
-!> \param num_integ_points ...
 !> \param do_bse ...
 !> \param do_im_time ...
 !> \param do_periodic ...
 !> \param first_cycle_periodic_correction ...
 !> \param fermi_level_offset ...
-!> \param fermi_level_offset_input ...
 !> \param omega ...
 !> \param Eigenval ...
 !> \param delta_corr ...
-!> \param tau_tj ...
-!> \param tj ...
 !> \param vec_omega_fit_gw ...
 !> \param vec_W_gw ...
 !> \param wj ...
-!> \param weights_cos_tf_w_to_t ...
-!> \param fm_mat_W ...
-!> \param fm_mat_L ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_static_bse ...
 !> \param fm_mat_R_gw ...
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
-!> \param fm_mat_work ...
 !> \param mo_coeff ...
 !> \param para_env ...
 !> \param para_env_RPA ...
@@ -773,78 +766,54 @@ CONTAINS
 !> \param kpoints ...
 !> \param qs_env ...
 !> \param mp2_env ...
-!> \param do_kpoints_cubic_RPA ...
-!> \param do_kpoints_from_Gamma ...
 ! **************************************************************************************************
-   SUBROUTINE GW_matrix_operations(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
-                                   gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, num_integ_points, &
-                                   do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
-                                   fermi_level_offset, fermi_level_offset_input, &
-                                   omega, Eigenval, delta_corr, tau_tj, tj, vec_omega_fit_gw, &
-                                   vec_W_gw, wj, weights_cos_tf_w_to_t, fm_mat_W, fm_mat_L, &
-                                   fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
-                                   fm_mat_S_gw_work, fm_mat_work, mo_coeff, para_env, &
-                                   para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
-                                   kpoints, qs_env, mp2_env, do_kpoints_cubic_RPA, do_kpoints_from_Gamma)
+   SUBROUTINE compute_GW_self_energy(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, &
+                                     gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, &
+                                     do_bse, do_im_time, do_periodic, first_cycle_periodic_correction, &
+                                     fermi_level_offset, &
+                                     omega, Eigenval, delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
+                                     fm_mat_Q, fm_mat_Q_static_bse, fm_mat_R_gw, fm_mat_S_gw, &
+                                     fm_mat_S_gw_work, mo_coeff, para_env, &
+                                     para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
+                                     kpoints, qs_env, mp2_env)
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :), INTENT(INOUT)            :: vec_Sigma_c_gw
       INTEGER, INTENT(IN)                                :: dimen_nm_gw, dimen_RI
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, homo
-      INTEGER, INTENT(IN)                                :: jquad, nmo, num_fit_points, &
-                                                            num_integ_points
+      INTEGER, INTENT(IN)                                :: jquad, nmo, num_fit_points
       LOGICAL, INTENT(IN)                                :: do_bse, do_im_time, do_periodic
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
-      REAL(KIND=dp), INTENT(INOUT)                       :: fermi_level_offset
-      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset_input
-      REAL(KIND=dp), INTENT(INOUT)                       :: omega
+      REAL(KIND=dp), INTENT(INOUT)                       :: fermi_level_offset, omega
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: delta_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: tau_tj, tj, vec_omega_fit_gw
+         INTENT(IN)                                      :: vec_omega_fit_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_W_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: wj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(IN)                                      :: weights_cos_tf_w_to_t
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_static_bse, &
                                                             fm_mat_R_gw
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S_gw, fm_mat_S_gw_work
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_work, mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
                                                             matrix_berry_re_mo_mo
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
-      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA, &
-                                                            do_kpoints_from_Gamma
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'GW_matrix_operations'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_GW_self_energy'
 
-      INTEGER                                            :: handle, i_global, iiB, iquad, ispin, &
-                                                            j_global, jjB, ncol_local, nrow_local, &
-                                                            nspins
+      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
+                                                            jjB, ncol_local, nrow_local, nspins
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: my_open_shell
-      REAL(KIND=dp)                                      :: tau, weight
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(fm_mat_S_gw)
-      my_open_shell = (nspins == 2)
-
-      ! Fermi level offset should have a maximum such that the Fermi level of occupied orbitals
-      ! is always closer to occupied orbitals than to virtual orbitals and vice versa
-      ! that means, the Fermi level offset is at most as big as half the bandgap
-      fermi_level_offset = fermi_level_offset_input
-      DO ispin = 1, nspins
-         fermi_level_offset = MIN(fermi_level_offset, (Eigenval(homo(ispin) + 1, ispin) - Eigenval(homo(ispin), ispin))*0.5_dp)
-      END DO
 
       CALL cp_fm_get_info(matrix=fm_mat_Q, &
                           nrow_local=nrow_local, &
@@ -862,7 +831,7 @@ CONTAINS
             CALL cp_fm_to_fm(fm_mat_Q, fm_mat_Q_static_bse)
          END IF
 
-         ! periodic correction for GW
+         ! periodic correction for GW (paper Phys. Rev. B 95, 235123 (2017))
          IF (do_periodic) THEN
             CALL calc_periodic_correction(delta_corr, qs_env, para_env, para_env_RPA, &
                                           mp2_env%ri_g0w0%kp_grid, homo(1), nmo, gw_corr_lev_occ(1), &
@@ -893,66 +862,140 @@ CONTAINS
          CALL mp_sync(para_env%group)
 
          DO ispin = 1, nspins
-            CALL compute_self_energy_gw(vec_Sigma_c_gw(:, :, :, ispin), dimen_nm_gw, dimen_RI, &
-                                        gw_corr_lev_occ(ispin), homo(ispin), jquad, nmo, &
-                                        num_fit_points, do_periodic, fermi_level_offset, omega, Eigenval(:, ispin), delta_corr, &
-                                        vec_omega_fit_gw, vec_W_gw(:, ispin), wj, fm_mat_Q, &
-                                        fm_mat_S_gw(ispin)%matrix, fm_mat_S_gw_work(ispin)%matrix)
+            CALL compute_GW_self_energy_deep(vec_Sigma_c_gw(:, :, :, ispin), dimen_nm_gw, dimen_RI, &
+                                             gw_corr_lev_occ(ispin), homo(ispin), jquad, nmo, &
+                                           num_fit_points, do_periodic, fermi_level_offset, omega, Eigenval(:, ispin), delta_corr, &
+                                             vec_omega_fit_gw, vec_W_gw(:, ispin), wj, fm_mat_Q, &
+                                             fm_mat_S_gw(ispin)%matrix, fm_mat_S_gw_work(ispin)%matrix)
          END DO
 
       END IF ! GW
 
-      ! cubic scaling GW calculation for molecules
-      IF (do_im_time .AND. .NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
+      CALL timestop(handle)
 
-         ! calculate [1+Q(iw')]^-1
-         CALL cp_fm_cholesky_invert(fm_mat_Q)
+   END SUBROUTINE compute_GW_self_energy
 
-         ! symmetrize the result
-         CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_work)
+! **************************************************************************************************
+!> \brief ...
+!> \param fermi_level_offset ...
+!> \param fermi_level_offset_input ...
+!> \param Eigenval ...
+!> \param homo ...
+! **************************************************************************************************
+   SUBROUTINE get_fermi_level_offset(fermi_level_offset, fermi_level_offset_input, Eigenval, homo)
 
-         ! subtract 1 from the diagonal to get rid of exchange self-energy
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                       SHARED(ncol_local,nrow_local,col_indices,row_indices,fm_mat_Q,dimen_RI)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-                  fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB) - 1.0_dp
-               END IF
-            END DO
-         END DO
+      REAL(KIND=dp), INTENT(INOUT)                       :: fermi_level_offset
+      REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset_input
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
 
-         ! multiply with L from the left and the right to get the screened Coulomb interaction
-         CALL cp_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_Q, &
-                      0.0_dp, fm_mat_work)
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_fermi_level_offset'
 
-         CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L(1, 1)%matrix, &
-                      0.0_dp, fm_mat_Q)
+      INTEGER                                            :: handle, ispin, nspins
 
-         ! Fourier transform from w to t
-         DO iquad = 1, num_integ_points
+      CALL timeset(routineN, handle)
 
-            omega = tj(jquad)
-            tau = tau_tj(iquad)
-            weight = weights_cos_tf_w_to_t(iquad, jquad)*COS(tau*omega)
+      nspins = SIZE(Eigenval, 2)
 
-            IF (jquad == 1) THEN
-
-               CALL cp_fm_set_all(matrix=fm_mat_W(iquad)%matrix, alpha=0.0_dp)
-
-            END IF
-
-            CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W(iquad)%matrix, beta=weight, matrix_b=fm_mat_Q)
-
-         END DO
-
-      END IF
+      ! Fermi level offset should have a maximum such that the Fermi level of occupied orbitals
+      ! is always closer to occupied orbitals than to virtual orbitals and vice versa
+      ! that means, the Fermi level offset is at most as big as half the bandgap
+      fermi_level_offset = fermi_level_offset_input
+      DO ispin = 1, nspins
+         fermi_level_offset = MIN(fermi_level_offset, (Eigenval(homo(ispin) + 1, ispin) - Eigenval(homo(ispin), ispin))*0.5_dp)
+      END DO
 
       CALL timestop(handle)
 
-   END SUBROUTINE GW_matrix_operations
+   END SUBROUTINE get_fermi_level_offset
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fm_mat_W ...
+!> \param fm_mat_Q ...
+!> \param fm_mat_work ...
+!> \param dimen_RI ...
+!> \param fm_mat_L ...
+!> \param num_integ_points ...
+!> \param tj ...
+!> \param tau_tj ...
+!> \param weights_cos_tf_w_to_t ...
+!> \param jquad ...
+!> \param omega ...
+! **************************************************************************************************
+   SUBROUTINE compute_W_cubic_GW(fm_mat_W, fm_mat_Q, fm_mat_work, dimen_RI, fm_mat_L, num_integ_points, &
+                                 tj, tau_tj, weights_cos_tf_w_to_t, jquad, omega)
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_work
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: tj, tau_tj
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(IN)                                      :: weights_cos_tf_w_to_t
+      INTEGER, INTENT(IN)                                :: jquad
+      REAL(KIND=dp), INTENT(INOUT)                       :: omega
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_W_cubic_GW'
+
+      INTEGER                                            :: handle, i_global, iiB, iquad, j_global, &
+                                                            jjB, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: tau, weight
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=fm_mat_Q, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+      ! calculate [1+Q(iw')]^-1
+      CALL cp_fm_cholesky_invert(fm_mat_Q)
+
+      ! symmetrize the result
+      CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_work)
+
+      ! subtract 1 from the diagonal to get rid of exchange self-energy
+!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+!$OMP                       SHARED(ncol_local,nrow_local,col_indices,row_indices,fm_mat_Q,dimen_RI)
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
+               fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB) - 1.0_dp
+            END IF
+         END DO
+      END DO
+
+      ! multiply with L from the left and the right to get the screened Coulomb interaction
+      CALL cp_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_Q, &
+                   0.0_dp, fm_mat_work)
+
+      CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L(1, 1)%matrix, &
+                   0.0_dp, fm_mat_Q)
+
+      ! Fourier transform from w to t
+      DO iquad = 1, num_integ_points
+
+         omega = tj(jquad)
+         tau = tau_tj(iquad)
+         weight = weights_cos_tf_w_to_t(iquad, jquad)*COS(tau*omega)
+
+         IF (jquad == 1) THEN
+
+            CALL cp_fm_set_all(matrix=fm_mat_W(iquad)%matrix, alpha=0.0_dp)
+
+         END IF
+
+         CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_W(iquad)%matrix, beta=weight, matrix_b=fm_mat_Q)
+
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE compute_W_cubic_GW
 
 ! **************************************************************************************************
 !> \brief ...
@@ -976,9 +1019,9 @@ CONTAINS
 !> \param fm_mat_S_gw ...
 !> \param fm_mat_S_gw_work ...
 ! **************************************************************************************************
-   SUBROUTINE compute_self_energy_gw(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, homo, jquad, nmo, num_fit_points, &
-                                     do_periodic, fermi_level_offset, omega, Eigenval, delta_corr, vec_omega_fit_gw, vec_W_gw, &
-                                     wj, fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work)
+  SUBROUTINE compute_GW_self_energy_deep(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI, gw_corr_lev_occ, homo, jquad, nmo, num_fit_points, &
+                                         do_periodic, fermi_level_offset, omega, Eigenval, delta_corr, vec_omega_fit_gw, vec_W_gw, &
+                                          wj, fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work)
 
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: vec_Sigma_c_gw
@@ -993,7 +1036,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wj
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_self_energy_gw'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_GW_self_energy_deep'
 
       INTEGER                                            :: handle, iiB, iquad, m_global, n_global, &
                                                             ncol_local, nm_global
@@ -1068,7 +1111,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_self_energy_gw
+   END SUBROUTINE compute_GW_self_energy_deep
 
 ! **************************************************************************************************
 !> \brief ...
