@@ -881,15 +881,13 @@ CONTAINS
 !> \param fermi_level_offset_input ...
 !> \param Eigenval ...
 !> \param homo ...
-!> \param fm_mat_S_gw ...
 ! **************************************************************************************************
-   SUBROUTINE get_fermi_level_offset(fermi_level_offset, fermi_level_offset_input, Eigenval, homo, fm_mat_S_gw)
+   SUBROUTINE get_fermi_level_offset(fermi_level_offset, fermi_level_offset_input, Eigenval, homo)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: fermi_level_offset
       REAL(KIND=dp), INTENT(IN)                          :: fermi_level_offset_input
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S_gw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_fermi_level_offset'
 
@@ -897,7 +895,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(fm_mat_S_gw)
+      nspins = SIZE(Eigenval, 2)
 
       ! Fermi level offset should have a maximum such that the Fermi level of occupied orbitals
       ! is always closer to occupied orbitals than to virtual orbitals and vice versa

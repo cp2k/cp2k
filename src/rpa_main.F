@@ -1556,7 +1556,7 @@ CONTAINS
 
             IF (my_do_gw) THEN
 
-               CALL get_fermi_level_offset(fermi_level_offset, fermi_level_offset_input, Eigenval(:, 1, :), homo, fm_mat_S_gw)
+               CALL get_fermi_level_offset(fermi_level_offset, fermi_level_offset_input, Eigenval(:, 1, :), homo)
 
                ! do_im_time = TRUE means low-scaling calculation
                IF (do_im_time) THEN

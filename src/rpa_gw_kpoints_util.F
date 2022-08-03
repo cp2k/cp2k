@@ -95,7 +95,7 @@ MODULE rpa_gw_kpoints_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_kpoints_util'
 
-   PUBLIC :: invert_eps_compute_W_and_Erpa_kp, cp_cfm_robust_cholesky, real_space_to_kpoint_transform_rpa, &
+   PUBLIC :: invert_eps_compute_W_and_Erpa_kp, cp_cfm_matrix_exponential, real_space_to_kpoint_transform_rpa, &
              get_mat_cell_T_from_mat_gamma, get_bandstruc_and_k_dependent_MOs, &
              compute_wkp_W
 
@@ -279,12 +279,12 @@ CONTAINS
 !> \param min_eigval ...
 !> \author Jan Wilhelm, 07.2021
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_robust_cholesky(matrix, work, threshold, exponent, min_eigval)
+   SUBROUTINE cp_cfm_matrix_exponential(matrix, work, threshold, exponent, min_eigval)
       TYPE(cp_cfm_type), POINTER                         :: matrix, work
       REAL(KIND=dp)                                      :: threshold, exponent
       REAL(KIND=dp), OPTIONAL                            :: min_eigval
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_robust_cholesky'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_matrix_exponential'
       COMPLEX(KIND=dp), PARAMETER :: czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: eigenvalues_exponent
@@ -324,7 +324,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_cfm_robust_cholesky
+   END SUBROUTINE cp_cfm_matrix_exponential
 
 ! **************************************************************************************************
 !> \brief ...
@@ -380,7 +380,7 @@ CONTAINS
 
       ! 2. Remove all negative eigenvalues from chi(k,iw)
       IF (make_chi_pos_definite) THEN
-         CALL cp_cfm_robust_cholesky(cfm_mat_Q, cfm_mat_work, threshold=0.0_dp, exponent=0.5_dp)
+         CALL cp_cfm_matrix_exponential(cfm_mat_Q, cfm_mat_work, threshold=0.0_dp, exponent=0.5_dp)
          CALL cp_cfm_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_Q, &
                           z_zero, cfm_mat_work)
          CALL cp_cfm_to_cfm(cfm_mat_work, cfm_mat_Q)
