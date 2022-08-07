@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #ifndef DBM_HYPERPARAMS_H
+#define DBM_HYPERPARAMS_H
 
 // TODO: Tune parameters, check if dynamic OpenMP scheduling is really faster?
 
@@ -16,6 +17,11 @@ static const int MAX_BATCH_SIZE = 10000;
 static const int BATCH_NUM_BUCKETS = 1000;
 static const int INITIAL_NBLOCKS_ALLOCATED = 100;
 static const int INITIAL_DATA_ALLOCATED = 1024;
+
+// Choosing size as power of two allows to replace modulo with bitwise AND.
+static const int PACK_HASH_SIZE = 1024;
+static const int PACK_HASH_PRIME = 509; // Closest prime to PACK_HASH_SIZE / 2.
+static const int PACK_HASH_MASK = (PACK_HASH_SIZE - 1);
 
 #endif
 
