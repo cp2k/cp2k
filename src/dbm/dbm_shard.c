@@ -193,7 +193,6 @@ dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
   new_block->row = row;
   new_block->col = col;
   new_block->offset = shard->data_promised;
-  new_block->norm = 0.0; // initially data will be zeroed
   shard->data_promised += block_size;
   // The data_size will be increase after the memory is allocated and zeroed.
   hashtable_insert(shard, new_block_idx);

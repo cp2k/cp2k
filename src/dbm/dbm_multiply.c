@@ -168,14 +168,14 @@ static void multiply_packs(const bool transa, const bool transb,
     // Essentially a merge sort (assuming blocks are pre-sorted by shared index)
     int jblock_start = 0;
     for (int iblock = 0; iblock < pack_a->nblocks; iblock++) {
-      const dbm_block_t *blk_a = &pack_a->blocks[iblock];
+      const dbm_pack_block_t *blk_a = &pack_a->blocks[iblock];
       const int row_left = (transa) ? blk_a->col : blk_a->row;
       const int col_left = (transa) ? blk_a->row : blk_a->col;
       if (row_left % matrix_c->nshards != kshard) {
         continue;
       }
       for (int jblock = jblock_start; jblock < pack_b->nblocks; jblock++) {
-        const dbm_block_t *blk_b = &pack_b->blocks[jblock];
+        const dbm_pack_block_t *blk_b = &pack_b->blocks[jblock];
         const int row_right = (transb) ? blk_b->col : blk_b->row;
         const int col_right = (transb) ? blk_b->row : blk_b->col;
         if (col_left < row_right) {
@@ -222,9 +222,6 @@ static void multiply_packs(const bool transa, const bool transb,
         flop_sum += 2 * m * n * k;
         dbm_library_counter_increment(m, n, k);
 
-        // Invalidate norm of C block because its data is going to change.
-        blk_c->norm = -1.0;
-
         // Add block multiplication to batch.
         batch[ntasks].m = m;
         batch[ntasks].n = n;
@@ -253,7 +250,7 @@ static void multiply_packs(const bool transa, const bool transb,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply(const bool transa, const bool transb, const double alpha,
-                  dbm_matrix_t *matrix_a, dbm_matrix_t *matrix_b,
+                  const dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b,
                   const double beta, dbm_matrix_t *matrix_c,
                   const bool retain_sparsity, const double filter_eps,
                   int64_t *flop) {
@@ -277,9 +274,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
   // Start uploading matrix_c to the GPU.
   backend_context_t *ctx = backend_start(matrix_c);
 
-  // Compute norms and filter thresholds for each row.
-  dbm_compute_block_norms(matrix_a);
-  dbm_compute_block_norms(matrix_b);
+  // Compute filter thresholds for each row.
   float *rows_left_max_eps = compute_rows_max_eps(transa, matrix_a, filter_eps);
 
   // Redistribute matrix_a and matrix_b across MPI ranks.

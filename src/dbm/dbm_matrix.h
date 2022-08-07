@@ -90,12 +90,6 @@ void dbm_put_block(dbm_matrix_t *matrix, const int row, const int col,
 void dbm_clear(dbm_matrix_t *matrix);
 
 /*******************************************************************************
- * \brief Internal routine for re-computing any invalid block norms.
- * \author Ole Schuett
- ******************************************************************************/
-void dbm_compute_block_norms(dbm_matrix_t *matrix);
-
-/*******************************************************************************
  * \brief Removes all blocks from the matrix whose norm is below the threshold.
  *        Blocks of size zero are always kept.
  * \author Ole Schuett

@@ -63,9 +63,9 @@ static inline void icumsum(const int n, const int input[n], int output[n]) {
  * \author Ole Schuett
  ******************************************************************************/
 typedef struct {
-  const dbm_block_t *blk;
-  int rank;   // target mpi rank
-  int offset; // offset in data_send array
+  const dbm_block_t *blk; // source block
+  int rank;               // target mpi rank
+  int offset;             // offset in data_send array
 } plan_t;
 
 /*******************************************************************************
@@ -83,8 +83,8 @@ static int compare_plan_by_rank(const void *a, const void *b) {
  * \author Ole Schuett
  ******************************************************************************/
 static int compare_pack_blocks_by_row(const void *a, const void *b) {
-  const dbm_block_t *blk_a = (dbm_block_t *)a;
-  const dbm_block_t *blk_b = (dbm_block_t *)b;
+  const dbm_pack_block_t *blk_a = (dbm_pack_block_t *)a;
+  const dbm_pack_block_t *blk_b = (dbm_pack_block_t *)b;
   return blk_a->row - blk_b->row;
 }
 
@@ -93,8 +93,8 @@ static int compare_pack_blocks_by_row(const void *a, const void *b) {
  * \author Ole Schuett
  ******************************************************************************/
 static int compare_pack_blocks_by_col(const void *a, const void *b) {
-  const dbm_block_t *blk_a = (dbm_block_t *)a;
-  const dbm_block_t *blk_b = (dbm_block_t *)b;
+  const dbm_pack_block_t *blk_a = (dbm_pack_block_t *)a;
+  const dbm_pack_block_t *blk_b = (dbm_pack_block_t *)b;
   return blk_a->col - blk_b->col;
 }
 
@@ -192,7 +192,8 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
 
     // 4th pass: Fill blks_send and data_send arrays.
     double *data_send = dbm_mempool_host_malloc(ndata_send * sizeof(double));
-    dbm_block_t *blks_send = malloc(nblocks_send * sizeof(dbm_block_t));
+    dbm_pack_block_t *blks_send =
+        malloc(nblocks_send * sizeof(dbm_pack_block_t));
 #pragma omp parallel for schedule(dynamic)
     for (int iblock = 0; iblock < nblocks_send; iblock++) {
       const plan_t *plan = &plans[iblock];
@@ -201,21 +202,28 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
       const double *blk_data = &shard->data[plan->blk->offset];
       const int row_size = matrix->row_sizes[plan->blk->row];
       const int col_size = matrix->col_sizes[plan->blk->col];
-      const int block_size = row_size * col_size;
       double *blk_send = &data_send[plan->offset];
+      double norm = 0.0; // Compute norm as double...
       if (trans_matrix) {
         // Transpose block to allow for outer-product style multiplication.
         for (int i = 0; i < row_size; i++) {
           for (int j = 0; j < col_size; j++) {
-            blk_send[i * col_size + j] = blk_data[j * row_size + i];
+            const double element = blk_data[j * row_size + i];
+            norm += element * element;
+            blk_send[i * col_size + j] = element;
           }
         }
       } else {
-        memcpy(blk_send, blk_data, block_size * sizeof(double));
+        for (int i = 0; i < row_size * col_size; i++) {
+          const double element = blk_data[i];
+          norm += element * element;
+          blk_send[i] = element;
+        }
       }
-      assert(plan->blk->norm >= 0.0);
-      blks_send[iblock] = *plan->blk;
-      blks_send[iblock].offset = plan->offset; // overwrite offset
+      blks_send[iblock].row = plan->blk->row;
+      blks_send[iblock].col = plan->blk->col;
+      blks_send[iblock].offset = plan->offset;
+      blks_send[iblock].norm = (float)norm; // ...store norm as float.
     }
     free(plans);
 
@@ -233,14 +241,15 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
     const int nblocks_recv = isum(nranks, blks_recv_count);
 
     // 2nd communication: Exchange blocks.
-    dbm_block_t *blks_recv = malloc(nblocks_recv * sizeof(dbm_block_t));
+    dbm_pack_block_t *blks_recv =
+        malloc(nblocks_recv * sizeof(dbm_pack_block_t));
     int blks_send_count_byte[nranks], blks_send_displ_byte[nranks];
     int blks_recv_count_byte[nranks], blks_recv_displ_byte[nranks];
     for (int i = 0; i < nranks; i++) { // TODO: this is ugly!
-      blks_send_count_byte[i] = blks_send_count[i] * sizeof(dbm_block_t);
-      blks_send_displ_byte[i] = blks_send_displ[i] * sizeof(dbm_block_t);
-      blks_recv_count_byte[i] = blks_recv_count[i] * sizeof(dbm_block_t);
-      blks_recv_displ_byte[i] = blks_recv_displ[i] * sizeof(dbm_block_t);
+      blks_send_count_byte[i] = blks_send_count[i] * sizeof(dbm_pack_block_t);
+      blks_send_displ_byte[i] = blks_send_displ[i] * sizeof(dbm_pack_block_t);
+      blks_recv_count_byte[i] = blks_recv_count[i] * sizeof(dbm_pack_block_t);
+      blks_recv_displ_byte[i] = blks_recv_displ[i] * sizeof(dbm_pack_block_t);
     }
     dbm_mpi_alltoallv_byte(
         blks_send, blks_send_count_byte, blks_send_displ_byte, blks_recv,
@@ -270,10 +279,10 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
 
     // Sort recveived blocks by shared index as required for multiply_packs().
     if (trans_matrix) {
-      qsort(blks_recv, nblocks_recv, sizeof(dbm_block_t),
+      qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
             &compare_pack_blocks_by_row);
     } else {
-      qsort(blks_recv, nblocks_recv, sizeof(dbm_block_t),
+      qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
             &compare_pack_blocks_by_col);
     }
 
@@ -294,7 +303,8 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   dbm_mpi_max_int(&max_data_size, 1, packed.dist_ticks->comm);
   packed.max_nblocks = max_nblocks;
   packed.max_data_size = max_data_size;
-  packed.recv_pack.blocks = malloc(packed.max_nblocks * sizeof(dbm_block_t));
+  packed.recv_pack.blocks =
+      malloc(packed.max_nblocks * sizeof(dbm_pack_block_t));
   packed.recv_pack.data =
       dbm_mempool_host_malloc(packed.max_data_size * sizeof(double));
 
@@ -330,17 +340,17 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
     // Exchange blocks.
     const int nblocks_in_bytes = dbm_mpi_sendrecv_byte(
         /*sendbuf=*/send_pack->blocks,
-        /*sendcound=*/send_pack->nblocks * sizeof(dbm_block_t),
+        /*sendcound=*/send_pack->nblocks * sizeof(dbm_pack_block_t),
         /*dest=*/send_rank,
         /*sendtag=*/send_ipack,
         /*recvbuf=*/packed->recv_pack.blocks,
-        /*recvcount=*/packed->max_nblocks * sizeof(dbm_block_t),
+        /*recvcount=*/packed->max_nblocks * sizeof(dbm_pack_block_t),
         /*source=*/recv_rank,
         /*recvtag=*/recv_ipack,
         /*comm=*/packed->dist_ticks->comm);
 
-    assert(nblocks_in_bytes % sizeof(dbm_block_t) == 0);
-    packed->recv_pack.nblocks = nblocks_in_bytes / sizeof(dbm_block_t);
+    assert(nblocks_in_bytes % sizeof(dbm_pack_block_t) == 0);
+    packed->recv_pack.nblocks = nblocks_in_bytes / sizeof(dbm_pack_block_t);
 
     // Exchange data.
     packed->recv_pack.data_size = dbm_mpi_sendrecv_double(

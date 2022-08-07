@@ -736,7 +736,7 @@ CONTAINS
                            retain_sparsity, filter_eps, flop)
       LOGICAL, INTENT(IN)                                :: transa, transb
       REAL(kind=dp), INTENT(IN)                          :: alpha
-      TYPE(dbm_type), INTENT(INOUT)                      :: matrix_a, matrix_b
+      TYPE(dbm_type), INTENT(IN)                         :: matrix_a, matrix_b
       REAL(kind=dp), INTENT(IN)                          :: beta
       TYPE(dbm_type), INTENT(INOUT)                      :: matrix_c
       LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
