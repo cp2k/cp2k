@@ -15,8 +15,8 @@
  * \author Ole Schuett
  ******************************************************************************/
 typedef struct {
-  int row;
-  int col;
+  int free_index; // Free index in Einstein notation of matrix multiplication.
+  int sum_index;  // Summation index - also called dummy index.
   int offset;
   float norm;
 } dbm_pack_block_t;
