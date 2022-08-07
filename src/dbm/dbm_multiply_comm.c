@@ -79,23 +79,13 @@ static int compare_plan_by_rank(const void *a, const void *b) {
 }
 
 /*******************************************************************************
- * \brief Private comperator passed to qsort to compare two blocks by row.
+ * \brief Private comperator passed to qsort to compare two blocks by sum_index.
  * \author Ole Schuett
  ******************************************************************************/
-static int compare_pack_blocks_by_row(const void *a, const void *b) {
+static int compare_pack_blocks_by_sum_index(const void *a, const void *b) {
   const dbm_pack_block_t *blk_a = (dbm_pack_block_t *)a;
   const dbm_pack_block_t *blk_b = (dbm_pack_block_t *)b;
-  return blk_a->row - blk_b->row;
-}
-
-/*******************************************************************************
- * \brief Private comperator passed to qsort to compare two blocks by column.
- * \author Ole Schuett
- ******************************************************************************/
-static int compare_pack_blocks_by_col(const void *a, const void *b) {
-  const dbm_pack_block_t *blk_a = (dbm_pack_block_t *)a;
-  const dbm_pack_block_t *blk_b = (dbm_pack_block_t *)b;
-  return blk_a->col - blk_b->col;
+  return blk_a->sum_index - blk_b->sum_index;
 }
 
 /*******************************************************************************
@@ -134,8 +124,8 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
       dbm_shard_t *shard = &matrix->shards[ishard];
       for (int iblock = 0; iblock < shard->nblocks; iblock++) {
         const dbm_block_t *blk = &shard->blocks[iblock];
-        const int index_k = (trans_matrix) ? blk->row : blk->col;
-        const int itick = index_k % nticks; // TODO: smarter load-balancing
+        const int sum_index = (trans_matrix) ? blk->row : blk->col;
+        const int itick = sum_index % nticks; // TODO: smarter load-balancing
         if (itick / dist_ticks->nranks == ipack) {
           nblocks_send++; // This block belongs to the current set of packs.
         }
@@ -149,15 +139,15 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
       dbm_shard_t *shard = &matrix->shards[ishard];
       for (int iblock = 0; iblock < shard->nblocks; iblock++) {
         const dbm_block_t *blk = &shard->blocks[iblock];
-        const int index_m_or_n = (trans_matrix) ? blk->col : blk->row;
-        const int index_k = (trans_matrix) ? blk->row : blk->col;
-        const int itick = index_k % nticks; // Has to be same mapping as above.
+        const int free_index = (trans_matrix) ? blk->col : blk->row;
+        const int sum_index = (trans_matrix) ? blk->row : blk->col;
+        const int itick = sum_index % nticks; // Has to be same mapping as above
         if (itick / dist_ticks->nranks == ipack) {
           // Compute rank to which this block should be send.
-          const int coord_left = dist_indices->index2coord[index_m_or_n];
-          const int coord_right = itick % dist_ticks->nranks;
-          const int coords[2] = {(trans_dist) ? coord_right : coord_left,
-                                 (trans_dist) ? coord_left : coord_right};
+          const int coord_free_idx = dist_indices->index2coord[free_index];
+          const int coord_sum_idx = itick % dist_ticks->nranks;
+          const int coords[2] = {(trans_dist) ? coord_sum_idx : coord_free_idx,
+                                 (trans_dist) ? coord_free_idx : coord_sum_idx};
           const int rank = dbm_mpi_cart_rank(dist->comm, coords);
           // Create plan.
           plans[iplan].blk = blk;
@@ -213,15 +203,17 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
             blk_send[i * col_size + j] = element;
           }
         }
+        blks_send[iblock].free_index = plan->blk->col;
+        blks_send[iblock].sum_index = plan->blk->row;
       } else {
         for (int i = 0; i < row_size * col_size; i++) {
           const double element = blk_data[i];
           norm += element * element;
           blk_send[i] = element;
         }
+        blks_send[iblock].free_index = plan->blk->row;
+        blks_send[iblock].sum_index = plan->blk->col;
       }
-      blks_send[iblock].row = plan->blk->row;
-      blks_send[iblock].col = plan->blk->col;
       blks_send[iblock].offset = plan->offset;
       blks_send[iblock].norm = (float)norm; // ...store norm as float.
     }
@@ -277,14 +269,9 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
       }
     }
 
-    // Sort recveived blocks by shared index as required for multiply_packs().
-    if (trans_matrix) {
-      qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
-            &compare_pack_blocks_by_row);
-    } else {
-      qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
-            &compare_pack_blocks_by_col);
-    }
+    // Sort recveived blocks by sum_index as required for multiply_packs().
+    qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
+          &compare_pack_blocks_by_sum_index);
 
     // Assemble received stuff into a pack.
     packed.send_packs[ipack].nblocks = nblocks_recv;
