@@ -202,7 +202,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE run_multiply_test(matrix_a, matrix_b, matrix_c, transa, transb, alpha, beta, &
                                 retain_sparsity, n_loops, eps, group, io_unit, always_checksum)
-      TYPE(dbm_type), INTENT(inout)                      :: matrix_a, matrix_b, matrix_c
+      TYPE(dbm_type), INTENT(in)                         :: matrix_a, matrix_b
+      TYPE(dbm_type), INTENT(inout)                      :: matrix_c
       LOGICAL, INTENT(in)                                :: transa, transb
       REAL(kind=dp), INTENT(in)                          :: alpha, beta
       LOGICAL, INTENT(in)                                :: retain_sparsity

@@ -28,7 +28,7 @@
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply(const bool transa, const bool transb, const double alpha,
-                  dbm_matrix_t *matrix_a, dbm_matrix_t *matrix_b,
+                  const dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b,
                   const double beta, dbm_matrix_t *matrix_c,
                   const bool retain_sparsity, const double filter_eps,
                   int64_t *flop);

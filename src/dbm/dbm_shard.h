@@ -21,7 +21,6 @@ typedef struct {
   int row;
   int col;
   int offset;
-  float norm;
 } dbm_block_t;
 
 /*******************************************************************************

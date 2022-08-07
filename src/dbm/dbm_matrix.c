@@ -218,7 +218,6 @@ void dbm_get_block_p(dbm_matrix_t *matrix, const int row, const int col,
   const dbm_shard_t *shard = &matrix->shards[ishard];
   dbm_block_t *blk = dbm_shard_lookup(shard, row, col);
   if (blk != NULL) {
-    blk->norm = -1.0; // Invalidate norm because caller might modify block data.
     *block = &shard->data[blk->offset];
   }
 }
@@ -250,7 +249,6 @@ void dbm_put_block(dbm_matrix_t *matrix, const int row, const int col,
   } else {
     memcpy(blk_data, block, block_size * sizeof(double));
   }
-  blk->norm = -1.0; // Invalidate norm because block data has changed.
   omp_unset_lock(&shard->lock);
 }
 
@@ -273,32 +271,6 @@ void dbm_clear(dbm_matrix_t *matrix) {
 }
 
 /*******************************************************************************
- * \brief Internal routine for re-computing any invalid block norms.
- * \author Ole Schuett
- ******************************************************************************/
-void dbm_compute_block_norms(dbm_matrix_t *matrix) {
-  assert(omp_get_num_threads() == 1);
-
-#pragma omp parallel for schedule(dynamic)
-  for (int ishard = 0; ishard < matrix->nshards; ishard++) {
-    dbm_shard_t *shard = &matrix->shards[ishard];
-    for (int iblock = 0; iblock < shard->nblocks; iblock++) {
-      dbm_block_t *blk = &shard->blocks[iblock];
-      if (blk->norm < 0.0) { // negative norms are invalid
-        const double *blk_data = &shard->data[blk->offset];
-        const int row_size = matrix->row_sizes[blk->row];
-        const int col_size = matrix->col_sizes[blk->col];
-        double norm = 0.0; // Compute as double ...
-        for (int i = 0; i < row_size * col_size; i++) {
-          norm += blk_data[i] * blk_data[i];
-        }
-        blk->norm = (float)norm; // ...store as float.
-      }
-    }
-  }
-}
-
-/*******************************************************************************
  * \brief Removes all blocks from the matrix whose norm is below the threshold.
  *        Blocks of size zero are always kept.
  * \author Ole Schuett
@@ -310,8 +282,6 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
     return;
   }
 
-  dbm_compute_block_norms(matrix);
-
 #pragma omp parallel for schedule(dynamic)
   for (int ishard = 0; ishard < matrix->nshards; ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
@@ -322,21 +292,24 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
 
     for (int iblock = 0; iblock < old_nblocks; iblock++) {
       const dbm_block_t old_blk = shard->blocks[iblock];
+      const double *old_blk_data = &shard->data[old_blk.offset];
       const int row_size = matrix->row_sizes[old_blk.row];
       const int col_size = matrix->col_sizes[old_blk.col];
       const int block_size = row_size * col_size;
+      double norm = 0.0; // Compute norm as double, but compare as float.
+      for (int i = 0; i < block_size; i++) {
+        norm += old_blk_data[i] * old_blk_data[i];
+      }
       // For historic reasons zero-sized blocks are never filtered.
-      if (sqrt(old_blk.norm) < eps && block_size > 0) {
+      if (sqrt((float)norm) < eps && block_size > 0) {
         continue; // filter the block
       }
       // Re-create block.
       dbm_block_t *new_blk = dbm_shard_promise_new_block(
           shard, old_blk.row, old_blk.col, block_size);
-      new_blk->norm = old_blk.norm;
       assert(new_blk->offset <= old_blk.offset);
       if (new_blk->offset != old_blk.offset) {
         // Using memmove instead of memcpy because it handles overlap correctly.
-        const double *old_blk_data = &shard->data[old_blk.offset];
         double *new_blk_data = &shard->data[new_blk->offset];
         memmove(new_blk_data, old_blk_data, block_size * sizeof(double));
       }
@@ -398,11 +371,6 @@ void dbm_scale(dbm_matrix_t *matrix, const double alpha) {
     for (int i = 0; i < shard->data_size; i++) {
       shard->data[i] *= alpha;
     }
-    const double alpha2 = alpha * alpha;
-    for (int iblock = 0; iblock < shard->nblocks; iblock++) {
-      dbm_block_t *blk = &shard->blocks[iblock];
-      blk->norm *= alpha2;
-    }
   }
 }
 
@@ -417,9 +385,6 @@ void dbm_zero(dbm_matrix_t *matrix) {
   for (int ishard = 0; ishard < matrix->nshards; ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
     memset(shard->data, 0, shard->data_size * sizeof(double));
-    for (int iblock = 0; iblock < shard->nblocks; iblock++) {
-      shard->blocks[iblock].norm = 0.0;
-    }
   }
 }
 
@@ -451,7 +416,6 @@ void dbm_add(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
       for (int i = 0; i < block_size; i++) {
         data_a[i] += data_b[i];
       }
-      blk_a->norm = -1.0; // Invalidate norm because block data has changed.
     }
   }
 }
@@ -515,7 +479,6 @@ void dbm_iterator_next_block(dbm_iterator_t *iter, int *row, int *col,
   *row_size = matrix->row_sizes[blk->row];
   *col_size = matrix->col_sizes[blk->col];
   *block = &shard->data[blk->offset];
-  blk->norm = -1.0; // Invalidate norm because caller might modify block data.
 
   iter->next_block++;
   if (iter->next_block >= shard->nblocks) {

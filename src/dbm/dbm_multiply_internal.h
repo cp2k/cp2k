@@ -11,13 +11,24 @@
 #include "dbm_shard.h"
 
 /*******************************************************************************
+ * \brief Internal struct for storing a dbm_block_t plus its norm.
+ * \author Ole Schuett
+ ******************************************************************************/
+typedef struct {
+  int row;
+  int col;
+  int offset;
+  float norm;
+} dbm_pack_block_t;
+
+/*******************************************************************************
  * \brief Internal struct for storing a pack - essentially a shard for MPI.
  * \author Ole Schuett
  ******************************************************************************/
 typedef struct {
   int nblocks;
   int data_size;
-  dbm_block_t *blocks;
+  dbm_pack_block_t *blocks;
   double *data;
 } dbm_pack_t;
 
