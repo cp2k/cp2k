@@ -48,10 +48,22 @@ ALL_OBJECTS += dbm_multiply_gpu.o
 	cd $(dir $<); $(NVCC) -c $(NVFLAGS) $(notdir $<)
 endif
 
+ifneq ($(MPICC),)
+# Build with MPI.
+%.o: %.c $(ALL_HEADERS)
+	cd $(dir $<); $(MPICC) -c -std=c11 $(CFLAGS) -D__parallel $(notdir $<)
+
+dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
+	$(MPICC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+else
+
+# Build without MPI.
 %.o: %.c $(ALL_HEADERS)
 	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
 dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
+endif
 #EOF
