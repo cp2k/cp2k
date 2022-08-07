@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dbm_hyperparams.h"
 #include "dbm_mempool.h"
 
 /*******************************************************************************
@@ -82,10 +83,29 @@ static int compare_plan_by_rank(const void *a, const void *b) {
  * \brief Private comperator passed to qsort to compare two blocks by sum_index.
  * \author Ole Schuett
  ******************************************************************************/
-static int compare_pack_blocks_by_sum_index(const void *a, const void *b) {
+static int compare_pack_blocks_by_hash(const void *a, const void *b) {
   const dbm_pack_block_t *blk_a = (dbm_pack_block_t *)a;
   const dbm_pack_block_t *blk_b = (dbm_pack_block_t *)b;
+  const int hash_a = dbm_pack_block_hash(blk_a);
+  const int hash_b = dbm_pack_block_hash(blk_b);
+  if (hash_a != hash_b) {
+    return hash_a - hash_b;
+  }
   return blk_a->sum_index - blk_b->sum_index;
+}
+
+static int compare_nshards; // Used by compare_pack_blocks_by_shard.
+
+/*******************************************************************************
+ * \brief Private comperator passed to qsort to compare blocks by free_index.
+ * \author Ole Schuett
+ ******************************************************************************/
+static int compare_pack_blocks_by_shard(const void *a, const void *b) {
+  const dbm_pack_block_t *blk_a = (dbm_pack_block_t *)a;
+  const dbm_pack_block_t *blk_b = (dbm_pack_block_t *)b;
+  const int ishard_a = blk_a->free_index % compare_nshards;
+  const int ishard_b = blk_b->free_index % compare_nshards;
+  return ishard_a - ishard_b;
 }
 
 /*******************************************************************************
@@ -270,8 +290,14 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
     }
 
     // Sort recveived blocks by sum_index as required for multiply_packs().
-    qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
-          &compare_pack_blocks_by_sum_index);
+    if (trans_dist) {
+      qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
+            &compare_pack_blocks_by_hash);
+    } else {
+      compare_nshards = matrix->nshards; // Passing nshards to comparator.
+      qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
+            &compare_pack_blocks_by_shard);
+    }
 
     // Assemble received stuff into a pack.
     packed.send_packs[ipack].nblocks = nblocks_recv;
