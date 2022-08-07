@@ -22,8 +22,9 @@
  * \author Ole Schuett
  ******************************************************************************/
 static void print_func(char *message, int output_unit) {
-  (void)output_unit; // mark used
-  printf("%s", message);
+  if (output_unit == 0) { // i.e. my_rank == 0
+    printf("%s", message);
+  }
 }
 
 /*******************************************************************************
@@ -165,10 +166,12 @@ void bechmark_multiply(const int m, const int n, const int k,
   dbm_release(matrix_b);
   dbm_release(matrix_c);
 
+  dbm_mpi_sum_int64(&flop, 1, comm);
   if (dbm_mpi_comm_rank(comm) == 0) {
     const double duration = time_end_multiply - time_start_multiply;
     printf("multiply  %3i  x  %3i  x  %3i : %6.3f s  =>  %5.1f GFLOP/s \n", m,
            n, k, duration, 1e-9 * flop / duration);
+    fflush(stdout);
   }
 }
 
@@ -198,6 +201,7 @@ int main(int argc, char *argv[]) {
   if (my_rank == 0) {
     printf("MPI-ranks: %i  MPI-cart: %i x %i  OpenMP-threads: %i\n\n", nranks,
            dims[0], dims[1], omp_get_max_threads());
+    fflush(stdout);
   }
 
   bechmark_multiply(4, 4, 4, comm);
@@ -212,7 +216,7 @@ int main(int argc, char *argv[]) {
   bechmark_multiply(23, 23, 23, comm);
   bechmark_multiply(32, 32, 32, comm);
 
-  dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, 0);
+  dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, my_rank);
   dbm_library_finalize();
   dbm_mpi_comm_free(&comm);
   dbm_mpi_finalize();
