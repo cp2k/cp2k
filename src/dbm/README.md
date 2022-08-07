@@ -14,12 +14,8 @@ typedef struct {
   int row; // zero based
   int col;
   int offset;
-  float norm;
 } dbm_block_t;
 ```
-
-The `norm` is cached for performance reasons.
-A negative value indicates that the norm is invalid and needs to be recomputed.
 
 To allow for efficient OpenMP parallelism the blocks are
 [sharded](https://en.wikipedia.org/wiki/Shard_(database_architecture)) via round-robin:
@@ -66,15 +62,40 @@ for (int itask = 0; itask < ntasks; itask++) {
 
 ## MiniApp
 
-The `dbm_miniapp.x` binary allows to run a simple smoke test.
+The `dbm_miniapp.x` binary allows to run a simple performance test.
 
 ```shell
 $ cd cp2k/src/dbm
 $ make -j
-$ OMP_NUM_THREADS=2 ./dbm_miniapp.x
-MPI ranks:      1
-OpenMP threads: 2
-reserve blocks: 0.047 seconds
-matrix multiply: 0.001 s, 2.1 MFLOP/s
-done :-)
+$ OMP_NUM_THREADS=32 ./dbm_miniapp.x
+
+MPI-ranks: 1  MPI-cart: 1 x 1  OpenMP-threads: 32
+
+multiply    4  x    4  x    4 :  0.553 s  =>   29.0 GFLOP/s
+multiply  128  x    4  x    4 :  0.277 s  =>  229.6 GFLOP/s
+multiply    4  x  128  x    4 :  0.417 s  =>  152.2 GFLOP/s
+multiply    4  x    4  x  128 :  0.246 s  =>  258.0 GFLOP/s
+multiply    4  x  128  x  128 :  1.329 s  =>  189.6 GFLOP/s
+multiply  128  x    4  x  128 :  0.566 s  =>  445.3 GFLOP/s
+multiply  128  x  128  x    4 :  6.967 s  =>   36.2 GFLOP/s
+multiply  128  x  128  x  128 :  1.660 s  =>  602.1 GFLOP/s
+multiply   23  x   23  x   23 :  5.495 s  =>  185.0 GFLOP/s
+multiply   32  x   32  x   32 :  4.195 s  =>  244.1 GFLOP/s
+
+ -------------------------------------------------------------------------------
+ -                                                                             -
+ -                                DBM STATISTICS                               -
+ -                                                                             -
+ -------------------------------------------------------------------------------
+    M  x    N  x    K                                          COUNT     PERCENT
+    ?  x    ?  x    ?                                      125000000      53.21%
+   ??  x   ??  x   ??                                       57406923      24.44%
+    ?  x    ?  x  ???                                       15500000       6.60%
+    ?  x  ???  x    ?                                       15500000       6.60%
+  ???  x    ?  x    ?                                       15500000       6.60%
+    ?  x  ???  x  ???                                        1922000       0.82%
+  ???  x    ?  x  ???                                        1922000       0.82%
+  ???  x  ???  x    ?                                        1922000       0.82%
+  ???  x  ???  x  ???                                         238328       0.10%
+ -------------------------------------------------------------------------------
 ```
