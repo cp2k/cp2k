@@ -1543,9 +1543,11 @@ CONTAINS
       IF (do_exx) THEN
          DO ispin = 1, nspins
             CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
+         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
+         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
             CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
