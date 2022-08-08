@@ -1775,8 +1775,17 @@ CONTAINS
             IF (dft_control%do_admm) THEN
                CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
                CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, rho_ao_kp=rho_ao_kp)
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+               rho1 => p_env%p1_admm
+            ELSE
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+               rho1 => p_env%p1
             END IF
-            rho1 => NULL()
+!            rho1 => NULL()
          ELSE
             IF (dft_control%do_admm) THEN
                CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
@@ -1820,7 +1829,7 @@ CONTAINS
             END IF
          END IF
 
-         IF (.NOT. do_exx) THEN
+!         IF (.NOT. do_exx) THEN
             IF (dft_control%do_admm) THEN
                CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
                DO ispin = 1, nspins
@@ -1831,7 +1840,7 @@ CONTAINS
                   CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, -1.0_dp)
                END DO
             END IF
-         END IF
+!         END IF
 
          IF (dft_control%do_admm) THEN
             IF (debug_forces) THEN
