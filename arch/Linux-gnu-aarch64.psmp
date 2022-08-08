@@ -2,15 +2,15 @@
 #
 # CP2K (GNU aarch64) arch file for Linux clusters
 #
-# Tested with: GNU 11.2.0, MPICH 3.4.3,
-#              ScaLAPACK 2.1.0, OpenBLAS 0.3.20, FFTW 3.3.10, LIBINT 2.6.0,
+# Tested with: GNU 12.1.0, MPICH 3.4.3,
+#              ScaLAPACK 2.1.0, OpenBLAS 0.3.21, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 5.2.3, ELPA 2021.11.002, PLUMED 2.8.0, SPGLIB 1.16.2,
-#              LIBVORI 220621, GSL 2.7, COSMA 2.6.1, SIRIUS 7.3.0
+#              LIBVORI 220621, GSL 2.7, COSMA 2.6.1, SIRIUS 7.3.1
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Author: Matthias Krack (22.07.2022)
+# Author: Matthias Krack (08.08.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,13 +26,13 @@
    echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
    echo "or build CP2K only with shared libraries using"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} SHARED=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} SHARED=yes"; \
    echo "or build CP2K as a library with"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} libcp2k"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} libcp2k"; \
    return
 
 # Set options
@@ -46,7 +46,7 @@ USE_LIBPEXSI   := 1.2.0
 USE_LIBVORI    := 220621
 USE_LIBXC      := 5.2.3
 #USE_LIBXSMM    := 1.17
-USE_OPENBLAS   := 0.3.20
+USE_OPENBLAS   := 0.3.21
 USE_PLUMED     := 2.8.0
 USE_QUIP       := b4336484fb65b0e73211a8f920ae4361c7c353fd
 USE_SCALAPACK  := 2.1.0

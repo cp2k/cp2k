@@ -6,7 +6,7 @@
 
 # Usage: Source this arch file after the module for Intel/MKL has been loaded if needed.
 #
-# Author: Matthias Krack (25.02.2022)
+# Author: Matthias Krack (08.08.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -15,8 +15,8 @@
       exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
-   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} realclean; \
-   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}; \
+   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} realclean; \
+   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}; \
    return
 
 CC        = mpiicc
