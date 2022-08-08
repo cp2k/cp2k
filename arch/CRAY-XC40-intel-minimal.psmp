@@ -19,8 +19,8 @@
    module rm intel; \
    module add intel-classic; \
    module list; \
-   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} realclean; \
-   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}; \
+   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} realclean; \
+   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}; \
    return
 
 CC        = cc

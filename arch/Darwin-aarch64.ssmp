@@ -8,7 +8,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (23.06.2022)
+# Author: Matthias Krack (08.08.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -34,9 +34,9 @@
    echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j8 ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j8 ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j8 ARCH=${this_file%%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j8 ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
    return
 
 # Set options

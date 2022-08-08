@@ -13,7 +13,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (16.07.2022)
+# Author: Matthias Krack (08.08.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -33,13 +33,13 @@
    echo; \
    echo "Check the output above for error messages and consistency!"; \
    echo "If everything is OK, you can build a CP2K production binary with"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.}"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.}"; \
    echo "Alternatively, you can add further checks, e.g. for regression testing, with"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} DO_CHECKS=yes"; \
    echo "or build CP2K only with shared libraries using"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} SHARED=yes"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} SHARED=yes"; \
    echo "or build CP2K as a library with"; \
-   echo "   make -j ARCH=${this_file%%.*} VERSION=${this_file##*.} libcp2k"; \
+   echo "   make -j ARCH=${this_file%.*} VERSION=${this_file##*.} libcp2k"; \
    return
 
 # Set options
