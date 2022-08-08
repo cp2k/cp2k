@@ -318,6 +318,12 @@ CONTAINS
          CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.)
          energy%total = energy%total + energy%mp2
 
+         IF ((qs_env%mp2_env%method == ri_mp2_method_gpw .OR. qs_env%mp2_env%method == ri_mp2_laplace .OR. &
+              qs_env%mp2_env%method == ri_rpa_method_gpw) &
+             .AND. .NOT. qs_env%mp2_env%do_im_time) THEN
+            CALL update_mp2_forces(qs_env)
+         END IF
+
          !RPA EXX energy and forces
          IF (qs_env%mp2_env%method == ri_rpa_method_gpw) THEN
             do_exx = .FALSE.
@@ -334,14 +340,6 @@ CONTAINS
       ELSEIF (.NOT. perform_ec) THEN
          ! Compute grid-based forces
          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
-      END IF
-
-      IF (ASSOCIATED(qs_env%mp2_env)) THEN
-         IF ((qs_env%mp2_env%method == ri_mp2_method_gpw .OR. qs_env%mp2_env%method == ri_mp2_laplace .OR. &
-              qs_env%mp2_env%method == ri_rpa_method_gpw) &
-             .AND. .NOT. qs_env%mp2_env%do_im_time) THEN
-            CALL update_mp2_forces(qs_env)
-         END IF
       END IF
 
       IF (perform_ec) THEN

@@ -349,6 +349,9 @@ CONTAINS
                          fm_G_mu_nu, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_back)
             CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, focc, &
                          fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, L_jb(ispin)%matrix)
+            CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, focc, &
+                         fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, W_mo(ispin)%matrix, &
+                         c_first_col=homo(ispin) + 1)
          END DO
       END IF
 
@@ -1543,11 +1546,11 @@ CONTAINS
       IF (do_exx) THEN
          DO ispin = 1, nspins
             CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
-         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+            CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
-         CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
             CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
@@ -1807,11 +1810,11 @@ CONTAINS
             CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
                                       x_data(1, 1)%general_parameter%fraction, &
                                       rho_ao=rho_ao_kp, rho_ao_resp=rho1, &
-                                      use_virial=use_virial)
+                                      use_virial=use_virial, resp_only=do_exx)
 
          ELSE
             CALL derivatives_four_center(qs_env, rho_ao_kp, rho1, hfx_sections, para_env, &
-                                         1, use_virial)
+                                         1, use_virial, resp_only=do_exx)
          END IF
 
          IF (use_virial) THEN
@@ -1830,16 +1833,16 @@ CONTAINS
          END IF
 
 !         IF (.NOT. do_exx) THEN
-            IF (dft_control%do_admm) THEN
-               CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-               DO ispin = 1, nspins
-                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, -1.0_dp)
-               END DO
-            ELSE
-               DO ispin = 1, nspins
-                  CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, -1.0_dp)
-               END DO
-            END IF
+         IF (dft_control%do_admm) THEN
+            CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, -1.0_dp)
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, -1.0_dp)
+            END DO
+         END IF
 !         END IF
 
          IF (dft_control%do_admm) THEN
