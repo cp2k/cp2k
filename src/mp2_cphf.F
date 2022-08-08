@@ -347,8 +347,8 @@ CONTAINS
             CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)
             CALL cp_gemm("N", "N", dimen, homo(ispin), dimen, 1.0_dp, &
                          fm_G_mu_nu, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_back)
-            CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, 1.0_dp, &
-                         fm_back, mo_coeff_v(ispin)%matrix, focc, L_jb(ispin)%matrix)
+            CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, focc, &
+                         fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, L_jb(ispin)%matrix)
          END DO
       END IF
 
