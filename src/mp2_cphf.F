@@ -45,6 +45,7 @@ MODULE mp2_cphf
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
+                                              dbcsr_frobenius_norm,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_scale,&
@@ -1779,16 +1780,15 @@ CONTAINS
                CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
                CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, rho_ao_kp=rho_ao_kp)
                DO ispin = 1, nspins
-                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+!                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
                END DO
                rho1 => p_env%p1_admm
             ELSE
                DO ispin = 1, nspins
-                  CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
+                  !         CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
                END DO
                rho1 => p_env%p1
             END IF
-!            rho1 => NULL()
          ELSE
             IF (dft_control%do_admm) THEN
                CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)

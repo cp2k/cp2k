@@ -105,8 +105,9 @@ CONTAINS
                                                             use_virial
       REAL(KIND=dp)                                      :: eh1, ehfx, t1, t2
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, rho_ao, &
-                                                            rho_ao_aux_fit, rho_ao_resp
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, &
+                                                            matrix_p_mp2, matrix_p_mp2_admm, &
+                                                            rho_ao, rho_ao_aux_fit, rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_2d, rho_ao_2d
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -230,8 +231,22 @@ CONTAINS
                NULLIFY (rho_ao_resp)
                IF (do_admm) THEN
                   rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
+
+                  IF (.NOT. qs_env%mp2_env%do_im_time) THEN
+                     CALL get_qs_env(qs_env, matrix_p_mp2_admm=matrix_p_mp2_admm)
+                     DO ispin = 1, nspins
+                        CALL dbcsr_add(rho_ao_aux_fit(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+                     END DO
+                  END IF
                ELSE
                   rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
+
+                  IF (.NOT. qs_env%mp2_env%do_im_time) THEN
+                     CALL get_qs_env(qs_env, matrix_p_mp2=matrix_p_mp2)
+                     DO ispin = 1, nspins
+                        CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+                     END DO
+                  END IF
                END IF
 
                IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
@@ -245,6 +260,17 @@ CONTAINS
                   CALL derivatives_four_center(qs_env, rho_ao_2d, rho_ao_resp, hfx_sections, para_env, irep, &
                                                use_virial, external_x_data=qs_env%mp2_env%ri_rpa%x_data)
 
+               END IF
+               IF (.NOT. qs_env%mp2_env%do_im_time) THEN
+                  IF (do_admm) THEN
+                     DO ispin = 1, nspins
+                        CALL dbcsr_add(rho_ao_aux_fit(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+                     END DO
+                  ELSE
+                     DO ispin = 1, nspins
+                        CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+                     END DO
+                  END IF
                END IF
 
             END IF
