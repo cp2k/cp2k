@@ -504,10 +504,9 @@ CONTAINS
       CALL uppercase(unit_str)
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(/,/,T2,A)") &
-            "MODULE FIST:  ATOMIC COORDINATES IN "//TRIM(unit_str)
-         WRITE (UNIT=iw, &
-                FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)") &
-            "Atom  Kind  ATM_TYP", "X", "Y", "Z", "  q(eff)", "  Mass"
+            "MODULE FIST: ATOMIC COORDINATES IN "//TRIM(unit_str)
+         WRITE (UNIT=iw, FMT="(/,T4,A,T30,A,T44,A,T58,A,T66,A,T77,A)") &
+            "Atom Kind Name", "X", "Y", "Z", "q(eff)", "Mass"
          natom = SIZE(particle_set)
          DO iatom = 1, natom
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
@@ -523,12 +522,10 @@ CONTAINS
                               charge_shell=qshell)
                qeff = qcore + qshell
             END IF
-            WRITE (UNIT=iw, &
-                   FMT="(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4)") &
-               iatom, ikind, name, &
-               particle_set(iatom)%r(1:3)*conv, qeff, mass/massunit
+            WRITE (UNIT=iw, FMT="(T2,I6,1X,I4,1X,A7,3(1X,F13.6),2(1X,F8.4))") &
+               iatom, ikind, name, particle_set(iatom)%r(1:3)*conv, qeff, mass/massunit
          END DO
-         WRITE (iw, '(/)')
+         WRITE (iw, "(A)") ""
       END IF
 
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
@@ -570,13 +567,12 @@ CONTAINS
 
       CALL section_vals_val_get(subsys_section, "PRINT%ATOMIC_COORDINATES%UNIT", c_val=unit_str)
       conv = cp_unit_from_cp2k(1.0_dp, TRIM(unit_str))
+      CALL uppercase(unit_str)
       IF (iw > 0) THEN
          WRITE (UNIT=iw, FMT="(/,/,T2,A)") &
-            "MODULE "//TRIM(label)//":  ATOMIC COORDINATES IN "//TRIM(unit_str)
-         WRITE (UNIT=iw, &
-                FMT="(/,T2,A,7X,2(A1,11X),A1,8X,A8,5X,A6)") &
-            "Atom  Kind  Element", "X", "Y", "Z", "  Z(eff)", "  Mass"
-
+            "MODULE "//TRIM(label)//": ATOMIC COORDINATES IN "//TRIM(unit_str)
+         WRITE (UNIT=iw, FMT="(/,T4,A,T30,A,T44,A,T58,A,T66,A,T77,A)") &
+            "Atom Kind Element", "X", "Y", "Z", "Z(eff)", "Mass"
          natom = SIZE(particle_set)
          DO iatom = 1, natom
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
@@ -585,12 +581,10 @@ CONTAINS
                                  mass=mass, &
                                  z=z)
             CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
-            WRITE (UNIT=iw, &
-                   FMT="(I5,1X,I3,1X,A2,1X,I3,3X,3F12.6,5X,F8.4,3X,F9.4)") &
-               iatom, ikind, element_symbol, z, &
-               particle_set(iatom)%r(1:3)*conv, zeff, mass/massunit
+            WRITE (UNIT=iw, FMT="(T2,I6,1X,I4,1X,A2,1X,I4,3(1X,F13.6),2(1X,F8.4))") &
+               iatom, ikind, element_symbol, z, particle_set(iatom)%r(1:3)*conv, zeff, mass/massunit
          END DO
-         WRITE (iw, '(/)')
+         WRITE (iw, "(A)") ""
       END IF
 
       CALL cp_print_key_finished_output(iw, logger, subsys_section, &
