@@ -45,7 +45,6 @@ MODULE mp2_cphf
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
-                                              dbcsr_frobenius_norm,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_scale,&
@@ -341,9 +340,8 @@ CONTAINS
       IF (do_exx) THEN
          CALL add_exx_to_rhs(P_mu_nu, qs_env)
 
-         focc = 2.0_dp
-         IF (nspins == 1) focc = 4.0_dp
-         !focc = 0.0_dp
+         focc = 1.0_dp
+         IF (nspins == 1) focc = 2.0_dp
          DO ispin = 1, nspins
             CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)
             CALL cp_gemm("N", "N", dimen, homo(ispin), dimen, 1.0_dp, &
