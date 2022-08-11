@@ -22,6 +22,8 @@ MODULE molsym
                                               rotate_vector,&
                                               unit_matrix,&
                                               vector_product
+   USE physcon,                         ONLY: angstrom
+   USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,8 +40,6 @@ MODULE molsym
 
    PUBLIC :: molsym_type
    PUBLIC :: release_molsym, molecular_symmetry, print_symmetry
-
-!***
 
 ! **************************************************************************************************
 !> \brief Container for information about molecular symmetry
@@ -92,7 +92,7 @@ MODULE molsym
 !> \author jgh
 ! **************************************************************************************************
    TYPE molsym_type
-      CHARACTER(4)                               :: point_group_symbol
+      CHARACTER(LEN=4)                            :: point_group_symbol
       INTEGER                                    :: point_group_order
       INTEGER                                    :: ncn, ndod, ngroup, nico, nlin, nsig, nsn, ntet
       LOGICAL                                    :: cubic, dgroup, igroup, invers, linear, maxis, &
@@ -603,8 +603,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: phi1, phi2, phidd, phidi, phiii
       REAL(KIND=dp), DIMENSION(3)                        :: a, b, c, d
 
-! Angle between two adjacent atoms of the dodecahedron => <(C3,C3)
-
+      ! Angle between two adjacent atoms of the dodecahedron => <(C3,C3)
       phidd = ATAN(0.4_dp*SQRT(5.0_dp))
       ! Angle between two adjacent atoms of the icosahedron and the dodecahedron => <(C5,C3)
       phidi = ATAN(3.0_dp - SQRT(5.0_dp))
@@ -835,9 +834,8 @@ CONTAINS
 
       INTEGER                                            :: icn, incr, isec, ises, isn, jcn, jsn
 
-! Count all symmetry elements of the symmetry group
-! First E and all mirror planes
-
+      ! Count all symmetry elements of the symmetry group
+      ! First E and all mirror planes
       sym%point_group_order = 1 + sym%nsig
 
       ! Loop over all C axes
@@ -876,7 +874,7 @@ CONTAINS
    SUBROUTINE get_point_group_symbol(sym)
       TYPE(molsym_type), INTENT(inout)                   :: sym
 
-      CHARACTER(4)                                       :: degree
+      CHARACTER(LEN=4)                                   :: degree
 
       IF (sym%linear) THEN
          IF (sym%invers) THEN
@@ -946,8 +944,7 @@ CONTAINS
 
       INTEGER                                            :: i, iatom, natoms
 
-! Define the Cartesian axis vectors
-
+      ! Define the Cartesian axis vectors
       sym%x_axis = (/1.0_dp, 0.0_dp, 0.0_dp/)
       sym%y_axis = (/0.0_dp, 1.0_dp, 0.0_dp/)
       sym%z_axis = (/0.0_dp, 0.0_dp, 1.0_dp/)
@@ -1048,21 +1045,17 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: d
 
       IF (sym%nsn == 2) THEN
-
          ! Ci
          sym%invers = .TRUE.
          phi = angle(sym%ses(:, 1, 2), sym%z_axis(:))
          d(:) = vector_product(sym%ses(:, 1, 2), sym%z_axis(:))
          CALL rotate_molecule(phi, d(:), sym, coord)
-
       ELSE IF (sym%nsig == 1) THEN
-
          ! Cs
          sym%sigmah = .TRUE.
          phi = angle(sym%sig(:, 1), sym%z_axis(:))
          d(:) = vector_product(sym%sig(:, 1), sym%z_axis(:))
          CALL rotate_molecule(phi, d(:), sym, coord)
-
       END IF
 
    END SUBROUTINE lowsym
@@ -1085,7 +1078,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atype
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: weight
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'molecular_symmetry'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'molecular_symmetry'
 
       INTEGER                                            :: handle, natoms
 
@@ -1398,51 +1391,61 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: weight
       INTEGER, INTENT(IN)                                :: iw, plevel
 
-      CHARACTER(3)                                       :: string
+      REAL(KIND=dp), PARAMETER                           :: formatmaxval = 1.0E5_dp
+
+      CHARACTER(LEN=3)                                   :: string
       INTEGER                                            :: i, icn, iequatom, isec, ises, isig, isn, &
-                                                            j, secount
-      REAL(KIND=dp)                                      :: null
+                                                            j, nequatom, secount
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: equatomlist, idxlist
 
-! Print point group symbol and point group order
-
-      IF (sym%point_group_order == -1) THEN
-         WRITE (iw, "(/,T2,A,T40,A,T77,A4)") "Molecular Symmetry Information", &
-            "Point Group: ", ADJUSTR(sym%point_group_symbol)
-      ELSE
-         WRITE (iw, "(/,T2,A,T40,A,T77,A4,/,T40,A,T77,I4)") &
-            "Molecular Symmetry Information", &
-            "Point Group: ", ADJUSTR(sym%point_group_symbol), &
-            "Group Order: ", sym%point_group_order
+      ! Print point group symbol and point group order
+      WRITE (iw, "(/,(T2,A))") &
+         "MOLSYM| Molecular symmetry information", &
+         "MOLSYM|"
+      WRITE (iw, "(T2,A,T77,A4)") &
+         "MOLSYM| Point group", ADJUSTR(sym%point_group_symbol)
+      IF (sym%point_group_order > -1) THEN
+         WRITE (iw, "(T2,A,T77,I4)") &
+            "MOLSYM| Group order ", sym%point_group_order
       END IF
 
       IF (MOD(plevel, 10) == 1) THEN
-         ! Print the Cartesian coordinates of the standard orientation
-         CALL write_coordinates(coord, atype, element, z, weight, iw)
-
-         WRITE (iw, "(/,T3,A,(T41,10I4))") "Group Number:      1   Group Members:", &
-            (sym%symequ_list(iequatom), iequatom=sym%llequatom(1), sym%ulequatom(1))
-         DO i = 2, sym%ngroup
-            WRITE (iw, "(T15,I8,(T41,10I4))") &
-               i, (sym%symequ_list(iequatom), iequatom=sym%llequatom(i), sym%ulequatom(i))
+         WRITE (iw, "(T2,A)") &
+            "MOLSYM|", &
+            "MOLSYM| Groups of atoms equivalent by symmetry"
+         WRITE (iw, "(T2,A,T31,A)") &
+            "MOLSYM| Group number", "Group members (atomic indices)"
+         DO i = 1, sym%ngroup
+            nequatom = sym%ulequatom(i) - sym%llequatom(i) + 1
+            CPASSERT(nequatom > 0)
+            ALLOCATE (equatomlist(nequatom), idxlist(nequatom))
+            equatomlist(1:nequatom) = sym%symequ_list(sym%llequatom(i):sym%ulequatom(i))
+            idxlist = 0
+            CALL sort(equatomlist, nequatom, idxlist)
+            WRITE (iw, "(T2,A,T10,I5,T16,I6,T31,10(1X,I4),/,(T2,'MOLSYM|',T31,10(1X,I4)))") &
+               "MOLSYM|", i, nequatom, (equatomlist(iequatom), iequatom=1, nequatom)
+            DEALLOCATE (equatomlist, idxlist)
          END DO
       END IF
 
       IF (MOD(plevel/100, 10) == 1) THEN
-         !   *** Print all symmetry elements ***
-         WRITE (iw, "(/,T24,A,9X,A,12X,A,12X,A)") "Symmetry Elements", "X", "Y", "Z"
-
+         ! Print all symmetry elements
+         WRITE (iw, "(T2,A,/,T2,A,/,T2,A,T31,A,T45,A,T60,A,T75,A)") &
+            "MOLSYM|", &
+            "MOLSYM| Symmetry elements", &
+            "MOLSYM| Element number", "Type", "X", "Y", "Z"
          secount = 1
-         null = 0._dp
-         WRITE (iw, "(T24,2I5,2X,A1,5x,3F13.6)") secount, secount, "E", null, null, null
-
+         WRITE (iw, "(T2,A,T12,I5,T19,I5,T32,A1,T36,3(1X,F14.8))") &
+            "MOLSYM|", secount, secount, "E", 0.0_dp, 0.0_dp, 0.0_dp
+         ! Mirror planes
          string = "@  "
          DO isig = 1, sym%nsig
             secount = secount + 1
             CALL outse(sym%sig(:, isig), sym%eps_geo)
-            WRITE (iw, "(T24,2I5,2X,A3,3X,3F13.6)") &
-               secount, isig, string, (sym%sig(i, isig), i=1, 3)
+            WRITE (iw, "(T2,A,T12,I5,T19,I5,T32,A3,T36,3(1X,F14.8))") &
+               "MOLSYM|", secount, isig, string, (sym%sig(i, isig), i=1, 3)
          END DO
-
+         ! C axes
          DO icn = 2, sym%ncn
             IF (icn < 10) THEN
                WRITE (string, "(A1,I1)") "C", icn
@@ -1452,11 +1455,11 @@ CONTAINS
             DO isec = 1, sym%nsec(icn)
                secount = secount + 1
                CALL outse(sym%sec(:, isec, icn), sym%eps_geo)
-               WRITE (iw, "(T24,2I5,2X,A3,3X,3F13.6)") &
-                  secount, isec, string, (sym%sec(i, isec, icn), i=1, 3)
+               WRITE (iw, "(T2,A,T12,I5,T19,I5,T32,A3,T36,3(1X,F14.8))") &
+                  "MOLSYM|", secount, isec, string, (sym%sec(i, isec, icn), i=1, 3)
             END DO
          END DO
-
+         ! S axes
          DO isn = 2, sym%nsn
             IF (isn == 2) THEN
                WRITE (string, "(A3)") "i  "
@@ -1468,22 +1471,49 @@ CONTAINS
             DO ises = 1, sym%nses(isn)
                secount = secount + 1
                CALL outse(sym%ses(:, ises, isn), sym%eps_geo)
-               WRITE (iw, "(T24,2I5,2X,A3,3X,3F13.6)") &
-                  secount, ises, string, (sym%ses(i, ises, icn), i=1, 3)
+               WRITE (iw, "(T2,A,T12,I5,T19,I5,T32,A3,T36,3(1X,F14.8))") &
+                  "MOLSYM|", secount, ises, string, (sym%ses(i, ises, icn), i=1, 3)
             END DO
          END DO
       END IF
 
       IF (MOD(plevel/10, 10) == 1 .AND. SIZE(coord, 2) > 1) THEN
          ! Print the moments of the molecular inertia tensor
-         WRITE (iw, "(/,T24,A,/,T40,A,2(16X,A),3(/,T25,A,3F18.5))") &
-            "Moments of the Molecular Inertia Tensor", "Ix", "Iy", "Iz", &
-            "Ix", (sym%tenmat(1, i), i=1, 3), &
-            "Iy", (sym%tenmat(2, i), i=1, 3), &
-            "Iz", (sym%tenmat(3, i), i=1, 3)
-         WRITE (iw, "(/,T24,A,/,T27,3F18.5,/,(T27,3F18.5))") &
-            "Principal Moments and Axes of Inertia", (sym%tenval(i), i=1, 3), &
-            ((sym%tenvec(i, j), j=1, 3), i=1, 3)
+         WRITE (iw, "(T2,A,/,T2,A,/,T2,A,T43,A,T58,A,T73,A)") &
+            "MOLSYM|", &
+            "MOLSYM| Moments of the molecular inertia tensor [a.u.]", &
+            "MOLSYM|", "I(x)", "I(y)", "I(z)"
+         string = "xyz"
+         IF (MAXVAL(sym%tenmat) >= formatmaxval) THEN
+            DO i = 1, 3
+               WRITE (iw, "(T2,A,T32,A,T36,3(1X,ES14.4))") &
+                  "MOLSYM|", "I("//string(i:i)//")", (sym%tenmat(i, j), j=1, 3)
+            END DO
+         ELSE
+            DO i = 1, 3
+               WRITE (iw, "(T2,A,T32,A,T36,3(1X,F14.8))") &
+                  "MOLSYM|", "I("//string(i:i)//")", (sym%tenmat(i, j), j=1, 3)
+            END DO
+         END IF
+         WRITE (iw, "(T2,A)") &
+            "MOLSYM|", &
+            "MOLSYM| Principal moments and axes of inertia [a.u.]"
+         IF (MAXVAL(sym%tenmat) >= formatmaxval) THEN
+            WRITE (iw, "(T2,A,T36,3(1X,ES14.4))") &
+               "MOLSYM|", (sym%tenval(i), i=1, 3)
+         ELSE
+            WRITE (iw, "(T2,A,T36,3(1X,F14.8))") &
+               "MOLSYM|", (sym%tenval(i), i=1, 3)
+         END IF
+         DO i = 1, 3
+            WRITE (iw, "(T2,A,T32,A,T36,3(1X,F14.8))") &
+               "MOLSYM|", string(i:i), (sym%tenvec(i, j), j=1, 3)
+         END DO
+      END IF
+
+      IF (MOD(plevel, 10) == 1) THEN
+         ! Print the Cartesian coordinates of the standard orientation
+         CALL write_coordinates(coord, atype, element, z, weight, iw)
       END IF
 
    END SUBROUTINE print_symmetry
@@ -1508,8 +1538,7 @@ CONTAINS
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: length_of_a
 
-! Check the length of vector a
-
+      ! Check the length of vector a
       length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
       IF (length_of_a > sym%eps_geo) THEN
 
@@ -1644,8 +1673,7 @@ CONTAINS
       INTEGER                                            :: natoms
       REAL(KIND=dp)                                      :: tt
 
-! Find the vector center_of_mass to molecular center of mass
-
+      ! Find the vector center_of_mass to molecular center of mass
       natoms = SIZE(coord, 2)
       sym%center_of_mass(:) = MATMUL(coord(:, 1:natoms), sym%aw(1:natoms))/SUM(sym%aw(1:natoms))
 
@@ -1749,22 +1777,29 @@ CONTAINS
       INTEGER                                            :: iatom, natom
 
       IF (iw > 0) THEN
-
-         WRITE (UNIT=iw, FMT="(/,T2,A)") &
-            "Atomic Coordinates [Bohr] in Standard Orientation"
-         WRITE (UNIT=iw, &
-                FMT="(/,T3,A,7X,2(A1,11X),A1,6X,A10,4X,A4,/)") &
-            "Atom  Kind  Element", "X", "Y", "Z", "Atomic-No.", "Mass"
-
          natom = SIZE(coord, 2)
+         WRITE (UNIT=iw, FMT="(T2,A)") &
+            "MOLSYM|", &
+            "MOLSYM| Atomic coordinates of the standard orientation in BOHR"
+         WRITE (UNIT=iw, FMT="(T2,A,T37,A,T51,A,T65,A,T77,A)") &
+            "MOLSYM|   Atom Kind Element", "X", "Y", "Z", "Mass"
          DO iatom = 1, natom
-            WRITE (UNIT=iw, FMT="(T2,I5,1X,I4,3X,A2,5X,3F12.6,4X,I4,2X,F11.4)") &
-               iatom, atype(iatom), element(iatom), coord(1:3, iatom), z(iatom), weight(iatom)
+            WRITE (UNIT=iw, FMT="(T2,A,I7,1X,I4,1X,A2,1X,I4,3(1X,F13.8),1X,F9.4)") &
+               "MOLSYM|", iatom, atype(iatom), ADJUSTL(element(iatom)), z(iatom), &
+               coord(1:3, iatom), weight(iatom)
          END DO
-
+         WRITE (UNIT=iw, FMT="(T2,A)") &
+            "MOLSYM|", &
+            "MOLSYM| Atomic coordinates of the standard orientation in ANGSTROM"
+         WRITE (UNIT=iw, FMT="(T2,A,T37,A,T51,A,T65,A,T77,A)") &
+            "MOLSYM|   Atom Kind Element", "X", "Y", "Z", "Mass"
+         DO iatom = 1, natom
+            WRITE (UNIT=iw, FMT="(T2,A,I7,1X,I4,1X,A2,1X,I4,3(1X,F13.8),1X,F9.4)") &
+               "MOLSYM|", iatom, atype(iatom), ADJUSTL(element(iatom)), z(iatom), &
+               coord(1:3, iatom)*angstrom, weight(iatom)
+         END DO
       END IF
 
    END SUBROUTINE write_coordinates
-! **************************************************************************************************
 
 END MODULE molsym
