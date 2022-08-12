@@ -67,7 +67,8 @@ MODULE realspace_grid_types
              rs_grid_print, &
              rs_grid_locate_rank, &
              rs_grid_max_ngpts, &
-             rs_grid_mult_and_add
+             rs_grid_mult_and_add, &
+             map_gaussian_here
 
    INTEGER, PARAMETER, PUBLIC               :: rsgrid_distributed = 0, &
                                                rsgrid_replicated = 1, &
@@ -2187,5 +2188,52 @@ CONTAINS
       CALL timestop(handle)
 
    END FUNCTION rs_grid_max_ngpts
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rs_grid ...
+!> \param h_inv ...
+!> \param ra ...
+!> \param offset ...
+!> \param group_size ...
+!> \param my_pos ...
+!> \return ...
+! **************************************************************************************************
+   PURE LOGICAL FUNCTION map_gaussian_here(rs_grid, h_inv, ra, offset, group_size, my_pos) RESULT(res)
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra
+      INTEGER, INTENT(IN), OPTIONAL                      :: offset, group_size, my_pos
+
+      INTEGER                                            :: dir, lb(3), location(3), tp(3), ub(3)
+
+      res = .FALSE.
+
+      IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
+         DO dir = 1, 3
+            ! bounds of local grid (i.e. removing the 'wings'), if periodic
+            tp(dir) = FLOOR(DOT_PRODUCT(h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
+            tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
+            IF (rs_grid%desc%perd(dir) .NE. 1) THEN
+               lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
+               ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
+            ELSE
+               lb(dir) = rs_grid%lb_local(dir)
+               ub(dir) = rs_grid%ub_local(dir)
+            END IF
+            ! distributed grid, only map if it is local to the grid
+            location(dir) = tp(dir) + rs_grid%desc%lb(dir)
+         END DO
+         IF (ALL(lb(:) <= location(:)) .AND. ALL(location(:) <= ub(:))) THEN
+            res = .TRUE.
+         END IF
+      ELSE
+         IF (PRESENT(offset) .AND. PRESENT(group_size) .AND. PRESENT(my_pos)) THEN
+            ! not distributed, just a round-robin distribution over the full set of CPUs
+            IF (MODULO(offset, group_size) == my_pos) res = .TRUE.
+         END IF
+      END IF
+
+   END FUNCTION map_gaussian_here
 
 END MODULE realspace_grid_types

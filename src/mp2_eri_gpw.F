@@ -54,7 +54,8 @@ MODULE mp2_eri_gpw
                                               pw_p_type,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
-                                              calculate_wavefunction
+                                              calculate_wavefunction,&
+                                              collocate_single_gaussian
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -65,7 +66,8 @@ MODULE mp2_eri_gpw
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+   USE realspace_grid_types,            ONLY: map_gaussian_here,&
+                                              realspace_grid_desc_p_type,&
                                               realspace_grid_p_type,&
                                               rs_grid_release,&
                                               rs_grid_retain
@@ -161,8 +163,6 @@ CONTAINS
 !> \brief Integrates the potential of an RI function
 !> \param qs_env ...
 !> \param para_env_sub ...
-!> \param dimen_RI ...
-!> \param mo_coeff ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param natom ...
@@ -171,13 +171,11 @@ CONTAINS
 !> \param L_local_col ...
 !> \param kind_of ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, &
+   SUBROUTINE mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, my_group_L_start, my_group_L_end, &
                                        natom, potential_parameter, sab_orb_sub, L_local_col, kind_of)
 
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
-      INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: mo_coeff
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, natom
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -194,7 +192,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, use_subpatch
       REAL(KIND=dp)                                      :: cutoff_old, radius, relative_cutoff_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
@@ -219,8 +217,6 @@ CONTAINS
       CALL prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                        auxbas_pw_pool, poisson_env, task_list_sub, rho_r, rho_g, pot_g, psi_L, sab_orb_sub)
 
-      ALLOCATE (wf_vector(dimen_RI))
-
       CALL get_qs_env(qs_env, cell=cell, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, particle_set=particle_set)
 
       L_local_col = 0.0_dp
@@ -229,14 +225,10 @@ CONTAINS
       DO LLL = my_group_L_start, my_group_L_end
          i_counter = i_counter + 1
 
-         wf_vector = 0.0_dp
-         wf_vector(LLL) = 1.0_dp
-
          ! pseudo psi_L
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
-                                     qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                     basis_type="RI_AUX", &
-                                     external_vector=wf_vector)
+         CALL collocate_single_gaussian(psi_L, rho_g, atomic_kind_set, &
+                                        qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
+                                        required_function=LLL, basis_type="RI_AUX")
 
          CALL timeset(routineN//"_pot_lm", handle2)
 
@@ -307,35 +299,10 @@ CONTAINS
                offset = offset_2d(iset, iatom)
 
                igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-               map_it_here = .FALSE.
-               use_subpatch = .FALSE.
-               IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                  DO dir = 1, 3
-                     ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                     tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                     tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                     IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir) + rs_v(igrid_level)%rs_grid%desc%border
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir) - rs_v(igrid_level)%rs_grid%desc%border
-                     ELSE
-                        lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                        ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                     END IF
-                     ! distributed grid, only map if it is local to the grid
-                     location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                  END DO
-                  IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                      lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                      lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                     map_it_here = .TRUE.
-                  END IF
-                  use_subpatch = .TRUE.
-               ELSE
-                  ! not distributed, just a round-robin distribution over the full set of CPUs
-                  IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-               END IF
+               use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
 
-               IF (map_it_here) THEN
+               IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, &
+                                     offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                   DO ipgf = 1, npgfa(iset)
                      sgfa = first_sgfa(1, iset)
                      na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
@@ -349,8 +316,8 @@ CONTAINS
                                                        prefactor=1.0_dp, cutoff=1.0_dp)
 
                      CALL integrate_pgf_product( &
-                        la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                        lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
+                        la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
+                        lb_max=0, zetb=0.0_dp, lb_min=0, &
                         ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
                         rsgrid=rs_v(igrid_level)%rs_grid, &
                         hab=I_tmp2, &
@@ -384,8 +351,6 @@ CONTAINS
 
       END DO
 
-      DEALLOCATE (wf_vector)
-
       CALL mp_sum(L_local_col, para_env_sub%group)
 
       CALL cleanup_gpw(qs_env, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
@@ -398,7 +363,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Integrates the potential of a RI function obtaining the forces and stress tensor
 !> \param rho_r ...
-!> \param wf_vector ...
+!> \param LLL ...
 !> \param matrix ...
 !> \param rho_g ...
 !> \param atomic_kind_set ...
@@ -421,14 +386,14 @@ CONTAINS
 !> \param dft_control ...
 !> \param psi_L ...
 ! **************************************************************************************************
-   SUBROUTINE integrate_potential_forces_2c(rho_r, wf_vector, matrix, rho_g, atomic_kind_set, &
+   SUBROUTINE integrate_potential_forces_2c(rho_r, LLL, matrix, rho_g, atomic_kind_set, &
                                             qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, pot_g, &
                                             potential_parameter, use_virial, rho_g_copy, dvg, &
                                             kind_of, atom_of_kind, G_PQ_local, force, h_stress, para_env_sub, &
                                             dft_control, psi_L)
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wf_vector
+      INTEGER, INTENT(IN)                                :: LLL
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
@@ -464,10 +429,9 @@ CONTAINS
       ! pseudo psi_L
       CALL pw_zero(rho_r%pw)
       CALL pw_zero(rho_g%pw)
-      CALL calculate_wavefunction(matrix, 1, rho_r, rho_g, atomic_kind_set, &
-                                  qs_kind_set, cell, dft_control, particle_set, &
-                                  pw_env_sub, basis_type='RI_AUX', &
-                                  external_vector=wf_vector)
+      CALL collocate_single_gaussian(rho_r, rho_g, atomic_kind_set, &
+                                     qs_kind_set, cell, dft_control, particle_set, &
+                                     pw_env_sub, required_function=LLL, basis_type='RI_AUX')
       IF (use_virial) THEN
          CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter, dvg)
       ELSE
@@ -597,8 +561,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_2c'
 
-      INTEGER :: atom_a, dir, handle, handle2, i, iatom, igrid_level, ikind, iorb, ipgf, iset, &
-         lb(3), location(3), na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
+      INTEGER                                            :: atom_a, handle, handle2, i, iatom, &
+                                                            igrid_level, ikind, iorb, ipgf, iset, &
+                                                            na1, na2, ncoa, nseta, offset, sgfa
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, skip_shell, use_subpatch
@@ -703,37 +668,9 @@ CONTAINS
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
             map_it_here = .FALSE.
-            use_subpatch = .FALSE.
+            use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
 
-            IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-               DO dir = 1, 3
-                  ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                  tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                  tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                  IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                     lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir) + rs_v(igrid_level)%rs_grid%desc%border
-                     ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir) - rs_v(igrid_level)%rs_grid%desc%border
-                  ELSE
-                     lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                     ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                  END IF
-                  ! distributed grid, only map if it is local to the grid
-                  location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
-               END DO
-               IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                   lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                   lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                  map_it_here = .TRUE.
-               END IF
-               use_subpatch = .TRUE.
-            ELSE
-               ! not distributed, just a round-robin distribution over the full set of CPUs
-               IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-            END IF
-
-            offset = offset + nsgfa(iset)
-
-            IF (map_it_here) THEN
+            IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                DO ipgf = 1, npgfa(iset)
                   na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                   na2 = ipgf*ncoset(la_max(iset))
@@ -766,6 +703,8 @@ CONTAINS
 
             DEALLOCATE (I_tmp2)
             DEALLOCATE (pab)
+
+            offset = offset + nsgfa(iset)
 
          END DO
 
@@ -932,13 +871,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential'
 
-      INTEGER                                            :: atom_a, dir, handle, i, iatom, &
-                                                            igrid_level, ikind, ipgf, iset, lb(3), &
-                                                            location(3), na1, na2, ncoa, nseta, &
-                                                            offset, sgfa, tp(3), ub(3)
+      INTEGER                                            :: atom_a, handle, i, iatom, igrid_level, &
+                                                            ikind, ipgf, iset, na1, na2, ncoa, &
+                                                            nseta, offset, sgfa
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: map_it_here, use_subpatch
+      LOGICAL                                            :: use_subpatch
       REAL(KIND=dp)                                      :: radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
@@ -1008,37 +946,9 @@ CONTAINS
             I_ab = 0.0_dp
 
             igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-            map_it_here = .FALSE.
-            use_subpatch = .FALSE.
-            IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-               DO dir = 1, 3
-                  ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                  tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                  tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                  IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                     lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir) + rs_v(igrid_level)%rs_grid%desc%border
-                     ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir) - rs_v(igrid_level)%rs_grid%desc%border
-                  ELSE
-                     lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                     ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                  END IF
-                  ! distributed grid, only map if it is local to the grid
-                  location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
-               END DO
-               IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                   lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                   lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                  map_it_here = .TRUE.
-               END IF
-               use_subpatch = .TRUE.
-            ELSE
-               ! not distributed, just a round-robin distribution over the full set of CPUs
-               IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-            END IF
+            use_subpatch = .NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)
 
-            offset = offset + nsgfa(iset)
-
-            IF (map_it_here) THEN
+            IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, offset, para_env_sub%num_pe, para_env_sub%mepos)) THEN
                DO ipgf = 1, npgfa(iset)
                   na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                   na2 = ipgf*ncoset(la_max(iset))
@@ -1074,6 +984,8 @@ CONTAINS
             DEALLOCATE (I_tmp2)
             DEALLOCATE (I_ab)
             DEALLOCATE (pab)
+
+            offset = offset + nsgfa(iset)
 
          END DO
 

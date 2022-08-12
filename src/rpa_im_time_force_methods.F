@@ -157,7 +157,8 @@ MODULE rpa_im_time_force_methods
                                               distribution_3d_create,&
                                               distribution_3d_type,&
                                               neighbor_list_3c_type
-   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+   USE realspace_grid_types,            ONLY: map_gaussian_here,&
+                                              realspace_grid_p_type,&
                                               rs_grid_release,&
                                               rs_grid_retain
    USE response_solver,                 ONLY: ks_ref_potential,&
@@ -2627,14 +2628,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_2c_gpw_forces'
 
       INTEGER :: atom_a, color, handle, i, i_RI, i_xyz, iatom, igrid_level, ikind, ipgf, iset, j, &
-         j_RI, jatom, lb(3), lb_RI, location(3), n_RI, natom, ncoa, ncoms, nkind, nproc, nseta, &
-         o1, offset, pdims(2), sgfa, tp(3), ub(3), ub_RI
+         j_RI, jatom, lb_RI, n_RI, natom, ncoa, ncoms, nkind, nproc, nseta, o1, offset, pdims(2), &
+         sgfa, ub_RI
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, iproc_map, kind_of, &
                                                             sizes_RI
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, la_max, la_min, npgfa, nsgfa, &
                                                             row_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, pgrid
-      LOGICAL                                            :: found, map_it_here, one_proc_group
+      LOGICAL                                            :: found, one_proc_group
       REAL(dp)                                           :: cutoff_old, radius, relative_cutoff_old
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: e_cutoff_old, wf_vector
       REAL(dp), DIMENSION(3)                             :: force_a, force_b, ra
@@ -2865,33 +2866,10 @@ CONTAINS
                              I_ab(1, 1), nsgfa(iset), 0.0_dp, pab(1, 1), ncoa)
 
                   igrid_level = gaussian_gridlevel(pw_env_ext%gridlevel_info, MINVAL(zeta(:, iset)))
-                  map_it_here = .FALSE.
-                  IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                     DO i_xyz = 1, 3
-                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                        tp(i_xyz) = FLOOR(DOT_PRODUCT(cell%h_inv(i_xyz, :), ra)* &
-                                          rs_v(igrid_level)%rs_grid%desc%npts(i_xyz))
-                        tp(i_xyz) = MODULO(tp(i_xyz), rs_v(igrid_level)%rs_grid%desc%npts(i_xyz))
-                        IF (rs_v(igrid_level)%rs_grid%desc%perd(i_xyz) .NE. 1) THEN
-                           lb(i_xyz) = rs_v(igrid_level)%rs_grid%lb_local(i_xyz) + rs_v(igrid_level)%rs_grid%desc%border
-                           ub(i_xyz) = rs_v(igrid_level)%rs_grid%ub_local(i_xyz) - rs_v(igrid_level)%rs_grid%desc%border
-                        ELSE
-                           lb(i_xyz) = rs_v(igrid_level)%rs_grid%lb_local(i_xyz)
-                           ub(i_xyz) = rs_v(igrid_level)%rs_grid%ub_local(i_xyz)
-                        END IF
-                        ! distributed grid, only map if it is local to the grid
-                        location(i_xyz) = tp(i_xyz) + rs_v(igrid_level)%rs_grid%desc%lb(i_xyz)
-                     END DO
-                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                        map_it_here = .TRUE.
-                     END IF
-                  ELSE
-                     map_it_here = .TRUE.
-                  END IF
 
-                  IF (map_it_here) THEN
+                  ! The last three parameters are used to check whether a given function is within the own range.
+                  ! Here, it is always the case, so let's enforce it because mod(0, 1)==0
+                  IF (map_gaussian_here(rs_v(igrid_level)%rs_grid, cell%h_inv, ra, 0, 1, 0)) THEN
                      DO ipgf = 1, npgfa(iset)
                         o1 = (ipgf - 1)*ncoset(la_max(iset))
                         igrid_level = gaussian_gridlevel(pw_env_ext%gridlevel_info, zeta(ipgf, iset))

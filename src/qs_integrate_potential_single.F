@@ -61,7 +61,8 @@ MODULE qs_integrate_potential_single
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE realspace_grid_types,            ONLY: pw2rs,&
+   USE realspace_grid_types,            ONLY: map_gaussian_here,&
+                                              pw2rs,&
                                               realspace_grid_p_type,&
                                               realspace_grid_type,&
                                               rs_grid_release,&
@@ -662,9 +663,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_one_center'
 
-      INTEGER :: atom_a, dir, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, m1, &
-         maxco, maxsgf_set, my_pos, na1, natom_of_kind, ncoa, nkind, nseta, offset, sgfa
-      INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
+      INTEGER :: atom_a, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, m1, maxco, &
+         maxsgf_set, my_pos, na1, natom_of_kind, ncoa, nkind, nseta, offset, sgfa
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -769,30 +769,7 @@ CONTAINS
                DO ipgf = 1, npgfa(iset)
                   igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                   rs_grid => rs_v(igrid_level)%rs_grid
-                  IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
-                     DO dir = 1, 3
-                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                        tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
-                        tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
-                        IF (rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
-                           ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
-                        ELSE
-                           lb(dir) = rs_grid%lb_local(dir)
-                           ub(dir) = rs_grid%ub_local(dir)
-                        END IF
-                        ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir) + rs_grid%desc%lb(dir)
-                     END DO
-                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                        map_it(ipgf) = .TRUE.
-                     END IF
-                  ELSE
-                     ! not distributed, just a round-robin distribution over the full set of CPUs
-                     IF (MODULO(offset, group_size) == my_pos) map_it(ipgf) = .TRUE.
-                  END IF
+                  map_it(ipgf) = map_gaussian_here(rs_grid, cell%h_inv, ra, offset, group_size, my_pos)
                END DO
                offset = offset + 1
                !
@@ -900,10 +877,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_diagonal'
 
-      INTEGER :: atom_a, dir, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, jpgf, &
-         jset, m1, maxco, maxsgf_set, my_pos, na1, na2, natom_of_kind, nb1, nb2, ncoa, ncob, &
-         nkind, nseta, nsgfa, offset, sgfa, sgfb
-      INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
+      INTEGER :: atom_a, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, jpgf, jset, &
+         m1, maxco, maxsgf_set, my_pos, na1, na2, natom_of_kind, nb1, nb2, ncoa, ncob, nkind, &
+         nseta, nsgfa, offset, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
@@ -1005,30 +981,7 @@ CONTAINS
                         zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                         igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                         rs_grid => rs_v(igrid_level)%rs_grid
-                        IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
-                           DO dir = 1, 3
-                              ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                              tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
-                              tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
-                              IF (rs_grid%desc%perd(dir) .NE. 1) THEN
-                                 lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
-                                 ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
-                              ELSE
-                                 lb(dir) = rs_grid%lb_local(dir)
-                                 ub(dir) = rs_grid%ub_local(dir)
-                              END IF
-                              ! distributed grid, only map if it is local to the grid
-                              location(dir) = tp(dir) + rs_grid%desc%lb(dir)
-                           END DO
-                           IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                               lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                               lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                              map_it2(ipgf, jpgf) = .TRUE.
-                           END IF
-                        ELSE
-                           ! not distributed, just a round-robin distribution over the full set of CPUs
-                           IF (MODULO(offset, group_size) == my_pos) map_it2(ipgf, jpgf) = .TRUE.
-                        END IF
+                        map_it2(ipgf, jpgf) = map_gaussian_here(rs_grid, cell%h_inv, ra, offset, group_size, my_pos)
                      END DO
                   END DO
                   offset = offset + 1

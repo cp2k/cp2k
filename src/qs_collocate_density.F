@@ -98,14 +98,9 @@ MODULE qs_collocate_density
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type,&
-                                              realspace_grid_type,&
-                                              rs2pw,&
-                                              rs_grid_release,&
-                                              rs_grid_retain,&
-                                              rs_grid_zero,&
-                                              rs_pw_transfer
+   USE realspace_grid_types,            ONLY: &
+        map_gaussian_here, realspace_grid_desc_p_type, realspace_grid_p_type, realspace_grid_type, &
+        rs2pw, rs_grid_release, rs_grid_retain, rs_grid_zero, rs_pw_transfer
    USE rs_pw_interface,                 ONLY: density_rs2pw,&
                                               density_rs2pw_basic
    USE task_list_methods,               ONLY: rs_copy_to_buffer,&
@@ -138,9 +133,8 @@ MODULE qs_collocate_density
              calculate_wavefunction, &
              calculate_rho_nlcc, &
              calculate_drho_elec_dR, &
-             calculate_drho_core
-
-   INTEGER :: debug_count = 0
+             calculate_drho_core, &
+             collocate_single_gaussian
 
 CONTAINS
 
@@ -529,10 +523,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_lri_rho_elec'
 
-      INTEGER :: atom_a, dir, group_size, handle, iatom, igrid_level, ikind, ipgf, iset, jpgf, &
-         jset, m1, maxco, maxsgf_set, my_pos, na1, natom, nb1, ncoa, ncob, nseta, offset, sgfa, &
-         sgfb
-      INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
+      INTEGER :: atom_a, group_size, handle, iatom, igrid_level, ikind, ipgf, iset, jpgf, jset, &
+         m1, maxco, maxsgf_set, my_pos, na1, natom, nb1, ncoa, ncob, nseta, offset, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: found
@@ -629,30 +621,7 @@ CONTAINS
                DO ipgf = 1, npgfa(iset)
                   igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
                   rs_grid => rs_rho(igrid_level)%rs_grid
-                  IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
-                     DO dir = 1, 3
-                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                        tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
-                        tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
-                        IF (rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
-                           ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
-                        ELSE
-                           lb(dir) = rs_grid%lb_local(dir)
-                           ub(dir) = rs_grid%ub_local(dir)
-                        END IF
-                        ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir) + rs_grid%desc%lb(dir)
-                     END DO
-                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                        map_it(ipgf) = .TRUE.
-                     END IF
-                  ELSE
-                     ! not distributed, just a round-robin distribution over the full set of CPUs
-                     IF (MODULO(offset, group_size) == my_pos) map_it(ipgf) = .TRUE.
-                  END IF
+                  map_it(ipgf) = map_gaussian_here(rs_grid, cell%h_inv, ra, offset, group_size, my_pos)
                END DO
                offset = offset + 1
 
@@ -731,30 +700,7 @@ CONTAINS
                            zetp = zeta(ipgf, iset) + zeta(jpgf, jset)
                            igrid_level = gaussian_gridlevel(gridlevel_info, zetp)
                            rs_grid => rs_rho(igrid_level)%rs_grid
-                           IF (.NOT. ALL(rs_grid%desc%perd == 1)) THEN
-                              DO dir = 1, 3
-                                 ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                                 tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_grid%desc%npts(dir))
-                                 tp(dir) = MODULO(tp(dir), rs_grid%desc%npts(dir))
-                                 IF (rs_grid%desc%perd(dir) .NE. 1) THEN
-                                    lb(dir) = rs_grid%lb_local(dir) + rs_grid%desc%border
-                                    ub(dir) = rs_grid%ub_local(dir) - rs_grid%desc%border
-                                 ELSE
-                                    lb(dir) = rs_grid%lb_local(dir)
-                                    ub(dir) = rs_grid%ub_local(dir)
-                                 END IF
-                                 ! distributed grid, only map if it is local to the grid
-                                 location(dir) = tp(dir) + rs_grid%desc%lb(dir)
-                              END DO
-                              IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                                  lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                                  lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                                 map_it2(ipgf, jpgf) = .TRUE.
-                              END IF
-                           ELSE
-                              ! not distributed, just a round-robin distribution over the full set of CPUs
-                              IF (MODULO(offset, group_size) == my_pos) map_it2(ipgf, jpgf) = .TRUE.
-                           END IF
+                           map_it2(ipgf, jpgf) = map_gaussian_here(rs_grid, cell%h_inv, ra, offset, group_size, my_pos)
                         END DO
                      END DO
                      offset = offset + 1
@@ -1752,8 +1698,6 @@ CONTAINS
                lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, sphi_a, &
                sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, workt)
 
-      debug_count = debug_count + 1
-
       ! by default, the full density is calculated
       my_soft = .FALSE.
       IF (PRESENT(soft_valid)) my_soft = soft_valid
@@ -2136,8 +2080,6 @@ CONTAINS
                lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, sphi_a, sphi_b, &
                zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, workt)
 
-      debug_count = debug_count + 1
-
       ! by default, the full density is calculated
       my_soft = .FALSE.
       IF (PRESENT(soft_valid)) my_soft = soft_valid
@@ -2468,6 +2410,192 @@ CONTAINS
    END SUBROUTINE calculate_drho_elec_dR
 
 ! **************************************************************************************************
+!> \brief maps a single gaussian on the grid
+!> \param rho ...
+!> \param rho_gspace ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param cell ...
+!> \param dft_control ...
+!> \param particle_set ...
+!> \param pw_env ...
+!> \param required_function ...
+!> \param basis_type ...
+!> \par History
+!>      08.2022 created from calculate_wavefunction
+!> \note
+!>      modified calculate_wave function assuming that the collocation of only a single Gaussian is required.
+!>      chooses a basis function (in contrast to calculate_rho_core or calculate_rho_single_gaussian)
+! **************************************************************************************************
+   SUBROUTINE collocate_single_gaussian(rho, rho_gspace, &
+                                        atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+                                        pw_env, required_function, basis_type)
+
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho, rho_gspace
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      INTEGER, INTENT(IN)                                :: required_function
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_single_gaussian'
+
+      CHARACTER(LEN=default_string_length)               :: my_basis_type
+      INTEGER :: group, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, maxco, &
+         maxsgf_set, my_index, my_pos, na1, na2, natom, ncoa, nseta, offset, sgfa
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: where_is_the_point
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: dab, eps_rho_rspace, radius, scale
+      REAL(KIND=dp), DIMENSION(3)                        :: ra
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab, sphi_a, zeta
+      TYPE(gridlevel_info_type), POINTER                 :: gridlevel_info
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: mgrid_gspace, mgrid_rspace
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(REALSPACE_GRID_P_TYPE), DIMENSION(:), POINTER :: rs_rho
+
+      IF (PRESENT(basis_type)) THEN
+         my_basis_type = basis_type
+      ELSE
+         my_basis_type = "ORB"
+      END IF
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (orb_basis_set, pab, la_max, la_min, npgfa, nsgfa, sphi_a, &
+               zeta, first_sgfa, rs_rho, pw_pools, mgrid_rspace, mgrid_gspace)
+
+      ! *** set up the pw multi-grids
+      CPASSERT(ASSOCIATED(pw_env))
+      CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
+                      gridlevel_info=gridlevel_info)
+
+      CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
+                               use_data=COMPLEXDATA1D, &
+                               in_space=RECIPROCALSPACE)
+      CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
+                               use_data=REALDATA3D, &
+                               in_space=REALSPACE)
+
+      ! *** set up rs multi-grids
+      DO igrid_level = 1, gridlevel_info%ngrid_levels
+         CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
+         CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+      END DO
+
+      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+!   *** Allocate work storage ***
+      CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+      CALL get_qs_kind_set(qs_kind_set, &
+                           maxco=maxco, &
+                           maxsgf_set=maxsgf_set, &
+                           basis_type=my_basis_type)
+
+      ALLOCATE (pab(maxco, 1))
+
+      offset = 0
+      group = mgrid_rspace(1)%pw%pw_grid%para%group
+      my_pos = mgrid_rspace(1)%pw%pw_grid%para%my_pos
+      group_size = mgrid_rspace(1)%pw%pw_grid%para%group_size
+      ALLOCATE (where_is_the_point(0:group_size - 1))
+
+      DO iatom = 1, natom
+         ikind = particle_set(iatom)%atomic_kind%kind_number
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=my_basis_type)
+         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                first_sgf=first_sgfa, &
+                                lmax=la_max, &
+                                lmin=la_min, &
+                                npgf=npgfa, &
+                                nset=nseta, &
+                                nsgf_set=nsgfa, &
+                                sphi=sphi_a, &
+                                zet=zeta)
+         ra(:) = pbc(particle_set(iatom)%r, cell)
+         dab = 0.0_dp
+
+         DO iset = 1, nseta
+
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            sgfa = first_sgfa(1, iset)
+
+            found = .FALSE.
+            my_index = 0
+            DO i = 1, nsgfa(iset)
+               IF (offset + i == required_function) THEN
+                  my_index = i
+                  found = .TRUE.
+                  EXIT
+               END IF
+            END DO
+
+            IF (found) THEN
+
+               pab(1:ncoa, 1) = sphi_a(1:ncoa, sgfa + my_index - 1)
+
+               DO ipgf = 1, npgfa(iset)
+
+                  na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+                  na2 = ipgf*ncoset(la_max(iset))
+
+                  scale = 1.0_dp
+                  igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
+
+                  IF (map_gaussian_here(rs_rho(igrid_level)%rs_grid, cell%h_inv, ra, offset, group_size, my_pos)) THEN
+                     radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
+                                                       lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
+                                                       zetp=zeta(ipgf, iset), eps=eps_rho_rspace, &
+                                                       prefactor=1.0_dp, cutoff=1.0_dp)
+
+                     CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), la_min(iset), &
+                                                0, 0.0_dp, 0, &
+                                                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                scale, pab, na1 - 1, 0, rs_rho(igrid_level)%rs_grid, &
+                                                radius=radius, ga_gb_function=GRID_FUNC_AB)
+                  END IF
+
+               END DO
+
+            END IF
+
+            offset = offset + nsgfa(iset)
+
+         END DO
+
+      END DO
+
+      DO igrid_level = 1, gridlevel_info%ngrid_levels
+         CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid, &
+                             mgrid_rspace(igrid_level)%pw, rs2pw)
+         CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
+      END DO
+
+      CALL pw_zero(rho_gspace%pw)
+      DO igrid_level = 1, gridlevel_info%ngrid_levels
+         CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
+                          mgrid_gspace(igrid_level)%pw)
+         CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_gspace%pw)
+      END DO
+
+      CALL pw_transfer(rho_gspace%pw, rho%pw)
+
+      ! Release work storage
+      DEALLOCATE (pab)
+
+      ! give back the pw multi-grids
+      CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
+      CALL pw_pools_give_back_pws(pw_pools, mgrid_rspace)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE collocate_single_gaussian
+
+! **************************************************************************************************
 !> \brief maps a given wavefunction on the grid
 !> \param mo_vectors ...
 !> \param ivector ...
@@ -2511,13 +2639,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction'
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
-      INTEGER :: dir, group, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, maxco, &
+      INTEGER :: group, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, maxco, &
          maxsgf_set, my_pos, na1, na2, nao, natom, ncoa, nseta, offset, sgfa
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: where_is_the_point
-      INTEGER, DIMENSION(3)                              :: lb, location, tp, ub
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: local, map_it_here
+      LOGICAL                                            :: local
       REAL(KIND=dp)                                      :: dab, eps_rho_rspace, radius, scale
       REAL(KIND=dp), DIMENSION(3)                        :: ra
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvector
@@ -2624,34 +2751,7 @@ CONTAINS
                scale = 1.0_dp
                igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf, iset))
 
-               map_it_here = .FALSE.
-
-               IF (.NOT. ALL(rs_rho(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                  DO dir = 1, 3
-                     ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                     tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_rho(igrid_level)%rs_grid%desc%npts(dir))
-                     tp(dir) = MODULO(tp(dir), rs_rho(igrid_level)%rs_grid%desc%npts(dir))
-                     IF (rs_rho(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                        lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local(dir) + rs_rho(igrid_level)%rs_grid%desc%border
-                        ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local(dir) - rs_rho(igrid_level)%rs_grid%desc%border
-                     ELSE
-                        lb(dir) = rs_rho(igrid_level)%rs_grid%lb_local(dir)
-                        ub(dir) = rs_rho(igrid_level)%rs_grid%ub_local(dir)
-                     END IF
-                     ! distributed grid, only map if it is local to the grid
-                     location(dir) = tp(dir) + rs_rho(igrid_level)%rs_grid%desc%lb(dir)
-                  END DO
-                  IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                      lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                      lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                     map_it_here = .TRUE.
-                  END IF
-               ELSE
-                  ! not distributed, just a round-robin distribution over the full set of CPUs
-                  IF (MODULO(offset, group_size) == my_pos) map_it_here = .TRUE.
-               END IF
-
-               IF (map_it_here) THEN
+               IF (map_gaussian_here(rs_rho(igrid_level)%rs_grid, cell%h_inv, ra, offset, group_size, my_pos)) THEN
                   radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
                                                     lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
                                                     zetp=zeta(ipgf, iset), eps=eps_rho_rspace, &
