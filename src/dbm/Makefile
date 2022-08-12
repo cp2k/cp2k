@@ -12,18 +12,26 @@ CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra -Wno-vla-parameter
 NVARCH := sm_70
 NVFLAGS := -g -O3 -lineinfo -arch $(NVARCH) -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
 
+ifneq ($(LIBXSMMROOT),)
+LIBS += \
+        -L$(LIBXSMMROOT)/lib -lxsmm -lxsmmext \
+        -lpthread -lrt
+CFLAGS += -D__LIBXSMM -I$(LIBXSMMROOT)/include
+endif
+
 ifneq ($(MKLROOT),)
 LIBS += \
+        -L$(MKLROOT)/lib/intel64 \
         -Wl,--start-group \
-        $(MKLROOT)/lib/intel64/libmkl_gf_lp64.a \
-        $(MKLROOT)/lib/intel64/libmkl_core.a \
-        $(MKLROOT)/lib/intel64/libmkl_sequential.a \
-        -Wl,--end-group -ldl
+        -lmkl_gf_lp64 \
+        -lmkl_core \
+        -lmkl_sequential \
+        -Wl,--end-group
 else
 LIBS += -lblas
 endif
 
-LIBS += -lstdc++ -lm
+LIBS += -fopenmp -ldl -lstdc++ -lc -lm
 
 ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
 ALL_OBJECTS := ../offload/offload_library.o \

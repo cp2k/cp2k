@@ -72,6 +72,8 @@ static dbm_matrix_t *create_some_matrix(const int row_size, const int col_size,
   }
   dbm_matrix_t *matrix = NULL;
   dbm_create(&matrix, dist, "some name", nrow, ncol, row_sizes, col_sizes);
+  // Ensure non-NaN values to avoid degenerated performance
+  dbm_zero(matrix);
   dbm_distribution_release(dist);
   free(row_sizes);
   free(col_sizes);
@@ -96,7 +98,7 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
       for (int col = 0; col < ncols; col++) {
         if (dbm_get_stored_coordinates(matrix, row, col) ==
             matrix->dist->my_rank) {
-          nblocks++;
+          ++nblocks;
         }
       }
     }
@@ -146,8 +148,8 @@ static void set_all_blocks(dbm_matrix_t *matrix) {
  * \brief Run a benchmark of dbm_multiply with given block sizes.
  * \author Ole Schuett
  ******************************************************************************/
-void bechmark_multiply(const int m, const int n, const int k,
-                       const dbm_mpi_comm_t comm) {
+void benchmark_multiply(const int m, const int n, const int k,
+                        const dbm_mpi_comm_t comm) {
   dbm_matrix_t *matrix_a = create_some_matrix(m, k, comm);
   dbm_matrix_t *matrix_b = create_some_matrix(k, n, comm);
   dbm_matrix_t *matrix_c = create_some_matrix(m, n, comm);
@@ -204,17 +206,17 @@ int main(int argc, char *argv[]) {
     fflush(stdout);
   }
 
-  bechmark_multiply(4, 4, 4, comm);
-  bechmark_multiply(128, 4, 4, comm);
-  bechmark_multiply(4, 128, 4, comm);
-  bechmark_multiply(4, 4, 128, comm);
-  bechmark_multiply(4, 128, 128, comm);
-  bechmark_multiply(128, 4, 128, comm);
-  bechmark_multiply(128, 128, 4, comm);
-  bechmark_multiply(128, 128, 128, comm);
+  benchmark_multiply(4, 4, 4, comm);
+  benchmark_multiply(128, 4, 4, comm);
+  benchmark_multiply(4, 128, 4, comm);
+  benchmark_multiply(4, 4, 128, comm);
+  benchmark_multiply(4, 128, 128, comm);
+  benchmark_multiply(128, 4, 128, comm);
+  benchmark_multiply(128, 128, 4, comm);
+  benchmark_multiply(128, 128, 128, comm);
 
-  bechmark_multiply(23, 23, 23, comm);
-  bechmark_multiply(32, 32, 32, comm);
+  benchmark_multiply(23, 23, 23, comm);
+  benchmark_multiply(32, 32, 32, comm);
 
   dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, my_rank);
   dbm_library_finalize();
