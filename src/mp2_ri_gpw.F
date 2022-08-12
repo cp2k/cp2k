@@ -1476,7 +1476,8 @@ CONTAINS
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
-      INTEGER, INTENT(OUT)                               :: block_size, ngroup, num_integ_group
+      INTEGER, INTENT(OUT)                               :: block_size, ngroup
+      INTEGER, INTENT(IN)                                :: num_integ_group
       LOGICAL, INTENT(IN)                                :: my_open_shell_ss, calc_forces
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: buffer_1D
