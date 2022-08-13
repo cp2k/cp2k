@@ -72,8 +72,6 @@ static dbm_matrix_t *create_some_matrix(const int row_size, const int col_size,
   }
   dbm_matrix_t *matrix = NULL;
   dbm_create(&matrix, dist, "some name", nrow, ncol, row_sizes, col_sizes);
-  // Ensure non-NaN values to avoid degenerated performance
-  dbm_zero(matrix);
   dbm_distribution_release(dist);
   free(row_sizes);
   free(col_sizes);
