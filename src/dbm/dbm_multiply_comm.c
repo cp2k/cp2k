@@ -66,50 +66,293 @@ static inline void icumsum(const int n, const int input[n], int output[n]) {
 typedef struct {
   const dbm_block_t *blk; // source block
   int rank;               // target mpi rank
-  int offset;             // offset in data_send array
+  int row_size;
+  int col_size;
 } plan_t;
 
 /*******************************************************************************
- * \brief Private comperator passed to qsort to compare two plans by rank.
+ * \brief Private routine for planing packs.
  * \author Ole Schuett
  ******************************************************************************/
-static int compare_plan_by_rank(const void *a, const void *b) {
-  const plan_t *blk_a = (plan_t *)a;
-  const plan_t *blk_b = (plan_t *)b;
-  return blk_a->rank - blk_b->rank;
+static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
+                              const dbm_matrix_t *matrix,
+                              const dbm_mpi_comm_t comm,
+                              const dbm_dist_1d_t *dist_indices,
+                              const dbm_dist_1d_t *dist_ticks, const int nticks,
+                              const int npacks, plan_t *plans_per_pack[npacks],
+                              int nblks_per_pack[npacks],
+                              int ndata_per_pack[npacks]) {
+
+  memset(nblks_per_pack, 0, npacks * sizeof(int));
+  memset(ndata_per_pack, 0, npacks * sizeof(int));
+
+#pragma omp parallel
+  {
+    // 1st pass: Compute number of blocks that will be send in each pack.
+    int nblks_mythread[npacks];
+    memset(nblks_mythread, 0, npacks * sizeof(int));
+#pragma omp for schedule(static)
+    for (int ishard = 0; ishard < matrix->nshards; ishard++) {
+      dbm_shard_t *shard = &matrix->shards[ishard];
+      for (int iblock = 0; iblock < shard->nblocks; iblock++) {
+        const dbm_block_t *blk = &shard->blocks[iblock];
+        const int sum_index = (trans_matrix) ? blk->row : blk->col;
+        const int itick = (1021 * sum_index) % nticks; // 1021 = a random prime
+        const int ipack = itick / dist_ticks->nranks;
+        nblks_mythread[ipack]++;
+      }
+    }
+
+    // Sum nblocks across threads and allocate arrays for plans.
+#pragma omp critical
+    for (int ipack = 0; ipack < npacks; ipack++) {
+      nblks_per_pack[ipack] += nblks_mythread[ipack];
+      nblks_mythread[ipack] = nblks_per_pack[ipack];
+    }
+#pragma omp barrier
+#pragma omp for
+    for (int ipack = 0; ipack < npacks; ipack++) {
+      plans_per_pack[ipack] = malloc(nblks_per_pack[ipack] * sizeof(plan_t));
+    }
+
+    // 2nd pass: Plan where to send each block.
+    int ndata_mythread[npacks];
+    memset(ndata_mythread, 0, npacks * sizeof(int));
+#pragma omp for schedule(static) // Need static to match previous loop.
+    for (int ishard = 0; ishard < matrix->nshards; ishard++) {
+      dbm_shard_t *shard = &matrix->shards[ishard];
+      for (int iblock = 0; iblock < shard->nblocks; iblock++) {
+        const dbm_block_t *blk = &shard->blocks[iblock];
+        const int free_index = (trans_matrix) ? blk->col : blk->row;
+        const int sum_index = (trans_matrix) ? blk->row : blk->col;
+        const int itick = (1021 * sum_index) % nticks; // Same mapping as above.
+        const int ipack = itick / dist_ticks->nranks;
+        // Compute rank to which this block should be sent.
+        const int coord_free_idx = dist_indices->index2coord[free_index];
+        const int coord_sum_idx = itick % dist_ticks->nranks;
+        const int coords[2] = {(trans_dist) ? coord_sum_idx : coord_free_idx,
+                               (trans_dist) ? coord_free_idx : coord_sum_idx};
+        const int rank = dbm_mpi_cart_rank(comm, coords);
+        const int row_size = matrix->row_sizes[blk->row];
+        const int col_size = matrix->col_sizes[blk->col];
+        ndata_mythread[ipack] += row_size * col_size;
+        // Create plan.
+        const int iplan = --nblks_mythread[ipack];
+        plans_per_pack[ipack][iplan].blk = blk;
+        plans_per_pack[ipack][iplan].rank = rank;
+        plans_per_pack[ipack][iplan].row_size = row_size;
+        plans_per_pack[ipack][iplan].col_size = col_size;
+      }
+    }
+#pragma omp critical
+    for (int ipack = 0; ipack < npacks; ipack++) {
+      ndata_per_pack[ipack] += ndata_mythread[ipack];
+    }
+  } // end of omp parallel region
+}
+
+/*******************************************************************************
+ * \brief Private routine for filling send buffers.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void fill_send_buffers(const dbm_matrix_t *matrix,
+                              const bool trans_matrix, const int nblks_send,
+                              const int ndata_send, plan_t plans[nblks_send],
+                              const int nranks, int blks_send_count[nranks],
+                              int data_send_count[nranks],
+                              int blks_send_displ[nranks],
+                              int data_send_displ[nranks],
+                              dbm_pack_block_t *blks_send, double *data_send) {
+
+  memset(blks_send_count, 0, nranks * sizeof(int));
+  memset(data_send_count, 0, nranks * sizeof(int));
+
+#pragma omp parallel
+  {
+    // 3th pass: Compute per rank nblks and ndata.
+    int nblks_mythread[nranks], ndata_mythread[nranks];
+    memset(nblks_mythread, 0, nranks * sizeof(int));
+    memset(ndata_mythread, 0, nranks * sizeof(int));
+#pragma omp for schedule(static)
+    for (int iblock = 0; iblock < nblks_send; iblock++) {
+      const plan_t *plan = &plans[iblock];
+      nblks_mythread[plan->rank] += 1;
+      ndata_mythread[plan->rank] += plan->row_size * plan->col_size;
+    }
+
+    // Sum nblks and ndata across threads.
+#pragma omp critical
+    for (int irank = 0; irank < nranks; irank++) {
+      blks_send_count[irank] += nblks_mythread[irank];
+      data_send_count[irank] += ndata_mythread[irank];
+      nblks_mythread[irank] = blks_send_count[irank];
+      ndata_mythread[irank] = data_send_count[irank];
+    }
+#pragma omp barrier
+
+    // Compute send displacements.
+#pragma omp master
+    {
+      icumsum(nranks, blks_send_count, blks_send_displ);
+      icumsum(nranks, data_send_count, data_send_displ);
+      const int m = nranks - 1;
+      assert(nblks_send == blks_send_displ[m] + blks_send_count[m]);
+      assert(ndata_send == data_send_displ[m] + data_send_count[m]);
+    }
+#pragma omp barrier
+
+    // 4th pass: Fill blks_send and data_send arrays.
+#pragma omp for schedule(static) // Need static to match previous loop.
+    for (int iblock = 0; iblock < nblks_send; iblock++) {
+      const plan_t *plan = &plans[iblock];
+      const int ishard = plan->blk->row % matrix->nshards;
+      const dbm_shard_t *shard = &matrix->shards[ishard];
+      const double *blk_data = &shard->data[plan->blk->offset];
+      const int row_size = plan->row_size, col_size = plan->col_size;
+      const int irank = plan->rank;
+
+      // The blk_send_data is ordered by rank, thread, and block.
+      //   data_send_displ[irank]: Start of data for irank within blk_send_data.
+      //   ndata_mythread[irank]: Current threads offset within data for irank.
+      nblks_mythread[irank] -= 1;
+      ndata_mythread[irank] -= row_size * col_size;
+      const int offset = data_send_displ[irank] + ndata_mythread[irank];
+      const int jblock = blks_send_displ[irank] + nblks_mythread[irank];
+
+      double norm = 0.0; // Compute norm as double...
+      if (trans_matrix) {
+        // Transpose block to allow for outer-product style multiplication.
+        for (int i = 0; i < row_size; i++) {
+          for (int j = 0; j < col_size; j++) {
+            const double element = blk_data[j * row_size + i];
+            norm += element * element;
+            data_send[offset + i * col_size + j] = element;
+          }
+        }
+        blks_send[jblock].free_index = plan->blk->col;
+        blks_send[jblock].sum_index = plan->blk->row;
+      } else {
+        for (int i = 0; i < row_size * col_size; i++) {
+          const double element = blk_data[i];
+          norm += element * element;
+          data_send[offset + i] = element;
+        }
+        blks_send[jblock].free_index = plan->blk->row;
+        blks_send[jblock].sum_index = plan->blk->col;
+      }
+      blks_send[jblock].norm = (float)norm; // ...store norm as float.
+
+      // After the block exchange data_recv_displ will be added to the offsets.
+      blks_send[jblock].offset = offset - data_send_displ[irank];
+    }
+  } // end of omp parallel region
 }
 
 /*******************************************************************************
  * \brief Private comperator passed to qsort to compare two blocks by sum_index.
  * \author Ole Schuett
  ******************************************************************************/
-static int compare_pack_blocks_by_hash(const void *a, const void *b) {
+static int compare_pack_blocks_by_sum_index(const void *a, const void *b) {
   const dbm_pack_block_t *blk_a = (dbm_pack_block_t *)a;
   const dbm_pack_block_t *blk_b = (dbm_pack_block_t *)b;
-  const int hash_a = dbm_pack_block_hash(blk_a);
-  const int hash_b = dbm_pack_block_hash(blk_b);
-  if (hash_a != hash_b) {
-    return hash_a - hash_b;
-  }
   return blk_a->sum_index - blk_b->sum_index;
 }
 
-static int compare_nshards; // Used by compare_pack_blocks_by_shard.
-
 /*******************************************************************************
- * \brief Private comperator passed to qsort to compare blocks by free_index.
+ * \brief Private routine for sorting blocks by the hash of their sum_index
  * \author Ole Schuett
  ******************************************************************************/
-static int compare_pack_blocks_by_shard(const void *a, const void *b) {
-  const dbm_pack_block_t *blk_a = (dbm_pack_block_t *)a;
-  const dbm_pack_block_t *blk_b = (dbm_pack_block_t *)b;
-  const int ishard_a = blk_a->free_index % compare_nshards;
-  const int ishard_b = blk_b->free_index % compare_nshards;
-  return ishard_a - ishard_b;
+static void sort_blocks_by_sum_index_hash(const int nblocks,
+                                          dbm_pack_block_t blocks[nblocks]) {
+
+  int nblocks_per_hash[PACK_HASH_SIZE], hash_start[PACK_HASH_SIZE];
+  memset(nblocks_per_hash, 0, PACK_HASH_SIZE * sizeof(int));
+  dbm_pack_block_t *blocks_tmp = malloc(nblocks * sizeof(dbm_pack_block_t));
+
+#pragma omp parallel
+  {
+    // Sort blocks by their hash.
+    int nblocks_mythread[PACK_HASH_SIZE];
+    memset(nblocks_mythread, 0, PACK_HASH_SIZE * sizeof(int));
+#pragma omp for schedule(static)
+    for (int iblock = 0; iblock < nblocks; iblock++) {
+      blocks_tmp[iblock] = blocks[iblock];
+      const int hash = dbm_pack_block_hash(&blocks[iblock]);
+      nblocks_mythread[hash]++;
+    }
+#pragma omp critical
+    for (int i = 0; i < PACK_HASH_SIZE; i++) {
+      nblocks_per_hash[i] += nblocks_mythread[i];
+      nblocks_mythread[i] = nblocks_per_hash[i];
+    }
+#pragma omp barrier
+#pragma omp master
+    icumsum(PACK_HASH_SIZE, nblocks_per_hash, hash_start);
+#pragma omp barrier
+#pragma omp for schedule(static) // Need static to match previous loop.
+    for (int iblock = 0; iblock < nblocks; iblock++) {
+      const int hash = dbm_pack_block_hash(&blocks_tmp[iblock]);
+      const int jblock = --nblocks_mythread[hash] + hash_start[hash];
+      blocks[jblock] = blocks_tmp[iblock];
+    }
+
+    // Sort blocks with same hash by their sum_index.
+#pragma omp for
+    for (int i = 0; i < PACK_HASH_SIZE; i++) {
+      if (nblocks_per_hash[i] > 1) {
+        qsort(&blocks[hash_start[i]], nblocks_per_hash[i],
+              sizeof(dbm_pack_block_t), &compare_pack_blocks_by_sum_index);
+      }
+    }
+  } // end of omp parallel region
+
+  free(blocks_tmp);
 }
 
 /*******************************************************************************
- * \brief Private routing for redistributing a matrix along selected dimensions.
+ * \brief Private routine for sorting blocks by the shard of their free_index.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void sort_blocks_by_free_index_shard(const int nshards,
+                                            const int nblocks,
+                                            dbm_pack_block_t blocks[nblocks]) {
+
+  int nblocks_per_shard[nshards], shard_start[nshards];
+  memset(nblocks_per_shard, 0, nshards * sizeof(int));
+  dbm_pack_block_t *blocks_tmp = malloc(nblocks * sizeof(dbm_pack_block_t));
+
+#pragma omp parallel
+  {
+    int nblocks_mythread[nshards];
+    memset(nblocks_mythread, 0, nshards * sizeof(int));
+#pragma omp for schedule(static)
+    for (int iblock = 0; iblock < nblocks; iblock++) {
+      blocks_tmp[iblock] = blocks[iblock];
+      const int ishard = blocks[iblock].free_index % nshards;
+      nblocks_mythread[ishard]++;
+    }
+#pragma omp critical
+    for (int ishard = 0; ishard < nshards; ishard++) {
+      nblocks_per_shard[ishard] += nblocks_mythread[ishard];
+      nblocks_mythread[ishard] = nblocks_per_shard[ishard];
+    }
+#pragma omp barrier
+#pragma omp master
+    icumsum(nshards, nblocks_per_shard, shard_start);
+#pragma omp barrier
+#pragma omp for schedule(static) // Need static to match previous loop.
+    for (int iblock = 0; iblock < nblocks; iblock++) {
+      const int ishard = blocks_tmp[iblock].free_index % nshards;
+      const int jblock = --nblocks_mythread[ishard] + shard_start[ishard];
+      blocks[jblock] = blocks_tmp[iblock];
+    }
+  } // end of omp parallel region
+
+  free(blocks_tmp);
+}
+
+/*******************************************************************************
+ * \brief Private routine for redistributing a matrix along selected dimensions.
  * \author Ole Schuett
  ******************************************************************************/
 static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
@@ -119,132 +362,45 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                                        const int nticks) {
 
   assert(dbm_mpi_comms_are_similar(matrix->dist->comm, dist->comm));
-  const int nranks = dist->nranks;
 
   // The row/col indicies are distributed along one cart dimension and the
   // ticks are distributed along the other cart dimension.
   const dbm_dist_1d_t *dist_indices = (trans_dist) ? &dist->cols : &dist->rows;
   const dbm_dist_1d_t *dist_ticks = (trans_dist) ? &dist->rows : &dist->cols;
 
+  // Allocate packed matrix.
   const int nsend_packs = nticks / dist_ticks->nranks;
   assert(nsend_packs * dist_ticks->nranks == nticks);
-
-  // Assemble packed matrix.
   dbm_packed_matrix_t packed;
   packed.dist_indices = dist_indices;
   packed.dist_ticks = dist_ticks;
   packed.nsend_packs = nsend_packs;
   packed.send_packs = malloc(nsend_packs * sizeof(dbm_pack_t));
 
+  // Plan all packs.
+  plan_t *plans_per_pack[nsend_packs];
+  int nblks_send_per_pack[nsend_packs], ndata_send_per_pack[nsend_packs];
+  create_pack_plans(trans_matrix, trans_dist, matrix, dist->comm, dist_indices,
+                    dist_ticks, nticks, nsend_packs, plans_per_pack,
+                    nblks_send_per_pack, ndata_send_per_pack);
+
+  // Can not parallelize over packs because there might be too few of them.
   for (int ipack = 0; ipack < nsend_packs; ipack++) {
-
-    // 1st pass: Compute number of blocks that will be send in total.
-    int nblocks_send = 0;
-    for (int ishard = 0; ishard < matrix->nshards; ishard++) {
-      dbm_shard_t *shard = &matrix->shards[ishard];
-      for (int iblock = 0; iblock < shard->nblocks; iblock++) {
-        const dbm_block_t *blk = &shard->blocks[iblock];
-        const int sum_index = (trans_matrix) ? blk->row : blk->col;
-        const int itick = sum_index % nticks; // TODO: smarter load-balancing
-        if (itick / dist_ticks->nranks == ipack) {
-          nblocks_send++; // This block belongs to the current set of packs.
-        }
-      }
-    }
-
-    // 2nd pass: Plan where to send which blocks.
-    plan_t *plans = malloc(nblocks_send * sizeof(plan_t));
-    int iplan = 0; // position of current plan
-    for (int ishard = 0; ishard < matrix->nshards; ishard++) {
-      dbm_shard_t *shard = &matrix->shards[ishard];
-      for (int iblock = 0; iblock < shard->nblocks; iblock++) {
-        const dbm_block_t *blk = &shard->blocks[iblock];
-        const int free_index = (trans_matrix) ? blk->col : blk->row;
-        const int sum_index = (trans_matrix) ? blk->row : blk->col;
-        const int itick = sum_index % nticks; // Has to be same mapping as above
-        if (itick / dist_ticks->nranks == ipack) {
-          // Compute rank to which this block should be send.
-          const int coord_free_idx = dist_indices->index2coord[free_index];
-          const int coord_sum_idx = itick % dist_ticks->nranks;
-          const int coords[2] = {(trans_dist) ? coord_sum_idx : coord_free_idx,
-                                 (trans_dist) ? coord_free_idx : coord_sum_idx};
-          const int rank = dbm_mpi_cart_rank(dist->comm, coords);
-          // Create plan.
-          plans[iplan].blk = blk;
-          plans[iplan].rank = rank;
-          iplan++;
-        }
-      }
-    }
-    assert(iplan == nblocks_send);
-
-    // Sort plans by rank.
-    qsort(plans, nblocks_send, sizeof(plan_t), &compare_plan_by_rank);
-
-    // 3th pass: Compute per rank send counts and displacements.
-    int ndata_send = 0;
-    int blks_send_count[nranks], data_send_count[nranks];
-    memset(blks_send_count, 0, nranks * sizeof(int));
-    memset(data_send_count, 0, nranks * sizeof(int));
-    for (int iblock = 0; iblock < nblocks_send; iblock++) {
-      plan_t *plan = &plans[iblock];
-      const int row_size = matrix->row_sizes[plan->blk->row];
-      const int col_size = matrix->col_sizes[plan->blk->col];
-      const int block_size = row_size * col_size;
-      plan->offset = ndata_send; // Offset within data_send array.
-      ndata_send += block_size;
-      blks_send_count[plan->rank] += 1;
-      data_send_count[plan->rank] += block_size;
-    }
-    int blks_send_displ[nranks], data_send_displ[nranks];
-    icumsum(nranks, blks_send_count, blks_send_displ);
-    icumsum(nranks, data_send_count, data_send_displ);
-
-    // 4th pass: Fill blks_send and data_send arrays.
-    double *data_send = dbm_mempool_host_malloc(ndata_send * sizeof(double));
+    // Allocate send buffers.
     dbm_pack_block_t *blks_send =
-        malloc(nblocks_send * sizeof(dbm_pack_block_t));
-#pragma omp parallel for schedule(dynamic)
-    for (int iblock = 0; iblock < nblocks_send; iblock++) {
-      const plan_t *plan = &plans[iblock];
-      const int ishard = plan->blk->row % matrix->nshards;
-      const dbm_shard_t *shard = &matrix->shards[ishard];
-      const double *blk_data = &shard->data[plan->blk->offset];
-      const int row_size = matrix->row_sizes[plan->blk->row];
-      const int col_size = matrix->col_sizes[plan->blk->col];
-      double *blk_send = &data_send[plan->offset];
-      double norm = 0.0; // Compute norm as double...
-      if (trans_matrix) {
-        // Transpose block to allow for outer-product style multiplication.
-        for (int i = 0; i < row_size; i++) {
-          for (int j = 0; j < col_size; j++) {
-            const double element = blk_data[j * row_size + i];
-            norm += element * element;
-            blk_send[i * col_size + j] = element;
-          }
-        }
-        blks_send[iblock].free_index = plan->blk->col;
-        blks_send[iblock].sum_index = plan->blk->row;
-      } else {
-        for (int i = 0; i < row_size * col_size; i++) {
-          const double element = blk_data[i];
-          norm += element * element;
-          blk_send[i] = element;
-        }
-        blks_send[iblock].free_index = plan->blk->row;
-        blks_send[iblock].sum_index = plan->blk->col;
-      }
-      blks_send[iblock].offset = plan->offset;
-      blks_send[iblock].norm = (float)norm; // ...store norm as float.
-    }
-    free(plans);
+        malloc(nblks_send_per_pack[ipack] * sizeof(dbm_pack_block_t));
+    double *data_send =
+        dbm_mempool_host_malloc(ndata_send_per_pack[ipack] * sizeof(double));
 
-    // Substract data_send_displ from block offsets.
-    for (int irank = 0; irank < nranks; irank++) {
-      for (int i = 0; i < blks_send_count[irank]; i++) {
-        blks_send[blks_send_displ[irank] + i].offset -= data_send_displ[irank];
-      }
-    }
+    // Fill send buffers according to plans.
+    const int nranks = dist->nranks;
+    int blks_send_count[nranks], data_send_count[nranks];
+    int blks_send_displ[nranks], data_send_displ[nranks];
+    fill_send_buffers(matrix, trans_matrix, nblks_send_per_pack[ipack],
+                      ndata_send_per_pack[ipack], plans_per_pack[ipack], nranks,
+                      blks_send_count, data_send_count, blks_send_displ,
+                      data_send_displ, blks_send, data_send);
+    free(plans_per_pack[ipack]);
 
     // 1st communication: Exchange block counts.
     int blks_recv_count[nranks], blks_recv_displ[nranks];
@@ -282,21 +438,20 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                              dist->comm);
     dbm_mempool_free(data_send);
 
-    // Add data_recv_displ to block offsets.
+    // Add data_recv_displ to recveived block offsets.
+#pragma omp parallel
     for (int irank = 0; irank < nranks; irank++) {
+#pragma omp for
       for (int i = 0; i < blks_recv_count[irank]; i++) {
         blks_recv[blks_recv_displ[irank] + i].offset += data_recv_displ[irank];
       }
     }
 
-    // Sort recveived blocks by sum_index as required for multiply_packs().
+    // Sort recveived blocks as required for multiply_packs().
     if (trans_dist) {
-      qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
-            &compare_pack_blocks_by_hash);
+      sort_blocks_by_sum_index_hash(nblocks_recv, blks_recv);
     } else {
-      compare_nshards = matrix->nshards; // Passing nshards to comparator.
-      qsort(blks_recv, nblocks_recv, sizeof(dbm_pack_block_t),
-            &compare_pack_blocks_by_shard);
+      sort_blocks_by_free_index_shard(matrix->nshards, nblocks_recv, blks_recv);
     }
 
     // Assemble received stuff into a pack.
