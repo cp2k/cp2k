@@ -69,18 +69,20 @@ $ cd cp2k/src/dbm
 $ make -j
 $ OMP_NUM_THREADS=32 ./dbm_miniapp.x
 
-MPI-ranks: 1  MPI-cart: 1 x 1  OpenMP-threads: 32
+OpenMP-threads: 32  GPUs: 1  Libxsmm: n/a  MPI-ranks: 1  MPI-cart: 1 x 1
 
-multiply    4  x    4  x    4 :  0.553 s  =>   29.0 GFLOP/s
-multiply  128  x    4  x    4 :  0.277 s  =>  229.6 GFLOP/s
-multiply    4  x  128  x    4 :  0.417 s  =>  152.2 GFLOP/s
-multiply    4  x    4  x  128 :  0.246 s  =>  258.0 GFLOP/s
-multiply    4  x  128  x  128 :  1.329 s  =>  189.6 GFLOP/s
-multiply  128  x    4  x  128 :  0.566 s  =>  445.3 GFLOP/s
-multiply  128  x  128  x    4 :  6.967 s  =>   36.2 GFLOP/s
-multiply  128  x  128  x  128 :  1.660 s  =>  602.1 GFLOP/s
-multiply   23  x   23  x   23 :  5.495 s  =>  185.0 GFLOP/s
-multiply   32  x   32  x   32 :  4.195 s  =>  244.1 GFLOP/s
+16384 x   128 x   128  with    4 x   4 x   4 blocks:  1.621 s =>    21.2 GFLOP/s
+  128 x 16384 x   128  with    4 x   4 x   4 blocks:  1.374 s =>    25.0 GFLOP/s
+  128 x   128 x 16384  with    4 x   4 x   4 blocks:  1.426 s =>    24.1 GFLOP/s
+   60 x   500 x   500  with  128 x   4 x   4 blocks:  0.159 s =>   386.7 GFLOP/s
+  500 x    60 x   500  with    4 x 128 x   4 blocks:  0.191 s =>   322.1 GFLOP/s
+  500 x   500 x    60  with    4 x   4 x 128 blocks:  0.193 s =>   317.7 GFLOP/s
+  500 x    60 x    60  with    4 x 128 x 128 blocks:  0.668 s =>   353.2 GFLOP/s
+   60 x   500 x    60  with  128 x   4 x 128 blocks:  0.351 s =>   672.8 GFLOP/s
+   60 x    60 x   500  with  128 x 128 x   4 blocks:  0.663 s =>   355.7 GFLOP/s
+   60 x    60 x    60  with  128 x 128 x 128 blocks:  0.870 s =>  1041.3 GFLOP/s
+  350 x   350 x   350  with   23 x  23 x  23 blocks:  2.141 s =>   487.3 GFLOP/s
+  250 x   250 x   250  with   32 x  32 x  32 blocks:  0.845 s =>  1212.4 GFLOP/s
 
  -------------------------------------------------------------------------------
  -                                                                             -
@@ -88,14 +90,14 @@ multiply   32  x   32  x   32 :  4.195 s  =>  244.1 GFLOP/s
  -                                                                             -
  -------------------------------------------------------------------------------
     M  x    N  x    K                                          COUNT     PERCENT
-    ?  x    ?  x    ?                                      125000000      53.21%
-   ??  x   ??  x   ??                                       57406923      24.44%
-    ?  x    ?  x  ???                                       15500000       6.60%
-    ?  x  ???  x    ?                                       15500000       6.60%
-  ???  x    ?  x    ?                                       15500000       6.60%
-    ?  x  ???  x  ???                                        1922000       0.82%
-  ???  x    ?  x  ???                                        1922000       0.82%
-  ???  x  ???  x    ?                                        1922000       0.82%
-  ???  x  ???  x  ???                                         238328       0.10%
+    ?  x    ?  x    ?                                      805306368      88.07%
+   ??  x   ??  x   ??                                       58500000       6.40%
+    ?  x    ?  x  ???                                       15000000       1.64%
+    ?  x  ???  x    ?                                       15000000       1.64%
+  ???  x    ?  x    ?                                       15000000       1.64%
+    ?  x  ???  x  ???                                        1800000       0.20%
+  ???  x    ?  x  ???                                        1800000       0.20%
+  ???  x  ???  x    ?                                        1800000       0.20%
+  ???  x  ???  x  ???                                         216000       0.02%
  -------------------------------------------------------------------------------
 ```
