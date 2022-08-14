@@ -32,22 +32,31 @@ static float *compute_rows_max_eps(const bool trans, const dbm_matrix_t *matrix,
                                    const double filter_eps) {
   const int nrows = (trans) ? matrix->ncols : matrix->nrows;
   int *nblocks_per_row = calloc(nrows, sizeof(int));
-  for (int ishard = 0; ishard < matrix->nshards; ishard++) {
-    dbm_shard_t *shard = &matrix->shards[ishard];
-    for (int iblock = 0; iblock < shard->nblocks; iblock++) {
-      const dbm_block_t *blk = &shard->blocks[iblock];
-      const int row = (trans) ? blk->col : blk->row;
-      nblocks_per_row[row]++;
-    }
-  }
-
-  dbm_mpi_sum_int(nblocks_per_row, nrows, matrix->dist->comm);
-
   float *row_max_eps = malloc(nrows * sizeof(float));
-  for (int i = 0; i < nrows; i++) {
-    const float f = ((float)filter_eps) / ((float)imax(1, nblocks_per_row[i]));
-    row_max_eps[i] = f * f;
-  }
+
+#pragma omp parallel
+  {
+#pragma omp for
+    for (int ishard = 0; ishard < matrix->nshards; ishard++) {
+      dbm_shard_t *shard = &matrix->shards[ishard];
+      for (int iblock = 0; iblock < shard->nblocks; iblock++) {
+        const dbm_block_t *blk = &shard->blocks[iblock];
+        const int row = (trans) ? blk->col : blk->row;
+#pragma omp atomic
+        nblocks_per_row[row]++;
+      }
+    }
+#pragma omp single
+    dbm_mpi_sum_int(nblocks_per_row, nrows, matrix->dist->comm);
+#pragma omp barrier
+#pragma omp for
+    for (int i = 0; i < nrows; i++) {
+      const float f =
+          ((float)filter_eps) / ((float)imax(1, nblocks_per_row[i]));
+      row_max_eps[i] = f * f;
+    }
+  } // end of omp parallel region
+
   free(nblocks_per_row);
   return row_max_eps; // Ownership of row_max_eps transfers to caller.
 }
@@ -195,16 +204,16 @@ static void multiply_packs(const bool transa, const bool transb,
     }
 
 #pragma omp for schedule(dynamic)
-    for (int kshard = 0; kshard < matrix_c->nshards; kshard++) {
-      dbm_shard_t *shard_c = &matrix_c->shards[kshard];
+    for (int ishard = 0; ishard < matrix_c->nshards; ishard++) {
+      dbm_shard_t *shard_c = &matrix_c->shards[ishard];
       dbm_task_t batch[MAX_BATCH_SIZE];
       int ntasks = 0;
 
       // Find block pairs with matching sum_index that belong to given shard_c.
-      const int iblock_start = shard_start[kshard];
+      const int iblock_start = shard_start[ishard];
       for (int iblock = iblock_start; iblock < pack_a->nblocks; iblock++) {
         const dbm_pack_block_t *blk_a = &pack_a->blocks[iblock];
-        if (blk_a->free_index % nshards != kshard) {
+        if (blk_a->free_index % nshards != ishard) {
           break;
         }
         const int hash_blk_a = dbm_pack_block_hash(blk_a);
@@ -261,13 +270,13 @@ static void multiply_packs(const bool transa, const bool transb,
           ntasks++;
 
           if (ntasks == MAX_BATCH_SIZE) {
-            backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, kshard,
+            backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, ishard,
                                   shard_c, ctx);
             ntasks = 0;
           }
         }
       }
-      backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, kshard,
+      backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, ishard,
                             shard_c, ctx);
     }
   }
