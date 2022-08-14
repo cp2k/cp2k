@@ -20,8 +20,8 @@ static const int INITIAL_DATA_ALLOCATED = 1024;
 
 // Choosing size as power of two allows to replace modulo with bitwise AND.
 static const int PACK_HASH_SIZE = 1024;
+static const int PACK_HASH_MASK = 1023; // PACK_HASH_SIZE - 1
 static const int PACK_HASH_PRIME = 509; // Closest prime to PACK_HASH_SIZE / 2.
-static const int PACK_HASH_MASK = (PACK_HASH_SIZE - 1);
 
 #endif
 
