@@ -131,7 +131,6 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param dimen_RI_red reduced RI dimension,  needed if we perform SVD instead of Cholesky
 !> \param kpoints ...
-!> \param mo_coeff ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
@@ -152,7 +151,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, mp2_memory, &
                                my_Lrows, my_Vrows, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
-                               kpoints, mo_coeff, my_group_L_size, my_group_L_start, my_group_L_end, &
+                               kpoints, my_group_L_size, my_group_L_start, my_group_L_end, &
                                gd_array, calc_PQ_cond_num, do_svd, &
                                potential, ri_metric, &
                                fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &
@@ -169,7 +168,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
       INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       INTEGER, INTENT(OUT)                               :: my_group_L_size, my_group_L_start, &
                                                             my_group_L_end
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
@@ -201,7 +199,7 @@ CONTAINS
 
       ! calculate V and store it in fm_matrix_L
       CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                                fm_matrix_L, ngroup, color_sub, dimen_RI, mo_coeff, &
+                                fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                 my_group_L_size, my_group_L_start, my_group_L_end, &
                                 gd_array, calc_PQ_cond_num, cond_num, &
                                 num_small_eigen, potential, sab_orb_sub, do_im_time=do_im_time)
@@ -245,7 +243,7 @@ CONTAINS
 
             ! Calculate matrix of RI operator (for overlap metric: S), store it in fm_matrix_L_RI_metric
             CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                                      fm_matrix_L_RI_metric(1, 1)%matrix, ngroup, color_sub, dimen_RI, mo_coeff, &
+                                      fm_matrix_L_RI_metric(1, 1)%matrix, ngroup, color_sub, dimen_RI, &
                                       my_group_L_size, my_group_L_start, my_group_L_end, &
                                       gd_array, calc_PQ_cond_num, cond_num, &
                                       num_small_eigen, ri_metric, sab_orb_sub, &
@@ -771,7 +769,6 @@ CONTAINS
 !> \param ngroup ...
 !> \param color_sub ...
 !> \param dimen_RI ...
-!> \param mo_coeff ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
@@ -785,7 +782,7 @@ CONTAINS
 !> \param fm_matrix_L_extern ...
 ! **************************************************************************************************
    SUBROUTINE compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
-                                   fm_matrix_L, ngroup, color_sub, dimen_RI, mo_coeff, &
+                                   fm_matrix_L, ngroup, color_sub, dimen_RI, &
                                    my_group_L_size, my_group_L_start, my_group_L_end, &
                                    gd_array, calc_PQ_cond_num, cond_num, num_small_eigen, potential, &
                                    sab_orb_sub, do_im_time, fm_matrix_L_extern)
@@ -798,10 +795,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
-      INTEGER, INTENT(OUT)                               :: dimen_RI
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      INTEGER, INTENT(OUT)                               :: my_group_L_size, my_group_L_start, &
-                                                            my_group_L_end
+      INTEGER, INTENT(OUT)                               :: dimen_RI, my_group_L_size, &
+                                                            my_group_L_start, my_group_L_end
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
@@ -893,7 +888,7 @@ CONTAINS
               (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os) &
               .OR. (potential_type == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)) THEN
 
-         CALL mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, &
+         CALL mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, my_group_L_start, my_group_L_end, &
                                        natom, potential, sab_orb_sub, L_local_col, kind_of)
 
       ELSE

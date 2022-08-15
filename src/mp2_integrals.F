@@ -345,7 +345,7 @@ CONTAINS
 
       CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, mp2_memory, &
                             my_Lrows, my_Vrows, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
-                            kpoints, mo_coeff(1)%matrix, my_group_L_size, my_group_L_start, my_group_L_end, &
+                            kpoints, my_group_L_size, my_group_L_start, my_group_L_end, &
                             gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, do_svd, &
                             qs_env%mp2_env%potential_parameter, ri_metric, &
                             fm_matrix_L_RI_metric, fm_matrix_Sinv_Vtrunc_Sinv, &

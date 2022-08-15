@@ -144,7 +144,7 @@ CONTAINS
       LOGICAL                                            :: alpha_beta, use_virial
       REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor, &
                                                             relative_cutoff_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
@@ -336,9 +336,6 @@ CONTAINS
          CALL prepare_gpw(qs_env, dft_control, e_cutoff_old, cutoff_old, relative_cutoff_old, para_env_sub, pw_env_sub, &
                           auxbas_pw_pool, poisson_env, task_list_sub, rho_r, rho_g, pot_g, psi_L, sab_orb_sub)
 
-         ! wave function vector and supporting stuff
-         ALLOCATE (wf_vector(dimen_RI))
-
          ! check if we want to calculate the virial
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
@@ -371,10 +368,7 @@ CONTAINS
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
-            wf_vector = 0.0_dp
-            wf_vector(LLL) = 1.0_dp
-
-            CALL integrate_potential_forces_2c(rho_r, wf_vector, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
+            CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                pot_g, mp2_env%potential_parameter, use_virial, &
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
@@ -382,7 +376,7 @@ CONTAINS
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
-               CALL integrate_potential_forces_2c(rho_r, wf_vector, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
+               CALL integrate_potential_forces_2c(rho_r, LLL, mo_coeff(1)%matrix, rho_g, atomic_kind_set, &
                                                   qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                   pot_g, mp2_env%ri_metric, use_virial, &
                                                   rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local_2(:, L_counter), &
@@ -414,7 +408,6 @@ CONTAINS
 
          DEALLOCATE (kind_of)
          DEALLOCATE (atom_of_kind)
-         DEALLOCATE (wf_vector)
 
          IF (use_virial) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy%pw)
