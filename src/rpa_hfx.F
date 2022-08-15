@@ -24,14 +24,9 @@ MODULE rpa_hfx
                                               dbcsr_deallocate_matrix_set
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_add,&
-                                              dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release,&
-                                              dbcsr_scale,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+   USE dbcsr_api,                       ONLY: &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_type
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section,&
                                               tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
@@ -189,7 +184,7 @@ CONTAINS
 
          calc_ints = .TRUE.
          IF (qs_env%mp2_env%ri_rpa%reuse_hfx) calc_ints = .FALSE.
-         IF (calc_forces) calc_ints = .FALSE.
+         IF (calc_forces .AND. qs_env%mp2_env%do_im_time) calc_ints = .FALSE.
 
          ehfx = 0.0_dp
          DO irep = 1, n_rep_hf
@@ -200,6 +195,19 @@ CONTAINS
                matrix_ks_2d(1:nspins, 1:1) => matrix_ks(1:nspins)
                rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
             END IF
+
+            IF (.NOT. qs_env%mp2_env%do_im_time .AND. calc_forces) THEN
+            IF (do_admm) THEN
+               CALL get_qs_env(qs_env, matrix_p_mp2_admm=matrix_p_mp2)
+            ELSE
+               CALL get_qs_env(qs_env, matrix_p_mp2=matrix_p_mp2)
+            END IF
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+            END DO
+            END IF
+
+            WRITE (*, *) "Norm rho", dbcsr_frobenius_norm(rho_ao_2d(1, 1)%matrix)
 
             IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
                CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
@@ -212,6 +220,12 @@ CONTAINS
                                              rho_ao_2d, hfx_sections, para_env, calc_ints, irep, .TRUE., ispin=ispin)
                   ehfx = ehfx + eh1
                END DO
+            END IF
+
+            IF (.NOT. qs_env%mp2_env%do_im_time .AND. calc_forces) THEN
+            DO ispin = 1, nspins
+               CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+            END DO
             END IF
          END DO
 
@@ -318,16 +332,18 @@ CONTAINS
 !> \brief Add the EXX contribution to the RHS of the Z-vector equation, namely the HF Hamiltonian
 !> \param rhs ...
 !> \param qs_env ...
+!> \param recalc_integrals ...
 ! **************************************************************************************************
-   SUBROUTINE add_exx_to_rhs(rhs, qs_env)
+   SUBROUTINE add_exx_to_rhs(rhs, qs_env, recalc_integrals)
 
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: rhs
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_integrals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_exx_to_rhs'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
-      LOGICAL                                            :: calc_ints
+      LOGICAL                                            :: calc_ints, my_recalc_integrals
       REAL(dp)                                           :: dummy_real1, dummy_real2
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, matrix_ks, matrix_s_aux, &
@@ -347,6 +363,9 @@ CONTAINS
                matrix_s_aux, admm_env, task_list_aux_fit)
 
       CALL timeset(routineN, handle)
+
+      my_recalc_integrals = .FALSE.
+      IF (PRESENT(recalc_integrals)) my_recalc_integrals = recalc_integrals
 
       ! Strategy: we take the ks_matrix, remove the current xc contribution, and then add the RPA HF one
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks, rho=rho, pw_env=pw_env, dft_control=dft_control)
@@ -399,7 +418,7 @@ CONTAINS
          nao_aux = admm_env%nao_aux_fit
          CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
 
-         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., .FALSE.)
+         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., my_recalc_integrals)
 
          DO ispin = 1, nspins
             CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
@@ -414,7 +433,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
          END DO
-         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., .FALSE.)
+         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., my_recalc_integrals)
          DO ispin = 1, nspins
             CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
          END DO

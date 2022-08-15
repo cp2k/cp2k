@@ -338,10 +338,11 @@ CONTAINS
          CALL section_vals_get(hfx_section, explicit=do_exx)
       END IF
       IF (do_exx) THEN
-         CALL add_exx_to_rhs(P_mu_nu, qs_env)
+         CALL add_exx_to_rhs(P_mu_nu, qs_env, mp2_env%ri_grad%free_hfx_buffer)
 
          focc = 1.0_dp
          IF (nspins == 1) focc = 2.0_dp
+         !focc = 0.0_dp
          DO ispin = 1, nspins
             CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)
             CALL cp_gemm("N", "N", dimen, homo(ispin), dimen, 1.0_dp, &
@@ -389,7 +390,8 @@ CONTAINS
                             mo_coeff_v, Eigenval, p_env, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, &
                             L_jb, &
-                            recalc_hfx_integrals=mp2_env%ri_grad%free_hfx_buffer)
+                            recalc_hfx_integrals=(.NOT. do_exx .AND. mp2_env%ri_grad%free_hfx_buffer) &
+                            .OR. (do_exx .AND. .NOT. mp2_env%ri_rpa%reuse_hfx))
 
       ! at this point Lagrangian is completed ready to solve the Z-vector equations
       ! P_ia will contain the solution of these equations
