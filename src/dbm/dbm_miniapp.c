@@ -220,17 +220,25 @@ int main(int argc, char *argv[]) {
   benchmark_multiply(16384, 128, 128, 4, 4, 4, comm);
   benchmark_multiply(128, 16384, 128, 4, 4, 4, comm);
   benchmark_multiply(128, 128, 16384, 4, 4, 4, comm);
+  benchmark_multiply(645, 645, 645, 4, 4, 4, comm);
+  if (my_rank == 0)
+    printf("\n");
 
   benchmark_multiply(60, 500, 500, 128, 4, 4, comm);
   benchmark_multiply(500, 60, 500, 4, 128, 4, comm);
   benchmark_multiply(500, 500, 60, 4, 4, 128, comm);
+  if (my_rank == 0)
+    printf("\n");
+
   benchmark_multiply(500, 60, 60, 4, 128, 128, comm);
   benchmark_multiply(60, 500, 60, 128, 4, 128, comm);
   benchmark_multiply(60, 60, 500, 128, 128, 4, comm);
-  benchmark_multiply(60, 60, 60, 128, 128, 128, comm);
+  if (my_rank == 0)
+    printf("\n");
 
   benchmark_multiply(350, 350, 350, 23, 23, 23, comm);
   benchmark_multiply(250, 250, 250, 32, 32, 32, comm);
+  benchmark_multiply(60, 60, 60, 128, 128, 128, comm);
 
   dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, my_rank);
   dbm_library_finalize();
