@@ -73,8 +73,9 @@ MODULE sirius_interface
         sirius_get_stress_tensor, sirius_ground_state_handler, sirius_import_parameters, &
         sirius_initialize, sirius_initialize_context, sirius_kpoint_set_handler, &
         sirius_option_get_info, sirius_option_get_section_length, sirius_option_set, &
-        sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_radial_grid, &
-        sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, sirius_update_ground_state
+        sirius_set_atom_position, sirius_set_atom_type_dion, sirius_set_atom_type_hubbard, &
+        sirius_set_atom_type_radial_grid, sirius_set_lattice_vectors, sirius_set_mpi_grid_dims, &
+        sirius_update_ground_state
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -434,23 +435,23 @@ CONTAINS
 
             IF (dft_plus_u_atom) THEN
                IF (nu < 1) THEN
-                  CALL cpabort("CP2K/SIRIUS (hubbard): principal quantum number not specified")
+                  CPABORT("CP2K/SIRIUS (hubbard): principal quantum number not specified")
                END IF
 
                IF (lu < 0) THEN
-                  CALL cpabort("CP2K/SIRIUS (hubbard): l can not be negative.")
+                  CPABORT("CP2K/SIRIUS (hubbard): l can not be negative.")
                END IF
 
                IF (occ_u < 0.0) THEN
-                  CALL cpabort("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
+                  CPABORT("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
                END IF
 
                IF (ABS(u_minus_j) < 1e-8) THEN
                   CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
-                                                    NINT(occ_u), U_u, J_u, alpha_u, beta_u, J0_u)
+                                                    occ_u, U_u, J_u, alpha_u, beta_u, J0_u)
                ELSE
                   CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
-                                                    NINT(occ_u), u_minus_j, 0.0_dp, alpha_u, beta_u, J0_u)
+                                                    occ_u, u_minus_j, 0.0_dp, alpha_u, beta_u, J0_u)
                END IF
             END IF
             IF (ASSOCIATED(density)) DEALLOCATE (density)
