@@ -422,8 +422,8 @@ CONTAINS
 
       INTEGER                                            :: nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: all_present, ppl_present, ppnl_present, &
-                                                            use_virial
+      LOGICAL                                            :: all_present, my_gt_nl, ppl_present, &
+                                                            ppnl_present, use_virial
       REAL(KIND=dp)                                      :: eps_ppnl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -440,6 +440,16 @@ CONTAINS
       NULLIFY (dft_control)
       CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, dft_control=dft_control)
       nimages = dft_control%nimages
+
+      ! check whether a gauge transformed version of the non-local potential part has to be used
+      my_gt_nl = .FALSE.
+      IF (qs_env%run_rtp) THEN
+         CPASSERT(ASSOCIATED(dft_control%rtp_control))
+         IF (dft_control%rtp_control%velocity_gauge) THEN
+            my_gt_nl = dft_control%rtp_control%nl_gauge_transform
+         END IF
+      END IF
+
       ! prepare for k-points
       NULLIFY (cell_to_index)
       IF (nimages > 1) THEN
@@ -504,9 +514,11 @@ CONTAINS
       eps_ppnl = dft_control%qs_control%eps_ppnl
       ppnl_present = ASSOCIATED(sap_ppnl)
       IF (ppnl_present) THEN
-         CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-                              nimages, cell_to_index, "ORB")
+         IF (.NOT. my_gt_nl) THEN
+            CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
+                                 qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
+                                 nimages, cell_to_index, "ORB")
+         END IF
       END IF
 
    END SUBROUTINE core_matrices

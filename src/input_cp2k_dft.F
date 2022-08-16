@@ -8289,7 +8289,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="VG_COM_NL", &
                           description="apply non local correction term", &
                           usage="VG_COM_NL T", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
