@@ -1896,16 +1896,11 @@ CONTAINS
                                       keyword_name="L", &
                                       i_val=l)
             qs_kind%dft_plus_u%l = l
-            IF (l < 0) &
-               CPABORT("DFT+U| Invalid orbital angular momentum quantum number specified: l < 0")
 #if defined(__SIRIUS)
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="N", &
                                       i_val=nu)
             qs_kind%dft_plus_u%n = nu
-
-            IF (nu < 0) &
-               CPABORT("DFT+U| the principal quantum number n can not be negative")
 
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="U", &
