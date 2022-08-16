@@ -86,19 +86,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param subtract_non_gt ...
+!> \param subtract_nl_term ...
 ! **************************************************************************************************
-   SUBROUTINE velocity_gauge_ks_matrix(qs_env, subtract_non_gt)
+   SUBROUTINE velocity_gauge_ks_matrix(qs_env, subtract_nl_term)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: subtract_non_gt
+      LOGICAL, INTENT(IN), OPTIONAL                      :: subtract_nl_term
 
       CHARACTER(len=*), PARAMETER :: routineN = 'velocity_gauge_ks_matrix'
 
       INTEGER                                            :: handle, idir, image, nder, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: add_nl_term, calculate_forces, &
-                                                            my_subtract_non_gt, ppnl_present, &
-                                                            use_virial
+      LOGICAL                                            :: calculate_forces, my_subtract_nl_term, &
+                                                            ppnl_present, use_virial
       REAL(KIND=dp)                                      :: eps_ppnl, factor, factor_kvec_nl, &
                                                             factor_lin, factor_nl_im, &
                                                             factor_nl_re, factor_qu
@@ -122,8 +121,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      my_subtract_non_gt = .FALSE.
-      IF (PRESENT(subtract_non_gt)) my_subtract_non_gt = subtract_non_gt
+      my_subtract_nl_term = .FALSE.
+      IF (PRESENT(subtract_nl_term)) my_subtract_nl_term = subtract_nl_term
 
       NULLIFY (dft_control, matrix_s, sab_orb, matrix_h, cell, input, matrix_h_im, kpoints, cell_to_index, &
                sap_ppnl, particle_set, qs_kind_set, atomic_kind_set, virial, force, matrix_p, rho, matrix_nl)
@@ -146,14 +145,15 @@ CONTAINS
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
       END IF
 
-      IF (my_subtract_non_gt) THEN
+      IF (my_subtract_nl_term) THEN
          IF (ppnl_present) THEN
             CALL get_qs_env(qs_env, &
                             qs_kind_set=qs_kind_set, &
                             particle_set=particle_set, &
                             atomic_kind_set=atomic_kind_set, &
                             virial=virial, &
-                            rho=rho)
+                            rho=rho, &
+                            force=force)
 
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
             calculate_forces = .FALSE.
@@ -203,7 +203,6 @@ CONTAINS
       END DO
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
-      CALL section_vals_val_get(hfx_sections, "VG_COM_NL", l_val=add_nl_term)
       CALL section_vals_val_get(hfx_sections, "FACTOR_NL_RE", r_val=factor_nl_re)
       CALL section_vals_val_get(hfx_sections, "FACTOR_NL_IM", r_val=factor_nl_im)
       CALL section_vals_val_get(hfx_sections, "FACTOR_LIN", r_val=factor_lin)
@@ -229,7 +228,7 @@ CONTAINS
       END DO
 
       IF (ppnl_present) THEN
-         IF (add_nl_term) THEN
+         IF (dft_control%rtp_control%nl_gauge_transform) THEN
             NULLIFY (nl_term)
             CALL dbcsr_allocate_matrix_set(nl_term, 2)
 

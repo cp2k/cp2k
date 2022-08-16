@@ -258,8 +258,11 @@ CONTAINS
          CALL calc_update_rho_sparse(qs_env)
       END IF
 
+      ! Modify KS matrix to include the additional terms in the velocity gauge
       IF (rtp_control%velocity_gauge) THEN
-         CALL velocity_gauge_ks_matrix(qs_env, subtract_non_gt=rtp_control%nl_gauge_transform)
+         ! As matrix_h and matrix_h_im are not updated by qs_ks_update_qs_env()
+         ! the non-gauge transformed non-local part has to be subtracted here
+         CALL velocity_gauge_ks_matrix(qs_env, subtract_nl_term=.TRUE.)
       END IF
       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.)
 
