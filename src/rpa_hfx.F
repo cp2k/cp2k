@@ -275,20 +275,15 @@ CONTAINS
                                                use_virial, external_x_data=qs_env%mp2_env%ri_rpa%x_data)
 
                END IF
-               IF (.NOT. qs_env%mp2_env%do_im_time) THEN
-                  IF (do_admm) THEN
-                     DO ispin = 1, nspins
-                        CALL dbcsr_add(rho_ao_aux_fit(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
-                     END DO
-                  ELSE
-                     DO ispin = 1, nspins
-                        CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
-                     END DO
-                  END IF
-               END IF
 
             END IF
          END DO !irep
+
+               IF (.NOT. qs_env%mp2_env%do_im_time) THEN
+                     DO ispin = 1, nspins
+                        CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+                     END DO
+               END IF
 
          IF (use_virial) THEN
             virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
