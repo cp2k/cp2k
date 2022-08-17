@@ -440,10 +440,13 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
 
     // Add data_recv_displ to recveived block offsets.
 #pragma omp parallel
-    for (int irank = 0; irank < nranks; irank++) {
+    { // Extra brackets needed to prevent deadlock with Intel compiler.
+      for (int irank = 0; irank < nranks; irank++) {
 #pragma omp for
-      for (int i = 0; i < blks_recv_count[irank]; i++) {
-        blks_recv[blks_recv_displ[irank] + i].offset += data_recv_displ[irank];
+        for (int i = 0; i < blks_recv_count[irank]; i++) {
+          blks_recv[blks_recv_displ[irank] + i].offset +=
+              data_recv_displ[irank];
+        }
       }
     }
 
