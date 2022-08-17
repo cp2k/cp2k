@@ -2163,14 +2163,14 @@ CONTAINS
          ijk_counter_send, ijk_index, irep, ispin, kspin, Lend_pos, Lstart_pos, my_i, my_j, my_k, &
          my_virtual, nspins, proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
          rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
-         send_i, send_ijk_index, send_j, send_k, size_B_i, size_B_ij, size_B_ijk, size_B_k, &
-         start_point, tag
+         send_i, send_ijk_index, send_j, send_k, size_B_i, size_B_k, start_point, tag
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: max_ijk, my_ijk
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: num_ijk
       LOGICAL                                            :: alpha_beta
       REAL(KIND=dp)                                      :: amp_fac, P_ij_elem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         TARGET                                          :: local_ab, local_aL, t_ab
+         TARGET                                          :: local_ab, local_aL_i, local_aL_j, &
+                                                            local_aL_k, t_ab
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: BI_C_rec, external_ab, external_aL
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: ijk_map
 
@@ -2201,10 +2201,10 @@ CONTAINS
          END IF
          size_B_k = my_B_size(kspin)
          my_virtual = virtual(ispin)
-         size_B_ij = 2*size_B_i
-         size_B_ijk = size_B_ij + size_B_k
 
-         ALLOCATE (local_aL(dimen_RI, size_B_ijk))
+         ALLOCATE (local_aL_i(dimen_RI, size_B_i))
+         ALLOCATE (local_aL_j(dimen_RI, size_B_i))
+         ALLOCATE (local_aL_k(dimen_RI, size_B_k))
          ALLOCATE (t_ab(my_virtual, size_B_k))
 
          DO ijk_index = 1, max_ijk(ispin)
@@ -2216,24 +2216,25 @@ CONTAINS
                my_j = ijk_map(ispin)%array(ijk_counter, 2)
                my_k = ijk_map(ispin)%array(ijk_counter, 3)
 
-               local_aL = 0.0_dp
+               local_aL_i = 0.0_dp
+               local_aL_j = 0.0_dp
+               local_aL_k = 0.0_dp
                DO irep = 0, num_integ_group - 1
                   Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
                   Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
-!$OMP PARALLEL DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_i,size_B_ij,start_point,end_point,&
-!$OMP                               my_i,my_j,my_k,BIb_C,ispin,kspin,size_B_k)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(local_aL_i,local_aL_j,local_aL_k,Lstart_pos,Lend_pos,start_point,end_point,&
+!$OMP                               my_i,my_j,my_k,BIb_C,ispin,kspin)
 !$OMP WORKSHARE
-                  local_aL(Lstart_pos:Lend_pos, :size_B_i) = BIb_C(ispin)%array(start_point:end_point, 1:size_B_i, my_i)
+                  local_aL_i(Lstart_pos:Lend_pos, :) = BIb_C(ispin)%array(start_point:end_point, :, my_i)
 !$OMP END WORKSHARE NOWAIT
 !$OMP WORKSHARE
-                  local_aL(Lstart_pos:Lend_pos, size_B_i + 1:size_B_ij) = &
-                     BIb_C(ispin)%array(start_point:end_point, 1:size_B_i, my_j)
+                  local_aL_j(Lstart_pos:Lend_pos, :) = BIb_C(ispin)%array(start_point:end_point, :, my_j)
 !$OMP END WORKSHARE NOWAIT
 !$OMP WORKSHARE
-                  local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BIb_C(kspin)%array(start_point:end_point, 1:size_B_k, my_k)
+                  local_aL_k(Lstart_pos:Lend_pos, :) = BIb_C(kspin)%array(start_point:end_point, :, my_k)
 !$OMP END WORKSHARE NOWAIT
 !$OMP END PARALLEL
                END DO
@@ -2260,12 +2261,12 @@ CONTAINS
                   ! occupied i
                   BI_C_rec = 0.0_dp
                   IF (ijk_index <= send_ijk_index) THEN
-                     CALL mp_sendrecv(BIb_C(ispin)%array(1:my_group_L_size, 1:size_B_i, send_i), proc_send, &
-                                      BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, &
+                     CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i), proc_send, &
+                                      BI_C_rec, proc_receive, &
                                       para_env_exchange%group, tag)
                   ELSE
                      ! nothing to send
-                     CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, tag, &
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, &
                                   para_env_exchange%group)
                   END IF
                   DO irep = 0, num_integ_group - 1
@@ -2274,32 +2275,20 @@ CONTAINS
                      start_point = ranges_info_array(3, irep, proc_receive)
                      end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_i,BI_C_rec,start_point,end_point)
-                     local_aL(Lstart_pos:Lend_pos, 1:size_B_i) = BI_C_rec(start_point:end_point, 1:size_B_i)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL_i,Lstart_pos,Lend_pos,BI_C_rec,start_point,end_point)
+                     local_aL_i(Lstart_pos:Lend_pos, :) = BI_C_rec(start_point:end_point, :)
 !$OMP END PARALLEL WORKSHARE
                   END DO
-                  IF (my_i == my_k .AND. .NOT. alpha_beta) THEN
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_k)
-                        local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BI_C_rec(start_point:end_point, 1:size_B_k)
-!$OMP END PARALLEL WORKSHARE
-                     END DO
-                  END IF
 
                   ! occupied j
                   BI_C_rec = 0.0_dp
                   IF (ijk_index <= send_ijk_index) THEN
-                     CALL mp_sendrecv(BIb_C(ispin)%array(1:my_group_L_size, 1:size_B_i, send_j), proc_send, &
-                                      BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, &
+                     CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_j), proc_send, &
+                                      BI_C_rec, proc_receive, &
                                       para_env_exchange%group, tag)
                   ELSE
                      ! nothing to send
-                     CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, tag, &
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, &
                                   para_env_exchange%group)
                   END IF
                   DO irep = 0, num_integ_group - 1
@@ -2308,66 +2297,32 @@ CONTAINS
                      start_point = ranges_info_array(3, irep, proc_receive)
                      end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_i)
-                     local_aL(Lstart_pos:Lend_pos, size_B_i + 1:size_B_ij) = BI_C_rec(start_point:end_point, 1:size_B_i)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL_j,Lstart_pos,Lend_pos,BI_C_rec,start_point,end_point)
+                     local_aL_j(Lstart_pos:Lend_pos, :) = BI_C_rec(start_point:end_point, :)
 !$OMP END PARALLEL WORKSHARE
                   END DO
-                  IF (my_j == my_k .AND. .NOT. alpha_beta) THEN
-                     DO irep = 0, num_integ_group - 1
-                        Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                        Lend_pos = ranges_info_array(2, irep, proc_receive)
-                        start_point = ranges_info_array(3, irep, proc_receive)
-                        end_point = ranges_info_array(4, irep, proc_receive)
 
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_k)
-                        local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BI_C_rec(start_point:end_point, 1:size_B_k)
-!$OMP END PARALLEL WORKSHARE
-                     END DO
+                  ! occupied k
+                  BI_C_rec(1:rec_L_size, 1:size_B_k) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k)
+                  IF (ijk_index <= send_ijk_index) THEN
+                     CALL mp_sendrecv(BIb_C(kspin)%array(:, :, send_k), proc_send, &
+                                      BI_C_rec, proc_receive, &
+                                      para_env_exchange%group, tag)
+                  ELSE
+                     ! nothing to send
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, &
+                                  para_env_exchange%group)
                   END IF
+                  DO irep = 0, num_integ_group - 1
+                     Lstart_pos = ranges_info_array(1, irep, proc_receive)
+                     Lend_pos = ranges_info_array(2, irep, proc_receive)
+                     start_point = ranges_info_array(3, irep, proc_receive)
+                     end_point = ranges_info_array(4, irep, proc_receive)
 
-                  IF ((my_i /= my_k .AND. my_j /= my_k) .OR. alpha_beta) THEN
-                     IF ((send_i /= send_k .AND. send_j /= send_k) .OR. alpha_beta) THEN
-                        ! occupied k
-                        BI_C_rec(1:rec_L_size, 1:size_B_k) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k)
-                        IF (ijk_index <= send_ijk_index) THEN
-                           CALL mp_sendrecv(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
-                                            BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
-                                            para_env_exchange%group, tag)
-                        ELSE
-                           ! nothing to send
-                           CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, tag, &
-                                        para_env_exchange%group)
-                        END IF
-                        DO irep = 0, num_integ_group - 1
-                           Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                           Lend_pos = ranges_info_array(2, irep, proc_receive)
-                           start_point = ranges_info_array(3, irep, proc_receive)
-                           end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_k)
-                           local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BI_C_rec(start_point:end_point, 1:size_B_k)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL_k,Lstart_pos,Lend_pos,BI_C_rec,start_point,end_point)
+                     local_aL_k(Lstart_pos:Lend_pos, :) = BI_C_rec(start_point:end_point, :)
 !$OMP END PARALLEL WORKSHARE
-                        END DO
-                     ELSE IF (.NOT. alpha_beta) THEN
-                        ! occupied k
-                        BI_C_rec(1:rec_L_size, 1:size_B_k) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k)
-                        CALL mp_recv(BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, tag, &
-                                     para_env_exchange%group)
-                        DO irep = 0, num_integ_group - 1
-                           Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                           Lend_pos = ranges_info_array(2, irep, proc_receive)
-                           start_point = ranges_info_array(3, irep, proc_receive)
-                           end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,size_B_ij,BI_C_rec,start_point,end_point,size_B_k)
-                           local_aL(Lstart_pos:Lend_pos, size_B_ij + 1:) = BI_C_rec(start_point:end_point, 1:size_B_k)
-!$OMP END PARALLEL WORKSHARE
-                        END DO
-                     END IF
-                  ELSE IF (send_i /= send_k .AND. send_j /= send_k .AND. .NOT. alpha_beta .AND. ijk_index <= send_ijk_index) THEN
-                     CALL mp_send(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
-                                  tag, para_env_exchange%group)
-                  END IF
+                  END DO
                END DO
                CALL timestop(handle2)
 
@@ -2377,7 +2332,7 @@ CONTAINS
                ALLOCATE (local_ab(my_virtual, size_B_k))
                local_ab = 0.0_dp
                CALL offload_dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
-                                  local_aL(:, :size_B_i), dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
+                                  local_aL_i, dimen_RI, local_aL_k, dimen_RI, &
                                   0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), 1:size_B_k), size_B_i, &
                                   mp2_env%offload_gemm_ctx)
                DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -2388,12 +2343,12 @@ CONTAINS
 
                   external_aL(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, KIND=int_8)*rec_B_size)
 
-                  CALL mp_sendrecv(local_aL(:, :size_B_i), proc_send, &
+                  CALL mp_sendrecv(local_aL_i, proc_send, &
                                    external_aL, proc_receive, &
                                    para_env_sub%group, tag)
 
                   CALL offload_dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
-                                     external_aL, dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
+                                     external_aL, dimen_RI, local_aL_k, dimen_RI, &
                                      0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
                                      mp2_env%offload_gemm_ctx)
                END DO
@@ -2455,7 +2410,7 @@ CONTAINS
                local_ab = 0.0_dp
                CALL dgemm_counter_start(dgemm_counter)
                CALL offload_dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
-                                  local_aL(:, size_B_i + 1:size_B_ij), dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
+                                  local_aL_j, dimen_RI, local_aL_k, dimen_RI, &
                                   0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), 1:size_B_k), size_B_i, &
                                   mp2_env%offload_gemm_ctx)
                DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -2466,11 +2421,11 @@ CONTAINS
 
                   external_aL(1:dimen_RI, 1:rec_B_size) => buffer_1D(1:INT(dimen_RI, KIND=int_8)*rec_B_size)
 
-                  CALL mp_sendrecv(local_aL(:, size_B_i + 1:size_B_ij), proc_send, &
+                  CALL mp_sendrecv(local_aL_j, proc_send, &
                                    external_aL, proc_receive, &
                                    para_env_sub%group, tag)
                   CALL offload_dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
-                                     external_aL, dimen_RI, local_aL(:, size_B_ij + 1:), dimen_RI, &
+                                     external_aL, dimen_RI, local_aL_k, dimen_RI, &
                                      0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
                                      mp2_env%offload_gemm_ctx)
                END DO
@@ -2534,7 +2489,9 @@ CONTAINS
                CALL timestop(handle2)
             END IF
          END DO ! ijk_index loop
-         DEALLOCATE (local_aL)
+         DEALLOCATE (local_aL_i)
+         DEALLOCATE (local_aL_j)
+         DEALLOCATE (local_aL_k)
          DEALLOCATE (t_ab)
       END DO ! over number of loops (iloop)
       !
