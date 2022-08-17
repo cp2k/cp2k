@@ -2535,17 +2535,18 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: max_ijk
       INTEGER, INTENT(IN)                                :: color_sub
 
-      INTEGER                                            :: iib, ijk_counter, ispin, jjb, kkb, &
-                                                            my_homo, nspins, num_sing_ij, total_ijk
-      LOGICAL                                            :: alpha_beta
+      INTEGER :: block_size, iib, ij_counter, ijk_counter, ispin, jjb, kkb, max_num_k_blocks, &
+         my_homo, nspins, num_k_blocks, num_sing_ij, total_ijk
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: ijk_marker
 
       nspins = SIZE(homo)
-      alpha_beta = (nspins == 2)
 
       ALLOCATE (ijk_map(nspins))
       ALLOCATE (my_ijk(nspins))
       ALLOCATE (num_ijk(0:para_env_exchange%num_pe - 1, nspins))
       ALLOCATE (max_ijk(nspins))
+
+      block_size = 1
 
       ! General case
       DO ispin = 1, nspins
@@ -2571,25 +2572,57 @@ CONTAINS
          END IF
          CALL m_flush(unit_nr)
          END IF
+
+         ! Calculate number of large blocks
+         max_num_k_blocks = my_homo/block_size*num_sing_ij
+         num_k_blocks = max_num_k_blocks - MOD(max_num_k_blocks, ngroup)
+
          total_ijk = my_homo*num_sing_ij
-         ALLOCATE (ijk_map(ispin)%array(total_ijk, 3))
+         ALLOCATE (ijk_map(ispin)%array(total_ijk, 4))
          ijk_map(ispin)%array = 0
+         ALLOCATE (ijk_marker(my_homo, num_sing_ij))
+         ijk_marker = .TRUE.
 
          my_ijk(ispin) = 0
          ijk_counter = 0
+         ij_counter = 0
          DO iiB = 1, homo(ispin)
             ! diagonal elements already updated
             DO jjB = iiB + 1, homo(ispin)
                IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) >= mp2_env%ri_grad%eps_canonical) CYCLE
-               DO kkB = 1, my_homo
+               ij_counter = ij_counter + 1
+               DO kkB = 1, my_homo, block_size
+                  IF (ijk_counter + 1 > num_k_blocks) EXIT
                   ijk_counter = ijk_counter + 1
+                  ijk_marker(kkB:kkB + block_size - 1, ij_counter) = .FALSE.
                   ijk_map(ispin)%array(ijk_counter, 1) = iiB
                   ijk_map(ispin)%array(ijk_counter, 2) = jjB
                   ijk_map(ispin)%array(ijk_counter, 3) = kkB
+                  ijk_map(ispin)%array(ijk_counter, 4) = block_size
                   IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk(ispin) = my_ijk(ispin) + 1
                END DO
             END DO
          END DO
+         ij_counter = 0
+         DO iiB = 1, homo(ispin)
+            ! diagonal elements already updated
+            DO jjB = iiB + 1, homo(ispin)
+               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) >= mp2_env%ri_grad%eps_canonical) CYCLE
+               ij_counter = ij_counter + 1
+               DO kkB = 1, my_homo
+                  IF (ijk_marker(kkB, ij_counter)) THEN
+                     ijk_counter = ijk_counter + 1
+                     ijk_map(ispin)%array(ijk_counter, 1) = iiB
+                     ijk_map(ispin)%array(ijk_counter, 2) = jjB
+                     ijk_map(ispin)%array(ijk_counter, 3) = kkB
+                     ijk_map(ispin)%array(ijk_counter, 4) = 1
+                     IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk(ispin) = my_ijk(ispin) + 1
+                  END IF
+               END DO
+            END DO
+         END DO
+
+         DEALLOCATE (ijk_marker)
 
          CALL mp_allgather(my_ijk(ispin), num_ijk(:, ispin), para_env_exchange%group)
          max_ijk(ispin) = MAXVAL(num_ijk(:, ispin))
