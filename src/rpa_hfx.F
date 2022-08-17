@@ -24,9 +24,14 @@ MODULE rpa_hfx
                                               dbcsr_deallocate_matrix_set
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, dbcsr_p_type, dbcsr_release, &
-        dbcsr_scale, dbcsr_set, dbcsr_type
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_scale,&
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE hfx_admm_utils,                  ONLY: create_admm_xc_section,&
                                               tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
@@ -101,8 +106,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: eh1, ehfx, t1, t2
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_ks_aux_fit, &
-                                                            matrix_p_mp2, matrix_p_mp2_admm, &
-                                                            rho_ao, rho_ao_aux_fit, rho_ao_resp
+                                                            matrix_p_mp2, rho_ao, rho_ao_aux_fit, &
+                                                            rho_ao_resp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_2d, rho_ao_2d
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -187,27 +192,26 @@ CONTAINS
          IF (calc_forces .AND. qs_env%mp2_env%do_im_time) calc_ints = .FALSE.
 
          ehfx = 0.0_dp
+         IF (do_admm) THEN
+            matrix_ks_2d(1:nspins, 1:1) => matrix_ks_aux_fit(1:nspins)
+            rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
+         ELSE
+            matrix_ks_2d(1:nspins, 1:1) => matrix_ks(1:nspins)
+            rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
+         END IF
+
+         IF (.NOT. qs_env%mp2_env%do_im_time .AND. calc_forces .AND. .NOT. calc_ints) THEN
+         IF (do_admm) THEN
+            CALL get_qs_env(qs_env, matrix_p_mp2_admm=matrix_p_mp2)
+         ELSE
+            CALL get_qs_env(qs_env, matrix_p_mp2=matrix_p_mp2)
+         END IF
+         DO ispin = 1, nspins
+            CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+         END DO
+         END IF
+
          DO irep = 1, n_rep_hf
-            IF (do_admm) THEN
-               matrix_ks_2d(1:nspins, 1:1) => matrix_ks_aux_fit(1:nspins)
-               rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
-            ELSE
-               matrix_ks_2d(1:nspins, 1:1) => matrix_ks(1:nspins)
-               rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
-            END IF
-
-            IF (.NOT. qs_env%mp2_env%do_im_time .AND. calc_forces .AND. .NOT. calc_ints) THEN
-            IF (do_admm) THEN
-               CALL get_qs_env(qs_env, matrix_p_mp2_admm=matrix_p_mp2)
-            ELSE
-               CALL get_qs_env(qs_env, matrix_p_mp2=matrix_p_mp2)
-            END IF
-            DO ispin = 1, nspins
-               CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
-            END DO
-            END IF
-
-            WRITE (*, *) "Norm rho", dbcsr_frobenius_norm(rho_ao_2d(1, 1)%matrix)
 
             IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
                CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
@@ -221,13 +225,13 @@ CONTAINS
                   ehfx = ehfx + eh1
                END DO
             END IF
-
-            IF (.NOT. qs_env%mp2_env%do_im_time .AND. calc_forces .AND. .NOT. calc_ints) THEN
-            DO ispin = 1, nspins
-               CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
-            END DO
-            END IF
          END DO
+
+         IF (.NOT. qs_env%mp2_env%do_im_time .AND. calc_forces .AND. .NOT. calc_ints) THEN
+         DO ispin = 1, nspins
+            CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+         END DO
+         END IF
 
          ! include the EXX contribution to the total energy
          energy%ex = ehfx
@@ -239,30 +243,22 @@ CONTAINS
             virial%pv_fock_4c = 0.0_dp
          END IF
 
-            IF (calc_forces) THEN
-               !Note: no need to remove xc forces: they are not even calculated in the first place
-               NULLIFY (rho_ao_resp)
-               IF (do_admm) THEN
-                  rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
+         IF (calc_forces) THEN
+            !Note: no need to remove xc forces: they are not even calculated in the first place
+            NULLIFY (rho_ao_resp)
+            IF (do_admm) THEN
+               rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
+            ELSE
+               rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
+            END IF
 
-                  IF (.NOT. qs_env%mp2_env%do_im_time .AND. .NOT. calc_ints) THEN
-                     CALL get_qs_env(qs_env, matrix_p_mp2_admm=matrix_p_mp2_admm)
-                     DO ispin = 1, nspins
-                        CALL dbcsr_add(rho_ao_aux_fit(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
-                     END DO
-                  END IF
-               ELSE
-                  rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
+            IF (.NOT. qs_env%mp2_env%do_im_time .AND. .NOT. calc_ints) THEN
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+            END IF
 
-                  IF (.NOT. qs_env%mp2_env%do_im_time .AND. .NOT. calc_ints) THEN
-                     CALL get_qs_env(qs_env, matrix_p_mp2=matrix_p_mp2)
-                     DO ispin = 1, nspins
-                        CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
-                     END DO
-                  END IF
-               END IF
-
-         DO irep = 1, n_rep_hf
+            DO irep = 1, n_rep_hf
 
                IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
 
@@ -277,14 +273,14 @@ CONTAINS
 
                END IF
 
-         END DO !irep
+            END DO !irep
 
-               IF (.NOT. qs_env%mp2_env%do_im_time .AND. .NOT. calc_ints) THEN
-                     DO ispin = 1, nspins
-                        CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
-                     END DO
-               END IF
-END IF
+            IF (.NOT. qs_env%mp2_env%do_im_time .AND. .NOT. calc_ints) THEN
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(rho_ao_2d(ispin, 1)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+               END DO
+            END IF
+         END IF
 
          IF (use_virial) THEN
             virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
