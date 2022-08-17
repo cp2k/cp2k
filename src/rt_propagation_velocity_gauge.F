@@ -33,9 +33,7 @@ MODULE rt_propagation_velocity_gauge
                                               gth_potential_type,&
                                               sgp_potential_p_type,&
                                               sgp_potential_type
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
+   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -98,9 +96,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: calculate_forces, my_subtract_nl_term, &
                                                             ppnl_present, use_virial
-      REAL(KIND=dp)                                      :: eps_ppnl, factor, factor_kvec_nl, &
-                                                            factor_lin, factor_nl_im, &
-                                                            factor_nl_re, factor_qu
+      REAL(KIND=dp)                                      :: eps_ppnl, factor
       REAL(KIND=dp), DIMENSION(3)                        :: vec_pot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -116,7 +112,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: hfx_sections, input
+      TYPE(section_vals_type), POINTER                   :: input
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -202,17 +198,10 @@ CONTAINS
          CALL dbcsr_set(matrix_h_im(1, image)%matrix, zero)
       END DO
 
-      hfx_sections => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
-      CALL section_vals_val_get(hfx_sections, "FACTOR_NL_RE", r_val=factor_nl_re)
-      CALL section_vals_val_get(hfx_sections, "FACTOR_NL_IM", r_val=factor_nl_im)
-      CALL section_vals_val_get(hfx_sections, "FACTOR_LIN", r_val=factor_lin)
-      CALL section_vals_val_get(hfx_sections, "FACTOR_QUA", r_val=factor_qu)
-      CALL section_vals_val_get(hfx_sections, "FACTOR_KVEC_NL", r_val=factor_kvec_nl)
-
       ! add linear term in vector potential to imaginary part of KS-matrix
       DO image = 1, nimages
          DO idir = 1, 3
-            CALL dbcsr_add(matrix_h_im(1, image)%matrix, momentum(idir)%matrix, one, -factor_lin*vec_pot(idir))
+            CALL dbcsr_add(matrix_h_im(1, image)%matrix, momentum(idir)%matrix, one, -vec_pot(idir))
          END DO
       END DO
 
@@ -224,7 +213,7 @@ CONTAINS
          factor = factor + vec_pot(idir)**2
       END DO
       DO image = 1, nimages
-         CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_s(1, image)%matrix, one, 0.5*factor*factor_qu)
+         CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_s(1, image)%matrix, one, 0.5*factor)
       END DO
 
       IF (ppnl_present) THEN
@@ -244,11 +233,11 @@ CONTAINS
             CALL cp_dbcsr_alloc_block_from_nbl(nl_term(2)%matrix, sab_orb)
             CALL dbcsr_set(nl_term(2)%matrix, zero)
 
-            CALL velocity_gauge_nl_term(qs_env, nl_term, vec_pot*factor_kvec_nl)
+            CALL velocity_gauge_nl_term(qs_env, nl_term, vec_pot)
 
             DO image = 1, nimages
-               CALL dbcsr_add(matrix_h(1, image)%matrix, nl_term(1)%matrix, one, factor_nl_re)
-               CALL dbcsr_add(matrix_h_im(1, image)%matrix, nl_term(2)%matrix, one, factor_nl_im)
+               CALL dbcsr_add(matrix_h(1, image)%matrix, nl_term(1)%matrix, one, one)
+               CALL dbcsr_add(matrix_h_im(1, image)%matrix, nl_term(2)%matrix, one, one)
             END DO
             CALL dbcsr_deallocate_matrix_set(nl_term)
          END IF

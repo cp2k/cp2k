@@ -51,7 +51,6 @@ MODULE rt_delta_pulse
         dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
-                                              section_get_rval,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -104,7 +103,7 @@ CONTAINS
                                                             reference
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: com_nl, len_rep, periodic_cell
-      REAL(KIND=dp)                                      :: eps_ppnl, factor, factor_nl
+      REAL(KIND=dp)                                      :: eps_ppnl, factor
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
       REAL(KIND=dp), DIMENSION(3)                        :: kvec, rcc
@@ -143,8 +142,7 @@ CONTAINS
 
       ! relevant input parameters
       com_nl = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%COM_NL")
-      factor_nl = section_get_rval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%FACTOR_KVEC_NL")
-      len_rep = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%DFPT_LEN")
+      len_rep = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%LEN_REP")
 
       ! calculate non-local commutator if necessary
       IF (com_nl) THEN
@@ -258,7 +256,7 @@ CONTAINS
                   CALL cp_fm_set_all(mos_old(2*ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_sm_fm_multiply(matrix_rv(idir)%matrix, mos_old(2*ispin - 1)%matrix, &
                                                mos_old(2*ispin)%matrix, ncol=nmo)
-                  CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor*factor_nl, mos_old(2*ispin)%matrix)
+                  CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
                END IF
             END IF
          END DO
