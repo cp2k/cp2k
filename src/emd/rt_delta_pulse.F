@@ -12,16 +12,17 @@
 MODULE rt_delta_pulse
    USE cell_types,                      ONLY: cell_type
    USE commutator_rpnl,                 ONLY: build_com_mom_nl
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              rtp_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -42,8 +43,11 @@ MODULE rt_delta_pulse
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+   USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_init_p, &
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
@@ -53,6 +57,9 @@ MODULE rt_delta_pulse
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE mathconstants,                   ONLY: one,&
+                                              twopi,&
+                                              zero
    USE moments_utils,                   ONLY: get_reference_point
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -63,8 +70,7 @@ MODULE rt_delta_pulse
    USE qs_moments,                      ONLY: build_berry_moment_matrix,&
                                               build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE rt_propagation_types,            ONLY: get_rtp,&
-                                              rt_prop_type
+   USE rt_propagation_types,            ONLY: rt_prop_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -80,6 +86,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief uses perturbation theory to get the proper initial conditions
+!>        The len_rep option is NOT compatible with periodic boundary conditions!
 !> \param qs_env ...
 !> \param mos_old ...
 !> \param mos_new ...
@@ -92,25 +99,21 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_periodic'
 
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: eigenvalues_sqrt
       INTEGER                                            :: handle, icol, idir, irow, ispin, nao, &
-                                                            ncol_local, nmo, nrow_global, &
-                                                            nrow_local, nvirt, reference
+                                                            ncol_local, nmo, nrow_local, nvirt, &
+                                                            reference
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: com_nl, len_rep
+      LOGICAL                                            :: com_nl, len_rep, periodic_cell
       REAL(KIND=dp)                                      :: eps_ppnl, factor, factor_nl
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
       REAL(KIND=dp), DIMENSION(3)                        :: kvec, rcc
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues, ref_point
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type)                                  :: oo_c, oo_v, oo_vt
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type)                                   :: eigenvectors, mat_ks, mat_tmp, momentum, &
-                                                            oo_1, oo_2, S_chol, S_inv_fm, tmpS, &
-                                                            virtuals
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_tmp
+      TYPE(cp_fm_type), POINTER                          :: eigenvectors, mat_ks, mat_tmp, momentum, &
+                                                            S_chol, virtuals
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_r, matrix_rv, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: S_inv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -118,11 +121,12 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cell, mos, rtp, matrix_s, matrix_ks, input, dft_control, particle_set)
+      NULLIFY (cell, mos, rtp, matrix_s, matrix_ks, input, dft_control, particle_set, fm_struct)
       ! we need the overlap and ks matrix for a full diagionalization
       CALL get_qs_env(qs_env, &
                       cell=cell, &
@@ -133,22 +137,41 @@ CONTAINS
                       dft_control=dft_control, &
                       input=input, &
                       particle_set=particle_set)
+
+      rtp_control => dft_control%rtp_control
+      periodic_cell = ANY(cell%perd > 0)
+
+      ! relevant input parameters
       com_nl = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%COM_NL")
       factor_nl = section_get_rval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%FACTOR_KVEC_NL")
       len_rep = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%DFPT_LEN")
-      CALL get_rtp(rtp=rtp, S_inv=S_inv)
-      CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol")
-      CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm")
-      CALL cp_fm_create(tmpS, matrix_struct=rtp%ao_ao_fmstruct)
-      CALL copy_dbcsr_to_fm(S_inv, S_inv_fm)
-      CALL cp_fm_upper_to_full(S_inv_fm, tmpS)
-      CALL cp_fm_get_info(S_inv_fm, nrow_global=nrow_global)
-      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_chol)
-      CALL cp_fm_cholesky_decompose(S_chol)
-      CALL cp_fm_create(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks")
-      CALL cp_fm_create(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors")
 
+      ! calculate non-local commutator if necessary
+      IF (com_nl) THEN
+         NULLIFY (qs_kind_set, sab_orb, sap_ppnl)
+         CALL get_qs_env(qs_env, &
+                         sap_ppnl=sap_ppnl, &
+                         sab_orb=sab_orb, &
+                         qs_kind_set=qs_kind_set)
+         eps_ppnl = dft_control%qs_control%eps_ppnl
+
+         NULLIFY (matrix_rv)
+         CALL dbcsr_allocate_matrix_set(matrix_rv, 3)
+         DO idir = 1, 3
+            CALL dbcsr_init_p(matrix_rv(idir)%matrix)
+            CALL dbcsr_create(matrix_rv(idir)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(idir)%matrix, sab_orb)
+            CALL dbcsr_set(matrix_rv(idir)%matrix, 0._dp)
+         END DO
+         CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv)
+      END IF
+
+      ! calculate dipole moment matrix if required, NOT for periodic boundary conditions!
       IF (len_rep) THEN
+         IF (periodic_cell) THEN
+            CPWARN("This application of the delta pulse is not compatible with PBC!")
+         END IF
          ! get reference point
          reference = section_get_ival(section_vals=input, &
                                       keyword_name="DFT%PRINT%MOMENTS%REFERENCE")
@@ -170,41 +193,40 @@ CONTAINS
          CALL build_local_moment_matrix(qs_env, matrix_r, 1, rcc)
       END IF
 
-      ! calculate non-local commutator
-      IF (com_nl) THEN
-         NULLIFY (qs_kind_set, sab_orb, sap_ppnl)
-         CALL get_qs_env(qs_env, &
-                         sap_ppnl=sap_ppnl, &
-                         sab_orb=sab_orb, &
-                         qs_kind_set=qs_kind_set)
-         eps_ppnl = dft_control%qs_control%eps_ppnl
+      ! the prefactor (strength of the electric field)
+      kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
+                cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
+                cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
+      kvec = -kvec*twopi*rtp_control%delta_pulse_scale
 
-         NULLIFY (matrix_rv)
-         CALL dbcsr_allocate_matrix_set(matrix_rv, 3)
-         DO idir = 1, 3
-            CALL dbcsr_init_p(matrix_rv(idir)%matrix)
-            CALL dbcsr_create(matrix_rv(idir)%matrix, template=matrix_s(1)%matrix, &
-                              matrix_type=dbcsr_type_antisymmetric)
-            CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(idir)%matrix, sab_orb)
-            CALL dbcsr_set(matrix_rv(idir)%matrix, 0._dp)
-         END DO
-         CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv)
-      END IF
+      ! struct for fm matrices
+      fm_struct => rtp%ao_ao_fmstruct
+
+      ! create matrices and get Cholesky decomposition of S
+      NULLIFY (mat_ks, eigenvectors, S_chol)
+      CALL cp_fm_create(mat_ks, matrix_struct=fm_struct, name="mat_ks")
+      CALL cp_fm_create(eigenvectors, matrix_struct=fm_struct, name="eigenvectors")
+      CALL cp_fm_create(S_chol, matrix_struct=fm_struct, name="S_chol")
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_chol)
+      CALL cp_fm_cholesky_decompose(S_chol)
+
+      ! get number of atomic orbitals
+      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
 
       DO ispin = 1, SIZE(matrix_ks)
-         ALLOCATE (eigenvalues(nrow_global))
-         CALL cp_fm_create(mat_tmp, matrix_struct=S_inv_fm%matrix_struct, name="mat_tmp")
-
+         ! diagonalize KS matrix to get occ and virt mos
+         ALLOCATE (eigenvalues(nao))
+         CALL cp_fm_create(mat_tmp, matrix_struct=fm_struct, name="mat_tmp")
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, mat_ks)
          CALL cp_fm_cholesky_reduce(mat_ks, S_chol)
          CALL cp_fm_syevd(mat_ks, mat_tmp, eigenvalues)
-         CALL cp_fm_cholesky_restore(mat_tmp, nrow_global, S_chol, eigenvectors, "SOLVE")
+         CALL cp_fm_cholesky_restore(mat_tmp, nao, S_chol, eigenvectors, "SOLVE")
 
          ! virtuals
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo)
          nvirt = nao - nmo
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context, &
-                                  nrow_global=nrow_global, ncol_global=nvirt)
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=fm_struct%para_env, context=fm_struct%context, &
+                                  nrow_global=nao, ncol_global=nvirt)
          CALL cp_fm_create(virtuals, matrix_struct=fm_struct_tmp, name="virtuals")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_to_fm(eigenvectors, virtuals, nvirt, nmo + 1, 1)
@@ -212,19 +234,13 @@ CONTAINS
          ! occupied
          CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
 
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context, &
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=fm_struct%para_env, context=fm_struct%context, &
                                   nrow_global=nvirt, ncol_global=nmo)
          CALL cp_fm_create(momentum, matrix_struct=fm_struct_tmp, name="momentum")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          ! the momentum operator (in a given direction)
          CALL cp_fm_set_all(mos_new(2*ispin - 1)%matrix, 0.0_dp)
-
-         ! the prefactor (strength of the electric field)
-         kvec(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
-                   cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
-                   cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
-         kvec = -kvec*twopi*dft_control%rtp_control%delta_pulse_scale
 
          DO idir = 1, 3
             factor = kvec(idir)
@@ -269,77 +285,18 @@ CONTAINS
 
          CALL cp_fm_release(virtuals)
          CALL cp_fm_release(momentum)
-
-         ! orthonormalize afterwards
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context, &
-                                  nrow_global=nmo, ncol_global=nmo)
-         CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")
-         CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-
-         CALL cp_fm_create(mat_tmp, matrix_struct=mos_old(2*ispin - 1)%matrix%matrix_struct, name="tmp_mat")
-         ! get the complex overlap matrix
-         ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mos_old(2*ispin - 1)%matrix, &
-                                      mat_tmp, ncol=nmo)
-
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*ispin - 1)%matrix, mat_tmp, 0.0_dp, oo_1)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, -1.0_dp, mos_old(2*ispin)%matrix, mat_tmp, 0.0_dp, oo_2)
-
-         CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mos_old(2*ispin)%matrix, &
-                                      mat_tmp, ncol=nmo)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*ispin)%matrix, mat_tmp, 1.0_dp, oo_1)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*ispin - 1)%matrix, mat_tmp, 1.0_dp, oo_2)
-         CALL cp_fm_release(mat_tmp)
-
-         CALL cp_cfm_create(oo_c, oo_1%matrix_struct)
-         CALL cp_cfm_create(oo_v, oo_1%matrix_struct)
-         CALL cp_cfm_create(oo_vt, oo_1%matrix_struct)
-         oo_c%local_data = CMPLX(oo_1%local_data, oo_2%local_data, KIND=dp)
-
-         ! compute inv(sqrt(overlap))
-         ALLOCATE (eigenvalues(nmo))
-         ALLOCATE (eigenvalues_sqrt(nmo))
-         CALL cp_cfm_heevd(oo_c, oo_v, eigenvalues)
-         eigenvalues_sqrt = CMPLX(1.0_dp/SQRT(eigenvalues), 0.0_dp, dp)
-         CALL cp_cfm_to_cfm(oo_v, oo_vt)
-         CALL cp_cfm_column_scale(oo_v, eigenvalues_sqrt)
-         DEALLOCATE (eigenvalues)
-         DEALLOCATE (eigenvalues_sqrt)
-         CALL parallel_gemm('N', 'C', nmo, nmo, nmo, (1.0_dp, 0.0_dp), &
-                            oo_v, oo_vt, (0.0_dp, 0.0_dp), oo_c)
-         oo_1%local_data = REAL(oo_c%local_data, KIND=dp)
-         oo_2%local_data = AIMAG(oo_c%local_data)
-         CALL cp_cfm_release(oo_c)
-         CALL cp_cfm_release(oo_v)
-         CALL cp_cfm_release(oo_vt)
-
-         ! use this to compute the orthonormal vectors
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*ispin - 1)%matrix, oo_1, 0.0_dp, mos_new(2*ispin - 1)%matrix)
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*ispin - 1)%matrix, oo_2, 0.0_dp, mos_new(2*ispin)%matrix)
-
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, -1.0_dp, mos_old(2*ispin)%matrix, oo_2, 0.0_dp, mos_old(2*ispin - 1)%matrix)
-         CALL cp_fm_scale_and_add(1.0_dp, mos_old(2*ispin - 1)%matrix, 1.0_dp, mos_new(2*ispin - 1)%matrix)
-
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*ispin)%matrix, oo_1, 1.0_dp, mos_new(2*ispin)%matrix)
-         CALL cp_fm_to_fm(mos_new(2*ispin)%matrix, mos_old(2*ispin)%matrix)
-
-         CALL cp_fm_release(oo_1)
-         CALL cp_fm_release(oo_2)
       END DO
 
+      ! release matrices
       CALL cp_fm_release(S_chol)
       CALL cp_fm_release(mat_ks)
       CALL cp_fm_release(eigenvectors)
-
       IF (com_nl) CALL dbcsr_deallocate_matrix_set(matrix_rv)
       IF (len_rep) CALL dbcsr_deallocate_matrix_set(matrix_r)
 
-!***************************************************************
-!remove later
-      CALL cp_fm_release(S_inv_fm)
-      CALL cp_fm_release(tmpS)
-!**************************************************************
+      ! orthonormalize afterwards
+      CALL orthonormalize_complex_mos(qs_env, mos_old)
+
       CALL timestop(handle)
 
    END SUBROUTINE apply_delta_pulse_periodic
@@ -358,82 +315,124 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_delta_pulse'
 
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: eigenvalues_sqrt
       INTEGER                                            :: handle, i, nao, nmo
       REAL(KIND=dp), DIMENSION(3)                        :: kvec
-      REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type)                                  :: oo_c, oo_v, oo_vt
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type)                                   :: mat_S, oo_1, oo_2, S_inv_fm, tmp
+      TYPE(cp_fm_type), POINTER                          :: S_inv_fm, tmp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(dbcsr_type), POINTER                          :: cosmat, S_inv, sinmat
+      TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(rt_prop_type), POINTER                        :: rtp
-
-      NULLIFY (dft_control)
+      TYPE(rtp_control_type), POINTER                    :: rtp_control
 
       CALL timeset(routineN, handle)
-
-      ! we need the inverse overlap
-
+      NULLIFY (cell, dft_control, matrix_s, mos, rtp, rtp_control)
       CALL get_qs_env(qs_env, &
-                      mos=mos, &
-                      rtp=rtp, &
+                      cell=cell, &
+                      dft_control=dft_control, &
                       matrix_s=matrix_s, &
-                      dft_control=dft_control)
-      CALL get_rtp(rtp=rtp, S_inv=S_inv)
-
-      CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
-
-      CALL cp_fm_create(tmp, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
-
-      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_inv_fm)
-      CALL cp_fm_cholesky_decompose(S_inv_fm)
-      CALL cp_fm_cholesky_invert(S_inv_fm)
-      CALL cp_fm_upper_to_full(S_inv_fm, tmp)
-
-      CALL cp_fm_create(mat_S, matrix_struct=S_inv_fm%matrix_struct, name="mat_S")
-      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, mat_S)
-      CALL cp_fm_upper_to_full(mat_S, tmp)
-
-      CALL cp_fm_release(tmp)
-
-      ! we need the berry matrix
-      CALL get_qs_env(qs_env, cell=cell)
+                      mos=mos, &
+                      rtp=rtp)
+      rtp_control => dft_control%rtp_control
 
       ! direction ... unscaled, this will yield a exp(ikr) that is periodic with the cell
-      kvec(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
-                cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
-                cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
+      kvec(:) = cell%h_inv(1, :)*rtp_control%delta_pulse_direction(1) + &
+                cell%h_inv(2, :)*rtp_control%delta_pulse_direction(2) + &
+                cell%h_inv(3, :)*rtp_control%delta_pulse_direction(3)
       kvec = -kvec*twopi
       ! scaling will make the things not periodic with the cell, which would only be good for gas phase systems ?
       kvec(:) = dft_control%rtp_control%delta_pulse_scale*kvec
 
+      ! calculate exponentials (= Berry moments)
+      NULLIFY (cosmat, sinmat)
       ALLOCATE (cosmat, sinmat)
       CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
       CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
       CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
 
-      ! apply inv(S)*operator to C
+      ! need inverse of overlap matrix
+      NULLIFY (S_inv_fm, tmp)
+      CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm")
+      CALL cp_fm_create(tmp, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_inv_fm)
+      CALL cp_fm_cholesky_decompose(S_inv_fm)
+      CALL cp_fm_cholesky_invert(S_inv_fm)
+      CALL cp_fm_upper_to_full(S_inv_fm, tmp)
+      CALL cp_fm_release(tmp)
+
       DO i = 1, SIZE(mos)
+         ! apply exponentials to mo coefficients
          CALL get_mo_set(mos(i)%mo_set, nao=nao, nmo=nmo)
          CALL cp_dbcsr_sm_fm_multiply(cosmat, mos(i)%mo_set%mo_coeff, mos_new(2*i - 1)%matrix, ncol=nmo)
          CALL cp_dbcsr_sm_fm_multiply(sinmat, mos(i)%mo_set%mo_coeff, mos_new(2*i)%matrix, ncol=nmo)
 
          CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_inv_fm, mos_new(2*i - 1)%matrix, 0.0_dp, mos_old(2*i - 1)%matrix)
          CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_inv_fm, mos_new(2*i)%matrix, 0.0_dp, mos_old(2*i)%matrix)
+      END DO
 
-         ! in a finite basis, unfortunately, inv(S)*operator is not unitary, so orthonormalize afterwards
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context, &
+      CALL cp_fm_release(S_inv_fm)
+      CALL dbcsr_deallocate_matrix(cosmat)
+      CALL dbcsr_deallocate_matrix(sinmat)
+
+      ! orthonormalize afterwards
+      CALL orthonormalize_complex_mos(qs_env, mos_old)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_delta_pulse
+
+! **************************************************************************************************
+!> \brief orthonormalize complex mos, e. g. after non-unitary transformations using Löwdin's algorithm
+!> \param qs_env ...
+!> \param coeffs ...
+! **************************************************************************************************
+   SUBROUTINE orthonormalize_complex_mos(qs_env, coeffs)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT), &
+         POINTER                                         :: coeffs
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: eigenvalues_sqrt
+      INTEGER                                            :: im, ispin, j, nao, nmo, nspins, re
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_cfm_type), POINTER                         :: oo_c, oo_v, oo_vt
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeffs_tmp
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), POINTER                          :: oo_1, oo_2, S_fm, tmp
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+
+      NULLIFY (para_env, blacs_env, dft_control, matrix_s, mos)
+      CALL get_qs_env(qs_env, &
+                      blacs_env=blacs_env, &
+                      dft_control=dft_control, &
+                      matrix_s=matrix_s, &
+                      mos=mos, &
+                      para_env=para_env)
+      nspins = dft_control%nspins
+      CALL cp_fm_get_info(coeffs(1)%matrix, nrow_global=nao)
+
+      ! get overlap matrix
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nao, &
+                               context=blacs_env, para_env=para_env)
+      CALL cp_fm_create(S_fm, matrix_struct=fm_struct_tmp, name="overlap fm")
+      CALL cp_fm_struct_release(fm_struct_tmp)
+      ! copy overlap matrix
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_fm)
+
+      DO ispin = 1, nspins
+         CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo)
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=nmo, ncol_global=nmo)
          CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")
          CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
-         CALL cp_fm_create(tmp, matrix_struct=mos_old(2*i - 1)%matrix%matrix_struct, name="tmp_mat")
-         ! get the complex overlap matrix
+         CALL cp_fm_create(tmp, matrix_struct=coeffs(2*ispin - 1)%matrix%matrix_struct, name="tmp_mat")
+         ! get the complex overlap matrix in MO basis
          ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
          CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, mat_S, mos_old(2*i - 1)%matrix, 0.0_dp, tmp)
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*i - 1)%matrix, tmp, 0.0_dp, oo_1)
@@ -444,16 +443,16 @@ CONTAINS
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*i - 1)%matrix, tmp, 1.0_dp, oo_2)
          CALL cp_fm_release(tmp)
 
+         ! complex Löwdin
          CALL cp_cfm_create(oo_c, oo_1%matrix_struct)
          CALL cp_cfm_create(oo_v, oo_1%matrix_struct)
          CALL cp_cfm_create(oo_vt, oo_1%matrix_struct)
          oo_c%local_data = CMPLX(oo_1%local_data, oo_2%local_data, KIND=dp)
 
-         ! compute inv(sqrt(overlap))
          ALLOCATE (eigenvalues(nmo))
          ALLOCATE (eigenvalues_sqrt(nmo))
          CALL cp_cfm_heevd(oo_c, oo_v, eigenvalues)
-         eigenvalues_sqrt = CMPLX(1.0_dp/SQRT(eigenvalues), 0.0_dp, dp)
+         eigenvalues_sqrt(:) = CMPLX(one/SQRT(eigenvalues(:)), zero, dp)
          CALL cp_cfm_to_cfm(oo_v, oo_vt)
          CALL cp_cfm_column_scale(oo_v, eigenvalues_sqrt)
          DEALLOCATE (eigenvalues)
@@ -466,34 +465,31 @@ CONTAINS
          CALL cp_cfm_release(oo_v)
          CALL cp_cfm_release(oo_vt)
 
-         ! use this to compute the orthonormal vectors
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*i - 1)%matrix, oo_1, 0.0_dp, mos_new(2*i - 1)%matrix)
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*i - 1)%matrix, oo_2, 0.0_dp, mos_new(2*i)%matrix)
+         ! transform coefficients accordingly
+         NULLIFY (coeffs_tmp)
+         ALLOCATE (coeffs_tmp(2))
+         DO j = 1, 2
+            CALL cp_fm_create(coeffs_tmp(j)%matrix, matrix_struct=coeffs(2*(ispin - 1) + j)%matrix%matrix_struct)
+         END DO
 
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, -1.0_dp, mos_old(2*i)%matrix, oo_2, 0.0_dp, mos_old(2*i - 1)%matrix)
-         CALL cp_fm_scale_and_add(1.0_dp, mos_old(2*i - 1)%matrix, 1.0_dp, mos_new(2*i - 1)%matrix)
+         ! indices for coeffs_tmp
+         re = 1
+         im = 2
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin - 1)%matrix, oo_1, zero, coeffs_tmp(re)%matrix)
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin - 1)%matrix, oo_2, zero, coeffs_tmp(im)%matrix)
 
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*i)%matrix, oo_1, 1.0_dp, mos_new(2*i)%matrix)
-         CALL cp_fm_to_fm(mos_new(2*i)%matrix, mos_old(2*i)%matrix)
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, -one, coeffs(2*ispin)%matrix, oo_2, zero, coeffs(2*ispin - 1)%matrix)
+         CALL cp_fm_scale_and_add(one, coeffs(2*ispin - 1)%matrix, one, coeffs_tmp(re)%matrix)
 
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, one, coeffs(2*ispin)%matrix, oo_1, one, coeffs_tmp(im)%matrix)
+         CALL cp_fm_to_fm(coeffs_tmp(im)%matrix, coeffs(2*ispin)%matrix)
+
+         CALL cp_fm_vect_dealloc(coeffs_tmp)
          CALL cp_fm_release(oo_1)
          CALL cp_fm_release(oo_2)
       END DO
+      CALL cp_fm_release(S_fm)
 
-      CALL cp_fm_release(mat_S)
-
-      CALL dbcsr_deallocate_matrix(cosmat)
-      CALL dbcsr_deallocate_matrix(sinmat)
-
-!***************************************************************
-!remove later
-      CALL copy_fm_to_dbcsr(S_inv_fm, S_inv)
-      CALL dbcsr_filter(S_inv, rtp%filter_eps)
-      CALL cp_fm_release(S_inv_fm)
-!**************************************************************
-
-      CALL timestop(handle)
-
-   END SUBROUTINE apply_delta_pulse
+   END SUBROUTINE orthonormalize_complex_mos
 
 END MODULE rt_delta_pulse
