@@ -350,10 +350,7 @@ CONTAINS
                          fm_G_mu_nu, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_back)
             CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, focc, &
                          fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, L_jb(ispin)%matrix)
-            CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, -focc, &
-                         fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, W_mo(ispin)%matrix, &
-                         c_first_col=homo(ispin) + 1)
-            CALL cp_gemm("T", "N", homo(ispin), homo(ispin), dimen, -0.5_dp*focc, &
+            CALL cp_gemm("T", "N", homo(ispin), homo(ispin), dimen, -focc, &
                          fm_back, mo_coeff_o(ispin)%matrix, 1.0_dp, W_mo(ispin)%matrix)
          END DO
       END IF
