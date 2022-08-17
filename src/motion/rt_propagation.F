@@ -13,6 +13,7 @@
 MODULE rt_propagation
    USE bibliography,                    ONLY: Andermatt2016,&
                                               cite_reference
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
@@ -195,6 +196,8 @@ CONTAINS
 
       INTEGER                                            :: i, ispin, re
       INTEGER, DIMENSION(2)                              :: nelectron_spin
+      LOGICAL                                            :: periodic_cell
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new, mos_old
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_new, rho_old
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -202,15 +205,18 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
 
-      NULLIFY (matrix_s, dft_control)
+      NULLIFY (matrix_s, dft_control, cell, rtp, rtp_control)
 
       CALL cite_reference(Andermatt2016)
 
       CALL get_qs_env(qs_env, &
+                      cell=cell, &
                       rtp=rtp, &
                       matrix_s=matrix_s, &
                       dft_control=dft_control)
       rtp_control => dft_control%rtp_control
+
+      periodic_cell = ANY(cell%perd > 0)
 
       IF (.NOT. rtp%linear_scaling) THEN
          CALL get_qs_env(qs_env, mos=mos)
@@ -222,6 +228,9 @@ CONTAINS
                IF (rtp_control%periodic) THEN
                   CALL apply_delta_pulse_periodic(qs_env, mos_old, mos_new)
                ELSE
+                  IF (periodic_cell) THEN
+                     CPWARN("This application of the delta pulse is not compatible with PBC!")
+                  END IF
                   CALL apply_delta_pulse(qs_env, mos_old, mos_new)
                END IF
             ELSE
