@@ -41,8 +41,7 @@ MODULE mp2_ri_gpw
                                               mp_sum
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: mp2_type,&
-                                              three_dim_real_array,&
-                                              two_dim_int_array
+                                              three_dim_real_array
    USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
                                               offload_dgemm,&
                                               offload_gemm_create,&
@@ -2159,14 +2158,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'quasi_degenerate_P_ij'
 
-      INTEGER :: a, a_global, b, b_global, block_size, end_point, handle, handle2, ijk, &
-         ijk_counter, ijk_counter_send, ijk_index, irep, ispin, kkB, kspin, Lend_pos, Lstart_pos, &
-         max_block_size, my_i, my_j, my_k, my_virtual, nspins, proc_receive, proc_send, &
-         proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
-         send_B_virtual_end, send_B_virtual_start, send_i, send_ijk_index, send_j, send_k, &
-         size_B_i, size_B_k, start_point, tag
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: max_ijk, my_ijk
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: num_ijk
+      INTEGER :: a, a_global, b, b_global, block_size, end_point, handle, handle2, ijk_counter, &
+         ijk_counter_send, ijk_index, irep, ispin, kkB, kspin, Lend_pos, Lstart_pos, &
+         max_block_size, max_ijk, my_i, my_ijk, my_j, my_k, my_virtual, nspins, proc_receive, &
+         proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, &
+         send_B_size, send_B_virtual_end, send_B_virtual_start, send_i, send_ijk_index, send_j, &
+         send_k, size_B_i, size_B_k, start_point, tag
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_ijk
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ijk_map
       LOGICAL                                            :: alpha_beta
       REAL(KIND=dp)                                      :: amp_fac, P_ij_elem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
@@ -2174,20 +2173,15 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: local_aL_k
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: BI_C_rec, external_ab, external_aL
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: BI_C_rec_3D
-      TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: ijk_map
 
       CALL timeset(routineN//"_ij_sing", handle)
-! Define the number of loops over orbital triplets
+
+      MARK_USED(my_group_L_size)
 
       tag = 44
 
       nspins = SIZE(BIb_C)
       alpha_beta = (nspins == 2)
-
-      ! Find the number of quasi-degenerate orbitals and orbital triplets
-
-      CALL Find_quasi_degenerate_ij(my_ijk, homo, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
-                                    beta_beta, para_env_exchange, num_ijk, max_ijk, color_sub)
 
       ! Set amplitude factor
       amp_fac = mp2_env%scale_S + mp2_env%scale_T
@@ -2202,9 +2196,15 @@ CONTAINS
             kspin = 1
          END IF
          size_B_k = my_B_size(kspin)
+
+         ! Find the number of quasi-degenerate orbitals and orbital triplets
+
+         CALL Find_quasi_degenerate_ij(my_ijk, homo(ispin), homo(kspin), Eigenval(:, ispin), mp2_env, ijk_map, unit_nr, ngroup, &
+                                       .NOT. beta_beta .AND. ispin /= 2, para_env_exchange, num_ijk, max_ijk, color_sub)
+
          my_virtual = virtual(ispin)
-         IF (SIZE(ijk_map(ispin)%array, 1) > 0) THEN
-            max_block_size = ijk_map(ispin)%array(1, 4)
+         IF (SIZE(ijk_map, 1) > 0) THEN
+            max_block_size = ijk_map(1, 4)
          ELSE
             max_block_size = 1
          END IF
@@ -2214,15 +2214,14 @@ CONTAINS
          ALLOCATE (local_aL_k(dimen_RI, size_B_k, max_block_size))
          ALLOCATE (t_ab(my_virtual, size_B_k))
 
-         DO ijk_index = 1, max_ijk(ispin)
-            ijk = my_ijk(ispin)
-            IF (ijk_index <= ijk) THEN
+         DO ijk_index = 1, max_ijk
+            IF (ijk_index <= my_ijk) THEN
                ! work to be done
                ijk_counter = (ijk_index - MIN(1, color_sub))*ngroup + color_sub
-               my_i = ijk_map(ispin)%array(ijk_counter, 1)
-               my_j = ijk_map(ispin)%array(ijk_counter, 2)
-               my_k = ijk_map(ispin)%array(ijk_counter, 3)
-               block_size = ijk_map(ispin)%array(ijk_counter, 4)
+               my_i = ijk_map(ijk_counter, 1)
+               my_j = ijk_map(ijk_counter, 2)
+               my_k = ijk_map(ijk_counter, 3)
+               block_size = ijk_map(ijk_counter, 4)
 
                local_aL_i = 0.0_dp
                local_aL_j = 0.0_dp
@@ -2252,7 +2251,7 @@ CONTAINS
                   proc_send = proc_map(para_env_exchange%mepos + proc_shift)
                   proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
-                  send_ijk_index = num_ijk(proc_send, ispin)
+                  send_ijk_index = num_ijk(proc_send)
 
                   rec_L_size = sizes_array(proc_receive)
                   BI_C_rec(1:rec_L_size, 1:size_B_i) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_i)
@@ -2261,9 +2260,9 @@ CONTAINS
                      ! something to send
                      ijk_counter_send = (ijk_index - MIN(1, integ_group_pos2color_sub(proc_send)))* &
                                         ngroup + integ_group_pos2color_sub(proc_send)
-                     send_i = ijk_map(ispin)%array(ijk_counter_send, 1)
-                     send_j = ijk_map(ispin)%array(ijk_counter_send, 2)
-                     send_k = ijk_map(ispin)%array(ijk_counter_send, 3)
+                     send_i = ijk_map(ijk_counter_send, 1)
+                     send_j = ijk_map(ijk_counter_send, 2)
+                     send_k = ijk_map(ijk_counter_send, 3)
                   END IF
 
                   ! occupied i
@@ -2473,26 +2472,24 @@ CONTAINS
                   proc_send = proc_map(para_env_exchange%mepos + proc_shift)
                   proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
-                  send_ijk_index = num_ijk(proc_send, ispin)
+                  send_ijk_index = num_ijk(proc_send)
 
                   IF (ijk_index <= send_ijk_index) THEN
                      ! somethig to send
                      ijk_counter_send = (ijk_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
                                         integ_group_pos2color_sub(proc_send)
-                     send_i = ijk_map(ispin)%array(ijk_counter_send, 1)
-                     send_j = ijk_map(ispin)%array(ijk_counter_send, 2)
-                     send_k = ijk_map(ispin)%array(ijk_counter_send, 3)
+                     send_i = ijk_map(ijk_counter_send, 1)
+                     send_j = ijk_map(ijk_counter_send, 2)
+                     send_k = ijk_map(ijk_counter_send, 3)
                      ! occupied i
-                     CALL mp_send(BIb_C(ispin)%array(1:my_group_L_size, 1:size_B_i, send_i), proc_send, tag, &
+                     CALL mp_send(BIb_C(ispin)%array(:, :, send_i), proc_send, tag, &
                                   para_env_exchange%group)
                      ! occupied j
-                     CALL mp_send(BIb_C(ispin)%array(1:my_group_L_size, 1:size_B_i, send_j), proc_send, tag, &
+                     CALL mp_send(BIb_C(ispin)%array(:, :, send_j), proc_send, tag, &
                                   para_env_exchange%group)
-                     IF ((send_i /= send_k .AND. send_j /= send_k) .OR. alpha_beta) THEN
-                        ! occupied k
-                        CALL mp_send(BIb_C(kspin)%array(1:my_group_L_size, 1:size_B_k, send_k), proc_send, tag, &
-                                     para_env_exchange%group)
-                     END IF
+                     ! occupied k
+                     CALL mp_send(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, tag, &
+                                  para_env_exchange%group)
                   END IF
 
                END DO ! proc loop
@@ -2503,13 +2500,8 @@ CONTAINS
          DEALLOCATE (local_aL_j)
          DEALLOCATE (local_aL_k)
          DEALLOCATE (t_ab)
-      END DO ! over number of loops (iloop)
-      !
-      DO ispin = 1, SIZE(ijk_map)
-         DEALLOCATE (ijk_map(ispin)%array)
-      END DO
-      DEALLOCATE (ijk_map)
-      DEALLOCATE (num_ijk)
+         DEALLOCATE (ijk_map)
+      END DO ! over number of loops (ispin)
       CALL timestop(handle)
 
    END SUBROUTINE Quasi_degenerate_P_ij
@@ -2518,125 +2510,116 @@ CONTAINS
 !> \brief ...
 !> \param my_ijk ...
 !> \param homo ...
+!> \param homo_beta ...
 !> \param Eigenval ...
 !> \param mp2_env ...
 !> \param ijk_map ...
 !> \param unit_nr ...
 !> \param ngroup ...
-!> \param beta_beta ...
+!> \param do_print_alpha ...
 !> \param para_env_exchange ...
 !> \param num_ijk ...
 !> \param max_ijk ...
 !> \param color_sub ...
 ! **************************************************************************************************
-   SUBROUTINE Find_quasi_degenerate_ij(my_ijk, homo, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
-                                       beta_beta, para_env_exchange, num_ijk, max_ijk, color_sub)
+   SUBROUTINE Find_quasi_degenerate_ij(my_ijk, homo, homo_beta, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
+                                       do_print_alpha, para_env_exchange, num_ijk, max_ijk, color_sub)
 
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: my_ijk
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      INTEGER, INTENT(OUT)                               :: my_ijk
+      INTEGER, INTENT(IN)                                :: homo, homo_beta
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
-      TYPE(two_dim_int_array), ALLOCATABLE, &
-         DIMENSION(:), INTENT(OUT)                       :: ijk_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: ijk_map
       INTEGER, INTENT(IN)                                :: unit_nr, ngroup
-      LOGICAL, INTENT(IN)                                :: beta_beta
+      LOGICAL, INTENT(IN)                                :: do_print_alpha
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: num_ijk
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: max_ijk
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: num_ijk
+      INTEGER, INTENT(OUT)                               :: max_ijk
       INTEGER, INTENT(IN)                                :: color_sub
 
-      INTEGER :: block_size, iib, ij_counter, ijk_counter, ispin, jjb, kkb, max_num_k_blocks, &
-         my_homo, nspins, num_k_blocks, num_sing_ij, total_ijk
+      INTEGER                                            :: block_size, iib, ij_counter, &
+                                                            ijk_counter, jjb, kkb, &
+                                                            max_num_k_blocks, num_k_blocks, &
+                                                            num_sing_ij, total_ijk
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: ijk_marker
 
-      nspins = SIZE(homo)
-
-      ALLOCATE (ijk_map(nspins))
-      ALLOCATE (my_ijk(nspins))
-      ALLOCATE (num_ijk(0:para_env_exchange%num_pe - 1, nspins))
-      ALLOCATE (max_ijk(nspins))
+      ALLOCATE (num_ijk(0:para_env_exchange%num_pe - 1))
 
       block_size = 1
 
-      ! General case
-      DO ispin = 1, nspins
-         my_homo = homo(nspins)
-         IF (ispin == 2) my_homo = homo(1)
-
-         num_sing_ij = 0
-         DO iiB = 1, homo(ispin)
-            ! diagonal elements already updated
-            DO jjB = iiB + 1, homo(ispin)
-               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) < mp2_env%ri_grad%eps_canonical) &
-                  num_sing_ij = num_sing_ij + 1
-            END DO
+      num_sing_ij = 0
+      DO iiB = 1, homo
+         ! diagonal elements already updated
+         DO jjB = iiB + 1, homo
+            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) < mp2_env%ri_grad%eps_canonical) &
+               num_sing_ij = num_sing_ij + 1
          END DO
-
-         IF (unit_nr > 0) THEN
-         IF (.NOT. beta_beta .AND. ispin /= 2) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MO_INFO| Number of ij pairs below EPS_CANONICAL:", num_sing_ij
-         ELSE
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
-         END IF
-         CALL m_flush(unit_nr)
-         END IF
-
-         ! Calculate number of large blocks
-         max_num_k_blocks = my_homo/block_size*num_sing_ij
-         num_k_blocks = max_num_k_blocks - MOD(max_num_k_blocks, ngroup)
-
-         total_ijk = my_homo*num_sing_ij
-         ALLOCATE (ijk_map(ispin)%array(total_ijk, 4))
-         ijk_map(ispin)%array = 0
-         ALLOCATE (ijk_marker(my_homo, num_sing_ij))
-         ijk_marker = .TRUE.
-
-         my_ijk(ispin) = 0
-         ijk_counter = 0
-         ij_counter = 0
-         DO iiB = 1, homo(ispin)
-            ! diagonal elements already updated
-            DO jjB = iiB + 1, homo(ispin)
-               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) >= mp2_env%ri_grad%eps_canonical) CYCLE
-               ij_counter = ij_counter + 1
-               DO kkB = 1, my_homo, block_size
-                  IF (ijk_counter + 1 > num_k_blocks) EXIT
-                  ijk_counter = ijk_counter + 1
-                  ijk_marker(kkB:kkB + block_size - 1, ij_counter) = .FALSE.
-                  ijk_map(ispin)%array(ijk_counter, 1) = iiB
-                  ijk_map(ispin)%array(ijk_counter, 2) = jjB
-                  ijk_map(ispin)%array(ijk_counter, 3) = kkB
-                  ijk_map(ispin)%array(ijk_counter, 4) = block_size
-                  IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk(ispin) = my_ijk(ispin) + 1
-               END DO
-            END DO
-         END DO
-         ij_counter = 0
-         DO iiB = 1, homo(ispin)
-            ! diagonal elements already updated
-            DO jjB = iiB + 1, homo(ispin)
-               IF (ABS(Eigenval(jjB, ispin) - Eigenval(iiB, ispin)) >= mp2_env%ri_grad%eps_canonical) CYCLE
-               ij_counter = ij_counter + 1
-               DO kkB = 1, my_homo
-                  IF (ijk_marker(kkB, ij_counter)) THEN
-                     ijk_counter = ijk_counter + 1
-                     ijk_map(ispin)%array(ijk_counter, 1) = iiB
-                     ijk_map(ispin)%array(ijk_counter, 2) = jjB
-                     ijk_map(ispin)%array(ijk_counter, 3) = kkB
-                     ijk_map(ispin)%array(ijk_counter, 4) = 1
-                     IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk(ispin) = my_ijk(ispin) + 1
-                  END IF
-               END DO
-            END DO
-         END DO
-
-         DEALLOCATE (ijk_marker)
-
-         CALL mp_allgather(my_ijk(ispin), num_ijk(:, ispin), para_env_exchange%group)
-         max_ijk(ispin) = MAXVAL(num_ijk(:, ispin))
       END DO
+
+      IF (unit_nr > 0) THEN
+      IF (do_print_alpha) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "MO_INFO| Number of ij pairs below EPS_CANONICAL:", num_sing_ij
+      ELSE
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
+      END IF
+      CALL m_flush(unit_nr)
+      END IF
+
+      ! Calculate number of large blocks
+      max_num_k_blocks = homo_beta/block_size*num_sing_ij
+      num_k_blocks = max_num_k_blocks - MOD(max_num_k_blocks, ngroup)
+
+      total_ijk = homo_beta*num_sing_ij
+      ALLOCATE (ijk_map(total_ijk, 4))
+      ijk_map = 0
+      ALLOCATE (ijk_marker(homo_beta, num_sing_ij))
+      ijk_marker = .TRUE.
+
+      my_ijk = 0
+      ijk_counter = 0
+      ij_counter = 0
+      DO iiB = 1, homo
+         ! diagonal elements already updated
+         DO jjB = iiB + 1, homo
+            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) >= mp2_env%ri_grad%eps_canonical) CYCLE
+            ij_counter = ij_counter + 1
+            DO kkB = 1, homo_beta - MOD(homo_beta, block_size), block_size
+               IF (ijk_counter + 1 > num_k_blocks) EXIT
+               ijk_counter = ijk_counter + 1
+               ijk_marker(kkB:kkB + block_size - 1, ij_counter) = .FALSE.
+               ijk_map(ijk_counter, 1) = iiB
+               ijk_map(ijk_counter, 2) = jjB
+               ijk_map(ijk_counter, 3) = kkB
+               ijk_map(ijk_counter, 4) = block_size
+               IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk = my_ijk + 1
+            END DO
+         END DO
+      END DO
+      ij_counter = 0
+      DO iiB = 1, homo
+         ! diagonal elements already updated
+         DO jjB = iiB + 1, homo
+            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) >= mp2_env%ri_grad%eps_canonical) CYCLE
+            ij_counter = ij_counter + 1
+            DO kkB = 1, homo_beta
+               IF (ijk_marker(kkB, ij_counter)) THEN
+                  ijk_counter = ijk_counter + 1
+                  ijk_map(ijk_counter, 1) = iiB
+                  ijk_map(ijk_counter, 2) = jjB
+                  ijk_map(ijk_counter, 3) = kkB
+                  ijk_map(ijk_counter, 4) = 1
+                  IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk = my_ijk + 1
+               END IF
+            END DO
+         END DO
+      END DO
+
+      DEALLOCATE (ijk_marker)
+
+      CALL mp_allgather(my_ijk, num_ijk, para_env_exchange%group)
+      max_ijk = MAXVAL(num_ijk)
 
    END SUBROUTINE Find_quasi_degenerate_ij
 
