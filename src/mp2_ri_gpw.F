@@ -1344,8 +1344,6 @@ CONTAINS
 
       CALL m_memory(mem)
       mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-      ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
-      ! has not been given back to the OS yet.
       CALL mp_min(mem_real, para_env%group)
 
       mem_base = 0.0_dp
@@ -2200,7 +2198,8 @@ CONTAINS
          ! Find the number of quasi-degenerate orbitals and orbital triplets
 
          CALL Find_quasi_degenerate_ij(my_ijk, homo(ispin), homo(kspin), Eigenval(:, ispin), mp2_env, ijk_map, unit_nr, ngroup, &
-                                       .NOT. beta_beta .AND. ispin /= 2, para_env_exchange, num_ijk, max_ijk, color_sub)
+                                       .NOT. beta_beta .AND. ispin /= 2, para_env_exchange, num_ijk, max_ijk, color_sub, &
+                                       SIZE(buffer_1D), my_group_L_size, size_B_k)
 
          my_virtual = virtual(ispin)
          IF (SIZE(ijk_map, 1) > 0) THEN
@@ -2521,9 +2520,13 @@ CONTAINS
 !> \param num_ijk ...
 !> \param max_ijk ...
 !> \param color_sub ...
+!> \param buffer_size ...
+!> \param my_group_L_size ...
+!> \param my_B_size ...
 ! **************************************************************************************************
    SUBROUTINE Find_quasi_degenerate_ij(my_ijk, homo, homo_beta, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
-                                       do_print_alpha, para_env_exchange, num_ijk, max_ijk, color_sub)
+                                       do_print_alpha, para_env_exchange, num_ijk, max_ijk, color_sub, &
+                                       buffer_size, my_group_L_size, my_B_size)
 
       INTEGER, INTENT(OUT)                               :: my_ijk
       INTEGER, INTENT(IN)                                :: homo, homo_beta
@@ -2535,17 +2538,15 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: num_ijk
       INTEGER, INTENT(OUT)                               :: max_ijk
-      INTEGER, INTENT(IN)                                :: color_sub
+      INTEGER, INTENT(IN)                                :: color_sub, buffer_size, my_group_L_size, &
+                                                            my_B_size
 
-      INTEGER                                            :: block_size, iib, ij_counter, &
-                                                            ijk_counter, jjb, kkb, &
-                                                            max_num_k_blocks, num_k_blocks, &
-                                                            num_sing_ij, total_ijk
+      INTEGER :: block_size, communication_steps, communication_volume, iib, ij_counter, &
+         ijk_counter, jjb, kkb, max_block_size, max_num_k_blocks, min_communication_volume, &
+         my_steps, num_k_blocks, num_sing_ij, total_ijk
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: ijk_marker
 
       ALLOCATE (num_ijk(0:para_env_exchange%num_pe - 1))
-
-      block_size = 1
 
       num_sing_ij = 0
       DO iiB = 1, homo
@@ -2564,7 +2565,34 @@ CONTAINS
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
             "MO_INFO| Number of ij pairs (spin beta) below EPS_CANONICAL:", num_sing_ij
       END IF
-      CALL m_flush(unit_nr)
+      END IF
+
+      ! Determine the block size, first guess: use available buffer
+      max_block_size = buffer_size/my_group_L_size/my_B_size
+
+      ! Find now the block size which minimizes the communication volume and then the number of communication steps
+      block_size = 1
+      min_communication_volume = 3*homo_beta*num_sing_ij
+      communication_steps = 3*homo_beta*num_sing_ij
+      DO iiB = max_block_size, 2, -1
+         max_num_k_blocks = homo_beta/iiB*num_sing_ij
+         num_k_blocks = max_num_k_blocks - MOD(max_num_k_blocks, ngroup)
+         communication_volume = num_k_blocks*(2 + iiB) + 3*(homo_beta*num_sing_ij - iiB*num_k_blocks)
+         my_steps = num_k_blocks + homo_beta*num_sing_ij - iiB*num_k_blocks
+         IF (communication_volume < min_communication_volume) THEN
+            block_size = iiB
+            min_communication_volume = communication_volume
+            communication_steps = my_steps
+         ELSE IF (communication_volume == min_communication_volume .AND. my_steps < communication_steps) THEN
+            block_size = iiB
+            communication_steps = my_steps
+         END IF
+      END DO
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "MO_INFO| Block size:", num_sing_ij
+         CALL m_flush(unit_nr)
       END IF
 
       ! Calculate number of large blocks
