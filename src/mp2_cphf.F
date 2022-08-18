@@ -1832,7 +1832,7 @@ CONTAINS
             END IF
          END IF
 
-!         IF (.NOT. do_exx) THEN
+         IF (.NOT. do_exx) THEN
          IF (dft_control%do_admm) THEN
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, nspins
@@ -1843,7 +1843,7 @@ CONTAINS
                CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, -1.0_dp)
             END DO
          END IF
-!         END IF
+         END IF
 
          IF (dft_control%do_admm) THEN
             IF (debug_forces) THEN
