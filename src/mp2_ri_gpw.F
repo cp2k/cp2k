@@ -1381,7 +1381,8 @@ CONTAINS
          mem_base = mem_base + REAL(MAX(dimen_RI, MAXVAL(virtual)), KIND=dp)*MAXVAL(maxsize(gd_B_virtual))*8.0_dp/(1024**2)
       END IF
 
-      block_size = 1
+      ! This a first guess based on the assumption of optimal block sizes
+      block_size = MAX(1, MIN(FLOOR(SQRT(REAL(MINVAL(homo), KIND=dp))), FLOOR(MINVAL(homo)/SQRT(2.0_dp*ngroup))))
       IF (mp2_env%ri_mp2%block_size > 0) block_size = mp2_env%ri_mp2%block_size
 
       mem_min = mem_base + mem_per_repl + (mem_per_blk + mem_per_repl_blk)*block_size
@@ -1394,7 +1395,7 @@ CONTAINS
       ! We use the following communication model
       ! Comm(replication)+Comm(collection of data for ij pair)+Comm(contraction)
       ! One can show that the costs of the contraction step are independent of the block size and the replication group size
-      ! With gradients, both steps are carried out twice (Y_i_aP -> Gamma_i_aP, and dereplication)
+      ! With gradients, the other two steps are carried out twice (Y_i_aP -> Gamma_i_aP, and dereplication)
       ! NL ... number of RI basis functions
       ! NR ... replication group size
       ! NG ... number of sub groups
@@ -1406,11 +1407,12 @@ CONTAINS
       ! 2*(NR/NG)+2*(1-(NR/NG))*(o/NB+NB-2)/NG = (NR/NG)*(1-(o/NB+NB-2)/NG)+(o/NB+NB-2)/NG
       ! We are looking for the minimum of the communication volume,
       ! thus, if the prefactor of (NR/NG) is smaller than zero, use the largest possible replication group size.
-      ! If the factor is larger than zero, set the replicaiton group size to 1. (For small systems and a large number of subgroups)
+      ! If the factor is larger than zero, set the replication group size to 1. (For small systems and a large number of subgroups)
       ! Replication group size = 1 implies that the integration group size equals the number of subgroups
 
       integ_group_size = ngroup
 
+      ! Multiply everything by homo*virtual to consider differences between spin channels in case of open-shell calculations
       factor = REAL(SUM(homo*virtual), KIND=dp) &
                - SUM((REAL(MAXVAL(homo), KIND=dp)/block_size + block_size - 2.0_dp)*homo*virtual)/ngroup
       IF (SIZE(homo) == 2) factor = factor - 2.0_dp*PRODUCT(homo)/block_size/ngroup*SUM(homo*virtual)
