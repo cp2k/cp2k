@@ -11,6 +11,8 @@
 !>      10.2021 created [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_grad
+   USE ISO_C_BINDING,                   ONLY: C_NULL_PTR,&
+                                              c_associated
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
@@ -57,6 +59,11 @@ MODULE rpa_grad
                                               one_dim_int_array,&
                                               two_dim_int_array,&
                                               two_dim_real_array
+   USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
+                                              offload_dgemm,&
+                                              offload_gemm_create,&
+                                              offload_gemm_destroy,&
+                                              offload_gemm_set_op_threshold_gpu
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
@@ -697,6 +704,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param mp2_env ...
 !> \param rpa_grad ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param fm_mat_Q ...
@@ -709,8 +717,9 @@ CONTAINS
 !> \param Eigenval ...
 !> \param weight ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_grad_matrix_operations(rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
+   SUBROUTINE rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
                                          dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, weight)
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_Q, fm_mat_Q_gemm
@@ -729,7 +738,8 @@ CONTAINS
                                                             row_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: norm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: mat_S_3D, mat_work_iaP_3D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         TARGET                                          :: mat_S_3D, mat_work_iaP_3D
       TYPE(cp_fm_type), POINTER                          :: fm_work_iaP, fm_work_PQ
 
       CALL timeset(routineN, handle)
@@ -843,7 +853,7 @@ CONTAINS
                             rpa_grad%rpa_work%grid, rpa_grad%rpa_work%mepos, &
                             fm_mat_S(ispin)%matrix%matrix_struct, &
                             rpa_grad%rpa_work%P_ij(ispin)%array, rpa_grad%rpa_work%P_ab(ispin)%array, &
-                            weight, omega, Eigenval(:, ispin), homo(ispin))
+                            weight, omega, Eigenval(:, ispin), homo(ispin), mp2_env)
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
@@ -951,7 +961,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_S_3D ...
+!> \param mat_S_1D ...
 !> \param mat_work_iaP_3D ...
 !> \param gd_homo ...
 !> \param gd_virtual ...
@@ -964,10 +974,11 @@ CONTAINS
 !> \param omega ...
 !> \param Eigenval ...
 !> \param homo ...
+!> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE calc_P_rpa(mat_S_3D, mat_work_iaP_3D, gd_homo, gd_virtual, grid, mepos, &
-                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, homo)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S_3D
+   SUBROUTINE calc_P_rpa(mat_S_1D, mat_work_iaP_3D, gd_homo, gd_virtual, grid, mepos, &
+                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, homo, mp2_env)
+      REAL(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: mat_S_1D
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: mat_work_iaP_3D
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_homo, gd_virtual
       INTEGER, DIMENSION(2), INTENT(IN)                  :: grid, mepos
@@ -976,6 +987,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: weight, omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: homo
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
@@ -985,20 +997,33 @@ CONTAINS
          recv_i_start, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D, mat_S_2D
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D, mat_S_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
+      ! We allocate it at every step to reduce potential memory conflicts with COSMA
+      IF (.NOT. c_associated(mp2_env%offload_gemm_ctx)) THEN
+         CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
+         CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
+      END IF
+
       tag = 47
 
-      my_P_size = SIZE(mat_S_3D, 1)
+      my_P_size = SIZE(mat_work_iaP_3D, 1)
 
       CALL cp_fm_struct_get(fm_struct_S, para_env=para_env)
       CALL get_blacs_info(fm_struct_S%context, my_process_row=my_prow, blacs2mpi=blacs2mpi, para_env=para_env)
 
       CALL get_group_dist(gd_virtual, mepos(1), my_a_start, sizes=my_a_size)
       CALL get_group_dist(gd_homo, mepos(2), my_i_start, sizes=my_i_size)
+
+      ! We have to remap the indices because mp_sendrecv requires a 3D array (because of mat_work_iaP_3D)
+      ! and dgemm requires 2D arrays
+      ! Fortran 2008 does allow pointer remapping independently of the ranks but GCC 7 does not properly support it
+      mat_S_2D(1:my_P_size*my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
+      mat_S_3D(1:my_P_size, 1:my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
 
       ALLOCATE (buffer_1D(MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                               INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
@@ -1023,10 +1048,10 @@ CONTAINS
          CALL timeset(routineN//"_dgemm_a", handle2)
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
-            CALL DGEMM("T", "N", my_a_size, recv_a_size, my_P_size, &
-                       -weight, mat_S_3D(1, 1, my_i), my_P_size, &
-                       buffer_3D(1, 1, my_i), my_P_size, &
-                       1.0_dp, P_ab(1, recv_a_start), my_a_size)
+            CALL offload_dgemm("T", "N", my_a_size, recv_a_size, my_P_size, &
+                               -weight, mat_S_3D(:, :, my_i), my_P_size, &
+                               buffer_3D(:, :, my_i), my_P_size, &
+                               1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%offload_gemm_ctx)
          END DO
          CALL timestop(handle2)
 
@@ -1047,10 +1072,10 @@ CONTAINS
          CALL timeset(routineN//"_dgemm_a", handle2)
          DO my_i = 1, my_i_size
             ! Repeat contraction
-            CALL DGEMM("T", "N", my_a_size, recv_a_size, my_P_size, &
-                       weight, mat_S_3D(1, 1, my_i), my_P_size, &
-                       buffer_3D(1, 1, my_i), my_P_size, &
-                       1.0_dp, P_ab(1, recv_a_start), my_a_size)
+            CALL offload_dgemm("T", "N", my_a_size, recv_a_size, my_P_size, &
+                               weight, mat_S_3D(:, :, my_i), my_P_size, &
+                               buffer_3D(:, :, my_i), my_P_size, &
+                               1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%offload_gemm_ctx)
          END DO
          CALL timestop(handle2)
 
@@ -1078,7 +1103,9 @@ CONTAINS
 
          CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
 
+         ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
          buffer_3D(1:my_P_size, 1:my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+         buffer_2D(1:my_P_size*my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
          CALL timeset(routineN//"_comm_i", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
@@ -1088,10 +1115,10 @@ CONTAINS
 
          CALL timeset(routineN//"_dgemm_i", handle2)
          ! This loop imitates the actual tensor contraction
-         CALL DGEMM("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
-                    weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
-                    buffer_3D(1, 1, 1), my_P_size*my_a_size, &
-                    1.0_dp, P_ij(1, recv_i_start), my_i_size)
+         CALL offload_dgemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
+                            weight, mat_S_2D, my_P_size*my_a_size, &
+                            buffer_2D, my_P_size*my_a_size, &
+                            1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%offload_gemm_ctx)
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_scale_i", handle2)
@@ -1112,10 +1139,10 @@ CONTAINS
 
          CALL timeset(routineN//"_dgemm_i", handle2)
          ! Repeat contraction
-         CALL DGEMM("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
-                    -weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
-                    buffer_3D(1, 1, 1), my_P_size*my_a_size, &
-                    1.0_dp, P_ij(1, recv_i_start), my_i_size)
+         CALL offload_dgemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
+                            -weight, mat_S_2D, my_P_size*my_a_size, &
+                            buffer_2D, my_P_size*my_a_size, &
+                            1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%offload_gemm_ctx)
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_scale_i", handle2)
@@ -1128,6 +1155,10 @@ CONTAINS
          END DO
          CALL timestop(handle2)
       END DO
+
+      ! release memory allocated by offload_dgemm when run on GPU. offload_gemm_ctx is null on cpu only runs
+      CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
+      mp2_env%offload_gemm_ctx = C_NULL_PTR
 
       CALL timestop(handle)
 

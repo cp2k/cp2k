@@ -1519,7 +1519,7 @@ CONTAINS
             IF (do_ri_sos_laplace_mp2) THEN
                CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
 
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(rpa_grad, do_ri_sos_laplace_mp2, &
+               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
                                                                                        Eigenval(:, 1, :), tau_wj(jquad))
             ELSE
@@ -1538,7 +1538,7 @@ CONTAINS
                   CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1)%matrix, para_env_RPA, Erpa, wj(jquad))
                END IF
 
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(rpa_grad, do_ri_sos_laplace_mp2, &
+               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
                                                                                        Eigenval(:, 1, :), wj(jquad))
             END IF ! do_ri_sos_laplace_mp2
