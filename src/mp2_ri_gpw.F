@@ -38,7 +38,7 @@ MODULE mp2_ri_gpw
                                               mp_recv,&
                                               mp_send,&
                                               mp_sendrecv,&
-                                              mp_sum
+                                              mp_sum, mp_sync
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: mp2_type,&
                                               three_dim_real_array
@@ -2163,7 +2163,7 @@ CONTAINS
          max_block_size, max_ijk, my_i, my_ijk, my_j, my_k, my_virtual, nspins, proc_receive, &
          proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, &
          send_B_size, send_B_virtual_end, send_B_virtual_start, send_i, send_ijk_index, send_j, &
-         send_k, size_B_i, size_B_k, start_point, tag
+         send_k, size_B_i, size_B_k, start_point, tag, tag2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_ijk
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ijk_map
       LOGICAL                                            :: alpha_beta
@@ -2179,6 +2179,7 @@ CONTAINS
       MARK_USED(my_group_L_size)
 
       tag = 44
+tag2=45
 
       nspins = SIZE(BIb_C)
       alpha_beta = (nspins == 2)
@@ -2201,7 +2202,7 @@ CONTAINS
 
          CALL Find_quasi_degenerate_ij(my_ijk, homo(ispin), homo(kspin), Eigenval(:, ispin), mp2_env, ijk_map, unit_nr, ngroup, &
                                        .NOT. beta_beta .AND. ispin /= 2, para_env_exchange, num_ijk, max_ijk, color_sub, &
-                                       SIZE(buffer_1D), my_group_L_size, size_B_k)
+                                       SIZE(buffer_1D), my_group_L_size, size_B_k, para_env_sub)
 
          my_virtual = virtual(ispin)
          IF (SIZE(ijk_map, 1) > 0) THEN
@@ -2311,12 +2312,36 @@ CONTAINS
                   END DO
 
                   ! occupied k
+WRITE(*,*) "DEBUG2", para_env_sub%mepos, para_env_exchange%mepos, proc_send, proc_receive, my_group_L_size, rec_L_size, &
+size_B_k, block_size, homo(kspin), send_k, my_k
+IF (unit_nr>0) WRITE(unit_nr, *) "DEBUG", para_env_sub%mepos, para_env_exchange%mepos, my_group_L_size, size_B_k, &
+block_size, homo(kspin), send_k
+IF (unit_nr>0) CALL m_flush(unit_nr)
                  BI_C_rec_3D(1:rec_L_size, 1:size_B_k, 1:block_size) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k*block_size)
                   IF (ijk_index <= send_ijk_index) THEN
+BLOCK
+INTEGER :: size_recv(3)
+CALL mp_sendrecv([SHAPE(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1))], proc_send, &
+size_recv, proc_receive, para_env_exchange%group, tag2)
+IF (.NOT. ALL(SHAPE(BI_C_rec_3D)==size_recv)) THEN
+WRITE(*,*) "ERROR", color_sub, SHAPE(BI_C_rec_3D), size_recv
+CPABORT("")
+END IF
+CALL mp_sync(para_env_exchange%group)
+END BLOCK
                      CALL mp_sendrecv(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, &
                                       BI_C_rec_3D, proc_receive, &
                                       para_env_exchange%group, tag)
                   ELSE
+BLOCK
+INTEGER :: size_recv(3)
+CALL mp_recv(size_recv, proc_receive, tag2, para_env_exchange%group)
+IF (.NOT. ALL(SHAPE(BI_C_rec_3D)==size_recv)) THEN
+WRITE(*,*) "ERROR", color_sub, SHAPE(BI_C_rec_3D), size_recv
+CPABORT("")
+END IF
+CALL mp_sync(para_env_exchange%group)
+END BLOCK
                      ! nothing to send
                      CALL mp_recv(BI_C_rec, proc_receive, tag, &
                                   para_env_exchange%group)
@@ -2489,6 +2514,11 @@ CONTAINS
                      CALL mp_send(BIb_C(ispin)%array(:, :, send_j), proc_send, tag, &
                                   para_env_exchange%group)
                      ! occupied k
+BLOCK
+CALL mp_send([SHAPE(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1))], proc_send, &
+para_env_exchange%group, tag2)
+CALL mp_sync(para_env_exchange%group)
+END BLOCK
                      CALL mp_send(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, tag, &
                                   para_env_exchange%group)
                   END IF
@@ -2528,7 +2558,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE Find_quasi_degenerate_ij(my_ijk, homo, homo_beta, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
                                        do_print_alpha, para_env_exchange, num_ijk, max_ijk, color_sub, &
-                                       buffer_size, my_group_L_size, my_B_size)
+                                       buffer_size, my_group_L_size, my_B_size, para_env_sub)
 
       INTEGER, INTENT(OUT)                               :: my_ijk
       INTEGER, INTENT(IN)                                :: homo, homo_beta
@@ -2537,7 +2567,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: ijk_map
       INTEGER, INTENT(IN)                                :: unit_nr, ngroup
       LOGICAL, INTENT(IN)                                :: do_print_alpha
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange, para_env_sub
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: num_ijk
       INTEGER, INTENT(OUT)                               :: max_ijk
       INTEGER, INTENT(IN)                                :: color_sub, buffer_size, my_group_L_size, &
@@ -2571,6 +2601,8 @@ CONTAINS
 
       ! Determine the block size, first guess: use available buffer
       max_block_size = buffer_size/my_group_L_size/my_B_size
+CALL mp_min(max_block_size, para_env_exchange%group)
+CALL mp_min(max_block_size, para_env_sub%group)
 
       ! Find now the block size which minimizes the communication volume and then the number of communication steps
       block_size = 1
@@ -2593,15 +2625,26 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-            "MO_INFO| Block size:", num_sing_ij
+            "MO_INFO| Block size:", block_size
          CALL m_flush(unit_nr)
       END IF
+
+BLOCK
+INTEGER :: new_size(1), tag
+tag=1
+CALL mp_sendrecv([block_size], MOD(para_env_exchange%mepos+1,para_env_exchange%num_pe), &
+new_size, MOD(para_env_exchange%mepos-1,para_env_exchange%num_pe), para_env_exchange%group, tag)
+IF (new_size(1) /= block_size) THEN
+WRITE(*,*) color_sub, block_size, new_size(1)
+CPABORT("")
+END IF
+END BLOCK
 
       ! Calculate number of large blocks
       max_num_k_blocks = homo_beta/block_size*num_sing_ij
       num_k_blocks = max_num_k_blocks - MOD(max_num_k_blocks, ngroup)
 
-      total_ijk = homo_beta*num_sing_ij
+      total_ijk = num_k_blocks+homo_beta*num_sing_ij-num_k_blocks*block_size
       ALLOCATE (ijk_map(total_ijk, 4))
       ijk_map = 0
       ALLOCATE (ijk_marker(homo_beta, num_sing_ij))
@@ -2624,9 +2667,11 @@ CONTAINS
                ijk_map(ijk_counter, 3) = kkB
                ijk_map(ijk_counter, 4) = block_size
                IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk = my_ijk + 1
+IF (unit_nr>0) WRITE(unit_nr,*) "MAP", ijk_counter, MOD(ijk_counter, ngroup), iiB, jjB, kkB, block_size
             END DO
          END DO
       END DO
+CPASSERT(MOD(ijk_counter, ngroup)==0)
       ij_counter = 0
       DO iiB = 1, homo
          ! diagonal elements already updated
@@ -2641,10 +2686,12 @@ CONTAINS
                   ijk_map(ijk_counter, 3) = kkB
                   ijk_map(ijk_counter, 4) = 1
                   IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk = my_ijk + 1
+IF (unit_nr>0) WRITE(unit_nr,*) "MAP", ijk_counter, MOD(ijk_counter, ngroup), iiB, jjB, kkB, 1
                END IF
             END DO
          END DO
       END DO
+CPASSERT(ijk_counter == SIZE(ijk_map, 1))
 
       DEALLOCATE (ijk_marker)
 
