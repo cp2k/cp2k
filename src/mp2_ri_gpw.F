@@ -2312,36 +2312,12 @@ tag2=45
                   END DO
 
                   ! occupied k
-WRITE(*,*) "DEBUG2", para_env_sub%mepos, para_env_exchange%mepos, proc_send, proc_receive, my_group_L_size, rec_L_size, &
-size_B_k, block_size, homo(kspin), send_k, my_k
-IF (unit_nr>0) WRITE(unit_nr, *) "DEBUG", para_env_sub%mepos, para_env_exchange%mepos, my_group_L_size, size_B_k, &
-block_size, homo(kspin), send_k
-IF (unit_nr>0) CALL m_flush(unit_nr)
                  BI_C_rec_3D(1:rec_L_size, 1:size_B_k, 1:block_size) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k*block_size)
                   IF (ijk_index <= send_ijk_index) THEN
-BLOCK
-INTEGER :: size_recv(3)
-CALL mp_sendrecv([SHAPE(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1))], proc_send, &
-size_recv, proc_receive, para_env_exchange%group, tag2)
-IF (.NOT. ALL(SHAPE(BI_C_rec_3D)==size_recv)) THEN
-WRITE(*,*) "ERROR", color_sub, SHAPE(BI_C_rec_3D), size_recv
-CPABORT("")
-END IF
-CALL mp_sync(para_env_exchange%group)
-END BLOCK
                      CALL mp_sendrecv(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, &
                                       BI_C_rec_3D, proc_receive, &
                                       para_env_exchange%group, tag)
                   ELSE
-BLOCK
-INTEGER :: size_recv(3)
-CALL mp_recv(size_recv, proc_receive, tag2, para_env_exchange%group)
-IF (.NOT. ALL(SHAPE(BI_C_rec_3D)==size_recv)) THEN
-WRITE(*,*) "ERROR", color_sub, SHAPE(BI_C_rec_3D), size_recv
-CPABORT("")
-END IF
-CALL mp_sync(para_env_exchange%group)
-END BLOCK
                      ! nothing to send
                      CALL mp_recv(BI_C_rec, proc_receive, tag, &
                                   para_env_exchange%group)
@@ -2514,11 +2490,6 @@ END BLOCK
                      CALL mp_send(BIb_C(ispin)%array(:, :, send_j), proc_send, tag, &
                                   para_env_exchange%group)
                      ! occupied k
-BLOCK
-CALL mp_send([SHAPE(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1))], proc_send, &
-para_env_exchange%group, tag2)
-CALL mp_sync(para_env_exchange%group)
-END BLOCK
                      CALL mp_send(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, tag, &
                                   para_env_exchange%group)
                   END IF
@@ -2629,17 +2600,6 @@ CALL mp_min(max_block_size, para_env_sub%group)
          CALL m_flush(unit_nr)
       END IF
 
-BLOCK
-INTEGER :: new_size(1), tag
-tag=1
-CALL mp_sendrecv([block_size], MOD(para_env_exchange%mepos+1,para_env_exchange%num_pe), &
-new_size, MOD(para_env_exchange%mepos-1,para_env_exchange%num_pe), para_env_exchange%group, tag)
-IF (new_size(1) /= block_size) THEN
-WRITE(*,*) color_sub, block_size, new_size(1)
-CPABORT("")
-END IF
-END BLOCK
-
       ! Calculate number of large blocks
       max_num_k_blocks = homo_beta/block_size*num_sing_ij
       num_k_blocks = max_num_k_blocks - MOD(max_num_k_blocks, ngroup)
@@ -2667,11 +2627,9 @@ END BLOCK
                ijk_map(ijk_counter, 3) = kkB
                ijk_map(ijk_counter, 4) = block_size
                IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk = my_ijk + 1
-IF (unit_nr>0) WRITE(unit_nr,*) "MAP", ijk_counter, MOD(ijk_counter, ngroup), iiB, jjB, kkB, block_size
             END DO
          END DO
       END DO
-CPASSERT(MOD(ijk_counter, ngroup)==0)
       ij_counter = 0
       DO iiB = 1, homo
          ! diagonal elements already updated
@@ -2686,12 +2644,10 @@ CPASSERT(MOD(ijk_counter, ngroup)==0)
                   ijk_map(ijk_counter, 3) = kkB
                   ijk_map(ijk_counter, 4) = 1
                   IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk = my_ijk + 1
-IF (unit_nr>0) WRITE(unit_nr,*) "MAP", ijk_counter, MOD(ijk_counter, ngroup), iiB, jjB, kkB, 1
                END IF
             END DO
          END DO
       END DO
-CPASSERT(ijk_counter == SIZE(ijk_map, 1))
 
       DEALLOCATE (ijk_marker)
 
