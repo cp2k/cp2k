@@ -22,6 +22,7 @@ typedef struct {
   dbm_mpi_comm_t comm; // 1D communicator
   int nranks;
   int my_rank;
+  int nshards; // Number of shards for distributing blocks across threads.
 } dbm_dist_1d_t;
 
 /*******************************************************************************

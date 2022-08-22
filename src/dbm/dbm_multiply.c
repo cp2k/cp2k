@@ -37,7 +37,7 @@ static float *compute_rows_max_eps(const bool trans, const dbm_matrix_t *matrix,
 #pragma omp parallel
   {
 #pragma omp for
-    for (int ishard = 0; ishard < matrix->nshards; ishard++) {
+    for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
       dbm_shard_t *shard = &matrix->shards[ishard];
       for (int iblock = 0; iblock < shard->nblocks; iblock++) {
         const dbm_block_t *blk = &shard->blocks[iblock];
@@ -79,8 +79,8 @@ static backend_context_t *backend_start(const dbm_matrix_t *matrix_c) {
   backend_context_t *ctx = calloc(1, sizeof(backend_context_t));
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
-  dbm_multiply_gpu_start(MAX_BATCH_SIZE, matrix_c->nshards, matrix_c->shards,
-                         &ctx->gpu);
+  dbm_multiply_gpu_start(MAX_BATCH_SIZE, dbm_get_num_shards(matrix_c),
+                         matrix_c->shards, &ctx->gpu);
 #else
   (void)matrix_c; // mark as used
 #endif
@@ -161,15 +161,14 @@ static void multiply_packs(const bool transa, const bool transb,
                            const bool retain_sparsity,
                            const float *rows_max_eps, int64_t *flop,
                            backend_context_t *ctx) {
-
-  assert(matrix_a->nshards == matrix_c->nshards);
-  const int nshards = matrix_a->nshards;
   const float alpha2 = alpha * alpha;
   int64_t flop_sum = 0;
 
-  int shard_start[nshards], hash_start[PACK_HASH_SIZE];
-  memset(shard_start, 0, nshards * sizeof(int));
-  memset(hash_start, 0, PACK_HASH_SIZE * sizeof(int));
+  const int nshard_rows = matrix_c->dist->rows.nshards;
+  const int nshard_cols = matrix_c->dist->cols.nshards;
+  int shard_row_start[nshard_rows], shard_col_start[nshard_cols];
+  memset(shard_row_start, 0, nshard_rows * sizeof(int));
+  memset(shard_col_start, 0, nshard_cols * sizeof(int));
 
   const int *sum_index_sizes_a =
       (transa) ? matrix_a->row_sizes : matrix_a->col_sizes;
@@ -183,101 +182,107 @@ static void multiply_packs(const bool transa, const bool transb,
 #pragma omp parallel reduction(+ : flop_sum)
   {
 
-    // Blocks of pack_a are sorted by shard. Creating lookup table of boundaries
+    // Blocks are ordered first by shard. Creating lookup tables of boundaries.
 #pragma omp for
     for (int iblock = 1; iblock < pack_a->nblocks; iblock++) {
-      const int ishard = pack_a->blocks[iblock].free_index % nshards;
-      const int prev_ishard = pack_a->blocks[iblock - 1].free_index % nshards;
-      if (prev_ishard != ishard) {
-        shard_start[ishard] = iblock;
+      const int shard_row = pack_a->blocks[iblock].free_index % nshard_rows;
+      const int prev_shard_row =
+          pack_a->blocks[iblock - 1].free_index % nshard_rows;
+      if (prev_shard_row != shard_row) {
+        shard_row_start[shard_row] = iblock;
       }
     }
-
-    // Blocks of pack_a are sorted by hash. Creating lookup table of boundaries.
 #pragma omp for
     for (int jblock = 1; jblock < pack_b->nblocks; jblock++) {
-      const int hash = dbm_pack_block_hash(&pack_b->blocks[jblock]);
-      const int prev_hash = dbm_pack_block_hash(&pack_b->blocks[jblock - 1]);
-      if (prev_hash != hash) {
-        hash_start[hash] = jblock;
+      const int shard_col = pack_b->blocks[jblock].free_index % nshard_cols;
+      const int prev_shard_col =
+          pack_b->blocks[jblock - 1].free_index % nshard_cols;
+      if (prev_shard_col != shard_col) {
+        shard_col_start[shard_col] = jblock;
       }
     }
 
-#pragma omp for schedule(dynamic)
-    for (int ishard = 0; ishard < matrix_c->nshards; ishard++) {
-      dbm_shard_t *shard_c = &matrix_c->shards[ishard];
-      dbm_task_t batch[MAX_BATCH_SIZE];
-      int ntasks = 0;
+#pragma omp for collapse(2) schedule(dynamic)
+    for (int shard_row = 0; shard_row < nshard_rows; shard_row++) {
+      for (int shard_col = 0; shard_col < nshard_cols; shard_col++) {
+        const int ishard = shard_row * nshard_cols + shard_col;
+        dbm_shard_t *shard_c = &matrix_c->shards[ishard];
+        dbm_task_t batch[MAX_BATCH_SIZE];
+        int ntasks = 0;
 
-      // Find block pairs with matching sum_index that belong to given shard_c.
-      const int iblock_start = shard_start[ishard];
-      for (int iblock = iblock_start; iblock < pack_a->nblocks; iblock++) {
-        const dbm_pack_block_t *blk_a = &pack_a->blocks[iblock];
-        if (blk_a->free_index % nshards != ishard) {
-          break;
-        }
-        const int hash_blk_a = dbm_pack_block_hash(blk_a);
-        const int jblock_start = hash_start[hash_blk_a];
-        for (int jblock = jblock_start; jblock < pack_b->nblocks; jblock++) {
-          const dbm_pack_block_t *blk_b = &pack_b->blocks[jblock];
-          if (dbm_pack_block_hash(blk_b) != hash_blk_a) {
-            break; // Blocks in pack_b are first sorted by hash ...
-          }
-          if (blk_b->sum_index < blk_a->sum_index) {
-            continue; // ... and then sorted by sum_index.
-          }
-          if (blk_b->sum_index > blk_a->sum_index) {
+        // Use a merge-join to find pairs of blocks with matching sum indices.
+        // This utilizes that blocks within a shard are ordered by sum_index.
+        const int iblock_start = shard_row_start[shard_row];
+        int jblock_start = shard_col_start[shard_col];
+        for (int iblock = iblock_start; iblock < pack_a->nblocks; iblock++) {
+          const dbm_pack_block_t *blk_a = &pack_a->blocks[iblock];
+          if (blk_a->free_index % nshard_rows != shard_row) {
             break;
           }
+          for (int jblock = jblock_start; jblock < pack_b->nblocks; jblock++) {
+            const dbm_pack_block_t *blk_b = &pack_b->blocks[jblock];
+            if (blk_b->free_index % nshard_cols != shard_col) {
+              break;
+            }
+            if (blk_a->sum_index < blk_b->sum_index) {
+              break;
+            }
+            if (blk_a->sum_index > blk_b->sum_index) {
+              jblock_start++;
+              continue;
+            }
+            // Found block pair with blk_a->sum_index == blk_b->sum_index.
 
-          // Check norms.
-          const float result_norm = alpha2 * blk_a->norm * blk_b->norm;
-          if (result_norm < rows_max_eps[blk_a->free_index]) {
-            continue;
-          }
+            // Check norms.
+            const float result_norm = alpha2 * blk_a->norm * blk_b->norm;
+            if (result_norm < rows_max_eps[blk_a->free_index]) {
+              continue;
+            }
 
-          // Check block sizes.
-          const int m = free_index_sizes_a[blk_a->free_index];
-          const int n = free_index_sizes_b[blk_b->free_index];
-          const int k = sum_index_sizes_a[blk_a->sum_index];
-          assert(m == matrix_c->row_sizes[blk_a->free_index]);
-          assert(n == matrix_c->col_sizes[blk_b->free_index]);
-          assert(k == sum_index_sizes_b[blk_b->sum_index]);
+            // Check block sizes.
+            const int m = free_index_sizes_a[blk_a->free_index];
+            const int n = free_index_sizes_b[blk_b->free_index];
+            const int k = sum_index_sizes_a[blk_a->sum_index];
+            assert(m == matrix_c->row_sizes[blk_a->free_index]);
+            assert(n == matrix_c->col_sizes[blk_b->free_index]);
+            assert(k == sum_index_sizes_b[blk_b->sum_index]);
 
-          // Get C block.
-          const int row = blk_a->free_index, col = blk_b->free_index;
-          dbm_block_t *blk_c = dbm_shard_lookup(shard_c, row, col);
-          if (blk_c == NULL && retain_sparsity) {
-            continue;
-          } else if (blk_c == NULL) {
-            assert(dbm_get_stored_coordinates(matrix_c, row, col) ==
-                   matrix_c->dist->my_rank);
-            blk_c = dbm_shard_promise_new_block(shard_c, row, col, m * n);
-          }
+            // Get C block.
+            const int row = blk_a->free_index, col = blk_b->free_index;
+            dbm_block_t *blk_c = dbm_shard_lookup(shard_c, row, col);
+            if (blk_c == NULL && retain_sparsity) {
+              continue;
+            } else if (blk_c == NULL) {
+              assert(dbm_get_shard_index(matrix_c, row, col) == ishard);
+              assert(dbm_get_stored_coordinates(matrix_c, row, col) ==
+                     matrix_c->dist->my_rank);
+              blk_c = dbm_shard_promise_new_block(shard_c, row, col, m * n);
+            }
 
-          // Count flops.
-          assert(m * n * k > 0);
-          flop_sum += 2 * m * n * k;
-          dbm_library_counter_increment(m, n, k);
+            // Count flops.
+            assert(m * n * k > 0);
+            flop_sum += 2 * m * n * k;
+            dbm_library_counter_increment(m, n, k);
 
-          // Add block multiplication to batch.
-          batch[ntasks].m = m;
-          batch[ntasks].n = n;
-          batch[ntasks].k = k;
-          batch[ntasks].offset_a = blk_a->offset;
-          batch[ntasks].offset_b = blk_b->offset;
-          batch[ntasks].offset_c = blk_c->offset;
-          ntasks++;
+            // Add block multiplication to batch.
+            batch[ntasks].m = m;
+            batch[ntasks].n = n;
+            batch[ntasks].k = k;
+            batch[ntasks].offset_a = blk_a->offset;
+            batch[ntasks].offset_b = blk_b->offset;
+            batch[ntasks].offset_c = blk_c->offset;
+            ntasks++;
 
-          if (ntasks == MAX_BATCH_SIZE) {
-            backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, ishard,
-                                  shard_c, ctx);
-            ntasks = 0;
+            if (ntasks == MAX_BATCH_SIZE) {
+              backend_process_batch(ntasks, batch, alpha, pack_a, pack_b,
+                                    ishard, shard_c, ctx);
+              ntasks = 0;
+            }
           }
         }
+        backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, ishard,
+                              shard_c, ctx);
       }
-      backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, ishard,
-                            shard_c, ctx);
     }
   }
   *flop += flop_sum;

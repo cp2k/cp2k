@@ -18,11 +18,6 @@ static const int BATCH_NUM_BUCKETS = 1000;
 static const int INITIAL_NBLOCKS_ALLOCATED = 100;
 static const int INITIAL_DATA_ALLOCATED = 1024;
 
-// Choosing size as power of two allows to replace modulo with bitwise AND.
-static const int PACK_HASH_SIZE = 1024;
-static const int PACK_HASH_MASK = 1023; // PACK_HASH_SIZE - 1
-static const int PACK_HASH_PRIME = 509; // Closest prime to PACK_HASH_SIZE / 2.
-
 #endif
 
 // EOF

@@ -25,7 +25,6 @@ typedef struct {
   int *row_sizes;
   int *col_sizes;
 
-  int nshards;
   dbm_shard_t *shards;
 } dbm_matrix_t;
 
@@ -225,6 +224,25 @@ int dbm_get_stored_coordinates(const dbm_matrix_t *matrix, const int row,
  * \author Ole Schuett
  ******************************************************************************/
 const dbm_distribution_t *dbm_get_distribution(const dbm_matrix_t *matrix);
+
+/*******************************************************************************
+ * \brief Internal routine that returns the number of shards for given matrix.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline int dbm_get_num_shards(const dbm_matrix_t *matrix) {
+  return matrix->dist->rows.nshards * matrix->dist->cols.nshards;
+}
+
+/*******************************************************************************
+ * \brief Internal routine for getting a block's shard index.
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline int dbm_get_shard_index(const dbm_matrix_t *matrix, const int row,
+                                      const int col) {
+  const int shard_row = row % matrix->dist->rows.nshards;
+  const int shard_col = col % matrix->dist->cols.nshards;
+  return shard_row * matrix->dist->cols.nshards + shard_col;
+}
 
 #endif
 
