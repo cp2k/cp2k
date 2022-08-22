@@ -609,6 +609,8 @@ CONTAINS
       DEALLOCATE (work)
       DO i = 1, nm
          NULLIFY (mom_block(i)%block)
+      END DO
+      DO i = 1, M_dim
          DO idir = 1, 3
             NULLIFY (mom_block_der(i, idir)%block)
          END DO
