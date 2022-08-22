@@ -112,16 +112,15 @@ void dbm_shard_release(dbm_shard_t *shard) {
 }
 
 /*******************************************************************************
- * \brief Private hash function based on Szudzik's elegant pairing.
+ * \brief Private hash function based on Cantor pairing function.
+ *        https://en.wikipedia.org/wiki/Pairing_function#Cantor_pairing_function
+ *        Szudzik's elegant pairing proved to be too asymmetric wrt. row / col.
  *        Using unsigned int to return a positive number even after overflow.
- *        https://en.wikipedia.org/wiki/Pairing_function#Other_pairing_functions
- *        https://stackoverflow.com/a/13871379
- *        http://szudzik.com/ElegantPairing.pdf
  * \author Ole Schuett
  ******************************************************************************/
 static inline unsigned int hash(const unsigned int row,
                                 const unsigned int col) {
-  return (row >= col) ? row * row + row + col : row + col * col;
+  return (row + col) * (row + col + 1) / 2 + row; // Division by 2 is cheap.
 }
 
 /*******************************************************************************
