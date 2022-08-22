@@ -92,7 +92,7 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
     int nblks_mythread[npacks];
     memset(nblks_mythread, 0, npacks * sizeof(int));
 #pragma omp for schedule(static)
-    for (int ishard = 0; ishard < matrix->nshards; ishard++) {
+    for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
       dbm_shard_t *shard = &matrix->shards[ishard];
       for (int iblock = 0; iblock < shard->nblocks; iblock++) {
         const dbm_block_t *blk = &shard->blocks[iblock];
@@ -119,7 +119,7 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
     int ndata_mythread[npacks];
     memset(ndata_mythread, 0, npacks * sizeof(int));
 #pragma omp for schedule(static) // Need static to match previous loop.
-    for (int ishard = 0; ishard < matrix->nshards; ishard++) {
+    for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
       dbm_shard_t *shard = &matrix->shards[ishard];
       for (int iblock = 0; iblock < shard->nblocks; iblock++) {
         const dbm_block_t *blk = &shard->blocks[iblock];
@@ -155,14 +155,12 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
  * \brief Private routine for filling send buffers.
  * \author Ole Schuett
  ******************************************************************************/
-static void fill_send_buffers(const dbm_matrix_t *matrix,
-                              const bool trans_matrix, const int nblks_send,
-                              const int ndata_send, plan_t plans[nblks_send],
-                              const int nranks, int blks_send_count[nranks],
-                              int data_send_count[nranks],
-                              int blks_send_displ[nranks],
-                              int data_send_displ[nranks],
-                              dbm_pack_block_t *blks_send, double *data_send) {
+static void fill_send_buffers(
+    const dbm_matrix_t *matrix, const bool trans_matrix, const int nblks_send,
+    const int ndata_send, plan_t plans[nblks_send], const int nranks,
+    int blks_send_count[nranks], int data_send_count[nranks],
+    int blks_send_displ[nranks], int data_send_displ[nranks],
+    dbm_pack_block_t blks_send[nblks_send], double data_send[ndata_send]) {
 
   memset(blks_send_count, 0, nranks * sizeof(int));
   memset(data_send_count, 0, nranks * sizeof(int));
@@ -205,9 +203,10 @@ static void fill_send_buffers(const dbm_matrix_t *matrix,
 #pragma omp for schedule(static) // Need static to match previous loop.
     for (int iblock = 0; iblock < nblks_send; iblock++) {
       const plan_t *plan = &plans[iblock];
-      const int ishard = plan->blk->row % matrix->nshards;
+      const dbm_block_t *blk = plan->blk;
+      const int ishard = dbm_get_shard_index(matrix, blk->row, blk->col);
       const dbm_shard_t *shard = &matrix->shards[ishard];
-      const double *blk_data = &shard->data[plan->blk->offset];
+      const double *blk_data = &shard->data[blk->offset];
       const int row_size = plan->row_size, col_size = plan->col_size;
       const int irank = plan->rank;
 
@@ -259,76 +258,37 @@ static int compare_pack_blocks_by_sum_index(const void *a, const void *b) {
 }
 
 /*******************************************************************************
- * \brief Private routine for sorting blocks by the hash of their sum_index
+ * \brief Private routine for post-processing received blocks.
  * \author Ole Schuett
  ******************************************************************************/
-static void sort_blocks_by_sum_index_hash(const int nblocks,
-                                          dbm_pack_block_t blocks[nblocks]) {
-
-  int nblocks_per_hash[PACK_HASH_SIZE], hash_start[PACK_HASH_SIZE];
-  memset(nblocks_per_hash, 0, PACK_HASH_SIZE * sizeof(int));
-  dbm_pack_block_t *blocks_tmp = malloc(nblocks * sizeof(dbm_pack_block_t));
-
-#pragma omp parallel
-  {
-    // Sort blocks by their hash.
-    int nblocks_mythread[PACK_HASH_SIZE];
-    memset(nblocks_mythread, 0, PACK_HASH_SIZE * sizeof(int));
-#pragma omp for schedule(static)
-    for (int iblock = 0; iblock < nblocks; iblock++) {
-      blocks_tmp[iblock] = blocks[iblock];
-      const int hash = dbm_pack_block_hash(&blocks[iblock]);
-      nblocks_mythread[hash]++;
-    }
-#pragma omp critical
-    for (int i = 0; i < PACK_HASH_SIZE; i++) {
-      nblocks_per_hash[i] += nblocks_mythread[i];
-      nblocks_mythread[i] = nblocks_per_hash[i];
-    }
-#pragma omp barrier
-#pragma omp master
-    icumsum(PACK_HASH_SIZE, nblocks_per_hash, hash_start);
-#pragma omp barrier
-#pragma omp for schedule(static) // Need static to match previous loop.
-    for (int iblock = 0; iblock < nblocks; iblock++) {
-      const int hash = dbm_pack_block_hash(&blocks_tmp[iblock]);
-      const int jblock = --nblocks_mythread[hash] + hash_start[hash];
-      blocks[jblock] = blocks_tmp[iblock];
-    }
-
-    // Sort blocks with same hash by their sum_index.
-#pragma omp for
-    for (int i = 0; i < PACK_HASH_SIZE; i++) {
-      if (nblocks_per_hash[i] > 1) {
-        qsort(&blocks[hash_start[i]], nblocks_per_hash[i],
-              sizeof(dbm_pack_block_t), &compare_pack_blocks_by_sum_index);
-      }
-    }
-  } // end of omp parallel region
-
-  free(blocks_tmp);
-}
-
-/*******************************************************************************
- * \brief Private routine for sorting blocks by the shard of their free_index.
- * \author Ole Schuett
- ******************************************************************************/
-static void sort_blocks_by_free_index_shard(const int nshards,
-                                            const int nblocks,
-                                            dbm_pack_block_t blocks[nblocks]) {
+static void postprocess_received_blocks(
+    const int nranks, const int nshards, const int nblocks_recv,
+    const int blks_recv_count[nranks], const int blks_recv_displ[nranks],
+    const int data_recv_displ[nranks],
+    dbm_pack_block_t blks_recv[nblocks_recv]) {
 
   int nblocks_per_shard[nshards], shard_start[nshards];
   memset(nblocks_per_shard, 0, nshards * sizeof(int));
-  dbm_pack_block_t *blocks_tmp = malloc(nblocks * sizeof(dbm_pack_block_t));
+  dbm_pack_block_t *blocks_tmp =
+      malloc(nblocks_recv * sizeof(dbm_pack_block_t));
 
 #pragma omp parallel
   {
+    // Add data_recv_displ to recveived block offsets.
+    for (int irank = 0; irank < nranks; irank++) {
+#pragma omp for
+      for (int i = 0; i < blks_recv_count[irank]; i++) {
+        blks_recv[blks_recv_displ[irank] + i].offset += data_recv_displ[irank];
+      }
+    }
+
+    // First use counting sort to group blocks by their free_index shard.
     int nblocks_mythread[nshards];
     memset(nblocks_mythread, 0, nshards * sizeof(int));
 #pragma omp for schedule(static)
-    for (int iblock = 0; iblock < nblocks; iblock++) {
-      blocks_tmp[iblock] = blocks[iblock];
-      const int ishard = blocks[iblock].free_index % nshards;
+    for (int iblock = 0; iblock < nblocks_recv; iblock++) {
+      blocks_tmp[iblock] = blks_recv[iblock];
+      const int ishard = blks_recv[iblock].free_index % nshards;
       nblocks_mythread[ishard]++;
     }
 #pragma omp critical
@@ -341,10 +301,19 @@ static void sort_blocks_by_free_index_shard(const int nshards,
     icumsum(nshards, nblocks_per_shard, shard_start);
 #pragma omp barrier
 #pragma omp for schedule(static) // Need static to match previous loop.
-    for (int iblock = 0; iblock < nblocks; iblock++) {
+    for (int iblock = 0; iblock < nblocks_recv; iblock++) {
       const int ishard = blocks_tmp[iblock].free_index % nshards;
       const int jblock = --nblocks_mythread[ishard] + shard_start[ishard];
-      blocks[jblock] = blocks_tmp[iblock];
+      blks_recv[jblock] = blocks_tmp[iblock];
+    }
+
+    // Then sort blocks within each shard by their sum_index.
+#pragma omp for
+    for (int ishard = 0; ishard < nshards; ishard++) {
+      if (nblocks_per_shard[ishard] > 1) {
+        qsort(&blks_recv[shard_start[ishard]], nblocks_per_shard[ishard],
+              sizeof(dbm_pack_block_t), &compare_pack_blocks_by_sum_index);
+      }
     }
   } // end of omp parallel region
 
@@ -438,26 +407,10 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
                              dist->comm);
     dbm_mempool_free(data_send);
 
-    // Add data_recv_displ to recveived block offsets.
-#pragma omp parallel
-    { // Extra brackets needed to prevent deadlock with Intel compiler.
-      for (int irank = 0; irank < nranks; irank++) {
-#pragma omp for
-        for (int i = 0; i < blks_recv_count[irank]; i++) {
-          blks_recv[blks_recv_displ[irank] + i].offset +=
-              data_recv_displ[irank];
-        }
-      }
-    }
-
-    // Sort recveived blocks as required for multiply_packs().
-    if (trans_dist) {
-      sort_blocks_by_sum_index_hash(nblocks_recv, blks_recv);
-    } else {
-      sort_blocks_by_free_index_shard(matrix->nshards, nblocks_recv, blks_recv);
-    }
-
-    // Assemble received stuff into a pack.
+    // Post-process received blocks and assemble them into a pack.
+    postprocess_received_blocks(nranks, dist_indices->nshards, nblocks_recv,
+                                blks_recv_count, blks_recv_displ,
+                                data_recv_displ, blks_recv);
     packed.send_packs[ipack].nblocks = nblocks_recv;
     packed.send_packs[ipack].data_size = ndata_recv;
     packed.send_packs[ipack].blocks = blks_recv;

@@ -46,14 +46,6 @@ typedef struct {
   int offset_c;
 } dbm_task_t;
 
-/*******************************************************************************
- * \brief Internal routine for computing the hash of block's sum_index.
- * \author Ole Schuett
- ******************************************************************************/
-static inline int dbm_pack_block_hash(const dbm_pack_block_t *blk) {
-  return (PACK_HASH_PRIME * blk->sum_index) & PACK_HASH_MASK;
-}
-
 #endif
 
 // EOF
