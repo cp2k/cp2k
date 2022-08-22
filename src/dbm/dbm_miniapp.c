@@ -163,6 +163,16 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
                1e-8, &flop);
   const double time_end_multiply = omp_get_wtime();
 
+  // Validate checksum.
+  // Since all matrix elements were set to 1.0 the checksum is an integer.
+  const double expected = (int64_t)M * (int64_t)m * (int64_t)N * (int64_t)n *
+                          (int64_t)K * (int64_t)K * (int64_t)k * (int64_t)k;
+  const double checksum = dbm_checksum(matrix_c);
+  if (checksum != expected) {
+    printf("ERROR: Expected checksum %f but got %f.\n", expected, checksum);
+    exit(1);
+  }
+
   dbm_release(matrix_a);
   dbm_release(matrix_b);
   dbm_release(matrix_c);
