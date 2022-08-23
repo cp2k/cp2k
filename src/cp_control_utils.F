@@ -2189,6 +2189,8 @@ CONTAINS
                                 l_val=dft_control%rtp_control%hfx_redistribute)
       CALL section_vals_val_get(rtp_section, "APPLY_DELTA_PULSE", &
                                 l_val=dft_control%rtp_control%apply_delta_pulse)
+      CALL section_vals_val_get(rtp_section, "APPLY_DELTA_PULSE_MAG", &
+                                l_val=dft_control%rtp_control%apply_delta_pulse_mag)
       CALL section_vals_val_get(rtp_section, "VELOCITY_GAUGE", &
                                 l_val=dft_control%rtp_control%velocity_gauge)
       CALL section_vals_val_get(rtp_section, "VG_COM_NL", &

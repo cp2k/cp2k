@@ -101,7 +101,7 @@ MODULE qs_moments
 
    ! Public subroutines
    PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix
-   PUBLIC :: build_berry_kpoint_matrix
+   PUBLIC :: build_berry_kpoint_matrix, build_local_magmom_matrix
    PUBLIC :: qs_moment_berry_phase, qs_moment_locop
    PUBLIC :: dipole_deriv_ao
 
