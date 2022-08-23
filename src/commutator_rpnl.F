@@ -59,7 +59,7 @@ MODULE commutator_rpnl
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'commutator_rpnl'
 
-   PUBLIC :: build_com_rpnl, build_com_mom_nl
+   PUBLIC :: build_com_rpnl, build_com_mom_nl, build_com_nl_mag
 
 CONTAINS
 
@@ -924,4 +924,241 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_com_mom_nl
+
+! **************************************************************************************************
+!> \brief calculate \sum_R_ps (R_ps - R_nu) x [V_nl, r] summing over all pseudized atoms R
+!> \param qs_kind_set ...
+!> \param sab_all ...
+!> \param sap_ppnl ...
+!> \param eps_ppnl ...
+!> \param particle_set ...
+!> \param matrix_mag_nl ...
+!> \param refpoint ...
+!> \param cell ...
+! **************************************************************************************************
+   SUBROUTINE build_com_nl_mag(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_mag_nl, refpoint, cell)
+
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: qs_kind_set
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         INTENT(IN), POINTER                             :: sab_all, sap_ppnl
+      REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: matrix_mag_nl
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: refpoint
+      TYPE(cell_type), INTENT(IN), OPTIONAL, POINTER     :: cell
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_com_nl_mag'
+
+      INTEGER                                            :: handle, iab, iac, iatom, ibc, icol, &
+                                                            ikind, ind, irow, jatom, jkind, kac, &
+                                                            kbc, kkind, na, natom, nb, nkind, np, &
+                                                            order, slot
+      INTEGER, DIMENSION(3)                              :: cell_b
+      LOGICAL                                            :: found, go, my_ref, ppnl_present
+      REAL(KIND=dp), DIMENSION(3)                        :: r_b, r_ps, rab
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
+      TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: blocks_mag
+      TYPE(gto_basis_set_p_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
+
+!$    INTEGER(kind=omp_lock_kind), &
+!$       ALLOCATABLE, DIMENSION(:) :: locks
+!$    INTEGER                                            :: lock_num, hash
+!$    INTEGER, PARAMETER                                 :: nlock = 501
+
+      ppnl_present = ASSOCIATED(sap_ppnl)
+      IF (.NOT. ppnl_present) RETURN
+
+      CALL timeset(routineN, handle)
+
+      my_ref = .FALSE.
+      IF (PRESENT(refpoint)) THEN
+         my_ref = .TRUE.
+         CPASSERT(PRESENT(cell))
+      END IF
+
+      natom = SIZE(particle_set)
+      nkind = SIZE(qs_kind_set)
+
+      ! allocate integral storage
+      NULLIFY (sap_int)
+      ALLOCATE (sap_int(nkind*nkind))
+      DO ind = 1, nkind*nkind
+         NULLIFY (sap_int(ind)%alist, sap_int(ind)%asort, sap_int(ind)%aindex)
+         sap_int(ind)%nalist = 0
+      END DO
+
+      ! build integrals over GTO + projector functions, refpoint actually
+      order = 1   ! only need first moments (x, y, z)
+      ! refpoint actually does not matter in this case, i. e. (order = 1 .and. commutator)
+      IF (my_ref) THEN
+         CALL build_sap_ints(sap_int, sap_ppnl, qs_kind_set, order, moment_mode=.TRUE., refpoint=refpoint, &
+                             particle_set=particle_set, cell=cell)
+      ELSE
+         CALL build_sap_ints(sap_int, sap_ppnl, qs_kind_set, order, moment_mode=.TRUE.)
+      END IF
+
+      CALL sap_sort(sap_int)
+
+      ! get access to basis sets
+      ALLOCATE (basis_set(nkind))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
+         IF (ASSOCIATED(orb_basis_set)) THEN
+            basis_set(ikind)%gto_basis_set => orb_basis_set
+         ELSE
+            NULLIFY (basis_set(ikind)%gto_basis_set)
+         END IF
+      END DO
+
+!$OMP PARALLEL &
+!$OMP DEFAULT (NONE) &
+!$OMP SHARED  (basis_set, matrix_mag_nl, sap_int, natom, nkind, eps_ppnl, locks, sab_all, &
+!$OMP          particle_set, my_ref, refpoint) &
+!$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
+!$OMP          iab, irow, icol, blocks_mag, r_ps, r_b, go, hash, &
+!$OMP          found, iac, ibc, alist_ac, alist_bc, acint, bcint, &
+!$OMP          achint, bchint, na, np, nb, kkind, kac, kbc)
+
+!$OMP SINGLE
+!$    ALLOCATE (locks(nlock))
+!$OMP END SINGLE
+
+!$OMP DO
+!$    DO lock_num = 1, nlock
+!$       call omp_init_lock(locks(lock_num))
+!$    END DO
+!$OMP END DO
+
+!$OMP DO SCHEDULE(GUIDED)
+      DO slot = 1, sab_all(1)%nl_size
+         ! get indices
+         ikind = sab_all(1)%nlist_task(slot)%ikind
+         jkind = sab_all(1)%nlist_task(slot)%jkind
+         iatom = sab_all(1)%nlist_task(slot)%iatom
+         jatom = sab_all(1)%nlist_task(slot)%jatom
+         cell_b(:) = sab_all(1)%nlist_task(slot)%cell(:)
+         rab(1:3) = sab_all(1)%nlist_task(slot)%r(1:3)
+
+         IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
+         IF (.NOT. ASSOCIATED(basis_set(jkind)%gto_basis_set)) CYCLE
+         iab = ikind + nkind*(jkind - 1)
+
+         IF (iatom <= jatom) THEN
+            irow = iatom
+            icol = jatom
+         ELSE
+            irow = jatom
+            icol = iatom
+         END IF
+
+         ! get blocks
+         ALLOCATE (blocks_mag(3))
+         DO ind = 1, 3
+            CALL dbcsr_get_block_p(matrix_mag_nl(ind)%matrix, irow, icol, blocks_mag(ind)%block, found)
+         END DO
+
+         go = (ASSOCIATED(blocks_mag(1)%block) .AND. ASSOCIATED(blocks_mag(2)%block) .AND. ASSOCIATED(blocks_mag(3)%block))
+
+         IF (go) THEN
+            DO kkind = 1, nkind
+               iac = ikind + nkind*(kkind - 1)
+               ibc = jkind + nkind*(kkind - 1)
+               IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
+               IF (.NOT. ASSOCIATED(sap_int(ibc)%alist)) CYCLE
+               CALL get_alist(sap_int(iac), alist_ac, iatom)
+               CALL get_alist(sap_int(ibc), alist_bc, jatom)
+               IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
+               IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
+               DO kac = 1, alist_ac%nclist
+                  DO kbc = 1, alist_bc%nclist
+                     IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
+                     IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
+                        IF (alist_ac%clist(kac)%maxac*alist_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
+                        acint => alist_ac%clist(kac)%acint
+                        bcint => alist_bc%clist(kbc)%acint
+                        achint => alist_ac%clist(kac)%achint
+                        bchint => alist_bc%clist(kbc)%achint
+                        na = SIZE(acint, 1)
+                        np = SIZE(acint, 2)
+                        nb = SIZE(bcint, 1)
+                        ! Position of the pseudized atom
+                        r_ps = particle_set(alist_ac%clist(kac)%catom)%r
+                        r_b = refpoint
+
+!$                      hash = MOD((iatom - 1)*natom + jatom, nlock) + 1
+!$                      CALL omp_set_lock(locks(hash))
+                        ! assemble integrals
+                        IF (iatom <= jatom) THEN
+                           blocks_mag(1)%block(1:na, 1:nb) = blocks_mag(1)%block(1:na, 1:nb) + &
+                                              (r_ps(2) - r_b(2))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 4))) - &
+                                                 MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 1)))) & !   R_y [V_nl, z]
+                                            - (r_ps(3) - r_b(3))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 3))) - &
+                                                 MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 1))))   ! - R_z [V_nl, y]
+                           blocks_mag(2)%block(1:na, 1:nb) = blocks_mag(2)%block(1:na, 1:nb) + &
+                                              (r_ps(3) - r_b(3))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 2))) - &
+                                                 MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 1)))) & !   R_z [V_nl, x]
+                                            - (r_ps(1) - r_b(1))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 4))) - &
+                                                 MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 1))))   ! - R_x [V_nl, z]
+                           blocks_mag(3)%block(1:na, 1:nb) = blocks_mag(3)%block(1:na, 1:nb) + &
+                                              (r_ps(1) - r_b(1))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 3))) - &
+                                                MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 1)))) &  !   R_x [V_nl, y]
+                                            - (r_ps(2) - r_b(2))*(MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 2))) - &
+                                                MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 1))))    ! - R_y [V_nl, x]
+                        ELSE
+                           blocks_mag(1)%block(1:nb, 1:na) = blocks_mag(1)%block(1:nb, 1:na) + &
+                                              (r_ps(2) - r_b(2))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 4))) - &
+                                                 MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 1)))) & !   R_y [V_nl, z]
+                                            - (r_ps(3) - r_b(3))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 3))) - &
+                                                 MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 1))))   ! - R_z [V_nl, y]
+                           blocks_mag(2)%block(1:nb, 1:na) = blocks_mag(2)%block(1:nb, 1:na) + &
+                                              (r_ps(3) - r_b(3))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 2))) - &
+                                                 MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 1)))) & !   R_z [V_nl, x]
+                                            - (r_ps(1) - r_b(1))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 4))) - &
+                                                 MATMUL(bchint(1:nb, 1:np, 4), TRANSPOSE(acint(1:na, 1:np, 1))))   ! - R_x [V_nl, z]
+                           blocks_mag(3)%block(1:nb, 1:na) = blocks_mag(3)%block(1:nb, 1:na) + &
+                                              (r_ps(1) - r_b(1))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 3))) - &
+                                                MATMUL(bchint(1:nb, 1:np, 3), TRANSPOSE(acint(1:na, 1:np, 1)))) &  !   R_x [V_nl, y]
+                                            - (r_ps(2) - r_b(2))*(MATMUL(bchint(1:nb, 1:np, 1), TRANSPOSE(acint(1:na, 1:np, 2))) - &
+                                                MATMUL(bchint(1:nb, 1:np, 2), TRANSPOSE(acint(1:na, 1:np, 1))))    ! - R_y [V_nl, x]
+                        END IF
+!$                      CALL omp_unset_lock(locks(hash))
+                        EXIT ! We have found a match and there can be only one single match
+                     END IF
+                  END DO
+               END DO
+            END DO
+         END IF
+
+         DO ind = 1, 3
+            NULLIFY (blocks_mag(ind)%block)
+         END DO
+         DEALLOCATE (blocks_mag)
+      END DO
+
+!$OMP DO
+!$    DO lock_num = 1, nlock
+!$       call omp_destroy_lock(locks(lock_num))
+!$    END DO
+!$OMP END DO
+
+!$OMP SINGLE
+!$    DEALLOCATE (locks)
+!$OMP END SINGLE NOWAIT
+
+!$OMP END PARALLEL
+
+      DEALLOCATE (basis_set)
+      CALL release_sap_int(sap_int)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_com_nl_mag
+
 END MODULE commutator_rpnl

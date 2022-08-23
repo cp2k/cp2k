@@ -8277,12 +8277,46 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="APPLY_DELTA_PULSE_MAG", &
+                          description="Applies a magnetic delta kick to the initial wfn (only RTP for now - the EMD "// &
+                          " case is not yet implemented).", &
+                          usage="APPLY_DELTA_PULSE_MAG", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="VELOCITY_GAUGE", &
                           description="Perform propagation in the velocity gauge; only impulse at the moment (delta-pulse) "// &
                           "only works for all-electron up to now."// &
                           "uses DELTA_PULSE_SCALE and DELTA_PULSE_DIRECTION", &
                           usage="VELOCITY_GAUGE T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GAUGE_ORIG", &
+                          description="Define gauge origin for magnetic perturbation", &
+                          usage="GAUGE_ORIG COM", &
+                          enum_c_vals=s2a("COM", "COAC", "USER_DEFINED", "ZERO"), &
+                          enum_desc=s2a("Use Center of Mass", &
+                                        "Use Center of Atomic Charges", &
+                                        "Use User Defined Point (Keyword:REF_POINT)", &
+                                        "Use Origin of Coordinate System"), &
+                          enum_i_vals=(/use_mom_ref_com, &
+                                        use_mom_ref_coac, &
+                                        use_mom_ref_user, &
+                                        use_mom_ref_zero/), &
+                          default_i_val=use_mom_ref_com)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="GAUGE_ORIG_MANUAL", &
+                          description="Manually defined gauge origin for magnetic perturbation [in Bohr!]", &
+                          usage="SPATIAL_REF_POINT x y z", &
+                          repeats=.FALSE., &
+                          n_var=3, default_r_vals=(/0._dp, 0._dp, 0._dp/), &
+                          type_of_var=real_t, &
+                          unit_str='bohr')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

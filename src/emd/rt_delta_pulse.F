@@ -11,7 +11,8 @@
 
 MODULE rt_delta_pulse
    USE cell_types,                      ONLY: cell_type
-   USE commutator_rpnl,                 ONLY: build_com_mom_nl
+   USE commutator_rpnl,                 ONLY: build_com_mom_nl,&
+                                              build_com_nl_mag
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
@@ -27,6 +28,7 @@ MODULE rt_delta_pulse
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                              cp_fm_triangular_multiply,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert,&
@@ -47,8 +49,9 @@ MODULE rt_delta_pulse
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, dbcsr_init_p, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
+        dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_symmetric
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_vals_type,&
@@ -67,6 +70,7 @@ MODULE rt_delta_pulse
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_moments,                      ONLY: build_berry_moment_matrix,&
+                                              build_local_magmom_matrix,&
                                               build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE rt_propagation_types,            ONLY: rt_prop_type
@@ -79,7 +83,8 @@ MODULE rt_delta_pulse
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_delta_pulse'
 
    PUBLIC :: apply_delta_pulse_periodic, &
-             apply_delta_pulse
+             apply_delta_pulse, &
+             apply_delta_pulse_mag
 
 CONTAINS
 
@@ -379,6 +384,183 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE apply_delta_pulse
+
+! **************************************************************************************************
+!> \brief apply magnetic delta pulse to linear order
+!> \param qs_env ...
+!> \param mos_old ...
+!> \param mos_new ...
+! **************************************************************************************************
+   SUBROUTINE apply_delta_pulse_mag(qs_env, mos_old, mos_new)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_old, mos_new
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_delta_pulse_mag'
+
+      INTEGER                                            :: gauge_orig, handle, idir, ispin, nao, &
+                                                            nmo, nrow_global, nvirt
+      REAL(KIND=dp)                                      :: eps_ppnl, factor
+      REAL(KIND=dp), DIMENSION(3)                        :: kvec, rcc
+      REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues, ref_point
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), POINTER                          :: eigenvectors, mat_ks, perturbation, &
+                                                            S_chol, virtuals
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_mag, matrix_nl, &
+                                                            matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_all, sab_orb, sap_ppnl
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(section_vals_type), POINTER                   :: input
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (rtp, dft_control, matrix_ks, matrix_s, input, mos, cell, sab_orb, sab_all, sap_ppnl, &
+               qs_kind_set, particle_set)
+
+      CALL get_qs_env(qs_env, &
+                      rtp=rtp, &
+                      dft_control=dft_control, &
+                      mos=mos, &
+                      matrix_ks=matrix_ks, &
+                      matrix_s=matrix_s, &
+                      input=input, &
+                      cell=cell, &
+                      sab_orb=sab_orb, &
+                      sab_all=sab_all, &
+                      sap_ppnl=sap_ppnl)
+
+      gauge_orig = section_get_ival(section_vals=input, &
+                                    keyword_name="DFT%REAL_TIME_PROPAGATION%GAUGE_ORIG")
+      NULLIFY (ref_point)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%GAUGE_ORIG_MANUAL", r_vals=ref_point)
+      CALL get_reference_point(rcc, qs_env=qs_env, reference=gauge_orig, ref_point=ref_point)
+
+      ! Create fm matrices
+      NULLIFY (S_chol, eigenvectors, mat_ks)
+      CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name='Cholesky S')
+      CALL cp_fm_create(eigenvectors, matrix_struct=rtp%ao_ao_fmstruct, name="gs evecs fm")
+      CALL cp_fm_create(mat_ks, matrix_struct=rtp%ao_ao_fmstruct, name='KS matrix')
+
+      ! get nrows_global
+      CALL cp_fm_get_info(mat_ks, nrow_global=nrow_global)
+
+      ! cholesky decomposition of overlap matrix
+      CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_chol)
+      CALL cp_fm_cholesky_decompose(S_chol)
+
+      ! initiate perturbation matrix
+      NULLIFY (matrix_mag)
+      CALL dbcsr_allocate_matrix_set(matrix_mag, 3)
+      DO idir = 1, 3
+         CALL dbcsr_init_p(matrix_mag(idir)%matrix)
+         CALL dbcsr_create(matrix_mag(idir)%matrix, template=matrix_s(1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_mag(idir)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_mag(idir)%matrix, 0._dp)
+      END DO
+      ! construct magnetic dipole moment matrix
+      CALL build_local_magmom_matrix(qs_env, matrix_mag, 1, ref_point=rcc)
+
+      ! work matrix for non-local potential part if necessary
+      NULLIFY (matrix_nl)
+      IF (ASSOCIATED(sap_ppnl)) THEN
+         CALL dbcsr_allocate_matrix_set(matrix_nl, 3)
+         DO idir = 1, 3
+            CALL dbcsr_init_p(matrix_nl(idir)%matrix)
+            CALL dbcsr_create(matrix_nl(idir)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_nl(idir)%matrix, sab_orb)
+            CALL dbcsr_set(matrix_nl(idir)%matrix, 0._dp)
+         END DO
+         ! construct non-local contribution
+         CALL get_qs_env(qs_env, &
+                         qs_kind_set=qs_kind_set, &
+                         particle_set=particle_set)
+         eps_ppnl = dft_control%qs_control%eps_ppnl
+
+         CALL build_com_nl_mag(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_nl, rcc, cell)
+
+         DO idir = 1, 3
+            CALL dbcsr_add(matrix_mag(idir)%matrix, matrix_nl(idir)%matrix, one, one)
+         END DO
+
+         CALL dbcsr_deallocate_matrix_set(matrix_nl)
+      END IF
+
+      DO ispin = 1, dft_control%nspins
+         ! allocate eigenvalues
+         NULLIFY (eigenvalues)
+         ALLOCATE (eigenvalues(nrow_global))
+         ! diagonalize KS matrix in AO basis using Cholesky decomp. of S
+         CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, mat_ks)
+         CALL cp_fm_cholesky_reduce(mat_ks, S_chol)
+         CALL cp_fm_syevd(mat_ks, eigenvectors, eigenvalues)
+         CALL cp_fm_triangular_multiply(S_chol, eigenvectors, invert_tr=.TRUE.)
+
+         ! virtuals
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
+         nvirt = nao - nmo
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=rtp%ao_ao_fmstruct%para_env, context=rtp%ao_ao_fmstruct%context, &
+                                  nrow_global=nrow_global, ncol_global=nvirt)
+         CALL cp_fm_create(virtuals, matrix_struct=fm_struct_tmp, name="virtuals")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+         CALL cp_fm_to_fm(eigenvectors, virtuals, nvirt, nmo + 1, 1)
+
+         ! occupied
+         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
+
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=rtp%ao_ao_fmstruct%para_env, context=rtp%ao_ao_fmstruct%context, &
+                                  nrow_global=nvirt, ncol_global=nmo)
+         CALL cp_fm_create(perturbation, matrix_struct=fm_struct_tmp, name="perturbation")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+
+         ! apply perturbation
+         CALL cp_fm_set_all(mos_new(2*ispin - 1)%matrix, 0.0_dp)
+
+         ! the prefactor (strength of the magnetic field, should be divided by 2c)
+         kvec(:) = cell%h_inv(1, :)*dft_control%rtp_control%delta_pulse_direction(1) + &
+                   cell%h_inv(2, :)*dft_control%rtp_control%delta_pulse_direction(2) + &
+                   cell%h_inv(3, :)*dft_control%rtp_control%delta_pulse_direction(3)
+         kvec = -kvec*twopi*dft_control%rtp_control%delta_pulse_scale
+
+         DO idir = 1, 3
+            factor = kvec(idir)/2         ! divide by two b.c. of pre-factor for magnetic term
+            IF (factor .NE. 0.0_dp) THEN
+               CALL cp_dbcsr_sm_fm_multiply(matrix_mag(idir)%matrix, mos_old(2*ispin - 1)%matrix, &
+                                            mos_old(2*ispin)%matrix, ncol=nmo)
+               CALL cp_fm_scale_and_add(1.0_dp, mos_new(2*ispin - 1)%matrix, factor, mos_old(2*ispin)%matrix)
+            END IF
+         END DO
+
+         CALL cp_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1)%matrix, 0.0_dp, perturbation)
+
+         DEALLOCATE (eigenvalues)
+
+         ! now obtain the initial condition in mos_old
+         CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
+         CALL cp_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, perturbation, 0.0_dp, mos_old(2*ispin)%matrix)
+
+         CALL cp_fm_release(virtuals)
+         CALL cp_fm_release(perturbation)
+      END DO
+
+      ! deallocations
+      CALL cp_fm_release(S_chol)
+      CALL cp_fm_release(mat_ks)
+      CALL cp_fm_release(eigenvectors)
+      CALL dbcsr_deallocate_matrix_set(matrix_mag)
+
+      ! orthonormalize afterwards
+      CALL orthonormalize_complex_mos(qs_env, mos_old)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_delta_pulse_mag
 
 ! **************************************************************************************************
 !> \brief orthonormalize complex mos, e. g. after non-unitary transformations using Löwdin's algorithm

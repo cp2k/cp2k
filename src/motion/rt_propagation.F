@@ -68,6 +68,7 @@ MODULE rt_propagation
                                               init_mo_set,&
                                               mo_set_p_type
    USE rt_delta_pulse,                  ONLY: apply_delta_pulse,&
+                                              apply_delta_pulse_mag,&
                                               apply_delta_pulse_periodic
    USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
    USE rt_propagation_methods,          ONLY: propagation_step
@@ -233,6 +234,11 @@ CONTAINS
                   END IF
                   CALL apply_delta_pulse(qs_env, mos_old, mos_new)
                END IF
+            ELSE IF (rtp_control%apply_delta_pulse_mag) THEN
+               IF (periodic_cell) THEN
+                  CPWARN("This application of the delta pulse is not compatible with PBC!")
+               END IF
+               CALL apply_delta_pulse_mag(qs_env, mos_old, mos_new)
             ELSE
                DO i = 1, SIZE(mos)
                   CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff, mos_old(2*i - 1)%matrix)

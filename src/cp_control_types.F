@@ -56,6 +56,7 @@ MODULE cp_control_types
       INTEGER                              :: aspc_order
       INTEGER                              :: sc_check_start
       LOGICAL                              :: apply_delta_pulse
+      LOGICAL                              :: apply_delta_pulse_mag
       LOGICAL                              :: periodic
       LOGICAL                              :: linear_scaling
       LOGICAL                              :: write_restart
