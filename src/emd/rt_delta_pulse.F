@@ -486,7 +486,7 @@ CONTAINS
          CALL build_com_nl_mag(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_nl, rcc, cell)
 
          DO idir = 1, 3
-            CALL dbcsr_add(matrix_mag(idir)%matrix, matrix_nl(idir)%matrix, one, one)
+            CALL dbcsr_add(matrix_mag(idir)%matrix, matrix_nl(idir)%matrix, -one, one)
          END DO
 
          CALL dbcsr_deallocate_matrix_set(matrix_nl)
