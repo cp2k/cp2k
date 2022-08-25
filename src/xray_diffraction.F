@@ -602,7 +602,10 @@ CONTAINS
       CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid, &
                             vol=volume, &
                             orthorhombic=orthorhombic)
-      CPASSERT(orthorhombic)
+      IF (.NOT. orthorhombic) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The calculation of XRD spectra for non-orthorhombic cells is not implemented")
+      END IF
 
       CALL pw_scale(rhotot_elec_gspace%pw, volume)
 
