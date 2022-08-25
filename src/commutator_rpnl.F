@@ -415,14 +415,14 @@ CONTAINS
 !> \param sap_ppnl ...
 !> \param eps_ppnl ...
 !> \param particle_set ...
+!> \param cell ...
 !> \param matrix_rv ...
 !> \param matrix_rxrv ...
 !> \param matrix_rrv ...
 !> \param ref_point ...
-!> \param cell ...
 ! **************************************************************************************************
-   SUBROUTINE build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, matrix_rv, matrix_rxrv, &
-                               matrix_rrv, ref_point, cell)
+   SUBROUTINE build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv, matrix_rxrv, &
+                               matrix_rrv, ref_point)
 
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: qs_kind_set
@@ -431,10 +431,10 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
       TYPE(particle_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: particle_set
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL, POINTER                               :: matrix_rv, matrix_rxrv, matrix_rrv
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: ref_point
-      TYPE(cell_type), INTENT(IN), OPTIONAL, POINTER     :: cell
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_com_mom_nl'
 
@@ -445,7 +445,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: cell_b
       LOGICAL                                            :: asso_rrv, asso_rv, asso_rxrv, found, go, &
                                                             my_ref, my_rrv, my_rv, my_rxrv, &
-                                                            ppnl_present
+                                                            periodic, ppnl_present
       REAL(KIND=dp), DIMENSION(3)                        :: rab, rf
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
@@ -484,11 +484,17 @@ CONTAINS
          order = 1
       END IF
 
+      periodic = ANY(cell%perd > 0)
       my_ref = .FALSE.
       IF (PRESENT(ref_point)) THEN
-         CPASSERT(PRESENT(cell)) ! need cell as well if refpoint is provided
-         rf = ref_point
-         my_ref = .TRUE.
+         IF (.NOT. periodic) THEN
+            rf = ref_point
+            my_ref = .TRUE.
+         ELSE ! use my_ref = False in periodic case, corresponds to distributed ref point
+            IF (order .GT. 1) THEN
+               CPWARN("Not clear how to define reference point for order > 1 in periodic cells.")
+            END IF
+         END IF
       END IF
 
       nkind = SIZE(qs_kind_set)

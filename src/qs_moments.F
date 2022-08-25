@@ -2431,26 +2431,26 @@ CONTAINS
 
          ! calculate commutators in AO basis
          IF (calc_rv .AND. calc_rrv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
-                                  matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv, &
+                                  matrix_rrv=matrix_rrv, ref_point=ref_point)
          ELSE IF (calc_rv .AND. calc_rxrv .AND. .NOT. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
-                                  matrix_rxrv=matrix_rxrv, ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv, &
+                                  matrix_rxrv=matrix_rxrv, ref_point=ref_point)
          ELSE IF (calc_rrv .AND. calc_rxrv .AND. .NOT. calc_rv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
-                                  matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rxrv=matrix_rxrv, &
+                                  matrix_rrv=matrix_rrv, ref_point=ref_point)
          ELSE IF (calc_rv .AND. calc_rxrv .AND. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
-                                  matrix_rxrv=matrix_rxrv, matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv, &
+                                  matrix_rxrv=matrix_rxrv, matrix_rrv=matrix_rrv, ref_point=ref_point)
          ELSE IF (calc_rv .AND. .NOT. calc_rrv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
-                                  ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv, &
+                                  ref_point=ref_point)
          ELSE IF (calc_rrv .AND. .NOT. calc_rv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rrv=matrix_rrv, &
-                                  ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rrv=matrix_rrv, &
+                                  ref_point=ref_point)
          ELSE IF (calc_rxrv .AND. .NOT. calc_rv .AND. .NOT. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
-                                  ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rxrv=matrix_rxrv, &
+                                  ref_point=ref_point)
          END IF
 
          NULLIFY (rho_ao)

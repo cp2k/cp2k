@@ -167,7 +167,7 @@ CONTAINS
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_rv(idir)%matrix, sab_orb)
             CALL dbcsr_set(matrix_rv(idir)%matrix, 0._dp)
          END DO
-         CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv)
+         CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv)
       END IF
 
       ! calculate dipole moment matrix if required, NOT for periodic boundary conditions!
