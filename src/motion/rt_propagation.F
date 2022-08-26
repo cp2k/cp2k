@@ -30,6 +30,7 @@ MODULE rt_propagation
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                               cp_iterate,&
+                                              cp_print_key_unit_nr,&
                                               cp_rm_iter_level
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
@@ -300,7 +301,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_propagation'
 
       INTEGER                                            :: aspc_order, handle, i_iter, i_step, &
-                                                            max_iter, max_steps
+                                                            max_iter, max_steps, output_unit
       LOGICAL                                            :: should_stop
       REAL(Kind=dp)                                      :: eps_ener, time_iter_start, &
                                                             time_iter_stop, used_time
@@ -310,19 +311,20 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
+      TYPE(section_vals_type), POINTER                   :: input, rtp_section
 
       should_stop = .FALSE.
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Andermatt2016)
 
-      NULLIFY (logger, dft_control, energy, rtp, rtp_control)
+      NULLIFY (logger, dft_control, energy, rtp, rtp_control, input, rtp_section)
       logger => cp_get_default_logger()
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rtp=rtp, energy=energy)
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rtp=rtp, energy=energy, input=input)
 
       rtp_control => dft_control%rtp_control
-      max_steps = MIN(rtp%i_start + rtp%nsteps, rtp%max_steps)
+      max_steps = MIN(rtp%nsteps, rtp%max_steps)
       max_iter = rtp_control%max_iter
       eps_ener = rtp_control%eps_ener
 
@@ -334,7 +336,16 @@ CONTAINS
       CALL cp_iterate(logger%iter_info, iter_nr=0)
       IF (rtp%i_start >= max_steps) CALL cp_abort(__LOCATION__, &
                                                   "maximum step number smaller than initial step value")
+
+      rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
+      output_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%PROGRAM_RUN_INFO", &
+                                         extension=".scfLog")
+
       DO i_step = rtp%i_start + 1, max_steps
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, FMT="(/,(T2,A,T40,I6))") &
+               "Real time propagation step:", i_step
+         END IF
          energy%efield_core = 0.0_dp
          qs_env%sim_time = REAL(i_step, dp)*rtp%dt
          CALL get_qs_env(qs_env, pw_env=pw_env)
