@@ -99,7 +99,8 @@ OPTIONS:
                           or --with-openblas options will switch --math-mode to the
                           respective modes.
 --gpu-ver                 Selects the GPU architecture for which to compile. Available
-                          options are: K20X, K40, K80, P100, V100, Mi50, Mi100, and no.
+                          options are: K20X, K40, K80, P100, V100, Mi50, Mi100, Mi250, 
+                          and no.
                           This setting determines the value of nvcc's '-arch' flag.
                           Default = no.
 --libint-lmax             Maximum supported angular momentum by libint.
@@ -441,12 +442,12 @@ while [ $# -ge 1 ]; do
     --gpu-ver=*)
       user_input="${1#*=}"
       case "${user_input}" in
-        K20X | K40 | K80 | P100 | V100 | A100 | Mi50 | Mi100 | no)
+        K20X | K40 | K80 | P100 | V100 | A100 | Mi50 | Mi100 | Mi250 | no)
           export GPUVER="${user_input}"
           ;;
         *)
           report_error ${LINENO} \
-            "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100, and no as options"
+            "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100, Mi250, and no as options"
           exit 1
           ;;
       esac
@@ -924,12 +925,15 @@ case ${GPUVER} in
   Mi100)
     # TODO: export ARCH_NUM=
     ;;
+  Mi250)
+    # TODO: export ARCH_NUM=
+    ;;
   no)
     export ARCH_NUM="no"
     ;;
   *)
     report_error ${LINENO} \
-      "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100, and no as options"
+      "--gpu-ver currently only supports K20X, K40, K80, P100, V100, A100, Mi50, Mi100, Mi250, and no as options"
     exit 1
     ;;
 esac
