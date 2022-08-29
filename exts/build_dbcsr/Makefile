@@ -26,7 +26,7 @@
 #          - for CUDA, possible values correspond to NVIDIA GPUs:
 #            possible values are K20X, K40, K80, P100, V100
 #          - for HIP, possible values correspond to NVIDIA and AMD GPUs:
-#            possible values are K20X, K40, K80, P100, V100, Mi50, Mi100
+#            possible values are K20X, K40, K80, P100, V100, Mi50, Mi100, Mi250
 #          - for OpenCL, GPUVER maps to a file with tuned parameters:
 #            src/acc/opencl/smm/params/tune_multiply_GPUVER.csv, or
 #            src/acc/opencl/smm/tune_multiply.csv (default)
@@ -93,6 +93,8 @@ else ifeq ($(GPUVER),Mi50)
   ARCH_NUMBER = gfx906
 else ifeq ($(GPUVER),Mi100)
   ARCH_NUMBER = gfx908
+else ifeq ($(GPUVER),Mi250)
+  ARCH_NUMBER = gfx90a
 else ifeq (,$(ARCH_NUMBER))
 ifneq ($(ACC),)
 ifneq (opencl,$(USE_ACCEL))

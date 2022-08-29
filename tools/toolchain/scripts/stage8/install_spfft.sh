@@ -114,7 +114,7 @@ case "${with_spfft}" in
             [ -f src/libspfft.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
             [ -f src/libspfft.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
             ;;
-          Mi50 | Mi100 | Mi200)
+          Mi50 | Mi100 | Mi200 | Mi250)
             [ -d build-hip ] && rm -rf "build-hip"
             mkdir build-hip
             cd build-hip

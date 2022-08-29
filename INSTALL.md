@@ -329,12 +329,12 @@ should work out of the box on Nvidia hardware as well.
 - Use `-D__NO_OFFLOAD_DBM` to disable the GPU backend of the sparse tensor library.
 - Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs
   and associated gather/scatter operations.
-- Add `GPUVER=Mi50, Mi60, Mi100`
+- Add `GPUVER=Mi50, Mi60, Mi100, Mi250`
 - Add `OFFLOAD_CC = hipcc`
 - Add  `-lamdhip64` to the `LIBS` variable
 - Add `OFFLOAD_FLAGS = '-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
   --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'` where `ROCM_PATH` is the path
-  where the rocm sdk resides. Architectures Mi100 (gfx908), Mi50 (gfx906)
+  where the rocm sdk resides. Architectures Mi250 (gfx90a), Mi100 (gfx908), Mi50 (gfx906)
 - the hip backend for the grid library supports nvidia hardware as well. It uses
   the same code and can be used to validate the backend in case of access to
   Nvidia hardware only. To get the compilation working, follow the steps above
