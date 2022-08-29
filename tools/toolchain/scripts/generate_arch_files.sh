@@ -206,7 +206,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC"
       CXXFLAGS+=" -fopenmp -std=c++11 -Wall -Wextra -Werror"
-      ;;	
+      ;;
     *)
       check_command nvcc "cuda"
       check_lib -lcudart "cuda"

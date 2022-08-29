@@ -334,13 +334,14 @@ should work out of the box on Nvidia hardware as well.
 - Add  `-lamdhip64` to the `LIBS` variable
 - Add `OFFLOAD_FLAGS = '-fopenmp -m64 -pthread -fPIC -D__GRID_HIP -O2
   --offload-arch=gfx908 --rocm-path=$(ROCM_PATH)'` where `ROCM_PATH` is the path
-  where the rocm sdk resides. Architectures Mi250 (gfx90a), Mi100 (gfx908), Mi50 (gfx906)
-- the hip backend for the grid library supports nvidia hardware as well. It uses
-  the same code and can be used to validate the backend in case of access to
-  Nvidia hardware only. To get the compilation working, follow the steps above
-  and set the `OFFLOAD_FLAGS` with right `nvcc` parameters (see the cuda section
-  of this document). The environment variable `HIP_PLATFORM` should be set to
-  `HIP_PLATFORM=nvidia` to indicate to hipcc to use the nvcc compiler instead.
+  where the rocm sdk resides. Architectures Mi250 (gfx90a), Mi100 (gfx908),
+  Mi50 (gfx906) the hip backend for the grid library supports nvidia hardware
+  as well. It uses the same code and can be used to validate the backend in case
+  of access to Nvidia hardware only. To get the compilation working, follow
+  the steps above and set the `OFFLOAD_FLAGS` with right `nvcc` parameters
+  (see the cuda section of this document). The environment variable `HIP_PLATFORM`
+  should be set to `HIP_PLATFORM=nvidia` to indicate to hipcc to use the
+  nvcc compiler instead.
 - Specify the C++ compiler (e.g., `CXX = g++`). Remember to set the
   CXXFLAGS flags to support C++11 standard and OpenMP.
 - When the HIP backend is enabled for DBCSR using `-D__DBCSR_ACC`, then add

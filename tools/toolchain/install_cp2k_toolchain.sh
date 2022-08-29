@@ -100,7 +100,7 @@ OPTIONS:
                           respective modes.
 --gpu-ver                 Selects the GPU architecture for which to compile. Available
                           options are: K20X, K40, K80, P100, V100, Mi50, Mi100, Mi250, 
-			  and no.
+                          and no.
                           This setting determines the value of nvcc's '-arch' flag.
                           Default = no.
 --libint-lmax             Maximum supported angular momentum by libint.
@@ -927,7 +927,7 @@ case ${GPUVER} in
     ;;
   Mi250)
     # TODO: export ARCH_NUM=
-    ;;      
+    ;;
   no)
     export ARCH_NUM="no"
     ;;
