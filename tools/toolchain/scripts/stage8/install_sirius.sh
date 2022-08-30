@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.3.1"
-sirius_sha256="8bf9848b8ebf0b43797fd359adf8c84f00822de4eb677e3049f22baa72735e98"
+sirius_ver="7.3.2"
+sirius_sha256="a256508de6b344345c295ad8642dbb260c4753cd87cc3dd192605c33542955d7"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -74,6 +74,7 @@ case "$with_sirius" in
     require_env SPLA_CFLAGS
     require_env SPLA_LDFLAGS
     require_env SPLA_LIBS
+    require_env COSMA_ROOT
     ARCH=$(uname -m)
     SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
     if [ "$ARCH" = "ppc64le" ]; then
@@ -136,7 +137,8 @@ case "$with_sirius" in
       fi
       SpFFT_DIR="${SpFFT_ROOT}/lib/cmake/SpFFT"
       SpLA_DIR="${SpLA_ROOT}/lib/cmake/SPLA"
-      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}" cmake \
+      COSTA_DIR="${COSMA_ROOT}/lib/cmake/costa"
+      CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}:${COSTA_DIR}" cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
         -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
@@ -164,7 +166,7 @@ case "$with_sirius" in
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
-        CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}" cmake \
+        CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}:${COSTA_DIR}" cmake \
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
           -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
