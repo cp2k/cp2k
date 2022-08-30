@@ -215,8 +215,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'run_multiply_test'
 
       INTEGER                                            :: handle, loop_iter, mynode, numnodes
-      INTEGER(kind=int_8)                                :: flop, flop_sum
-      REAL(kind=dp)                                      :: cs, flops_all, t1, t2
+      INTEGER(kind=int_8)                                :: flop
+      REAL(kind=dp)                                      :: cs, duration, flops_all, time_start
       TYPE(dbm_type)                                     :: matrix_c_orig
 
       CALL timeset(routineN, handle)
@@ -228,7 +228,7 @@ CONTAINS
 
       DO loop_iter = 1, n_loops
          CALL mp_sync(group)
-         t1 = -1*omp_get_wtime()
+         time_start = omp_get_wtime()
          IF (eps < -0.0_dp) THEN
             CALL dbm_multiply(transa, transb, alpha, matrix_a, matrix_b, beta, matrix_c, &
                               retain_sparsity=retain_sparsity, flop=flop)
@@ -236,18 +236,16 @@ CONTAINS
             CALL dbm_multiply(transa, transb, alpha, matrix_a, matrix_b, beta, matrix_c, &
                               retain_sparsity=retain_sparsity, flop=flop, filter_eps=eps)
          END IF
-         t1 = t1 + omp_get_wtime()
-         t2 = t2 + t1
-         flop_sum = flop_sum + flop
+         duration = omp_get_wtime() - time_start
 
-         CALL mp_max(t1, group)
+         CALL mp_max(duration, group)
          CALL mp_sum(flop, group)
-         t1 = MAX(t1, EPSILON(t1))
-         flops_all = REAL(flop, KIND=dp)/t1/numnodes/(1024*1024)
+         duration = MAX(duration, EPSILON(duration))  ! avoid division by zero
+         flops_all = REAL(flop, KIND=dp)/duration/numnodes/(1024*1024)
          IF (io_unit .GT. 0) THEN
             WRITE (io_unit, '(A,I5,A,I5,A,F12.3,A,I9,A)') &
                " loop ", loop_iter, " with ", numnodes, " MPI ranks: using ", &
-               t1, "s ", INT(flops_all), " Mflops/rank"
+               duration, "s ", INT(flops_all), " Mflops/rank"
             CALL m_flush(io_unit)
          END IF
 
