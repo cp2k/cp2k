@@ -80,7 +80,7 @@ static int find_best_nrow_shards(const int nshards, const int nrows,
                                  const int ncols) {
   const double target = (double)imax(nrows, 1) / (double)imax(ncols, 1);
   int best_nrow_shards = nshards;
-  double best_error = fabs(target - best_nrow_shards);
+  double best_error = fabs(log(target / (double)nshards));
 
   for (int nrow_shards = 1; nrow_shards <= nshards; nrow_shards++) {
     const int ncol_shards = nshards / nrow_shards;
