@@ -1510,8 +1510,8 @@ CONTAINS
       INTEGER :: handle, i, i_rep, iounit, ipaodesc, ipaopot, ipos, j, jj, k_rep, l, m, n_rep, &
          nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, nu, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
-      LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, explicit_potential, nobasis, &
-         section_enabled, subsection_enabled, update_input
+      LOGICAL :: check, explicit, explicit_basis, explicit_J, explicit_kgpot, explicit_potential, &
+         explicit_U, explicit_u_m_j, nobasis, section_enabled, subsection_enabled, update_input
       REAL(KIND=dp)                                      :: alpha, ccore, r, rc, zeff_correction
       REAL(KIND=dp), DIMENSION(3)                        :: error
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec
@@ -1904,11 +1904,13 @@ CONTAINS
 
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="U", &
-                                      r_val=qs_kind%dft_plus_u%U)
+                                      r_val=qs_kind%dft_plus_u%U, &
+                                      explicit=explicit_U)
 
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="J", &
-                                      r_val=qs_kind%dft_plus_u%J)
+                                      r_val=qs_kind%dft_plus_u%J, &
+                                      explicit=explicit_J)
 
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="alpha", &
@@ -1926,12 +1928,18 @@ CONTAINS
                                       keyword_name="occupation", &
                                       r_val=qs_kind%dft_plus_u%occupation)
 #else
-            nu = 0; 
+            nu = 0
 #endif
 
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="U_MINUS_J", &
-                                      r_val=qs_kind%dft_plus_u%u_minus_j_target)
+                                      r_val=qs_kind%dft_plus_u%u_minus_j_target, &
+                                      explicit=explicit_u_m_j)
+
+            IF ((explicit_U .OR. explicit_J) .AND. explicit_u_m_j) THEN
+               CPABORT("DFT+U| specifying U or J and U_MINUS_J parameters are mutually exclusive.")
+            END IF
+
             CALL section_vals_val_get(dft_plus_u_section, &
                                       keyword_name="U_RAMPING", &
                                       r_val=qs_kind%dft_plus_u%u_ramping)
