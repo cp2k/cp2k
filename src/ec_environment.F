@@ -98,7 +98,7 @@ CONTAINS
    END SUBROUTINE ec_env_create
 
 ! **************************************************************************************************
-!> \brief Initializes energy correction environment 
+!> \brief Initializes energy correction environment
 !> \param qs_env The QS environment
 !> \param ec_env The energy correction environment
 !> \param dft_section The DFT section
@@ -451,7 +451,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Print out the energy correction input section
-!>        
+!>
 !> \param ec_env ...
 !> \param unit_nr ...
 !> \par History

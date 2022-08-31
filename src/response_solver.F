@@ -61,8 +61,7 @@ MODULE response_solver
         kg_tnadd_embed_ri, ls_s_sqrt_ns, ls_s_sqrt_proot, ot_precond_full_all, &
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, precond_mlp
-   USE input_section_types,             ONLY: section_get_lval,&
-                                              section_vals_get,&
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -111,7 +110,6 @@ MODULE response_solver
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type,&
                                               total_qs_force
-   USE qs_fxc,                          ONLY: qs_fxc_fdiff
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -135,9 +133,7 @@ MODULE response_solver
                                               p_env_psi0_changed
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
-   USE qs_rho_types,                    ONLY: qs_rho_create,&
-                                              qs_rho_get,&
-                                              qs_rho_set,&
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE task_list_types,                 ONLY: task_list_type
@@ -159,7 +155,7 @@ MODULE response_solver
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'response_solver'
 
    LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
-   LOGICAL, PARAMETER                   :: debug_forces = .FALSE.
+   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
    PUBLIC :: response_calculation, response_equation, response_force, response_force_xtb, &
              ks_ref_potential, response_equation_new
@@ -170,9 +166,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Initializes solver of linear response equation for energy correction
+!> \brief Call AO or MO based linear response solver for energy correction
 !>
-!> \param qs_env ...
-!> \param ec_env Environment of energy correction
+!> \param qs_env The quickstep environment
+!> \param ec_env The energy correction environment
 !>
 !> \date    01.2020
 !> \author  Fabian Belleflamme
@@ -183,8 +180,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'response_calculation'
 
-      INTEGER                                            :: handle, homo, ispin, nao, nmo, nspins, &
-                                                            solver_method, unit_nr
+      INTEGER                                            :: handle, homo, ispin, nao, nao_aux, nmo, &
+                                                            nspins, solver_method, unit_nr
       LOGICAL                                            :: should_stop
       REAL(KIND=dp)                                      :: focc
       TYPE(admm_type), POINTER                           :: admm_env
@@ -208,7 +205,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, logger, para_env, sab_orb, solver_section)
+      NULLIFY (admm_env, dft_control, energy, logger, matrix_s, matrix_s_aux, mo_coeff, mos, para_env, &
+               rho_ao, sab_orb, solver_section)
 
       ! Get useful output unit
       logger => cp_get_default_logger()
@@ -248,8 +246,9 @@ CONTAINS
       ! Write input section of response solver
       CALL response_solver_write_input(solver_section, linres_control, unit_nr)
 
-      ! Allocate and initialize Z matrix, and energy weighted z-matrix
-      ! Template is ground-state overlap matrix
+      ! Allocate and initialize response density matrix Z,
+      ! and the energy weighted response density matrix
+      ! Template is the ground-state overlap matrix
       CALL dbcsr_allocate_matrix_set(ec_env%matrix_wz, nspins)
       CALL dbcsr_allocate_matrix_set(ec_env%matrix_z, nspins)
       DO ispin = 1, nspins
@@ -265,85 +264,87 @@ CONTAINS
          CALL dbcsr_set(ec_env%matrix_z(ispin)%matrix, 0.0_dp)
       END DO
 
+      ! MO solver requires MO's of the ground-state calculation,
+      ! The MOs environment is not allocated if LS-DFT has been used.
+      ! Introduce MOs here
+      ! Remark: MOS environment also required for creation of p_env
+      IF (dft_control%qs_control%do_ls_scf) THEN
+
+         ! Allocate and initialize MO environment
+         CALL ec_mos_init(qs_env, matrix_s(1)%matrix)
+         CALL get_qs_env(qs_env, mos=mos, rho=rho)
+
+         ! Get ground-state density matrix
+         CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+         DO ispin = 1, nspins
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+                            mo_coeff=mo_coeff, &
+                            nmo=nmo, nao=nao, homo=homo)
+
+            CALL cp_fm_set_all(mo_coeff, 0.0_dp)
+            CALL cp_fm_init_random(mo_coeff, nmo)
+
+            CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
+            ! multiply times PS
+            ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, sv, nmo)
+            CALL cp_dbcsr_sm_fm_multiply(rho_ao(ispin)%matrix, sv, mo_coeff, homo)
+            CALL cp_fm_release(sv)
+            ! and ortho the result
+            CALL make_basis_sm(mo_coeff, nmo, matrix_s(1)%matrix)
+
+            ! rebuilds fm_pools
+            ! originally done in qs_env_setup, only when mos associated
+            NULLIFY (blacs_env)
+            CALL get_qs_env(qs_env, blacs_env=blacs_env)
+            CALL mpools_rebuild_fm_pools(qs_env%mpools, mos=mos, &
+                                         blacs_env=blacs_env, para_env=para_env)
+         END DO
+      END IF
+
+      ! initialize p_env
+      ! Remark: mos environment is needed for this
+      IF (ASSOCIATED(ec_env%p_env)) THEN
+         CALL p_env_release(ec_env%p_env)
+         DEALLOCATE (ec_env%p_env)
+         NULLIFY (ec_env%p_env)
+      END IF
+      ALLOCATE (ec_env%p_env)
+      CALL p_env_create(ec_env%p_env, qs_env, orthogonal_orbitals=.TRUE., &
+                        linres_control=linres_control)
+      CALL set_qs_env(qs_env, linres_control=linres_control)
+      CALL p_env_psi0_changed(ec_env%p_env, qs_env)
+      ! Total energy overwritten, replace with Etot from energy correction
+      CALL get_qs_env(qs_env, energy=energy)
+      energy%total = ec_env%etotal
+      !
+      p_env => ec_env%p_env
+      !
+      CALL dbcsr_allocate_matrix_set(p_env%p1, nspins)
+      CALL dbcsr_allocate_matrix_set(p_env%w1, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (p_env%p1(ispin)%matrix, p_env%w1(ispin)%matrix)
+         CALL dbcsr_create(matrix=p_env%p1(ispin)%matrix, template=matrix_s(1)%matrix)
+         CALL dbcsr_create(matrix=p_env%w1(ispin)%matrix, template=matrix_s(1)%matrix)
+         CALL cp_dbcsr_alloc_block_from_nbl(p_env%p1(ispin)%matrix, sab_orb)
+         CALL cp_dbcsr_alloc_block_from_nbl(p_env%w1(ispin)%matrix, sab_orb)
+      END DO
+      IF (dft_control%do_admm) THEN
+         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux)
+         CALL dbcsr_allocate_matrix_set(p_env%p1_admm, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (p_env%p1_admm(ispin)%matrix)
+            CALL dbcsr_create(p_env%p1_admm(ispin)%matrix, &
+                              template=matrix_s_aux(1)%matrix)
+            CALL dbcsr_copy(p_env%p1_admm(ispin)%matrix, matrix_s_aux(1)%matrix)
+            CALL dbcsr_set(p_env%p1_admm(ispin)%matrix, 0.0_dp)
+         END DO
+      END IF
+
       ! Choose between MO-solver and AO-solver
       SELECT CASE (solver_method)
       CASE (ec_mo_solver)
-
-         ! MO solver requires MO's calculated during ground-state,
-         ! which are not available if linear scaling schemes are used.
-         ! If ground-state calculation was performed with linear scaling methods,
-         ! introduce MOs here
-         IF (dft_control%qs_control%do_ls_scf) THEN
-
-            ! Allocate and initialize MO environment
-            CALL ec_mos_init(qs_env, matrix_s(1)%matrix)
-            CALL get_qs_env(qs_env, mos=mos, rho=rho)
-
-            ! Get ground-state density matrix
-            CALL qs_rho_get(rho, rho_ao=rho_ao)
-
-            DO ispin = 1, nspins
-               CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-                               mo_coeff=mo_coeff, &
-                               nmo=nmo, nao=nao, homo=homo)
-
-               CALL cp_fm_set_all(mo_coeff, 0.0_dp)
-               CALL cp_fm_init_random(mo_coeff, nmo)
-
-               CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
-               ! multiply times PS
-               ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, sv, nmo)
-               CALL cp_dbcsr_sm_fm_multiply(rho_ao(ispin)%matrix, sv, mo_coeff, homo)
-               CALL cp_fm_release(sv)
-               ! and ortho the result
-               CALL make_basis_sm(mo_coeff, nmo, matrix_s(1)%matrix)
-
-               ! rebuilds fm_pools
-               ! originally done in qs_env_setup, only when mos associated
-               CALL get_qs_env(qs_env, blacs_env=blacs_env)
-               CALL mpools_rebuild_fm_pools(qs_env%mpools, mos=mos, &
-                                            blacs_env=blacs_env, para_env=para_env)
-            END DO
-         END IF
-
-         ! initialize p_env
-         IF (ASSOCIATED(ec_env%p_env)) THEN
-            CALL p_env_release(ec_env%p_env)
-            DEALLOCATE (ec_env%p_env)
-            NULLIFY (ec_env%p_env)
-         END IF
-         ALLOCATE (ec_env%p_env)
-         CALL p_env_create(ec_env%p_env, qs_env, orthogonal_orbitals=.TRUE., &
-                           linres_control=linres_control)
-         CALL set_qs_env(qs_env, linres_control=linres_control)
-         CALL p_env_psi0_changed(ec_env%p_env, qs_env)
-         CALL get_qs_env(qs_env, energy=energy)
-         energy%total = ec_env%etotal
-         !
-         p_env => ec_env%p_env
-         !
-         CALL get_qs_env(qs_env, matrix_s=matrix_s, sab_orb=sab_orb)
-         CALL dbcsr_allocate_matrix_set(p_env%p1, nspins)
-         CALL dbcsr_allocate_matrix_set(p_env%w1, nspins)
-         DO ispin = 1, nspins
-            ALLOCATE (p_env%p1(ispin)%matrix, p_env%w1(ispin)%matrix)
-            CALL dbcsr_create(matrix=p_env%p1(ispin)%matrix, template=matrix_s(1)%matrix)
-            CALL dbcsr_create(matrix=p_env%w1(ispin)%matrix, template=matrix_s(1)%matrix)
-            CALL cp_dbcsr_alloc_block_from_nbl(p_env%p1(ispin)%matrix, sab_orb)
-            CALL cp_dbcsr_alloc_block_from_nbl(p_env%w1(ispin)%matrix, sab_orb)
-         END DO
-         IF (dft_control%do_admm) THEN
-            CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux)
-            CALL dbcsr_allocate_matrix_set(p_env%p1_admm, nspins)
-            DO ispin = 1, nspins
-               ALLOCATE (p_env%p1_admm(ispin)%matrix)
-               CALL dbcsr_create(p_env%p1_admm(ispin)%matrix, &
-                                 template=matrix_s_aux(1)%matrix)
-               CALL dbcsr_copy(p_env%p1_admm(ispin)%matrix, matrix_s_aux(1)%matrix)
-               CALL dbcsr_set(p_env%p1_admm(ispin)%matrix, 0.0_dp)
-            END DO
-         END IF
 
          ! CPKS vector cpmos - RHS of response equation as Ax + b = 0 (sign of b)
          ! Sign is changed in linres_solver!
@@ -376,15 +377,6 @@ CONTAINS
             CALL dbcsr_copy(ec_env%matrix_z(ispin)%matrix, p_env%p1(ispin)%matrix)
             CALL dbcsr_copy(ec_env%matrix_wz(ispin)%matrix, p_env%w1(ispin)%matrix)
          END DO
-         IF (dft_control%do_admm) THEN
-            CALL dbcsr_allocate_matrix_set(ec_env%z_admm, nspins)
-            DO ispin = 1, nspins
-               ALLOCATE (ec_env%z_admm(ispin)%matrix)
-               CALL dbcsr_create(matrix=ec_env%z_admm(ispin)%matrix, template=matrix_s_aux(1)%matrix)
-               CALL get_qs_env(qs_env, admm_env=admm_env)
-               CALL dbcsr_copy(ec_env%z_admm(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
-            END DO
-         END IF
 
          DO ispin = 1, nspins
             IF (ASSOCIATED(cpmos(ispin)%matrix)) THEN
@@ -394,35 +386,63 @@ CONTAINS
          END DO
          DEALLOCATE (cpmos)
 
-         ! Get rid of MO environment again
-         IF (dft_control%qs_control%do_ls_scf) THEN
+      CASE (ec_ls_solver)
+
+         ! AO ortho solver
+         CALL ec_response_ao(qs_env=qs_env, &
+                             p_env=p_env, &
+                             matrix_hz=ec_env%matrix_hz, &
+                             matrix_pz=ec_env%matrix_z, &
+                             matrix_wz=ec_env%matrix_wz, &
+                             iounit=unit_nr, &
+                             should_stop=should_stop)
+
+         IF (dft_control%do_admm) THEN
+            CALL get_qs_env(qs_env, admm_env=admm_env)
+            CPASSERT(ASSOCIATED(admm_env%work_orb_orb))
+            CPASSERT(ASSOCIATED(admm_env%work_aux_orb))
+            CPASSERT(ASSOCIATED(admm_env%work_aux_aux))
+            nao = admm_env%nao_orb
+            nao_aux = admm_env%nao_aux_fit
             DO ispin = 1, nspins
-               CALL deallocate_mo_set(mos(ispin)%mo_set)
+               CALL copy_dbcsr_to_fm(ec_env%matrix_z(ispin)%matrix, admm_env%work_orb_orb)
+               CALL parallel_gemm('N', 'N', nao_aux, nao, nao, &
+                                  1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
+                                  admm_env%work_aux_orb)
+               CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, &
+                                  1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
+                                  admm_env%work_aux_aux)
+               CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, p_env%p1_admm(ispin)%matrix, &
+                                     keep_sparsity=.TRUE.)
             END DO
-            IF (ASSOCIATED(qs_env%mos)) THEN
-               DO ispin = 1, SIZE(qs_env%mos)
-                  CALL deallocate_mo_set(qs_env%mos(ispin)%mo_set)
-               END DO
-               DEALLOCATE (qs_env%mos)
-            END IF
          END IF
 
-      CASE (ec_ls_solver)
-         IF (dft_control%do_admm) THEN
-            CALL cp_warn(__LOCATION__, "ADMM not possible with AO based response solver. "// &
-                         "Use the MO solver: RESPONSE_SOLVER/METOD MO_SOLVER")
-            CPABORT("response_calculation")
-         END IF
-         ! AO ortho solver
-         CALL ec_response_ao(qs_env, &
-                             ec_env%matrix_hz, &
-                             ec_env%matrix_z, &
-                             ec_env%matrix_wz, &
-                             unit_nr, &
-                             should_stop)
       CASE DEFAULT
          CPABORT("Unknown solver for response equation requested")
       END SELECT
+
+      IF (dft_control%do_admm) THEN
+         CALL dbcsr_allocate_matrix_set(ec_env%z_admm, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (ec_env%z_admm(ispin)%matrix)
+            CALL dbcsr_create(matrix=ec_env%z_admm(ispin)%matrix, template=matrix_s_aux(1)%matrix)
+            CALL get_qs_env(qs_env, admm_env=admm_env)
+            CALL dbcsr_copy(ec_env%z_admm(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
+         END DO
+      END IF
+
+      ! Get rid of MO environment again
+      IF (dft_control%qs_control%do_ls_scf) THEN
+         DO ispin = 1, nspins
+            CALL deallocate_mo_set(mos(ispin)%mo_set)
+         END DO
+         IF (ASSOCIATED(qs_env%mos)) THEN
+            DO ispin = 1, SIZE(qs_env%mos)
+               CALL deallocate_mo_set(qs_env%mos(ispin)%mo_set)
+            END DO
+            DEALLOCATE (qs_env%mos)
+         END IF
+      END IF
 
       CALL linres_control_release(linres_control)
 
@@ -582,6 +602,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_scale(p_env%p1(ispin)%matrix, 0.5_dp)
       END DO
+
       IF (dft_control%do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          CPASSERT(ASSOCIATED(admm_env%work_orb_orb))
@@ -818,8 +839,9 @@ CONTAINS
                                                             nao, nao_aux, natom, nder, nimages, &
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL :: distribute_fock_matrix, do_ex, do_hfx, hfx_treat_lsd_in_core, &
-         resp_only, s_mstruct_changed, use_virial
+      LOGICAL                                            :: distribute_fock_matrix, do_ex, do_hfx, &
+                                                            hfx_treat_lsd_in_core, resp_only, &
+                                                            s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
                                                             eps_ppnl, exc, exc_aux_fit, fconv, focc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
@@ -1073,7 +1095,7 @@ CONTAINS
          CALL total_qs_force(ftot2, force, atomic_kind_set)
          fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
          CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Force Pz*dHcore", fodeb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dHcore", fodeb
       END IF
       IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_virial - sttot)
@@ -1517,7 +1539,7 @@ CONTAINS
          CALL total_qs_force(ftot3, force, atomic_kind_set)
          fodeb(1:3) = ftot3(1:3, 1) - ftot2(1:3, 1)
          CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Force Pin*V(rhoz)", fodeb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pin*V(rhoz)", fodeb
       END IF
       CALL dbcsr_deallocate_matrix_set(scrm)
 
@@ -1932,7 +1954,7 @@ CONTAINS
             CALL mp_sum(fodeb, para_env%group)
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*hfx ", fodeb
          END IF
-         IF (debug_stress) THEN
+         IF (debug_stress .AND. use_virial) THEN
             stdeb = -1.0_dp*fconv*virial%pv_fock_4c
             CALL mp_sum(stdeb, para_env%group)
             IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
@@ -2007,10 +2029,10 @@ CONTAINS
          CALL total_qs_force(ftot2, force, atomic_kind_set)
          fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
          CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Response Force", fodeb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Response Force", fodeb
          fodeb(1:3) = ftot2(1:3, 1)
          CALL mp_sum(fodeb, para_env%group)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T30,3F16.8)") "DEBUG:: Total Force ", fodeb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Total Force ", fodeb
          DEALLOCATE (ftot1, ftot2, ftot3)
       END IF
 
