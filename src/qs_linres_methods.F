@@ -97,7 +97,6 @@ MODULE qs_linres_methods
    PUBLIC :: linres_localize, linres_solver
    PUBLIC :: linres_write_restart, linres_read_restart
    PUBLIC :: build_dm_response
-   PUBLIC :: p_env_check_i_alloc
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 
