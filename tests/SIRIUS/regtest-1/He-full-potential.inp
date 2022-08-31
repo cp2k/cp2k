@@ -13,7 +13,7 @@
        USE_SYMMETRY true
        VALENCE_RELATIVITY none
        CORE_RELATIVITY none
-       NUM_FV_STATES 40
+       NUM_FV_STATES 10
        AW_CUTOFF 8.0
        PW_CUTOFF 20.00
        AUTO_RMT 0
