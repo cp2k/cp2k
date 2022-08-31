@@ -117,6 +117,8 @@ MODULE qs_linres_kernel
    PRIVATE
 
    ! *** Public subroutines ***
+   PUBLIC :: apply_xc_admm
+   PUBLIC :: apply_hfx
    PUBLIC :: apply_op_2
    PUBLIC :: hfx_matrix
 

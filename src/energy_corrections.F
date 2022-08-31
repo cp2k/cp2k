@@ -197,7 +197,7 @@ MODULE energy_corrections
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'energy_corrections'
 
-   LOGICAL, PARAMETER                   :: debug_forces = .FALSE.
+   LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
    LOGICAL, PARAMETER                   :: debug_stress = .TRUE.
 
    PUBLIC :: energy_correction
@@ -618,19 +618,18 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type)                                 :: scrm
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, matrix_ks, matrix_p, &
-                                                            matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, matrix_ks, matrix_p, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace, v_rspace_in, &
                                                             v_tau_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
+                                                            v_hartree_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -836,7 +835,7 @@ CONTAINS
             ! integrate over Tau-potential <nabla.a|V|nabla.b>
             CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin)%pw, &
                                     hmat=scrm, &
-                                    pmat=matrix_p(ispin, 1), &
+                                    pmat=matrix_p(ispin), &
                                     qs_env=qs_env, &
                                     calculate_forces=.TRUE., &
                                     compute_tau=.TRUE., &
@@ -887,7 +886,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL integrate_v_rspace(v_rspace=v_rspace(ispin)%pw, &
                                  hmat=ec_env%matrix_hz(ispin), &
-                                 pmat=matrix_p(ispin, 1), &
+                                 pmat=matrix_p(ispin), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
                                  basis_type="HARRIS", &
@@ -916,7 +915,7 @@ CONTAINS
             ! integrate over Tau-potential <nabla.a|V|nabla.b>
             CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin)%pw, &
                                     hmat=ec_env%matrix_hz(ispin), &
-                                    pmat=matrix_p(ispin, 1), &
+                                    pmat=matrix_p(ispin), &
                                     qs_env=qs_env, &
                                     calculate_forces=.FALSE., compute_tau=.TRUE., &
                                     basis_type="HARRIS", &
@@ -1163,7 +1162,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, ks_env=ks_env)
+      NULLIFY (atomic_kind_set, cell_to_index, dft_control, ks_env, particle_set, qs_kind_set, virial)
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      dft_control=dft_control, &
+                      particle_set=particle_set, &
+                      qs_kind_set=qs_kind_set, &
+                      ks_env=ks_env)
+
       ! no k-points possible
       nimages = dft_control%nimages
       IF (nimages /= 1) THEN
@@ -1174,6 +1181,10 @@ CONTAINS
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
          CPABORT("Harris functional for GAPW not implemented")
       END IF
+
+      ! Do not calculate forces or stress tensor here
+      use_virial = .FALSE.
+      calculate_forces = .FALSE.
 
       ! get neighbor lists, we need the full sab_orb list from the ec_env
       NULLIFY (sab_orb, sac_ppl, sap_ppnl)
@@ -1204,11 +1215,6 @@ CONTAINS
                       keep_sparsity=.TRUE., name="CORE HAMILTONIAN MATRIX")
 
       ! compute the ppl contribution to the core hamiltonian
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set)
-      NULLIFY (cell_to_index, virial)
-      use_virial = .FALSE.
-      calculate_forces = .FALSE.
       IF (ASSOCIATED(sac_ppl)) THEN
          CALL build_core_ppl(ec_env%matrix_h, ec_env%matrix_p, force, &
                              virial, calculate_forces, use_virial, nder, &
@@ -1262,7 +1268,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! get all information on the electronic density
-      NULLIFY (dft_control, ks_env, rho)
+      NULLIFY (auxbas_pw_pool, dft_control, ks_env, rho, rho_r, tau_r)
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       ks_env=ks_env, &
@@ -1419,14 +1425,20 @@ CONTAINS
       calculate_forces = .TRUE.
 
       ! no k-points possible
-      CALL get_qs_env(qs_env=qs_env, para_env=para_env, dft_control=dft_control)
+      NULLIFY (cell, dft_control, force, ks_env, para_env, virial)
+      CALL get_qs_env(qs_env=qs_env, &
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      force=force, &
+                      ks_env=ks_env, &
+                      para_env=para_env, &
+                      virial=virial)
       nimages = dft_control%nimages
       IF (nimages /= 1) THEN
          CPABORT("K-points for Harris functional not implemented")
       END IF
 
       ! check for virial
-      CALL get_qs_env(qs_env=qs_env, cell=cell, virial=virial)
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       fconv = 1.0E-9_dp*pascal/cell%deth
@@ -1452,7 +1464,6 @@ CONTAINS
       CALL dbcsr_create(scrm(1, 1)%matrix, template=matrix_s(1, 1)%matrix)
       CALL cp_dbcsr_alloc_block_from_nbl(scrm(1, 1)%matrix, sab_orb)
 
-      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, force=force)
       nder = 1
       IF (SIZE(matrix_p, 1) == 2) THEN
          CALL dbcsr_add(matrix_p(1, 1)%matrix, matrix_p(2, 1)%matrix, &
@@ -1470,6 +1481,7 @@ CONTAINS
                                 basis_type_b="HARRIS", &
                                 sab_nl=sab_orb, calculate_forces=.TRUE., &
                                 matrixkp_p=matrix_w)
+
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
@@ -1505,6 +1517,7 @@ CONTAINS
       END IF
 
       ! compute the ppl contribution to the core hamiltonian
+      NULLIFY (atomic_kind_set, particle_set, qs_kind_set)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set)
 
@@ -1599,7 +1612,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type)                                 :: scrm
@@ -1633,12 +1645,13 @@ CONTAINS
       END IF
 
       ! get all information on the electronic density
-      NULLIFY (atomic_kind_set, blacs_env, cell, dft_control, force, ks_env, &
-               matrix_p, matrix_s, para_env, rho, sab_orb, virial)
+      NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, &
+               matrix_p, matrix_s, para_env, rho, rho_core, rho_g, rho_r, sab_orb, &
+               tau_r, virial)
       CALL get_qs_env(qs_env=qs_env, &
-                      blacs_env=blacs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
+                      force=force, &
                       ks_env=ks_env, &
                       para_env=para_env, &
                       rho=rho, &
@@ -1672,7 +1685,6 @@ CONTAINS
 
       CALL pw_transfer(ec_env%vh_rspace%pw, v_hartree_rspace)
 
-      CALL get_qs_env(qs_env=qs_env, force=force)
       ! calculate output density on grid
       ! rho_in(R):   CALL qs_rho_get(rho, rho_r=rho_r)
       ! rho_in(G):   CALL qs_rho_get(rho, rho_g=rho_g)
@@ -1863,7 +1875,6 @@ CONTAINS
       ! Pulay force from Tr P_in (V_H(drho)+ Fxc(rho_in)*drho)
       ! RHS of CPKS equations: (V_H(drho)+ Fxc(rho_in)*drho)*C0
       ! Fxc*drho term
-      NULLIFY (v_xc)
       xc_section => ec_env%xc_section
 
       IF (use_virial) virial%pv_xc = 0.0_dp
@@ -2580,7 +2591,6 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Exc      ", ec_env%exc
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Evhxc    ", ec_env%vhxc
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
-            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Efield_n ", ec_env%efield_nuclear
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Harris Functional   ", ec_env%etotal
          END IF
 
@@ -2596,7 +2606,6 @@ CONTAINS
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Ehartree ", ec_env%ehartree
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Exc      ", ec_env%exc
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Edisp    ", ec_env%edispersion
-            WRITE (unit_nr, '(T3,A,T56,F25.15)') "Efield_n ", ec_env%efield_nuclear
             WRITE (unit_nr, '(T3,A,T56,F25.15)') "Etotal Energy Functional   ", ec_env%etotal
          END IF
 

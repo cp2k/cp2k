@@ -6,34 +6,33 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief AO-based conjugate-graadient response solver routines
+!> \brief AO-based conjugate-gradient response solver routines
 !>
 !>
 !> \date 09.2019
 !> \author Fabian Belleflamme
 ! **************************************************************************************************
 MODULE ec_orth_solver
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_external_control,             ONLY: external_control
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
         dbcsr_desymmetrize, dbcsr_dot, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE ec_methods,                      ONLY: create_kernel
-   USE input_constants,                 ONLY: kg_tnadd_embed,&
+   USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
+                                              kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
                                               ls_s_sqrt_ns,&
                                               ls_s_sqrt_proot,&
                                               precond_mlp
-   USE input_section_types,             ONLY: section_vals_get,&
-                                              section_vals_get_subs_vals,&
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz,&
@@ -63,13 +62,17 @@ MODULE ec_orth_solver
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
+   USE qs_linres_kernel,                ONLY: apply_hfx,&
+                                              apply_xc_admm
    USE qs_linres_types,                 ONLY: linres_control_type
-   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
-                                              qs_rho_update_rho
-   USE qs_rho_types,                    ONLY: qs_rho_create,&
-                                              qs_rho_get,&
-                                              qs_rho_release,&
+   USE qs_p_env_methods,                ONLY: p_env_check_i_alloc,&
+                                              p_env_finish_kpp1,&
+                                              p_env_update_rho
+   USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE xc,                              ONLY: xc_prep_2nd_deriv
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -339,12 +342,13 @@ CONTAINS
    END SUBROUTINE preconditioner
 
 ! **************************************************************************************************
-!> \brief AO-based conjugate radient linear response solver.
+!> \brief AO-based conjugate gradient linear response solver.
 !>        In goes the right hand side B of the equation AZ=B, and the linear transformation of the
-!>        Hessian matrix A on trial matries is iteratively solved. Result are
+!>        Hessian matrix A on trial matrices is iteratively solved. Result are
 !>        the response density matrix_pz, and the energy-weighted response density matrix_wz.
 !>
 !> \param qs_env ...
+!> \param p_env ...
 !> \param matrix_hz Right hand-side of linear response equation
 !> \param matrix_pz Response density
 !> \param matrix_wz Energy-weighted response density matrix
@@ -354,9 +358,10 @@ CONTAINS
 !> \date    01.2020
 !> \author  Fabian Belleflamme
 ! **************************************************************************************************
-   SUBROUTINE ec_response_ao(qs_env, matrix_hz, matrix_pz, matrix_wz, iounit, should_stop)
+   SUBROUTINE ec_response_ao(qs_env, p_env, matrix_hz, matrix_pz, matrix_wz, iounit, should_stop)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_hz
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
@@ -535,6 +540,7 @@ CONTAINS
 
       ! Ax0
       CALL build_hessian_op(qs_env=qs_env, &
+                            p_env=p_env, &
                             matrix_ks=matrix_ks, &
                             matrix_p=matrix_p, &   ! p
                             matrix_s_sqrt_inv=matrix_s_sqrt_inv, &
@@ -646,6 +652,7 @@ CONTAINS
 
          ! Hessian Ax = [F,B] + [G(B),P]
          CALL build_hessian_op(qs_env=qs_env, &
+                               p_env=p_env, &
                                matrix_ks=matrix_ks, &
                                matrix_p=matrix_p, &   ! p
                                matrix_s_sqrt_inv=matrix_s_sqrt_inv, &
@@ -680,6 +687,7 @@ CONTAINS
                END IF
 
                CALL build_hessian_op(qs_env=qs_env, &
+                                     p_env=p_env, &
                                      matrix_ks=matrix_ks, &
                                      matrix_p=matrix_p, &   ! p
                                      matrix_s_sqrt_inv=matrix_s_sqrt_inv, &
@@ -719,6 +727,7 @@ CONTAINS
             !
             ! r_j+1 = b - A * x_j+1
             CALL build_hessian_op(qs_env=qs_env, &
+                                  p_env=p_env, &
                                   matrix_ks=matrix_ks, &
                                   matrix_p=matrix_p, &
                                   matrix_s_sqrt_inv=matrix_s_sqrt_inv, &
@@ -799,7 +808,7 @@ CONTAINS
       END DO iteration
 
       ! Matrix projector
-      CALL projector(qs_env, matrix_p, matrix_Ax, eps_filter)
+      CALL projector(qs_env, matrix_p, matrix_cg_z, eps_filter)
 
       ! Z = [cg_z,P]
       CALL commutator(matrix_cg_z, matrix_p, matrix_z, eps_filter, .TRUE., alpha=0.5_dp)
@@ -861,9 +870,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ec_wz_matrix', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, iounit, ispin, nspins
+      INTEGER                                            :: handle, ispin, nspins
       REAL(KIND=dp)                                      :: scaling
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p, matrix_s
       TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_tmp2
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -881,8 +889,6 @@ CONTAINS
                       matrix_s=matrix_s, &
                       rho=rho)
       nspins = dft_control%nspins
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_unit_nr(logger)
 
       CALL qs_rho_get(rho, rho_ao=matrix_p)
 
@@ -978,11 +984,12 @@ CONTAINS
    END SUBROUTINE hessian_op1
 
 ! **************************************************************************************************
-!> \brief  calculate lin transformation of Hessian matrix on a trial vector (matrix) matrix_cg
+!> \brief  calculate linear transformation of Hessian matrix on a trial matrix matrix_cg
 !>         which is stored in response density B = [cg,P] = cg*P - P*cg = cg*P + (cg*P)^T
 !>         Ax = [F, B] + [G(B), Pin] in orthonormal basis
 !>
 !> \param qs_env ...
+!> \param p_env ...
 !> \param matrix_ks Ground-state Kohn-Sham matrix
 !> \param matrix_p  Ground-state Density matrix
 !> \param matrix_s_sqrt_inv S^(-1/2) needed for transformation to/from orthonormal basis
@@ -993,10 +1000,11 @@ CONTAINS
 !> \date    12.2019
 !> \author  Fabian Belleflamme
 ! **************************************************************************************************
-   SUBROUTINE build_hessian_op(qs_env, matrix_ks, matrix_p, matrix_s_sqrt_inv, &
+   SUBROUTINE build_hessian_op(qs_env, p_env, matrix_ks, matrix_p, matrix_s_sqrt_inv, &
                                matrix_cg, matrix_Ax, eps_filter)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_ks, matrix_p
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s_sqrt_inv
@@ -1014,7 +1022,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_b, rho1_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_rho_type), POINTER                         :: rho, rho1
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
 
@@ -1055,13 +1063,13 @@ CONTAINS
       ! skip the kernel if the DM is very small
       IF (chksum .GT. 1.0E-14_dp) THEN
 
-         CALL get_qs_env(qs_env=qs_env, rho=rho)
-         ! Bring B as density on grid
-         NULLIFY (rho1)
-         CALL qs_rho_create(rho1)
-         CALL qs_rho_rebuild(rho1, qs_env, rebuild_ao=.TRUE., rebuild_grids=.TRUE.)
+         ! Bring matrix B as density on grid
+
+         ! prepare perturbation environment
+         CALL p_env_check_i_alloc(p_env, qs_env)
+
          ! Get response density matrix
-         CALL qs_rho_get(rho1, rho_ao=rho1_ao)
+         CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
 
          DO ispin = 1, nspins
             ! Transform B into NON-ortho basis for collocation
@@ -1070,22 +1078,21 @@ CONTAINS
             CALL dbcsr_filter(matrix_b(ispin)%matrix, eps_filter)
             ! Keep symmetry of density matrix
             CALL dbcsr_copy(rho1_ao(ispin)%matrix, matrix_b(ispin)%matrix, keep_sparsity=.TRUE.)
+            CALL dbcsr_copy(p_env%p1(ispin)%matrix, matrix_b(ispin)%matrix, keep_sparsity=.TRUE.)
          END DO
 
          ! Updates densities on grid wrt density matrix
-         CALL qs_rho_update_rho(rho1, qs_env)
+         CALL p_env_update_rho(p_env, qs_env)
+
+         DO ispin = 1, nspins
+            CALL dbcsr_set(p_env%kpp1(ispin)%matrix, 0.0_dp)
+            IF (ASSOCIATED(p_env%kpp1_admm)) CALL dbcsr_set(p_env%kpp1_admm(ispin)%matrix, 0.0_dp)
+         END DO
 
          ! Calculate kernel
          ! Ax = F*B - B*F + G(B)*P - P*G(B)
-         !                        IN/OUT     IN        IN             IN
-         CALL hessian_op2(qs_env, matrix_Ax, matrix_p, matrix_s_sqrt_inv, rho1, eps_filter)
-
-         ! Add contribution from ADMM to kernel
-!       IF (dft_control%do_admm) THEN
-!          CALL apply_xc_admm(qs_env, p_env, matrix_Ax, matrix_p, p_env%rho1, eps_filter)
-!       END IF
-
-         CALL qs_rho_release(rho1)
+         !                               IN/OUT     IN        IN                 IN
+         CALL hessian_op2(qs_env, p_env, matrix_Ax, matrix_p, matrix_s_sqrt_inv, eps_filter)
 
       END IF
 
@@ -1096,55 +1103,58 @@ CONTAINS
    END SUBROUTINE build_hessian_op
 
 ! **************************************************************************************************
-!> \brief  Calculate lin transformation of Hessian matrix on a trial vector (matrix) matrix_cg
+!> \brief  Calculate lin transformation of Hessian matrix on a trial matrix matrix_cg
 !>         which is stored in response density B = [cg,P] = cg*P - P*cg = cg*P + (cg*P)^T
 !>         Ax = [F, B] + [G(B), Pin] in orthonormal basis
 !>
 !> \param qs_env ...
+!> \param p_env p-environment with trial density environment
 !> \param matrix_Ax contains first part of Hessian linear transformation, kernel contribution
 !>                  is calculated and added in this routine
 !> \param matrix_p Density matrix in orthogonal basis
 !> \param matrix_s_sqrt_inv contains matrix S^(-1/2) for switching to orthonormal Lowdin basis
-!> \param rho1 trial density environment
 !> \param eps_filter ...
 !>
 !> \date    12.2019
 !> \author  Fabian Belleflamme
 ! **************************************************************************************************
-   SUBROUTINE hessian_op2(qs_env, matrix_Ax, matrix_p, matrix_s_sqrt_inv, rho1, eps_filter)
+   SUBROUTINE hessian_op2(qs_env, p_env, matrix_Ax, matrix_p, matrix_s_sqrt_inv, eps_filter)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          POINTER                                         :: matrix_Ax
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: matrix_p
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s_sqrt_inv
-      TYPE(qs_rho_type), INTENT(IN), POINTER             :: rho1
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
       CHARACTER(len=*), PARAMETER :: routineN = 'hessian_op2', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: handle, ispin, nspins
-      LOGICAL                                            :: do_hfx
       REAL(KIND=dp)                                      :: ekin_mol
+      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_G, matrix_s, rho1_ao, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, tau1_r, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau1_r, v_xc, &
+                                                            v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input, xc_section
+      TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
+      TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, input, matrix_s, para_env, rho, rho1_g, rho1_r)
+      NULLIFY (admm_env, dft_control, input, matrix_s, para_env, rho, rho_r, rho1_g, rho1_r)
 
       CALL get_qs_env(qs_env=qs_env, &
+                      admm_env=admm_env, &
                       dft_control=dft_control, &
                       input=input, &
                       matrix_s=matrix_s, &
@@ -1152,10 +1162,14 @@ CONTAINS
                       rho=rho)
       nspins = dft_control%nspins
 
+      CPASSERT(ASSOCIATED(p_env%kpp1))
+      CPASSERT(ASSOCIATED(p_env%kpp1_env))
+      kpp1_env => p_env%kpp1_env
+
       ! Get non-ortho input density matrix on grid
       CALL qs_rho_get(rho, rho_ao=rho_ao)
-      ! Get non-ortho trial density
-      CALL qs_rho_get(rho1, rho_g=rho1_g, rho_r=rho1_r, tau_r=tau1_r)
+      ! Get non-ortho trial density stored in p_env
+      CALL qs_rho_get(p_env%rho1, rho_g=rho1_g, rho_r=rho1_r, tau_r=tau1_r)
 
       NULLIFY (pw_env)
       CALL get_qs_env(qs_env, pw_env=pw_env)
@@ -1185,15 +1199,11 @@ CONTAINS
 
       ! XC-Kernel
       NULLIFY (v_xc, v_xc_tau, xc_section)
-      xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
-      ! No HFX allowed
-      hfx_section => section_vals_get_subs_vals(xc_section, "HF")
-      CALL section_vals_get(hfx_section, explicit=do_hfx)
-      IF (do_hfx) THEN
-         CALL cp_warn(__LOCATION__, "HFX not possible with AO based response solver. "// &
-                      "Use the MO solver: RESPONSE_SOLVER/METOD MO_SOLVER")
-         CPABORT("hessian_op2@ec_orth_solver")
+      IF (dft_control%do_admm) THEN
+         xc_section => admm_env%xc_section_primary
+      ELSE
+         xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
 
       ! add xc-kernel
@@ -1212,6 +1222,21 @@ CONTAINS
             CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
          END IF
       END DO
+
+      ! ADMM Correction
+      IF (dft_control%do_admm) THEN
+         IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            IF (.NOT. ASSOCIATED(kpp1_env%deriv_set_admm)) THEN
+               xc_section_aux => admm_env%xc_section_aux
+               CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
+               CALL qs_rho_get(rho_aux, rho_r=rho_r)
+               ALLOCATE (kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm)
+               CALL xc_prep_2nd_deriv(kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, &
+                                      rho_r, auxbas_pw_pool, &
+                                      xc_section=xc_section_aux)
+            END IF
+         END IF
+      END IF
 
       ! take trial density to build G^{H}[B]
       CALL pw_zero(rho_tot_gspace%pw)
@@ -1234,33 +1259,31 @@ CONTAINS
          IF (ASSOCIATED(v_xc_tau)) CALL pw_scale(v_xc_tau(1)%pw, 2.0_dp)
       END IF
 
-      ! Init response kernel matrix
-      ! matrix G(B)
-      NULLIFY (matrix_G)
-      CALL dbcsr_allocate_matrix_set(matrix_G, nspins)
       DO ispin = 1, nspins
-         ALLOCATE (matrix_G(ispin)%matrix)
-         CALL dbcsr_copy(matrix_G(ispin)%matrix, matrix_s(1)%matrix, &
-                         name="MATRIX Kernel")
-
          ! Integrate with ground-state density matrix, in non-orthogonal basis
          CALL integrate_v_rspace(v_rspace=v_xc(ispin)%pw, &
                                  pmat=rho_ao(ispin), &
-                                 hmat=matrix_G(ispin), &
+                                 hmat=p_env%kpp1(ispin), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
                                  basis_type="ORB")
-
          IF (ASSOCIATED(v_xc_tau)) THEN
             CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                     pmat=rho_ao(ispin), &
-                                    hmat=matrix_G(ispin), &
+                                    hmat=p_env%kpp1(ispin), &
                                     qs_env=qs_env, &
                                     compute_tau=.TRUE., &
                                     calculate_forces=.FALSE., &
                                     basis_type="ORB")
          END IF
       END DO
+
+      ! Hartree-Fock contribution
+      CALL apply_hfx(qs_env, p_env)
+      ! Calculate ADMM exchange correction to kernel
+      CALL apply_xc_admm(qs_env, p_env)
+      ! Add contribution from ADMM exchange correction to kernel
+      CALL p_env_finish_kpp1(qs_env, p_env)
 
       ! Calculate KG correction to kernel
       IF (dft_control%qs_control%do_kg) THEN
@@ -1269,9 +1292,9 @@ CONTAINS
 
             CPASSERT(dft_control%nimages == 1)
             ekin_mol = 0.0_dp
-            CALL qs_rho_get(rho1, rho_ao=rho1_ao)
+            CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
             CALL kg_ekin_subset(qs_env=qs_env, &
-                                ks_matrix=matrix_G, &
+                                ks_matrix=p_env%kpp1, &
                                 ekin_mol=ekin_mol, &
                                 calc_force=.FALSE., &
                                 do_kernel=.TRUE., &
@@ -1279,7 +1302,18 @@ CONTAINS
          END IF
       END IF
 
+      ! Init response kernel matrix
+      ! matrix G(B)
+      NULLIFY (matrix_G)
+      CALL dbcsr_allocate_matrix_set(matrix_G, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (matrix_G(ispin)%matrix)
+         CALL dbcsr_copy(matrix_G(ispin)%matrix, p_env%kpp1(ispin)%matrix, &
+                         name="MATRIX Kernel")
+      END DO
+
       ! Transforming G(B) into orthonormal basis
+      ! Careful, this de-symmetrizes matrix_G
       DO ispin = 1, nspins
          CALL transform_m_orth(matrix_G(ispin)%matrix, matrix_s_sqrt_inv, eps_filter)
          CALL dbcsr_filter(matrix_G(ispin)%matrix, eps_filter)

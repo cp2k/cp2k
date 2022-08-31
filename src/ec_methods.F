@@ -120,7 +120,7 @@ CONTAINS
 
       ! folding of second deriv with density in rho1_set
       CALL xc_calc_2nd_deriv(v_xc=vxc, &               ! XC-potential, rho-dependent
-                             v_xc_tau=vxc_tau, &      ! XC-potential, tau-dependent
+                             v_xc_tau=vxc_tau, &       ! XC-potential, tau-dependent
                              deriv_set=deriv_set, &    ! deriv of xc-potential
                              rho_set=rho_set, &        ! density at which deriv are calculated
                              rho1_r=rho1_r, &          ! density with which to fold
