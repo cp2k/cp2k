@@ -77,7 +77,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TREAT_LSD_IN_CORE", &
-                          description="Determines how spin denisities are taken into account. "// &
+                          description="Determines how spin densities are taken into account. "// &
                           "If true, the beta spin density is included via a second in core call. "// &
                           "If false, alpha and beta spins are done in one shot ", &
                           usage="TREAT_LSD_IN_CORE TRUE", default_l_val=.FALSE.)
