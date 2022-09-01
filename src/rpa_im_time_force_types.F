@@ -16,6 +16,9 @@ MODULE rpa_im_time_force_types
                                               dbcsr_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
+   USE hfx_types,                       ONLY: block_ind_type,&
+                                              dealloc_containers,&
+                                              hfx_compression_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -35,6 +38,10 @@ MODULE rpa_im_time_force_types
       !The 3-center integral derivatives (with the RI metric operator)
       TYPE(dbt_type), DIMENSION(3)  :: t_3c_der_AO, & ! (RI| AO deriv_AO)
                                        t_3c_der_RI    ! (deriv_RI| AO AO)
+
+      !The compressed 3-center derivatives
+      TYPE(hfx_compression_type), ALLOCATABLE, DIMENSION(:, :)   :: t_3c_der_AO_comp, t_3c_der_RI_comp
+      TYPE(block_ind_type), ALLOCATABLE, DIMENSION(:, :)         :: t_3c_der_AO_ind, t_3c_der_RI_ind
 
       !The RI related 2-center quantities
       TYPE(dbt_type) :: t_2c_pot_psqrt, t_2c_inv_metric, t_2c_K, t_2c_pot_msqrt
@@ -70,7 +77,7 @@ CONTAINS
 
       TYPE(im_time_force_type)                           :: force_data
 
-      INTEGER                                            :: i_xyz
+      INTEGER                                            :: dummy_int, i, i_xyz, j
 
       CALL dbt_destroy(force_data%t_2c_pot_psqrt)
       CALL dbt_destroy(force_data%t_2c_pot_msqrt)
@@ -96,6 +103,18 @@ CONTAINS
       DO i_xyz = 1, 3
          CALL dbt_destroy(force_data%t_2c_der_metric(i_xyz))
       END DO
+
+      DO i = 1, SIZE(force_data%t_3c_der_AO_comp, 1)
+         DO j = 1, SIZE(force_data%t_3c_der_AO_comp, 2)
+            CALL dealloc_containers(force_data%t_3c_der_AO_comp(i, j), dummy_int)
+         END DO
+      END DO
+      DO i = 1, SIZE(force_data%t_3c_der_RI_comp, 1)
+         DO j = 1, SIZE(force_data%t_3c_der_RI_comp, 2)
+            CALL dealloc_containers(force_data%t_3c_der_RI_comp(i, j), dummy_int)
+         END DO
+      END DO
+      DEALLOCATE (force_data%t_3c_der_AO_ind, force_data%t_3c_der_RI_ind)
 
    END SUBROUTINE im_time_force_release
 
