@@ -1,0 +1,89 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-10
+      EPSFIT 1.0E-06
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      &OT
+         PRECONDITIONER FULL_SINGLE_INVERSE
+         MINIMIZER DIIS
+      &END
+      &OUTER_SCF
+         MAX_SCF  5
+         EPS_SCF 1.0E-5
+      &END
+      MAX_SCF  20
+      EPS_SCF 1.0E-5
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+    &PRINT
+      &MOMENTS ON
+         PERIODIC .FALSE.
+         REFERENCE COM
+      &END
+    &END
+    &POISSON
+       PERIODIC NONE
+       POISSON MT
+    &END POISSON
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 40
+    &END MGRID
+  &END DFT
+  &PROPERTIES
+     &LINRES
+      EPS 1.0E-06
+      MAX_ITER 50
+      PRECONDITIONER full_single_inverse
+      &POLAR on
+       DO_RAMAN
+       PERIODIC_DIPOLE_OPERATOR F
+       &PRINT
+           &POLAR_MATRIX on 
+           &END POLAR_MATRIX
+       &END PRINT
+      &END POLAR
+     &END LINRES
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 5.0 5.0 5.0
+      PERIODIC NONE
+    &END
+    &COORD
+       N        0.000000    0.000000    0.544742
+       N        0.000000    0.000000   -0.544742
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+    &KIND N
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q5
+      MASS 14.00307
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT N2    
+  RUN_TYPE VIBRATIONAL_ANALYSIS
+&END GLOBAL
+&VIBRATIONAL_ANALYSIS
+ INTENSITIES .TRUE.
+ DX 0.0005
+&END
+
+
+
+
+
