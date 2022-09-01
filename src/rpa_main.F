@@ -1241,7 +1241,7 @@ CONTAINS
                             mat_SinvVSinv, mat_P_omega, mat_P_omega_kp, mat_work, mo_coeff, &
                             fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, homo, nmo)
 
-         IF (calc_forces) CALL init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, mp2_env, qs_env)
+         IF (calc_forces) CALL init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, unit_nr, mp2_env, qs_env)
 
          IF (my_do_gw) THEN
 

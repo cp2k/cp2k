@@ -89,6 +89,7 @@ MODULE rpa_im_time_force_methods
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_cart_create,&
+                                              mp_sum,&
                                               mp_sync
    USE mp2_eri,                         ONLY: integrate_set_2c
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
@@ -189,14 +190,16 @@ CONTAINS
 !> \param force_data ...
 !> \param fm_matrix_PQ ...
 !> \param t_3c_M the 3-center M tensor to be used as a template
+!> \param unit_nr ...
 !> \param mp2_env ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, mp2_env, qs_env)
+   SUBROUTINE init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, unit_nr, mp2_env, qs_env)
 
       TYPE(im_time_force_type), INTENT(INOUT)            :: force_data
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M
+      INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -205,6 +208,7 @@ CONTAINS
       INTEGER                                            :: handle, i_mem, i_xyz, ispin, &
                                                             mp_comm_t3c, n_dependent, n_mem, &
                                                             natom, nkind, nspins
+      INTEGER(int_8)                                     :: nze, nze_tot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist_AO_1, dist_AO_2, &
                                                             dist_RI, dummy_end, dummy_start, &
                                                             end_blocks, sizes_AO, sizes_RI, &
@@ -213,6 +217,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nblks_total, pcoord, pdims, pdims_t3c
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       LOGICAL                                            :: do_periodic
+      REAL(dp)                                           :: compression_factor, memory, occ
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -244,7 +249,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, natom=natom, nkind=nkind, dft_control=dft_control, para_env=para_env, &
                       particle_set=particle_set, qs_kind_set=qs_kind_set, cell=cell)
-
       IF (dft_control%qs_control%gapw) THEN
          CPABORT("Low-scaling RPA/SOS-MP2 forces only available with GPW")
       END IF
@@ -303,6 +307,11 @@ CONTAINS
       CALL create_tensor_batches(sizes_AO, n_mem, dummy_start, dummy_end, start_blocks, end_blocks)
       DEALLOCATE (dummy_start, dummy_end)
 
+      ALLOCATE (force_data%t_3c_der_AO_comp(n_mem, 3), force_data%t_3c_der_RI_comp(n_mem, 3))
+      ALLOCATE (force_data%t_3c_der_AO_ind(n_mem, 3), force_data%t_3c_der_RI_ind(n_mem, 3))
+
+      memory = 0.0_dp
+      nze_tot = 0
       DO i_mem = 1, n_mem
          CALL build_3c_derivatives(t_3c_der_RI_prv, t_3c_der_AO_prv, mp2_env%ri_rpa_im_time%eps_filter, &
                                    qs_env, nl_3c, basis_set_ri_aux, basis_set_ao, basis_set_ao, &
@@ -310,13 +319,25 @@ CONTAINS
                                    bounds_j=[start_blocks(i_mem), end_blocks(i_mem)])
 
          DO i_xyz = 1, 3
-            CALL dbt_copy(t_3c_der_RI_prv(1, 1, i_xyz), force_data%t_3c_der_RI(i_xyz), &
-                          move_data=.TRUE., summation=.TRUE.)
+            CALL dbt_copy(t_3c_der_RI_prv(1, 1, i_xyz), force_data%t_3c_der_RI(i_xyz), move_data=.TRUE.)
             CALL dbt_filter(force_data%t_3c_der_RI(i_xyz), mp2_env%ri_rpa_im_time%eps_filter)
+            CALL get_tensor_occupancy(force_data%t_3c_der_RI(i_xyz), nze, occ)
+            nze_tot = nze_tot + nze
 
-            CALL dbt_copy(t_3c_der_AO_prv(1, 1, i_xyz), force_data%t_3c_der_AO(i_xyz), &
-                          move_data=.TRUE., summation=.TRUE.)
+            CALL alloc_containers(force_data%t_3c_der_RI_comp(i_mem, i_xyz), 1)
+            CALL compress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
+                                 force_data%t_3c_der_RI_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress, memory)
+            CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
+
+            CALL dbt_copy(t_3c_der_AO_prv(1, 1, i_xyz), force_data%t_3c_der_AO(i_xyz), move_data=.TRUE.)
             CALL dbt_filter(force_data%t_3c_der_AO(i_xyz), mp2_env%ri_rpa_im_time%eps_filter)
+            CALL get_tensor_occupancy(force_data%t_3c_der_AO(i_xyz), nze, occ)
+            nze_tot = nze_tot + nze
+
+            CALL alloc_containers(force_data%t_3c_der_AO_comp(i_mem, i_xyz), 1)
+            CALL compress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
+                                 force_data%t_3c_der_AO_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress, memory)
+            CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
          END DO
       END DO
       CALL neighbor_list_3c_destroy(nl_3c)
@@ -324,6 +345,16 @@ CONTAINS
          CALL dbt_destroy(t_3c_der_RI_prv(1, 1, i_xyz))
          CALL dbt_destroy(t_3c_der_AO_prv(1, 1, i_xyz))
       END DO
+
+      CALL mp_sum(memory, para_env%group)
+      compression_factor = REAL(nze_tot, dp)*1.0E-06*8.0_dp/memory
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
+            "MEMORY_INFO| Memory for 3-center derivatives (compressed):", memory, ' MiB'
+
+         WRITE (UNIT=unit_nr, FMT="((T3,A,T60,F21.2))") &
+            "MEMORY_INFO| Compression factor:                  ", compression_factor
+      END IF
 
       !Dealing with the 2-center derivatives
       CALL get_qs_env(qs_env, distribution_2d=dist_2d, blacs_env=blacs_env, matrix_s=matrix_s)
@@ -592,9 +623,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_laplace_loop_forces'
 
-      INTEGER                                            :: dummy_int, handle, handle2, i_xyz, &
-                                                            ispin, j_xyz, jquad, k_xyz, n_mem_RI, &
-                                                            natom, nspins, unit_nr_dbcsr
+      INTEGER                                            :: dummy_int, handle, handle2, i_mem, &
+                                                            i_xyz, ispin, j_xyz, jquad, k_xyz, &
+                                                            n_mem_RI, natom, nspins, unit_nr_dbcsr
       INTEGER(int_8)                                     :: flop, nze, nze_ddint, nze_der_AO, &
                                                             nze_der_RI, nze_KQK
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, batch_blk_end, &
@@ -670,22 +701,6 @@ CONTAINS
       mc_ranges_RI(n_mem_RI + 1) = batch_blk_end(n_mem_RI) + 1
       DEALLOCATE (batch_blk_start, batch_blk_end)
 
-      occ_der_AO = 0; nze_der_AO = 0
-      occ_der_RI = 0; nze_der_RI = 0
-      DO i_xyz = 1, 3
-         CALL get_tensor_occupancy(force_data%t_3c_der_AO(i_xyz), nze, occ)
-         occ_der_AO = occ_der_AO + occ
-         nze_der_AO = nze_der_AO + nze
-
-         CALL get_tensor_occupancy(force_data%t_3c_der_RI(i_xyz), nze, occ)
-         occ_der_RI = occ_der_RI + occ
-         nze_der_RI = nze_der_RI + nze
-      END DO
-      occ_der_RI = occ_der_RI/3.0_dp
-      occ_der_AO = occ_der_AO/3.0_dp
-      nze_der_RI = nze_der_RI/3
-      nze_der_AO = nze_der_AO/3
-
       !Pre-allocate all required tensors and matrices
       DO ispin = 1, nspins
          CALL dbt_create(t_2c_RI, t_P(ispin))
@@ -716,11 +731,30 @@ CONTAINS
       CALL dbt_create(t_3c_M, t_3c_work)
 
       !Pre-define the sparsity of t_3c_4 as a function of the derivatives
+      occ_der_AO = 0; nze_der_AO = 0
+      occ_der_RI = 0; nze_der_RI = 0
       DO i_xyz = 1, 3
-         CALL dbt_copy(force_data%t_3c_der_RI(i_xyz), t_3c_sparse, summation=.TRUE.)
-         CALL dbt_copy(force_data%t_3c_der_AO(i_xyz), t_3c_sparse, summation=.TRUE.)
-         CALL dbt_copy(force_data%t_3c_der_AO(i_xyz), t_3c_sparse, order=[1, 3, 2], summation=.TRUE.)
+         DO i_mem = 1, cut_memory
+            CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
+                                   force_data%t_3c_der_RI_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            CALL get_tensor_occupancy(force_data%t_3c_der_RI(i_xyz), nze, occ)
+            occ_der_RI = occ_der_RI + occ
+            nze_der_RI = nze_der_RI + nze
+            CALL dbt_copy(force_data%t_3c_der_RI(i_xyz), t_3c_sparse, summation=.TRUE., move_data=.TRUE.)
+
+            CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
+                                   force_data%t_3c_der_AO_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            CALL get_tensor_occupancy(force_data%t_3c_der_AO(i_xyz), nze, occ)
+            occ_der_AO = occ_der_AO + occ
+            nze_der_AO = nze_der_AO + nze
+            CALL dbt_copy(force_data%t_3c_der_AO(i_xyz), t_3c_sparse, order=[1, 3, 2], summation=.TRUE.)
+            CALL dbt_copy(force_data%t_3c_der_AO(i_xyz), t_3c_sparse, summation=.TRUE., move_data=.TRUE.)
+         END DO
       END DO
+      occ_der_RI = occ_der_RI/3.0_dp
+      occ_der_AO = occ_der_AO/3.0_dp
+      nze_der_RI = nze_der_RI/3
+      nze_der_AO = nze_der_AO/3
 
       CALL dbcsr_create(R_occ, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(R_virt, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
@@ -1095,9 +1129,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_rpa_loop_forces'
 
-      INTEGER                                            :: dummy_int, handle, handle2, i_xyz, &
-                                                            iquad, j_xyz, jquad, k_xyz, n_mem_RI, &
-                                                            natom, nspins, unit_nr_dbcsr
+      INTEGER                                            :: dummy_int, handle, handle2, i_mem, &
+                                                            i_xyz, iquad, j_xyz, jquad, k_xyz, &
+                                                            n_mem_RI, natom, nspins, unit_nr_dbcsr
       INTEGER(int_8)                                     :: flop, nze, nze_ddint, nze_der_AO, &
                                                             nze_der_RI, nze_KBK
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, batch_blk_end, &
@@ -1173,22 +1207,6 @@ CONTAINS
       mc_ranges_RI(1:n_mem_RI) = batch_blk_start(1:n_mem_RI)
       mc_ranges_RI(n_mem_RI + 1) = batch_blk_end(n_mem_RI) + 1
       DEALLOCATE (batch_blk_start, batch_blk_end)
-
-      occ_der_AO = 0; nze_der_AO = 0
-      occ_der_RI = 0; nze_der_RI = 0
-      DO i_xyz = 1, 3
-         CALL get_tensor_occupancy(force_data%t_3c_der_AO(i_xyz), nze, occ)
-         occ_der_AO = occ_der_AO + occ
-         nze_der_AO = nze_der_AO + nze
-
-         CALL get_tensor_occupancy(force_data%t_3c_der_RI(i_xyz), nze, occ)
-         occ_der_RI = occ_der_RI + occ
-         nze_der_RI = nze_der_RI + nze
-      END DO
-      occ_der_RI = occ_der_RI/3.0_dp
-      occ_der_AO = occ_der_AO/3.0_dp
-      nze_der_RI = nze_der_RI/3
-      nze_der_AO = nze_der_AO/3
 
       !Pre-allocate all required tensors and matrices
       CALL dbt_create(t_2c_RI, t_P)
@@ -1294,11 +1312,30 @@ CONTAINS
       CALL dbt_clear(t_2c_RI_2)
 
       !Pre-define the sparsity of t_3c_4 as a function of the derivatives
+      occ_der_AO = 0; nze_der_AO = 0
+      occ_der_RI = 0; nze_der_RI = 0
       DO i_xyz = 1, 3
-         CALL dbt_copy(force_data%t_3c_der_RI(i_xyz), t_3c_sparse, summation=.TRUE.)
-         CALL dbt_copy(force_data%t_3c_der_AO(i_xyz), t_3c_sparse, summation=.TRUE.)
-         CALL dbt_copy(force_data%t_3c_der_AO(i_xyz), t_3c_sparse, order=[1, 3, 2], summation=.TRUE.)
+         DO i_mem = 1, cut_memory
+            CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
+                                   force_data%t_3c_der_RI_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            CALL get_tensor_occupancy(force_data%t_3c_der_RI(i_xyz), nze, occ)
+            occ_der_RI = occ_der_RI + occ
+            nze_der_RI = nze_der_RI + nze
+            CALL dbt_copy(force_data%t_3c_der_RI(i_xyz), t_3c_sparse, summation=.TRUE., move_data=.TRUE.)
+
+            CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
+                                   force_data%t_3c_der_AO_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            CALL get_tensor_occupancy(force_data%t_3c_der_AO(i_xyz), nze, occ)
+            occ_der_AO = occ_der_AO + occ
+            nze_der_AO = nze_der_AO + nze
+            CALL dbt_copy(force_data%t_3c_der_AO(i_xyz), t_3c_sparse, order=[1, 3, 2], summation=.TRUE.)
+            CALL dbt_copy(force_data%t_3c_der_AO(i_xyz), t_3c_sparse, summation=.TRUE., move_data=.TRUE.)
+         END DO
       END DO
+      occ_der_RI = occ_der_RI/3.0_dp
+      occ_der_AO = occ_der_AO/3.0_dp
+      nze_der_RI = nze_der_RI/3
+      nze_der_AO = nze_der_AO/3
 
       CALL dbcsr_create(R_occ, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(R_virt, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
@@ -1799,7 +1836,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'perform_3c_ops'
 
       INTEGER                                            :: dummy_int, handle, handle2, i_mem, &
-                                                            j_mem, k_mem
+                                                            i_xyz, j_mem, k_mem
       INTEGER(int_8)                                     :: flop, nze
       INTEGER, DIMENSION(2, 1)                           :: ibounds, jbounds, kbounds
       INTEGER, DIMENSION(2, 2)                           :: bounds_2c
@@ -1959,21 +1996,51 @@ CONTAINS
 
       pref = 1.0_dp*fac
       IF (use_virial) THEN
-         CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
-                                      force_data%idx_to_at_RI, pref, work_virial, cell, particle_set, &
-                                      do_mp2=.TRUE., deriv_dim=1)
+         DO i_mem = 1, cut_memory
+            DO i_xyz = 1, 3
+               CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
+               CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
+                                      force_data%t_3c_der_RI_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            END DO
+            CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
+                                         force_data%idx_to_at_RI, pref, work_virial, cell, particle_set, &
+                                         do_mp2=.TRUE., deriv_dim=1)
+         END DO
+
          CALL dbt_copy(t_3c_help_1, t_3c_help_2)
          CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
-         CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
-                                      force_data%idx_to_at_AO, pref, work_virial, cell, particle_set, &
-                                      do_mp2=.TRUE., deriv_dim=3)
+         DO i_mem = 1, cut_memory
+            DO i_xyz = 1, 3
+               CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
+               CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
+                                      force_data%t_3c_der_AO_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            END DO
+            CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
+                                         force_data%idx_to_at_AO, pref, work_virial, cell, particle_set, &
+                                         do_mp2=.TRUE., deriv_dim=3)
+         END DO
       ELSE
-         CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
-                                      force_data%idx_to_at_RI, pref, do_mp2=.TRUE., deriv_dim=1)
+         DO i_mem = 1, cut_memory
+            DO i_xyz = 1, 3
+               CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
+               CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
+                                      force_data%t_3c_der_RI_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            END DO
+            CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
+                                         force_data%idx_to_at_RI, pref, do_mp2=.TRUE., deriv_dim=1)
+         END DO
+
          CALL dbt_copy(t_3c_help_1, t_3c_help_2)
          CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
-         CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
-                                      force_data%idx_to_at_AO, pref, do_mp2=.TRUE., deriv_dim=3)
+         DO i_mem = 1, cut_memory
+            DO i_xyz = 1, 3
+               CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
+               CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
+                                      force_data%t_3c_der_AO_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+            END DO
+            CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
+                                         force_data%idx_to_at_AO, pref, do_mp2=.TRUE., deriv_dim=3)
+         END DO
       END IF
       CALL dbt_clear(t_3c_help_2)
 
