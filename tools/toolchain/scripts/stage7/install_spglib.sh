@@ -31,7 +31,7 @@ case "$with_spglib" in
         echo "spglib-${spglib_ver}.tar.gz is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${spglib_sha256} \
-          https://github.com/atztogo/spglib/archive/v${spglib_ver}.tar.gz \
+          https://github.com/spglib/spglib/archive/v${spglib_ver}.tar.gz \
           -o spglib-${spglib_ver}.tar.gz
       fi
 
