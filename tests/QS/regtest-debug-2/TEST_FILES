@@ -8,4 +8,5 @@ h2o_pade_fd.inp                                       87      1e-05             
 h2o_hfx.inp                                           87      1e-05             0.155040875037E+02
 h2o_hfx_admm.inp                                      87      1e-05             0.153251090463E+02
 h2o_admm_gapw.inp                                     87      1e-05             0.165349668089E+02
+h2o_admm_x.inp                                        87      1e-05             0.165349668089E+02
 #EOF

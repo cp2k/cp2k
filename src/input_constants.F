@@ -850,7 +850,8 @@ MODULE input_constants
                                                do_admm_aux_exch_func_default_libxc = 5, &
                                                do_admm_aux_exch_func_pbex_libxc = 6, &
                                                do_admm_aux_exch_func_opt_libxc = 7, &
-                                               do_admm_aux_exch_func_bee_libxc = 8
+                                               do_admm_aux_exch_func_bee_libxc = 8, &
+                                               do_admm_aux_exch_func_sx_libxc = 9
 
    ! Define scaling of the exchange correction
    INTEGER, PARAMETER, PUBLIC               :: do_admm_exch_scaling_none = 0, &

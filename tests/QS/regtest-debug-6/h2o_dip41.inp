@@ -2,7 +2,7 @@
   METHOD Quickstep
   &PROPERTIES
     &TDDFPT
-       KERNEL NONE
+       KERNEL FULL
        NSTATES      1
        MAX_ITER    50
        CONVERGENCE [eV] 1.0e-7
@@ -15,7 +15,7 @@
       CUTOFF 400
     &END MGRID
     &QS
-      METHOD GAPW_XC
+      METHOD GAPW
       EPS_DEFAULT 1.E-14
     &END QS
     &EFIELD

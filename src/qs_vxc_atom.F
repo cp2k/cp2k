@@ -773,7 +773,7 @@ CONTAINS
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
                                                             istep, mepos, myfun, na, natom, nr, &
-                                                            nspins, nstep, num_pe
+                                                            ns, nspins, nstep, num_pe
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: donlcc, gradient_f, lsd, nlcc, paw_atom, &
@@ -783,12 +783,12 @@ CONTAINS
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight
-      REAL(dp), DIMENSION(:, :, :), POINTER :: ftau_h, ftau_s, fxc_h, fxc_s, gtau_h, gtau_s, &
-         gxc_h, gxc_s, rho0_h, rho0_s, rho1_h, rho1_s, rho_h, rho_s, tau0_h, tau0_s, tau1_h, &
-         tau1_s, tau_h, tau_s, vtau_h, vtau_s, vxc_h, vxc_s
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: rho0_h, rho0_s, rho1_h, rho1_s, rho_h, &
+                                                            rho_s, tau0_h, tau0_s, tau1_h, tau1_s, &
+                                                            tau_h, tau_s, vtau_h, vtau_s, vxc_h, &
+                                                            vxc_s
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: drho0_h, drho0_s, drho1_h, drho1_s, &
-                                                            drho_h, drho_s, fxg_h, fxg_s, gxg_h, &
-                                                            gxg_s, vxg_h, vxg_s
+                                                            drho_h, drho_s, vxg_h, vxg_s
       REAL(KIND=dp), DIMENSION(-4:4)                     :: ak, bl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -796,7 +796,8 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, int_hh, int_ss, r_h, r_s
+      TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: dr_h, dr_s, fint_hh, fint_ss, int_hh, &
+                                                            int_ss, r_h, r_s
       TYPE(rho_atom_coeff), DIMENSION(:, :), POINTER     :: r_h_d, r_s_d
       TYPE(rho_atom_type), POINTER                       :: rho0_atom, rho1_atom, rho2_atom
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
@@ -824,6 +825,8 @@ CONTAINS
          bl(-4:4) = (/-1.0_dp, 128.0_dp/9.0_dp, -112.0_dp, 896.0_dp, -14350.0_dp/9.0_dp, &
                       896.0_dp, -112.0_dp, 128.0_dp/9.0_dp, -1.0_dp/)/560.0_dp
       END SELECT
+      oeps1 = 1.0_dp/epsrho
+      oeps2 = 1.0_dp/(epsrho**2)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -834,7 +837,7 @@ CONTAINS
       CALL section_vals_val_get(xc_fun_section, "_SECTION_PARAMETERS_", i_val=myfun)
 
       IF (myfun == xc_none) THEN
-         ! zero return arrays?
+         ! no action needed?
       ELSE
          CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", r_val=density_cut)
          CALL section_vals_val_get(xc_section, "GRADIENT_CUTOFF", r_val=gradient_cut)
@@ -888,26 +891,26 @@ CONTAINS
             ALLOCATE (rho_h(na, nr, nspins), rho_s(na, nr, nspins), &
                       rho0_h(na, nr, nspins), rho0_s(na, nr, nspins), &
                       rho1_h(na, nr, nspins), rho1_s(na, nr, nspins))
-            ALLOCATE (vxc_h(na, nr, nspins), vxc_s(na, nr, nspins), &
-                      fxc_h(na, nr, nspins), fxc_s(na, nr, nspins), &
-                      gxc_h(na, nr, nspins), gxc_s(na, nr, nspins))
+            ALLOCATE (vxc_h(na, nr, nspins), vxc_s(na, nr, nspins))
             IF (gradient_f) THEN
                ALLOCATE (drho_h(4, na, nr, nspins), drho_s(4, na, nr, nspins), &
                          drho0_h(3, na, nr, nspins), drho0_s(3, na, nr, nspins), &
                          drho1_h(3, na, nr, nspins), drho1_s(3, na, nr, nspins))
-               ALLOCATE (vxg_h(3, na, nr, nspins), vxg_s(3, na, nr, nspins), &
-                         fxg_h(3, na, nr, nspins), fxg_s(3, na, nr, nspins), &
-                         gxg_h(3, na, nr, nspins), gxg_s(3, na, nr, nspins))
+               ALLOCATE (vxg_h(3, na, nr, nspins), vxg_s(3, na, nr, nspins))
             END IF
             IF (tau_f) THEN
                ALLOCATE (tau_h(na, nr, nspins), tau_s(na, nr, nspins), &
                          tau0_h(na, nr, nspins), tau0_s(na, nr, nspins), &
                          tau1_h(na, nr, nspins), tau1_s(na, nr, nspins))
-               ALLOCATE (vtau_h(na, nr, nspins), vtau_s(na, nr, nspins), &
-                         ftau_h(na, nr, nspins), ftau_s(na, nr, nspins), &
-                         gtau_h(na, nr, nspins), gtau_s(na, nr, nspins))
+               ALLOCATE (vtau_h(na, nr, nspins), vtau_s(na, nr, nspins))
             END IF
-
+            !
+            ALLOCATE (fint_ss(nspins), fint_hh(nspins))
+            DO ns = 1, nspins
+               ALLOCATE (fint_ss(ns)%r_coef(na, nr))
+               ALLOCATE (fint_hh(ns)%r_coef(na, nr))
+            END DO
+            !
             ! NLCC: prepare rho and drho of the core charge for this KIND
             donlcc = .FALSE.
             IF (nlcc) THEN
@@ -932,8 +935,8 @@ CONTAINS
                   NULLIFY (r_h, r_s, dr_h, dr_s, r_h_d, r_s_d)
                   CALL get_rho_atom(rho_atom=rho0_atom, rho_rad_h=r_h, rho_rad_s=r_s, drho_rad_h=dr_h, &
                                     drho_rad_s=dr_s, rho_rad_h_d=r_h_d, rho_rad_s_d=r_s_d)
-                  drho_h = 0.0_dp
-                  drho_s = 0.0_dp
+                  drho0_h = 0.0_dp
+                  drho0_s = 0.0_dp
                ELSE
                   NULLIFY (r_h, r_s)
                   CALL get_rho_atom(rho_atom=rho0_atom, rho_rad_h=r_h, rho_rad_s=r_s)
@@ -980,23 +983,6 @@ CONTAINS
                ! RHO2
                rho2_atom => rho2_atom_set(iatom)
 
-               fxc_h = 0.0_dp
-               fxc_s = 0.0_dp
-               gxc_h = 0.0_dp
-               gxc_s = 0.0_dp
-               IF (gradient_f) THEN
-                  fxg_h = 0.0_dp
-                  fxg_s = 0.0_dp
-                  gxg_h = 0.0_dp
-                  gxg_s = 0.0_dp
-               END IF
-               IF (tau_f) THEN
-                  ftau_h = 0.0_dp
-                  ftau_s = 0.0_dp
-                  gtau_h = 0.0_dp
-                  gtau_s = 0.0_dp
-               END IF
-
                DO istep = -nstep, nstep
 
                   beta = REAL(istep, KIND=dp)*epsrho
@@ -1033,72 +1019,37 @@ CONTAINS
                   CALL xc_dset_zero_all(deriv_set)
                   CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
                                     lsd, na, nr, exc_s, vxc_s, vxg_s, vtau_s)
-                  ! update derivatives
-                  fxc_h = fxc_h + ak(istep)*vxc_h
-                  fxc_s = fxc_s + ak(istep)*vxc_s
-                  gxc_h = gxc_h + bl(istep)*vxc_h
-                  gxc_s = gxc_s + bl(istep)*vxc_s
+                  ! potentials
+                  DO ns = 1, nspins
+                     fint_ss(ns)%r_coef(:, :) = 0.0_dp
+                     fint_hh(ns)%r_coef(:, :) = 0.0_dp
+                  END DO
                   IF (gradient_f) THEN
-                     fxg_h = fxg_h + ak(istep)*vxg_h
-                     fxg_s = fxg_s + ak(istep)*vxg_s
-                     gxg_h = gxg_h + bl(istep)*vxg_h
-                     gxg_s = gxg_s + bl(istep)*vxg_s
+                     CALL gaVxcgb_GC(vxc_h, vxc_s, vxg_h, vxg_s, fint_hh, fint_ss, &
+                                     grid_atom, orb_basis, harmonics, nspins)
+                  ELSE
+                     CALL gaVxcgb_noGC(vxc_h, vxc_s, fint_hh, fint_ss, &
+                                       grid_atom, orb_basis, harmonics, nspins)
                   END IF
                   IF (tau_f) THEN
-                     ftau_h = ftau_h + ak(istep)*vtau_h
-                     ftau_s = ftau_s + ak(istep)*vtau_s
-                     gtau_h = gtau_h + bl(istep)*vtau_h
-                     gtau_s = gtau_s + bl(istep)*vtau_s
+                     CALL dgaVtaudgb(vtau_h, vtau_s, fint_hh, fint_ss, &
+                                     grid_atom, orb_basis, harmonics, nspins)
                   END IF
-
+                  ! first derivative fxc
+                  NULLIFY (int_hh, int_ss)
+                  CALL get_rho_atom(rho_atom=rho1_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
+                  DO ns = 1, nspins
+                     int_ss(ns)%r_coef(:, :) = int_ss(ns)%r_coef(:, :) + oeps1*ak(istep)*fint_ss(ns)%r_coef(:, :)
+                     int_hh(ns)%r_coef(:, :) = int_hh(ns)%r_coef(:, :) + oeps1*ak(istep)*fint_hh(ns)%r_coef(:, :)
+                  END DO
+                  ! second derivative gxc
+                  NULLIFY (int_hh, int_ss)
+                  CALL get_rho_atom(rho_atom=rho2_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
+                  DO ns = 1, nspins
+                     int_ss(ns)%r_coef(:, :) = int_ss(ns)%r_coef(:, :) + oeps2*bl(istep)*fint_ss(ns)%r_coef(:, :)
+                     int_hh(ns)%r_coef(:, :) = int_hh(ns)%r_coef(:, :) + oeps2*bl(istep)*fint_hh(ns)%r_coef(:, :)
+                  END DO
                END DO
-
-               oeps1 = 1.0_dp/epsrho
-               oeps2 = 1.0_dp/(epsrho**2)
-               fxc_h = fxc_h*oeps1
-               fxc_s = fxc_s*oeps1
-               gxc_h = gxc_h*oeps2
-               gxc_s = gxc_s*oeps2
-               IF (gradient_f) THEN
-                  fxg_h = fxg_h*oeps1
-                  fxg_s = fxg_s*oeps1
-                  gxg_h = gxg_h*oeps2
-                  gxg_s = gxg_s*oeps2
-               END IF
-               IF (tau_f) THEN
-                  ftau_h = ftau_h*oeps1
-                  ftau_s = ftau_s*oeps1
-                  gtau_h = gtau_h*oeps2
-                  gtau_s = gtau_s*oeps2
-               END IF
-               ! first derivative fxc
-               NULLIFY (int_hh, int_ss)
-               CALL get_rho_atom(rho_atom=rho1_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
-               IF (gradient_f) THEN
-                  CALL gaVxcgb_GC(fxc_h, fxc_s, fxg_h, fxg_s, int_hh, int_ss, &
-                                  grid_atom, orb_basis, harmonics, nspins)
-               ELSE
-                  CALL gaVxcgb_noGC(fxc_h, fxc_s, int_hh, int_ss, &
-                                    grid_atom, orb_basis, harmonics, nspins)
-               END IF
-               IF (tau_f) THEN
-                  CALL dgaVtaudgb(ftau_h, ftau_s, int_hh, int_ss, &
-                                  grid_atom, orb_basis, harmonics, nspins)
-               END IF
-               ! second derivative gxc
-               NULLIFY (int_hh, int_ss)
-               CALL get_rho_atom(rho_atom=rho2_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
-               IF (gradient_f) THEN
-                  CALL gaVxcgb_GC(gxc_h, gxc_s, gxg_h, gxg_s, int_hh, int_ss, &
-                                  grid_atom, orb_basis, harmonics, nspins)
-               ELSE
-                  CALL gaVxcgb_noGC(gxc_h, gxc_s, int_hh, int_ss, &
-                                    grid_atom, orb_basis, harmonics, nspins)
-               END IF
-               IF (tau_f) THEN
-                  CALL dgaVtaudgb(gtau_h, gtau_s, int_hh, int_ss, &
-                                  grid_atom, orb_basis, harmonics, nspins)
-               END IF
 
             END DO ! iat
 
@@ -1108,15 +1059,20 @@ CONTAINS
             CALL xc_rho_set_release(rho_set_s)
 
             DEALLOCATE (rho_h, rho_s, rho0_h, rho0_s, rho1_h, rho1_s)
-            DEALLOCATE (vxc_h, vxc_s, fxc_h, fxc_s, gxc_h, gxc_s)
+            DEALLOCATE (vxc_h, vxc_s)
             IF (gradient_f) THEN
                DEALLOCATE (drho_h, drho_s, drho0_h, drho0_s, drho1_h, drho1_s)
-               DEALLOCATE (vxg_h, vxg_s, fxg_h, fxg_s, gxg_h, gxg_s)
+               DEALLOCATE (vxg_h, vxg_s)
             END IF
             IF (tau_f) THEN
                DEALLOCATE (tau_h, tau_s, tau0_h, tau0_s, tau1_h, tau1_s)
-               DEALLOCATE (vtau_h, vtau_s, ftau_h, ftau_s, gtau_h, gtau_s)
+               DEALLOCATE (vtau_h, vtau_s)
             END IF
+            DO ns = 1, nspins
+               DEALLOCATE (fint_ss(ns)%r_coef)
+               DEALLOCATE (fint_hh(ns)%r_coef)
+            END DO
+            DEALLOCATE (fint_ss, fint_hh)
 
          END DO ! ikind
 

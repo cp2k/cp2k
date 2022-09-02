@@ -64,8 +64,8 @@ MODULE hfx_admm_utils
         do_admm_aux_exch_func_bee, do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
         do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
-        do_admm_aux_exch_func_pbex_libxc, do_potential_coulomb, do_potential_long, &
-        do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
+        do_admm_aux_exch_func_pbex_libxc, do_admm_aux_exch_func_sx_libxc, do_potential_coulomb, &
+        do_potential_long, do_potential_mix_cl, do_potential_mix_cl_trunc, do_potential_short, &
         do_potential_truncated, xc_funct_no_shortcut, xc_none
    USE input_section_types,             ONLY: section_vals_duplicate,&
                                               section_vals_get,&
@@ -1899,6 +1899,7 @@ CONTAINS
 
       ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_pbex_libxc .OR. &
                admm_env%aux_exch_func == do_admm_aux_exch_func_opt_libxc .OR. &
+               admm_env%aux_exch_func == do_admm_aux_exch_func_sx_libxc .OR. &
                admm_env%aux_exch_func == do_admm_aux_exch_func_bee_libxc) THEN
 #if defined(__LIBXC)
          IF (admm_env%aux_exch_func == do_admm_aux_exch_func_pbex_libxc) THEN
@@ -1907,6 +1908,8 @@ CONTAINS
             name_x_func = 'GGA_X_OPTX'
          ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_bee_libxc) THEN
             name_x_func = 'GGA_X_B88'
+         ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_sx_libxc) THEN
+            name_x_func = 'LDA_X'
          END IF
          !primary basis
          CALL section_vals_val_set(xc_fun_section, TRIM(name_x_func)//"%_SECTION_PARAMETERS_", &

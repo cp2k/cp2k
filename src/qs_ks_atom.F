@@ -136,7 +136,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a_matrix, p_matrix
       REAL(dp), DIMENSION(3)                             :: rac, rbc
       REAL(dp), DIMENSION(3, 3)                          :: force_tmp
-      REAL(kind=dp)                                      :: eps_cpc, factor
+      REAL(kind=dp)                                      :: eps_cpc, factor1, factor2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: C_int_h, C_int_s, coc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dCPC_h, dCPC_s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: PC_h, PC_s
@@ -189,12 +189,16 @@ CONTAINS
       !deal with externals
       my_tddft = .FALSE.
       IF (PRESENT(tddft)) my_tddft = tddft
-      factor = 1.0_dp
+      factor1 = 1.0_dp
+      factor2 = 1.0_dp
       IF (my_tddft) THEN
-         IF (nspins == 1) factor = 2.0_dp
+         IF (nspins == 1) factor1 = 2.0_dp
          CPASSERT(nimages == 1)
       END IF
-      IF (PRESENT(kscale)) factor = factor*kscale
+      IF (PRESENT(kscale)) THEN
+         factor1 = factor1*kscale
+         factor2 = factor2*kscale
+      END IF
 
       IF (PRESENT(rho_atom_external)) my_rho_atom => rho_atom_external
       IF (PRESENT(kind_set_external)) my_kind_set => kind_set_external
@@ -294,10 +298,9 @@ CONTAINS
 !$OMP           SHARED(nl_table_num_slots, nl_hash_table             &
 !$OMP                 , max_gau, max_nsgf, nspins, forces            &
 !$OMP                 , basis_set_list, nimages, cell_to_index       &
-!$OMP                 , ksmat, pmat, natom, nkind, my_kind_set, my_oce  &
-!$OMP                 , my_rho_atom, factor, use_virial, atom_of_kind   &
-!$OMP                 , ldCPC, force                                 &
-!$OMP                 , locks                                        &
+!$OMP                 , ksmat, pmat, natom, nkind, my_kind_set, my_oce &
+!$OMP                 , my_rho_atom, factor1, factor2, use_virial    &
+!$OMP                 , atom_of_kind, ldCPC, force, locks            &
 !$OMP                 )                                              &
 !$OMP          PRIVATE( slot_num, is_entry_null, TASK, is_task_valid &
 !$OMP                 , C_int_h, C_int_s, coc, a_matrix, p_matrix    &
@@ -449,7 +452,7 @@ CONTAINS
                            nsoctot = SIZE(C_coeff_ss_a, 2)
 
                            CALL add_vhxca_to_ks(mat_h, C_coeff_hh_a, C_coeff_hh_b, C_coeff_ss_a, C_coeff_ss_b, &
-                                                rho_at, nspins, iatom, jatom, nsoctot, factor, &
+                                                rho_at, nspins, iatom, jatom, nsoctot, factor1, &
                                                 list_a, n_cont_a, list_b, n_cont_b, C_int_h, C_int_s, a_matrix, dista, distb, coc)
 
                            IF (forces) THEN
@@ -468,6 +471,7 @@ CONTAINS
                                                        rho_at, force_tmp, nspins, iatom, jatom, nsoctot, &
                                                        list_a, n_cont_a, list_b, n_cont_b, dCPC_h, dCPC_s, ldCPC, &
                                                        PC_h, PC_s, p_matrix)
+                                 force_tmp = factor2*force_tmp
 !$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
                                  force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
 !$                               CALL omp_unset_lock(locks((ka_kind - 1)*nkind + kkind))
@@ -486,6 +490,7 @@ CONTAINS
                                                        rho_at, force_tmp, nspins, jatom, iatom, nsoctot, &
                                                        list_b, n_cont_b, list_a, n_cont_a, dCPC_h, dCPC_s, ldCPC, &
                                                        PC_h, PC_s, p_matrix)
+                                 force_tmp = factor2*force_tmp
 !$                               CALL omp_set_lock(locks((ka_kind - 1)*nkind + kkind))
                                  force(kkind)%vhxc_atom(1:3, ka_kind) = force(kkind)%vhxc_atom(1:3, ka_kind) + force_tmp(1:3, 3)
 !$                               CALL omp_unset_lock(locks((ka_kind - 1)*nkind + kkind))

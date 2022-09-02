@@ -533,9 +533,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
-      TYPE(local_rho_type), POINTER                      :: local_rho_set
+      TYPE(local_rho_type), POINTER                      :: local_rho_set, local_rho_set_admm
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab
+         POINTER                                         :: sab, sab_aux_fit
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
@@ -582,6 +582,7 @@ CONTAINS
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
       IF (gapw_xc) THEN
+         ALLOCATE (trho_xc_r(nspins), trho_xc_g(nspins))
          DO ispin = 1, nspins
             NULLIFY (trho_xc_r(ispin)%pw, trho_xc_g(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, trho_xc_r(ispin)%pw, &
@@ -643,6 +644,7 @@ CONTAINS
       IF (gapw) THEN
          CALL get_rho0_mpole(local_rho_set%rho0_mpole, Qlm_tot=Qlm_tot)
          rhotot = rhotot + local_rho_set%rho0_mpole%total_rho0_h
+         CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs%pw, rho_tot_gspace%pw)
       END IF
 
       IF (ABS(rhotot) > 1.e-08_dp) THEN
@@ -715,18 +717,20 @@ CONTAINS
       END DO
       IF (gapw_xc) THEN
          DO ispin = 1, nspins
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
-                                    hmat=matrix_hz(ispin), &
-                                    gapw=gapw_xc, calculate_forces=.FALSE.)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_hartree_rspace, &
                                     hmat=matrix_hz(ispin), &
                                     calculate_forces=.FALSE.)
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+                                    hmat=matrix_hz(ispin), &
+                                    gapw=gapw_xc, calculate_forces=.FALSE.)
          END DO
       ELSE
          ! vtot = v_xc(ispin) + v_hartree
          DO ispin = 1, nspins
-            CALL pw_axpy(v_hartree_rspace%pw, v_xc(ispin)%pw)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+                                    hmat=matrix_hz(ispin), &
+                                    gapw=gapw, calculate_forces=.FALSE.)
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_hartree_rspace, &
                                     hmat=matrix_hz(ispin), &
                                     gapw=gapw, calculate_forces=.FALSE.)
          END DO
@@ -735,7 +739,7 @@ CONTAINS
          mhz(1:nspins, 1:1) => matrix_hz(1:nspins)
          mpe(1:nspins, 1:1) => matrix_pe(1:nspins)
          CALL update_ks_atom(qs_env, mhz, mpe, forces=.FALSE., tddft=.TRUE., &
-                             rho_atom_external=local_rho_set%rho_atom_set)
+                             rho_atom_external=local_rho_set%rho_atom_set, kscale=0.5_dp)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
@@ -762,15 +766,10 @@ CONTAINS
          END DO
          DEALLOCATE (v_xc_tau)
       END IF
-      IF (gapw .OR. gapw_xc) THEN
-         IF (ASSOCIATED(local_rho_set)) CALL local_rho_set_release(local_rho_set)
-         IF (ASSOCIATED(hartree_local)) CALL hartree_local_release(hartree_local)
-      END IF
       IF (dft_control%do_admm) THEN
          IF (qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
          ELSE
-            CPASSERT(.NOT. (gapw .OR. gapw_xc))
             ! add ADMM xc_section_aux terms: f_x[rhoz_ADMM]
             CALL get_qs_env(qs_env, admm_env=admm_env)
             CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit, matrix_s_aux_fit=msaux, &
@@ -786,6 +785,22 @@ CONTAINS
                CALL dbcsr_set(mhz(ispin, 1)%matrix, 0.0_dp)
                mpe(ispin, 1)%matrix => matrix_pe_admm(ispin)%matrix
             END DO
+            !
+            ! GAPW/GAPW_XC initializations
+            NULLIFY (local_rho_set_admm)
+            IF (admm_env%do_gapw) THEN
+               CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
+               CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
+               CALL local_rho_set_create(local_rho_set_admm)
+               CALL allocate_rho_atom_internals(local_rho_set_admm%rho_atom_set, atomic_kind_set, &
+                                                admm_env%admm_gapw_env%admm_kind_set, dft_control, para_env)
+               CALL calculate_rho_atom_coeff(qs_env, matrix_pe_admm, &
+                                             rho_atom_set=local_rho_set_admm%rho_atom_set, &
+                                             qs_kind_set=admm_env%admm_gapw_env%admm_kind_set, &
+                                             oce=admm_env%admm_gapw_env%oce, sab=sab_aux_fit, para_env=para_env)
+               CALL prepare_gapw_den(qs_env, local_rho_set=local_rho_set_admm, &
+                                     do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+            END IF
             !
             xc_section => admm_env%xc_section_aux
             !
@@ -836,6 +851,18 @@ CONTAINS
             END DO
             DEALLOCATE (v_xc, rhoz_r_aux, rhoz_g_aux)
             !
+            IF (admm_env%do_gapw) THEN
+               CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
+               rho1_atom_set => local_rho_set_admm%rho_atom_set
+               CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, &
+                                                para_env, kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+               CALL update_ks_atom(qs_env, mhz(:, 1), matrix_pe_admm, forces=.FALSE., tddft=.TRUE., &
+                                   rho_atom_external=rho1_atom_set, &
+                                   kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                                   oce_external=admm_env%admm_gapw_env%oce, &
+                                   sab_external=sab_aux_fit)
+            END IF
+            !
             nao = admm_env%nao_orb
             nao_aux = admm_env%nao_aux_fit
             ALLOCATE (dbwork)
@@ -855,7 +882,14 @@ CONTAINS
             DEALLOCATE (dbwork)
             CALL dbcsr_deallocate_matrix_set(mhz)
             DEALLOCATE (mpe)
+            IF (admm_env%do_gapw) THEN
+               IF (ASSOCIATED(local_rho_set_admm)) CALL local_rho_set_release(local_rho_set_admm)
+            END IF
          END IF
+      END IF
+      IF (gapw .OR. gapw_xc) THEN
+         IF (ASSOCIATED(local_rho_set)) CALL local_rho_set_release(local_rho_set)
+         IF (ASSOCIATED(hartree_local)) CALL hartree_local_release(hartree_local)
       END IF
 
       ! HFX
