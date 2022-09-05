@@ -238,6 +238,10 @@ CONTAINS
       flags = TRIM(flags)//" spla_gemm_offloading"
 #endif
 
+#if defined(__LIBVDWXC)
+      flags = TRIM(flags)//" libvdwxc"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************

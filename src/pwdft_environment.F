@@ -191,7 +191,7 @@ CONTAINS
       CALL cp_sirius_create_env(pwdft_env)
 
       IF (iw > 0) THEN
-         WRITE (iw, '(A)') "SIRIUS INIT: FINISHED"
+         WRITE (iw, '(A)') "SIRIUS| INIT: FINISHED"
       END IF
       IF (iw > 0) CALL m_flush(iw)
 
@@ -235,7 +235,7 @@ CONTAINS
       ! Sirius initialization
       CALL cp_sirius_update_context(pwdft_env)
       IF (iw > 0) THEN
-         WRITE (iw, '(A)') "SIRIUS UPDATE CONTEXT : FINISHED"
+         WRITE (iw, '(A)') "SIRIUS| UPDATE CONTEXT : FINISHED"
       END IF
       IF (iw > 0) CALL m_flush(iw)
 
