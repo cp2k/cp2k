@@ -39,7 +39,7 @@ case "$with_superlu" in
           https://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
-      [ -d SuperLU_DIST_${superlu_ver} ] && rm -rf SuperLU_DIST_${superlu_ver}
+      [ -d superlu_dist-${superlu_ver} ] && rm -rf superlu_dist-${superlu_ver}
       tar -xzf superlu_dist_${superlu_ver}.tar.gz
       cd superlu_dist-${superlu_ver}
       cd build
