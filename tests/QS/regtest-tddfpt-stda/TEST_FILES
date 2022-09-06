@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-CH2O_tddfpt_stda-s-1.inp                                   37    1.0E-05               0.349892E+00
+CH2O_tddfpt_stda-s-1.inp                                   37    1.0E-05               0.349885E+00
 CH2Oplus_tddfpt_stda-lsd.inp                               37    1.0E-05               0.212147E+00
 CH2O_tddfpt_stda-pbe-s.inp                                 37    1.0E-05               0.125452E+00
 CH2O_tddfpt_stda-pbe-s_doexchange.inp                      37    1.0E-05               0.155105E+00

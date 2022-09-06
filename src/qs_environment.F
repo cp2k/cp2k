@@ -539,9 +539,9 @@ CONTAINS
       LOGICAL :: all_potential_present, be_silent, do_kpoints, do_ri_hfx, do_ri_mp2, do_ri_rpa, &
          do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, has_unit_metric, lribas, &
          mp2_present, orb_gradient
-      REAL(dp)                                           :: alpha, ccore, ewald_rcut, maxocc, &
-                                                            verlet_skin, zeff_correction
-      REAL(KIND=dp)                                      :: total_zeff_corr
+      REAL(KIND=dp)                                      :: alpha, ccore, ewald_rcut, fxx, maxocc, &
+                                                            rcut, total_zeff_corr, verlet_skin, &
+                                                            zeff_correction
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -992,7 +992,15 @@ CONTAINS
             qs_kind => qs_kind_set(ikind)
             IF (qs_kind%xtb_parameter%defined) THEN
                CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
-               CALL get_gto_basis_set(tmp_basis_set, kind_radius=qs_kind%xtb_parameter%rcut)
+               CALL get_gto_basis_set(tmp_basis_set, kind_radius=rcut)
+               IF (xtb_control%old_coulomb_damping) THEN
+                  qs_kind%xtb_parameter%rcut = rcut
+               ELSE
+                  rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
+                  fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
+                  fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
+                  qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
+               END IF
             ELSE
                qs_kind%xtb_parameter%rcut = 0.0_dp
             END IF

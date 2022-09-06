@@ -125,6 +125,7 @@ CONTAINS
       TYPE(stda_control_type)                            :: stda_control
 
       INTEGER                                            :: ikind, log_unit, nkind
+      REAL(KIND=dp)                                      :: eta, fxx, rcut
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -198,8 +199,12 @@ CONTAINS
          ! rcut parameter
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
-         CALL get_gto_basis_set(tmp_basis_set, &
-                                kind_radius=stda_kernel%kind_param_set(ikind)%kind_param%rcut)
+         CALL get_gto_basis_set(tmp_basis_set, kind_radius=rcut)
+         eta = stda_kernel%kind_param_set(ikind)%kind_param%hardness_param
+         fxx = 2.0_dp*eta**2*stda_control%coulomb_sr_eps
+         fxx = 0.5_dp*(1.0_dp/fxx)**0.33333_dp
+         rcut = MIN(rcut, stda_control%coulomb_sr_cut)
+         stda_kernel%kind_param_set(ikind)%kind_param%rcut = MIN(rcut, fxx)
       END DO
 
       IF (log_unit > 0) THEN

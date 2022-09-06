@@ -120,8 +120,11 @@ MODULE cp_control_types
       LOGICAL                              :: coulomb_lr
       LOGICAL                              :: tb3_interaction
       LOGICAL                              :: check_atomic_charges
+      LOGICAL                              :: old_coulomb_damping
       !
       REAL(KIND=dp)                        :: xb_radius
+      REAL(KIND=dp)                        :: coulomb_sr_cut
+      REAL(KIND=dp)                        :: coulomb_sr_eps
       !
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:, :), POINTER          :: kab_param
@@ -426,6 +429,8 @@ MODULE cp_control_types
       REAL(KIND=dp)                          :: eps_td_filter
       REAL(KIND=dp)                          :: mn_alpha
       REAL(KIND=dp)                          :: mn_beta
+      REAL(KIND=dp)                          :: coulomb_sr_cut
+      REAL(KIND=dp)                          :: coulomb_sr_eps
    END TYPE stda_control_type
 
 ! **************************************************************************************************

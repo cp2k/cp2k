@@ -240,7 +240,6 @@ SE/regtest-3-3
 ATOM/regtest-2
 NEB/regtest-4
 QS/regtest-kp-3
-xTB/regtest-4
 QS/regtest-dft-vdw-corr-1
 QS/regtest-epr-2
 QS/regtest-gw-ic-model                                      libint

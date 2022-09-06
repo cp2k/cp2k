@@ -1650,21 +1650,33 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_TD_FILTER", &
                           description="Threshold for filtering the transition density matrix", &
-                          usage="EPS_TD_FILTER", default_r_val=1.e-10_dp)
+                          usage="EPS_TD_FILTER epsf", default_r_val=1.e-10_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MATAGA_NISHIMOTO_CEXP", &
                           description="Exponent used in Mataga-Nishimoto formula for Coulomb (alpha). "// &
                           "Default value is method dependent!", &
-                          usage="MATAGA_NISHIMOTO_CEXP", default_r_val=-99.0_dp)
+                          usage="MATAGA_NISHIMOTO_CEXP cexp", default_r_val=-99.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MATAGA_NISHIMOTO_XEXP", &
                           description="Exponent used in Mataga-Nishimoto formula for Exchange (beta). "// &
                           "Default value is method dependent!", &
-                          usage="MATAGA_NISHIMOTO_XEXP", default_r_val=-99.0_dp)
+                          usage="MATAGA_NISHIMOTO_XEXP xexp", default_r_val=-99.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB_SR_CUT", &
+                          description="Maximum range of short range part of Coulomb interaction.", &
+                          usage="COULOMB_SR_CUT rcut", default_r_val=20.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB_SR_EPS", &
+                          description="Threshold for short range part of Coulomb interaction.", &
+                          usage="COULOMB_SR_EPS sreps", default_r_val=1.e-03_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
