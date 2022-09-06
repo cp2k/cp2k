@@ -4,9 +4,9 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 AdeThyvdW.inp                              1    1.0E-12             -58.89501875071196
-ice.inp                                    1    1.0E-10             -46.31849039679943
-ice2.inp                                   1    1.0E-10             -46.30633640965694
-Ru_geo.inp                                 1    1.0E-10              -7.01246011516801
+ice.inp                                    1    1.0E-10             -46.30708081122568
+ice2.inp                                   1    1.0E-10             -46.30638011626871
+Ru_geo.inp                                 1    1.0E-10              -7.01204333848255
 ef_stress1.inp                             0
 ef_stress2.inp                             0
 ef_stress3.inp                             0

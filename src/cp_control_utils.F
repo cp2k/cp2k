@@ -1158,7 +1158,13 @@ CONTAINS
                CALL read_gp_section(qs_control%xtb_control%nonbonded, genpot_section, 0)
             END IF
          END IF !nonbonded
-
+         ! SR Coulomb
+         CALL section_vals_val_get(xtb_section, "OLD_COULOMB_DAMPING", &
+                                   l_val=qs_control%xtb_control%old_coulomb_damping)
+         CALL section_vals_val_get(xtb_parameter, "COULOMB_SR_CUT", r_vals=scal)
+         qs_control%xtb_control%coulomb_sr_cut = scal(1)
+         CALL section_vals_val_get(xtb_parameter, "COULOMB_SR_EPS", r_vals=scal)
+         qs_control%xtb_control%coulomb_sr_eps = scal(1)
          ! XB_radius
          CALL section_vals_val_get(xtb_parameter, "XB_RADIUS", r_val=qs_control%xtb_control%xb_radius)
          ! Kab
@@ -1445,6 +1451,10 @@ CONTAINS
          t_control%stda_control%mn_alpha = fval
          CALL section_vals_val_get(stda_section, "MATAGA_NISHIMOTO_XEXP", r_val=fval)
          t_control%stda_control%mn_beta = fval
+         CALL section_vals_val_get(stda_section, "COULOMB_SR_CUT", r_val=fval)
+         t_control%stda_control%coulomb_sr_cut = fval
+         CALL section_vals_val_get(stda_section, "COULOMB_SR_EPS", r_val=fval)
+         t_control%stda_control%coulomb_sr_eps = fval
       END IF
 
       CALL timestop(handle)

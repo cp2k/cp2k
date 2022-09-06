@@ -202,6 +202,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="OLD_COULOMB_DAMPING", &
+                          description="Only use for backward compatability. Handle with extreme caution.", &
+                          usage="OLD_COULOMB_DAMPING T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_xtb_control_section
 
 ! **************************************************************************************************
@@ -408,6 +414,20 @@ CONTAINS
                           description="Specifies the radius [Bohr] of the XB pair interaction in xTB.", &
                           usage="XB_RADIUS 20.0 ", repeats=.FALSE., &
                           n_var=1, default_r_val=20.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB_SR_CUT", &
+                          description="Maximum range of short range part of Coulomb interaction.", &
+                          usage="COULOMB_SR_CUT 20.0 ", repeats=.FALSE., &
+                          n_var=1, default_r_val=12.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="COULOMB_SR_EPS", &
+                          description="Cutoff for short range part of Coulomb interaction.", &
+                          usage="COULOMB_SR_EPS 1.R-3 ", repeats=.FALSE., &
+                          n_var=1, default_r_val=1.0E-03_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
