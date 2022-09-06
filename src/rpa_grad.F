@@ -11,6 +11,8 @@
 !>      10.2021 created [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_grad
+   USE ISO_C_BINDING,                   ONLY: C_NULL_PTR,&
+                                              c_associated
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
@@ -57,6 +59,11 @@ MODULE rpa_grad
                                               one_dim_int_array,&
                                               two_dim_int_array,&
                                               two_dim_real_array
+   USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
+                                              offload_dgemm,&
+                                              offload_gemm_create,&
+                                              offload_gemm_destroy,&
+                                              offload_gemm_set_op_threshold_gpu
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
@@ -105,32 +112,39 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param mem_per_rank ...
 !> \param mem_per_repl ...
+!> \param do_ri_sos_laplace_mp2 ...
 !> \return ...
 ! **************************************************************************************************
-   PURE SUBROUTINE rpa_grad_needed_mem(homo, virtual, dimen_RI, mem_per_rank, mem_per_repl)
+   PURE SUBROUTINE rpa_grad_needed_mem(homo, virtual, dimen_RI, mem_per_rank, mem_per_repl, do_ri_sos_laplace_mp2)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), INTENT(INOUT)                       :: mem_per_rank, mem_per_repl
+      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
 
-      REAL(KIND=dp)                                      :: mem_aK, mem_iaK, mem_iK, mem_KL, &
-                                                            mem_pab, mem_pij
+      REAL(KIND=dp)                                      :: mem_iaK, mem_KL, mem_pab, mem_pij
 
       mem_iaK = SUM(REAL(virtual, KIND=dp)*homo)*dimen_RI
       mem_pij = SUM(REAL(homo, KIND=dp)**2)
       mem_pab = SUM(REAL(virtual, KIND=dp)**2)
-      mem_aK = REAL(MAXVAL(virtual), KIND=dp)*dimen_RI
-      mem_iK = REAL(MAXVAL(homo), KIND=dp)*dimen_RI
       mem_KL = REAL(dimen_RI, KIND=dp)*dimen_RI
 
       ! Required matrices iaK
       ! Ytot_iaP = sum_tau Y_iaP(tau)
-      ! Y_iaP(tau) = S_iaP(tau)*Q_PQ(tau) (once, will be allocated when necessary)
-      ! Y_iPa (x2) or Y_aPi (x2) for reordering, they are allocated when necessary
+      ! Y_iaP(tau) = S_iaP(tau)*Q_PQ(tau) (work array)
       ! Required matrices density matrices
-      ! Pij (local and summed)
-      ! Pab (local and summed)
+      ! Pij (local)
+      ! Pab (local)
+      ! Additionally with SOS-MP2
+      ! Send and receive buffers for degenerate orbital pairs (rough estimate: everything)
+      ! Additionally with RPA
+      ! copy of work matrix
+      ! receive buffer for calculation of density matrix
+      ! copy of matrix Q
       mem_per_rank = mem_per_rank + (mem_pij + mem_pab)*8.0_dp/(1024**2)
-      mem_per_repl = mem_per_repl + (3.0_dp*mem_iaK + mem_KL)*8.0_dp/(1024**2)
+      mem_per_repl = mem_per_repl + (mem_iaK + 2.0_dp*mem_iaK/SIZE(homo) + mem_KL)*8.0_dp/(1024**2)
+      IF (.NOT. do_ri_sos_laplace_mp2) THEN
+         mem_per_repl = mem_per_rank + (mem_iaK/SIZE(homo) + mem_KL)*8.0_dp/(1024**2)
+      END IF
 
    END SUBROUTINE rpa_grad_needed_mem
 
@@ -279,11 +293,11 @@ CONTAINS
                 rpa_work%P_ij(nspins), rpa_work%P_ab(nspins))
 
       ! Determine new process grid
-      proc_virtual = MAX(1, CEILING(SQRT(REAL(num_pe_col, KIND=dp))))
-      DO WHILE (MOD(num_pe_col, proc_virtual) /= 0)
-         proc_virtual = proc_virtual - 1
+      proc_homo = MAX(1, CEILING(SQRT(REAL(num_pe_col, KIND=dp))))
+      DO WHILE (MOD(num_pe_col, proc_homo) /= 0)
+         proc_homo = proc_homo - 1
       END DO
-      proc_homo = num_pe_col/proc_virtual
+      proc_virtual = num_pe_col/proc_homo
 
       rpa_work%grid(1) = proc_virtual
       rpa_work%grid(2) = proc_homo
@@ -311,8 +325,6 @@ CONTAINS
 
             proc_homo_send = group_dist_proc(rpa_work%gd_homo(ispin), iocc)
             proc_virtual_send = group_dist_proc(rpa_work%gd_virtual(ispin), avirt)
-            CPASSERT(proc_homo_send >= 0)
-            CPASSERT(proc_virtual_send >= 0)
 
             proc_send = proc_homo_send*proc_virtual + proc_virtual_send
 
@@ -447,8 +459,6 @@ CONTAINS
 
       tag = 44
 
-      CPASSERT(.NOT. ALLOCATED(sos_mp2_work%index2send))
-      CPASSERT(.NOT. ALLOCATED(sos_mp2_work%index2recv))
       CALL get_blacs_info(fm_mat_S%matrix_struct%context, number_of_process_columns=num_pe_col)
       ALLOCATE (sos_mp2_work%index2send(0:num_pe_col - 1), &
                 sos_mp2_work%index2recv(0:num_pe_col - 1))
@@ -694,6 +704,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param mp2_env ...
 !> \param rpa_grad ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param fm_mat_Q ...
@@ -706,8 +717,9 @@ CONTAINS
 !> \param Eigenval ...
 !> \param weight ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_grad_matrix_operations(rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
+   SUBROUTINE rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
                                          dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, weight)
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_Q, fm_mat_Q_gemm
@@ -726,7 +738,8 @@ CONTAINS
                                                             row_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: norm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: mat_S_3D, mat_work_iaP_3D
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         TARGET                                          :: mat_S_3D, mat_work_iaP_3D
       TYPE(cp_fm_type), POINTER                          :: fm_work_iaP, fm_work_PQ
 
       CALL timeset(routineN, handle)
@@ -840,7 +853,7 @@ CONTAINS
                             rpa_grad%rpa_work%grid, rpa_grad%rpa_work%mepos, &
                             fm_mat_S(ispin)%matrix%matrix_struct, &
                             rpa_grad%rpa_work%P_ij(ispin)%array, rpa_grad%rpa_work%P_ab(ispin)%array, &
-                            weight, omega, Eigenval(:, ispin), homo(ispin))
+                            weight, omega, Eigenval(:, ispin), homo(ispin), mp2_env)
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
@@ -933,12 +946,12 @@ CONTAINS
       num_ab_pairs = SIZE(sos_mp2_work_virt%pair_list, 2)
       IF (num_ij_pairs > 0) THEN
          CALL calc_Pij_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_occ%pair_list, &
-                             virtual, homo, sos_mp2_work_occ%P, Eigenval, omega, weight, &
+                             virtual, sos_mp2_work_occ%P(homo + 1:), Eigenval(:homo), omega, weight, &
                              sos_mp2_work_occ%index2send, sos_mp2_work_occ%index2recv)
       END IF
       IF (num_ab_pairs > 0) THEN
          CALL calc_Pab_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_virt%pair_list, &
-                             virtual, homo, sos_mp2_work_virt%P, Eigenval, omega, weight, &
+                             virtual, sos_mp2_work_virt%P(virtual + 1:), Eigenval(homo + 1:), omega, weight, &
                              sos_mp2_work_virt%index2send, sos_mp2_work_virt%index2recv)
       END IF
 
@@ -948,7 +961,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_S_3D ...
+!> \param mat_S_1D ...
 !> \param mat_work_iaP_3D ...
 !> \param gd_homo ...
 !> \param gd_virtual ...
@@ -961,10 +974,11 @@ CONTAINS
 !> \param omega ...
 !> \param Eigenval ...
 !> \param homo ...
+!> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE calc_P_rpa(mat_S_3D, mat_work_iaP_3D, gd_homo, gd_virtual, grid, mepos, &
-                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, homo)
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S_3D
+   SUBROUTINE calc_P_rpa(mat_S_1D, mat_work_iaP_3D, gd_homo, gd_virtual, grid, mepos, &
+                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, homo, mp2_env)
+      REAL(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: mat_S_1D
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: mat_work_iaP_3D
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_homo, gd_virtual
       INTEGER, DIMENSION(2), INTENT(IN)                  :: grid, mepos
@@ -973,29 +987,43 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: weight, omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: homo
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
-      INTEGER :: handle, my_a, my_a_size, my_a_start, my_i, my_i_size, my_i_start, my_P_size, &
-         my_prow, proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, proc_recv, proc_send, &
-         proc_shift, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, recv_i_start, &
-         tag
+      INTEGER :: handle, handle2, my_a, my_a_size, my_a_start, my_i, my_i_size, my_i_start, &
+         my_P_size, my_prow, proc_a_recv, proc_a_send, proc_i_recv, proc_i_send, proc_recv, &
+         proc_send, proc_shift, recv_a_end, recv_a_size, recv_a_start, recv_i_end, recv_i_size, &
+         recv_i_start, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: buffer_1D
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_2D, mat_S_2D
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: buffer_3D, mat_S_3D
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
+      ! We allocate it at every step to reduce potential memory conflicts with COSMA
+      IF (.NOT. c_associated(mp2_env%offload_gemm_ctx)) THEN
+         CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
+         CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
+      END IF
+
       tag = 47
 
-      my_P_size = SIZE(mat_S_3D, 1)
+      my_P_size = SIZE(mat_work_iaP_3D, 1)
 
       CALL cp_fm_struct_get(fm_struct_S, para_env=para_env)
       CALL get_blacs_info(fm_struct_S%context, my_process_row=my_prow, blacs2mpi=blacs2mpi, para_env=para_env)
 
       CALL get_group_dist(gd_virtual, mepos(1), my_a_start, sizes=my_a_size)
       CALL get_group_dist(gd_homo, mepos(2), my_i_start, sizes=my_i_size)
+
+      ! We have to remap the indices because mp_sendrecv requires a 3D array (because of mat_work_iaP_3D)
+      ! and dgemm requires 2D arrays
+      ! Fortran 2008 does allow pointer remapping independently of the ranks but GCC 7 does not properly support it
+      mat_S_2D(1:my_P_size*my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
+      mat_S_3D(1:my_P_size, 1:my_a_size, 1:my_i_size) => mat_S_1D(1:INT(my_P_size, int_8)*my_a_size*my_i_size)
 
       ALLOCATE (buffer_1D(MAX(INT(maxsize(gd_homo), KIND=int_8)*my_a_size, &
                               INT(maxsize(gd_virtual), KIND=int_8)*my_i_size)*my_P_size))
@@ -1011,18 +1039,23 @@ CONTAINS
 
          buffer_3D(1:my_P_size, 1:recv_a_size, 1:my_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*recv_a_size*my_i_size)
 
+         CALL timeset(routineN//"_comm_a", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           buffer_3D, blacs2mpi(my_prow, proc_recv), &
                           para_env%group, tag)
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_dgemm_a", handle2)
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
-            CALL DGEMM("T", "N", my_a_size, recv_a_size, my_P_size, &
-                       -weight, mat_S_3D(1, 1, my_i), my_P_size, &
-                       buffer_3D(1, 1, my_i), my_P_size, &
-                       1.0_dp, P_ab(1, recv_a_start), my_a_size)
+            CALL offload_dgemm("T", "N", my_a_size, recv_a_size, my_P_size, &
+                               -weight, mat_S_3D(:, :, my_i), my_P_size, &
+                               buffer_3D(:, :, my_i), my_P_size, &
+                               1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%offload_gemm_ctx)
          END DO
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_scale_a", handle2)
          DO my_i = 1, my_i_size
             ! Scale both matrices
             DO my_a = 1, my_a_size
@@ -1034,15 +1067,19 @@ CONTAINS
                                           (omega/(Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1)))
             END DO
          END DO
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_dgemm_a", handle2)
          DO my_i = 1, my_i_size
             ! Repeat contraction
-            CALL DGEMM("T", "N", my_a_size, recv_a_size, my_P_size, &
-                       weight, mat_S_3D(1, 1, my_i), my_P_size, &
-                       buffer_3D(1, 1, my_i), my_P_size, &
-                       1.0_dp, P_ab(1, recv_a_start), my_a_size)
+            CALL offload_dgemm("T", "N", my_a_size, recv_a_size, my_P_size, &
+                               weight, mat_S_3D(:, :, my_i), my_P_size, &
+                               buffer_3D(:, :, my_i), my_P_size, &
+                               1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%offload_gemm_ctx)
          END DO
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_scale_a", handle2)
          ! Remove scaling of mat_S for later
          DO my_i = 1, my_i_size
             DO my_a = 1, my_a_size
@@ -1054,6 +1091,7 @@ CONTAINS
                                           ((Eigenval(homo + my_a + recv_a_start - 1) - Eigenval(my_i + my_i_start - 1))/omega)
             END DO
          END DO
+         CALL timestop(handle2)
       END DO
 
       DO proc_shift = 0, grid(2) - 1
@@ -1065,18 +1103,25 @@ CONTAINS
 
          CALL get_group_dist(gd_homo, proc_i_recv, recv_i_start, recv_i_end, recv_i_size)
 
+         ! Both pointers point to the same memory but we need the first for communication, the second one for dgemm
          buffer_3D(1:my_P_size, 1:my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
+         buffer_2D(1:my_P_size*my_a_size, 1:recv_i_size) => buffer_1D(1:INT(my_P_size, KIND=int_8)*my_a_size*recv_i_size)
 
+         CALL timeset(routineN//"_comm_i", handle2)
          CALL mp_sendrecv(mat_work_iaP_3D, blacs2mpi(my_prow, proc_send), &
                           buffer_3D, blacs2mpi(my_prow, proc_recv), &
                           para_env%group, tag)
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_dgemm_i", handle2)
          ! This loop imitates the actual tensor contraction
-         CALL DGEMM("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
-                    weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
-                    buffer_3D(1, 1, 1), my_P_size*my_a_size, &
-                    1.0_dp, P_ij(1, recv_i_start), my_i_size)
+         CALL offload_dgemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
+                            weight, mat_S_2D, my_P_size*my_a_size, &
+                            buffer_2D, my_P_size*my_a_size, &
+                            1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%offload_gemm_ctx)
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_scale_i", handle2)
          ! Scale both matrices
          DO my_i = 1, my_i_size
          DO my_a = 1, my_a_size
@@ -1090,13 +1135,17 @@ CONTAINS
                                        (omega/(Eigenval(homo + my_a + my_a_start - 1) - Eigenval(my_i + recv_i_start - 1)))
          END DO
          END DO
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_dgemm_i", handle2)
          ! Repeat contraction
-         CALL DGEMM("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
-                    -weight, mat_S_3D(1, 1, 1), my_P_size*my_a_size, &
-                    buffer_3D(1, 1, 1), my_P_size*my_a_size, &
-                    1.0_dp, P_ij(1, recv_i_start), my_i_size)
+         CALL offload_dgemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
+                            -weight, mat_S_2D, my_P_size*my_a_size, &
+                            buffer_2D, my_P_size*my_a_size, &
+                            1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%offload_gemm_ctx)
+         CALL timestop(handle2)
 
+         CALL timeset(routineN//"_scale_i", handle2)
          ! Remove scaling factor of mat_S for later
          DO my_i = 1, my_i_size
          DO my_a = 1, my_a_size
@@ -1104,7 +1153,12 @@ CONTAINS
                                       ((Eigenval(homo + my_a + my_a_start - 1) - Eigenval(my_i + recv_i_start - 1))/omega)
          END DO
          END DO
+         CALL timestop(handle2)
       END DO
+
+      ! release memory allocated by offload_dgemm when run on GPU. offload_gemm_ctx is null on cpu only runs
+      CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
+      mp2_env%offload_gemm_ctx = C_NULL_PTR
 
       CALL timestop(handle)
 
@@ -1135,7 +1189,6 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param pair_list ...
 !> \param virtual ...
-!> \param homo ...
 !> \param P_ij ...
 !> \param Eigenval ...
 !> \param omega ...
@@ -1143,10 +1196,10 @@ CONTAINS
 !> \param index2send ...
 !> \param index2recv ...
 ! **************************************************************************************************
-   SUBROUTINE calc_Pij_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, homo, P_ij, Eigenval, omega, weight, index2send, index2recv)
+   SUBROUTINE calc_Pij_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ij, Eigenval, omega, weight, index2send, index2recv)
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
-      INTEGER, INTENT(IN)                                :: virtual, homo
+      INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ij
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
@@ -1157,7 +1210,7 @@ CONTAINS
       INTEGER :: avirt, col_global, col_local, counter, first_p_pos(2), first_p_pos_col, handle, &
          handle2, ij_counter, iocc, my_col_local, my_i, my_j, my_pcol, my_prow, ncol_block, &
          ncol_local, nrow_local, num_ij_pairs, num_pe_col, pcol, pcol_recv, pcol_send, proc_shift, &
-         tag
+         recv_size, send_size, size_recv_buffer, size_send_buffer, tag
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp)                                      :: ddot, trace
@@ -1178,76 +1231,131 @@ CONTAINS
 
       tag = 42
 
-      DO proc_shift = 0, num_pe_col - 1
-         pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
-         pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+      DO col_local = 1, ncol_local
+         col_global = col_indices(col_local)
 
-         CALL timeset(routineN//"_send", handle2)
-         ! Collect indices and exchange
-
-         ALLOCATE (buffer_send(nrow_local, SIZE(index2send(pcol_send)%array)))
-
-         counter = 0
-         DO col_local = 1, ncol_local
-            col_global = col_indices(col_local)
-
-            iocc = MAX(1, col_global - 1)/virtual + 1
-            avirt = col_global - (iocc - 1)*virtual
-
-            DO ij_counter = 1, num_ij_pairs
-
-               my_i = pair_list(1, ij_counter)
-               my_j = pair_list(2, ij_counter)
-
-               IF (iocc /= my_j) CYCLE
-               pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
-               IF (pcol /= pcol_send) CYCLE
-
-               counter = counter + 1
-
-               buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
-
-               EXIT
-
-            END DO
-         END DO
-
-         ALLOCATE (buffer_recv(nrow_local, SIZE(index2recv(pcol_recv)%array)))
-         !
-         CALL mp_sendrecv(buffer_send, blacs2mpi(my_prow, pcol_send), &
-                          buffer_recv, blacs2mpi(my_prow, pcol_recv), &
-                          para_env%group, tag)
-         DEALLOCATE (buffer_send)
-         CALL timestop(handle2)
+         iocc = MAX(1, col_global - 1)/virtual + 1
+         avirt = col_global - (iocc - 1)*virtual
 
          DO ij_counter = 1, num_ij_pairs
-            ! Collect the contributions of the matrix elements
 
             my_i = pair_list(1, ij_counter)
             my_j = pair_list(2, ij_counter)
 
-            trace = 0.0_dp
+            IF (iocc /= my_j) CYCLE
+            pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+            IF (pcol /= pcol_send) CYCLE
 
-            DO col_local = 1, SIZE(index2recv(pcol_recv)%array)
-               col_global = index2recv(pcol_recv)%array(col_local)
+            my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-               iocc = MAX(1, col_global - 1)/virtual + 1
-               IF (iocc /= my_j) CYCLE
-               avirt = col_global - (iocc - 1)*virtual
-               pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
-               IF (pcol /= my_pcol) CYCLE
+            trace = ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, fm_work_iaP%local_data(:, col_local), 1)
 
-               my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+            P_ij(ij_counter) = P_ij(ij_counter) &
+                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
 
-               trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
-            END DO
+            EXIT
 
-            P_ij(homo + ij_counter) = P_ij(homo + ij_counter) &
-                                      - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+         END DO
+      END DO
+
+      IF (num_pe_col > 1) THEN
+         size_send_buffer = 0
+         size_recv_buffer = 0
+         DO proc_shift = 1, num_pe_col - 1
+            pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+
+            IF (ALLOCATED(index2send(pcol_send)%array)) &
+               size_send_buffer = MAX(size_send_buffer, SIZE(index2send(pcol_send)%array))
+
+            IF (ALLOCATED(index2recv(pcol_recv)%array)) &
+               size_recv_buffer = MAX(size_recv_buffer, SIZE(index2recv(pcol_recv)%array))
          END DO
 
-         DEALLOCATE (buffer_recv)
-      END DO
+         ALLOCATE (buffer_send(nrow_local, size_send_buffer), buffer_recv(nrow_local, size_recv_buffer))
+
+         DO proc_shift = 1, num_pe_col - 1
+            pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+
+            ! Collect data and exchange
+            send_size = 0
+            IF (ALLOCATED(index2send(pcol_send)%array)) send_size = SIZE(index2send(pcol_send)%array)
+
+            IF (send_size > 0) THEN
+               counter = 0
+               DO col_local = 1, ncol_local
+                  col_global = col_indices(col_local)
+
+                  iocc = MAX(1, col_global - 1)/virtual + 1
+                  avirt = col_global - (iocc - 1)*virtual
+
+                  DO ij_counter = 1, num_ij_pairs
+
+                     my_i = pair_list(1, ij_counter)
+                     my_j = pair_list(2, ij_counter)
+
+                     IF (iocc /= my_j) CYCLE
+                     pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     IF (pcol /= pcol_send) CYCLE
+
+                     counter = counter + 1
+
+                     buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
+
+                     EXIT
+
+                  END DO
+               END DO
+            END IF
+
+            recv_size = 0
+            IF (ALLOCATED(index2recv(pcol_recv)%array)) recv_size = SIZE(index2recv(pcol_recv)%array)
+            IF (recv_size > 0) THEN
+               CALL timeset(routineN//"_send", handle2)
+               IF (send_size > 0) THEN
+                  CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
+                                   buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), &
+                                   para_env%group, tag)
+               ELSE
+                  CALL mp_recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag, para_env%group)
+               END IF
+               CALL timestop(handle2)
+
+               DO ij_counter = 1, num_ij_pairs
+                  ! Collect the contributions of the matrix elements
+
+                  my_i = pair_list(1, ij_counter)
+                  my_j = pair_list(2, ij_counter)
+
+                  trace = 0.0_dp
+
+                  DO col_local = 1, recv_size
+                     col_global = index2recv(pcol_recv)%array(col_local)
+
+                     iocc = MAX(1, col_global - 1)/virtual + 1
+                     IF (iocc /= my_j) CYCLE
+                     avirt = col_global - (iocc - 1)*virtual
+                     pcol = cp_fm_indxg2p((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     IF (pcol /= my_pcol) CYCLE
+
+                     my_col_local = cp_fm_indxg2l((my_i - 1)*virtual + avirt, ncol_block, 0, first_p_pos_col, num_pe_col)
+
+                     trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
+                  END DO
+
+                  P_ij(ij_counter) = P_ij(ij_counter) &
+                                     - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
+               END DO
+            ELSE IF (send_size > 0) THEN
+               CALL timeset(routineN//"_send", handle2)
+               CALL mp_send(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), tag, para_env%group)
+               CALL timestop(handle2)
+            END IF
+         END DO
+         IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
+         IF (ALLOCATED(buffer_recv)) DEALLOCATE (buffer_recv)
+      END IF
 
       CALL timestop(handle)
 
@@ -1259,7 +1367,6 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param pair_list ...
 !> \param virtual ...
-!> \param homo ...
 !> \param P_ab ...
 !> \param Eigenval ...
 !> \param omega ...
@@ -1267,10 +1374,10 @@ CONTAINS
 !> \param index2send ...
 !> \param index2recv ...
 ! **************************************************************************************************
-   SUBROUTINE calc_Pab_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, homo, P_ab, Eigenval, omega, weight, index2send, index2recv)
+   SUBROUTINE calc_Pab_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ab, Eigenval, omega, weight, index2send, index2recv)
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
-      INTEGER, INTENT(IN)                                :: virtual, homo
+      INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ab
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
@@ -1281,7 +1388,7 @@ CONTAINS
       INTEGER :: ab_counter, avirt, col_global, col_local, counter, first_p_pos(2), &
          first_p_pos_col, handle, handle2, iocc, my_a, my_b, my_col_local, my_pcol, my_prow, &
          ncol_block, ncol_local, nrow_local, num_ab_pairs, num_pe_col, pcol, pcol_recv, pcol_send, &
-         proc_shift, tag
+         proc_shift, recv_size, send_size, size_recv_buffer, size_send_buffer, tag
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, ncol_locals
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp)                                      :: ddot, trace
@@ -1302,78 +1409,131 @@ CONTAINS
 
       tag = 43
 
-      DO proc_shift = 0, num_pe_col - 1
-         pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
-         pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+      DO col_local = 1, ncol_local
+         col_global = col_indices(col_local)
 
-         CALL timeset(routineN//"_send", handle2)
-         ! Collect indices and exchange
-
-         ALLOCATE (buffer_send(nrow_local, SIZE(index2send(pcol_send)%array)))
-
-         counter = 0
-         DO col_local = 1, ncol_local
-            col_global = col_indices(col_local)
-
-            iocc = MAX(1, col_global - 1)/virtual + 1
-            avirt = col_global - (iocc - 1)*virtual
-
-            DO ab_counter = 1, num_ab_pairs
-
-               my_a = pair_list(1, ab_counter)
-               my_b = pair_list(2, ab_counter)
-
-               IF (avirt /= my_b) CYCLE
-               pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
-               IF (pcol /= pcol_send) CYCLE
-
-               counter = counter + 1
-
-               buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
-
-               EXIT
-
-            END DO
-         END DO
-
-         ALLOCATE (buffer_recv(nrow_local, SIZE(index2recv(pcol_recv)%array)))
-         !
-         CALL mp_sendrecv(buffer_send, blacs2mpi(my_prow, pcol_send), &
-                          buffer_recv, blacs2mpi(my_prow, pcol_recv), &
-                          para_env%group, tag)
-         DEALLOCATE (buffer_send)
-         CALL timestop(handle2)
+         iocc = MAX(1, col_global - 1)/virtual + 1
+         avirt = col_global - (iocc - 1)*virtual
 
          DO ab_counter = 1, num_ab_pairs
-            ! Collect the contributions of the matrix elements
 
             my_a = pair_list(1, ab_counter)
             my_b = pair_list(2, ab_counter)
 
-            trace = 0.0_dp
+            IF (avirt /= my_b) CYCLE
+            pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+            IF (pcol /= my_pcol) CYCLE
+            my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
 
-            DO col_local = 1, SIZE(index2recv(pcol_recv)%array)
-               col_global = index2recv(pcol_recv)%array(col_local)
+            trace = ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, fm_work_iaP%local_data(:, col_local), 1)
 
-               iocc = MAX(1, col_global - 1)/virtual + 1
-               avirt = col_global - (iocc - 1)*virtual
-               IF (avirt /= my_b) CYCLE
-               pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
-               IF (pcol /= my_pcol) CYCLE
+            P_ab(ab_counter) = P_ab(ab_counter) &
+                               - trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
 
-               my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
-
-               trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
-            END DO
-
-            P_ab(virtual + ab_counter) = P_ab(virtual + ab_counter) &
-                                      - trace*sinh_over_x(0.5_dp*(Eigenval(homo + my_a) - Eigenval(homo + my_b))*omega)*omega*weight
+            EXIT
 
          END DO
-
-         DEALLOCATE (buffer_recv)
-
       END DO
+
+      IF (num_pe_col > 1) THEN
+         size_send_buffer = 0
+         size_recv_buffer = 0
+         DO proc_shift = 1, num_pe_col - 1
+            pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+
+            IF (ALLOCATED(index2send(pcol_send)%array)) &
+               size_send_buffer = MAX(size_send_buffer, SIZE(index2send(pcol_send)%array))
+
+            IF (ALLOCATED(index2recv(pcol_recv)%array)) &
+               size_recv_buffer = MAX(size_recv_buffer, SIZE(index2recv(pcol_recv)%array))
+         END DO
+
+         ALLOCATE (buffer_send(nrow_local, size_send_buffer), buffer_recv(nrow_local, size_recv_buffer))
+
+         DO proc_shift = 1, num_pe_col - 1
+            pcol_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            pcol_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+
+            ! Collect data and exchange
+            send_size = 0
+            IF (ALLOCATED(index2send(pcol_send)%array)) send_size = SIZE(index2send(pcol_send)%array)
+
+            IF (send_size > 0) THEN
+               counter = 0
+               DO col_local = 1, ncol_local
+                  col_global = col_indices(col_local)
+
+                  iocc = MAX(1, col_global - 1)/virtual + 1
+                  avirt = col_global - (iocc - 1)*virtual
+
+                  DO ab_counter = 1, num_ab_pairs
+
+                     my_a = pair_list(1, ab_counter)
+                     my_b = pair_list(2, ab_counter)
+
+                     IF (avirt /= my_b) CYCLE
+                     pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     IF (pcol /= pcol_send) CYCLE
+
+                     counter = counter + 1
+
+                     buffer_send(:, counter) = fm_work_iaP%local_data(:, col_local)
+
+                     EXIT
+
+                  END DO
+               END DO
+            END IF
+
+            recv_size = 0
+            IF (ALLOCATED(index2recv(pcol_recv)%array)) recv_size = SIZE(index2recv(pcol_recv)%array)
+            IF (recv_size > 0) THEN
+               CALL timeset(routineN//"_send", handle2)
+               IF (send_size > 0) THEN
+                  CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), &
+                                   buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), &
+                                   para_env%group, tag)
+               ELSE
+                  CALL mp_recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, pcol_recv), tag, para_env%group)
+               END IF
+               CALL timestop(handle2)
+
+               DO ab_counter = 1, num_ab_pairs
+                  ! Collect the contributions of the matrix elements
+
+                  my_a = pair_list(1, ab_counter)
+                  my_b = pair_list(2, ab_counter)
+
+                  trace = 0.0_dp
+
+                  DO col_local = 1, SIZE(index2recv(pcol_recv)%array)
+                     col_global = index2recv(pcol_recv)%array(col_local)
+
+                     iocc = MAX(1, col_global - 1)/virtual + 1
+                     avirt = col_global - (iocc - 1)*virtual
+                     IF (avirt /= my_b) CYCLE
+                     pcol = cp_fm_indxg2p((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+                     IF (pcol /= my_pcol) CYCLE
+
+                     my_col_local = cp_fm_indxg2l((iocc - 1)*virtual + my_a, ncol_block, 0, first_p_pos_col, num_pe_col)
+
+                     trace = trace + ddot(nrow_local, fm_mat_S%local_data(:, my_col_local), 1, buffer_recv(:, col_local), 1)
+                  END DO
+
+                  P_ab(ab_counter) = P_ab(ab_counter) &
+                                     - trace*sinh_over_x(0.5_dp*(Eigenval(my_a) - Eigenval(my_b))*omega)*omega*weight
+
+               END DO
+            ELSE IF (send_size > 0) THEN
+               CALL timeset(routineN//"_send", handle2)
+               CALL mp_send(buffer_send(:, :send_size), blacs2mpi(my_prow, pcol_send), tag, para_env%group)
+               CALL timestop(handle2)
+            END IF
+         END DO
+         IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
+         IF (ALLOCATED(buffer_recv)) DEALLOCATE (buffer_recv)
+      END IF
 
       CALL timestop(handle)
 
@@ -1401,7 +1561,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'redistribute_fm_mat_S'
 
       INTEGER :: col_local, handle, my_a, my_homo, my_i, my_pcol, my_prow, my_virtual, nrow_local, &
-         num_pe_col, proc_recv, proc_send, proc_shift, recv_size, send_size, tag
+         num_pe_col, proc_recv, proc_send, proc_shift, recv_size, send_size, size_recv_buffer, &
+         size_send_buffer, tag
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1420,49 +1581,72 @@ CONTAINS
 
       ALLOCATE (mat_S_3D(nrow_local, my_virtual, my_homo))
 
-      DO proc_shift = 0, num_pe_col - 1
-         proc_send = MODULO(my_pcol + proc_shift, num_pe_col)
-         proc_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+      IF (ALLOCATED(index2send(my_pcol)%array)) THEN
+         DO col_local = 1, SIZE(index2send(my_pcol)%array)
+            my_a = index2recv(my_pcol)%array(1, col_local)
+            my_i = index2recv(my_pcol)%array(2, col_local)
+            mat_S_3D(:, my_a, my_i) = fm_mat_S%local_data(:, index2send(my_pcol)%array(col_local))
+         END DO
+      END IF
 
-         send_size = SIZE(index2send(proc_send)%array)
-         IF (send_size > 0) THEN
-            ALLOCATE (buffer_send(nrow_local, send_size))
+      IF (num_pe_col > 1) THEN
+         size_send_buffer = 0
+         size_recv_buffer = 0
+         DO proc_shift = 1, num_pe_col - 1
+            proc_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            proc_recv = MODULO(my_pcol - proc_shift, num_pe_col)
 
-            DO col_local = 1, send_size
-               buffer_send(:, col_local) = fm_mat_S%local_data(:, index2send(proc_send)%array(col_local))
-            END DO
-         END IF
+            send_size = 0
+            IF (ALLOCATED(index2send(proc_send)%array)) send_size = SIZE(index2send(proc_send)%array)
+            size_send_buffer = MAX(size_send_buffer, send_size)
 
-         recv_size = SIZE(index2recv(proc_recv)%array, 2)
-         IF (recv_size > 0) THEN
-            ALLOCATE (buffer_recv(nrow_local, recv_size))
+            recv_size = 0
+            IF (ALLOCATED(index2recv(proc_recv)%array)) recv_size = SIZE(index2recv(proc_recv)%array)
+            size_recv_buffer = MAX(size_recv_buffer, recv_size)
 
+         END DO
+
+         ALLOCATE (buffer_send(nrow_local, size_send_buffer), buffer_recv(nrow_local, size_recv_buffer))
+
+         DO proc_shift = 1, num_pe_col - 1
+            proc_send = MODULO(my_pcol + proc_shift, num_pe_col)
+            proc_recv = MODULO(my_pcol - proc_shift, num_pe_col)
+
+            send_size = 0
+            IF (ALLOCATED(index2send(proc_send)%array)) send_size = SIZE(index2send(proc_send)%array)
             IF (send_size > 0) THEN
-               CALL mp_sendrecv(buffer_send, blacs2mpi(my_prow, proc_send), &
-                                buffer_recv, blacs2mpi(my_prow, proc_recv), &
-                                para_env%group, tag)
-            ELSE
-               CALL mp_recv(buffer_recv, blacs2mpi(my_prow, proc_recv), &
+               DO col_local = 1, send_size
+                  buffer_send(:, col_local) = fm_mat_S%local_data(:, index2send(proc_send)%array(col_local))
+               END DO
+            END IF
+
+            recv_size = 0
+            IF (ALLOCATED(index2recv(proc_recv)%array)) recv_size = SIZE(index2recv(proc_recv)%array, 2)
+            IF (recv_size > 0) THEN
+               IF (send_size > 0) THEN
+                  CALL mp_sendrecv(buffer_send(:, :send_size), blacs2mpi(my_prow, proc_send), &
+                                   buffer_recv(:, :recv_size), blacs2mpi(my_prow, proc_recv), &
+                                   para_env%group, tag)
+               ELSE
+                  CALL mp_recv(buffer_recv(:, :recv_size), blacs2mpi(my_prow, proc_recv), &
+                               tag, para_env%group)
+               END IF
+
+               DO col_local = 1, recv_size
+                  my_a = index2recv(proc_recv)%array(1, col_local)
+                  my_i = index2recv(proc_recv)%array(2, col_local)
+                  mat_S_3D(:, my_a, my_i) = buffer_recv(:, col_local)
+               END DO
+            ELSE IF (send_size > 0) THEN
+               CALL mp_send(buffer_send(:, :send_size), blacs2mpi(my_prow, proc_send), &
                             tag, para_env%group)
             END IF
 
-            IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
-
-            DO col_local = 1, recv_size
-               my_i = index2recv(proc_recv)%array(2, col_local)
-               my_a = index2recv(proc_recv)%array(1, col_local)
-               mat_S_3D(:, my_a, my_i) = buffer_recv(:, col_local)
-            END DO
-
-            DEALLOCATE (buffer_recv)
-         ELSE IF (send_size > 0) THEN
-            CALL mp_send(buffer_send, blacs2mpi(my_prow, proc_send), &
-                         tag, para_env%group)
-         END IF
+         END DO
 
          IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
-
-      END DO
+         IF (ALLOCATED(buffer_recv)) DEALLOCATE (buffer_recv)
+      END IF
 
       CALL timestop(handle)
 
@@ -1826,7 +2010,7 @@ CONTAINS
       INTEGER :: handle, ispin, itmp(2), my_a_end, my_a_size, my_a_start, my_B_end, my_B_size, &
          my_B_start, my_i_end, my_i_size, my_i_start, nspins, proc, proc_recv, proc_send, &
          proc_shift, recv_a_end, recv_a_start, recv_end, recv_start, send_a_end, send_a_start, &
-         send_end, send_start
+         send_end, send_start, size_recv_buffer, size_send_buffer
       REAL(KIND=dp)                                      :: my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer_recv, buffer_send
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
@@ -1873,32 +2057,69 @@ CONTAINS
          ! This group dist contains the info which parts of Pab a process is supposed to own later
          CALL create_group_dist(gd_virtual_sub, para_env_sub%num_pe, virtual(ispin))
 
-         DO proc_shift = 0, para_env_sub%num_pe - 1
-            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
-            proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+         ! Calculate local indices of the common range of own matrix and send process
+         send_start = MAX(1, my_B_start - my_a_start + 1)
+         send_end = MIN(my_a_size, my_B_end - my_a_start + 1)
 
-            CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end)
-            CALL get_group_dist(gd_a_sub, proc_recv, recv_a_start, recv_a_end)
+         ! Same for recv process but with reverse positions
+         recv_start = MAX(1, my_a_start - my_B_start + 1)
+         recv_end = MIN(my_B_size, my_a_end - my_B_start + 1)
 
-            ! Calculate global indices of the common range of own matrix and send process
-            send_start = MAX(my_a_start, send_a_start)
-            send_end = MIN(my_a_end, send_a_end)
-            ALLOCATE (buffer_send(MAX(send_end - send_start + 1, 0), virtual(ispin)))
-            buffer_send(:, :) = rpa_work%P_ab(ispin)%array(send_start - my_a_start + 1:send_end - my_a_start + 1, :)
+         mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) = &
+            mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) &
+            + my_scale*rpa_work%P_ab(ispin)%array(send_start:send_end, :)
 
-            ! Same for recv process but with reverse positions
-            recv_start = MAX(my_a_start, recv_a_start)
-            recv_end = MIN(my_a_end, recv_a_end)
-            ALLOCATE (buffer_recv(MAX(recv_end - recv_start + 1, 0), virtual(ispin)))
+         IF (para_env_sub%num_pe > 1) THEN
+            size_send_buffer = 0
+            size_recv_buffer = 0
+            DO proc_shift = 1, para_env_sub%num_pe - 1
+               proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+               proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
-            CALL mp_sendrecv(buffer_send, proc_send, buffer_recv, proc_recv, para_env_sub%group)
-            DEALLOCATE (buffer_send)
+               CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end)
+               CALL get_group_dist(gd_a_sub, proc_recv, recv_a_start, recv_a_end)
 
-            mp2_env%ri_grad%P_ab(ispin)%array(recv_start - my_B_start + 1:recv_end - my_B_start + 1, :) = my_scale*buffer_recv
+               ! Calculate local indices of the common range of own matrix and send process
+               send_start = MAX(1, send_a_start - my_a_start + 1)
+               send_end = MIN(my_a_size, send_a_end - my_a_start + 1)
 
-            DEALLOCATE (buffer_recv)
+               size_send_buffer = MAX(size_send_buffer, MAX(send_end - send_start + 1, 0))
 
-         END DO
+               ! Same for recv process but with reverse positions
+               recv_start = MAX(1, recv_a_start - my_B_start + 1)
+               recv_end = MIN(my_B_size, recv_a_end - my_B_start + 1)
+
+               size_recv_buffer = MAX(size_recv_buffer, MAX(recv_end - recv_start + 1, 0))
+            END DO
+            ALLOCATE (buffer_send(size_send_buffer, virtual(ispin)), buffer_recv(size_recv_buffer, virtual(ispin)))
+
+            DO proc_shift = 1, para_env_sub%num_pe - 1
+               proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+               proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+
+               CALL get_group_dist(gd_virtual_sub, proc_send, send_a_start, send_a_end)
+               CALL get_group_dist(gd_a_sub, proc_recv, recv_a_start, recv_a_end)
+
+               ! Calculate local indices of the common range of own matrix and send process
+               send_start = MAX(1, send_a_start - my_a_start + 1)
+               send_end = MIN(my_a_size, send_a_end - my_a_start + 1)
+               buffer_send(1:MAX(send_end - send_start + 1, 0), :) = rpa_work%P_ab(ispin)%array(send_start:send_end, :)
+
+               ! Same for recv process but with reverse positions
+               recv_start = MAX(1, recv_a_start - my_B_start + 1)
+               recv_end = MIN(my_B_size, recv_a_end - my_B_start + 1)
+
+               CALL mp_sendrecv(buffer_send(1:MAX(send_end - send_start + 1, 0), :), proc_send, &
+                                buffer_recv(1:MAX(recv_end - recv_start + 1, 0), :), proc_recv, para_env_sub%group)
+
+               mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) = &
+            mp2_env%ri_grad%P_ab(ispin)%array(recv_start:recv_end, :) + my_scale*buffer_recv(1:MAX(recv_end - recv_start + 1, 0), :)
+
+            END DO
+
+            IF (ALLOCATED(buffer_send)) DEALLOCATE (buffer_send)
+            IF (ALLOCATED(buffer_recv)) DEALLOCATE (buffer_recv)
+         END IF
          DEALLOCATE (rpa_work%P_ab(ispin)%array)
 
          CALL release_group_dist(gd_virtual_sub)
@@ -1933,7 +2154,8 @@ CONTAINS
          mypcol_global, myprow_global, ncol_block_global, ncol_block_sub, ncol_local_global, &
          ncol_local_sub, npcol_global, npcol_sub, nprow_global, nprow_sub, nrow_block_global, &
          nrow_block_sub, nrow_local_global, nrow_local_sub, pcol_recv, pcol_send, proc_recv, &
-         proc_send, proc_send_global, proc_shift, prow_recv, prow_send, row_local
+         proc_send, proc_send_global, proc_shift, prow_recv, prow_send, row_local, tag
+      INTEGER(int_8)                                     :: size_recv_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: data2recv_col, data2recv_row, &
                                                             data2send_col, data2send_row, &
                                                             subgroup2mepos
@@ -1941,12 +2163,15 @@ CONTAINS
                                                             row_indices_global, row_indices_sub
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi_global, blacs2mpi_sub, &
                                                             mpi2blacs_global, mpi2blacs_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: recv_buffer, send_buffer
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buffer_1D, send_buffer_1D
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: recv_buffer, send_buffer
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_exchange, para_env_sub
       TYPE(one_dim_int_array), ALLOCATABLE, DIMENSION(:) :: index2recv_col, index2recv_row, &
                                                             index2send_col, index2send_row
 
       CALL timeset(routineN, handle)
+
+      tag = 1
 
       nprow_sub = fm_sub%matrix_struct%context%num_pe(1)
       npcol_sub = fm_sub%matrix_struct%context%num_pe(2)
@@ -1967,12 +2192,14 @@ CONTAINS
       CALL get_blacs_info(fm_sub%matrix_struct%context, blacs2mpi=blacs2mpi_sub, mpi2blacs=mpi2blacs_sub)
       CALL get_blacs_info(fm_global%matrix_struct%context, blacs2mpi=blacs2mpi_global, mpi2blacs=mpi2blacs_global)
 
-      CALL timeset(routineN//"_exchange", handle2)
-      NULLIFY (para_env_exchange)
-      CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
-      CALL mp_sum(fm_sub%local_data, para_env_exchange%group)
-      CALL cp_para_env_release(para_env_exchange)
-      CALL timestop(handle2)
+      IF (para_env%num_pe /= para_env_sub%num_pe) THEN
+         CALL timeset(routineN//"_exchange", handle2)
+         NULLIFY (para_env_exchange)
+         CALL cp_para_env_split(para_env_exchange, para_env, para_env_sub%mepos)
+         CALL mp_sum(fm_sub%local_data, para_env_exchange%group)
+         CALL cp_para_env_release(para_env_exchange)
+         CALL timestop(handle2)
+      END IF
 
       ALLOCATE (subgroup2mepos(0:para_env_sub%num_pe - 1))
       CALL mp_allgather(para_env%mepos, subgroup2mepos, para_env_sub%group)
@@ -1988,59 +2215,115 @@ CONTAINS
       CALL get_elements2send(data2recv_row, nprow_sub, col_indices_global, nrow_block_sub, first_p_pos_sub(1), index2recv_row)
       CALL timestop(handle2)
 
-      ! Loop over all processes in para_env_sub
-      DO proc_shift = 0, para_env_sub%num_pe - 1
-         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
-         proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+      CALL timeset(routineN//"_local", handle2)
+      ! Loop over local data and transpose
+      prow_send = mpi2blacs_global(1, para_env%mepos)
+      pcol_send = mpi2blacs_global(2, para_env%mepos)
+      prow_recv = mpi2blacs_sub(1, para_env_sub%mepos)
+      pcol_recv = mpi2blacs_sub(2, para_env_sub%mepos)
+      elements2recv_col = data2recv_col(pcol_recv)
+      elements2recv_row = data2recv_row(prow_recv)
 
-         proc_send_global = subgroup2mepos(proc_send)
-         prow_send = mpi2blacs_global(1, proc_send_global)
-         pcol_send = mpi2blacs_global(2, proc_send_global)
-         elements2send_col = data2send_col(pcol_send)
-         elements2send_row = data2send_row(prow_send)
+!$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
+!$OMP                SHARED(elements2recv_col,elements2recv_row,recv_buffer,fm_global,&
+!$OMP                       index2recv_col,index2recv_row,pcol_recv,prow_recv, &
+!$OMP                       fm_sub,index2send_col,index2send_row,pcol_send,prow_send)
+      DO col_local = 1, elements2recv_col
+         DO row_local = 1, elements2recv_row
+            fm_global%local_data(index2recv_col(pcol_recv)%array(col_local), &
+                                 index2recv_row(prow_recv)%array(row_local)) &
+               = fm_sub%local_data(index2send_col(pcol_send)%array(row_local), &
+                                   index2send_row(prow_send)%array(col_local))
+         END DO
+      END DO
+!$OMP    END PARALLEL DO
+      CALL timestop(handle2)
 
-         CALL timeset(routineN//"_pack", handle2)
-         ! Loop over local data and pack the buffer
-         ! Transpose the matrix already
-         ALLOCATE (send_buffer(elements2send_row, elements2send_col))
+      IF (para_env_sub%num_pe > 1) THEN
+         size_send_buffer = 0_int_8
+         size_recv_buffer = 0_int_8
+         ! Loop over all processes in para_env_sub
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+            proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+
+            proc_send_global = subgroup2mepos(proc_send)
+            prow_send = mpi2blacs_global(1, proc_send_global)
+            pcol_send = mpi2blacs_global(2, proc_send_global)
+            elements2send_col = data2send_col(pcol_send)
+            elements2send_row = data2send_row(prow_send)
+
+            size_send_buffer = MAX(size_send_buffer, INT(elements2send_col, int_8)*elements2send_row)
+
+            prow_recv = mpi2blacs_sub(1, proc_recv)
+            pcol_recv = mpi2blacs_sub(2, proc_recv)
+            elements2recv_col = data2recv_col(pcol_recv)
+            elements2recv_row = data2recv_row(prow_recv)
+
+            size_recv_buffer = MAX(size_recv_buffer, INT(elements2recv_col, int_8)*elements2recv_row)
+         END DO
+         ALLOCATE (send_buffer_1D(size_send_buffer), recv_buffer_1D(size_recv_buffer))
+
+         ! Loop over all processes in para_env_sub
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+            proc_recv = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
+
+            proc_send_global = subgroup2mepos(proc_send)
+            prow_send = mpi2blacs_global(1, proc_send_global)
+            pcol_send = mpi2blacs_global(2, proc_send_global)
+            elements2send_col = data2send_col(pcol_send)
+            elements2send_row = data2send_row(prow_send)
+
+            CALL timeset(routineN//"_pack", handle2)
+            ! Loop over local data and pack the buffer
+            ! Transpose the matrix already
+          send_buffer(1:elements2send_row, 1:elements2send_col) => send_buffer_1D(1:INT(elements2send_row, int_8)*elements2send_col)
 !$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
 !$OMP                SHARED(elements2send_col,elements2send_row,send_buffer,fm_sub,&
 !$OMP                       index2send_col,index2send_row,pcol_send,prow_send)
-         DO row_local = 1, elements2send_col
-            DO col_local = 1, elements2send_row
-               send_buffer(col_local, row_local) = &
-                  fm_sub%local_data(index2send_col(pcol_send)%array(row_local), &
-                                    index2send_row(prow_send)%array(col_local))
+            DO row_local = 1, elements2send_col
+               DO col_local = 1, elements2send_row
+                  send_buffer(col_local, row_local) = &
+                     fm_sub%local_data(index2send_col(pcol_send)%array(row_local), &
+                                       index2send_row(prow_send)%array(col_local))
+               END DO
             END DO
-         END DO
 !$OMP    END PARALLEL DO
-         CALL timestop(handle2)
+            CALL timestop(handle2)
 
-         prow_recv = mpi2blacs_sub(1, proc_recv)
-         pcol_recv = mpi2blacs_sub(2, proc_recv)
-         elements2recv_col = data2recv_col(pcol_recv)
-         elements2recv_row = data2recv_row(prow_recv)
+            prow_recv = mpi2blacs_sub(1, proc_recv)
+            pcol_recv = mpi2blacs_sub(2, proc_recv)
+            elements2recv_col = data2recv_col(pcol_recv)
+            elements2recv_row = data2recv_row(prow_recv)
 
-         ! Send data
-         ALLOCATE (recv_buffer(elements2recv_col, elements2recv_row))
-         CALL mp_sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, para_env_sub%group, 1)
-         IF (ALLOCATED(send_buffer)) DEALLOCATE (send_buffer)
+            ! Send data
+          recv_buffer(1:elements2recv_col, 1:elements2recv_row) => recv_buffer_1D(1:INT(elements2recv_row, int_8)*elements2recv_col)
+            IF (SIZE(recv_buffer) > 0_int_8) THEN
+            IF (SIZE(send_buffer) > 0_int_8) THEN
+               CALL mp_sendrecv(send_buffer, proc_send, recv_buffer, proc_recv, para_env_sub%group, tag)
+            ELSE
+               CALL mp_recv(recv_buffer, proc_recv, tag, para_env_sub%group)
+            END IF
 
-         CALL timeset(routineN//"_unpack", handle2)
+            CALL timeset(routineN//"_unpack", handle2)
 !$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(row_local,col_local) &
 !$OMP                SHARED(elements2recv_col,elements2recv_row,recv_buffer,fm_global,&
 !$OMP                       index2recv_col,index2recv_row,pcol_recv,prow_recv)
-         DO col_local = 1, elements2recv_col
-            DO row_local = 1, elements2recv_row
-               fm_global%local_data(index2recv_col(pcol_recv)%array(col_local), &
-                                    index2recv_row(prow_recv)%array(row_local)) &
-                  = recv_buffer(col_local, row_local)
+            DO col_local = 1, elements2recv_col
+               DO row_local = 1, elements2recv_row
+                  fm_global%local_data(index2recv_col(pcol_recv)%array(col_local), &
+                                       index2recv_row(prow_recv)%array(row_local)) &
+                     = recv_buffer(col_local, row_local)
+               END DO
             END DO
-         END DO
 !$OMP    END PARALLEL DO
-         CALL timestop(handle2)
-         IF (ALLOCATED(recv_buffer)) DEALLOCATE (recv_buffer)
-      END DO
+            CALL timestop(handle2)
+            ELSE IF (SIZE(send_buffer) > 0_int_8) THEN
+            CALL mp_send(send_buffer, proc_send, tag, para_env_sub%group)
+            END IF
+         END DO
+      END IF
 
       DEALLOCATE (data2send_col, data2send_row, data2recv_col, data2recv_row)
       DO proc_shift = 0, npcol_global - 1

@@ -2049,7 +2049,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: update_energy, recalc_integrals
       TYPE(section_vals_type), OPTIONAL, POINTER         :: external_hfx_sections
-      TYPE(hfx_type), DIMENSION(:, :), OPTIONAL, POINTER :: external_x_data
+      TYPE(hfx_type), DIMENSION(:, :), OPTIONAL, TARGET  :: external_x_data
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddft_hfx_matrix'
 

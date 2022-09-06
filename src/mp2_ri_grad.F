@@ -36,7 +36,8 @@ MODULE mp2_ri_grad
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
                                               ri_mp2_laplace,&
-                                              ri_mp2_method_gpw
+                                              ri_mp2_method_gpw,&
+                                              ri_rpa_method_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: compare_potential_types
    USE message_passing,                 ONLY: &
@@ -143,7 +144,7 @@ CONTAINS
                                                             virtual
       LOGICAL                                            :: alpha_beta, use_virial
       REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor, &
-                                                            relative_cutoff_old
+                                                            factor_2c, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
@@ -248,6 +249,12 @@ CONTAINS
       CALL zero_qs_force(mp2_force)
       mp2_env%ri_grad%mp2_force => mp2_force
 
+      factor_2c = -4.0_dp
+      IF (mp2_env%method == ri_rpa_method_gpw) THEN
+         factor_2c = -1.0_dp
+         IF (alpha_beta) factor_2c = -2.0_dp
+      END IF
+
       ! prepare integral derivatives with mme method
       IF (eri_method .EQ. do_eri_mme) THEN
          ALLOCATE (matrix_P_munu_local(my_group_L_size))
@@ -303,13 +310,13 @@ CONTAINS
          END DO
 
          DO ikind = 1, SIZE(force)
-            mp2_force(ikind)%mp2_non_sep(:, :) = -4.0_dp*force_2c(ikind)%forces(:, :) + &
+            mp2_force(ikind)%mp2_non_sep(:, :) = factor_2c*force_2c(ikind)%forces(:, :) + &
                                                  force_3c_orb_mu(ikind)%forces(:, :) + &
                                                  force_3c_orb_nu(ikind)%forces(:, :) + &
                                                  force_3c_aux(ikind)%forces(:, :)
 
             IF (.NOT. compare_potential_types(mp2_env%potential_parameter, mp2_env%ri_metric)) THEN
-               mp2_force(ikind)%mp2_non_sep(:, :) = mp2_force(ikind)%mp2_non_sep(:, :) - 4.0_dp*force_2c_RI(ikind)%forces
+               mp2_force(ikind)%mp2_non_sep(:, :) = mp2_force(ikind)%mp2_non_sep(:, :) + factor_2c*force_2c_RI(ikind)%forces
             END IF
          END DO
 
@@ -372,7 +379,7 @@ CONTAINS
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                pot_g, mp2_env%potential_parameter, use_virial, &
                                                rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
-                                               mp2_force, h_stress, para_env_sub, dft_control, psi_L)
+                                               mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
 
             IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 
@@ -380,7 +387,7 @@ CONTAINS
                                                   qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
                                                   pot_g, mp2_env%ri_metric, use_virial, &
                                                   rho_g_copy, dvg, kind_of, atom_of_kind, G_PQ_local_2(:, L_counter), &
-                                                  mp2_force, h_stress, para_env_sub, dft_control, psi_L)
+                                                  mp2_force, h_stress, para_env_sub, dft_control, psi_L, factor_2c)
             END IF
 
             IF (use_virial) pv_virial = virial%pv_virial
@@ -401,7 +408,6 @@ CONTAINS
                                                   ks_env, poisson_env, pot_g, use_virial, rho_g_copy, dvg, &
                                                   h_stress, para_env_sub, kind_of, atom_of_kind, &
                                                   qs_kind_set, particle_set, cell, LLL, mp2_force, dft_control)
-
          END DO
 
          CALL timestop(handle2)
@@ -1146,7 +1152,7 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_mp2_laplace) THEN
+      IF (.NOT. mp2_env%method == ri_rpa_method_gpw) THEN
          CALL cp_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
                       mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
                       a_first_col=1, &
@@ -1178,7 +1184,13 @@ CONTAINS
             END DO
          END DO
       ELSE
-         CPABORT("Calculation of occ-occ block of density matrix is dealt with elsewhere!")
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
+            END DO
+         END DO
       END IF
       ! deallocate the local P_ij
       DEALLOCATE (mp2_env%ri_grad%P_ij(kspin)%array)
@@ -1240,7 +1252,7 @@ CONTAINS
                       c_first_row=homo + 1)
       END IF
 
-      IF (mp2_env%method == ri_mp2_method_gpw) THEN
+      IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw) THEN
          ! With MP2 and RPA, we have already calculated the density matrix elements
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)

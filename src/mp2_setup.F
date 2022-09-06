@@ -99,7 +99,7 @@ CONTAINS
          mp2_env%method = ri_rpa_method_gpw
       END IF
       CALL section_vals_val_get(mp2_section, "RI_RPA%RPA_NUM_QUAD_POINTS", i_val=mp2_env%ri_rpa%rpa_num_quad_points)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%SIZE_FREQ_INTEG_GROUP", i_val=mp2_env%ri_rpa%rpa_integ_group_size)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%NUM_INTEG_GROUPS", i_val=mp2_env%ri_rpa%rpa_num_integ_groups)
       CALL section_vals_val_get(mp2_section, "RI_RPA%MM_STYLE", i_val=mp2_env%ri_rpa%mm_style)
       CALL section_vals_val_get(mp2_section, "RI_RPA%MINIMAX_QUADRATURE", l_val=mp2_env%ri_rpa%minimax_quad)
       CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", l_val=mp2_env%ri_rpa%do_admm)
@@ -285,7 +285,7 @@ CONTAINS
          mp2_env%method = ri_mp2_laplace
       END IF
       CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%QUADRATURE_POINTS", i_val=mp2_env%ri_laplace%n_quadrature)
-      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%SIZE_INTEG_GROUP", i_val=mp2_env%ri_laplace%integ_group_size)
+      CALL section_vals_val_get(mp2_section, "RI_SOS_MP2%NUM_INTEG_GROUPS", i_val=mp2_env%ri_laplace%num_integ_groups)
 
       CALL section_vals_val_get(mp2_section, "RI_MP2%_SECTION_PARAMETERS_", l_val=do_ri_mp2)
       IF (do_ri_mp2) THEN

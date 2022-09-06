@@ -100,7 +100,7 @@ MODULE mp2_types
 
    TYPE mp2_laplace_type
       INTEGER       :: n_quadrature
-      INTEGER       :: integ_group_size
+      INTEGER       :: num_integ_groups
    END TYPE
 
    TYPE mp2_direct_type
@@ -122,7 +122,7 @@ MODULE mp2_types
 
    TYPE ri_rpa_type
       INTEGER                  :: rpa_num_quad_points
-      INTEGER                  :: rpa_integ_group_size
+      INTEGER                  :: rpa_num_integ_groups
       INTEGER                  :: mm_style
       TYPE(hfx_type), DIMENSION(:, :), POINTER &
          :: x_data => NULL()

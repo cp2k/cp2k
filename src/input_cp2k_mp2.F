@@ -376,13 +376,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
-         keyword, __LOCATION__, name="SIZE_INTEG_GROUP", &
-         variants=(/"LAPLACE_GROUP_SIZE"/), &
-         description="Group size for the integration in the Laplace method, that is the number of processes involved in "// &
-         "the computation of each integration point. SIZE_INTEG_GROUP has to be a multiple "// &
-         "of GROUP_SIZE in the WF_CORRELATION section. The default (-1) "// &
-         "is automatic.", &
-         usage="SIZE_INTEG_GROUP 16", &
+         keyword, __LOCATION__, name="NUM_INTEG_GROUPS", &
+         description="Number of groups for the integration in the Laplace method. Each groups processes "// &
+         "the same amount of quadrature points. It must be a divisor of the number of quadrature points and "// &
+         "NUM_INTEG_GROUPS*GROUP_SIZE must be a divisor of the total number of processes. The default (-1) is automatic.", &
+         usage="SIZE_INTEG_GROUP 2", &
          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -475,13 +473,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="SIZE_FREQ_INTEG_GROUP", &
-                          variants=(/"RPA_GROUP_SIZE"/), &
-                          description="Group size for frequency integration, that is the number of processes involved in "// &
-                          "the computation of each integration point. SIZE_FREQ_INTEG_GROUP has to be a multiple "// &
-                          "of GROUP_SIZE in the WF_CORRELATION section. The default (-1) "// &
-                          "is automatic.", &
-                          usage="SIZE_FREQ_INTEG_GROUP 16", &
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_INTEG_GROUPS", &
+                          description="Number of groups for the integration in the Laplace method. Each groups processes "// &
+                          "the same amount of quadrature points. It must be a divisor of the number of quadrature points and "// &
+                          "NUM_INTEG_GROUPS*GROUP_SIZE must be a divisor of the total number of processes. "// &
+                          "The default (-1) is automatic.", &
+                          usage="SIZE_INTEG_GROUP 2", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1614,13 +1611,14 @@ CONTAINS
          description="Which interaction potential should be used "// &
          "(Coulomb, TShPSC operator).", &
          usage="POTENTIAL_TYPE TSHPSC", &
-         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED", "MIX_CL"), &
+         enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED", "MIX_CL", "IDENTITY"), &
          enum_i_vals=(/do_potential_coulomb, &
                        do_potential_TShPSC, &
                        do_potential_long, &
                        do_potential_short, &
                        do_potential_truncated, &
-                       do_potential_mix_cl/), &
+                       do_potential_mix_cl, &
+                       do_potential_id/), &
          enum_desc=s2a("Coulomb potential: 1/r", &
                        "TShPSC:<ul><li>1/x - s/Rc for x &le; Rc</li>"// &
                        "<li>(1 - s)/Rc - (x - Rc)/Rc^2 + (x - Rc)^2/Rc^3 - "// &
@@ -1631,7 +1629,8 @@ CONTAINS
                        "Longrange Coulomb potential: erf(w*r)/r)", &
                        "Shortrange Coulomb potential: erfc(w*r)/r", &
                        "Truncated Coulomb potential", &
-                       "Mixed Coulomb/Longrange Coulomb potential"), &
+                       "Mixed Coulomb/Longrange Coulomb potential", &
+                       "Delta potential"), &
          default_i_val=do_potential_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

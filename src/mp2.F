@@ -440,7 +440,7 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       IF (virial%pv_numer) THEN
          ! in the case of numerical stress we don't have to free the HFX integrals
          free_hfx_buffer = .FALSE.
-         mp2_env%ri_grad%free_hfx_buffer = .FALSE.
+         mp2_env%ri_grad%free_hfx_buffer = free_hfx_buffer
       END IF
       END IF
 

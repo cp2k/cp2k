@@ -51,6 +51,7 @@ MODULE rpa_main
    USE group_dist_types,                ONLY: create_group_dist,&
                                               get_group_dist,&
                                               group_dist_d1_type,&
+                                              maxsize,&
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
@@ -226,7 +227,7 @@ CONTAINS
 
       INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_homo_square, &
          dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, i, ierr, iiB, &
-         input_integ_group_size, integ_group_size, ispin, jjB, min_integ_group_size, &
+         input_num_integ_groups, integ_group_size, ispin, jjB, min_integ_group_size, &
          my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
          my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
          my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, &
@@ -237,7 +238,7 @@ CONTAINS
       LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
-         mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real, needed_mem
+         mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
                                                             fm_mat_S_gw
@@ -285,7 +286,7 @@ CONTAINS
 
       IF (do_ri_sos_laplace_mp2) THEN
          num_integ_points = mp2_env%ri_laplace%n_quadrature
-         input_integ_group_size = mp2_env%ri_laplace%integ_group_size
+         input_num_integ_groups = mp2_env%ri_laplace%num_integ_groups
 
          ! check the range for the minimax approximation
          Emin = HUGE(dp)
@@ -312,7 +313,7 @@ CONTAINS
          CPASSERT(num_integ_points >= 1)
       ELSE
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
-         input_integ_group_size = mp2_env%ri_rpa%rpa_integ_group_size
+         input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
 
          IF (my_do_gw .AND. do_minimax_quad) THEN
             IF (num_integ_points > 34) THEN
@@ -353,54 +354,46 @@ CONTAINS
 
          CALL m_memory(mem)
          mem_real = (mem + 1024*1024 - 1)/(1024*1024)
-         ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
-         ! has not been given back to the OS yet.
          CALL mp_min(mem_real, para_env%group)
 
          mem_per_rank = 0.0_dp
 
          ! B_ia_P
-         mem_per_repl = SUM(REAL(homo, KIND=dp)*virtual)*dimen_RI*8.0_dp/(1024**2)
+         mem_per_repl = mem_for_iaK
          ! Q (regular and for dgemm)
-         mem_per_repl = mem_per_repl + 2.0_dp*nspins*dimen_RI**2/para_env%num_pe*8.0_dp/(1024**2)
+         mem_per_repl = mem_per_repl + 2.0_dp*mem_for_QK
 
-         CALL rpa_grad_needed_mem(homo, virtual, dimen_RI, mem_per_rank, mem_per_repl)
+         IF (calc_forces) CALL rpa_grad_needed_mem(homo, virtual, dimen_RI_red, mem_per_rank, mem_per_repl, do_ri_sos_laplace_mp2)
 
          mem_min = mem_per_repl/para_env%num_pe + mem_per_rank
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', mem_min, ' MiB'
+            WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Available memory per MPI process:', mem_real, ' MiB'
+         END IF
+
+         ! Use only the allowed amount of memory
+         mem_real = MIN(mem_real, allowed_memory)
+         ! For the memory estimate, we require the amount of required memory per replication group and the available memory
          mem_real = mem_real - mem_per_rank
 
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:', &
-            mem_min, ' MiB'
-
-         mem_real = allowed_memory - mem_real
-         mem_real = MAX(mem_real, mem_min)
-
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'RI_INFO| Available memory per MPI process:', &
-            mem_real, ' MiB'
-
          mem_per_group = mem_real*para_env_sub%num_pe
-
-         needed_mem = mem_for_iaK*2.0_dp + mem_for_QK*3.0_dp
 
          ! here we try to find the best rpa/laplace group size
          skip_integ_group_opt = .FALSE.
 
-         IF (input_integ_group_size > 0) THEN
-            IF (MOD(input_integ_group_size, para_env_sub%num_pe) == 0) THEN
-               best_integ_group_size = input_integ_group_size/para_env_sub%num_pe
-               IF (MOD(ngroup, best_integ_group_size) == 0) THEN
-                  num_integ_group = ngroup/best_integ_group_size
-                  IF ((num_integ_points > num_integ_group) .AND. MOD(num_integ_points, num_integ_group) == 0) THEN
-                     best_num_integ_point = num_integ_points/num_integ_group
-                     skip_integ_group_opt = .TRUE.
-                  ELSE
-                     IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'NUM_QUAD_POINTS not multiple of the number of INTEG_GROUP'
-                  END IF
+         ! Check the input number of integration groups
+         IF (input_num_integ_groups > 0) THEN
+            IF (MOD(num_integ_points, input_num_integ_groups) == 0) THEN
+               IF (MOD(ngroup, input_num_integ_groups) == 0) THEN
+                  best_integ_group_size = ngroup/input_num_integ_groups
+                  best_num_integ_point = num_integ_points/input_num_integ_groups
+                  skip_integ_group_opt = .TRUE.
                ELSE
-                  IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Total number of groups not multiple of SIZE_INTEG_GROUP'
+                  IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Total number of groups not multiple of NUM_INTEG_GROUPS'
                END IF
             ELSE
-               IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'SIZE_INTEG_GROUP not multiple of GROUP_SIZE'
+               IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'NUM_QUAD_POINTS not multiple of NUM_INTEG_GROUPS'
             END IF
          END IF
 
@@ -414,23 +407,21 @@ CONTAINS
             DO iiB = min_integ_group_size + 1, ngroup
                integ_group_size = integ_group_size + 1
 
-               ! check that the ngroup is a multiple of  integ_group_size
+               ! check that the ngroup is a multiple of integ_group_size
                IF (MOD(ngroup, integ_group_size) /= 0) CYCLE
 
                ! check for memory
                avail_mem = integ_group_size*mem_per_group
-               IF (avail_mem < needed_mem) CYCLE
+               IF (avail_mem < mem_per_repl) CYCLE
 
-               ! check the number of integration points is a multiple of the  number of integ_group
+               ! check that the integration groups have the same size
                num_integ_group = ngroup/integ_group_size
-               IF (num_integ_points < num_integ_group) CYCLE
                IF (MOD(num_integ_points, num_integ_group) /= 0) CYCLE
 
-               ! if all the test passed then decide
-               IF ((num_integ_points/num_integ_group) < best_num_integ_point) THEN
-                  best_num_integ_point = num_integ_points/num_integ_group
-                  best_integ_group_size = integ_group_size
-               END IF
+               best_num_integ_point = num_integ_points/num_integ_group
+               best_integ_group_size = integ_group_size
+
+               EXIT
 
             END DO
          END IF
@@ -723,7 +714,8 @@ CONTAINS
 
       INTEGER :: ia_global, iiB, itmp(2), jjB, my_B_size, my_B_virtual_start, occ_high, occ_low, &
          proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BIb_C_rec_1D
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: BIb_C_rec
 
       itmp = get_limit(dimen_ia, para_env_sub%num_pe, para_env_sub%mepos)
       my_ia_start = itmp(1)
@@ -747,35 +739,38 @@ CONTAINS
          END DO
       END DO
 
-      DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+      IF (para_env_sub%num_pe > 1) THEN
+         ALLOCATE (BIb_C_rec_1D(INT(my_group_L_size, int_8)*maxsize(gd_B_virtual)*MIN(homo, occ_chunk)))
+         DO proc_shift = 1, para_env_sub%num_pe - 1
+            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-         CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
-         ! do this in chunks to avoid high memory overhead  for both BIb_C_rec and buffers in mp_sendrecv
-         ALLOCATE (BIb_C_rec(my_group_L_size, rec_B_size, MIN(homo, occ_chunk)))
-
-         DO occ_low = 1, homo, occ_chunk
-            occ_high = MIN(homo, occ_low + occ_chunk - 1)
-            CALL mp_sendrecv(BIb_C(:, :, occ_low:occ_high), proc_send, &
-                             BIb_C_rec(:, :, 1:occ_high - occ_low + 1), proc_receive, &
-                             para_env_sub%group)
+            ! do this in chunks to avoid high memory overhead
+            DO occ_low = 1, homo, occ_chunk
+               occ_high = MIN(homo, occ_low + occ_chunk - 1)
+               BIb_C_rec(1:my_group_L_size, 1:rec_B_size, 1:occ_high - occ_low + 1) => &
+                  BIb_C_rec_1D(1:INT(my_group_L_size, int_8)*rec_B_size*(occ_high - occ_low + 1))
+               CALL mp_sendrecv(BIb_C(:, :, occ_low:occ_high), proc_send, &
+                                BIb_C_rec(:, :, 1:occ_high - occ_low + 1), proc_receive, &
+                                para_env_sub%group)
 !$OMP          PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
 !$OMP                   SHARED(occ_low,occ_high,rec_B_size,virtual,rec_B_virtual_start,my_ia_start,my_ia_end,BIb_C_rec,BIb_C_2D,&
 !$OMP                          my_group_L_size)
-            DO iiB = occ_low, occ_high
-               DO jjB = 1, rec_B_size
-                  ia_global = (iiB - 1)*virtual + rec_B_virtual_start + jjB - 1
-                  IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
+               DO iiB = occ_low, occ_high
+                  DO jjB = 1, rec_B_size
+                     ia_global = (iiB - 1)*virtual + rec_B_virtual_start + jjB - 1
+                     IF (ia_global >= my_ia_start .AND. ia_global <= my_ia_end) THEN
                      BIb_C_2D(1:my_group_L_size, ia_global - my_ia_start + 1) = BIb_C_rec(1:my_group_L_size, jjB, iiB - occ_low + 1)
-                  END IF
+                     END IF
+                  END DO
                END DO
             END DO
-         END DO
 
-         DEALLOCATE (BIb_C_rec)
-      END DO
+         END DO
+         DEALLOCATE (BIb_C_rec_1D)
+      END IF
 
    END SUBROUTINE calculate_BIb_C_2D
 
@@ -953,12 +948,12 @@ CONTAINS
 
             ! mp_sum the local data across processes belonging to different RPA group.
             ! first create the para_env then mp_sum
-            sub_sub_color = para_env_RPA%mepos
-            CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
-
-            CALL mp_sum(fm_mat_S(ispin)%matrix%local_data, para_env_exchange%group)
-
-            CALL cp_para_env_release(para_env_exchange)
+            IF (para_env_RPA%num_pe /= para_env%num_pe) THEN
+               sub_sub_color = para_env_RPA%mepos
+               CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
+               CALL mp_sum(fm_mat_S(ispin)%matrix%local_data, para_env_exchange%group)
+               CALL cp_para_env_release(para_env_exchange)
+            END IF
          END DO
       END IF
 
@@ -1524,7 +1519,7 @@ CONTAINS
             IF (do_ri_sos_laplace_mp2) THEN
                CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
 
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(rpa_grad, do_ri_sos_laplace_mp2, &
+               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
                                                                                        Eigenval(:, 1, :), tau_wj(jquad))
             ELSE
@@ -1543,7 +1538,7 @@ CONTAINS
                   CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1)%matrix, para_env_RPA, Erpa, wj(jquad))
                END IF
 
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(rpa_grad, do_ri_sos_laplace_mp2, &
+               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
                                                                                        Eigenval(:, 1, :), wj(jquad))
             END IF ! do_ri_sos_laplace_mp2

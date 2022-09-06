@@ -385,12 +385,13 @@ CONTAINS
 !> \param para_env_sub ...
 !> \param dft_control ...
 !> \param psi_L ...
+!> \param factor ...
 ! **************************************************************************************************
    SUBROUTINE integrate_potential_forces_2c(rho_r, LLL, matrix, rho_g, atomic_kind_set, &
                                             qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, pot_g, &
                                             potential_parameter, use_virial, rho_g_copy, dvg, &
                                             kind_of, atom_of_kind, G_PQ_local, force, h_stress, para_env_sub, &
-                                            dft_control, psi_L)
+                                            dft_control, psi_L, factor)
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r
       INTEGER, INTENT(IN)                                :: LLL
@@ -417,6 +418,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(pw_p_type), INTENT(INOUT)                     :: psi_L
+      REAL(KIND=dp), INTENT(IN)                          :: factor
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_2c'
 
@@ -452,7 +454,7 @@ CONTAINS
          CALL calculate_wavefunction(matrix, 1, psi_L, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                      basis_type="RI_AUX", &
-                                     external_vector=-2.0_dp*G_PQ_local)
+                                     external_vector=0.5_dp*factor*G_PQ_local)
          ! transfer to reciprocal space and calculate potential
          CALL calc_potential_gpw(psi_L, rho_g, poisson_env, pot_g, potential_parameter, no_transfer=.TRUE.)
          ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
@@ -462,12 +464,11 @@ CONTAINS
       ! integrate the potential of the single gaussian and update
       ! 2-center forces with Gamma_PQ
       CALL integrate_potential(pw_env_sub, rho_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
-                               G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
+                               -0.25_dp*factor*G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
 
       CALL timestop(handle)
    END SUBROUTINE integrate_potential_forces_2c
 
-   ! If virial, then extract it from virial%pv_virial
 ! **************************************************************************************************
 !> \brief Takes the precomputed potential of an RI wave-function and determines matrix element and
 !>        gradients with product of Gaussians
@@ -746,8 +747,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: comp
       REAL(KIND=dp)                                      :: e_hartree
 
-      ! add the volume contribution to the virial coming from
-      ! the 3-center integrals (mu nu|P)
+      ! add the volume contribution
       CALL timeset(routineN, handle)
       e_hartree = 0.0_dp
       e_hartree = pw_integral_ab(rho_g_copy%pw, pot_g%pw)
@@ -765,6 +765,7 @@ CONTAINS
             h_stress(beta, alpha) = h_stress(alpha, beta)
          END DO
       END DO
+
       CALL timestop(handle)
    END SUBROUTINE virial_gpw_potential
 
@@ -775,7 +776,7 @@ CONTAINS
 !> \param potential_parameter parameters of potential V(g)
 ! **************************************************************************************************
    SUBROUTINE factor_virial_gpw(pw, potential_parameter)
-      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: i
@@ -831,6 +832,8 @@ CONTAINS
             END IF
          END DO
 !$OMP END PARALLEL DO
+      CASE (do_potential_id)
+         pw%cc = 0.0_dp
       CASE DEFAULT
          CPABORT("Unknown potential type")
       END SELECT
@@ -1181,7 +1184,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw'
 
-      INTEGER                                            :: handle, my_potential_type
+      INTEGER                                            :: comp(3), handle, idir, my_potential_type
       LOGICAL                                            :: my_transfer
 
       CALL timeset(routineN, handle)
@@ -1207,6 +1210,15 @@ CONTAINS
          IF (my_transfer) CALL pw_transfer(pot_g%pw, pot_r%pw)
       ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output
+         CALL pw_copy(rho_g%pw, pot_g%pw)
+         IF (PRESENT(dvg)) THEN
+         DO idir = 1, 3
+            CALL pw_copy(pot_g%pw, dvg(idir)%pw)
+            comp = 0
+            comp(idir) = 1
+            CALL pw_derive(dvg(idir)%pw, comp)
+         END DO
+         END IF
          IF (my_transfer) CALL pw_transfer(rho_g%pw, pot_r%pw)
       END IF
 

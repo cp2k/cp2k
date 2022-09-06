@@ -296,6 +296,7 @@ CONTAINS
          IF (mp2_env%method == mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
          IF (mp2_env%method == ri_mp2_method_gpw) mp2_env%eri_method = do_eri_gpw
          IF (mp2_env%ri_rpa_im_time%do_im_time_kpoints) mp2_env%eri_method = do_eri_os
+         IF (calc_forces .AND. mp2_env%eri_method == do_eri_os) mp2_env%eri_method = do_eri_gpw
       END IF
       eri_method = mp2_env%eri_method
 

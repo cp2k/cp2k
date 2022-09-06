@@ -4,4 +4,5 @@ H2O_block_lr.inp                                11      3e-10            -16.850
 H2O_block_rpa.inp                               11      3e-10            -17.145691221375799
 H2O_block_mp2_grad.inp                          11      4e-08            -16.990050036582446
 H2O_block_sos_mp2_grad.inp                      11      1e-07            -17.129603561168270
+H2O_block_rpa_grad.inp                           0   
 #EOF

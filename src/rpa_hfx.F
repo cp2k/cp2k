@@ -18,10 +18,22 @@ MODULE rpa_hfx
                                               admm_type,&
                                               get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
+                                              dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
+   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
-   USE dbcsr_api,                       ONLY: dbcsr_p_type,&
-                                              dbcsr_set
-   USE hfx_admm_utils,                  ONLY: create_admm_xc_section
+   USE dbcsr_api,                       ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_scale,&
+                                              dbcsr_set,&
+                                              dbcsr_type
+   USE hfx_admm_utils,                  ONLY: create_admm_xc_section,&
+                                              tddft_hfx_matrix
    USE hfx_derivatives,                 ONLY: derivatives_four_center
    USE hfx_energy_potential,            ONLY: integrate_four_center
    USE hfx_ri,                          ONLY: hfx_ri_update_forces,&
@@ -50,6 +62,8 @@ MODULE rpa_hfx
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
+   USE response_solver,                 ONLY: ks_ref_potential
+   USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -62,7 +76,7 @@ MODULE rpa_hfx
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_hfx'
 
-   PUBLIC :: calculate_exx, calc_ri_rpa_admm_xc_contributions, ri_rpa_pre_hfx, ri_rpa_post_hfx
+   PUBLIC :: calculate_exx, add_exx_to_rhs, calc_ri_rpa_admm_xc_contributions, ri_rpa_pre_hfx, ri_rpa_post_hfx
 
 CONTAINS
 
@@ -174,17 +188,18 @@ CONTAINS
 
          calc_ints = .TRUE.
          IF (qs_env%mp2_env%ri_rpa%reuse_hfx) calc_ints = .FALSE.
-         IF (calc_forces) calc_ints = .FALSE.
+         IF (calc_forces .AND. qs_env%mp2_env%do_im_time) calc_ints = .FALSE.
 
          ehfx = 0.0_dp
+         IF (do_admm) THEN
+            matrix_ks_2d(1:nspins, 1:1) => matrix_ks_aux_fit(1:nspins)
+            rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
+         ELSE
+            matrix_ks_2d(1:nspins, 1:1) => matrix_ks(1:nspins)
+            rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
+         END IF
+
          DO irep = 1, n_rep_hf
-            IF (do_admm) THEN
-               matrix_ks_2d(1:nspins, 1:1) => matrix_ks_aux_fit(1:nspins)
-               rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
-            ELSE
-               matrix_ks_2d(1:nspins, 1:1) => matrix_ks(1:nspins)
-               rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
-            END IF
 
             IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
                CALL hfx_ri_update_ks(qs_env, qs_env%mp2_env%ri_rpa%x_data(irep, 1)%ri_data, matrix_ks_2d, ehfx, &
@@ -210,15 +225,11 @@ CONTAINS
             virial%pv_fock_4c = 0.0_dp
          END IF
 
-         DO irep = 1, n_rep_hf
-            IF (calc_forces) THEN
-               !Note: no need to remove xc forces: they are not even calculated in the first place
-               NULLIFY (rho_ao_resp)
-               IF (do_admm) THEN
-                  rho_ao_2d(1:nspins, 1:1) => rho_ao_aux_fit(1:nspins)
-               ELSE
-                  rho_ao_2d(1:nspins, 1:1) => rho_ao(1:nspins)
-               END IF
+         IF (calc_forces) THEN
+            !Note: no need to remove xc forces: they are not even calculated in the first place
+            NULLIFY (rho_ao_resp)
+
+            DO irep = 1, n_rep_hf
 
                IF (qs_env%mp2_env%ri_rpa%x_data(irep, 1)%do_hfx_ri) THEN
 
@@ -233,8 +244,8 @@ CONTAINS
 
                END IF
 
-            END IF
-         END DO !irep
+            END DO !irep
+         END IF
 
          IF (use_virial) THEN
             virial%pv_exx = virial%pv_exx - virial%pv_fock_4c
@@ -273,6 +284,176 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_exx
+
+! **************************************************************************************************
+!> \brief Add the EXX contribution to the RHS of the Z-vector equation, namely the HF Hamiltonian
+!> \param rhs ...
+!> \param qs_env ...
+!> \param recalc_integrals ...
+! **************************************************************************************************
+   SUBROUTINE add_exx_to_rhs(rhs, qs_env, recalc_integrals)
+
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: rhs
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_integrals
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_exx_to_rhs'
+
+      INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
+      LOGICAL                                            :: calc_ints, my_recalc_integrals
+      REAL(dp)                                           :: dummy_real1, dummy_real2
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, matrix_ks, matrix_s_aux, &
+                                                            rho_ao, rho_ao_aux, work_admm
+      TYPE(dbcsr_type)                                   :: dbcsr_tmp
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace, vtau_rspace, vxc_rspace
+      TYPE(pw_p_type), POINTER                           :: vh_rspace
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(section_vals_type), POINTER                   :: hfx_section
+      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
+
+      NULLIFY (dbcsr_work, matrix_ks, rho, hfx_section, pw_env, vadmm_rspace, vtau_rspace, vxc_rspace, &
+               vh_rspace, auxbas_pw_pool, dft_control, rho_ao, rho_aux_fit, rho_ao_aux, work_admm, &
+               matrix_s_aux, admm_env, task_list_aux_fit)
+
+      CALL timeset(routineN, handle)
+
+      my_recalc_integrals = .FALSE.
+      IF (PRESENT(recalc_integrals)) my_recalc_integrals = recalc_integrals
+
+      ! Strategy: we take the ks_matrix, remove the current xc contribution, and then add the RPA HF one
+      CALL get_qs_env(qs_env, matrix_ks=matrix_ks, rho=rho, pw_env=pw_env, dft_control=dft_control)
+      nspins = dft_control%nspins
+
+      CALL dbcsr_allocate_matrix_set(dbcsr_work, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (dbcsr_work(ispin)%matrix)
+         CALL dbcsr_copy(dbcsr_work(ispin)%matrix, matrix_ks(ispin)%matrix)
+      END DO
+      IF (dft_control%do_admm) THEN
+         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit)
+         CALL dbcsr_allocate_matrix_set(work_admm, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (work_admm(ispin)%matrix)
+            CALL dbcsr_create(work_admm(ispin)%matrix, template=matrix_s_aux(1)%matrix)
+            CALL dbcsr_copy(work_admm(ispin)%matrix, matrix_s_aux(1)%matrix)
+            CALL dbcsr_set(work_admm(ispin)%matrix, 0.0_dp)
+         END DO
+         CALL dbcsr_create(dbcsr_tmp, template=matrix_ks(1)%matrix)
+         CALL dbcsr_copy(dbcsr_tmp, matrix_ks(1)%matrix)
+      END IF
+
+      !Remove the standard XC + HFX contribution
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+      CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, dummy_real1, dummy_real2)
+      DO ispin = 1, nspins
+         CALL pw_scale(vxc_rspace(ispin)%pw, -1.0_dp)
+         CALL integrate_v_rspace(v_rspace=vxc_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
+                                 calculate_forces=.FALSE.)
+         IF (ASSOCIATED(vtau_rspace)) THEN
+            CALL pw_scale(vtau_rspace(ispin)%pw, -1.0_dp)
+            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
+                                    calculate_forces=.FALSE., compute_tau=.TRUE.)
+         END IF
+         IF (dft_control%do_admm) THEN
+            !note: factor -1.0 taken care of later, after HFX ADMM contribution is taken
+            IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
+               CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=work_admm(ispin), &
+                                       qs_env=qs_env, calculate_forces=.FALSE., basis_type="AUX_FIT", &
+                                       task_list_external=task_list_aux_fit)
+            END IF
+         END IF
+      END DO
+
+      IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+         CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
+         nao = admm_env%nao_orb
+         nao_aux = admm_env%nao_aux_fit
+         CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
+
+         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., my_recalc_integrals)
+
+         DO ispin = 1, nspins
+            CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
+            CALL cp_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
+                         0.0_dp, admm_env%work_aux_orb)
+            CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
+                         0.0_dp, admm_env%work_orb_orb)
+            CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_tmp, keep_sparsity=.TRUE.)
+            CALL dbcsr_add(dbcsr_work(ispin)%matrix, dbcsr_tmp, 1.0_dp, -1.0_dp)
+         END DO
+      ELSE
+         DO ispin = 1, nspins
+            CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
+         END DO
+         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., my_recalc_integrals)
+         DO ispin = 1, nspins
+            CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
+         END DO
+      END IF
+
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
+      DEALLOCATE (vh_rspace)
+      DO ispin = 1, nspins
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
+         IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
+         IF (ASSOCIATED(vadmm_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+      END DO
+      DEALLOCATE (vxc_rspace)
+      IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
+      IF (ASSOCIATED(vadmm_rspace)) DEALLOCATE (vadmm_rspace)
+
+      !Add the HF contribution from RI_RPA to the ks matrix
+      CALL ri_rpa_pre_hfx(qs_env)
+      calc_ints = .TRUE.
+      IF (qs_env%mp2_env%ri_rpa%reuse_hfx) calc_ints = .FALSE.
+      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
+      IF (qs_env%mp2_env%ri_rpa%do_admm) THEN
+         DO ispin = 1, nspins
+            CALL dbcsr_set(work_admm(ispin)%matrix, 0.0_dp)
+         END DO
+
+         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., calc_ints, hfx_section, &
+                               qs_env%mp2_env%ri_rpa%x_data)
+
+         !ADMM XC correction
+         CALL calc_ri_rpa_admm_xc_contributions(qs_env, dbcsr_work, work_admm, dummy_real1, &
+                                                dummy_real2, .FALSE., .FALSE.)
+
+         DO ispin = 1, nspins
+            CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
+            CALL cp_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
+                         0.0_dp, admm_env%work_aux_orb)
+            CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
+                         0.0_dp, admm_env%work_orb_orb)
+            CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_tmp, keep_sparsity=.TRUE.)
+            CALL dbcsr_add(dbcsr_work(ispin)%matrix, dbcsr_tmp, 1.0_dp, 1.0_dp)
+         END DO
+
+      ELSE
+         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., calc_ints, hfx_section, qs_env%mp2_env%ri_rpa%x_data)
+      END IF
+      CALL ri_rpa_post_hfx(qs_env)
+
+      !Update the RHS
+      DO ispin = 1, nspins
+         CALL dbcsr_add(rhs(ispin)%matrix, dbcsr_work(ispin)%matrix, 1.0_dp, 1.0_dp)
+      END DO
+
+      CALL dbcsr_deallocate_matrix_set(dbcsr_work)
+      IF (dft_control%do_admm) THEN
+         CALL dbcsr_deallocate_matrix_set(work_admm)
+         CALL dbcsr_release(dbcsr_tmp)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE add_exx_to_rhs
 
 ! **************************************************************************************************
 !> \brief get the ADMM XC section from the ri_rpa type if available, create and store them otherwise

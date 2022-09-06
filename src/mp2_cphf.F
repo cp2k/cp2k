@@ -72,7 +72,8 @@ MODULE mp2_cphf
                                               m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
-   USE mp2_types,                       ONLY: mp2_type
+   USE mp2_types,                       ONLY: mp2_type,&
+                                              ri_rpa_method_gpw
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -126,6 +127,7 @@ MODULE mp2_cphf
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE response_solver,                 ONLY: ks_ref_potential
+   USE rpa_hfx,                         ONLY: add_exx_to_rhs
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type,&
                                               zero_virial
@@ -181,7 +183,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
-                                                            do_hfx, restore_p_screen
+                                                            do_exx, do_hfx, restore_p_screen
+      REAL(KIND=dp)                                      :: focc
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
                                                             P_mo, W_mo
@@ -197,7 +200,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
-      TYPE(section_vals_type), POINTER                   :: hfx_sections, input
+      TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_sections, input
 
       CALL timeset(routineN, handle)
 
@@ -328,6 +331,30 @@ CONTAINS
          END IF
       END IF
 
+      ! Add exx part for RPA
+      do_exx = .FALSE.
+      IF (qs_env%mp2_env%method == ri_rpa_method_gpw) THEN
+         hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
+         CALL section_vals_get(hfx_section, explicit=do_exx)
+      END IF
+      IF (do_exx) THEN
+         CALL add_exx_to_rhs(P_mu_nu, qs_env, mp2_env%ri_grad%free_hfx_buffer)
+
+         focc = 1.0_dp
+         IF (nspins == 1) focc = 2.0_dp
+         !focc = 0.0_dp
+         DO ispin = 1, nspins
+            CALL dbcsr_add(P_mu_nu(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, -1.0_dp)
+            CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)
+            CALL cp_gemm("N", "N", dimen, homo(ispin), dimen, 1.0_dp, &
+                         fm_G_mu_nu, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_back)
+            CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, focc, &
+                         fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, L_jb(ispin)%matrix)
+            CALL cp_gemm("T", "N", homo(ispin), homo(ispin), dimen, -focc, &
+                         fm_back, mo_coeff_o(ispin)%matrix, 1.0_dp, W_mo(ispin)%matrix)
+         END DO
+      END IF
+
       ! Prepare arrays for linres code
       NULLIFY (linres_control)
       CALL linres_control_create(linres_control)
@@ -363,7 +390,8 @@ CONTAINS
                             mo_coeff_v, Eigenval, p_env, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, &
                             L_jb, &
-                            recalc_hfx_integrals=mp2_env%ri_grad%free_hfx_buffer)
+                            recalc_hfx_integrals=(.NOT. do_exx .AND. mp2_env%ri_grad%free_hfx_buffer) &
+                            .OR. (do_exx .AND. .NOT. mp2_env%ri_rpa%reuse_hfx))
 
       ! at this point Lagrangian is completed ready to solve the Z-vector equations
       ! P_ia will contain the solution of these equations
@@ -1312,7 +1340,7 @@ CONTAINS
       INTEGER                                            :: alpha, beta, handle, idir, iounit, &
                                                             ispin, nspins
       INTEGER, DIMENSION(3)                              :: comp
-      LOGICAL                                            :: do_hfx, use_virial
+      LOGICAL                                            :: do_exx, do_hfx, use_virial
       REAL(KIND=dp)                                      :: e_dummy, e_hartree, e_xc, ehartree, exc
       REAL(KIND=dp), DIMENSION(3)                        :: deb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
@@ -1350,7 +1378,8 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
-      TYPE(section_vals_type), POINTER                   :: hfx_sections, input, xc_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_sections, input, &
+                                                            xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
 
@@ -1381,6 +1410,12 @@ CONTAINS
       logger => cp_get_default_logger()
       iounit = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%PRINT", &
                                     extension=".mp2Log")
+
+      do_exx = .FALSE.
+      IF (qs_env%mp2_env%method == ri_rpa_method_gpw) THEN
+         hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%WF_CORRELATION%RI_RPA%HF")
+         CALL section_vals_get(hfx_section, explicit=do_exx)
+      END IF
 
       p_env => qs_env%mp2_env%ri_grad%p_env
 
@@ -1482,8 +1517,12 @@ CONTAINS
          ! Update virial
          virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
          virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
-         virial%pv_exc = virial%pv_exc - virial%pv_xc
-         virial%pv_virial = virial%pv_virial - virial%pv_xc
+         IF (.NOT. do_exx) THEN
+            virial%pv_exc = virial%pv_exc - virial%pv_xc
+            virial%pv_virial = virial%pv_virial - virial%pv_xc
+         ELSE
+            virial%pv_xc = 0.0_dp
+         END IF
          IF (debug_forces) THEN
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: xc       ", third_tr(h_stress)
             CALL mp_sum(virial%pv_xc(1, 1), para_env%group)
@@ -1505,18 +1544,38 @@ CONTAINS
          deb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (use_virial) e_dummy = third_tr(h_stress)
       END IF
-      DO ispin = 1, nspins
-         CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
-         CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
-         CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
-                                 hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
-                                 qs_env=qs_env, calculate_forces=.TRUE.)
-         IF (ASSOCIATED(vtau_rspace)) THEN
-            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+      IF (do_exx) THEN
+         DO ispin = 1, nspins
+            CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
+            CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
-                                    qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
-         END IF
-      END DO
+                                    qs_env=qs_env, calculate_forces=.TRUE.)
+            CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
+            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+                                    hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
+                                    qs_env=qs_env, calculate_forces=.TRUE.)
+            IF (ASSOCIATED(vtau_rspace)) THEN
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+                                       hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
+                                       qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
+            END IF
+         END DO
+      ELSE
+         DO ispin = 1, nspins
+            CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
+            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+                                    hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
+                                    qs_env=qs_env, calculate_forces=.TRUE.)
+            IF (ASSOCIATED(vtau_rspace)) THEN
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+                                       hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
+                                       qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
+            END IF
+         END DO
+      END IF
       IF (debug_forces) THEN
          deb(1:3) = force(1)%rho_elec(1:3, 1) - deb(1:3)
          CALL mp_sum(deb, para_env%group)
@@ -1716,18 +1775,34 @@ CONTAINS
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")
       CALL section_vals_get(hfx_sections, explicit=do_hfx)
       IF (do_hfx) THEN
-         IF (dft_control%do_admm) THEN
-            CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
-            CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, rho_ao_kp=rho_ao_kp)
-            DO ispin = 1, nspins
-               CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
-            END DO
-            rho1 => p_env%p1_admm
+         IF (do_exx) THEN
+            IF (dft_control%do_admm) THEN
+               CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
+               CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, rho_ao_kp=rho_ao_kp)
+               DO ispin = 1, nspins
+!                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+               rho1 => p_env%p1_admm
+            ELSE
+               DO ispin = 1, nspins
+                  !         CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+               rho1 => p_env%p1
+            END IF
          ELSE
-            DO ispin = 1, nspins
-               CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
-            END DO
-            rho1 => p_env%p1
+            IF (dft_control%do_admm) THEN
+               CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
+               CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, rho_ao_kp=rho_ao_kp)
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+               rho1 => p_env%p1_admm
+            ELSE
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+               rho1 => p_env%p1
+            END IF
          END IF
 
          IF (x_data(1, 1)%do_hfx_ri) THEN
@@ -1735,11 +1810,11 @@ CONTAINS
             CALL hfx_ri_update_forces(qs_env, x_data(1, 1)%ri_data, nspins, &
                                       x_data(1, 1)%general_parameter%fraction, &
                                       rho_ao=rho_ao_kp, rho_ao_resp=rho1, &
-                                      use_virial=use_virial)
+                                      use_virial=use_virial, resp_only=do_exx)
 
          ELSE
             CALL derivatives_four_center(qs_env, rho_ao_kp, rho1, hfx_sections, para_env, &
-                                         1, use_virial)
+                                         1, use_virial, resp_only=do_exx)
          END IF
 
          IF (use_virial) THEN
@@ -1757,6 +1832,7 @@ CONTAINS
             END IF
          END IF
 
+         IF (.NOT. do_exx) THEN
          IF (dft_control%do_admm) THEN
             CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
             DO ispin = 1, nspins
@@ -1766,6 +1842,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, -1.0_dp)
             END DO
+         END IF
          END IF
 
          IF (dft_control%do_admm) THEN
@@ -1831,9 +1908,15 @@ CONTAINS
                   IF (use_virial) e_dummy = third_tr(virial%pv_virial)
                END IF
                DO ispin = 1, nspins
-                  CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
-                                          calculate_forces=.TRUE., basis_type="AUX_FIT", &
-                                          task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
+                  IF (do_exx) THEN
+                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
+                                             calculate_forces=.TRUE., basis_type="AUX_FIT", &
+                                             task_list_external=task_list_aux_fit, pmat=matrix_p_mp2_admm(ispin))
+                  ELSE
+                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
+                                             calculate_forces=.TRUE., basis_type="AUX_FIT", &
+                                             task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
+                  END IF
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
                END DO
                IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - h_stress)
@@ -1864,7 +1947,11 @@ CONTAINS
                IF (use_virial) e_dummy = third_tr(virial%pv_virial)
             END IF
             ! Add the second half of the projector deriatives contracting the first order density matrix with the fockian in the auxiliary basis
-            CALL admm_projection_derivative(qs_env, matrix_ks_aux, rho_ao)
+            IF (do_exx) THEN
+               CALL admm_projection_derivative(qs_env, matrix_ks_aux, matrix_p_mp2)
+            ELSE
+               CALL admm_projection_derivative(qs_env, matrix_ks_aux, rho_ao)
+            END IF
             IF (debug_forces) THEN
                deb(:) = force(1)%overlap_admm(:, 1) - deb
                CALL mp_sum(deb, para_env%group)
