@@ -782,8 +782,8 @@ if [ "${with_sirius}" = "__INSTALL__" ]; then
   [ "${with_fftw}" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
   [ "${with_spglib}" = "__DONTUSE__" ] && with_spglib="__INSTALL__"
   [ "${with_hdf5}" = "__DONTUSE__" ] && with_hdf5="__INSTALL__"
-#  [ "${with_libvdwxc}" = "__DONTUSE__" ] && with_libvdwxc="__INSTALL__"
-#  [ "${with_cosma}" = "__DONTUSE__" ] && with_cosma="__INSTALL__"
+  [ "${with_libvdwxc}" = "__DONTUSE__" ] && with_libvdwxc="__INSTALL__"
+  [ "${with_cosma}" = "__DONTUSE__" ] && with_cosma="__INSTALL__"
 fi
 
 if [ "${with_plumed}" = "__INSTALL__" ]; then
