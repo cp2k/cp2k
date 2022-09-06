@@ -43,6 +43,7 @@ MODULE input_cp2k_pwdft
                                  medium_print_level, &
                                  silent_print_level
    USE kinds, ONLY: dp
+   USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -52,6 +53,11 @@ MODULE input_cp2k_pwdft
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_pwdft'
 
    PUBLIC :: create_pwdft_section
+
+   INTEGER, PARAMETER, PUBLIC :: SIRIUS_NO_VDW = -1
+   INTEGER, PARAMETER, PUBLIC :: SIRIUS_FUNC_VDWDF = 1
+   INTEGER, PARAMETER, PUBLIC :: SIRIUS_FUNC_VDWDF2 = 2
+   INTEGER, PARAMETER, PUBLIC :: SIRIUS_FUNC_VDWDFCX = 3
 
 CONTAINS
 
@@ -166,7 +172,26 @@ CONTAINS
       ALLOCATE (ivec(1:16))
       ALLOCATE (rvec(1:16))
       ALLOCATE (lvec(1:16))
+
+#ifdef __LIBVDWXC
+      IF (section_name == "parameters") THEN
+         NULLIFY (keyword)
+         CALL keyword_create(keyword, __LOCATION__, name="VDW_FUNCTIONAL", &
+                             description="Select the Van der Walls functionals corrections type", &
+                             default_i_val=SIRIUS_NO_VDW, &
+                             enum_i_vals=(/SIRIUS_NO_VDW, SIRIUS_FUNC_VDWDF, SIRIUS_FUNC_VDWDF2, SIRIUS_FUNC_VDWDFCX/), &
+                             enum_c_vals=s2a("NONE", "FUNC_VDWDF", "FUNC_VDWDF2", "FUNC_VDWDFCX"), &
+                             enum_desc=s2a("No VdW correction", &
+                                           "FUNC_VDWDF", &
+                                           "FUNC_VDWDF2", &
+                                           "FUNC_VDWDFCX"))
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+      END IF
+#endif
+
       CALL sirius_option_get_section_length(section_name, length)
+
       DO i = 1, length
          NULLIFY (keyword)
          name = ''

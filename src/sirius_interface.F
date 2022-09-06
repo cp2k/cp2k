@@ -35,6 +35,9 @@ MODULE sirius_interface
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE external_potential_types,        ONLY: gth_potential_type
    USE input_constants,                 ONLY: do_gapw_log
+   USE input_cp2k_pwdft,                ONLY: SIRIUS_FUNC_VDWDF,&
+                                              SIRIUS_FUNC_VDWDF2,&
+                                              SIRIUS_FUNC_VDWDFCX
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_get_subs_vals2,&
@@ -127,7 +130,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: label
       INTEGER                                            :: i, iatom, ibeta, ifun, ikind, iwf, j, l, &
                                                             n, natom, nbeta, nkind, nmesh, &
-                                                            num_mag_dims, sirius_mpi_comm
+                                                            num_mag_dims, sirius_mpi_comm, vdw_func
       INTEGER, DIMENSION(:), POINTER                     :: mpi_grid_dims
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: k_grid, k_shift
       INTEGER, DIMENSION(:), POINTER                     :: kk
@@ -185,7 +188,7 @@ CONTAINS
          END DO
       END IF
 
-!     import control section
+      !     import control section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "control")
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "control")
@@ -194,6 +197,7 @@ CONTAINS
 
 !     import parameters section
       pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "parameters")
+
       IF (ASSOCIATED(pwdft_sub_section)) THEN
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "parameters")
          CALL section_vals_val_get(pwdft_sub_section, "ngridk", i_vals=kk)
@@ -208,6 +212,22 @@ CONTAINS
          CALL section_vals_val_get(pwdft_sub_section, "num_mag_dims", i_val=num_mag_dims)
          CALL section_vals_val_get(pwdft_sub_section, "use_symmetry", l_val=use_symmetry)
          CALL section_vals_val_get(pwdft_sub_section, "so_correction", l_val=use_so)
+
+! now check if van der walls corrections are needed
+         vdw_func = -1
+#ifdef __LIBVDWXC
+         CALL section_vals_val_get(pwdft_sub_section, "vdw_functional", i_val=vdw_func)
+         SELECT CASE (vdw_func)
+         CASE (SIRIUS_FUNC_VDWDF)
+            CALL sirius_add_xc_functional(sctx, "XC_FUNC_VDWDF")
+         CASE (SIRIUS_FUNC_VDWDF2)
+            CALL sirius_add_xc_functional(sctx, "XC_FUNC_VDWDF2")
+         CASE (SIRIUS_FUNC_VDWDFCX)
+            CALL sirius_add_xc_functional(sctx, "XC_FUNC_VDWDF2")
+         CASE default
+         END SELECT
+#endif
+
       END IF
 
 !     import mixer section
@@ -250,7 +270,7 @@ CONTAINS
       CALL sirius_set_lattice_vectors(sctx, a1(1), a2(1), a3(1))
 
       IF (use_ref_cell) THEN
-         CPWARN("The specified CELL_REF will be ignored for PW_DFT calculations")
+         CPWARN("SIRIUS| The specified CELL_REF will be ignored for PW_DFT calculations")
       END IF
 
 ! set up the atomic type definitions
