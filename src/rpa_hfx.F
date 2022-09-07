@@ -9,7 +9,8 @@
 !> \brief Routines to calculate EXX in RPA
 !> \par History
 !>      07.2020 separated from mp2.F [F. Stein, code by Jan Wilhelm]
-!> \author Jan Wilhelm, Frederick Stein
+!>      06.2022 EXX contribution to the forces [A. Bussy]
+!> \author Jan Wilhelm, Frederick Stein, Augustin Bussy
 ! **************************************************************************************************
 MODULE rpa_hfx
    USE admm_methods,                    ONLY: admm_projection_derivative
@@ -300,7 +301,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'add_exx_to_rhs'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
-      LOGICAL                                            :: calc_ints, my_recalc_integrals
+      LOGICAL                                            :: calc_ints, do_hfx, my_recalc_integrals
       REAL(dp)                                           :: dummy_real1, dummy_real2
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, matrix_ks, matrix_s_aux, &
@@ -334,7 +335,9 @@ CONTAINS
          CALL dbcsr_copy(dbcsr_work(ispin)%matrix, matrix_ks(ispin)%matrix)
       END DO
       IF (dft_control%do_admm) THEN
-         CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit)
+         CALL get_qs_env(qs_env, admm_env=admm_env)
+         CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit, &
+                           rho_aux_fit=rho_aux_fit)
          CALL dbcsr_allocate_matrix_set(work_admm, nspins)
          DO ispin = 1, nspins
             ALLOCATE (work_admm(ispin)%matrix)
@@ -344,6 +347,10 @@ CONTAINS
          END DO
          CALL dbcsr_create(dbcsr_tmp, template=matrix_ks(1)%matrix)
          CALL dbcsr_copy(dbcsr_tmp, matrix_ks(1)%matrix)
+
+         nao = admm_env%nao_orb
+         nao_aux = admm_env%nao_aux_fit
+         CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
       END IF
 
       !Remove the standard XC + HFX contribution
@@ -368,33 +375,32 @@ CONTAINS
          END IF
       END DO
 
-      IF (dft_control%do_admm) THEN
-         CALL get_qs_env(qs_env, admm_env=admm_env)
-         CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
-         nao = admm_env%nao_orb
-         nao_aux = admm_env%nao_aux_fit
-         CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
+      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
+      CALL section_vals_get(hfx_section, explicit=do_hfx)
+      IF (do_hfx) THEN
+         IF (dft_control%do_admm) THEN
 
-         CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., my_recalc_integrals)
+            CALL tddft_hfx_matrix(work_admm, rho_ao_aux, qs_env, .FALSE., my_recalc_integrals)
 
-         DO ispin = 1, nspins
-            CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
-            CALL cp_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
-                         0.0_dp, admm_env%work_aux_orb)
-            CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
-                         0.0_dp, admm_env%work_orb_orb)
-            CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_tmp, keep_sparsity=.TRUE.)
-            CALL dbcsr_add(dbcsr_work(ispin)%matrix, dbcsr_tmp, 1.0_dp, -1.0_dp)
-         END DO
-      ELSE
-         DO ispin = 1, nspins
-            CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
-         END DO
-         CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., my_recalc_integrals)
-         DO ispin = 1, nspins
-            CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
-         END DO
-      END IF
+            DO ispin = 1, nspins
+               CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
+               CALL cp_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
+                            0.0_dp, admm_env%work_aux_orb)
+               CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
+                            0.0_dp, admm_env%work_orb_orb)
+               CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_tmp, keep_sparsity=.TRUE.)
+               CALL dbcsr_add(dbcsr_work(ispin)%matrix, dbcsr_tmp, 1.0_dp, -1.0_dp)
+            END DO
+         ELSE
+            DO ispin = 1, nspins
+               CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
+            END DO
+            CALL tddft_hfx_matrix(dbcsr_work, rho_ao, qs_env, .FALSE., my_recalc_integrals)
+            DO ispin = 1, nspins
+               CALL dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp)
+            END DO
+         END IF
+      END IF !do_hfx
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
