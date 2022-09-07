@@ -555,7 +555,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_local, row_indices_local
       INTEGER, DIMENSION(maxspins)                       :: nactive, nmo_virt
       REAL(kind=dp)                                      :: e_occ_plus_lambda, eref, lambda
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: weights_ldata
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: weights_ldata
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: awork, vomat
       TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_struct, virt_mo_struct
 

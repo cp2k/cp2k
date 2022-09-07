@@ -478,7 +478,7 @@ CONTAINS
       LOGICAL                                            :: bisec, fail, set
       REAL(KIND=dp)                                      :: fun, fun1, fun2, fun3, fung, lam1, lam2, &
                                                             ln, lp, ssize, step, stol
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER            :: local_data
 
       CALL timeset(routineN, handle)
 
@@ -644,7 +644,7 @@ CONTAINS
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: DDOT, dxw, gdx
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_hes
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER            :: local_hes
 
       CALL timeset(routineN, handle)
 
@@ -755,7 +755,7 @@ CONTAINS
 
       INTEGER                                            :: i, indf, j, k, l, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER            :: local_data
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: tmp
 
@@ -864,7 +864,7 @@ CONTAINS
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: DDOT, ener1, ener2
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER            :: local_data
 
       CALL timeset(routineN, handle)
 
@@ -1019,7 +1019,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_ij, rho_ij
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: r_ij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: alpha, r0
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fixed, local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER            :: fixed, local_data
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles

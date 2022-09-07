@@ -1721,7 +1721,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
                                                             row_indices, row_indices_rec
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: local_L, rec_L
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_L_internal
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_L_internal
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)

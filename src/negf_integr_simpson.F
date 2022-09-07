@@ -133,7 +133,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'simpsonrule_init'
 
       INTEGER                                            :: handle, icol, irow, ncols, nrows
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: w_data, w_data_my
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: w_data, w_data_my
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
       CALL timeset(routineN, handle)
@@ -317,13 +318,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'simpsonrule_refine_integral'
 
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: zscale
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: error_zdata
+      COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: error_zdata
       INTEGER                                            :: handle, interval, ipoint, nintervals, &
                                                             nintervals_exist, npoints
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       REAL(kind=dp)                                      :: rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: errors
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: error_rdata
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: error_rdata
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(simpsonrule_subinterval_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subintervals

@@ -682,7 +682,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
                                                             row_indices, row_indices_rec
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, Cgw, Cocc, Cvirt, rec_C
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_C, local_C_internal
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_C, local_C_internal
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_coeff
       TYPE(group_dist_d1_type)                           :: gd_array
 

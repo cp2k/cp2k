@@ -558,7 +558,8 @@ CONTAINS
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: compatible_matrices
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fa, fb
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: fa, fb
       TYPE(cp_fm_struct_type), POINTER                   :: ksa_struct, ksb_struct
 
 ! -------------------------------------------------------------------------
@@ -635,7 +636,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: compatible_matrices
       REAL(KIND=dp)                                      :: beta, t1, t2, ta, tb
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: fa, fb
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: fa, fb
       TYPE(cp_fm_struct_type), POINTER                   :: ksa_struct, ksb_struct
 
 ! -------------------------------------------------------------------------

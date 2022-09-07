@@ -75,7 +75,7 @@ MODULE cp_cfm_types
       CHARACTER(len=60) :: name
       INTEGER :: id_nr, ref_count, print_count
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER :: local_data
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data
    END TYPE cp_cfm_type
 
 ! **************************************************************************************************
@@ -652,7 +652,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
       TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
       TYPE(cp_fm_struct_type), POINTER, OPTIONAL :: matrix_struct
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER, OPTIONAL :: local_data
+      COMPLEX(kind=dp), DIMENSION(:, :), CONTIGUOUS, POINTER, OPTIONAL :: local_data
 
       INTEGER i, nprow, npcol, myprow, mypcol
       TYPE(cp_blacs_env_type), POINTER :: ctxt

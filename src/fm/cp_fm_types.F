@@ -111,8 +111,8 @@ MODULE cp_fm_types
       INTEGER :: id_nr, ref_count, print_count
       LOGICAL :: use_sp
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: local_data
-      REAL(KIND=sp), DIMENSION(:, :), POINTER :: local_data_sp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data
+      REAL(KIND=sp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data_sp
    END TYPE cp_fm_type
 
 ! **************************************************************************************************
@@ -291,9 +291,10 @@ CONTAINS
          ncol_local, nrow_global, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buff
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       REAL(KIND=dp), DIMENSION(3, 2), SAVE :: &
          seed = RESHAPE((/1.0_dp, 2.0_dp, 3.0_dp, 4.0_dp, 5.0_dp, 6.0_dp/), (/3, 2/))
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
       TYPE(rng_stream_type)                              :: rng
 
       CALL timeset(routineN, handle)
@@ -861,7 +862,8 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: nrow_global, ncol_global, nrow_block, &
                                                             ncol_block, nrow_local, ncol_local
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_indices, col_indices
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         OPTIONAL, POINTER                               :: local_data
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: context
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nrow_locals, ncol_locals
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: matrix_struct
