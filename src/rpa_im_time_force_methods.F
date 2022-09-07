@@ -521,6 +521,14 @@ CONTAINS
          CALL dbcsr_create(force_data%sum_O_tau(ispin)%matrix, template=matrix_s(1)%matrix)
          CALL dbcsr_create(force_data%sum_ker_tau(ispin)%matrix, template=matrix_s(1)%matrix)
          CALL dbcsr_create(force_data%sum_YP_tau(ispin)%matrix, template=matrix_s(1)%matrix)
+
+         CALL dbcsr_copy(force_data%sum_O_tau(ispin)%matrix, matrix_s(1)%matrix)
+         CALL dbcsr_copy(force_data%sum_ker_tau(ispin)%matrix, matrix_s(1)%matrix)
+         CALL dbcsr_copy(force_data%sum_YP_tau(ispin)%matrix, matrix_s(1)%matrix)
+
+         CALL dbcsr_set(force_data%sum_O_tau(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(force_data%sum_ker_tau(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_set(force_data%sum_YP_tau(ispin)%matrix, 0.0_dp)
       END DO
 
       !Populate the density matrices: 1 = P_virt*S +P_occ*S ==> P_virt = S^-1 - P_occ
@@ -642,8 +650,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ, mat_dm_virt
       TYPE(dbcsr_type)                                   :: dbcsr_work1, dbcsr_work2, dbcsr_work3, &
-                                                            dbcsr_work_symm, exp_occ, exp_virt, &
-                                                            R_occ, R_virt, Y_1, Y_2
+                                                            exp_occ, exp_virt, R_occ, R_virt, Y_1, &
+                                                            Y_2
       TYPE(dbt_type) :: t_2c_AO, t_2c_RI, t_2c_RI_2, t_2c_tmp, t_3c_0, t_3c_1, t_3c_3, t_3c_4, &
          t_3c_5, t_3c_6, t_3c_7, t_3c_8, t_3c_help_1, t_3c_help_2, t_3c_ints, t_3c_sparse, &
          t_3c_work, t_dm_occ, t_dm_virt, t_KQKT, t_M_occ, t_M_virt, t_Q, t_R_occ, t_R_virt
@@ -756,7 +764,6 @@ CONTAINS
 
       CALL dbcsr_create(R_occ, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(R_virt, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
-      CALL dbcsr_create(dbcsr_work_symm, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_symmetric)
       CALL dbcsr_create(dbcsr_work1, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(dbcsr_work2, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(dbcsr_work3, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry)
@@ -903,24 +910,27 @@ CONTAINS
          END IF
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, Y_1, force_data%P_occ(Pspin)%matrix, 0.0_dp, dbcsr_work_symm)
-         CALL dbcsr_multiply('N', 'N', -1.0_dp, Y_2, force_data%P_virt(Pspin)%matrix, 1.0_dp, dbcsr_work_symm)
-
-         CALL dbcsr_add(force_data%sum_YP_tau(Pspin)%matrix, dbcsr_work_symm, 1.0_dp, tau*fac)
+         CALL dbcsr_multiply('N', 'N', tau*fac, Y_1, force_data%P_occ(Pspin)%matrix, 1.0_dp, &
+                             force_data%sum_YP_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply('N', 'N', -tau*fac, Y_2, force_data%P_virt(Pspin)%matrix, 1.0_dp, &
+                             force_data%sum_YP_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
 
          !Build-up the RHS of the response equation.
-         CALL dbcsr_multiply('N', 'N', 1.0_dp, R_virt, exp_occ, 0.0_dp, dbcsr_work_symm)
-         CALL dbcsr_multiply('N', 'N', -1.0_dp, R_occ, exp_virt, 1.0_dp, dbcsr_work_symm)
-         CALL dbcsr_multiply('N', 'N', tau, matrix_ks(Pspin)%matrix, Y_1, 1.0_dp, dbcsr_work_symm)
-         CALL dbcsr_multiply('N', 'N', tau, matrix_ks(Pspin)%matrix, Y_2, 1.0_dp, dbcsr_work_symm)
+         pref = -omega*mp2_env%scale_S
+         CALL dbcsr_multiply('N', 'N', pref, R_virt, exp_occ, 1.0_dp, &
+                             force_data%sum_O_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply('N', 'N', -pref, R_occ, exp_virt, 1.0_dp, &
+                             force_data%sum_O_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply('N', 'N', pref*tau, matrix_ks(Pspin)%matrix, Y_1, 1.0_dp, &
+                             force_data%sum_O_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply('N', 'N', pref*tau, matrix_ks(Pspin)%matrix, Y_2, 1.0_dp, &
+                             force_data%sum_O_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
 
-         CALL dbcsr_add(force_data%sum_O_tau(Pspin)%matrix, dbcsr_work_symm, 1.0_dp, -omega*mp2_env%scale_S)
-
-         CALL dbcsr_multiply('N', 'N', tau, Y_1, force_data%P_occ(Pspin)%matrix, 0.0_dp, dbcsr_work_symm)
-         CALL dbcsr_multiply('N', 'N', -tau, Y_2, force_data%P_virt(Pspin)%matrix, 1.0_dp, dbcsr_work_symm)
-
-         !Save the above, in order to apply the kernel to it and add it to sum_O_tau later
-         CALL dbcsr_add(force_data%sum_ker_tau(Pspin)%matrix, dbcsr_work_symm, 1.0_dp, fac)
+         !save the following to apply the kernel to it later
+         CALL dbcsr_multiply('N', 'N', fac*tau, Y_1, force_data%P_occ(Pspin)%matrix, 1.0_dp, &
+                             force_data%sum_ker_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply('N', 'N', -fac*tau, Y_2, force_data%P_virt(Pspin)%matrix, 1.0_dp, &
+                             force_data%sum_ker_tau(Pspin)%matrix, retain_sparsity=.TRUE.)
 
          CALL timestop(handle2)
 
@@ -1031,7 +1041,6 @@ CONTAINS
       CALL dbt_destroy(t_M_virt)
       CALL dbcsr_release(R_occ)
       CALL dbcsr_release(R_virt)
-      CALL dbcsr_release(dbcsr_work_symm)
       CALL dbcsr_release(dbcsr_work1)
       CALL dbcsr_release(dbcsr_work2)
       CALL dbcsr_release(dbcsr_work3)
@@ -1472,23 +1481,27 @@ CONTAINS
 
          !The final contribution from Tr[(tau*Y_1*P_occ - tau*Y_2*P_virt) * der_F]
          CALL dbcsr_multiply('N', 'N', fac*tau, Y_1, force_data%P_occ(ispin)%matrix, 1.0_dp, &
-                             force_data%sum_YP_tau(ispin)%matrix)
+                             force_data%sum_YP_tau(ispin)%matrix, retain_sparsity=.TRUE.)
          CALL dbcsr_multiply('N', 'N', -fac*tau, Y_2, force_data%P_virt(ispin)%matrix, 1.0_dp, &
-                             force_data%sum_YP_tau(ispin)%matrix)
+                             force_data%sum_YP_tau(ispin)%matrix, retain_sparsity=.TRUE.)
 
          spin_fac = 0.5_dp*fac
          IF (open_shell) spin_fac = 2.0_dp*spin_fac
          !Build-up the RHS of the response equation.
-         CALL dbcsr_multiply('N', 'N', 1.0_dp*spin_fac, R_virt, exp_occ, 1.0_dp, force_data%sum_O_tau(ispin)%matrix)
-         CALL dbcsr_multiply('N', 'N', -1.0_dp*spin_fac, R_occ, exp_virt, 1.0_dp, force_data%sum_O_tau(ispin)%matrix)
-         CALL dbcsr_multiply('N', 'N', tau*spin_fac, dbcsr_work_symm, Y_1, 1.0_dp, force_data%sum_O_tau(ispin)%matrix)
-         CALL dbcsr_multiply('N', 'N', tau*spin_fac, dbcsr_work_symm, Y_2, 1.0_dp, force_data%sum_O_tau(ispin)%matrix)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp*spin_fac, R_virt, exp_occ, 1.0_dp, &
+                             force_data%sum_O_tau(ispin)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply('N', 'N', -1.0_dp*spin_fac, R_occ, exp_virt, 1.0_dp, &
+                             force_data%sum_O_tau(ispin)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply('N', 'N', tau*spin_fac, dbcsr_work_symm, Y_1, 1.0_dp, &
+                             force_data%sum_O_tau(ispin)%matrix, retain_sparsity=.TRUE.)
+         CALL dbcsr_multiply('N', 'N', tau*spin_fac, dbcsr_work_symm, Y_2, 1.0_dp, &
+                             force_data%sum_O_tau(ispin)%matrix, retain_sparsity=.TRUE.)
 
-         !save the following to apply ther kernel to it later
+         !save the following to apply the kernel to it later
          CALL dbcsr_multiply('N', 'N', fac*tau, Y_1, force_data%P_occ(ispin)%matrix, 1.0_dp, &
-                             force_data%sum_ker_tau(ispin)%matrix)
+                             force_data%sum_ker_tau(ispin)%matrix, retain_sparsity=.TRUE.)
          CALL dbcsr_multiply('N', 'N', -fac*tau, Y_2, force_data%P_virt(ispin)%matrix, 1.0_dp, &
-                             force_data%sum_ker_tau(ispin)%matrix)
+                             force_data%sum_ker_tau(ispin)%matrix, retain_sparsity=.TRUE.)
 
          CALL timestop(handle2)
 
@@ -2254,7 +2267,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_for_response'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
-      LOGICAL                                            :: do_tau, do_tau_admm
+      LOGICAL                                            :: do_hfx, do_tau, do_tau_admm
       REAL(dp)                                           :: ehartree
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_p_work, ker_tau_admm, matrix_s, &
@@ -2269,12 +2282,12 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
-      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
 
       NULLIFY (pw_env, rhoz_g, rhoz_r, tauz_r, v_xc, v_xc_tau, tauz_g, &
                poisson_env, auxbas_pw_pool, dft_control, admm_env, xc_section, rho, rho_aux_fit, &
-               task_list_aux_fit, ker_tau_admm, work_admm, dbcsr_p_work, matrix_s)
+               task_list_aux_fit, ker_tau_admm, work_admm, dbcsr_p_work, matrix_s, hfx_section)
 
       CALL timeset(routineN, handle)
 
@@ -2474,26 +2487,30 @@ CONTAINS
       END IF
 
       !HFX kernel
-      IF (dft_control%do_admm) THEN
-         CALL tddft_hfx_matrix(work_admm, ker_tau_admm, qs_env, .FALSE., .FALSE.)
+      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF")
+      CALL section_vals_get(hfx_section, explicit=do_hfx)
+      IF (do_hfx) THEN
+         IF (dft_control%do_admm) THEN
+            CALL tddft_hfx_matrix(work_admm, ker_tau_admm, qs_env, .FALSE., .FALSE.)
 
-         !Going back to primary basis
-         CALL dbcsr_create(dbcsr_work, template=dbcsr_p_work(1)%matrix)
-         CALL dbcsr_copy(dbcsr_work, dbcsr_p_work(1)%matrix)
-         CALL dbcsr_set(dbcsr_work, 0.0_dp)
-         DO ispin = 1, nspins
-            CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
-            CALL cp_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
-                         0.0_dp, admm_env%work_aux_orb)
-            CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
-                         0.0_dp, admm_env%work_orb_orb)
-            CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_work, keep_sparsity=.TRUE.)
-            CALL dbcsr_add(dbcsr_p_work(ispin)%matrix, dbcsr_work, 1.0_dp, 1.0_dp)
-         END DO
-         CALL dbcsr_release(dbcsr_work)
-         CALL dbcsr_deallocate_matrix_set(ker_tau_admm)
-      ELSE
-         CALL tddft_hfx_matrix(dbcsr_p_work, force_data%sum_ker_tau, qs_env, .FALSE., .FALSE.)
+            !Going back to primary basis
+            CALL dbcsr_create(dbcsr_work, template=dbcsr_p_work(1)%matrix)
+            CALL dbcsr_copy(dbcsr_work, dbcsr_p_work(1)%matrix)
+            CALL dbcsr_set(dbcsr_work, 0.0_dp)
+            DO ispin = 1, nspins
+               CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
+               CALL cp_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
+                            0.0_dp, admm_env%work_aux_orb)
+               CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
+                            0.0_dp, admm_env%work_orb_orb)
+               CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_work, keep_sparsity=.TRUE.)
+               CALL dbcsr_add(dbcsr_p_work(ispin)%matrix, dbcsr_work, 1.0_dp, 1.0_dp)
+            END DO
+            CALL dbcsr_release(dbcsr_work)
+            CALL dbcsr_deallocate_matrix_set(ker_tau_admm)
+         ELSE
+            CALL tddft_hfx_matrix(dbcsr_p_work, force_data%sum_ker_tau, qs_env, .FALSE., .FALSE.)
+         END IF
       END IF
 
       DO ispin = 1, nspins
@@ -3475,124 +3492,126 @@ CONTAINS
 
          IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
 
-         IF (dft_control%do_admm) THEN
-            DO ispin = 1, nspins
-               CALL dbcsr_set(scrm_admm(ispin)%matrix, 0.0_dp)
-            END DO
-            CALL qs_rho_get(rho_aux_fit, tau_r_valid=do_tau_admm)
-
-            IF (.NOT. admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
-               CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
+         IF (do_hfx) THEN
+            IF (dft_control%do_admm) THEN
                DO ispin = 1, nspins
-                  CALL pw_zero(rhoz_r(ispin)%pw)
-                  CALL pw_zero(rhoz_g(ispin)%pw)
-                  CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density_admm(ispin)%matrix, &
-                                          rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin), &
-                                          basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
+                  CALL dbcsr_set(scrm_admm(ispin)%matrix, 0.0_dp)
                END DO
+               CALL qs_rho_get(rho_aux_fit, tau_r_valid=do_tau_admm)
 
-               IF (do_tau_admm) THEN
+               IF (.NOT. admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
+                  CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
                   DO ispin = 1, nspins
-                     CALL pw_zero(tauz_r(ispin)%pw)
-                     CALL pw_zero(tauz_g(ispin)%pw)
-                     CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density(ispin)%matrix, &
-                                             rho=tauz_r(ispin), rho_gspace=tauz_g(ispin), &
-                                             basis_type="AUX_FIT", task_list_external=task_list_aux_fit, &
-                                             compute_tau=.TRUE.)
-                  END DO
-               END IF
-
-               !Volume contribution to the virial
-               IF (use_virial) THEN
-                  exc = 0.0_dp
-                  DO ispin = 1, nspins
-                     exc = exc + pw_integral_ab(rhoz_r(ispin)%pw, vadmm_rspace(ispin)%pw)/ &
-                           vadmm_rspace(ispin)%pw%pw_grid%dvol
-                  END DO
-                  DO i = 1, 3
-                     virial%pv_exc(i, i) = virial%pv_exc(i, i) - exc/REAL(para_env%num_pe, dp)
-                     virial%pv_virial(i, i) = virial%pv_virial(i, i) - exc/REAL(para_env%num_pe, dp)
+                     CALL pw_zero(rhoz_r(ispin)%pw)
+                     CALL pw_zero(rhoz_g(ispin)%pw)
+                     CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density_admm(ispin)%matrix, &
+                                             rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin), &
+                                             basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
                   END DO
 
-                  virial%pv_xc = 0.0_dp
-               END IF
+                  IF (do_tau_admm) THEN
+                     DO ispin = 1, nspins
+                        CALL pw_zero(tauz_r(ispin)%pw)
+                        CALL pw_zero(tauz_g(ispin)%pw)
+                        CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density(ispin)%matrix, &
+                                                rho=tauz_r(ispin), rho_gspace=tauz_g(ispin), &
+                                                basis_type="AUX_FIT", task_list_external=task_list_aux_fit, &
+                                                compute_tau=.TRUE.)
+                     END DO
+                  END IF
 
-               xc_section => admm_env%xc_section_aux
-               CALL create_kernel(qs_env, v_xc, v_xc_tau, rho_aux_fit, rhoz_r, rhoz_g, tauz_r, xc_section, &
-                                  compute_virial=use_virial, virial_xc=virial%pv_xc)
+                  !Volume contribution to the virial
+                  IF (use_virial) THEN
+                     exc = 0.0_dp
+                     DO ispin = 1, nspins
+                        exc = exc + pw_integral_ab(rhoz_r(ispin)%pw, vadmm_rspace(ispin)%pw)/ &
+                              vadmm_rspace(ispin)%pw%pw_grid%dvol
+                     END DO
+                     DO i = 1, 3
+                        virial%pv_exc(i, i) = virial%pv_exc(i, i) - exc/REAL(para_env%num_pe, dp)
+                        virial%pv_virial(i, i) = virial%pv_virial(i, i) - exc/REAL(para_env%num_pe, dp)
+                     END DO
 
-               IF (use_virial) THEN
-                  virial%pv_exc = virial%pv_exc + virial%pv_xc
-                  virial%pv_virial = virial%pv_virial + virial%pv_xc
+                     virial%pv_xc = 0.0_dp
+                  END IF
 
-                  pv_loc = virial%pv_virial
-               END IF
+                  xc_section => admm_env%xc_section_aux
+                  CALL create_kernel(qs_env, v_xc, v_xc_tau, rho_aux_fit, rhoz_r, rhoz_g, tauz_r, xc_section, &
+                                     compute_virial=use_virial, virial_xc=virial%pv_xc)
 
-               CALL qs_rho_get(rho_aux_fit, rho_ao_kp=dbcsr_work_p)
-               DO ispin = 1, nspins
-                  CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
-                  CALL integrate_v_rspace(qs_env=qs_env, &
-                                          v_rspace=v_xc(ispin), &
-                                          hmat=scrm_admm(ispin), &
-                                          pmat=dbcsr_work_p(ispin, 1), &
-                                          calculate_forces=.TRUE., &
-                                          basis_type="AUX_FIT", &
-                                          task_list_external=task_list_aux_fit)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
-               END DO
-               DEALLOCATE (v_xc)
+                  IF (use_virial) THEN
+                     virial%pv_exc = virial%pv_exc + virial%pv_xc
+                     virial%pv_virial = virial%pv_virial + virial%pv_xc
 
-               IF (do_tau_admm) THEN
+                     pv_loc = virial%pv_virial
+                  END IF
+
+                  CALL qs_rho_get(rho_aux_fit, rho_ao_kp=dbcsr_work_p)
                   DO ispin = 1, nspins
-                     CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
+                     CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
                      CALL integrate_v_rspace(qs_env=qs_env, &
-                                             v_rspace=v_xc_tau(ispin), &
+                                             v_rspace=v_xc(ispin), &
                                              hmat=scrm_admm(ispin), &
                                              pmat=dbcsr_work_p(ispin, 1), &
                                              calculate_forces=.TRUE., &
                                              basis_type="AUX_FIT", &
-                                             task_list_external=task_list_aux_fit, &
-                                             compute_tau=.TRUE.)
-                     CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+                                             task_list_external=task_list_aux_fit)
+                     CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
                   END DO
-                  DEALLOCATE (v_xc_tau)
+                  DEALLOCATE (v_xc)
+
+                  IF (do_tau_admm) THEN
+                     DO ispin = 1, nspins
+                        CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
+                        CALL integrate_v_rspace(qs_env=qs_env, &
+                                                v_rspace=v_xc_tau(ispin), &
+                                                hmat=scrm_admm(ispin), &
+                                                pmat=dbcsr_work_p(ispin, 1), &
+                                                calculate_forces=.TRUE., &
+                                                basis_type="AUX_FIT", &
+                                                task_list_external=task_list_aux_fit, &
+                                                compute_tau=.TRUE.)
+                        CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+                     END DO
+                     DEALLOCATE (v_xc_tau)
+                  END IF
+
+                  IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
                END IF
 
-               IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
-            END IF
+               CALL tddft_hfx_matrix(scrm_admm, current_density_admm, qs_env, .FALSE., .FALSE.)
 
-            CALL tddft_hfx_matrix(scrm_admm, current_density_admm, qs_env, .FALSE., .FALSE.)
+               CALL qs_rho_get(rho, rho_ao_kp=dbcsr_work_p)
+               CALL admm_projection_derivative(qs_env, scrm_admm, dbcsr_work_p(:, 1))
 
-            CALL qs_rho_get(rho, rho_ao_kp=dbcsr_work_p)
-            CALL admm_projection_derivative(qs_env, scrm_admm, dbcsr_work_p(:, 1))
+               !If response density, need to get matrix_hz contribution
+               CALL dbcsr_create(dbcsr_work, template=matrix_s(1)%matrix)
+               IF (idens == 2) THEN
+                  nao = admm_env%nao_orb
+                  nao_aux = admm_env%nao_aux_fit
+                  DO ispin = 1, nspins
+                     CALL dbcsr_copy(dbcsr_work, matrix_hz(ispin)%matrix)
+                     CALL dbcsr_set(dbcsr_work, 0.0_dp)
 
-            !If response density, need to get matrix_hz contribution
-            CALL dbcsr_create(dbcsr_work, template=matrix_s(1)%matrix)
-            IF (idens == 2) THEN
-               nao = admm_env%nao_orb
-               nao_aux = admm_env%nao_aux_fit
-               DO ispin = 1, nspins
-                  CALL dbcsr_copy(dbcsr_work, matrix_hz(ispin)%matrix)
-                  CALL dbcsr_set(dbcsr_work, 0.0_dp)
+                     CALL cp_dbcsr_sm_fm_multiply(scrm_admm(ispin)%matrix, admm_env%A, &
+                                                  admm_env%work_aux_orb, nao)
+                     CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
+                                  1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                                  admm_env%work_orb_orb)
+                     CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_work, keep_sparsity=.TRUE.)
+                     CALL dbcsr_add(matrix_hz(ispin)%matrix, dbcsr_work, 1.0_dp, 1.0_dp)
+                  END DO
+               END IF
 
-                  CALL cp_dbcsr_sm_fm_multiply(scrm_admm(ispin)%matrix, admm_env%A, &
-                                               admm_env%work_aux_orb, nao)
-                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
-                               1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                               admm_env%work_orb_orb)
-                  CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_work, keep_sparsity=.TRUE.)
-                  CALL dbcsr_add(matrix_hz(ispin)%matrix, dbcsr_work, 1.0_dp, 1.0_dp)
-               END DO
-            END IF
+               CALL dbcsr_release(dbcsr_work)
+            ELSE !no admm
 
-            CALL dbcsr_release(dbcsr_work)
-         ELSE !no admm
-
-            !Need the contribution to matrix_hz as well
-            IF (idens == 2) THEN
-               CALL tddft_hfx_matrix(matrix_hz, current_density, qs_env, .FALSE., .FALSE.)
-            END IF
-         END IF !admm
+               !Need the contribution to matrix_hz as well
+               IF (idens == 2) THEN
+                  CALL tddft_hfx_matrix(matrix_hz, current_density, qs_env, .FALSE., .FALSE.)
+               END IF
+            END IF !admm
+         END IF !do_hfx
 
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_r(ispin)%pw)
