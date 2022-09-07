@@ -209,7 +209,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_all(matrix, alpha, beta)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: beta
 
@@ -262,7 +262,7 @@ CONTAINS
 !>      always return the answer
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_get_element(matrix, irow_global, icol_global, alpha)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
       INTEGER, INTENT(in)                                :: irow_global, icol_global
       COMPLEX(kind=dp), INTENT(out)                      :: alpha
 
@@ -309,7 +309,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_element(matrix, irow_global, icol_global, alpha)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
       INTEGER, INTENT(in)                                :: irow_global, icol_global
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
 
@@ -363,7 +363,7 @@ CONTAINS
 !>      Optimized for full column updates. The matrix target_m is replicated and valid on all CPUs.
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_get_submatrix(fm, target_m, start_row, start_col, n_rows, n_cols, transpose)
-      TYPE(cp_cfm_type), POINTER                         :: fm
+      TYPE(cp_cfm_type), INTENT(IN)                      :: fm
       COMPLEX(kind=dp), DIMENSION(:, :), INTENT(out)     :: target_m
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
@@ -379,9 +379,6 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(fm))
-      CPASSERT(fm%ref_count .GT. 0)
 
       IF (SIZE(target_m) /= 0) THEN
 #if defined(__SCALAPACK)
@@ -503,7 +500,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_submatrix(matrix, new_values, start_row, &
                                    start_col, n_rows, n_cols, alpha, beta, transpose)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
       COMPLEX(kind=dp), DIMENSION(:, :), INTENT(in)      :: new_values
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: alpha, beta
@@ -520,9 +517,6 @@ CONTAINS
       LOGICAL                                            :: tr_a
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(matrix%ref_count > 0)
 
       al = z_one
       be = z_zero
@@ -643,7 +637,7 @@ CONTAINS
                               nrow_block, ncol_block, nrow_local, ncol_local, &
                               row_indices, col_indices, local_data, context, &
                               matrix_struct, para_env)
-      TYPE(cp_cfm_type), POINTER        :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)           :: matrix
       CHARACTER(len=*), OPTIONAL, INTENT(OUT) :: name
       INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block, ncol_global, &
                                                  nrow_block, nrow_global, &
@@ -734,7 +728,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_cfm_matrix(source, destination)
-      TYPE(cp_cfm_type), POINTER                         :: source, destination
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: source, destination
 
       INTEGER                                            :: npcol, nprow
 
@@ -775,7 +769,7 @@ CONTAINS
    SUBROUTINE cp_cfm_to_cfm_columns(msource, mtarget, ncol, source_start, &
                                     target_start)
 
-      TYPE(cp_cfm_type), POINTER                         :: msource, mtarget
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: msource, mtarget
       INTEGER, INTENT(IN)                                :: ncol
       INTEGER, INTENT(IN), OPTIONAL                      :: source_start, target_start
 
@@ -822,7 +816,7 @@ CONTAINS
 !> \param uplo    'U' for upper triangular, 'L' for lower triangular
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_cfm_triangular(msource, mtarget, uplo)
-      TYPE(cp_cfm_type), POINTER                         :: msource, mtarget
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: msource, mtarget
       CHARACTER(len=*), INTENT(IN)                       :: uplo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_cfm_triangular'
@@ -863,8 +857,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_fm(msource, mtargetr, mtargeti)
 
-      TYPE(cp_cfm_type), POINTER                         :: msource
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: mtargetr, mtargeti
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: msource
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: mtargetr, mtargeti
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_to_fm'
 
@@ -914,8 +908,8 @@ CONTAINS
 !>        Matrix structures are assumed to be equivalent.
 ! **************************************************************************************************
    SUBROUTINE cp_fm_to_cfm(msourcer, msourcei, mtarget)
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: msourcer, msourcei
-      TYPE(cp_cfm_type), POINTER                         :: mtarget
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: msourcer, msourcei
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: mtarget
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_to_cfm'
 
