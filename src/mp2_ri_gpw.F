@@ -573,7 +573,7 @@ CONTAINS
                CALL quasi_degenerate_P_ij( &
                   mp2_env, Eigenval(:, ispin:jspin), homo(ispin:jspin), virtual(ispin:jspin), my_open_shell_ss, &
                   my_beta_beta_case, Bib_C(ispin:jspin), unit_nr, dimen_RI, &
-                  my_B_size(ispin:jspin), ngroup, num_integ_group, my_group_L_size, &
+                  my_B_size(ispin:jspin), ngroup, my_group_L_size, &
                   color_sub, ranges_info_array, para_env_exchange, para_env_sub, para_env, proc_map, &
                   my_B_virtual_start(ispin:jspin), my_B_virtual_end(ispin:jspin), gd_array%sizes, gd_B_virtual(ispin:jspin), &
                   sub_proc_map, integ_group_pos2color_sub, dgemm_counter, buffer_1D)
@@ -741,6 +741,40 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE fill_local_i_aL
+
+! **************************************************************************************************
+!> \brief ...
+!> \param local_i_aL ...
+!> \param ranges_info_array ...
+!> \param BIb_C_rec ...
+! **************************************************************************************************
+   SUBROUTINE fill_local_i_aL_2D(local_i_aL, ranges_info_array, BIb_C_rec)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: local_i_aL
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: ranges_info_array
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: BIb_C_rec
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_local_i_aL_2D'
+
+      INTEGER                                            :: end_point, handle, irep, Lend_pos, &
+                                                            Lstart_pos, start_point
+
+      CALL timeset(routineN, handle)
+
+      DO irep = 1, SIZE(ranges_info_array, 2)
+         Lstart_pos = ranges_info_array(1, irep)
+         Lend_pos = ranges_info_array(2, irep)
+         start_point = ranges_info_array(3, irep)
+         end_point = ranges_info_array(4, irep)
+
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) &
+!$OMP          SHARED(BIb_C_rec,local_i_aL,Lstart_pos,Lend_pos,start_point,end_point)
+         local_i_aL(Lstart_pos:Lend_pos, :) = BIb_C_rec(start_point:end_point, :)
+!$OMP END PARALLEL WORKSHARE
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE fill_local_i_aL_2D
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2113,7 +2147,6 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param my_B_size ...
 !> \param ngroup ...
-!> \param num_integ_group ...
 !> \param my_group_L_size ...
 !> \param color_sub ...
 !> \param ranges_info_array ...
@@ -2132,7 +2165,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE quasi_degenerate_P_ij(mp2_env, Eigenval, homo, virtual, open_shell, &
                                     beta_beta, Bib_C, unit_nr, dimen_RI, &
-                                    my_B_size, ngroup, num_integ_group, my_group_L_size, &
+                                    my_B_size, ngroup, my_group_L_size, &
                                     color_sub, ranges_info_array, para_env_exchange, para_env_sub, para_env, proc_map, &
                                     my_B_virtual_start, my_B_virtual_end, sizes_array, gd_B_virtual, &
                                     sub_proc_map, integ_group_pos2color_sub, dgemm_counter, buffer_1D)
@@ -2144,8 +2177,7 @@ CONTAINS
          INTENT(IN)                                      :: BIb_C
       INTEGER, INTENT(IN)                                :: unit_nr, dimen_RI
       INTEGER, DIMENSION(:), INTENT(IN)                  :: my_B_size
-      INTEGER, INTENT(IN)                                :: ngroup, num_integ_group, &
-                                                            my_group_L_size, color_sub
+      INTEGER, INTENT(IN)                                :: ngroup, my_group_L_size, color_sub
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange, para_env_sub, para_env
@@ -2159,12 +2191,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'quasi_degenerate_P_ij'
 
-      INTEGER :: a, a_global, b, b_global, block_size, end_point, handle, handle2, ijk_counter, &
-         ijk_counter_send, ijk_index, irep, ispin, kkB, kspin, Lend_pos, Lstart_pos, &
-         max_block_size, max_ijk, my_i, my_ijk, my_j, my_k, my_virtual, nspins, proc_receive, &
-         proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, &
-         send_B_size, send_B_virtual_end, send_B_virtual_start, send_i, send_ijk_index, send_j, &
-         send_k, size_B_i, size_B_k, start_point, tag, tag2
+      INTEGER :: a, a_global, b, b_global, block_size, handle, handle2, ijk_counter, &
+         ijk_counter_send, ijk_index, ispin, kkB, kspin, max_block_size, max_ijk, my_i, my_ijk, &
+         my_j, my_k, my_virtual, nspins, proc_receive, proc_send, proc_shift, rec_B_size, &
+         rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, &
+         send_B_virtual_start, send_i, send_ijk_index, send_j, send_k, size_B_i, size_B_k, tag, &
+         tag2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_ijk
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ijk_map
       LOGICAL                                            :: alpha_beta
@@ -2229,22 +2261,10 @@ CONTAINS
                local_aL_i = 0.0_dp
                local_aL_j = 0.0_dp
                local_aL_k = 0.0_dp
-               DO irep = 0, num_integ_group - 1
-                  Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
-                  Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
-                  start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
-                  end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-
-!$OMP PARALLEL DEFAULT(NONE) SHARED(local_aL_i,local_aL_j,Lstart_pos,Lend_pos,start_point,end_point,&
-!$OMP                               my_i,my_j,BIb_C,ispin)
-!$OMP WORKSHARE
-                  local_aL_i(Lstart_pos:Lend_pos, :) = BIb_C(ispin)%array(start_point:end_point, :, my_i)
-!$OMP END WORKSHARE NOWAIT
-!$OMP WORKSHARE
-                  local_aL_j(Lstart_pos:Lend_pos, :) = BIb_C(ispin)%array(start_point:end_point, :, my_j)
-!$OMP END WORKSHARE NOWAIT
-!$OMP END PARALLEL
-               END DO
+               CALL fill_local_i_aL_2D(local_al_i, ranges_info_array(:, :, para_env_exchange%mepos), &
+                                       BIb_C(ispin)%array(:, :, my_i))
+               CALL fill_local_i_aL_2D(local_al_j, ranges_info_array(:, :, para_env_exchange%mepos), &
+                                       BIb_C(ispin)%array(:, :, my_j))
                CALL fill_local_i_aL(local_aL_k(:, :, 1:block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
                                     BIb_C(kspin)%array(:, :, my_k:my_k + block_size - 1))
 
@@ -2278,16 +2298,7 @@ CONTAINS
                      CALL mp_recv(BI_C_rec, proc_receive, tag, &
                                   para_env_exchange%group)
                   END IF
-                  DO irep = 0, num_integ_group - 1
-                     Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                     Lend_pos = ranges_info_array(2, irep, proc_receive)
-                     start_point = ranges_info_array(3, irep, proc_receive)
-                     end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL_i,Lstart_pos,Lend_pos,BI_C_rec,start_point,end_point)
-                     local_aL_i(Lstart_pos:Lend_pos, :) = BI_C_rec(start_point:end_point, :)
-!$OMP END PARALLEL WORKSHARE
-                  END DO
+                  CALL fill_local_i_aL_2D(local_al_i, ranges_info_array(:, :, proc_receive), BI_C_rec)
 
                   ! occupied j
                   BI_C_rec = 0.0_dp
@@ -2300,16 +2311,7 @@ CONTAINS
                      CALL mp_recv(BI_C_rec, proc_receive, tag, &
                                   para_env_exchange%group)
                   END IF
-                  DO irep = 0, num_integ_group - 1
-                     Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                     Lend_pos = ranges_info_array(2, irep, proc_receive)
-                     start_point = ranges_info_array(3, irep, proc_receive)
-                     end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL_j,Lstart_pos,Lend_pos,BI_C_rec,start_point,end_point)
-                     local_aL_j(Lstart_pos:Lend_pos, :) = BI_C_rec(start_point:end_point, :)
-!$OMP END PARALLEL WORKSHARE
-                  END DO
+                  CALL fill_local_i_aL_2D(local_al_j, ranges_info_array(:, :, proc_receive), BI_C_rec)
 
                   ! occupied k
                  BI_C_rec_3D(1:rec_L_size, 1:size_B_k, 1:block_size) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k*block_size)
