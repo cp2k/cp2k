@@ -2239,7 +2239,7 @@ CONTAINS
 
          CALL Find_quasi_degenerate_ij(my_ijk, homo(ispin), homo(kspin), Eigenval(:, ispin), mp2_env, ijk_map, unit_nr, ngroup, &
                                        .NOT. beta_beta .AND. ispin /= 2, para_env_exchange, num_ijk, max_ijk, color_sub, &
-                                       SIZE(buffer_1D), my_group_L_size, size_B_k, para_env)
+                                       SIZE(buffer_1D), my_group_L_size, size_B_k, para_env, virtual(ispin), size_B_i)
 
          my_virtual = virtual(ispin)
          IF (SIZE(ijk_map, 2) > 0) THEN
@@ -2593,12 +2593,14 @@ CONTAINS
 !> \param color_sub ...
 !> \param buffer_size ...
 !> \param my_group_L_size ...
-!> \param my_B_size ...
+!> \param B_size_k ...
 !> \param para_env ...
+!> \param virtual ...
+!> \param B_size_i ...
 ! **************************************************************************************************
    SUBROUTINE Find_quasi_degenerate_ij(my_ijk, homo, homo_beta, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
                                        do_print_alpha, para_env_exchange, num_ijk, max_ijk, color_sub, &
-                                       buffer_size, my_group_L_size, my_B_size, para_env)
+                                       buffer_size, my_group_L_size, B_size_k, para_env, virtual, B_size_i)
 
       INTEGER, INTENT(OUT)                               :: my_ijk
       INTEGER, INTENT(IN)                                :: homo, homo_beta
@@ -2611,12 +2613,14 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: num_ijk
       INTEGER, INTENT(OUT)                               :: max_ijk
       INTEGER, INTENT(IN)                                :: color_sub, buffer_size, my_group_L_size, &
-                                                            my_B_size
+                                                            B_size_k
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
+      INTEGER, INTENT(IN)                                :: virtual, B_size_i
 
       INTEGER :: block_size, communication_steps, communication_volume, iib, ij_counter, &
          ijk_counter, jjb, kkb, max_block_size, max_num_k_blocks, min_communication_volume, &
          my_steps, num_k_blocks, num_sing_ij, total_ijk
+      INTEGER(KIND=int_8)                                :: mem
       LOGICAL, ALLOCATABLE, DIMENSION(:, :)              :: ijk_marker
 
       ALLOCATE (num_ijk(0:para_env_exchange%num_pe - 1))
@@ -2641,7 +2645,17 @@ CONTAINS
       END IF
 
       ! Determine the block size, first guess: use available buffer
-      max_block_size = buffer_size/my_group_L_size/my_B_size
+      max_block_size = buffer_size/(my_group_L_size*B_size_k)
+
+      ! Second limit: memory
+      CALL m_memory(mem)
+      ! Convert to number of doubles
+      mem = mem/8
+      ! Remove local_ab (2x) and local_aL_i (2x)
+      mem = mem - 2_int_8*(virtual*B_size_k + B_size_i*my_group_L_size)
+      max_block_size = MIN(max_block_size, MAX(1, INT(mem/(my_group_L_size*B_size_k), KIND(max_block_size))))
+
+      ! Exchange the limit
       CALL mp_min(max_block_size, para_env%group)
 
       ! Find now the block size which minimizes the communication volume and then the number of communication steps
