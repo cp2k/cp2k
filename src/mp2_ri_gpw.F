@@ -38,7 +38,7 @@ MODULE mp2_ri_gpw
                                               mp_recv,&
                                               mp_send,&
                                               mp_sendrecv,&
-                                              mp_sum, mp_sync
+                                              mp_sum
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: mp2_type,&
                                               three_dim_real_array
@@ -574,7 +574,7 @@ CONTAINS
                   mp2_env, Eigenval(:, ispin:jspin), homo(ispin:jspin), virtual(ispin:jspin), my_open_shell_ss, &
                   my_beta_beta_case, Bib_C(ispin:jspin), unit_nr, dimen_RI, &
                   my_B_size(ispin:jspin), ngroup, num_integ_group, my_group_L_size, &
-                  color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
+                  color_sub, ranges_info_array, para_env_exchange, para_env_sub, para_env, proc_map, &
                   my_B_virtual_start(ispin:jspin), my_B_virtual_end(ispin:jspin), gd_array%sizes, gd_B_virtual(ispin:jspin), &
                   sub_proc_map, integ_group_pos2color_sub, dgemm_counter, buffer_1D)
 
@@ -2119,6 +2119,7 @@ CONTAINS
 !> \param ranges_info_array ...
 !> \param para_env_exchange ...
 !> \param para_env_sub ...
+!> \param para_env ...
 !> \param proc_map ...
 !> \param my_B_virtual_start ...
 !> \param my_B_virtual_end ...
@@ -2132,7 +2133,7 @@ CONTAINS
    SUBROUTINE quasi_degenerate_P_ij(mp2_env, Eigenval, homo, virtual, open_shell, &
                                     beta_beta, Bib_C, unit_nr, dimen_RI, &
                                     my_B_size, ngroup, num_integ_group, my_group_L_size, &
-                                    color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
+                                    color_sub, ranges_info_array, para_env_exchange, para_env_sub, para_env, proc_map, &
                                     my_B_virtual_start, my_B_virtual_end, sizes_array, gd_B_virtual, &
                                     sub_proc_map, integ_group_pos2color_sub, dgemm_counter, buffer_1D)
       TYPE(mp2_type)                                     :: mp2_env
@@ -2147,7 +2148,7 @@ CONTAINS
                                                             my_group_L_size, color_sub
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange, para_env_sub, para_env
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: my_B_virtual_start, my_B_virtual_end
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
@@ -2179,7 +2180,7 @@ CONTAINS
       MARK_USED(my_group_L_size)
 
       tag = 44
-tag2=45
+      tag2 = 45
 
       nspins = SIZE(BIb_C)
       alpha_beta = (nspins == 2)
@@ -2202,7 +2203,7 @@ tag2=45
 
          CALL Find_quasi_degenerate_ij(my_ijk, homo(ispin), homo(kspin), Eigenval(:, ispin), mp2_env, ijk_map, unit_nr, ngroup, &
                                        .NOT. beta_beta .AND. ispin /= 2, para_env_exchange, num_ijk, max_ijk, color_sub, &
-                                       SIZE(buffer_1D), my_group_L_size, size_B_k, para_env_sub)
+                                       SIZE(buffer_1D), my_group_L_size, size_B_k, para_env)
 
          my_virtual = virtual(ispin)
          IF (SIZE(ijk_map, 1) > 0) THEN
@@ -2526,10 +2527,11 @@ tag2=45
 !> \param buffer_size ...
 !> \param my_group_L_size ...
 !> \param my_B_size ...
+!> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE Find_quasi_degenerate_ij(my_ijk, homo, homo_beta, Eigenval, mp2_env, ijk_map, unit_nr, ngroup, &
                                        do_print_alpha, para_env_exchange, num_ijk, max_ijk, color_sub, &
-                                       buffer_size, my_group_L_size, my_B_size, para_env_sub)
+                                       buffer_size, my_group_L_size, my_B_size, para_env)
 
       INTEGER, INTENT(OUT)                               :: my_ijk
       INTEGER, INTENT(IN)                                :: homo, homo_beta
@@ -2538,11 +2540,12 @@ tag2=45
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: ijk_map
       INTEGER, INTENT(IN)                                :: unit_nr, ngroup
       LOGICAL, INTENT(IN)                                :: do_print_alpha
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange, para_env_sub
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_exchange
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: num_ijk
       INTEGER, INTENT(OUT)                               :: max_ijk
       INTEGER, INTENT(IN)                                :: color_sub, buffer_size, my_group_L_size, &
                                                             my_B_size
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
 
       INTEGER :: block_size, communication_steps, communication_volume, iib, ij_counter, &
          ijk_counter, jjb, kkb, max_block_size, max_num_k_blocks, min_communication_volume, &
@@ -2572,8 +2575,7 @@ tag2=45
 
       ! Determine the block size, first guess: use available buffer
       max_block_size = buffer_size/my_group_L_size/my_B_size
-CALL mp_min(max_block_size, para_env_exchange%group)
-CALL mp_min(max_block_size, para_env_sub%group)
+      CALL mp_min(max_block_size, para_env%group)
 
       ! Find now the block size which minimizes the communication volume and then the number of communication steps
       block_size = 1
@@ -2604,7 +2606,7 @@ CALL mp_min(max_block_size, para_env_sub%group)
       max_num_k_blocks = homo_beta/block_size*num_sing_ij
       num_k_blocks = max_num_k_blocks - MOD(max_num_k_blocks, ngroup)
 
-      total_ijk = num_k_blocks+homo_beta*num_sing_ij-num_k_blocks*block_size
+      total_ijk = num_k_blocks + homo_beta*num_sing_ij - num_k_blocks*block_size
       ALLOCATE (ijk_map(total_ijk, 4))
       ijk_map = 0
       ALLOCATE (ijk_marker(homo_beta, num_sing_ij))
