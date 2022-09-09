@@ -2368,7 +2368,7 @@ CONTAINS
                         DO a = 1, my_B_size(1)
                            a_global = a + my_B_virtual_start(1) - 1
                            t_ab(a_global, b) = (amp_fac*local_ab(a_global, b) - mp2_env%scale_T*local_ab(b_global, a))/ &
-                                               (Eigenval(my_i, 1) + Eigenval(my_k, 1) &
+                                               (Eigenval(my_i, 1) + Eigenval(my_k + kkB - 1, 1) &
                                                 - Eigenval(homo(1) + a_global, 1) - Eigenval(homo(1) + b_global, 1))
                         END DO
                      END DO
@@ -2378,7 +2378,7 @@ CONTAINS
                         DO a = 1, my_B_size(ispin)
                            a_global = a + my_B_virtual_start(ispin) - 1
                            t_ab(a_global, b) = mp2_env%scale_S*local_ab(a_global, b)/ &
-                                               (Eigenval(my_i, ispin) + Eigenval(my_k, kspin) &
+                                               (Eigenval(my_i, ispin) + Eigenval(my_k + kkB - 1, kspin) &
                                                 - Eigenval(homo(ispin) + a_global, ispin) - Eigenval(homo(kspin) + b_global, kspin))
                         END DO
                      END DO
@@ -2400,7 +2400,7 @@ CONTAINS
                            DO a = 1, rec_B_size
                               a_global = a + rec_B_virtual_start - 1
                               t_ab(a_global, b) = (amp_fac*local_ab(a_global, b) - mp2_env%scale_T*external_ab(b, a))/ &
-                                                  (Eigenval(my_i, 1) + Eigenval(my_k, 1) &
+                                                  (Eigenval(my_i, 1) + Eigenval(my_k + kkB - 1, 1) &
                                                    - Eigenval(homo(1) + a_global, 1) - Eigenval(homo(1) + b_global, 1))
                            END DO
                         END DO
@@ -2441,7 +2441,7 @@ CONTAINS
                      DO a = 1, my_B_size(ispin)
                         a_global = a + my_B_virtual_start(ispin) - 1
                         local_ab(a_global, b) = &
-                           local_ab(a_global, b)/(Eigenval(my_j, ispin) + Eigenval(my_k, kspin) &
+                           local_ab(a_global, b)/(Eigenval(my_j, ispin) + Eigenval(my_k + kkB - 1, kspin) &
                                                 - Eigenval(homo(ispin) + a_global, ispin) - Eigenval(homo(kspin) + b_global, kspin))
                      END DO
                   END DO
