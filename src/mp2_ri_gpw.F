@@ -2235,19 +2235,18 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
-!$OMP PARALLEL DEFAULT(NONE) SHARED(local_aL_i,local_aL_j,local_aL_k,Lstart_pos,Lend_pos,start_point,end_point,&
-!$OMP                               my_i,my_j,my_k,BIb_C,ispin,kspin,block_size)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(local_aL_i,local_aL_j,Lstart_pos,Lend_pos,start_point,end_point,&
+!$OMP                               my_i,my_j,BIb_C,ispin)
 !$OMP WORKSHARE
                   local_aL_i(Lstart_pos:Lend_pos, :) = BIb_C(ispin)%array(start_point:end_point, :, my_i)
 !$OMP END WORKSHARE NOWAIT
 !$OMP WORKSHARE
                   local_aL_j(Lstart_pos:Lend_pos, :) = BIb_C(ispin)%array(start_point:end_point, :, my_j)
 !$OMP END WORKSHARE NOWAIT
-!$OMP WORKSHARE
-         local_aL_k(Lstart_pos:Lend_pos, :, 1:block_size) = BIb_C(kspin)%array(start_point:end_point, :, my_k:my_k + block_size - 1)
-!$OMP END WORKSHARE NOWAIT
 !$OMP END PARALLEL
                END DO
+               CALL fill_local_i_aL(local_aL_k(:, :, 1:block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
+                                    BIb_C(kspin)%array(:, :, my_k:my_k + block_size - 1))
 
                CALL timeset(routineN//"_comm", handle2)
                DO proc_shift = 1, para_env_exchange%num_pe - 1
@@ -2323,16 +2322,7 @@ CONTAINS
                      CALL mp_recv(BI_C_rec, proc_receive, tag, &
                                   para_env_exchange%group)
                   END IF
-                  DO irep = 0, num_integ_group - 1
-                     Lstart_pos = ranges_info_array(1, irep, proc_receive)
-                     Lend_pos = ranges_info_array(2, irep, proc_receive)
-                     start_point = ranges_info_array(3, irep, proc_receive)
-                     end_point = ranges_info_array(4, irep, proc_receive)
-
-!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL_k,Lstart_pos,Lend_pos,BI_C_rec_3D,start_point,end_point, block_size)
-                     local_aL_k(Lstart_pos:Lend_pos, :, 1:block_size) = BI_C_rec_3D(start_point:end_point, :, :)
-!$OMP END PARALLEL WORKSHARE
-                  END DO
+                  CALL fill_local_i_aL(local_al_k(:, :, 1:block_size), ranges_info_array(:, :, proc_receive), BI_C_rec_3D)
                END DO
                CALL timestop(handle2)
 
