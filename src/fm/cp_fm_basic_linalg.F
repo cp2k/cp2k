@@ -88,9 +88,9 @@ CONTAINS
    SUBROUTINE cp_fm_scale_and_add(alpha, matrix_a, beta, matrix_b)
 
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), POINTER                          :: matrix_a
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_a
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: beta
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: matrix_b
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_scale_and_add'
 
@@ -109,13 +109,8 @@ CONTAINS
       IF (PRESENT(beta)) my_beta = beta
       NULLIFY (a, b)
 
-      CPASSERT(ASSOCIATED(matrix_a))
-      CPASSERT(matrix_a%ref_count > 0)
-
       IF (PRESENT(beta)) THEN
          CPASSERT(PRESENT(matrix_b))
-         CPASSERT(ASSOCIATED(matrix_b))
-         CPASSERT(matrix_b%ref_count > 0)
          IF (matrix_a%id_nr == matrix_b%id_nr) THEN
             IF (matrix_a%id_nr == matrix_b%id_nr) &
                CPWARN("Bad use of routine. Call cp_fm_scale instead")
@@ -194,7 +189,7 @@ CONTAINS
    SUBROUTINE cp_fm_geadd(alpha, trans, matrix_a, beta, matrix_b)
       REAL(KIND=dp), INTENT(IN) :: alpha, beta
       CHARACTER, INTENT(IN) :: trans
-      TYPE(cp_fm_type), POINTER :: matrix_a, matrix_b
+      TYPE(cp_fm_type), INTENT(INOUT) :: matrix_a, matrix_b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geadd'
 
@@ -208,8 +203,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(matrix_a))
-      CPASSERT(ASSOCIATED(matrix_b))
       nrow_global = matrix_a%matrix_struct%nrow_global
       ncol_global = matrix_a%matrix_struct%ncol_global
       CPASSERT(nrow_global .EQ. matrix_b%matrix_struct%nrow_global)
@@ -273,7 +266,7 @@ CONTAINS
 !>      - Use cp_fm_get_diag instead of n times cp_fm_get_element (A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_lu_decompose(matrix_a, almost_determinant, correct_sign)
-      TYPE(cp_fm_type), POINTER                :: matrix_a
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a
       REAL(KIND=dp), INTENT(OUT)               :: almost_determinant
       LOGICAL, INTENT(IN), OPTIONAL            :: correct_sign
 
@@ -364,9 +357,9 @@ CONTAINS
       CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
       INTEGER, INTENT(IN)                      :: m, n, k
       REAL(KIND=dp), INTENT(IN)                :: alpha
-      TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix_a, matrix_b
       REAL(KIND=dp), INTENT(IN)                :: beta
-      TYPE(cp_fm_type), POINTER                :: matrix_c
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL            :: a_first_col, a_first_row, &
                                                   b_first_col, b_first_row, &
                                                   c_first_col, c_first_row
@@ -500,9 +493,9 @@ CONTAINS
       CHARACTER(LEN=1), INTENT(IN)             :: side, uplo
       INTEGER, INTENT(IN)                      :: m, n
       REAL(KIND=dp), INTENT(IN)                :: alpha
-      TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
+      TYPE(cp_fm_type), INTENT(IN)                :: matrix_a, matrix_b
       REAL(KIND=dp), INTENT(IN)                :: beta
-      TYPE(cp_fm_type), POINTER                :: matrix_c
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_symm'
 
@@ -548,8 +541,8 @@ CONTAINS
 !> \author VW
 ! **************************************************************************************************
    SUBROUTINE cp_fm_frobenius_norm(matrix_a, norm)
-      TYPE(cp_fm_type), POINTER                :: matrix_a
-      REAL(KIND=dp), INTENT(inout)             :: norm
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix_a
+      REAL(KIND=dp), INTENT(OUT)               :: norm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_frobenius_norm'
 
@@ -597,10 +590,10 @@ CONTAINS
       CHARACTER(LEN=1), INTENT(IN)             :: uplo, trans
       INTEGER, INTENT(IN)                      :: k
       REAL(KIND=dp), INTENT(IN)                :: alpha
-      TYPE(cp_fm_type), POINTER                :: matrix_a
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix_a
       INTEGER, INTENT(IN)                      :: ia, ja
       REAL(KIND=dp), INTENT(IN)                :: beta
-      TYPE(cp_fm_type), POINTER                :: matrix_c
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syrk'
 
@@ -648,7 +641,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_schur_product(matrix_a, matrix_b, matrix_c)
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_a, matrix_b, matrix_c
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_a, matrix_b, matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_schur_product'
 
@@ -698,7 +691,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_trace_a0b0t0(matrix_a, matrix_b, trace)
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_a, matrix_b
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_a, matrix_b
       REAL(KIND=dp), INTENT(OUT)                         :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a0b0t0'
@@ -769,7 +762,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_trace_a1b0t1(matrix_a, matrix_b, trace)
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrix_a
-      TYPE(cp_fm_type), POINTER                          :: matrix_b
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_b
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: trace
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace_a1b0t1'
@@ -1023,7 +1016,7 @@ CONTAINS
    SUBROUTINE cp_fm_triangular_multiply(triangular_matrix, matrix_b, side, &
                                         transpose_tr, invert_tr, uplo_tr, unit_diag_tr, n_rows, n_cols, &
                                         alpha)
-      TYPE(cp_fm_type), POINTER                          :: triangular_matrix, matrix_b
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: triangular_matrix, matrix_b
       CHARACTER, INTENT(in), OPTIONAL                    :: side
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose_tr, invert_tr
       CHARACTER, INTENT(in), OPTIONAL                    :: uplo_tr
@@ -1112,7 +1105,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_scale(alpha, matrix_a)
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), POINTER                          :: matrix_a
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_scale'
 
@@ -1122,9 +1115,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (a)
-
-      CPASSERT(ASSOCIATED(matrix_a))
-      CPASSERT(matrix_a%ref_count > 0)
 
       a => matrix_a%local_data
       size_a = SIZE(a, 1)*SIZE(a, 2)
@@ -1144,7 +1134,7 @@ CONTAINS
 !>      all matrix elements are transposed (see cp_fm_upper_to_half to symmetrise a matrix)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_transpose(matrix, matrixt)
-      TYPE(cp_fm_type), POINTER                :: matrix, matrixt
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, matrixt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_transpose'
 
@@ -1157,8 +1147,6 @@ CONTAINS
       INTEGER                                  :: i, j
 #endif
 
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(ASSOCIATED(matrixt))
       nrow_global = matrix%matrix_struct%nrow_global
       ncol_global = matrix%matrix_struct%ncol_global
       nrow_globalt = matrixt%matrix_struct%nrow_global
@@ -1196,7 +1184,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_upper_to_full(matrix, work)
 
-      TYPE(cp_fm_type), POINTER                :: matrix, work
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, work
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_upper_to_full'
 
@@ -1217,8 +1205,6 @@ CONTAINS
       REAL(KIND=sp), DIMENSION(:, :), POINTER   :: c_sp
 #endif
 
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(ASSOCIATED(work))
       nrow_global = matrix%matrix_struct%nrow_global
       ncol_global = matrix%matrix_struct%ncol_global
       CPASSERT(nrow_global == ncol_global)
@@ -1320,7 +1306,7 @@ CONTAINS
 !>      where every vector has a different prefactor
 ! **************************************************************************************************
    SUBROUTINE cp_fm_column_scale(matrixa, scaling)
-      TYPE(cp_fm_type), POINTER                :: matrixa
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrixa
       REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
 
       INTEGER                                  :: k, mypcol, myprow, n, ncol_global, &
@@ -1383,7 +1369,7 @@ CONTAINS
 !> \note
 ! **************************************************************************************************
    SUBROUTINE cp_fm_row_scale(matrixa, scaling)
-      TYPE(cp_fm_type), POINTER                :: matrixa
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrixa
       REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
 
       INTEGER                                  :: n, m, nrow_global, nrow_local, ncol_local
@@ -1454,7 +1440,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_invert(matrix_a, matrix_inverse, det_a, eps_svd, eigval)
 
-      TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_inverse
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a, matrix_inverse
       REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: det_a
       REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_svd
       REAL(KIND=dp), DIMENSION(:), POINTER, &
@@ -1631,7 +1617,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_triangular_invert(matrix_a, uplo_tr)
 
-      TYPE(cp_fm_type), POINTER                :: matrix_a
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a
       CHARACTER, INTENT(IN), OPTIONAL          :: uplo_tr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_triangular_invert'
@@ -1679,7 +1665,7 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE cp_fm_qr_factorization(matrix_a, matrix_r, nrow_fact, ncol_fact, first_row, first_col)
-      TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_r
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a, matrix_r
       INTEGER, INTENT(IN), OPTIONAL            :: nrow_fact, ncol_fact, &
                                                   first_row, first_col
 
@@ -1761,7 +1747,7 @@ CONTAINS
 !> \author Florian Schiffmann
 ! **************************************************************************************************
    SUBROUTINE cp_fm_solve(matrix_a, general_a)
-      TYPE(cp_fm_type), POINTER                :: matrix_a, general_a
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a, general_a
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_solve'
 
@@ -1835,9 +1821,9 @@ CONTAINS
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       INTEGER, INTENT(IN)                                :: m, n, k
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), POINTER                          :: A_re, A_im, B_re, B_im
+      TYPE(cp_fm_type), INTENT(IN)                       :: A_re, A_im, B_re, B_im
       REAL(KIND=dp), INTENT(IN)                          :: beta
-      TYPE(cp_fm_type), POINTER                          :: C_re, C_im
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: C_re, C_im
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 
@@ -1888,7 +1874,7 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    SUBROUTINE cp_fm_lu_invert(matrix, info_out)
-      TYPE(cp_fm_type), POINTER                :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix
       INTEGER, INTENT(OUT), OPTIONAL           :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_invert'
@@ -2017,7 +2003,7 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    FUNCTION cp_fm_norm(matrix, mode) RESULT(res)
-      TYPE(cp_fm_type), POINTER :: matrix
+      TYPE(cp_fm_type), INTENT(IN) :: matrix
       CHARACTER, INTENT(IN) :: mode
       REAL(KIND=dp) :: res
 
@@ -2107,7 +2093,7 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    FUNCTION cp_fm_latra(matrix) RESULT(res)
-      TYPE(cp_fm_type), POINTER :: matrix
+      TYPE(cp_fm_type), INTENT(IN) :: matrix
       REAL(KIND=dp) :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_latra'
@@ -2168,10 +2154,9 @@ CONTAINS
 !> \param first_col ...
 !> \author MI
 ! **************************************************************************************************
-
    SUBROUTINE cp_fm_pdgeqpf(matrix, tau, nrow, ncol, first_row, first_col)
 
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       INTEGER, INTENT(IN)                                :: nrow, ncol, first_row, first_col
 
@@ -2237,10 +2222,9 @@ CONTAINS
 !> \param first_col ...
 !> \author MI
 ! **************************************************************************************************
-
    SUBROUTINE cp_fm_pdorgqr(matrix, tau, nrow, first_row, first_col)
 
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       INTEGER, INTENT(IN)                                :: nrow, first_row, first_col
 
@@ -2301,7 +2285,7 @@ CONTAINS
    SUBROUTINE cp_fm_Gram_Schmidt_orthonorm(matrix_a, B, nrows, ncols, start_row, start_col, &
                                            do_norm, do_print)
 
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix_a
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_a
       REAL(kind=dp), DIMENSION(:, :), INTENT(OUT)        :: B
       INTEGER, INTENT(IN), OPTIONAL                      :: nrows, ncols, start_row, start_col
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_norm, do_print
@@ -2318,8 +2302,6 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: a
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(matrix_a))
-      CPASSERT(matrix_a%ref_count .GT. 0)
 
       my_do_norm = .TRUE.
       IF (PRESENT(do_norm)) my_do_norm = do_norm
