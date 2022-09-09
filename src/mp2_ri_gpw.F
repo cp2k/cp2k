@@ -2191,7 +2191,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'quasi_degenerate_P_ij'
 
-      INTEGER :: a, a_global, b, b_global, block_size, handle, handle2, ijk_counter, &
+      INTEGER :: a, a_global, b, b_global, block_size, decil, handle, handle2, ijk_counter, &
          ijk_counter_send, ijk_index, ispin, kkB, kspin, max_block_size, max_ijk, my_i, my_ijk, &
          my_j, my_k, my_last_k(2), my_virtual, nspins, proc_receive, proc_send, proc_shift, &
          rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
@@ -2202,7 +2202,7 @@ CONTAINS
       LOGICAL                                            :: alpha_beta, do_recv_i, do_recv_j, &
                                                             do_recv_k, do_send_i, do_send_j, &
                                                             do_send_k
-      REAL(KIND=dp)                                      :: amp_fac, P_ij_elem
+      REAL(KIND=dp)                                      :: amp_fac, P_ij_elem, t_new, t_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          TARGET                                          :: local_ab, local_aL_i, local_aL_j, t_ab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: local_aL_k
@@ -2210,8 +2210,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: BI_C_rec_3D
 
       CALL timeset(routineN//"_ij_sing", handle)
-
-      MARK_USED(my_group_L_size)
 
       tag = 44
       tag2 = 45
@@ -2256,7 +2254,21 @@ CONTAINS
          my_last_k = -1
          send_last_k = -1
 
+         t_start = m_walltime()
          DO ijk_index = 1, max_ijk
+
+            ! Prediction is unreliable if we are in the first step of the loop
+            IF (unit_nr > 0 .AND. ijk_index > 1) THEN
+               decil = ijk_index*10/max_ijk
+               IF (decil /= (ijk_index - 1)*10/max_ijk) THEN
+                  t_new = m_walltime()
+                  t_new = (t_new - t_start)/60.0_dp*(max_ijk - ijk_index + 1)/(ijk_index - 1)
+                  WRITE (unit_nr, FMT="(T3,A)") "Percentage of finished loop: "// &
+                     cp_to_string(decil*10)//". Minutes left: "//cp_to_string(t_new)
+                  CALL m_flush(unit_nr)
+               END IF
+            END IF
+
             IF (ijk_index <= my_ijk) THEN
                ! work to be done
                ijk_counter = (ijk_index - MIN(1, color_sub))*ngroup + color_sub
