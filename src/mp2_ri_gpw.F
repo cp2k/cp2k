@@ -2206,8 +2206,8 @@ CONTAINS
                                        SIZE(buffer_1D), my_group_L_size, size_B_k, para_env)
 
          my_virtual = virtual(ispin)
-         IF (SIZE(ijk_map, 1) > 0) THEN
-            max_block_size = ijk_map(1, 4)
+         IF (SIZE(ijk_map, 2) > 0) THEN
+            max_block_size = ijk_map(4, 1)
          ELSE
             max_block_size = 1
          END IF
@@ -2221,10 +2221,10 @@ CONTAINS
             IF (ijk_index <= my_ijk) THEN
                ! work to be done
                ijk_counter = (ijk_index - MIN(1, color_sub))*ngroup + color_sub
-               my_i = ijk_map(ijk_counter, 1)
-               my_j = ijk_map(ijk_counter, 2)
-               my_k = ijk_map(ijk_counter, 3)
-               block_size = ijk_map(ijk_counter, 4)
+               my_i = ijk_map(1, ijk_counter)
+               my_j = ijk_map(2, ijk_counter)
+               my_k = ijk_map(3, ijk_counter)
+               block_size = ijk_map(4, ijk_counter)
 
                local_aL_i = 0.0_dp
                local_aL_j = 0.0_dp
@@ -2263,9 +2263,9 @@ CONTAINS
                      ! something to send
                      ijk_counter_send = (ijk_index - MIN(1, integ_group_pos2color_sub(proc_send)))* &
                                         ngroup + integ_group_pos2color_sub(proc_send)
-                     send_i = ijk_map(ijk_counter_send, 1)
-                     send_j = ijk_map(ijk_counter_send, 2)
-                     send_k = ijk_map(ijk_counter_send, 3)
+                     send_i = ijk_map(1, ijk_counter_send)
+                     send_j = ijk_map(2, ijk_counter_send)
+                     send_k = ijk_map(3, ijk_counter_send)
                   END IF
 
                   ! occupied i
@@ -2481,9 +2481,9 @@ CONTAINS
                      ! somethig to send
                      ijk_counter_send = (ijk_index - MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup + &
                                         integ_group_pos2color_sub(proc_send)
-                     send_i = ijk_map(ijk_counter_send, 1)
-                     send_j = ijk_map(ijk_counter_send, 2)
-                     send_k = ijk_map(ijk_counter_send, 3)
+                     send_i = ijk_map(1, ijk_counter_send)
+                     send_j = ijk_map(2, ijk_counter_send)
+                     send_k = ijk_map(3, ijk_counter_send)
                      ! occupied i
                      CALL mp_send(BIb_C(ispin)%array(:, :, send_i), proc_send, tag, &
                                   para_env_exchange%group)
@@ -2607,7 +2607,7 @@ CONTAINS
       num_k_blocks = max_num_k_blocks - MOD(max_num_k_blocks, ngroup)
 
       total_ijk = num_k_blocks + homo_beta*num_sing_ij - num_k_blocks*block_size
-      ALLOCATE (ijk_map(total_ijk, 4))
+      ALLOCATE (ijk_map(4, total_ijk))
       ijk_map = 0
       ALLOCATE (ijk_marker(homo_beta, num_sing_ij))
       ijk_marker = .TRUE.
@@ -2624,10 +2624,10 @@ CONTAINS
                IF (ijk_counter + 1 > num_k_blocks) EXIT
                ijk_counter = ijk_counter + 1
                ijk_marker(kkB:kkB + block_size - 1, ij_counter) = .FALSE.
-               ijk_map(ijk_counter, 1) = iiB
-               ijk_map(ijk_counter, 2) = jjB
-               ijk_map(ijk_counter, 3) = kkB
-               ijk_map(ijk_counter, 4) = block_size
+               ijk_map(1, ijk_counter) = iiB
+               ijk_map(2, ijk_counter) = jjB
+               ijk_map(3, ijk_counter) = kkB
+               ijk_map(4, ijk_counter) = block_size
                IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk = my_ijk + 1
             END DO
          END DO
@@ -2641,10 +2641,10 @@ CONTAINS
             DO kkB = 1, homo_beta
                IF (ijk_marker(kkB, ij_counter)) THEN
                   ijk_counter = ijk_counter + 1
-                  ijk_map(ijk_counter, 1) = iiB
-                  ijk_map(ijk_counter, 2) = jjB
-                  ijk_map(ijk_counter, 3) = kkB
-                  ijk_map(ijk_counter, 4) = 1
+                  ijk_map(1, ijk_counter) = iiB
+                  ijk_map(2, ijk_counter) = jjB
+                  ijk_map(3, ijk_counter) = kkB
+                  ijk_map(4, ijk_counter) = 1
                   IF (MOD(ijk_counter, ngroup) == color_sub) my_ijk = my_ijk + 1
                END IF
             END DO
