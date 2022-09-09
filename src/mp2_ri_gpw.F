@@ -2193,14 +2193,15 @@ CONTAINS
 
       INTEGER :: a, a_global, b, b_global, block_size, handle, handle2, ijk_counter, &
          ijk_counter_send, ijk_index, ispin, kkB, kspin, max_block_size, max_ijk, my_i, my_ijk, &
-         my_j, my_k, my_virtual, nspins, proc_receive, proc_send, proc_shift, rec_B_size, &
-         rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, &
-         send_B_virtual_start, send_i, send_ijk_index, send_j, send_k, size_B_i, size_B_k, tag, &
-         tag2
+         my_j, my_k, my_last_k(2), my_virtual, nspins, proc_receive, proc_send, proc_shift, &
+         rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
+         send_B_virtual_end, send_B_virtual_start, send_i, send_ijk_index, send_j, send_k, &
+         size_B_i, size_B_k, tag, tag2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_ijk
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ijk_map
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ijk_map, send_last_k
       LOGICAL                                            :: alpha_beta, do_recv_i, do_recv_j, &
-                                                            do_send_i, do_send_j
+                                                            do_recv_k, do_send_i, do_send_j, &
+                                                            do_send_k
       REAL(KIND=dp)                                      :: amp_fac, P_ij_elem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          TARGET                                          :: local_ab, local_aL_i, local_aL_j, t_ab
@@ -2221,6 +2222,8 @@ CONTAINS
       ! Set amplitude factor
       amp_fac = mp2_env%scale_S + mp2_env%scale_T
       IF (open_shell) amp_fac = mp2_env%scale_T
+
+      ALLOCATE (send_last_k(2, para_env_exchange%num_pe - 1))
 
       ! Loop(s) over orbital triplets
       DO ispin = 1, nspins
@@ -2250,6 +2253,9 @@ CONTAINS
          ALLOCATE (local_aL_k(dimen_RI, size_B_k, max_block_size))
          ALLOCATE (t_ab(my_virtual, size_B_k))
 
+         my_last_k = -1
+         send_last_k = -1
+
          DO ijk_index = 1, max_ijk
             IF (ijk_index <= my_ijk) THEN
                ! work to be done
@@ -2261,6 +2267,9 @@ CONTAINS
 
                do_recv_i = (ispin /= kspin) .OR. my_i < my_k .OR. my_i > my_k + block_size - 1
                do_recv_j = (ispin /= kspin) .OR. my_j < my_k .OR. my_j > my_k + block_size - 1
+               do_recv_k = my_k /= my_last_k(1) .OR. my_k + block_size - 1 /= my_last_k(2)
+               my_last_k(1) = my_k
+               my_last_k(2) = my_k + block_size - 1
 
                local_aL_i = 0.0_dp
                IF (do_recv_i) THEN
@@ -2274,13 +2283,11 @@ CONTAINS
                                           BIb_C(ispin)%array(:, :, my_j))
                END IF
 
-               local_aL_k = 0.0_dp
-               CALL fill_local_i_aL_2D(local_al_i, ranges_info_array(:, :, para_env_exchange%mepos), &
-                                       BIb_C(ispin)%array(:, :, my_i))
-               CALL fill_local_i_aL_2D(local_al_j, ranges_info_array(:, :, para_env_exchange%mepos), &
-                                       BIb_C(ispin)%array(:, :, my_j))
-               CALL fill_local_i_aL(local_aL_k(:, :, 1:block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
-                                    BIb_C(kspin)%array(:, :, my_k:my_k + block_size - 1))
+               IF (do_recv_k) THEN
+                  local_aL_k = 0.0_dp
+                  CALL fill_local_i_aL(local_aL_k(:, :, 1:block_size), ranges_info_array(:, :, para_env_exchange%mepos), &
+                                       BIb_C(kspin)%array(:, :, my_k:my_k + block_size - 1))
+               END IF
 
                CALL timeset(routineN//"_comm", handle2)
                DO proc_shift = 1, para_env_exchange%num_pe - 1
@@ -2304,6 +2311,9 @@ CONTAINS
 
                      do_send_i = (ispin /= kspin) .OR. send_i < send_k .OR. send_i > send_k + block_size - 1
                      do_send_j = (ispin /= kspin) .OR. send_j < send_k .OR. send_j > send_k + block_size - 1
+                     do_send_k = send_k /= send_last_k(1, proc_shift) .OR. send_k + block_size - 1 /= send_last_k(2, proc_shift)
+                     send_last_k(1, proc_shift) = send_k
+                     send_last_k(2, proc_shift) = send_k + block_size - 1
                   END IF
 
                   ! occupied i
@@ -2359,15 +2369,27 @@ CONTAINS
                   ! occupied k
                  BI_C_rec_3D(1:rec_L_size, 1:size_B_k, 1:block_size) => buffer_1D(1:INT(rec_L_size, KIND=int_8)*size_B_k*block_size)
                   IF (ijk_index <= send_ijk_index) THEN
-                     CALL mp_sendrecv(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, &
-                                      BI_C_rec_3D, proc_receive, &
-                                      para_env_exchange%group, tag)
-                  ELSE
+                     IF (do_send_k) THEN
+                     IF (do_recv_k) THEN
+                        CALL mp_sendrecv(BIb_C(kspin)%array(:, :, send_k:send_k + block_size - 1), proc_send, &
+                                         BI_C_rec_3D, proc_receive, &
+                                         para_env_exchange%group, tag)
+                     ELSE
+                        CALL mp_send(BI_C_rec, proc_receive, tag, &
+                                     para_env_exchange%group)
+                     END IF
+                     ELSE IF (do_recv_k) THEN
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, &
+                                  para_env_exchange%group)
+                     END IF
+                  ELSE IF (do_recv_k) THEN
                      ! nothing to send
                      CALL mp_recv(BI_C_rec, proc_receive, tag, &
                                   para_env_exchange%group)
                   END IF
-                  CALL fill_local_i_aL(local_al_k(:, :, 1:block_size), ranges_info_array(:, :, proc_receive), BI_C_rec_3D)
+                  IF (do_recv_k) THEN
+                     CALL fill_local_i_aL(local_al_k(:, :, 1:block_size), ranges_info_array(:, :, proc_receive), BI_C_rec_3D)
+                  END IF
                END DO
 
                IF (.NOT. do_recv_i) local_aL_i(:, :) = local_aL_k(:, :, my_i - my_k + 1)
