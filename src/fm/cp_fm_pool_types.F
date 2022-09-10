@@ -191,10 +191,8 @@ CONTAINS
 
       IF (PRESENT(name)) THEN
          element%name = name
-         element%print_count = 0
       ELSE
          element%name = "tmp-"//TRIM(ADJUSTL(cp_to_string(element%id_nr)))
-         element%print_count = 0
          ! guarantee output unicity?
       END IF
 

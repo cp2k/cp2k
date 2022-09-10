@@ -98,7 +98,7 @@ MODULE qs_scf_types
    ! **************************************************************************************************
    TYPE qs_scf_env_type
       TYPE(qs_outer_scf_type) :: outer_scf
-      INTEGER :: ref_count, id_nr, print_count, iter_count
+      INTEGER :: ref_count, id_nr, iter_count
       INTEGER :: cholesky_method, nelectron, method, mixing_method, nskip_mixing
       REAL(KIND=dp) :: iter_param, iter_delta, p_mix_alpha, sum_zeff_corr
       CHARACTER(len=15) :: iter_method
@@ -143,10 +143,8 @@ CONTAINS
 
       ALLOCATE (scf_env)
       scf_env%ref_count = 1
-      scf_env%print_count = 0
       last_scf_env_id = last_scf_env_id + 1
       scf_env%id_nr = last_scf_env_id
-      scf_env%print_count = 0
       scf_env%iter_count = 0
       scf_env%nelectron = 0
       scf_env%iter_param = 0.0_dp
