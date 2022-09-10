@@ -1822,8 +1822,13 @@ CONTAINS
                END IF
 
                IF (ikind .NE. ikind_old) THEN
-                  CALL get_qs_kind(qs_kind_set(ikind), softb=my_soft, &
-                                   basis_set=orb_basis_set, basis_type=my_basis_type)
+                  IF (my_soft) THEN
+                     CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, &
+                                      basis_type="ORB_SOFT")
+                  ELSE
+                     CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, &
+                                      basis_type=my_basis_type)
+                  END IF
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                          first_sgf=first_sgfa, &
                                          lmax=la_max, &
@@ -1836,8 +1841,13 @@ CONTAINS
                END IF
 
                IF (jkind .NE. jkind_old) THEN
-                  CALL get_qs_kind(qs_kind_set(jkind), softb=my_soft, &
-                                   basis_set=orb_basis_set, basis_type=my_basis_type)
+                  IF (my_soft) THEN
+                     CALL get_qs_kind(qs_kind_set(jkind), basis_set=orb_basis_set, &
+                                      basis_type="ORB_SOFT")
+                  ELSE
+                     CALL get_qs_kind(qs_kind_set(jkind), basis_set=orb_basis_set, &
+                                      basis_type=my_basis_type)
+                  END IF
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                          first_sgf=first_sgfb, &
                                          lmax=lb_max, &
@@ -2194,8 +2204,13 @@ CONTAINS
             END IF
 
             IF (ikind .NE. ikind_old) THEN
-               CALL get_qs_kind(qs_kind_set(ikind), softb=my_soft, &
-                                basis_set=orb_basis_set, basis_type=my_basis_type)
+               IF (my_soft) THEN
+                  CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, &
+                                   basis_type="ORB_SOFT")
+               ELSE
+                  CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, &
+                                   basis_type=my_basis_type)
+               END IF
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                       first_sgf=first_sgfa, &
                                       lmax=la_max, &
@@ -2208,8 +2223,13 @@ CONTAINS
             END IF
 
             IF (jkind .NE. jkind_old) THEN
-               CALL get_qs_kind(qs_kind_set(jkind), softb=my_soft, &
-                                basis_set=orb_basis_set, basis_type=my_basis_type)
+               IF (my_soft) THEN
+                  CALL get_qs_kind(qs_kind_set(jkind), basis_set=orb_basis_set, &
+                                   basis_type="ORB_SOFT")
+               ELSE
+                  CALL get_qs_kind(qs_kind_set(jkind), basis_set=orb_basis_set, &
+                                   basis_type=my_basis_type)
+               END IF
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                       first_sgf=first_sgfb, &
                                       lmax=lb_max, &

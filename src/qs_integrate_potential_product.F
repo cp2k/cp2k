@@ -29,7 +29,6 @@
 !> \author Matthias Krack (03.04.2001)
 ! **************************************************************************************************
 MODULE qs_integrate_potential_product
-   USE admm_types,                      ONLY: admm_type
    USE ao_util,                         ONLY: exp_radius_very_extended
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
@@ -48,7 +47,6 @@ MODULE qs_integrate_potential_product
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE grid_api,                        ONLY: grid_integrate_task_list,&
                                               integrate_pgf_product
-   USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_comm_type
@@ -125,7 +123,7 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL :: atom_pair_changed, atom_pair_done, dh_duplicated, distributed_grids, found, &
-         my_compute_tau, my_gapw, new_set_pair_coming, pab_required, scatter, use_subpatch
+         my_compute_tau, new_set_pair_coming, pab_required, scatter, use_subpatch
       REAL(KIND=dp)                                      :: eps_rho_rspace, f, prefactor, radius, &
                                                             scalef, zetp
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra, rab, rab_inv, rb, &
@@ -159,10 +157,7 @@ CONTAINS
       NULLIFY (pw_env)
 
       ! get the task lists
-      my_gapw = .FALSE.
-      CALL get_qs_env(qs_env=qs_env, &
-                      task_list=task_list, &
-                      task_list_soft=task_list_soft)
+      CALL get_qs_env(qs_env=qs_env, task_list=task_list)
       CPASSERT(ASSOCIATED(task_list))
 
       ! the information on the grids is provided through pw_env
@@ -181,6 +176,9 @@ CONTAINS
                       natom=natom, &
                       dft_control=dft_control, &
                       particle_set=particle_set)
+
+      ! GAPW not implemented here
+      CPASSERT(.NOT. dft_control%qs_control%gapw)
 
       ! *** set up the rs multi-grids
       CPASSERT(ASSOCIATED(pw_env))
@@ -238,7 +236,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE), &
 !$OMP SHARED(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
-!$OMP SHARED(maxpgf,my_gapw,matrix_vhxc_dbasis,deltap), &
+!$OMP SHARED(maxpgf,matrix_vhxc_dbasis,deltap), &
 !$OMP SHARED(pab_required,ncoset,rs_rho,my_compute_tau), &
 !$OMP SHARED(eps_rho_rspace,force,cell), &
 !$OMP SHARED(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
@@ -303,7 +301,6 @@ CONTAINS
 
                IF (ikind .NE. ikind_old) THEN
                   CALL get_qs_kind(qs_kind_set(ikind), &
-                                   softb=my_gapw, &
                                    basis_set=orb_basis_set, basis_type="ORB")
 
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
@@ -321,7 +318,6 @@ CONTAINS
 
                IF (jkind .NE. jkind_old) THEN
                   CALL get_qs_kind(qs_kind_set(jkind), &
-                                   softb=my_gapw, &
                                    basis_set=orb_basis_set, basis_type="ORB")
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                          first_sgf=first_sgfb, &
@@ -552,8 +548,7 @@ CONTAINS
 !> \param pmat_kp ...
 !> \param qs_env ...
 !> \param calculate_forces ...
-!> \param force_adm whether force of in aux. dens. matrix is calculated
-!> \param ispin ...
+!> \param force_adm optional scaling of force
 !> \param compute_tau ...
 !> \param gapw ...
 !> \param basis_type ...
@@ -577,7 +572,7 @@ CONTAINS
 !>     coordinates can be computed as well
 ! **************************************************************************************************
    SUBROUTINE integrate_v_rspace(v_rspace, hmat, hmat_kp, pmat, pmat_kp, &
-                                 qs_env, calculate_forces, force_adm, ispin, &
+                                 qs_env, calculate_forces, force_adm, &
                                  compute_tau, gapw, basis_type, pw_env_external, task_list_external)
 
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
@@ -589,8 +584,7 @@ CONTAINS
          POINTER                                         :: pmat_kp
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
-      LOGICAL, INTENT(IN), OPTIONAL                      :: force_adm
-      INTEGER, INTENT(IN), OPTIONAL                      :: ispin
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: force_adm
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_tau, gapw
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: basis_type
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
@@ -604,12 +598,11 @@ CONTAINS
                                                             nimages, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: calculate_virial, distributed_grids, &
-                                                            do_kp, my_compute_tau, my_force_adm, &
-                                                            my_gapw, pab_required
+                                                            do_kp, my_compute_tau, my_gapw, &
+                                                            pab_required
       REAL(KIND=dp)                                      :: admm_scal_fac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: forces_array
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_matrix
-      TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: deltap, dhmat
@@ -636,16 +629,13 @@ CONTAINS
          CPASSERT(PRESENT(hmat_kp))
       END IF
 
-      NULLIFY (pw_env, admm_env)
+      NULLIFY (pw_env)
 
       ! this routine works in two modes:
       ! normal mode : <a| V | b>
       ! tau mode    : < nabla a| V | nabla b>
       my_compute_tau = .FALSE.
       IF (PRESENT(compute_tau)) my_compute_tau = compute_tau
-
-      my_force_adm = .FALSE.
-      IF (PRESENT(force_adm)) my_force_adm = force_adm
 
       ! this sets the basis set to be used. GAPW(==soft basis) overwrites basis_type
       ! default is "ORB"
@@ -689,17 +679,7 @@ CONTAINS
                       virial=virial)
 
       admm_scal_fac = 1.0_dp
-      IF (my_force_adm) THEN
-         CALL get_qs_env(qs_env=qs_env, admm_env=admm_env)
-         ! Calculate bare scaling of force according to Merlot, 1. IF: ADMMP, 2. IF: ADMMS,
-         IF ((.NOT. admm_env%charge_constrain) .AND. &
-             (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
-            admm_scal_fac = admm_env%gsi(ispin)**2
-         ELSE IF (admm_env%charge_constrain .AND. &
-                  (admm_env%scaling_model == do_admm_exch_scaling_merlot)) THEN
-            admm_scal_fac = (admm_env%gsi(ispin))**(2.0_dp/3.0_dp)
-         END IF
-      END IF
+      IF (PRESENT(force_adm)) admm_scal_fac = force_adm
 
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_grids=rs_v)

@@ -29,7 +29,8 @@ MODULE qs_operators_ao
                                               dbcsr_p_type,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE mathconstants,                   ONLY: pi
    USE orbital_pointers,                ONLY: coset,&
                                               init_orbital_pointers,&
@@ -1089,6 +1090,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rRc_xyz_ao'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: handle, iatom, icol, ikind, imom, inode, irow, iset, jatom, jkind, jset, &
          last_jatom, ldab, ldsa, ldsb, ldwork, M_dim, maxl, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
          sgfb, smom
@@ -1124,6 +1126,14 @@ CONTAINS
       NULLIFY (la_max, la_min, lb_max, npgfa, npgfb, nsgfa, nsgfb)
       NULLIFY (set_radius_a, set_radius_b, rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb)
 
+      my_soft = .FALSE.
+      IF (PRESENT(soft)) my_soft = soft
+      IF (my_soft) THEN
+         basis_type = "ORB_SOFT"
+      ELSE
+         basis_type = "ORB"
+      END IF
+
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                       cell=cell, particle_set=particle_set, sab_orb=sab_orb)
 
@@ -1138,10 +1148,6 @@ CONTAINS
          Lxo2 = SQRT(SUM(cell%hmat(:, 1)**2))/2.0_dp
          Lyo2 = SQRT(SUM(cell%hmat(:, 2)**2))/2.0_dp
          Lzo2 = SQRT(SUM(cell%hmat(:, 3)**2))/2.0_dp
-      END IF
-      my_soft = .FALSE.
-      IF (PRESENT(soft)) THEN
-         my_soft = soft
       END IF
 
       ldab = ldwork
@@ -1164,7 +1170,7 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, softb=my_soft, basis_set=basis_set_a)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a, basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
@@ -1351,6 +1357,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rRc_xyz_der_ao'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: handle, i, iatom, icol, idir, ikind, imom, inode, ipgf, irow, iset, j, jatom, &
          jkind, jpgf, jset, last_jatom, lda_min, ldab, ldb_min, ldsa, ldsb, ldwork, M_dim, maxl, &
          na, nb, ncoa, ncob, nda, ndb, nkind, nseta, nsetb, sgfa, sgfb
@@ -1397,6 +1404,14 @@ CONTAINS
       NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
       NULLIFY (set_radius_a, set_radius_b, rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb)
 
+      my_soft = .FALSE.
+      IF (PRESENT(soft)) my_soft = soft
+      IF (my_soft) THEN
+         basis_type = "ORB_SOFT"
+      ELSE
+         basis_type = "ORB"
+      END IF
+
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                       cell=cell, particle_set=particle_set, &
                       sab_all=sab_all)
@@ -1412,10 +1427,6 @@ CONTAINS
          Lxo2 = SQRT(SUM(cell%hmat(:, 1)**2))/2.0_dp
          Lyo2 = SQRT(SUM(cell%hmat(:, 2)**2))/2.0_dp
          Lzo2 = SQRT(SUM(cell%hmat(:, 3)**2))/2.0_dp
-      END IF
-      my_soft = .FALSE.
-      IF (PRESENT(soft)) THEN
-         my_soft = soft
       END IF
 
       ldab = ldwork
@@ -1443,7 +1454,7 @@ CONTAINS
       ALLOCATE (basis_set_list(nkind))
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, softb=my_soft, basis_set=basis_set_a)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a, basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE

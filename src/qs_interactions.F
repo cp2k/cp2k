@@ -127,7 +127,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=harris_basis, basis_type="HARRIS")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_gw_basis, basis_type="AUX_GW")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=ri_xas_basis, basis_type="RI_XAS")
-         CALL get_qs_kind(qs_kind_set(ikind), soft_basis_set=soft_basis)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=soft_basis, basis_type="ORB_SOFT")
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj_set, &
                           paw_atom=paw_atom, &
@@ -327,9 +327,7 @@ CONTAINS
 
          ! Calculate the soft orbital basis function radii
          IF (ASSOCIATED(soft_basis)) THEN
-            IF (paw_atom) THEN
-               CALL init_interaction_radii_orb_basis(soft_basis, qs_control%eps_pgf_orb)
-            END IF
+            CALL init_interaction_radii_orb_basis(soft_basis, qs_control%eps_pgf_orb)
          END IF
 
          ! Calculate the lri basis function radii
