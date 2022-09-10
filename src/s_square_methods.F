@@ -81,7 +81,8 @@ CONTAINS
       LOGICAL                                            :: has_uniform_occupation_alpha, &
                                                             has_uniform_occupation_beta
       REAL(KIND=dp)                                      :: s2
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: c_alpha, c_beta, catscb, sca, scb

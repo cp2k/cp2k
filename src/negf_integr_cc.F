@@ -122,7 +122,8 @@ CONTAINS
 
       INTEGER                                            :: handle, icol, ipoint, irow, ncols, &
                                                             nnodes_half, nrows
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: w_data, w_data_my
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: w_data, w_data_my
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
       CALL timeset(routineN, handle)

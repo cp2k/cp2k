@@ -95,9 +95,10 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: com_nl
       REAL(KIND=dp)                                      :: eps_ppnl, factor
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       REAL(KIND=dp), DIMENSION(3)                        :: kvec
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type), POINTER                         :: oo_c, oo_v, oo_vt
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp

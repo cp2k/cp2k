@@ -225,7 +225,8 @@ CONTAINS
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: dum
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       TYPE(cp_fm_type), POINTER                          :: matrix_tmp
 
       CALL timeset(routineN, handle)

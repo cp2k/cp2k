@@ -111,8 +111,8 @@ MODULE cp_fm_types
       INTEGER :: id_nr, ref_count, print_count
       LOGICAL :: use_sp
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: local_data
-      REAL(KIND=sp), DIMENSION(:, :), POINTER :: local_data_sp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data
+      REAL(KIND=sp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data_sp
    END TYPE cp_fm_type
 
 ! **************************************************************************************************
@@ -282,7 +282,7 @@ CONTAINS
 !>      the value of a_ij is independent of the number of cpus
 ! **************************************************************************************************
    SUBROUTINE cp_fm_init_random(matrix, ncol, start_col)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN), OPTIONAL                      :: ncol, start_col
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_init_random'
@@ -291,9 +291,10 @@ CONTAINS
          ncol_local, nrow_global, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buff
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       REAL(KIND=dp), DIMENSION(3, 2), SAVE :: &
          seed = RESHAPE((/1.0_dp, 2.0_dp, 3.0_dp, 4.0_dp, 5.0_dp, 6.0_dp/), (/3, 2/))
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
       TYPE(rng_stream_type)                              :: rng
 
       CALL timeset(routineN, handle)
@@ -365,7 +366,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_set_all(matrix, alpha, beta)
 
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: beta
 
@@ -400,10 +401,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_get_diag(matrix, diag)
 
-      IMPLICIT NONE
-
       ! arguments
-      TYPE(cp_fm_type), POINTER                  :: matrix
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: diag
 
       ! locals
@@ -475,10 +474,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_get_element(matrix, irow_global, icol_global, alpha, local)
 
-      IMPLICIT NONE
-
       ! arguments
-      TYPE(cp_fm_type), POINTER          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix
       REAL(KIND=dp), INTENT(OUT)                     :: alpha
       INTEGER, INTENT(IN)                       :: icol_global, &
                                                    irow_global
@@ -533,7 +530,7 @@ CONTAINS
 !>      (otherwise one should use local_data tricks)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_set_element(matrix, irow_global, icol_global, alpha)
-      TYPE(cp_fm_type), POINTER                :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix
       INTEGER, INTENT(IN)                      :: irow_global, icol_global
       REAL(KIND=dp), INTENT(IN)                :: alpha
 
@@ -601,7 +598,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_set_submatrix(fm, new_values, start_row, &
                                   start_col, n_rows, n_cols, alpha, beta, transpose)
-      TYPE(cp_fm_type), POINTER                          :: fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
       REAL(KIND=dp), DIMENSION(:, :), INTENT(in)         :: new_values
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
@@ -619,9 +616,6 @@ CONTAINS
       al = 1.0_dp; be = 0.0_dp; i0 = 1; j0 = 1; tr_a = .FALSE.
       ! can be called too many times, making it a bit useless
       ! CALL timeset(routineN//','//moduleN,handle)
-
-      CPASSERT(ASSOCIATED(fm))
-      CPASSERT(fm%ref_count > 0)
 
       CPASSERT(.NOT. fm%use_sp)
 
@@ -737,7 +731,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_get_submatrix(fm, target_m, start_row, &
                                   start_col, n_rows, n_cols, transpose)
-      TYPE(cp_fm_type), POINTER                          :: fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm
       REAL(KIND=dp), DIMENSION(:, :), INTENT(out)        :: target_m
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose
@@ -755,9 +749,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       i0 = 1; j0 = 1; tr_a = .FALSE.
-
-      CPASSERT(ASSOCIATED(fm))
-      CPASSERT(fm%ref_count > 0)
 
       CPASSERT(.NOT. fm%use_sp)
 
@@ -856,12 +847,13 @@ CONTAINS
                              row_indices, col_indices, local_data, context, &
                              nrow_locals, ncol_locals, matrix_struct, para_env)
 
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: name
       INTEGER, INTENT(OUT), OPTIONAL                     :: nrow_global, ncol_global, nrow_block, &
                                                             ncol_block, nrow_local, ncol_local
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_indices, col_indices
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         OPTIONAL, POINTER                               :: local_data
       TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: context
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nrow_locals, ncol_locals
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: matrix_struct
@@ -899,7 +891,7 @@ CONTAINS
 !> \param io_unit the I/O unit to use for writing
 ! **************************************************************************************************
    SUBROUTINE cp_fm_write_info(matrix, io_unit)
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: io_unit
 
       WRITE (io_unit, '(/,A,A12)') "CP_FM | Name:                           ", matrix%name
@@ -915,7 +907,7 @@ CONTAINS
 !> \param ic_max ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_maxabsval(matrix, a_max, ir_max, ic_max)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       REAL(KIND=dp), INTENT(OUT)                         :: a_max
       INTEGER, INTENT(OUT), OPTIONAL                     :: ir_max, ic_max
 
@@ -1017,7 +1009,7 @@ CONTAINS
 !>      (but the bound is not so tight in the general case)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_maxabsrownorm(matrix, a_max)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       REAL(KIND=dp), INTENT(OUT)                         :: a_max
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_maxabsrownorm'
@@ -1058,7 +1050,7 @@ CONTAINS
 !> \param norm_array ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_vectorsnorm(matrix, norm_array)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: norm_array
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_vectorsnorm'
@@ -1103,7 +1095,7 @@ CONTAINS
 !>        added row variation
 ! **************************************************************************************************
    SUBROUTINE cp_fm_vectorssum(matrix, sum_array, dir)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: sum_array
       CHARACTER(LEN=1), INTENT(IN), OPTIONAL             :: dir
 
@@ -1164,7 +1156,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_to_fm_matrix(source, destination)
 
-      TYPE(cp_fm_type), POINTER                          :: source, destination
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: source, destination
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_matrix'
 
@@ -1232,7 +1224,7 @@ CONTAINS
    SUBROUTINE cp_fm_to_fm_columns(msource, mtarget, ncol, source_start, &
                                   target_start)
 
-      TYPE(cp_fm_type), POINTER                :: msource, mtarget
+      TYPE(cp_fm_type), INTENT(INOUT)          :: msource, mtarget
       INTEGER, INTENT(IN)                      :: ncol
       INTEGER, INTENT(IN), OPTIONAL            :: source_start, target_start
 
@@ -1280,7 +1272,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_to_fm_triangular(msource, mtarget, uplo)
 
-      TYPE(cp_fm_type), POINTER                :: msource, mtarget
+      TYPE(cp_fm_type), INTENT(INOUT)          :: msource, mtarget
       CHARACTER(LEN=*), INTENT(IN)             :: uplo
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_triangular'
@@ -1325,7 +1317,7 @@ CONTAINS
 
    SUBROUTINE cp_fm_to_fm_submat(msource, mtarget, nrow, ncol, s_firstrow, s_firstcol, t_firstrow, t_firstcol)
 
-      TYPE(cp_fm_type), POINTER                :: msource, mtarget
+      TYPE(cp_fm_type), INTENT(INOUT)          :: msource, mtarget
       INTEGER, INTENT(IN)                      :: nrow, ncol, s_firstrow, &
                                                   s_firstcol, t_firstrow, &
                                                   t_firstcol
@@ -1903,7 +1895,7 @@ CONTAINS
                                          d_firstcol, &
                                          global_context)
 
-      TYPE(cp_fm_type), POINTER                :: source, destination
+      TYPE(cp_fm_type), POINTER, INTENT(IN)    :: source, destination
       INTEGER, INTENT(IN)                      :: nrows, ncols, &
                                                   s_firstrow, s_firstcol, &
                                                   d_firstrow, d_firstcol, &
@@ -1998,7 +1990,7 @@ CONTAINS
 
       ! - Creation (05.05.06,MK)
 
-      TYPE(cp_fm_type), POINTER                :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix
       INTEGER, INTENT(IN)                      :: irow_global, icol_global
       REAL(KIND=dp), INTENT(IN)                :: alpha
 
@@ -2010,8 +2002,6 @@ CONTAINS
                                                   irow_local
       INTEGER, DIMENSION(9)                    :: desca
 #endif
-
-      CPASSERT(ASSOCIATED(matrix))
 
       context => matrix%matrix_struct%context
 
@@ -2048,8 +2038,8 @@ CONTAINS
 !> \param unit ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_write_unformatted(fm, unit)
-      TYPE(cp_fm_type), POINTER                :: fm
-      INTEGER                                  :: unit
+      TYPE(cp_fm_type), INTENT(IN)             :: fm
+      INTEGER, INTENT(IN)                      :: unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write_unformatted'
 
@@ -2150,9 +2140,9 @@ CONTAINS
 !> \param value_format ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_write_formatted(fm, unit, header, value_format)
-      TYPE(cp_fm_type), POINTER                :: fm
-      INTEGER                                  :: unit
-      CHARACTER(LEN=*), OPTIONAL               :: header, value_format
+      TYPE(cp_fm_type), INTENT(IN)             :: fm
+      INTEGER, INTENT(IN)                      :: unit
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: header, value_format
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write_formatted'
 
@@ -2277,8 +2267,8 @@ CONTAINS
 !> \param unit ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_read_unformatted(fm, unit)
-      TYPE(cp_fm_type), POINTER                :: fm
-      INTEGER                                  :: unit
+      TYPE(cp_fm_type), INTENT(INOUT)          :: fm
+      INTEGER, INTENT(IN)                      :: unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_read_unformatted'
 
@@ -2511,7 +2501,7 @@ CONTAINS
 !> \param mult_type ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_setup(mult_type)
-      INTEGER                                            :: mult_type
+      INTEGER, INTENT(IN)                                :: mult_type
 
       mm_type = mult_type
    END SUBROUTINE cp_fm_setup

@@ -172,8 +172,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
       REAL(kind=dp)                                      :: eval_occ
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data_ediff, local_data_wfm
       REAL(kind=dp), DIMENSION(3)                        :: kvec, reference_point
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: local_data_ediff, local_data_wfm
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: gamma_00, gamma_inv_00
@@ -689,7 +690,8 @@ CONTAINS
       LOGICAL                                            :: do_exc_analysis
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights_local, weights_neg_abs_recv, &
                                                             weights_recv
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: S_mos_virt, weights_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct

@@ -68,7 +68,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_schur_product(matrix_a, matrix_b, matrix_c)
 
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b, matrix_c
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a, matrix_b, matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product'
 
@@ -106,7 +106,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_schur_product_cc(matrix_a, matrix_b, matrix_c)
 
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b, matrix_c
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a, matrix_b, matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product_cc'
 
@@ -155,9 +155,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_scale_and_add(alpha, matrix_a, beta, matrix_b)
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: beta
-      TYPE(cp_cfm_type), OPTIONAL, POINTER               :: matrix_b
+      TYPE(cp_cfm_type), INTENT(IN), OPTIONAL            :: matrix_b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_scale_and_add'
 
@@ -172,8 +172,6 @@ CONTAINS
       IF (PRESENT(beta)) my_beta = beta
       NULLIFY (a, b)
 
-      CPASSERT(ASSOCIATED(matrix_a))
-      CPASSERT(matrix_a%ref_count > 0)
       ! to do: use dscal,dcopy,daxp
       myprow = matrix_a%matrix_struct%context%mepos(1)
       mypcol = matrix_a%matrix_struct%context%mepos(2)
@@ -196,8 +194,6 @@ CONTAINS
 
       ELSE
          CPASSERT(PRESENT(matrix_b))
-         CPASSERT(ASSOCIATED(matrix_b))
-         CPASSERT(matrix_b%ref_count > 0)
          IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
             CPABORT("matrixes must be in the same blacs context")
 
@@ -270,9 +266,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_scale_and_add_fm(alpha, matrix_a, beta, matrix_b)
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
       COMPLEX(kind=dp), INTENT(in)                       :: beta
-      TYPE(cp_fm_type), POINTER                          :: matrix_b
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_scale_and_add_fm'
 
@@ -285,7 +281,6 @@ CONTAINS
 
       NULLIFY (a, b)
 
-      CPASSERT(ASSOCIATED(matrix_a))
       myprow = matrix_a%matrix_struct%context%mepos(1)
       mypcol = matrix_a%matrix_struct%context%mepos(2)
 
@@ -306,7 +301,6 @@ CONTAINS
          END IF
 
       ELSE
-         CPASSERT(ASSOCIATED(matrix_b))
          IF (matrix_a%matrix_struct%context%group /= matrix_b%matrix_struct%context%group) &
             CPABORT("matrices must be in the same blacs context")
 
@@ -378,7 +372,7 @@ CONTAINS
 !>    The original content of the matrix is destroyed.
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_lu_decompose(matrix_a, determinant)
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
       COMPLEX(kind=dp), INTENT(out)                      :: determinant
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_decompose'
@@ -486,9 +480,9 @@ CONTAINS
       CHARACTER(len=1), INTENT(in)                       :: transa, transb
       INTEGER, INTENT(in)                                :: m, n, k
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a, matrix_b
       COMPLEX(kind=dp), INTENT(in)                       :: beta
-      TYPE(cp_cfm_type), POINTER                         :: matrix_c
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_c
       INTEGER, INTENT(in), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 
@@ -565,7 +559,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_column_scale(matrix_a, scaling)
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
       COMPLEX(kind=dp), DIMENSION(:), INTENT(in)         :: scaling
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_column_scale'
@@ -608,7 +602,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_dscale(alpha, matrix_a)
       REAL(kind=dp), INTENT(in)                          :: alpha
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_dscale'
 
@@ -618,9 +612,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (a)
-
-      CPASSERT(ASSOCIATED(matrix_a))
-      CPASSERT(matrix_a%ref_count > 0)
 
       a => matrix_a%local_data
 
@@ -639,7 +630,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_zscale(alpha, matrix_a)
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_zscale'
 
@@ -649,9 +640,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (a)
-
-      CPASSERT(ASSOCIATED(matrix_a))
-      CPASSERT(matrix_a%ref_count > 0)
 
       a => matrix_a%local_data
 
@@ -670,7 +658,7 @@ CONTAINS
 !> \author Florian Schiffmann
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_solve(matrix_a, general_a, determinant)
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a, general_a
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a, general_a
       COMPLEX(kind=dp), OPTIONAL                         :: determinant
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_solve'
@@ -762,7 +750,7 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_lu_invert(matrix, info_out)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
       INTEGER, INTENT(out), OPTIONAL                     :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_invert'
@@ -848,7 +836,7 @@ CONTAINS
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_decompose(matrix, n, info_out)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n
       INTEGER, INTENT(out), OPTIONAL                     :: info_out
 
@@ -904,7 +892,7 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_invert(matrix, n, info_out)
-      TYPE(cp_cfm_type), POINTER                 :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT)           :: matrix
       INTEGER, INTENT(in), OPTIONAL              :: n
       INTEGER, INTENT(out), OPTIONAL             :: info_out
 
@@ -959,7 +947,7 @@ CONTAINS
 !>      Based on the subroutine cp_fm_trace(). Note the transposition of matrix_a!
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_trace(matrix_a, matrix_b, trace)
-      TYPE(cp_cfm_type), POINTER                         :: matrix_a, matrix_b
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a, matrix_b
       COMPLEX(kind=dp), INTENT(out)                      :: trace
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_trace'
@@ -1028,7 +1016,7 @@ CONTAINS
    SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix, matrix_b, side, &
                                          transa_tr, invert_tr, uplo_tr, unit_diag_tr, n_rows, n_cols, &
                                          alpha)
-      TYPE(cp_cfm_type), POINTER                         :: triangular_matrix, matrix_b
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: triangular_matrix, matrix_b
       CHARACTER, INTENT(in), OPTIONAL                    :: side, transa_tr
       LOGICAL, INTENT(in), OPTIONAL                      :: invert_tr
       CHARACTER, INTENT(in), OPTIONAL                    :: uplo_tr
@@ -1110,7 +1098,7 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_triangular_invert(matrix_a, uplo, info_out)
-      TYPE(cp_cfm_type), POINTER               :: matrix_a
+      TYPE(cp_cfm_type), INTENT(INOUT)         :: matrix_a
       CHARACTER, INTENT(in), OPTIONAL          :: uplo
       INTEGER, INTENT(out), OPTIONAL           :: info_out
 
@@ -1160,9 +1148,9 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_transpose(matrix, trans, matrixt)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
       CHARACTER, INTENT(in)                              :: trans
-      TYPE(cp_cfm_type), POINTER                         :: matrixt
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrixt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_transpose'
 
@@ -1176,8 +1164,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(ASSOCIATED(matrixt))
       nrow_global = matrix%matrix_struct%nrow_global
       ncol_global = matrix%matrix_struct%ncol_global
 
@@ -1235,7 +1221,7 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    FUNCTION cp_cfm_norm(matrix, mode) RESULT(res)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
       CHARACTER, INTENT(IN)                              :: mode
       REAL(kind=dp)                                      :: res
 

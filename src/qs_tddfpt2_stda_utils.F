@@ -332,7 +332,8 @@ CONTAINS
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: eps_lanczos, sij, threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: slam
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1
       TYPE(cp_logger_type), POINTER                      :: logger

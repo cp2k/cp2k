@@ -81,7 +81,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i, ndim, nloop
       REAL(KIND=dp)                                      :: square_fac, Tfac, tmp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data_im
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data_im
       TYPE(cp_fm_type), POINTER                          :: T1, T2, Tres_im, Tres_re
 
       CALL timeset(routineN, handle)
@@ -176,7 +177,8 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: Tfac
       INTEGER                                            :: handle, i, ndim
       REAL(KIND=dp)                                      :: square_fac, tmp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data_im, local_data_re
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data_im, local_data_re
       TYPE(cp_cfm_type), POINTER                         :: T1, T2, T3, Tres
 
       CALL timeset(routineN, handle)
@@ -352,7 +354,8 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: scaleD, scaleN
       INTEGER                                            :: handle, i, ldim, ndim, p, q
       REAL(KIND=dp)                                      :: square_fac, tmp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data_im, local_data_re
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data_im, local_data_re
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: mult_p
       TYPE(cp_cfm_type), POINTER                         :: Dpq, fin_p, Npq, T1, T2, Tres
 
@@ -459,7 +462,8 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: scaleD, scaleN
       INTEGER                                            :: handle, i, j, k, ldim, ndim, p, q
       REAL(KIND=dp)                                      :: my_fac, square_fac
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data_im
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data_im
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: cmult_p
       TYPE(cp_cfm_type), POINTER                         :: Dpq, fin_p, Npq, T1
       TYPE(cp_fm_type), POINTER                          :: T2, Tres
@@ -581,7 +585,8 @@ CONTAINS
 
       INTEGER                                            :: handle, i, j, k, ldim, ndim, p, q
       REAL(KIND=dp)                                      :: my_fac, scaleD, scaleN, square_fac
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: local_data
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mult_p
       TYPE(cp_fm_type), POINTER                          :: Dpq, fin_p, Npq, T1, T2, Tres
 

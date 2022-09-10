@@ -136,7 +136,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2018]
 ! **************************************************************************************************
    SUBROUTINE cp_fm_redistribute_work_finalize(has_redistributed)
-      LOGICAL                                            :: has_redistributed
+      LOGICAL, INTENT(IN)                                :: has_redistributed
 
       IF (ASSOCIATED(work_redistribute%group_distribution)) THEN
          IF (has_redistributed) THEN
@@ -167,8 +167,8 @@ CONTAINS
 !> \author Nico Holmberg [01.2018]
 ! **************************************************************************************************
    SUBROUTINE cp_fm_redistribute_init(a, x, should_print, elpa_force_redistribute)
-      INTEGER                                            :: a, x
-      LOGICAL                                            :: should_print, elpa_force_redistribute
+      INTEGER, INTENT(IN)                                :: a, x
+      LOGICAL, INTENT(IN)                                :: should_print, elpa_force_redistribute
 
       work_redistribute%a = a
       work_redistribute%x = x
@@ -203,7 +203,7 @@ CONTAINS
 !> \author Nico Holmberg [01.2018]
 ! **************************************************************************************************
    FUNCTION cp_fm_max_ncpu_non_zero_column(matrix) RESULT(ncpu)
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       INTEGER                                            :: ncpu
 
       INTEGER                                            :: gcd_max, ipe, jpe, ncol_block, &
@@ -284,8 +284,8 @@ CONTAINS
    SUBROUTINE cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, &
                                        caller_is_elpa, redist_info)
 
-      TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
-      TYPE(cp_fm_type), POINTER, INTENT(OUT)   :: matrix_new, eigenvectors_new
+      TYPE(cp_fm_type), INTENT(IN), TARGET     :: matrix, eigenvectors
+      TYPE(cp_fm_type), POINTER                :: matrix_new, eigenvectors_new
       LOGICAL, OPTIONAL, INTENT(IN)            :: caller_is_elpa
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_start'
@@ -463,8 +463,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_redistribute_end(matrix, eigenvectors, eig, matrix_new, eigenvectors_new)
 
-      TYPE(cp_fm_type), POINTER                :: matrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:)              :: eig
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: eig
       TYPE(cp_fm_type), POINTER, INTENT(OUT)   :: matrix_new, eigenvectors_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_end'

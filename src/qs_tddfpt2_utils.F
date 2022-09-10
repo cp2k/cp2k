@@ -249,9 +249,10 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: do_eigen
       REAL(kind=dp)                                      :: element, maxocc
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: my_block
       REAL(kind=dp), DIMENSION(:), POINTER               :: mo_evals_extended, mo_occ_extended, &
                                                             mo_occ_scf
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: my_block
       TYPE(cp_fm_pool_type), POINTER                     :: wfn_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fm_struct, ao_mo_occ_fm_struct, &
                                                             ao_mo_virt_fm_struct, wfn_fm_struct
