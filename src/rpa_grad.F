@@ -1678,10 +1678,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_grad_finalize'
 
-      INTEGER :: dimen_ia, dimen_RI, handle, i, iiB, ispin, my_group_L_end, my_group_L_size, &
+      INTEGER :: dimen_ia, dimen_RI, handle, iiB, ispin, my_group_L_end, my_group_L_size, &
          my_group_L_start, my_ia_end, my_ia_size, my_ia_start, my_P_end, my_P_size, my_P_start, &
          ngroup, nspins, pos_group, pos_sub, proc
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info, sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group
       REAL(KIND=dp)                                      :: my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
@@ -1831,14 +1831,6 @@ CONTAINS
       END IF
 
 ! Now, Gamma_Pia
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-      sub_proc_map = 0
-      DO i = 0, para_env_sub%num_pe - 1
-         sub_proc_map(i) = i
-         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
-         sub_proc_map(para_env_sub%num_pe + i) = i
-      END DO
-
       ALLOCATE (mp2_env%ri_grad%G_P_ia(my_group_L_size, nspins))
       DO ispin = 1, nspins
       DO iiB = 1, my_group_L_size
@@ -1882,14 +1874,14 @@ CONTAINS
                        fm_G_P_ia)
 
          ! create the Gamma_ia_P in DBCSR style
-         CALL create_dbcsr_gamma(Gamma_2D, homo(ispin), virtual(ispin), dimen_ia, para_env_sub, sub_proc_map, &
+         CALL create_dbcsr_gamma(Gamma_2D, homo(ispin), virtual(ispin), dimen_ia, para_env_sub, &
                                  my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
                                  mp2_env%ri_grad%G_P_ia(:, ispin), mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
 
          CALL release_group_dist(gd_ia)
 
       END DO
-      DEALLOCATE (rpa_grad%fm_Y, sub_proc_map)
+      DEALLOCATE (rpa_grad%fm_Y)
       CALL cp_fm_release(fm_PQ_half)
 
       CALL timestop(handle)

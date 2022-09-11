@@ -79,14 +79,12 @@ CONTAINS
 !> \param my_B_virtual_start ...
 !> \param gd_array ...
 !> \param gd_B_virtual ...
-!> \param sub_proc_map ...
 !> \param kspin ...
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo, virtual, para_env, para_env_sub, ngroup, &
                              my_group_L_size, my_group_L_start, my_group_L_end, &
-                             my_B_size, my_B_virtual_start, gd_array, gd_B_virtual, &
-                             sub_proc_map, kspin)
+                             my_B_size, my_B_virtual_start, gd_array, gd_B_virtual, kspin)
 
       TYPE(mp2_type)                                     :: mp2_env
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
@@ -97,7 +95,6 @@ CONTAINS
                                                             my_group_L_start, my_group_L_end, &
                                                             my_B_size, my_B_virtual_start
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array, gd_B_virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       INTEGER, INTENT(IN)                                :: kspin
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'complete_gamma'
@@ -317,7 +314,7 @@ CONTAINS
       END IF
 
       ! create the Gamma_ia_P in DBCSR style
-      CALL create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, sub_proc_map, &
+      CALL create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, &
                               my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
                               mp2_env%ri_grad%G_P_ia(:, kspin), mp2_env%ri_grad%mo_coeff_o(1)%matrix)
 
@@ -362,19 +359,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mat_3d_to_2d'
 
-      INTEGER :: handle, i, ia_global, iiB, jjB, proc_receive, proc_send, proc_shift, rec_B_size, &
+      INTEGER :: handle, ia_global, iiB, jjB, proc_receive, proc_send, proc_shift, rec_B_size, &
          rec_B_virtual_end, rec_B_virtual_start
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
 
       CALL timeset(routineN, handle)
-
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-      DO i = 0, para_env_sub%num_pe - 1
-         sub_proc_map(i) = i
-         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
-         sub_proc_map(para_env_sub%num_pe + i) = i
-      END DO
 
       ALLOCATE (BIb_C_2D(my_ia_size, my_group_L_size))
       BIb_C_2D = 0.0_dp
@@ -389,8 +378,8 @@ CONTAINS
       END DO
 
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
          CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
@@ -446,19 +435,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mat_3d_to_2d_gamma'
 
-      INTEGER :: handle, i, ia_global, iiB, jjB, proc_receive, proc_send, proc_shift, rec_B_size, &
+      INTEGER :: handle, ia_global, iiB, jjB, proc_receive, proc_send, proc_shift, rec_B_size, &
          rec_B_virtual_end, rec_B_virtual_start
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sub_proc_map
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_rec
 
       CALL timeset(routineN, handle)
-
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-      DO i = 0, para_env_sub%num_pe - 1
-         sub_proc_map(i) = i
-         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
-         sub_proc_map(para_env_sub%num_pe + i) = i
-      END DO
 
       ALLOCATE (BIb_C_2D(my_ia_size, my_group_L_size))
       BIb_C_2D = 0.0_dp
@@ -473,8 +454,8 @@ CONTAINS
       END DO
 
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
          CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
@@ -539,7 +520,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'array2fm'
 
-      INTEGER :: dummy_proc, end_col_block, end_row_block, handle, handle2, i, i_global, i_local, &
+      INTEGER :: dummy_proc, end_col_block, end_row_block, handle, handle2, i_global, i_local, &
          i_sub, iiB, iii, itmp(2), j_global, j_local, j_sub, jjB, my_num_col_blocks, &
          my_num_row_blocks, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &
          nrow_local, num_cols, num_rec_cols, num_rows, number_of_rec, number_of_send, &
@@ -548,7 +529,7 @@ CONTAINS
          ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER :: start_col_block, start_row_block
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_col_rec, map_rec_size, &
-                                                            map_send_size, proc_map, req_send
+                                                            map_send_size, req_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: blocks_ranges_col, blocks_ranges_row, &
                                                             grid_2_mepos, grid_ref_2_send_pos, &
                                                             mepos_2_grid
@@ -584,13 +565,6 @@ CONTAINS
       mypcol = fm_mat%matrix_struct%context%mepos(2)
       nprow = fm_mat%matrix_struct%context%num_pe(1)
       npcol = fm_mat%matrix_struct%context%num_pe(2)
-
-      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe - 1))
-      DO i = 0, para_env%num_pe - 1
-         proc_map(i) = i
-         proc_map(-i - 1) = para_env%num_pe - i - 1
-         proc_map(para_env%num_pe + i) = i
-      END DO
 
       ! start the communication part
       ! 0) create array containing the processes position
@@ -691,7 +665,7 @@ CONTAINS
       ! count the number of messages to send
       number_of_send = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
+         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             number_of_send = number_of_send + 1
          END IF
@@ -707,7 +681,7 @@ CONTAINS
       ! of each message (actual size is size_send_buffer)
       send_counter = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
+         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          size_send_buffer = map_send_size(proc_send)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
@@ -757,7 +731,7 @@ CONTAINS
       ! count the number of messages to be received
       number_of_rec = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = proc_map(para_env%mepos - proc_shift)
+         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
          IF (map_rec_size(proc_receive) > 0) THEN
             number_of_rec = number_of_rec + 1
          END IF
@@ -767,7 +741,7 @@ CONTAINS
 
       rec_counter = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = proc_map(para_env%mepos - proc_shift)
+         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
             rec_counter = rec_counter + 1
@@ -785,7 +759,7 @@ CONTAINS
       ALLOCATE (req_send(number_of_send))
       send_counter = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
+         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
             CALL mp_isend(buffer_send(send_counter)%msg, proc_send, para_env%group, &
@@ -837,7 +811,7 @@ CONTAINS
 
       rec_counter = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = proc_map(para_env%mepos - proc_shift)
+         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
          size_rec_buffer = map_rec_size(proc_receive)
 
          IF (map_rec_size(proc_receive) > 0) THEN
@@ -949,13 +923,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm2array'
 
-      INTEGER :: dummy_proc, handle, handle2, i, i_global, iiB, iii, itmp(2), j_global, jjB, &
-         mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, num_cols, &
+      INTEGER :: dummy_proc, handle, handle2, i_global, iiB, iii, itmp(2), j_global, jjB, mypcol, &
+         myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, num_cols, &
          num_rec_rows, num_rows, number_of_rec, number_of_send, proc_receive, proc_send, &
          proc_shift, rec_col_size, rec_counter, rec_pcol, rec_prow, rec_row_size, ref_send_pcol, &
          ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, index_row_rec, map_rec_size, &
-                                                            map_send_size, proc_map, req_send
+                                                            map_send_size, req_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
                                                             mepos_2_grid, sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -994,13 +968,6 @@ CONTAINS
       ALLOCATE (grid_2_mepos(0:nprow - 1, 0:npcol - 1))
       grid_2_mepos = 0
       ALLOCATE (mepos_2_grid(2, 0:para_env%num_pe - 1))
-
-      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe - 1))
-      DO i = 0, para_env%num_pe - 1
-         proc_map(i) = i
-         proc_map(-i - 1) = para_env%num_pe - i - 1
-         proc_map(para_env%num_pe + i) = i
-      END DO
 
       ! fill the info array
       grid_2_mepos(myprow, mypcol) = para_env%mepos
@@ -1085,7 +1052,7 @@ CONTAINS
       ! count the number of messages to send
       number_of_send = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
+         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             number_of_send = number_of_send + 1
          END IF
@@ -1103,7 +1070,7 @@ CONTAINS
       ! of each message (actual size is size_send_buffer)
       send_counter = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
+         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          size_send_buffer = map_send_size(proc_send)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
@@ -1172,7 +1139,7 @@ CONTAINS
       ! count the number of messages to be received
       number_of_rec = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = proc_map(para_env%mepos - proc_shift)
+         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
          IF (map_rec_size(proc_receive) > 0) THEN
             number_of_rec = number_of_rec + 1
          END IF
@@ -1182,7 +1149,7 @@ CONTAINS
 
       rec_counter = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = proc_map(para_env%mepos - proc_shift)
+         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
             rec_counter = rec_counter + 1
@@ -1200,7 +1167,7 @@ CONTAINS
       ALLOCATE (req_send(number_of_send))
       send_counter = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
+         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
             CALL mp_isend(buffer_send(send_counter)%msg, proc_send, para_env%group, &
@@ -1223,7 +1190,7 @@ CONTAINS
       index_row_rec = 0
       rec_counter = 0
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = proc_map(para_env%mepos - proc_shift)
+         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
          size_rec_buffer = map_rec_size(proc_receive)
 
          IF (map_rec_size(proc_receive) > 0) THEN
@@ -1286,7 +1253,6 @@ CONTAINS
 !> \param virtual ...
 !> \param dimen_ia ...
 !> \param para_env_sub ...
-!> \param sub_proc_map ...
 !> \param my_ia_start ...
 !> \param my_ia_end ...
 !> \param my_group_L_size ...
@@ -1294,13 +1260,12 @@ CONTAINS
 !> \param dbcsr_Gamma ...
 !> \param mo_coeff_o ...
 ! **************************************************************************************************
-   SUBROUTINE create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, sub_proc_map, &
+   SUBROUTINE create_dbcsr_gamma(Gamma_2D, homo, virtual, dimen_ia, para_env_sub, &
                                  my_ia_start, my_ia_end, my_group_L_size, &
                                  gd_ia, dbcsr_Gamma, mo_coeff_o)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       INTEGER, INTENT(IN)                                :: my_ia_start, my_ia_end, my_group_L_size
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_ia
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: dbcsr_Gamma
@@ -1408,7 +1373,7 @@ CONTAINS
       ! allocate the buffer for sending data
       number_of_send = 0
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             number_of_send = number_of_send + 1
          END IF
@@ -1421,7 +1386,7 @@ CONTAINS
       ! finally allocate each message
       send_counter = 0
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
          size_send_buffer = map_send_size(proc_send)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
@@ -1440,7 +1405,7 @@ CONTAINS
       ! allocate the buffer for receiving data
       number_of_rec = 0
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
          IF (map_rec_size(proc_receive) > 0) THEN
             number_of_rec = number_of_rec + 1
          END IF
@@ -1452,7 +1417,7 @@ CONTAINS
       ! finally allocate each message and fill the array of indeces
       rec_counter = 0
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
             rec_counter = rec_counter + 1
@@ -1517,7 +1482,7 @@ CONTAINS
          CALL cp_fm_set_all(matrix=fm_ia, alpha=0.0_dp)
          rec_counter = 0
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+            proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
             IF (map_rec_size(proc_receive) > 0) THEN
                rec_counter = rec_counter + 1
                buffer_rec(rec_counter)%msg = 0.0_dp
@@ -1556,7 +1521,7 @@ CONTAINS
          req_send = 0
          send_counter = 0
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             IF (map_send_size(proc_send) > 0) THEN
                send_counter = send_counter + 1
                CALL mp_isend(buffer_send(send_counter)%msg, proc_send, para_env_sub%group, &
@@ -1568,7 +1533,7 @@ CONTAINS
          ! receive the massages and fill the fm_ia
          rec_counter = 0
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+            proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
             size_rec_buffer = map_rec_size(proc_receive)
             IF (map_rec_size(proc_receive) > 0) THEN
                rec_counter = rec_counter + 1

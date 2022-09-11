@@ -666,7 +666,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_W_P'
 
-      INTEGER :: color_exchange, dummy_proc, handle, handle2, handle3, i, i_global, i_local, iiB, &
+      INTEGER :: color_exchange, dummy_proc, handle, handle2, handle3, i_global, i_local, iiB, &
          iii, iproc, ispin, itmp(2), j_global, j_local, jjB, max_col_size, max_row_size, &
          my_B_virtual_end, my_B_virtual_start, mypcol, myprow, ncol_block, ncol_block_1i, &
          ncol_block_2a, ncol_local, ncol_local_1i, ncol_local_2a, npcol, npcol_1i, npcol_2a, &
@@ -676,8 +676,9 @@ CONTAINS
          proc_shift, rec_col_size
       INTEGER :: rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, send_prow, &
          send_row_size, size_rec_buffer, size_send_buffer
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: iii_vet, map_rec_size, map_send_size, pos_info, &
-         pos_info_ex, proc_2_send_pos, proc_map_ex, req_send, sub_proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
+                                                            pos_info, pos_info_ex, &
+                                                            proc_2_send_pos, req_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, mepos_2_grid, my_col_indeces_info_1i, &
          my_col_indeces_info_2a, my_row_indeces_info_1i, my_row_indeces_info_2a, sizes, sizes_1i, &
          sizes_2a
@@ -714,14 +715,6 @@ CONTAINS
       ! create all information array
       ALLOCATE (pos_info(0:para_env%num_pe - 1))
       CALL mp_allgather(para_env_sub%mepos, pos_info, para_env%group)
-
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-      sub_proc_map = 0
-      DO i = 0, para_env_sub%num_pe - 1
-         sub_proc_map(i) = i
-         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
-         sub_proc_map(para_env_sub%num_pe + i) = i
-      END DO
 
       ! get matrix information for the global
       CALL cp_fm_get_info(matrix=L_mu_q, &
@@ -780,13 +773,6 @@ CONTAINS
       ! -1) create the exchange para_env
       color_exchange = para_env_sub%mepos
       CALL cp_para_env_split(para_env_exchange, para_env, color_exchange)
-      ! crate the proc maps exchange and info
-      ALLOCATE (proc_map_ex(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
-      DO i = 0, para_env_exchange%num_pe - 1
-         proc_map_ex(i) = i
-         proc_map_ex(-i - 1) = para_env_exchange%num_pe - i - 1
-         proc_map_ex(para_env_exchange%num_pe + i) = i
-      END DO
       ALLOCATE (pos_info_ex(0:para_env%num_pe - 1))
       CALL mp_allgather(para_env_exchange%mepos, pos_info_ex, para_env%group)
       ALLOCATE (sizes(2, 0:para_env_exchange%num_pe - 1))
@@ -896,7 +882,7 @@ CONTAINS
       ! count the number of messages (include myself)
       number_of_send = 0
       DO proc_shift = 0, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             number_of_send = number_of_send + 1
          END IF
@@ -907,7 +893,7 @@ CONTAINS
       ALLOCATE (proc_2_send_pos(0:para_env_sub%num_pe - 1))
       proc_2_send_pos = 0
       DO proc_shift = 0, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
          size_send_buffer = map_send_size(proc_send)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
@@ -961,7 +947,7 @@ CONTAINS
       ! count the number of messages to be received
       number_of_rec = 0
       DO proc_shift = 0, para_env_sub%num_pe - 1
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
          IF (map_rec_size(proc_receive) > 0) THEN
             number_of_rec = number_of_rec + 1
          END IF
@@ -969,7 +955,7 @@ CONTAINS
       ALLOCATE (buffer_rec(number_of_rec))
       rec_counter = 0
       DO proc_shift = 0, para_env_sub%num_pe - 1
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
             rec_counter = rec_counter + 1
@@ -989,7 +975,7 @@ CONTAINS
       req_send = mp_request_null
       send_counter = 0
       DO proc_shift = 0, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
             IF (proc_send == para_env_sub%mepos) THEN
@@ -1021,7 +1007,7 @@ CONTAINS
       ! buffer_cyclic
       rec_counter = 0
       DO proc_shift = 0, para_env_sub%num_pe - 1
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
             rec_counter = rec_counter + 1
@@ -1086,8 +1072,8 @@ CONTAINS
 
       ! 6) Start with ring communication
       CALL timeset(routineN//"_ring", handle2)
-      proc_send_static = proc_map_ex(para_env_exchange%mepos + 1)
-      proc_receive_static = proc_map_ex(para_env_exchange%mepos - 1)
+      proc_send_static = MODULO(para_env_exchange%mepos + 1, para_env_exchange%num_pe)
+      proc_receive_static = MODULO(para_env_exchange%mepos - 1, para_env_exchange%num_pe)
       max_row_size = MAXVAL(sizes(1, :))
       max_col_size = MAXVAL(sizes(2, :))
       ALLOCATE (mat_send(max_row_size, max_col_size))
@@ -1096,8 +1082,7 @@ CONTAINS
       mat_send(1:nrow_local, 1:ncol_local) = buffer_cyclic(para_env_exchange%mepos)%msg(:, :)
       DEALLOCATE (buffer_cyclic(para_env_exchange%mepos)%msg)
       DO proc_shift = 1, para_env_exchange%num_pe - 1
-         proc_send = proc_map_ex(para_env_exchange%mepos + proc_shift)
-         proc_receive = proc_map_ex(para_env_exchange%mepos - proc_shift)
+         proc_receive = MODULO(para_env_exchange%mepos - proc_shift, para_env_exchange%num_pe)
 
          rec_row_size = sizes(1, proc_receive)
          rec_col_size = sizes(2, proc_receive)
@@ -1123,7 +1108,6 @@ CONTAINS
       DEALLOCATE (mat_rec)
       CALL timestop(handle2)
 
-      DEALLOCATE (proc_map_ex)
       ! release para_env_exchange
       CALL cp_para_env_release(para_env_exchange)
 
@@ -1300,8 +1284,8 @@ CONTAINS
 
       ALLOCATE (ab_rec(nrow_local, ncol_local))
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
          send_prow = mepos_2_grid(1, proc_send)
          send_pcol = mepos_2_grid(2, proc_send)
@@ -1428,7 +1412,6 @@ CONTAINS
 
       ! here we should be done next CPHF
 
-      DEALLOCATE (sub_proc_map)
       DEALLOCATE (pos_info)
 
       CALL timestop(handle)

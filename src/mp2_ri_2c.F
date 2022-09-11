@@ -809,11 +809,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals'
 
-      INTEGER :: best_group_size, color_L, group_size, handle, handle2, i, i_global, iatom, iiB, &
+      INTEGER :: best_group_size, color_L, group_size, handle, handle2, i_global, iatom, iiB, &
          ikind, iproc, j_global, jjB, natom, ncol_local, nkind, nrow_local, nsgf, potential_type, &
          proc_receive, proc_receive_static, proc_send_static, proc_shift, rec_L_end, rec_L_size, &
          rec_L_start, strat_group_size, sub_sub_color
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, proc_map
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: my_do_im_time
       REAL(KIND=dp)                                      :: min_mem_for_QK
@@ -952,14 +952,6 @@ CONTAINS
          CALL create_group_dist(gd_sub_array, my_group_L_start, &
                                 my_group_L_end, my_group_L_size, para_env_exchange)
 
-         ! crate the proc maps
-         ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
-         DO i = 0, para_env_exchange%num_pe - 1
-            proc_map(i) = i
-            proc_map(-i - 1) = para_env_exchange%num_pe - i - 1
-            proc_map(para_env_exchange%num_pe + i) = i
-         END DO
-
          CALL cp_fm_get_info(matrix=fm_matrix_L, &
                              nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
@@ -976,11 +968,11 @@ CONTAINS
             END IF
          END DO
 
-         proc_send_static = proc_map(para_env_exchange%mepos + 1)
-         proc_receive_static = proc_map(para_env_exchange%mepos - 1)
+         proc_send_static = MODULO(para_env_exchange%mepos + 1, para_env_exchange%num_pe)
+         proc_receive_static = MODULO(para_env_exchange%mepos - 1, para_env_exchange%num_pe)
 
          DO proc_shift = 1, para_env_exchange%num_pe - 1
-            proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
+            proc_receive = MODULO(para_env_exchange%mepos - proc_shift, para_env_exchange%num_pe)
 
             CALL get_group_dist(gd_sub_array, proc_receive, rec_L_start, rec_L_end, rec_L_size)
 
@@ -1001,7 +993,6 @@ CONTAINS
 
             CALL MOVE_ALLOC(L_external_col, L_local_col)
          END DO
-         DEALLOCATE (proc_map)
 
          CALL release_group_dist(gd_sub_array)
 
@@ -1714,9 +1705,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'grep_Lcols'
 
       INTEGER :: dimen_RI, handle, handle2, i_global, iiB, j_global, jjB, max_row_col_local, &
-         ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, proc_receive_static, proc_send, &
-         proc_send_static, proc_shift
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
+         ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive_static, proc_send_static, &
+         proc_shift
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
                                                             row_indices, row_indices_rec
@@ -1738,17 +1728,6 @@ CONTAINS
 
       ALLOCATE (my_Lrows(dimen_RI, my_group_L_size))
       my_Lrows = 0.0_dp
-
-      ! proc_map, vector that replicates the processor numbers also
-      ! for negative and positive number > num_pe
-      ! needed to know which is the processor, to respect to another one,
-      ! for a given shift
-      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe - 1))
-      DO iiB = 0, para_env%num_pe - 1
-         proc_map(iiB) = iiB
-         proc_map(-iiB - 1) = para_env%num_pe - iiB - 1
-         proc_map(para_env%num_pe + iiB) = iiB
-      END DO
 
       ALLOCATE (local_L(nrow_local, ncol_local))
       local_L(:, :) = local_L_internal(1:nrow_local, 1:ncol_local)
@@ -1778,15 +1757,12 @@ CONTAINS
          END IF
       END DO
 
-      proc_send_static = proc_map(para_env%mepos + 1)
-      proc_receive_static = proc_map(para_env%mepos - 1)
+      proc_send_static = MODULO(para_env%mepos + 1, para_env%num_pe)
+      proc_receive_static = MODULO(para_env%mepos - 1, para_env%num_pe)
 
       CALL timeset(routineN//"_comm", handle2)
 
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
-         proc_receive = proc_map(para_env%mepos - proc_shift)
-
          ! first exchange information on the local data
          rec_col_row_info = 0
          CALL mp_sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static, para_env%group)
@@ -1826,7 +1802,6 @@ CONTAINS
 
       DEALLOCATE (local_col_row_info)
       DEALLOCATE (rec_col_row_info)
-      DEALLOCATE (proc_map)
       DEALLOCATE (local_L)
 
       CALL timestop(handle)
