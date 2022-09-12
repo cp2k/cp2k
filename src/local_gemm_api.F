@@ -5,7 +5,7 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
-MODULE offload_gemm
+MODULE local_gemm_api
    USE ISO_C_BINDING, ONLY: C_LOC, &
                             C_NULL_PTR, &
                             C_PTR
@@ -34,17 +34,17 @@ MODULE offload_gemm
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'offload_gemm'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'local_gemm_api'
 
-   PUBLIC :: offload_dgemm, &
-             offload_gemm_create, &
-             offload_gemm_destroy, &
-             offload_gemm_set_op_threshold_gpu, &
-             offload_gemm_set_library
+   PUBLIC :: local_gemm, &
+             local_gemm_create, &
+             local_gemm_destroy, &
+             local_gemm_set_op_threshold_gpu, &
+             local_gemm_set_library
 
    INTEGER, PARAMETER, PUBLIC :: &
-      OFFLOAD_GEMM_PU_HOST = 0, &
-      OFFLOAD_GEMM_PU_GPU = 1
+      LOCAL_GEMM_PU_HOST = 0, &
+      LOCAL_GEMM_PU_GPU = 1
 
    INTEGER, PRIVATE :: do_dgemm = 1
 
@@ -67,9 +67,9 @@ CONTAINS
 !> \param ldc ...
 !> \param ctx ...
 ! **************************************************************************************************
-   SUBROUTINE offload_dgemm(opA, opB, m, n, k, &
-                            alpha, A, lda, B, ldb, &
-                            beta, C, ldc, ctx)
+   SUBROUTINE local_gemm(opA, opB, m, n, k, &
+                         alpha, A, lda, B, ldb, &
+                         beta, C, ldc, ctx)
       CHARACTER, INTENT(in) :: opA
       CHARACTER, INTENT(in) :: opB
       INTEGER, INTENT(in) :: m
@@ -103,7 +103,7 @@ CONTAINS
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       INTEGER :: spla_op_A, spla_op_B, spla_error
 #endif
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'offload_gemm'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_gemm'
       CALL timeset(routineN, handle)
 
 !     no point of using SPLA offloading on CPU ONLY nodes
@@ -141,14 +141,14 @@ CONTAINS
 #endif
       CALL timestop(handle)
 
-   END SUBROUTINE offload_dgemm
+   END SUBROUTINE local_gemm
 
 ! **************************************************************************************************
 !> \brief create a context for handling gemm offloading
 !> \param ctx newly created context
 !> \param pu processing unit to run the (s,d,c,z}dgemm
 ! **************************************************************************************************
-   SUBROUTINE offload_gemm_create(ctx, pu)
+   SUBROUTINE local_gemm_create(ctx, pu)
       TYPE(c_ptr), INTENT(out) :: ctx
       INTEGER, INTENT(in) :: pu
 
@@ -168,13 +168,13 @@ CONTAINS
       MARK_USED(ctx)
       ctx = C_NULL_PTR
 #endif
-   END SUBROUTINE offload_gemm_create
+   END SUBROUTINE local_gemm_create
 
 ! **************************************************************************************************
 !> \brief release resources associated to a gemm context
 !> \param ctx handle
 ! **************************************************************************************************
-   SUBROUTINE offload_gemm_destroy(ctx)
+   SUBROUTINE local_gemm_destroy(ctx)
       TYPE(c_ptr), INTENT(inout) :: ctx
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
@@ -190,14 +190,14 @@ CONTAINS
       MARK_USED(ctx)
 #endif
       ctx = C_NULL_PTR
-   END SUBROUTINE offload_gemm_destroy
+   END SUBROUTINE local_gemm_destroy
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param ctx ...
 !> \param opThresholdGPU ...
 ! **************************************************************************************************
-   SUBROUTINE offload_gemm_set_op_threshold_gpu(ctx, opThresholdGPU)
+   SUBROUTINE local_gemm_set_op_threshold_gpu(ctx, opThresholdGPU)
       TYPE(c_ptr)                                        :: ctx
       INTEGER, INTENT(in)                                :: opThresholdGPU
 
@@ -210,16 +210,16 @@ CONTAINS
       MARK_USED(ctx)
       MARK_USED(opThresholdGPU)
 #endif
-   END SUBROUTINE offload_gemm_set_op_threshold_gpu
+   END SUBROUTINE local_gemm_set_op_threshold_gpu
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param dgemm_library ...
 ! **************************************************************************************************
-   SUBROUTINE offload_gemm_set_library(dgemm_library)
+   SUBROUTINE local_gemm_set_library(dgemm_library)
       INTEGER, INTENT(IN)                                :: dgemm_library
 
       do_dgemm = dgemm_library
-   END SUBROUTINE offload_gemm_set_library
+   END SUBROUTINE local_gemm_set_library
 
-END MODULE offload_gemm
+END MODULE local_gemm_api

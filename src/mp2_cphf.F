@@ -37,7 +37,6 @@ MODULE mp2_cphf
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -74,6 +73,7 @@ MODULE mp2_cphf
    USE message_passing,                 ONLY: mp_sum
    USE mp2_types,                       ONLY: mp2_type,&
                                               ri_rpa_method_gpw
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -346,12 +346,12 @@ CONTAINS
          DO ispin = 1, nspins
             CALL dbcsr_add(P_mu_nu(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, -1.0_dp)
             CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)
-            CALL cp_gemm("N", "N", dimen, homo(ispin), dimen, 1.0_dp, &
-                         fm_G_mu_nu, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_back)
-            CALL cp_gemm("T", "N", homo(ispin), virtual(ispin), dimen, focc, &
-                         fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, L_jb(ispin)%matrix)
-            CALL cp_gemm("T", "N", homo(ispin), homo(ispin), dimen, -focc, &
-                         fm_back, mo_coeff_o(ispin)%matrix, 1.0_dp, W_mo(ispin)%matrix)
+            CALL parallel_gemm("N", "N", dimen, homo(ispin), dimen, 1.0_dp, &
+                               fm_G_mu_nu, mo_coeff_o(ispin)%matrix, 0.0_dp, fm_back)
+            CALL parallel_gemm("T", "N", homo(ispin), virtual(ispin), dimen, focc, &
+                               fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, L_jb(ispin)%matrix)
+            CALL parallel_gemm("T", "N", homo(ispin), homo(ispin), dimen, -focc, &
+                               fm_back, mo_coeff_o(ispin)%matrix, 1.0_dp, W_mo(ispin)%matrix)
          END DO
       END IF
 
@@ -478,8 +478,8 @@ CONTAINS
 
       ! backtnsform the collected parts of the energy-weighted density matrix into AO basis
       DO ispin = 1, nspins
-         CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                      mo_coeff(ispin)%matrix, W_mo(ispin)%matrix, 0.0_dp, fm_back)
+         CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
+                            mo_coeff(ispin)%matrix, W_mo(ispin)%matrix, 0.0_dp, fm_back)
          CALL cp_fm_release(W_mo(ispin)%matrix)
          CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 0.5_dp, .TRUE.)
          CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, mo_coeff(ispin)%matrix, fm_back, dimen, 0.5_dp, .TRUE.)
@@ -491,8 +491,8 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_set(p_env%p1(ispin)%matrix, 0.0_dp)
 
-         CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                      mo_coeff(ispin)%matrix, P_mo(ispin)%matrix, 0.0_dp, fm_back)
+         CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
+                            mo_coeff(ispin)%matrix, P_mo(ispin)%matrix, 0.0_dp, fm_back)
          CALL cp_fm_release(P_mo(ispin)%matrix)
          CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE.)
 
@@ -596,24 +596,24 @@ CONTAINS
          SELECT CASE (transf_type_in)
          CASE (1)
             ! occ-occ block
-            CALL cp_gemm('N', 'N', dimen, homo(ispin), homo(ispin), 1.0_dp, &
-                         mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
+            CALL parallel_gemm('N', 'N', dimen, homo(ispin), homo(ispin), 1.0_dp, &
+                               mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
             CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 1.0_dp, .TRUE.)
             ! virt-virt block
-            CALL cp_gemm('N', 'N', dimen, virtual(ispin), virtual(ispin), 1.0_dp, &
-                         mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
-                         b_first_col=homo(ispin) + 1, &
-                         b_first_row=homo(ispin) + 1)
+            CALL parallel_gemm('N', 'N', dimen, virtual(ispin), virtual(ispin), 1.0_dp, &
+                               mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back, &
+                               b_first_col=homo(ispin) + 1, &
+                               b_first_row=homo(ispin) + 1)
             CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin)%matrix, virtual(ispin), 1.0_dp, .TRUE.)
 
          CASE (3)
             ! virt-occ blocks
-            CALL cp_gemm('N', 'N', dimen, virtual(ispin), homo(ispin), 1.0_dp, &
-                         mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
+            CALL parallel_gemm('N', 'N', dimen, virtual(ispin), homo(ispin), 1.0_dp, &
+                               mo_coeff_o(ispin)%matrix, mat_in, 0.0_dp, fm_back)
             CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin)%matrix, virtual(ispin), 1.0_dp, .TRUE.)
             ! and symmetrize (here again multiply instead of transposing)
-            CALL cp_gemm('N', 'T', dimen, homo(ispin), virtual(ispin), 1.0_dp, &
-                         mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back)
+            CALL parallel_gemm('N', 'T', dimen, homo(ispin), virtual(ispin), 1.0_dp, &
+                               mo_coeff_v(ispin)%matrix, mat_in, 0.0_dp, fm_back)
             CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin)%matrix, homo(ispin), 1.0_dp, .TRUE.)
 
          CASE DEFAULT
@@ -663,10 +663,10 @@ CONTAINS
          ! transform to MO basis, here we always sum the result into the input matrix
 
          ! occ-virt block
-         CALL cp_gemm('T', 'N', homo(ispin), dimen, dimen, 1.0_dp, &
-                      mo_coeff_o(ispin)%matrix, fm_ao, 0.0_dp, fm_back)
-         CALL cp_gemm('N', 'N', homo(ispin), virtual(ispin), dimen, 1.0_dp, &
-                      fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, mat_out)
+         CALL parallel_gemm('T', 'N', homo(ispin), dimen, dimen, 1.0_dp, &
+                            mo_coeff_o(ispin)%matrix, fm_ao, 0.0_dp, fm_back)
+         CALL parallel_gemm('N', 'N', homo(ispin), virtual(ispin), dimen, 1.0_dp, &
+                            fm_back, mo_coeff_v(ispin)%matrix, 1.0_dp, mat_out)
 
       END DO
 

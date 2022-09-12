@@ -43,7 +43,6 @@ MODULE qs_efield_berry
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
@@ -58,6 +57,7 @@ MODULE qs_efield_berry
                                               z_zero
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -374,11 +374,11 @@ CONTAINS
                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff_tmp(ispin)%matrix, nmo=nmo)
                END IF
                CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, ncol=nmo)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, 0.0_dp, &
-                            op_fm_set(1, ispin)%matrix)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, 0.0_dp, &
+                                  op_fm_set(1, ispin)%matrix)
                CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, ncol=nmo)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, 0.0_dp, &
-                            op_fm_set(2, ispin)%matrix)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, 0.0_dp, &
+                                  op_fm_set(2, ispin)%matrix)
             END DO
             !second step invert C^T S_berry C
             zdet = z_one
@@ -399,10 +399,10 @@ CONTAINS
                   inv_work(1, ispin)%matrix%local_data(:, :) = REAL(inv_mat(ispin)%matrix%local_data(:, :), dp)
                   inv_work(2, ispin)%matrix%local_data(:, :) = AIMAG(inv_mat(ispin)%matrix%local_data(:, :))
                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
-                  CALL cp_gemm("N", "N", nao, nmo, nmo, focc, opvec(1, ispin)%matrix, inv_work(2, ispin)%matrix, &
-                               1.0_dp, mo_derivs_tmp(ispin)%matrix)
-                  CALL cp_gemm("N", "N", nao, nmo, nmo, -focc, opvec(2, ispin)%matrix, inv_work(1, ispin)%matrix, &
-                               1.0_dp, mo_derivs_tmp(ispin)%matrix)
+                  CALL parallel_gemm("N", "N", nao, nmo, nmo, focc, opvec(1, ispin)%matrix, inv_work(2, ispin)%matrix, &
+                                     1.0_dp, mo_derivs_tmp(ispin)%matrix)
+                  CALL parallel_gemm("N", "N", nao, nmo, nmo, -focc, opvec(2, ispin)%matrix, inv_work(1, ispin)%matrix, &
+                                     1.0_dp, mo_derivs_tmp(ispin)%matrix)
                END DO
             END IF
 
@@ -418,10 +418,10 @@ CONTAINS
                   CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
                   CALL dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
-                  CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(1, ispin)%matrix, 0.0_dp, &
-                               opvec(1, ispin)%matrix)
-                  CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(2, ispin)%matrix, 0.0_dp, &
-                               opvec(2, ispin)%matrix)
+                CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(1, ispin)%matrix, 0.0_dp, &
+                                     opvec(1, ispin)%matrix)
+                CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(2, ispin)%matrix, 0.0_dp, &
+                                     opvec(2, ispin)%matrix)
                   CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=tempmat(1, ispin)%matrix, &
                                              matrix_v=opvec(1, ispin)%matrix, matrix_g=mo_coeff_tmp(ispin)%matrix, ncol=nmo)
                   CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=tempmat(2, ispin)%matrix, &
@@ -857,11 +857,11 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff_tmp(ispin)%matrix, nmo=nmo)
             END IF
             CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, ncol=nmo)
-            CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, 0.0_dp, &
-                         op_fm_set(1, ispin)%matrix)
+            CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(1, ispin)%matrix, 0.0_dp, &
+                               op_fm_set(1, ispin)%matrix)
             CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, ncol=nmo)
-            CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, 0.0_dp, &
-                         op_fm_set(2, ispin)%matrix)
+            CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff_tmp(ispin)%matrix, opvec(2, ispin)%matrix, 0.0_dp, &
+                               op_fm_set(2, ispin)%matrix)
          END DO
          !second step invert C^T S_berry C
          zdet = z_one
@@ -883,10 +883,10 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
                DO i = 1, 3
                   focc = hmat(idir, i)
-                  CALL cp_gemm("N", "N", nao, nmo, nmo, focc, opvec(1, ispin)%matrix, inv_work(2, ispin)%matrix, &
-                               1.0_dp, mo_derivs_tmp(idir, ispin)%matrix)
-                  CALL cp_gemm("N", "N", nao, nmo, nmo, -focc, opvec(2, ispin)%matrix, inv_work(1, ispin)%matrix, &
-                               1.0_dp, mo_derivs_tmp(idir, ispin)%matrix)
+                  CALL parallel_gemm("N", "N", nao, nmo, nmo, focc, opvec(1, ispin)%matrix, inv_work(2, ispin)%matrix, &
+                                     1.0_dp, mo_derivs_tmp(idir, ispin)%matrix)
+                  CALL parallel_gemm("N", "N", nao, nmo, nmo, -focc, opvec(2, ispin)%matrix, inv_work(1, ispin)%matrix, &
+                                     1.0_dp, mo_derivs_tmp(idir, ispin)%matrix)
                END DO
             END DO
          END IF
@@ -903,10 +903,10 @@ CONTAINS
                CALL dbcsr_set(tempmat(1, ispin)%matrix, 0.0_dp)
                CALL dbcsr_set(tempmat(2, ispin)%matrix, 0.0_dp)
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, nmo=nmo)
-               CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(1, ispin)%matrix, 0.0_dp, &
-                            opvec(1, ispin)%matrix)
-               CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(2, ispin)%matrix, 0.0_dp, &
-                            opvec(2, ispin)%matrix)
+               CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(1, ispin)%matrix, 0.0_dp, &
+                                  opvec(1, ispin)%matrix)
+               CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mo_coeff_tmp(ispin)%matrix, inv_work(2, ispin)%matrix, 0.0_dp, &
+                                  opvec(2, ispin)%matrix)
                CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=tempmat(1, ispin)%matrix, &
                                           matrix_v=opvec(1, ispin)%matrix, matrix_g=mo_coeff_tmp(ispin)%matrix, ncol=nmo)
                CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=tempmat(2, ispin)%matrix, &

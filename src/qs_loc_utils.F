@@ -32,7 +32,6 @@ MODULE qs_loc_utils
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
         cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, &
         cp_fm_write_unformatted
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -64,6 +63,7 @@ MODULE qs_loc_utils
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_bcast
    USE orbital_pointers,                ONLY: ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -178,10 +178,10 @@ CONTAINS
 
       ! o1 = (mo_new)^T matrix_S mo_ref
       CALL cp_dbcsr_sm_fm_multiply(matrix_S, mo_ref, smo, ncol)
-      CALL cp_gemm('T', 'N', ncol, ncol, nrow, 1.0_dp, mo_new, smo, 0.0_dp, o1)
+      CALL parallel_gemm('T', 'N', ncol, ncol, nrow, 1.0_dp, mo_new, smo, 0.0_dp, o1)
 
       ! o2 = (o1^T o1)
-      CALL cp_gemm('T', 'N', ncol, ncol, ncol, 1.0_dp, o1, o1, 0.0_dp, o2)
+      CALL parallel_gemm('T', 'N', ncol, ncol, ncol, 1.0_dp, o1, o1, 0.0_dp, o2)
 
       ! o2 = (o1^T o1)^-1/2
       ALLOCATE (eigenvalues(ncol))
@@ -189,19 +189,19 @@ CONTAINS
       CALL cp_fm_to_fm(o3, o4)
       eigenvalues(:) = 1.0_dp/SQRT(eigenvalues(:))
       CALL cp_fm_column_scale(o4, eigenvalues)
-      CALL cp_gemm('N', 'T', ncol, ncol, ncol, 1.0_dp, o3, o4, 0.0_dp, o2)
+      CALL parallel_gemm('N', 'T', ncol, ncol, ncol, 1.0_dp, o3, o4, 0.0_dp, o2)
 
       ! o3 = o1 (o1^T o1)^-1/2
-      CALL cp_gemm('N', 'N', ncol, ncol, ncol, 1.0_dp, o1, o2, 0.0_dp, o3)
+      CALL parallel_gemm('N', 'N', ncol, ncol, ncol, 1.0_dp, o1, o2, 0.0_dp, o3)
 
       ! mo_new o1 (o1^T o1)^-1/2
-      CALL cp_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, mo_new, o3, 0.0_dp, smo)
+      CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, mo_new, o3, 0.0_dp, smo)
       CALL cp_fm_to_fm(smo, mo_new)
 
       ! XXXXXXX testing
-      ! CALL cp_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1)
+      ! CALL parallel_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1)
       ! WRITE(*,*) o1%local_data
-      ! CALL cp_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1)
+      ! CALL parallel_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1)
       ! WRITE(*,*) o1%local_data
 
       CALL cp_fm_release(o1)

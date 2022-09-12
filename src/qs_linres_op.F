@@ -38,7 +38,6 @@ MODULE qs_linres_op
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
         cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -56,6 +55,7 @@ MODULE qs_linres_op
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
    USE orbital_pointers,                ONLY: coset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_elec_field,                   ONLY: build_efg_matrix
@@ -771,11 +771,11 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
 
                CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(1, ispin)%matrix, ncol=nmo)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(1, ispin)%matrix, 0.0_dp, &
-                            op_fm_set(1, ispin)%matrix)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(1, ispin)%matrix, 0.0_dp, &
+                                  op_fm_set(1, ispin)%matrix)
                CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(2, ispin)%matrix, ncol=nmo)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(2, ispin)%matrix, 0.0_dp, &
-                            op_fm_set(2, ispin)%matrix)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(2, ispin)%matrix, 0.0_dp, &
+                                  op_fm_set(2, ispin)%matrix)
 
             END DO
 
@@ -800,10 +800,10 @@ CONTAINS
                   inv_work(1, i, ispin)%matrix%local_data(:, z) = REAL(inv_mat(i, ispin)%matrix%local_data(:, z), dp)
                   inv_work(2, i, ispin)%matrix%local_data(:, z) = AIMAG(inv_mat(i, ispin)%matrix%local_data(:, z))
                END DO
-               CALL cp_gemm("N", "N", nao, nmo, nmo, -1.0_dp, opvec(1, ispin)%matrix, inv_work(2, i, ispin)%matrix, &
-                            0.0_dp, dBerry_psi0(i, ispin)%matrix)
-               CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, opvec(2, ispin)%matrix, inv_work(1, i, ispin)%matrix, &
-                            1.0_dp, dBerry_psi0(i, ispin)%matrix)
+               CALL parallel_gemm("N", "N", nao, nmo, nmo, -1.0_dp, opvec(1, ispin)%matrix, inv_work(2, i, ispin)%matrix, &
+                                  0.0_dp, dBerry_psi0(i, ispin)%matrix)
+               CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, opvec(2, ispin)%matrix, inv_work(1, i, ispin)%matrix, &
+                                  1.0_dp, dBerry_psi0(i, ispin)%matrix)
             END DO
          END DO !x/y/z-direction
          !SL we omit here the multiplication with hmat (this scaling back done at the end of the response calc)

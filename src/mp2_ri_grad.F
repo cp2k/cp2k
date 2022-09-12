@@ -25,7 +25,6 @@ MODULE mp2_ri_grad
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -55,6 +54,7 @@ MODULE mp2_ri_grad
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
                                               mp2_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_poisson_types,                ONLY: pw_poisson_type
@@ -1153,22 +1153,22 @@ CONTAINS
                           col_indices=col_indices)
 
       IF (.NOT. mp2_env%method == ri_rpa_method_gpw) THEN
-         CALL cp_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
-                      mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
-         CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp, &
-                      L_mu_q, mo_coeff, 2.0_dp, fm_P_ij, &
-                      a_first_col=1, &
-                      a_first_row=1, &
-                      b_first_col=1, &
-                      b_first_row=1, &
-                      c_first_col=1, &
-                      c_first_row=1)
+         CALL parallel_gemm('T', 'N', homo, homo, dimen, 1.0_dp, &
+                            mo_coeff, L_mu_q, 0.0_dp, fm_P_ij, &
+                            a_first_col=1, &
+                            a_first_row=1, &
+                            b_first_col=1, &
+                            b_first_row=1, &
+                            c_first_col=1, &
+                            c_first_row=1)
+         CALL parallel_gemm('T', 'N', homo, homo, dimen, -2.0_dp, &
+                            L_mu_q, mo_coeff, 2.0_dp, fm_P_ij, &
+                            a_first_col=1, &
+                            a_first_row=1, &
+                            b_first_col=1, &
+                            b_first_row=1, &
+                            c_first_col=1, &
+                            c_first_row=1)
 
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
@@ -1234,22 +1234,22 @@ CONTAINS
       npcol = mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%context%num_pe(2)
 
       IF (mp2_env%method == ri_mp2_laplace) THEN
-         CALL cp_gemm('T', 'N', virtual, virtual, dimen, 1.0_dp, &
-                      mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%P_mo(kspin)%matrix, &
-                      a_first_col=homo + 1, &
-                      a_first_row=1, &
-                      b_first_col=homo + 1, &
-                      b_first_row=1, &
-                      c_first_col=homo + 1, &
-                      c_first_row=homo + 1)
-         CALL cp_gemm('T', 'N', virtual, virtual, dimen, -2.0_dp, &
-                      L_mu_q, mo_coeff, 2.0_dp, mp2_env%ri_grad%P_mo(kspin)%matrix, &
-                      a_first_col=homo + 1, &
-                      a_first_row=1, &
-                      b_first_col=homo + 1, &
-                      b_first_row=1, &
-                      c_first_col=homo + 1, &
-                      c_first_row=homo + 1)
+         CALL parallel_gemm('T', 'N', virtual, virtual, dimen, 1.0_dp, &
+                            mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%P_mo(kspin)%matrix, &
+                            a_first_col=homo + 1, &
+                            a_first_row=1, &
+                            b_first_col=homo + 1, &
+                            b_first_row=1, &
+                            c_first_col=homo + 1, &
+                            c_first_row=homo + 1)
+         CALL parallel_gemm('T', 'N', virtual, virtual, dimen, -2.0_dp, &
+                            L_mu_q, mo_coeff, 2.0_dp, mp2_env%ri_grad%P_mo(kspin)%matrix, &
+                            a_first_col=homo + 1, &
+                            a_first_row=1, &
+                            b_first_col=homo + 1, &
+                            b_first_row=1, &
+                            c_first_col=homo + 1, &
+                            c_first_row=homo + 1)
       END IF
 
       IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw) THEN
@@ -1359,34 +1359,34 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! all block
-      CALL cp_gemm('T', 'N', dimen, dimen, dimen, 2.0_dp*factor, &
-                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
-                   a_first_col=1, &
-                   a_first_row=1, &
-                   b_first_col=1, &
-                   b_first_row=1, &
-                   c_first_col=1, &
-                   c_first_row=1)
+      CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 2.0_dp*factor, &
+                         L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
+                         a_first_col=1, &
+                         a_first_row=1, &
+                         b_first_col=1, &
+                         b_first_row=1, &
+                         c_first_col=1, &
+                         c_first_row=1)
 
       ! occ-occ block
-      CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp*factor, &
-                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
-                   a_first_col=1, &
-                   a_first_row=1, &
-                   b_first_col=1, &
-                   b_first_row=1, &
-                   c_first_col=1, &
-                   c_first_row=1)
+      CALL parallel_gemm('T', 'N', homo, homo, dimen, -2.0_dp*factor, &
+                         L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
+                         a_first_col=1, &
+                         a_first_row=1, &
+                         b_first_col=1, &
+                         b_first_row=1, &
+                         c_first_col=1, &
+                         c_first_row=1)
 
       ! occ-virt block
-      CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                   mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
-                   a_first_col=1, &
-                   a_first_row=1, &
-                   b_first_col=homo + 1, &
-                   b_first_row=1, &
-                   c_first_col=homo + 1, &
-                   c_first_row=1)
+      CALL parallel_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
+                         mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
+                         a_first_col=1, &
+                         a_first_row=1, &
+                         b_first_col=homo + 1, &
+                         b_first_row=1, &
+                         c_first_col=homo + 1, &
+                         c_first_row=1)
       CALL timestop(handle2)
 
       ! Calculate occ-virt block of the lagrangian in MO
@@ -1404,23 +1404,23 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! first Virtual
-      CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb(kspin)%matrix, &
-                   a_first_col=1, &
-                   a_first_row=1, &
-                   b_first_col=homo + 1, &
-                   b_first_row=1, &
-                   c_first_col=1, &
-                   c_first_row=1)
+      CALL parallel_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
+                         L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb(kspin)%matrix, &
+                         a_first_col=1, &
+                         a_first_row=1, &
+                         b_first_col=homo + 1, &
+                         b_first_row=1, &
+                         c_first_col=1, &
+                         c_first_row=1)
       ! then occupied
-      CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                   mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb(kspin)%matrix, &
-                   a_first_col=1, &
-                   a_first_row=1, &
-                   b_first_col=homo + 1, &
-                   b_first_row=1, &
-                   c_first_col=1, &
-                   c_first_row=1)
+      CALL parallel_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
+                         mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb(kspin)%matrix, &
+                         a_first_col=1, &
+                         a_first_row=1, &
+                         b_first_col=homo + 1, &
+                         b_first_row=1, &
+                         c_first_col=1, &
+                         c_first_row=1)
 
       ! finally release L_mu_q
       CALL cp_fm_release(L_mu_q)

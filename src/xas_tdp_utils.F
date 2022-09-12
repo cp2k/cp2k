@@ -40,7 +40,6 @@ MODULE xas_tdp_utils
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_element, cp_fm_to_fm_submat, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -58,6 +57,7 @@ MODULE xas_tdp_utils
                                               xas_dip_len
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: get_diag
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: a_fine
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               init_preconditioner,&
@@ -976,7 +976,7 @@ CONTAINS
 
 !  Taking c^T * G * C
       CALL cp_dbcsr_sm_fm_multiply(donor_state%metric(1)%matrix, lr_coeffs, work, ncol=nvals)
-      CALL cp_gemm('T', 'N', nvals, nvals, nrow, 1.0_dp, lr_coeffs, work, 0.0_dp, fm_norm)
+      CALL parallel_gemm('T', 'N', nvals, nvals, nrow, 1.0_dp, lr_coeffs, work, 0.0_dp, fm_norm)
 
 !  Computing the needed scaling
       ALLOCATE (diag(nvals))
@@ -1652,7 +1652,7 @@ CONTAINS
 
       ! <alpha|SOC_z|alpha> => spin integration yields +1
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, mo_coeff, vec_work, ncol=homo)
-      CALL cp_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
+      CALL parallel_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
       CALL cp_fm_get_diag(prod_work, diag)
       gs_sum = SUM(diag)
 
@@ -1673,7 +1673,7 @@ CONTAINS
 
       ! <beta|SOC_z|beta> => spin integration yields -1
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, mo_coeff, vec_work, ncol=homo)
-      CALL cp_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
+      CALL parallel_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
       CALL cp_fm_get_diag(prod_work, diag)
       gs_sum = gs_sum - SUM(diag) ! -1 because of spin integration
 
@@ -1697,15 +1697,15 @@ CONTAINS
       ALLOCATE (domo_soc_x(ndo_so, ndo_so), domo_soc_y(ndo_so, ndo_so), domo_soc_z(ndo_so, ndo_so))
 
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, gs_coeffs, vec_soc_x, ncol=ndo_so)
-      CALL cp_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, vec_soc_x, 0.0_dp, prod_work)
+      CALL parallel_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, vec_soc_x, 0.0_dp, prod_work)
       CALL cp_fm_get_submatrix(prod_work, domo_soc_x)
 
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, gs_coeffs, vec_soc_y, ncol=ndo_so)
-      CALL cp_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, vec_soc_y, 0.0_dp, prod_work)
+      CALL parallel_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, vec_soc_y, 0.0_dp, prod_work)
       CALL cp_fm_get_submatrix(prod_work, domo_soc_y)
 
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, gs_coeffs, vec_soc_z, ncol=ndo_so)
-      CALL cp_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, vec_soc_z, 0.0_dp, prod_work)
+      CALL parallel_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, vec_soc_z, 0.0_dp, prod_work)
       CALL cp_fm_get_submatrix(prod_work, domo_soc_z)
 
       ! some more useful work matrices
@@ -1727,7 +1727,7 @@ CONTAINS
       !  <Psi_0|SOC|Psi_Jsc> = sum_k,sigma <phi^0_k,sigma|SOC|phi^Jsc_k,sigma>
 
       !compute -sc_coeffs*SOC_Z*gs_coeffs, minus sign because SOC_z antisymmetric
-      CALL cp_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_z, 0.0_dp, gsex_fm)
+      CALL parallel_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_z, 0.0_dp, gsex_fm)
 
       DO isc = 1, nsc
          CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isc - 1)*ndo_so + 1, &
@@ -1743,7 +1743,7 @@ CONTAINS
       !<Psi_0|SOC|Psi_Jsf> = sum_k,sigma <phi^0_k,sigma|SOC|phi^Jsc_k,tau>   sigma != tau
 
       !compute  -sc_coeffs*SOC_x*gs_coeffs, imaginary contribution
-      CALL cp_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_x, 0.0_dp, gsex_fm)
+      CALL parallel_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_x, 0.0_dp, gsex_fm)
 
       DO isf = 1, nsf
          CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isf - 1)*ndo_so + 1, &
@@ -1754,7 +1754,7 @@ CONTAINS
       END DO !isf
 
       !compute -sc_coeffs*SOC_y*gs_coeffs, real contribution
-      CALL cp_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_y, 0.0_dp, gsex_fm)
+      CALL parallel_gemm('T', 'N', nex*ndo_so, ndo_so, nao, -1.0_dp, sc_coeffs, vec_soc_y, 0.0_dp, gsex_fm)
 
       DO isf = 1, nsf
          CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isf - 1)*ndo_so + 1, &
@@ -2076,15 +2076,15 @@ CONTAINS
       ALLOCATE (domo_soc_x(ndo_mo, ndo_mo), domo_soc_y(ndo_mo, ndo_mo), domo_soc_z(ndo_mo, ndo_mo))
 
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, gs_coeffs, vec_soc_x, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_soc_x, 0.0_dp, prod_fm)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_soc_x, 0.0_dp, prod_fm)
       CALL cp_fm_get_submatrix(prod_fm, domo_soc_x)
 
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, gs_coeffs, vec_soc_y, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_soc_y, 0.0_dp, prod_fm)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_soc_y, 0.0_dp, prod_fm)
       CALL cp_fm_get_submatrix(prod_fm, domo_soc_y)
 
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, gs_coeffs, vec_soc_z, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_soc_z, 0.0_dp, prod_fm)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_soc_z, 0.0_dp, prod_fm)
       CALL cp_fm_get_submatrix(prod_fm, domo_soc_z)
 
 !  Only have SOC between singlet-triplet triplet-triplet and ground_state-triplet, the resulting
@@ -2101,7 +2101,7 @@ CONTAINS
       ALLOCATE (gstp_block(ndo_mo, ndo_mo))
 
       !gs-triplet with Ms=+-1, imaginary part
-      CALL cp_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_x, 0.0_dp, gstp_fm)
+      CALL parallel_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_x, 0.0_dp, gstp_fm)
 
       DO itp = 1, ntp
          CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp - 1)*ndo_mo + 1, &
@@ -2113,7 +2113,7 @@ CONTAINS
       END DO
 
       !gs-triplet with Ms=+-1, real part
-      CALL cp_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_y, 0.0_dp, gstp_fm)
+      CALL parallel_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_y, 0.0_dp, gstp_fm)
 
       DO itp = 1, ntp
          CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp - 1)*ndo_mo + 1, &
@@ -2125,7 +2125,7 @@ CONTAINS
       END DO
 
       !gs-triplet with Ms=0, purely imaginary
-      CALL cp_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_z, 0.0_dp, gstp_fm)
+      CALL parallel_gemm('T', 'N', ndo_mo*ntp, ndo_mo, nao, -1.0_dp, tp_coeffs, vec_soc_z, 0.0_dp, gstp_fm)
 
       DO itp = 1, ntp
          CALL cp_fm_get_submatrix(fm=gstp_fm, target_m=gstp_block, start_row=(itp - 1)*ndo_mo + 1, &
@@ -2412,7 +2412,7 @@ CONTAINS
          ao_op_i => ao_op(i)%matrix
 
          CALL cp_dbcsr_sm_fm_multiply(ao_op_i, mo_coeff, vec_work, ncol=homo)
-         CALL cp_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
+         CALL parallel_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
          CALL cp_fm_get_diag(prod_work, diag)
          gsgs_op(i) = SUM(diag)
 
@@ -2438,7 +2438,7 @@ CONTAINS
          ao_op_i => ao_op(i)%matrix
 
          CALL cp_dbcsr_sm_fm_multiply(ao_op_i, mo_coeff, vec_work, ncol=homo)
-         CALL cp_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
+         CALL parallel_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, vec_work, 0.0_dp, prod_work)
          CALL cp_fm_get_diag(prod_work, diag)
          gsgs_op(i) = gsgs_op(i) + SUM(diag)
 
@@ -2481,11 +2481,11 @@ CONTAINS
          !  Precompute what we can before looping over excited states
          ! Need the operator in the donor MOs basis <phi^0_I,sigma|op_i|phi^0_J,tau>
          CALL cp_dbcsr_sm_fm_multiply(ao_op_i, gs_coeffs, vec_work, ncol=ndo_so)
-         CALL cp_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, vec_work, 0.0_dp, prod_work)
+         CALL parallel_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, vec_work, 0.0_dp, prod_work)
          CALL cp_fm_get_submatrix(prod_work, domo_op)
 
          !  Do the ground-state/spin-conserving operator
-         CALL cp_gemm('T', 'N', ndo_so*nsc, ndo_so, nao, 1.0_dp, sc_coeffs, vec_work, 0.0_dp, gsex_fm)
+         CALL parallel_gemm('T', 'N', ndo_so*nsc, ndo_so, nao, 1.0_dp, sc_coeffs, vec_work, 0.0_dp, gsex_fm)
          DO isc = 1, nsc
             CALL cp_fm_get_submatrix(fm=gsex_fm, target_m=gsex_block, start_row=(isc - 1)*ndo_so + 1, &
                                      start_col=1, n_rows=ndo_so, n_cols=ndo_so)
@@ -2641,7 +2641,7 @@ CONTAINS
          ao_op_i => ao_op(i)%matrix
 
          CALL cp_dbcsr_sm_fm_multiply(ao_op_i, mo_coeff, work_fm, ncol=homo)
-         CALL cp_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, work_fm, 0.0_dp, gs_fm)
+         CALL parallel_gemm('T', 'N', homo, homo, nao, 1.0_dp, mo_coeff, work_fm, 0.0_dp, gs_fm)
          CALL cp_fm_get_diag(gs_fm, gs_diag)
          gsgs_op(i) = 2.0_dp*SUM(gs_diag)
 
@@ -2681,11 +2681,11 @@ CONTAINS
 
          ! Compute the operator in the donor MOs basis
          CALL cp_dbcsr_sm_fm_multiply(ao_op_i, gs_coeffs, vec_op, ncol=ndo_mo)
-         CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_op, 0.0_dp, prod_fm)
+         CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, gs_coeffs, vec_op, 0.0_dp, prod_fm)
          CALL cp_fm_get_submatrix(prod_fm, domo_op)
 
          ! Compute the ground-state/singlet components. ao_op*gs_coeffs already stored in vec_op
-         CALL cp_gemm('T', 'N', ndo_mo*nsg, ndo_mo, nao, 1.0_dp, sg_coeffs, vec_op, 0.0_dp, sggs_fm)
+         CALL parallel_gemm('T', 'N', ndo_mo*nsg, ndo_mo, nao, 1.0_dp, sg_coeffs, vec_op, 0.0_dp, sggs_fm)
          DO isg = 1, nsg
             CALL cp_fm_get_submatrix(fm=sggs_fm, target_m=sggs_block, start_row=(isg - 1)*ndo_mo + 1, &
                                      start_col=1, n_rows=ndo_mo, n_cols=ndo_mo)

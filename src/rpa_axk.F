@@ -32,7 +32,6 @@ MODULE rpa_axk
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat_general,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
@@ -47,6 +46,7 @@ MODULE rpa_axk
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE mp2_types,                       ONLY: mp2_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -177,9 +177,9 @@ CONTAINS
       DEALLOCATE (eigenval)
 
       ! Get R_half by multiplication
-      CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                   matrix_a=fm_mat_U, matrix_b=fm_mat_Q_tmp, beta=0.0_dp, &
-                   matrix_c=fm_mat_R_half)
+      CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                         matrix_a=fm_mat_U, matrix_b=fm_mat_Q_tmp, beta=0.0_dp, &
+                         matrix_c=fm_mat_R_half)
 
       ! get info of fm_mat_S and initialize Gamma_3
       NULLIFY (fm_mat_Gamma_3, fm_struct)
@@ -208,9 +208,9 @@ CONTAINS
                                       fm_mat_R_half%matrix_struct%context%group)
 
       ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2) )
-      CALL cp_gemm(transa="T", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                   matrix_a=fm_mat_S, matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
-                   matrix_c=fm_mat_Gamma_3)
+      CALL parallel_gemm(transa="T", transb="N", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                         matrix_a=fm_mat_S, matrix_b=fm_mat_R_half_gemm, beta=0.0_dp, &
+                         matrix_c=fm_mat_Gamma_3)
 
       ! Remove extra factor from S after the multiplication
       CALL remove_scaling_factor_rpa(fm_mat_S, virtual, eig, homo, omega)

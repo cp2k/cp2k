@@ -30,7 +30,6 @@ MODULE kpoint_methods
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, &
         cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_cart_create,&
                                               cp_para_env_create,&
@@ -66,6 +65,7 @@ MODULE kpoint_methods
                                               mp_cart_sub,&
                                               mp_max,&
                                               mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_matrix_pools,                 ONLY: mpools_create,&
                                               mpools_get,&
@@ -983,7 +983,7 @@ CONTAINS
                IF (wtype) THEN
                   CALL cp_fm_column_scale(fwork, eigenvalues)
                END IF
-               CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, pmat)
+               CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, pmat)
             ELSE
                IF (wtype) THEN
                   rpmat => kp%wmat(1, ispin)%matrix
@@ -999,19 +999,19 @@ CONTAINS
                   CALL cp_fm_column_scale(fwork, eigenvalues)
                END IF
                ! Re(c)*Re(c)
-               CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, rpmat)
+               CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, rpmat)
                mo_set => kp%mos(2, ispin)%mo_set
                ! Im(c)*Re(c)
-               CALL cp_gemm("N", "T", nao, nao, nmo, -1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, cpmat)
+               CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, cpmat)
                ! Re(c)*Im(c)
-               CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, fwork, mo_set%mo_coeff, 1.0_dp, cpmat)
+               CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, fwork, mo_set%mo_coeff, 1.0_dp, cpmat)
                CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
                CALL cp_fm_column_scale(fwork, occupation)
                IF (wtype) THEN
                   CALL cp_fm_column_scale(fwork, eigenvalues)
                END IF
                ! Im(c)*Im(c)
-               CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 1.0_dp, rpmat)
+               CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 1.0_dp, rpmat)
             END IF
          END DO
       END DO

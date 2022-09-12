@@ -32,7 +32,6 @@ MODULE qs_wannier90
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_para_env,                     ONLY: cp_para_env_retain
@@ -63,6 +62,7 @@ MODULE qs_wannier90
    USE machine,                         ONLY: m_datum
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
@@ -502,17 +502,17 @@ CONTAINS
                !
                ! calculate M_(mn)^(k,b)
                CALL cp_dbcsr_sm_fm_multiply(rmatrix, fmk2(1)%matrix, fm_tmp, nmo)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(1)%matrix, fm_tmp, 0.0_dp, mmn_real)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2)%matrix, fm_tmp, 0.0_dp, mmn_imag)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(1)%matrix, fm_tmp, 0.0_dp, mmn_real)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2)%matrix, fm_tmp, 0.0_dp, mmn_imag)
                CALL cp_dbcsr_sm_fm_multiply(rmatrix, fmk2(2)%matrix, fm_tmp, nmo)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(1)%matrix, fm_tmp, 1.0_dp, mmn_imag)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2)%matrix, fm_tmp, -1.0_dp, mmn_real)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(1)%matrix, fm_tmp, 1.0_dp, mmn_imag)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2)%matrix, fm_tmp, -1.0_dp, mmn_real)
                CALL cp_dbcsr_sm_fm_multiply(cmatrix, fmk2(1)%matrix, fm_tmp, nmo)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(1)%matrix, fm_tmp, 1.0_dp, mmn_imag)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2)%matrix, fm_tmp, -1.0_dp, mmn_real)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(1)%matrix, fm_tmp, 1.0_dp, mmn_imag)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2)%matrix, fm_tmp, -1.0_dp, mmn_real)
                CALL cp_dbcsr_sm_fm_multiply(cmatrix, fmk2(2)%matrix, fm_tmp, nmo)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(1)%matrix, fm_tmp, -1.0_dp, mmn_real)
-               CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2)%matrix, fm_tmp, -1.0_dp, mmn_imag)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(1)%matrix, fm_tmp, -1.0_dp, mmn_real)
+               CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, fmk1(2)%matrix, fm_tmp, -1.0_dp, mmn_imag)
                !
                ! write to output file
                IF (para_env%ionode) THEN

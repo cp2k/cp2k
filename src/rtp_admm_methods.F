@@ -28,7 +28,6 @@ MODULE rtp_admm_methods
                                               cp_fm_p_type,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
@@ -41,6 +40,7 @@ MODULE rtp_admm_methods
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: one,&
                                               zero
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -329,9 +329,9 @@ CONTAINS
          !! Symmetrize the guy
          CALL cp_fm_upper_to_full(admm_env%S_inv, admm_env%work_aux_aux)
          !! Calculate A=S'^(-1)*P
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                      1.0_dp, admm_env%S_inv, admm_env%Q, 0.0_dp, &
-                      admm_env%A)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                            1.0_dp, admm_env%S_inv, admm_env%Q, 0.0_dp, &
+                            admm_env%A)
       END IF
 
       ! *** Calculate the mo_coeffs for the fitting basis
@@ -344,12 +344,12 @@ CONTAINS
          CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, &
                          occupation_numbers=occ_num_aux)
 
-         CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                      1.0_dp, admm_env%A, mos_new(2*ispin - 1)%matrix, 0.0_dp, &
-                      rtp_coeff_aux_fit(2*ispin - 1)%matrix)
-         CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                      1.0_dp, admm_env%A, mos_new(2*ispin)%matrix, 0.0_dp, &
-                      rtp_coeff_aux_fit(2*ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
+                            1.0_dp, admm_env%A, mos_new(2*ispin - 1)%matrix, 0.0_dp, &
+                            rtp_coeff_aux_fit(2*ispin - 1)%matrix)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
+                            1.0_dp, admm_env%A, mos_new(2*ispin)%matrix, 0.0_dp, &
+                            rtp_coeff_aux_fit(2*ispin)%matrix)
 
          CALL cp_fm_to_fm(rtp_coeff_aux_fit(2*ispin - 1)%matrix, mo_coeff_aux_fit)
       END DO
@@ -492,13 +492,13 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_ks_nosym, admm_env%K(ispin)%matrix)
 
       !! K*A
-      CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                   1.0_dp, admm_env%K(ispin)%matrix, admm_env%A, 0.0_dp, &
-                   admm_env%work_aux_orb)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                         1.0_dp, admm_env%K(ispin)%matrix, admm_env%A, 0.0_dp, &
+                         admm_env%work_aux_orb)
       !! A^T*K*A
-      CALL cp_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
-                   1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                   admm_env%work_orb_orb)
+      CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
+                         1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                         admm_env%work_orb_orb)
 
       CALL dbcsr_get_info(matrix_ks_aux_fit(ispin)%matrix, matrix_type=matrix_type_fit)
 

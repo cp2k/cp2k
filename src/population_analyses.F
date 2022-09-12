@@ -32,7 +32,6 @@ MODULE population_analyses
                                               cp_fm_get_diag,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
@@ -46,6 +45,7 @@ MODULE population_analyses
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: nso
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -197,16 +197,16 @@ CONTAINS
             sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
             ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
             CALL cp_dbcsr_sm_fm_multiply(sm_p, fm_s_half, fm_work1, nsgf)
-            CALL cp_gemm(transa="N", &
-                         transb="N", &
-                         m=nsgf, &
-                         n=nsgf, &
-                         k=nsgf, &
-                         alpha=1.0_dp, &
-                         matrix_a=fm_s_half, &
-                         matrix_b=fm_work1, &
-                         beta=0.0_dp, &
-                         matrix_c=fm_work2)
+            CALL parallel_gemm(transa="N", &
+                               transb="N", &
+                               m=nsgf, &
+                               n=nsgf, &
+                               k=nsgf, &
+                               alpha=1.0_dp, &
+                               matrix_a=fm_s_half, &
+                               matrix_b=fm_work1, &
+                               beta=0.0_dp, &
+                               matrix_c=fm_work2)
             IF (print_level > 2) THEN
                ! Write the full Lowdin population matrix
                IF (nspin > 1) THEN

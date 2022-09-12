@@ -76,6 +76,7 @@ MODULE environment
                                               dp,&
                                               int_8,&
                                               print_kind_info
+   USE local_gemm_api,                  ONLY: local_gemm_set_library
    USE machine,                         ONLY: &
         flush_should_flush, m_cpuid, m_cpuid_name, m_cpuid_static, m_cpuinfo, m_energy, &
         m_get_omp_stacksize, m_memory_details, m_procrun
@@ -85,7 +86,6 @@ MODULE environment
                                               mp_max,&
                                               mp_sum,&
                                               rm_mp_perf_env
-   USE offload_gemm,                    ONLY: offload_gemm_set_library
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
                                               init_orbital_pointers
    USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics,&
@@ -1089,7 +1089,7 @@ CONTAINS
 
       CALL section_vals_val_get(glob_section, "PREFERRED_DGEMM_LIBRARY", i_val=dgemm_type)
 
-      CALL offload_gemm_set_library(dgemm_type)
+      CALL local_gemm_set_library(dgemm_type)
 
    END SUBROUTINE dgemm_setup
 

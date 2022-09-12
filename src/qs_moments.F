@@ -46,7 +46,6 @@ MODULE qs_moments
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               put_results
@@ -68,6 +67,7 @@ MODULE qs_moments
    USE orbital_pointers,                ONLY: current_maxl,&
                                               indco,&
                                               ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: bohr,&
@@ -1645,11 +1645,11 @@ CONTAINS
       DO i = 1, SIZE(op_fm_set, 2) ! spin
          CALL get_mo_set(mo_set=mos(i)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
          CALL cp_dbcsr_sm_fm_multiply(cosmat, mo_coeff, opvec(i)%matrix, ncol=nmo)
-         CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i)%matrix, 0.0_dp, &
-                      op_fm_set(1, i)%matrix)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i)%matrix, 0.0_dp, &
+                            op_fm_set(1, i)%matrix)
          CALL cp_dbcsr_sm_fm_multiply(sinmat, mo_coeff, opvec(i)%matrix, ncol=nmo)
-         CALL cp_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i)%matrix, 0.0_dp, &
-                      op_fm_set(2, i)%matrix)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mo_coeff, opvec(i)%matrix, 0.0_dp, &
+                            op_fm_set(2, i)%matrix)
       END DO
 
    END SUBROUTINE op_orbbas
@@ -1715,16 +1715,16 @@ CONTAINS
 
          CALL cp_fm_create(work1, matrix_struct=newstruct1)
 
-         CALL cp_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i - 1)%matrix, &
-                      work, 0.0_dp, work1)
+         CALL parallel_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i - 1)%matrix, &
+                            work, 0.0_dp, work1)
 
          DO icol = 1, lcol
             op_fm_set(1, i)%matrix%local_data(:, icol) = work1%local_data(:, icol)
             op_fm_set(2, i)%matrix%local_data(:, icol) = work1%local_data(:, icol + lcol)
          END DO
 
-         CALL cp_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i)%matrix, &
-                      work, 0.0_dp, work1)
+         CALL parallel_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i)%matrix, &
+                            work, 0.0_dp, work1)
 
          DO icol = 1, lcol
             op_fm_set(1, i)%matrix%local_data(:, icol) = &

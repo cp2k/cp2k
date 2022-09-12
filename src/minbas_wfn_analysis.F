@@ -34,7 +34,6 @@ MODULE minbas_wfn_analysis
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -60,6 +59,7 @@ MODULE minbas_wfn_analysis
    USE molden_utils,                    ONLY: write_mos_molden
    USE mulliken,                        ONLY: compute_bond_order,&
                                               mulliken_charges
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
@@ -246,9 +246,9 @@ CONTAINS
             CALL dbcsr_multiply("N", "N", 1.0_dp, smao, sinv, 0.0_dp, smaox)
             CALL copy_dbcsr_to_fm(smaox, fm1)
             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_mos, homo=homo)
-            CALL cp_gemm("T", "N", nmao, nmo, nao, 1.0_dp, fm1, fm_mos, 0.0_dp, fm2)
+            CALL parallel_gemm("T", "N", nmao, nmo, nao, 1.0_dp, fm1, fm_mos, 0.0_dp, fm2)
             CALL cp_dbcsr_sm_fm_multiply(sqmat(ispin)%matrix, fm2, fm3, nmo)
-            CALL cp_gemm("T", "N", nmo, nmo, nmao, 1.0_dp, fm2, fm3, 0.0_dp, fm4)
+            CALL parallel_gemm("T", "N", nmo, nmo, nmao, 1.0_dp, fm2, fm3, 0.0_dp, fm4)
             CALL cp_fm_get_diag(fm4, fnorm(1:nmo, ispin))
             ! fm2 are the projected MOs (in MAO basis); orthogonalize the occupied subspace
             CALL make_basis_lowdin(vmatrix=fm2, ncol=homo, matrix_s=sqmat(ispin)%matrix)

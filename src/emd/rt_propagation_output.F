@@ -27,7 +27,6 @@ MODULE rt_propagation_output
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr,&
@@ -54,6 +53,7 @@ MODULE rt_propagation_output
                                               dp
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_max
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -301,10 +301,10 @@ CONTAINS
 
          CALL cp_fm_struct_release(tmp_fm_struct)
 
-         CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(re)%matrix, &
-                      svec_re, 0.0_dp, overlap_re)
-         CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(im)%matrix, &
-                      svec_im, 1.0_dp, overlap_re)
+         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(re)%matrix, &
+                            svec_re, 0.0_dp, overlap_re)
+         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(im)%matrix, &
+                            svec_im, 1.0_dp, overlap_re)
 
          CALL cp_fm_release(svec_re)
          CALL cp_fm_release(svec_im)
@@ -410,11 +410,11 @@ CONTAINS
          CALL cp_fm_create(work, matrix_struct=newstruct1)
          CALL cp_fm_create(work2, matrix_struct=newstruct1)
 
-         CALL cp_gemm("T", "N", nmo, newdim, nao, one, delta_mos(re)%matrix, &
-                      work1, zero, work)
+         CALL parallel_gemm("T", "N", nmo, newdim, nao, one, delta_mos(re)%matrix, &
+                            work1, zero, work)
 
-         CALL cp_gemm("T", "N", nmo, newdim, nao, one, delta_mos(im)%matrix, &
-                      work1, zero, work2)
+         CALL parallel_gemm("T", "N", nmo, newdim, nao, one, delta_mos(im)%matrix, &
+                            work1, zero, work2)
 
          CALL cp_fm_get_info(work, nrow_local=lrow)
          DO i = 1, lrow

@@ -48,7 +48,6 @@ MODULE qs_p_env_methods
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                               cp_fm_vect_dealloc
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -71,6 +70,7 @@ MODULE qs_p_env_methods
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: init_preconditioner
    USE pw_env_types,                    ONLY: pw_env_type
    USE pw_types,                        ONLY: pw_p_type
@@ -556,11 +556,11 @@ CONTAINS
                                          psi0(spin)%matrix, &
                                          p_env%S_psi0(spin)%matrix, &
                                          ncol=p_env%n_mo(spin), alpha=1.0_dp)
-            CALL cp_gemm(transa='T', transb='N', n=p_env%n_mo(spin), &
-                         m=p_env%n_mo(spin), k=p_env%n_ao(spin), alpha=1.0_dp, &
-                         matrix_a=psi0(spin)%matrix, &
-                         matrix_b=p_env%S_psi0(spin)%matrix, &
-                         beta=0.0_dp, matrix_c=p_env%m_epsilon(spin)%matrix)
+            CALL parallel_gemm(transa='T', transb='N', n=p_env%n_mo(spin), &
+                               m=p_env%n_mo(spin), k=p_env%n_ao(spin), alpha=1.0_dp, &
+                               matrix_a=psi0(spin)%matrix, &
+                               matrix_b=p_env%S_psi0(spin)%matrix, &
+                               beta=0.0_dp, matrix_c=p_env%m_epsilon(spin)%matrix)
             CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin)%matrix, &
                                           n=p_env%n_mo(spin))
 
@@ -642,10 +642,10 @@ CONTAINS
                                       p_env%psi0d(spin)%matrix, &
                                       p_env%S_psi0(spin)%matrix, p_env%n_mo(spin))
          ! m_epsilon = -1 times S_psi0^T times psi0d
-         CALL cp_gemm('T', 'N', &
-                      p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
-                      -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
-                      0.0_dp, p_env%m_epsilon(spin)%matrix)
+         CALL parallel_gemm('T', 'N', &
+                            p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
+                            -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
+                            0.0_dp, p_env%m_epsilon(spin)%matrix)
       END DO
 
       !----------------------------------|
@@ -931,15 +931,15 @@ CONTAINS
          CPASSERT(cols <= max_cols)
 
          ! tmp_matrix = v^T (S psi0)
-         CALL cp_gemm(transa='T', transb='N', m=cols, n=p_env%n_mo(spin), &
-                      k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
-                      matrix_b=p_env%S_psi0(spin)%matrix, beta=0.0_dp, &
-                      matrix_c=tmp_matrix)
+         CALL parallel_gemm(transa='T', transb='N', m=cols, n=p_env%n_mo(spin), &
+                            k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
+                            matrix_b=p_env%S_psi0(spin)%matrix, beta=0.0_dp, &
+                            matrix_c=tmp_matrix)
          ! v = v - psi0d tmp_matrix^T = v - psi0d psi0^T S v
-         CALL cp_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
-                      k=p_env%n_mo(spin), alpha=-1.0_dp, &
-                      matrix_a=p_env%psi0d(spin)%matrix, matrix_b=tmp_matrix, &
-                      beta=1.0_dp, matrix_c=v(spin)%matrix)
+         CALL parallel_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
+                            k=p_env%n_mo(spin), alpha=-1.0_dp, &
+                            matrix_a=p_env%psi0d(spin)%matrix, matrix_b=tmp_matrix, &
+                            beta=1.0_dp, matrix_c=v(spin)%matrix)
 
       END DO
 
@@ -1023,15 +1023,15 @@ CONTAINS
          CPASSERT(cols <= max_cols)
 
          ! tmp_matrix = v^T psi0d
-         CALL cp_gemm(transa='T', transb='N', m=cols, n=p_env%n_mo(spin), &
-                      k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
-                      matrix_b=p_env%psi0d(spin)%matrix, beta=0.0_dp, &
-                      matrix_c=tmp_matrix)
+         CALL parallel_gemm(transa='T', transb='N', m=cols, n=p_env%n_mo(spin), &
+                            k=p_env%n_ao(spin), alpha=1.0_dp, matrix_a=v(spin)%matrix, &
+                            matrix_b=p_env%psi0d(spin)%matrix, beta=0.0_dp, &
+                            matrix_c=tmp_matrix)
          ! v = v - (S psi0) tmp_matrix^T = v - S psi0 psi0d^T v
-         CALL cp_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
-                      k=p_env%n_mo(spin), alpha=-1.0_dp, &
-                      matrix_a=p_env%S_psi0(spin)%matrix, matrix_b=tmp_matrix, &
-                      beta=1.0_dp, matrix_c=v(spin)%matrix)
+         CALL parallel_gemm(transa='N', transb='T', m=p_env%n_ao(spin), n=cols, &
+                            k=p_env%n_mo(spin), alpha=-1.0_dp, &
+                            matrix_a=p_env%S_psi0(spin)%matrix, matrix_b=tmp_matrix, &
+                            beta=1.0_dp, matrix_c=v(spin)%matrix)
 
       END DO
 
@@ -1072,8 +1072,8 @@ CONTAINS
          DO ispin = 1, SIZE(p_env%kpp1)
             CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1_admm(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
                                          ncol=nao, alpha=1.0_dp, beta=0.0_dp)
-            CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
-                         admm_env%work_aux_orb, 0.0_dp, admm_env%work_orb_orb)
+            CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
+                               admm_env%work_aux_orb, 0.0_dp, admm_env%work_orb_orb)
             CALL dbcsr_set(work_hmat, 0.0_dp)
             CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, work_hmat, keep_sparsity=.TRUE.)
             CALL dbcsr_add(p_env%kpp1(ispin)%matrix, work_hmat, 1.0_dp, 1.0_dp)

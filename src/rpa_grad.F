@@ -27,7 +27,6 @@ MODULE rpa_grad
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_p_type, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -43,6 +42,11 @@ MODULE rpa_grad
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm,&
+                                              local_gemm_create,&
+                                              local_gemm_destroy,&
+                                              local_gemm_set_op_threshold_gpu
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_alltoall,&
@@ -59,11 +63,7 @@ MODULE rpa_grad
                                               one_dim_int_array,&
                                               two_dim_int_array,&
                                               two_dim_real_array
-   USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
-                                              offload_dgemm,&
-                                              offload_gemm_create,&
-                                              offload_gemm_destroy,&
-                                              offload_gemm_set_op_threshold_gpu
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE rpa_util,                        ONLY: calc_fm_mat_S_rpa,&
@@ -772,9 +772,9 @@ CONTAINS
 
          CALL timeset(routineN//"_PQ", handle2)
          CALL dgemm_counter_start(dgemm_counter)
-         CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=weight, &
-                      matrix_a=rpa_grad%rpa_work%fm_mat_Q_copy, matrix_b=fm_mat_Q(1)%matrix, beta=1.0_dp, &
-                      matrix_c=rpa_grad%fm_Gamma_PQ)
+         CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=weight, &
+                            matrix_a=rpa_grad%rpa_work%fm_mat_Q_copy, matrix_b=fm_mat_Q(1)%matrix, beta=1.0_dp, &
+                            matrix_c=rpa_grad%fm_Gamma_PQ)
          CALL dgemm_counter_stop(dgemm_counter, dimen_RI, dimen_RI, dimen_RI)
          CALL timestop(handle2)
 
@@ -794,9 +794,9 @@ CONTAINS
          IF (do_ri_sos_laplace_mp2) THEN
             CALL timeset(routineN//"_PQ", handle2)
             CALL dgemm_counter_start(dgemm_counter)
-            CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=weight, &
-                         matrix_a=fm_mat_Q(ispin)%matrix, matrix_b=fm_mat_Q(jspin)%matrix, beta=1.0_dp, &
-                         matrix_c=rpa_grad%fm_Gamma_PQ)
+            CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=weight, &
+                               matrix_a=fm_mat_Q(ispin)%matrix, matrix_b=fm_mat_Q(jspin)%matrix, beta=1.0_dp, &
+                               matrix_c=rpa_grad%fm_Gamma_PQ)
             CALL dgemm_counter_stop(dgemm_counter, dimen_RI, dimen_RI, dimen_RI)
             CALL timestop(handle2)
 
@@ -814,9 +814,9 @@ CONTAINS
          CALL cp_fm_get_info(fm_mat_S(ispin)%matrix, ncol_global=dimen_ia)
 
          CALL dgemm_counter_start(dgemm_counter)
-         CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
-                      matrix_a=fm_mat_Q_gemm(jspin)%matrix, matrix_b=fm_mat_S(ispin)%matrix, beta=0.0_dp, &
-                      matrix_c=fm_work_iaP)
+         CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=fm_mat_Q_gemm(jspin)%matrix, matrix_b=fm_mat_S(ispin)%matrix, beta=0.0_dp, &
+                            matrix_c=fm_work_iaP)
          CALL dgemm_counter_stop(dgemm_counter, dimen_ia, dimen_RI, dimen_RI)
          CALL timestop(handle2)
 
@@ -1004,9 +1004,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! We allocate it at every step to reduce potential memory conflicts with COSMA
-      IF (.NOT. c_associated(mp2_env%offload_gemm_ctx)) THEN
-         CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
-         CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
+      IF (.NOT. c_associated(mp2_env%local_gemm_ctx)) THEN
+         CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
+         CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
       END IF
 
       tag = 47
@@ -1048,10 +1048,10 @@ CONTAINS
          CALL timeset(routineN//"_dgemm_a", handle2)
          ! This loop imitates the actual tensor contraction
          DO my_i = 1, my_i_size
-            CALL offload_dgemm("T", "N", my_a_size, recv_a_size, my_P_size, &
-                               -weight, mat_S_3D(:, :, my_i), my_P_size, &
-                               buffer_3D(:, :, my_i), my_P_size, &
-                               1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%offload_gemm_ctx)
+            CALL local_gemm("T", "N", my_a_size, recv_a_size, my_P_size, &
+                            -weight, mat_S_3D(:, :, my_i), my_P_size, &
+                            buffer_3D(:, :, my_i), my_P_size, &
+                            1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%local_gemm_ctx)
          END DO
          CALL timestop(handle2)
 
@@ -1072,10 +1072,10 @@ CONTAINS
          CALL timeset(routineN//"_dgemm_a", handle2)
          DO my_i = 1, my_i_size
             ! Repeat contraction
-            CALL offload_dgemm("T", "N", my_a_size, recv_a_size, my_P_size, &
-                               weight, mat_S_3D(:, :, my_i), my_P_size, &
-                               buffer_3D(:, :, my_i), my_P_size, &
-                               1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%offload_gemm_ctx)
+            CALL local_gemm("T", "N", my_a_size, recv_a_size, my_P_size, &
+                            weight, mat_S_3D(:, :, my_i), my_P_size, &
+                            buffer_3D(:, :, my_i), my_P_size, &
+                            1.0_dp, P_ab(:, recv_a_start:recv_a_end), my_a_size, mp2_env%local_gemm_ctx)
          END DO
          CALL timestop(handle2)
 
@@ -1115,10 +1115,10 @@ CONTAINS
 
          CALL timeset(routineN//"_dgemm_i", handle2)
          ! This loop imitates the actual tensor contraction
-         CALL offload_dgemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
-                            weight, mat_S_2D, my_P_size*my_a_size, &
-                            buffer_2D, my_P_size*my_a_size, &
-                            1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%offload_gemm_ctx)
+         CALL local_gemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
+                         weight, mat_S_2D, my_P_size*my_a_size, &
+                         buffer_2D, my_P_size*my_a_size, &
+                         1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%local_gemm_ctx)
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_scale_i", handle2)
@@ -1139,10 +1139,10 @@ CONTAINS
 
          CALL timeset(routineN//"_dgemm_i", handle2)
          ! Repeat contraction
-         CALL offload_dgemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
-                            -weight, mat_S_2D, my_P_size*my_a_size, &
-                            buffer_2D, my_P_size*my_a_size, &
-                            1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%offload_gemm_ctx)
+         CALL local_gemm("T", "N", my_i_size, recv_i_size, my_a_size*my_P_size, &
+                         -weight, mat_S_2D, my_P_size*my_a_size, &
+                         buffer_2D, my_P_size*my_a_size, &
+                         1.0_dp, P_ij(:, recv_i_start:recv_i_end), my_i_size, mp2_env%local_gemm_ctx)
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_scale_i", handle2)
@@ -1156,9 +1156,9 @@ CONTAINS
          CALL timestop(handle2)
       END DO
 
-      ! release memory allocated by offload_dgemm when run on GPU. offload_gemm_ctx is null on cpu only runs
-      CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
-      mp2_env%offload_gemm_ctx = C_NULL_PTR
+      ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
+      CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
+      mp2_env%local_gemm_ctx = C_NULL_PTR
 
       CALL timestop(handle)
 
@@ -1783,30 +1783,30 @@ CONTAINS
 
       IF (compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
 ! Finish Gamma_PQ
-         CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                      matrix_a=fm_PQ, matrix_b=fm_PQ_half, beta=0.0_dp, &
-                      matrix_c=fm_work_PQ)
+         CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=fm_PQ, matrix_b=fm_PQ_half, beta=0.0_dp, &
+                            matrix_c=fm_work_PQ)
 
-         CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-my_scale, &
-                      matrix_a=fm_PQ_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
-                      matrix_c=fm_PQ)
+         CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-my_scale, &
+                            matrix_a=fm_PQ_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
+                            matrix_c=fm_PQ)
 
          CALL cp_fm_release(fm_work_PQ)
       ELSE
-         CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                      matrix_a=fm_PQ, matrix_b=operator_half, beta=0.0_dp, &
-                      matrix_c=fm_work_PQ)
+         CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=fm_PQ, matrix_b=operator_half, beta=0.0_dp, &
+                            matrix_c=fm_work_PQ)
 
-         CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=my_scale, &
-                      matrix_a=operator_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
-                      matrix_c=fm_PQ)
+         CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=my_scale, &
+                            matrix_a=operator_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
+                            matrix_c=fm_PQ)
          CALL cp_fm_release(operator_half)
 
          NULLIFY (fm_work_PQ_2)
          CALL cp_fm_create(fm_work_PQ_2, fm_PQ%matrix_struct, name="fm_Gamma_PQ_2")
-         CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-my_scale, &
-                      matrix_a=fm_PQ_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
-                      matrix_c=fm_work_PQ_2)
+         CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-my_scale, &
+                            matrix_a=fm_PQ_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
+                            matrix_c=fm_work_PQ_2)
          CALL cp_fm_to_fm(fm_work_PQ_2, fm_PQ_2)
          CALL cp_fm_geadd(1.0_dp, "T", fm_work_PQ_2, 1.0_dp, fm_PQ_2)
          CALL cp_fm_release(fm_work_PQ_2)
@@ -1866,9 +1866,9 @@ CONTAINS
          CALL cp_fm_create(fm_G_P_ia, fm_Y%matrix_struct)
          CALL cp_fm_set_all(fm_G_P_ia, 0.0_dp)
 
-         CALL cp_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=my_scale, &
-                      matrix_a=fm_Y, matrix_b=fm_PQ_half, beta=0.0_dp, &
-                      matrix_c=fm_G_P_ia)
+         CALL parallel_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=my_scale, &
+                            matrix_a=fm_Y, matrix_b=fm_PQ_half, beta=0.0_dp, &
+                            matrix_c=fm_G_P_ia)
 
          CALL cp_fm_release(fm_Y)
 

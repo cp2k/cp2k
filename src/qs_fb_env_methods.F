@@ -36,7 +36,6 @@ MODULE qs_fb_env_methods
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -61,6 +60,7 @@ MODULE qs_fb_env_methods
    USE message_passing,                 ONLY: mp_max
    USE orbital_pointers,                ONLY: nco,&
                                               ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_diis,                         ONLY: qs_diis_b_step
@@ -716,11 +716,11 @@ CONTAINS
          ! solve eigen equatoin using S^-1/2
          CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, fm_KS, fm_ortho, &
                          0.0_dp, fm_work)
-         CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, fm_ortho, &
-                      fm_work, 0.0_dp, fm_KS)
+         CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, fm_ortho, &
+                            fm_work, 0.0_dp, fm_KS)
          CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues)
-         CALL cp_gemm("N", "N", nao, nmo, nao, 1.0_dp, fm_ortho, &
-                      fm_work, 0.0_dp, mo_coeff)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, fm_ortho, &
+                            fm_work, 0.0_dp, mo_coeff)
       END IF
 
       CALL timestop(handle)

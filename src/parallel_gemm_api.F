@@ -11,7 +11,7 @@
 !>      08.2002 splitted out of qs_blacs [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-MODULE cp_gemm_interface
+MODULE parallel_gemm_api
    USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                               C_DOUBLE,&
                                               C_INT,&
@@ -29,9 +29,9 @@ MODULE cp_gemm_interface
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_gemm_interface'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'parallel_gemm_api'
 
-   PUBLIC :: cp_gemm
+   PUBLIC :: parallel_gemm
 
 CONTAINS
 
@@ -54,9 +54,9 @@ CONTAINS
 !> \param c_first_col ...
 !> \param c_first_row ...
 ! **************************************************************************************************
-   SUBROUTINE cp_gemm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, &
-                      matrix_c, a_first_col, a_first_row, b_first_col, b_first_row, &
-                      c_first_col, c_first_row)
+   SUBROUTINE parallel_gemm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, &
+                            matrix_c, a_first_col, a_first_row, b_first_col, b_first_row, &
+                            c_first_col, c_first_row)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       INTEGER, INTENT(IN)                                :: m, n, k
       REAL(KIND=dp), INTENT(IN)                          :: alpha
@@ -66,7 +66,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_gemm'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'parallel_gemm'
 
       INTEGER                                            :: handle, handle1, my_multi
 
@@ -104,7 +104,7 @@ CONTAINS
       END SELECT
       CALL timestop(handle)
 
-   END SUBROUTINE cp_gemm
+   END SUBROUTINE parallel_gemm
 
 #if defined(__COSMA)
 ! **************************************************************************************************
@@ -211,4 +211,4 @@ CONTAINS
    END SUBROUTINE cosma_pdgemm
 #endif
 
-END MODULE cp_gemm_interface
+END MODULE parallel_gemm_api

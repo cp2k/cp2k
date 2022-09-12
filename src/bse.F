@@ -20,7 +20,6 @@ MODULE bse
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE group_dist_types,                ONLY: get_group_dist,&
                                               group_dist_d1_type
@@ -28,6 +27,7 @@ MODULE bse
    USE message_passing,                 ONLY: mp_alltoall,&
                                               mp_sum
    USE mp2_types,                       ONLY: integ_mat_buffer_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE rpa_communication,               ONLY: communicate_buffer
 #include "./base/base_uses.f90"
 
@@ -433,15 +433,15 @@ CONTAINS
       ! symmetrize the result
       CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_mat_work)
 
-      CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
-                   matrix_a=fm_mat_Q_static_bse, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
-                   matrix_c=fm_mat_S_bar_ij_bse)
+      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
+                         matrix_a=fm_mat_Q_static_bse, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
+                         matrix_c=fm_mat_S_bar_ij_bse)
 
       ! fm_mat_S_bar_ia_bse has a different blacs_env as fm_mat_S_ij_bse since we take
       ! fm_mat_S from RPA. Therefore, we also need a different fm_mat_Q_static_bse_gemm
-      CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
-                   matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S, beta=0.0_dp, &
-                   matrix_c=fm_mat_S_bar_ia_bse)
+      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_ia, k=dimen_RI, alpha=1.0_dp, &
+                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S, beta=0.0_dp, &
+                         matrix_c=fm_mat_S_bar_ia_bse)
 
       CALL allocate_and_fill_local_array(B_iaQ_bse_local, fm_mat_S, gd_array, color_sub, homo, virtual, dimen_RI, para_env)
 

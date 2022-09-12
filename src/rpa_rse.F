@@ -32,7 +32,6 @@ MODULE rpa_rse
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
@@ -51,6 +50,7 @@ MODULE rpa_rse
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE mp2_types,                       ONLY: mp2_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_p_type,&
                                               pw_release
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -214,9 +214,9 @@ CONTAINS
       coeff = 1.0_dp
       IF (beta) coeff = 0.5_dp
       DO ispin = 1, nspins
-         CALL cp_gemm(transa='N', transb='T', m=dimen, n=dimen, k=dimen, alpha=coeff, &
-                      matrix_a=mo_coeff(ispin)%matrix, matrix_b=mo_coeff(ispin)%matrix, &
-                      beta=0.0_dp, matrix_c=fm_P_mu_nu(ispin)%matrix)
+         CALL parallel_gemm(transa='N', transb='T', m=dimen, n=dimen, k=dimen, alpha=coeff, &
+                            matrix_a=mo_coeff(ispin)%matrix, matrix_b=mo_coeff(ispin)%matrix, &
+                            beta=0.0_dp, matrix_c=fm_P_mu_nu(ispin)%matrix)
       END DO
 
       ! Calculate exact exchange contribution
@@ -390,12 +390,12 @@ CONTAINS
          CALL cp_fm_set_all(fm_X_mo(is)%matrix, 0.0_dp)
 
          ! First index
-         CALL cp_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
-                      mo_coeff(is)%matrix, fm_X_ao, 0.0_dp, fm_X_ao_mo)
+         CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
+                            mo_coeff(is)%matrix, fm_X_ao, 0.0_dp, fm_X_ao_mo)
 
          ! Second index
-         CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                      fm_X_ao_mo, mo_coeff(is)%matrix, 1.0_dp, fm_X_mo(is)%matrix)
+         CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
+                            fm_X_ao_mo, mo_coeff(is)%matrix, 1.0_dp, fm_X_mo(is)%matrix)
 
       END DO
       CALL ri_rpa_post_hfx(qs_env)
@@ -460,12 +460,12 @@ CONTAINS
          CALL cp_fm_set_all(fm_XC_mo(i)%matrix, 0.0_dp)
 
          ! First index
-         CALL cp_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
-                      mo_coeff(i)%matrix, fm_XC_ao, 0.0_dp, fm_XC_ao_mo)
+         CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
+                            mo_coeff(i)%matrix, fm_XC_ao, 0.0_dp, fm_XC_ao_mo)
 
          ! Second index
-         CALL cp_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
-                      fm_XC_ao_mo, mo_coeff(i)%matrix, 1.0_dp, fm_XC_mo(i)%matrix)
+         CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
+                            fm_XC_ao_mo, mo_coeff(i)%matrix, 1.0_dp, fm_XC_mo(i)%matrix)
 
       END DO
 
@@ -597,11 +597,11 @@ CONTAINS
                                  s_firstrow=1, s_firstcol=homo(ispin) + 1, &
                                  t_firstrow=1, t_firstcol=1)
 
-         CALL cp_gemm(transa='N', transb='N', m=homo(ispin), n=virtual, k=homo(ispin), alpha=1.0_dp, &
-                      matrix_a=fm_O, matrix_b=fm_F_ov, beta=0.0_dp, matrix_c=fm_tmp)
+         CALL parallel_gemm(transa='N', transb='N', m=homo(ispin), n=virtual, k=homo(ispin), alpha=1.0_dp, &
+                            matrix_a=fm_O, matrix_b=fm_F_ov, beta=0.0_dp, matrix_c=fm_tmp)
 
-         CALL cp_gemm(transa='N', transb='N', m=homo(ispin), n=virtual, k=virtual, alpha=1.0_dp, &
-                      matrix_a=fm_tmp, matrix_b=fm_U, beta=0.0_dp, matrix_c=fm_F_ov)
+         CALL parallel_gemm(transa='N', transb='N', m=homo(ispin), n=virtual, k=virtual, alpha=1.0_dp, &
+                            matrix_a=fm_tmp, matrix_b=fm_U, beta=0.0_dp, matrix_c=fm_F_ov)
 
          ! Compute the correction
          CALL cp_fm_get_info(matrix=fm_F_ov, &

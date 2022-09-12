@@ -23,7 +23,6 @@ MODULE qs_dcdr_ao
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
@@ -37,6 +36,7 @@ MODULE qs_dcdr_ao
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE orbital_pointers,                ONLY: ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -178,17 +178,17 @@ CONTAINS
          CALL copy_dbcsr_to_fm(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, s1_ao)
       END IF
 
-      CALL cp_gemm('N', 'T', dcdr_env%nao, dcdr_env%nao, dcdr_env%nmo, &
-                   1.0_dp, dcdr_env%mo_coeff(1)%matrix, dcdr_env%mo_coeff(1)%matrix, &
-                   0.0_dp, rho_ao_fm)
+      CALL parallel_gemm('N', 'T', dcdr_env%nao, dcdr_env%nao, dcdr_env%nmo, &
+                         1.0_dp, dcdr_env%mo_coeff(1)%matrix, dcdr_env%mo_coeff(1)%matrix, &
+                         0.0_dp, rho_ao_fm)
 
-      CALL cp_gemm('N', 'N', dcdr_env%nao, dcdr_env%nao, dcdr_env%nao, &
-                   1.0_dp, rho_ao_fm, s1_ao, &
-                   0.0_dp, rho_ao_s1)
+      CALL parallel_gemm('N', 'N', dcdr_env%nao, dcdr_env%nao, dcdr_env%nao, &
+                         1.0_dp, rho_ao_fm, s1_ao, &
+                         0.0_dp, rho_ao_s1)
 
-      CALL cp_gemm('N', 'N', dcdr_env%nao, dcdr_env%nao, dcdr_env%nao, &
-                   -1._dp, rho_ao_s1, rho_ao_fm, &   ! this is the sign mentioned above.
-                   0.0_dp, rho_ao_s1_rho_ao)
+      CALL parallel_gemm('N', 'N', dcdr_env%nao, dcdr_env%nao, dcdr_env%nao, &
+                         -1._dp, rho_ao_s1, rho_ao_fm, &   ! this is the sign mentioned above.
+                         0.0_dp, rho_ao_s1_rho_ao)
 
       CALL copy_fm_to_dbcsr(rho_ao_s1_rho_ao, dcdr_env%perturbed_dm_correction)
       CALL cp_fm_release(rho_ao_fm)

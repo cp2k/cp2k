@@ -38,7 +38,6 @@ MODULE et_coupling_proj
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type,&
                                               cp_fm_vectorssum
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -60,6 +59,7 @@ MODULE et_coupling_proj
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE orbital_pointers,                ONLY: nso
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
@@ -653,8 +653,8 @@ CONTAINS
          CALL copy_dbcsr_to_fm(mat_h(i)%matrix, mat_t(i)%matrix)
 
          ! Transform KS Hamiltonian to the orthogonalized AO basis set
-         CALL cp_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, ec%m_transf, mat_t(i)%matrix, 0.0_dp, mat_w)
-         CALL cp_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, mat_w, ec%m_transf, 0.0_dp, mat_t(i)%matrix)
+         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, ec%m_transf, mat_t(i)%matrix, 0.0_dp, mat_w)
+         CALL parallel_gemm("N", "N", n_ao, n_ao, n_ao, 1.0_dp, mat_w, ec%m_transf, 0.0_dp, mat_t(i)%matrix)
 
          ! Reorder KS Hamiltonain elements to defined block structure
          CALL reorder_hamiltonian_matrix(ec, mat_t(i)%matrix, mat_w)
@@ -775,10 +775,10 @@ CONTAINS
 
                   ! Transformation
                   CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
-                  CALL cp_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
-                               1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, j)%matrix, 0.0_dp, mat_u)
-                  CALL cp_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
-                               1.0_dp, mat_u, dat(j)%matrix, 0.0_dp, ec%block(i)%hab(spin, j)%matrix)
+                  CALL parallel_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
+                                     1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, j)%matrix, 0.0_dp, mat_u)
+                  CALL parallel_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
+                                     1.0_dp, mat_u, dat(j)%matrix, 0.0_dp, ec%block(i)%hab(spin, j)%matrix)
 
                   ! Clean memory
                   CALL cp_fm_struct_release(fmstruct=fm_s)
@@ -948,8 +948,8 @@ CONTAINS
             CALL cp_fm_create(matrix=mat_w(j)%matrix, &
                               matrix_struct=ec%block(blk)%mo(j)%mo_set%mo_coeff%matrix_struct, &
                               name='BLOCK MOs IN ORTHONORMAL BASIS SET')
-            CALL cp_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
-                         ec%block(blk)%mo(j)%mo_set%mo_coeff, 0.0_dp, mat_w(j)%matrix)
+            CALL parallel_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
+                               ec%block(blk)%mo(j)%mo_set%mo_coeff, 0.0_dp, mat_w(j)%matrix)
          END DO
 
          DO j = 1, n
@@ -1328,7 +1328,7 @@ CONTAINS
                                nrow_global=n_mo, ncol_global=n_mo)
       CALL cp_fm_create(matrix=mat_t, matrix_struct=fm_s, &
                         name='C^T*S*C OVERLAP PRODUCT MATRIX')
-      CALL cp_gemm('T', 'N', n_mo, n_mo, n_ao, 1.0_dp, mo%mo_coeff, mat_sc, 0.0_dp, mat_t)
+      CALL parallel_gemm('T', 'N', n_mo, n_mo, n_ao, 1.0_dp, mo%mo_coeff, mat_sc, 0.0_dp, mat_t)
 
       ! Normalization
       ALLOCATE (vec_t(n_mo))
@@ -1450,7 +1450,7 @@ CONTAINS
       END DO
 
       ! Transformation to original non-orthogonal basis set
-      CALL cp_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf, mat_w, 0.0_dp, mo%mo_coeff)
+      CALL parallel_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf, mat_w, 0.0_dp, mo%mo_coeff)
       CALL normalize_mo_vectors(qs_env, mo, n_ao, n_mo)
 
       ! Clean memory

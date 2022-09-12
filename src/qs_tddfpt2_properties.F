@@ -41,7 +41,6 @@ MODULE qs_tddfpt2_properties
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -79,6 +78,7 @@ MODULE qs_tddfpt2_properties
                                               mp_wait
    USE molden_utils,                    ONLY: write_mos_molden
    USE moments_utils,                   ONLY: get_reference_point
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
@@ -314,13 +314,13 @@ CONTAINS
                                                ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
                END DO
 
-               CALL cp_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, &
-                            1.0_dp, gs_mos(ispin)%mos_occ, opvec(1, ispin)%matrix, &
-                            0.0_dp, gamma_real_imag(1, ispin)%matrix)
+               CALL parallel_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, &
+                                  1.0_dp, gs_mos(ispin)%mos_occ, opvec(1, ispin)%matrix, &
+                                  0.0_dp, gamma_real_imag(1, ispin)%matrix)
 
-               CALL cp_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, &
-                            -1.0_dp, gs_mos(ispin)%mos_occ, opvec(2, ispin)%matrix, &
-                            0.0_dp, gamma_real_imag(2, ispin)%matrix)
+               CALL parallel_gemm('T', 'N', nmo_occ(ispin), nmo_occ(ispin), nao, &
+                                  -1.0_dp, gs_mos(ispin)%mos_occ, opvec(2, ispin)%matrix, &
+                                  0.0_dp, gamma_real_imag(2, ispin)%matrix)
 
                CALL cp_fm_to_cfm(msourcer=gamma_real_imag(1, ispin)%matrix, &
                                  msourcei=gamma_real_imag(2, ispin)%matrix, &
@@ -335,12 +335,12 @@ CONTAINS
                                  mtargeti=gamma_real_imag(2, ispin)%matrix)
 
                ! dBerry_mos_occ is identical to dBerry_psi0 from qs_linres_op % polar_operators()
-               CALL cp_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
-                            1.0_dp, opvec(1, ispin)%matrix, gamma_real_imag(2, ispin)%matrix, &
-                            0.0_dp, dipole_op_mos_occ(1, ispin)%matrix)
-               CALL cp_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
-                            -1.0_dp, opvec(2, ispin)%matrix, gamma_real_imag(1, ispin)%matrix, &
-                            1.0_dp, dipole_op_mos_occ(1, ispin)%matrix)
+               CALL parallel_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
+                                  1.0_dp, opvec(1, ispin)%matrix, gamma_real_imag(2, ispin)%matrix, &
+                                  0.0_dp, dipole_op_mos_occ(1, ispin)%matrix)
+               CALL parallel_gemm("N", "N", nao, nmo_occ(ispin), nmo_occ(ispin), &
+                                  -1.0_dp, opvec(2, ispin)%matrix, gamma_real_imag(1, ispin)%matrix, &
+                                  1.0_dp, dipole_op_mos_occ(1, ispin)%matrix)
 
                DO jderiv = 1, nderivs
                   CALL cp_fm_scale_and_add(1.0_dp, dBerry_mos_occ(jderiv, ispin)%matrix, &
@@ -380,14 +380,14 @@ CONTAINS
          ! 1/|G_mu| = |lattice_vector_mu| / (2*pi) .
          DO ispin = 1, nspins
             ! wfm_ao_ao = S * mos_virt * mos_virt^T
-            CALL cp_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
-                         1.0_dp/twopi, S_mos_virt(ispin)%matrix, gs_mos(ispin)%mos_virt, &
-                         0.0_dp, wfm_ao_ao)
+            CALL parallel_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
+                               1.0_dp/twopi, S_mos_virt(ispin)%matrix, gs_mos(ispin)%mos_virt, &
+                               0.0_dp, wfm_ao_ao)
 
             DO ideriv = 1, nderivs
-               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
-                            1.0_dp, wfm_ao_ao, dBerry_mos_occ(ideriv, ispin)%matrix, &
-                            0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+               CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
+                                  1.0_dp, wfm_ao_ao, dBerry_mos_occ(ideriv, ispin)%matrix, &
+                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
             END DO
          END DO
 
@@ -434,9 +434,9 @@ CONTAINS
             CALL cp_fm_create(rRc_mos_occ, fm_struct)
 
             ! wfm_ao_ao = S * mos_virt * mos_virt^T
-            CALL cp_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
-                         1.0_dp, S_mos_virt(ispin)%matrix, gs_mos(ispin)%mos_virt, &
-                         0.0_dp, wfm_ao_ao)
+            CALL parallel_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
+                               1.0_dp, S_mos_virt(ispin)%matrix, gs_mos(ispin)%mos_virt, &
+                               0.0_dp, wfm_ao_ao)
 
             DO ideriv = 1, nderivs
                CALL cp_dbcsr_sm_fm_multiply(rRc_xyz(ideriv)%matrix, &
@@ -444,9 +444,9 @@ CONTAINS
                                             rRc_mos_occ, &
                                             ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
 
-               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
-                            1.0_dp, wfm_ao_ao, rRc_mos_occ, &
-                            0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+               CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nao, &
+                                  1.0_dp, wfm_ao_ao, rRc_mos_occ, &
+                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
             END DO
 
             CALL cp_fm_release(rRc_mos_occ)
@@ -496,9 +496,9 @@ CONTAINS
                                             dipole_op_mos_occ(ideriv, ispin)%matrix, &
                                             ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
 
-               CALL cp_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, &
-                            1.0_dp, gs_mos(ispin)%mos_virt, dipole_op_mos_occ(ideriv, ispin)%matrix, &
-                            0.0_dp, wfm_mo_virt_mo_occ)
+               CALL parallel_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, &
+                                  1.0_dp, gs_mos(ispin)%mos_virt, dipole_op_mos_occ(ideriv, ispin)%matrix, &
+                                  0.0_dp, wfm_mo_virt_mo_occ)
 
                ! in-place element-wise (Schur) product;
                ! avoid allocation of a temporary [nmo_virt x nmo_occ] matrix which is needed
@@ -514,9 +514,9 @@ CONTAINS
                END DO
 !$OMP          END PARALLEL DO
 
-               CALL cp_gemm('N', 'N', nao, nmo_occ(ispin), nmo_virt(ispin), &
-                            1.0_dp, S_mos_virt(ispin)%matrix, wfm_mo_virt_mo_occ, &
-                            0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
+               CALL parallel_gemm('N', 'N', nao, nmo_occ(ispin), nmo_virt(ispin), &
+                                  1.0_dp, S_mos_virt(ispin)%matrix, wfm_mo_virt_mo_occ, &
+                                  0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
             END DO
 
             CALL cp_fm_release(wfm_mo_virt_mo_occ)
@@ -766,8 +766,8 @@ CONTAINS
             ! excitations to the master node for subsequent ordering
             DO ispin = 1, nspins
                ! compute excitation amplitudes
-               CALL cp_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, 1.0_dp, S_mos_virt(ispin)%matrix, &
-                            evects(ispin, istate)%matrix, 0.0_dp, weights_fm(ispin)%matrix)
+               CALL parallel_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, 1.0_dp, S_mos_virt(ispin)%matrix, &
+                                  evects(ispin, istate)%matrix, 0.0_dp, weights_fm(ispin)%matrix)
 
                CALL cp_fm_get_info(weights_fm(ispin)%matrix, nrow_local=nrows_local, ncol_local=ncols_local, &
                                    row_indices=row_indices, col_indices=col_indices, local_data=local_data)
@@ -1027,7 +1027,7 @@ CONTAINS
                CALL cp_fm_create(tmat, fm_mo_struct)
                CALL cp_fm_create(teig(ispin)%matrix, fm_mo_struct)
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
-               CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
+               CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
 
                CALL choose_eigv_solver(tmat, teig(ispin)%matrix, eigenvalues(1:nmo, ispin))
 
@@ -1065,8 +1065,8 @@ CONTAINS
                CALL cp_fm_create(wvec, fm_mo_struct)
                CALL cp_fm_struct_release(fm_mo_struct)
                CALL cp_fm_to_fm(teig(ispin)%matrix, tmat, 1, ia, 1)
-               CALL cp_gemm('N', 'N', nao, 1, nmo, 1.0_dp, gs_mos(ispin)%mos_occ, &
-                            tmat, 0.0_dp, wvec)
+               CALL parallel_gemm('N', 'N', nao, 1, nmo, 1.0_dp, gs_mos(ispin)%mos_occ, &
+                                  tmat, 0.0_dp, wvec)
                CALL cp_fm_to_fm(wvec, nto_set(1)%mo_set%mo_coeff, 1, 1, i)
                CALL cp_fm_release(wvec)
                CALL cp_fm_release(tmat)
@@ -1213,8 +1213,8 @@ CONTAINS
 
       CALL copy_dbcsr_to_fm(vin, vec)
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vec, svec, ncol=1, alpha=1.0_dp, beta=0.0_dp)
-      CALL cp_gemm('T', 'N', nmo, 1, nao, 1.0_dp, mos_occ, svec, 0.0_dp, csvec)
-      CALL cp_gemm('N', 'N', nao, 1, nmo, -1.0_dp, mos_occ, csvec, 1.0_dp, vec)
+      CALL parallel_gemm('T', 'N', nmo, 1, nao, 1.0_dp, mos_occ, svec, 0.0_dp, csvec)
+      CALL parallel_gemm('N', 'N', nao, 1, nmo, -1.0_dp, mos_occ, csvec, 1.0_dp, vec)
       CALL cp_fm_vectorsnorm(vec, norm)
       CPASSERT(norm(1) > 1.e-14_dp)
       norm(1) = SQRT(1._dp/norm(1))

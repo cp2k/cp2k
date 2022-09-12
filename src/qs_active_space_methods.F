@@ -34,7 +34,6 @@ MODULE qs_active_space_methods
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
         cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -63,6 +62,7 @@ MODULE qs_active_space_methods
    USE mathconstants,                   ONLY: fourpi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
@@ -901,7 +901,7 @@ CONTAINS
 
          CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals, vectors, nmo)
 
-         CALL cp_gemm('T', 'N', nmo, nmo, nrow, 1.0_dp, orbitals, vectors, 0.0_dp, op_sub)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nrow, 1.0_dp, orbitals, vectors, 0.0_dp, op_sub)
 
          CALL cp_fm_release(vectors)
 
@@ -2061,7 +2061,7 @@ CONTAINS
          ! R = C * U
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_active, nao=nao, nmo=nmo)
          CALL cp_fm_create(vec, fm_active%matrix_struct)
-         CALL cp_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lamat, 0.0_dp, vec)
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lamat, 0.0_dp, vec)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix, &
                                     matrix_v=vec, ncol=nmo, alpha=1.0_dp)
          CALL cp_fm_release(vec)
@@ -2115,7 +2115,7 @@ CONTAINS
       END DO
       CALL cp_fm_to_fm(vmat, bmat)
       CALL cp_fm_column_scale(bmat, eigv)
-      CALL cp_gemm("N", "T", n, n, n, 1.0_dp, bmat, vmat, 0.0_dp, amat)
+      CALL parallel_gemm("N", "T", n, n, n, 1.0_dp, bmat, vmat, 0.0_dp, amat)
       ! clean up
       DEALLOCATE (eigv)
       CALL cp_fm_release(vmat)

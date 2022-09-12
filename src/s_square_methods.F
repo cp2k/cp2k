@@ -25,13 +25,13 @@ MODULE s_square_methods
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: do_s2_constraint,&
                                               do_s2_restraint
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               has_uniform_occupation,&
                                               mo_set_p_type
@@ -131,7 +131,7 @@ CONTAINS
             ! Compute S*C(beta)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_beta, scb, nbeta)
             ! Compute C(alpha)^T*S*C(beta)
-            CALL cp_gemm('T', 'N', nalpha, nbeta, nao, 1.0_dp, c_alpha, scb, 0.0_dp, catscb)
+            CALL parallel_gemm('T', 'N', nalpha, nbeta, nao, 1.0_dp, c_alpha, scb, 0.0_dp, catscb)
             ! Eq. 2.271 in Modern Quantum Chemistry by A. Szabo and N. S. Ostlund
             CALL cp_fm_get_info(catscb, local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
             s2 = 0.0_dp
@@ -151,14 +151,14 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(2)%mo_set, uniform_occupation=has_uniform_occupation_beta)
                CPASSERT(has_uniform_occupation_beta)
                ! Add -strength*S*C(beta)*(C(alpha)^T*S*C(beta))^T to the alpha MO derivatives
-               CALL cp_gemm('N', 'T', nao, nalpha, nbeta, -strength, scb, catscb, 1.0_dp, mo_derivs(1)%matrix)
+               CALL parallel_gemm('N', 'T', nao, nalpha, nbeta, -strength, scb, catscb, 1.0_dp, mo_derivs(1)%matrix)
                ! Create S*C(alpha)
                CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp)
                CALL cp_fm_create(sca, fm_struct_tmp, name="S*C(alpha)")
                ! Compute S*C(alpha)
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_alpha, sca, nalpha)
                ! Add -strength*S*C(alpha)*C(alpha)^T*S*C(beta) to the beta MO derivatives
-               CALL cp_gemm('N', 'N', nao, nbeta, nalpha, -strength, sca, catscb, 1.0_dp, mo_derivs(2)%matrix)
+               CALL parallel_gemm('N', 'N', nao, nbeta, nalpha, -strength, sca, catscb, 1.0_dp, mo_derivs(2)%matrix)
                CALL cp_fm_release(sca)
             END IF
             CALL cp_fm_release(scb)

@@ -43,7 +43,6 @@ MODULE qs_scf_block_davidson
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_multiply, dbcsr_norm, dbcsr_norm_column, dbcsr_release_p, dbcsr_scale_by_vector, &
@@ -51,6 +50,7 @@ MODULE qs_scf_block_davidson
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
    USE qs_block_davidson_types,         ONLY: davidson_type
@@ -145,7 +145,7 @@ CONTAINS
          CALL cp_fm_create(m_tmp, fm_struct_tmp, name="matrix_tmp")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
-         CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff, m_hc, 0.0_dp, m_tmp)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff, m_hc, 0.0_dp, m_tmp)
          CALL cp_fm_get_diag(m_tmp, ritz_coeff)
          CALL cp_fm_release(m_tmp)
 
@@ -292,7 +292,7 @@ CONTAINS
                jj = jj + n
             END DO
             CALL cp_fm_symm('L', 'U', nao, nmo_converged, 1.0_dp, s_fm, c_conv, 0.0_dp, m_tmp)
-            CALL cp_gemm('N', 'T', nao, nao, nmo_converged, 1.0_dp, m_tmp, m_tmp, 0.0_dp, c_out)
+            CALL parallel_gemm('N', 'T', nao, nao, nmo_converged, 1.0_dp, m_tmp, m_tmp, 0.0_dp, c_out)
 
             ! project c_out out of H
             lambda = 100.0_dp*ABS(eigenvalues(homo))
@@ -316,7 +316,7 @@ CONTAINS
                eig_not_conv(jj:jj + n - 1) = ritz_coeff(i_first:i_last)
                jj = jj + n
             END DO
-            CALL cp_gemm('N', 'N', nao, nmo_not_converged, nao, 1.0_dp, c_out, c_notconv, 0.0_dp, m_hc)
+            CALL parallel_gemm('N', 'N', nao, nmo_not_converged, nao, 1.0_dp, c_out, c_notconv, 0.0_dp, m_hc)
             CALL cp_fm_symm('L', 'U', nao, nmo_not_converged, 1.0_dp, s_fm, c_notconv, 0.0_dp, m_sc)
             ! extend suspace using only the not converged vectors
             CALL cp_fm_to_fm(m_sc, m_tmp)
@@ -366,16 +366,16 @@ CONTAINS
          CALL cp_fm_set_all(s_block, 0.0_dp, 1.0_dp)
 
          ! compute CHC
-         CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_notconv, m_hc, 0.0_dp, m_tmp)
+         CALL parallel_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_notconv, m_hc, 0.0_dp, m_tmp)
          CALL cp_fm_to_fm_submat(m_tmp, h_block, nmat, nmat, 1, 1, 1, 1)
 
          ! compute ZSC
-         CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_sc, 0.0_dp, m_tmp)
+         CALL parallel_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_sc, 0.0_dp, m_tmp)
          CALL cp_fm_to_fm_submat(m_tmp, s_block, nmat, nmat, 1, 1, 1 + nmat, 1)
          CALL cp_fm_transpose(m_tmp, mt_tmp)
          CALL cp_fm_to_fm_submat(mt_tmp, s_block, nmat, nmat, 1, 1, 1, 1 + nmat)
          ! compute ZHC
-         CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_hc, 0.0_dp, m_tmp)
+         CALL parallel_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_hc, 0.0_dp, m_tmp)
          CALL cp_fm_to_fm_submat(m_tmp, h_block, nmat, nmat, 1, 1, 1 + nmat, 1)
          CALL cp_fm_transpose(m_tmp, mt_tmp)
          CALL cp_fm_to_fm_submat(mt_tmp, h_block, nmat, nmat, 1, 1, 1, 1 + nmat)
@@ -384,7 +384,7 @@ CONTAINS
 
          ! reuse m_sc and m_hc to computr HZ and SZ
          IF (nmo_converged > 0) THEN
-            CALL cp_gemm('N', 'N', nao, nmat, nao, 1.0_dp, c_out, c_pz, 0.0_dp, m_hc)
+            CALL parallel_gemm('N', 'N', nao, nmat, nao, 1.0_dp, c_out, c_pz, 0.0_dp, m_hc)
             CALL cp_fm_symm('L', 'U', nao, nmo_not_converged, 1.0_dp, s_fm, c_pz, 0.0_dp, m_sc)
 
             CALL cp_fm_release(c_out)
@@ -396,10 +396,10 @@ CONTAINS
          END IF
 
          ! compute ZSZ
-         CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_sc, 0.0_dp, m_tmp)
+         CALL parallel_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_sc, 0.0_dp, m_tmp)
          CALL cp_fm_to_fm_submat(m_tmp, s_block, nmat, nmat, 1, 1, 1 + nmat, 1 + nmat)
          ! compute ZHZ
-         CALL cp_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_hc, 0.0_dp, m_tmp)
+         CALL parallel_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_hc, 0.0_dp, m_tmp)
          CALL cp_fm_to_fm_submat(m_tmp, h_block, nmat, nmat, 1, 1, 1 + nmat, 1 + nmat)
 
          CALL cp_fm_release(m_sc)
@@ -409,9 +409,9 @@ CONTAINS
 
          ! extract egenvectors
          CALL cp_fm_to_fm_submat(v_block, m_tmp, nmat, nmat, 1, 1, 1, 1)
-         CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, c_notconv, m_tmp, 0.0_dp, m_hc)
+         CALL parallel_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, c_notconv, m_tmp, 0.0_dp, m_hc)
          CALL cp_fm_to_fm_submat(v_block, m_tmp, nmat, nmat, 1 + nmat, 1, 1, 1)
-         CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, c_pz, m_tmp, 1.0_dp, m_hc)
+         CALL parallel_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, c_pz, m_tmp, 1.0_dp, m_hc)
 
          CALL cp_fm_release(m_tmp)
 
@@ -864,9 +864,9 @@ CONTAINS
          CALL copy_dbcsr_to_fm(matrix_pz, matrix_z_fm)
          ! extract egenvectors
          CALL cp_fm_to_fm_submat(v_block, matrix_mm_fm, nmat, nmat, 1, 1, 1, 1)
-         CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, mo_notconv_fm, matrix_mm_fm, 0.0_dp, matrix_nm_fm)
+         CALL parallel_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, mo_notconv_fm, matrix_mm_fm, 0.0_dp, matrix_nm_fm)
          CALL cp_fm_to_fm_submat(v_block, matrix_mm_fm, nmat, nmat, 1 + nmat, 1, 1, 1)
-         CALL cp_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, matrix_z_fm, matrix_mm_fm, 1.0_dp, matrix_nm_fm)
+         CALL parallel_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, matrix_z_fm, matrix_mm_fm, 1.0_dp, matrix_nm_fm)
 
          CALL dbcsr_release_p(matrix_z)
          CALL dbcsr_release_p(matrix_pz)
@@ -956,10 +956,10 @@ CONTAINS
 ! S^(-1/2)
          CALL cp_fm_power(w_block, s_block, -0.5_dp, 1.0E-5_dp, info)
          CALL cp_fm_to_fm(w_block, s_block)
-         CALL cp_gemm('N', 'N', ndim, ndim, ndim, 1.0_dp, H_block, s_block, 0.0_dp, w_block)
-         CALL cp_gemm('N', 'N', ndim, ndim, ndim, 1.0_dp, s_block, w_block, 0.0_dp, H_block)
+         CALL parallel_gemm('N', 'N', ndim, ndim, ndim, 1.0_dp, H_block, s_block, 0.0_dp, w_block)
+         CALL parallel_gemm('N', 'N', ndim, ndim, ndim, 1.0_dp, s_block, w_block, 0.0_dp, H_block)
          CALL choose_eigv_solver(H_block, w_block, evals)
-         CALL cp_gemm('N', 'N', ndim, ndim, ndim, 1.0_dp, s_block, w_block, 0.0_dp, v_block)
+         CALL parallel_gemm('N', 'N', ndim, ndim, ndim, 1.0_dp, s_block, w_block, 0.0_dp, v_block)
       END IF
 
       CALL timestop(handle)

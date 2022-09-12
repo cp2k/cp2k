@@ -27,10 +27,10 @@ MODULE qs_scf_lanczos
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
         cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_vectorsnorm
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type
    USE qs_scf_types,                    ONLY: krylov_space_type
@@ -226,8 +226,8 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       !Compute (C^t)HC
-      CALL cp_gemm('N', 'N', nao, nmo, nao, rone, ks, c0, rzero, hc)
-      CALL cp_gemm('T', 'N', nmo, nmo, nao, rone, c0, hc, rzero, chc)
+      CALL parallel_gemm('N', 'N', nao, nmo, nao, rone, ks, c0, rzero, hc)
+      CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, hc, rzero, chc)
 
       !Diagonalize  (C^t)HC
       CALL timeset(routineN//"diag_chc", hand1)
@@ -235,10 +235,10 @@ CONTAINS
       CALL timestop(hand1)
 
       !Rotate the C vectors
-      CALL cp_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, c1)
+      CALL parallel_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, c1)
 
       !Check for converged states
-      CALL cp_gemm('N', 'N', nao, nmo, nmo, rone, hc, evec, rzero, c_tmp)
+      CALL parallel_gemm('N', 'N', nao, nmo, nmo, rone, hc, evec, rzero, c_tmp)
       CALL cp_fm_to_fm(c1, c0, nmo, 1, 1)
       CALL cp_fm_column_scale(c1, eval)
       CALL cp_fm_scale_and_add(1.0_dp, c_tmp, rmone, c1)
@@ -359,14 +359,14 @@ CONTAINS
             CALL cp_fm_to_fm(c1, v_mat(1)%matrix, nmob, imo_low, 1)
 
             !Compute A =(V^t)HV
-            CALL cp_gemm('N', 'N', nao, nmob, nao, rone, ks, v_mat(1)%matrix, rzero, hc)
-            CALL cp_gemm('T', 'N', nmob, nmob, nao, rone, v_mat(1)%matrix, hc, &
-                         rzero, a_mat)
+            CALL parallel_gemm('N', 'N', nao, nmob, nao, rone, ks, v_mat(1)%matrix, rzero, hc)
+            CALL parallel_gemm('T', 'N', nmob, nmob, nao, rone, v_mat(1)%matrix, hc, &
+                               rzero, a_mat)
 
             !Compute the residual matrix R for next
             !factorisation
-            CALL cp_gemm('N', 'N', nao, nmob, nmob, rone, v_mat(1)%matrix, a_mat, &
-                         rzero, c_tmp)
+            CALL parallel_gemm('N', 'N', nao, nmob, nmob, rone, v_mat(1)%matrix, a_mat, &
+                               rzero, c_tmp)
             CALL cp_fm_scale_and_add(rmone, c_tmp, rone, hc)
 
             ! Build the block tridiagonal matrix
@@ -384,12 +384,12 @@ CONTAINS
                                               n_rows=nao, n_cols=nmob)
 
                !Compute A =(V^t)HV
-               CALL cp_gemm('N', 'N', nao, nmob, nao, rone, ks, v_mat(ik)%matrix, rzero, hc)
-               CALL cp_gemm('T', 'N', nmob, nmob, nao, rone, v_mat(ik)%matrix, hc, rzero, a_mat)
+               CALL parallel_gemm('N', 'N', nao, nmob, nao, rone, ks, v_mat(ik)%matrix, rzero, hc)
+               CALL parallel_gemm('T', 'N', nmob, nmob, nao, rone, v_mat(ik)%matrix, hc, rzero, a_mat)
 
                !Compute the !residual matrix R !for next !factorisation
-               CALL cp_gemm('N', 'N', nao, nmob, nmob, rone, v_mat(ik)%matrix, a_mat, &
-                            rzero, c_tmp)
+               CALL parallel_gemm('N', 'N', nao, nmob, nmob, rone, v_mat(ik)%matrix, a_mat, &
+                                  rzero, c_tmp)
                CALL cp_fm_scale_and_add(rmone, c_tmp, rone, hc)
                CALL cp_fm_to_fm(v_mat(ik - 1)%matrix, hc, nmob, 1, 1)
                CALL cp_fm_triangular_multiply(b_mat, hc, side='R', transpose_tr=.TRUE., &
@@ -422,13 +422,13 @@ CONTAINS
             CALL cp_fm_set_all(c2_tmp, rzero)
             DO ik = 1, krylov_space%nkrylov
                jt = (ik - 1)*nmob
-               CALL cp_gemm('N', 'N', nao, ndim, nmob, rone, v_mat(ik)%matrix, t_vec, rone, c2_tmp, &
-                            b_first_row=(jt + 1))
+               CALL parallel_gemm('N', 'N', nao, ndim, nmob, rone, v_mat(ik)%matrix, t_vec, rone, c2_tmp, &
+                                  b_first_row=(jt + 1))
             END DO
             DEALLOCATE (tvblock)
 
             CALL cp_fm_set_all(c3_tmp, rzero)
-            CALL cp_gemm('T', 'N', nmob, ndim, nao, rone, v_mat(1)%matrix, c2_tmp, rzero, c3_tmp)
+            CALL parallel_gemm('T', 'N', nmob, ndim, nao, rone, v_mat(1)%matrix, c2_tmp, rzero, c3_tmp)
 
             !Try to avoid linear dependencies
             ALLOCATE (q_mat(nmob, ndim))
@@ -474,7 +474,7 @@ CONTAINS
          END DO ! ib
 
          CALL timeset(routineN//"_ortho", hand5)
-         CALL cp_gemm('T', 'N', nmo, nmo, nao, rone, c0, c0, rzero, chc)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, c0, rzero, chc)
 
          CALL cp_fm_cholesky_decompose(chc, nmo)
          CALL cp_fm_triangular_multiply(chc, c0, 'R', invert_tr=.TRUE.)
@@ -568,8 +568,8 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       !Compute (C^t)HC
-      CALL cp_gemm('N', 'N', nao, nmo, nao, rone, ks, c0, rzero, hc)
-      CALL cp_gemm('T', 'N', nmo, nmo, nao, rone, c0, hc, rzero, chc)
+      CALL parallel_gemm('N', 'N', nao, nmo, nao, rone, ks, c0, rzero, hc)
+      CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, hc, rzero, chc)
 
       !Diagonalize  (C^t)HC
       CALL timeset(routineN//"diag_chc", hand1)
@@ -579,10 +579,10 @@ CONTAINS
 
       CALL timeset(routineN//"check_conv", hand6)
       !Rotate the C vectors
-      CALL cp_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, c1)
+      CALL parallel_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, c1)
 
       !Check for converged states
-      CALL cp_gemm('N', 'N', nao, nmo, nmo, rone, hc, evec, rzero, c_tmp)
+      CALL parallel_gemm('N', 'N', nao, nmo, nmo, rone, hc, evec, rzero, c_tmp)
       CALL cp_fm_to_fm(c1, c0, nmo, 1, 1)
       CALL cp_fm_column_scale(c1, eval)
       CALL cp_fm_scale_and_add(1.0_dp, c_tmp, rmone, c1)
@@ -700,7 +700,7 @@ CONTAINS
             ! Here starts the construction of krylov space
             CALL timeset(routineN//"_kry_loop", hand2)
             !Compute A =(V^t)HV
-            CALL cp_gemm('N', 'N', nao, nmob, nao, rone, ks, v_mat(1)%matrix, rzero, hc)
+            CALL parallel_gemm('N', 'N', nao, nmob, nao, rone, ks, v_mat(1)%matrix, rzero, hc)
 
             a_block = 0.0_dp
             a_loc => v_mat(1)%matrix%local_data
@@ -743,7 +743,7 @@ CONTAINS
                CALL cp_fm_get_submatrix(b_mat, b_block, 1, 1, nmob, nmob)
 
                !Compute A =(V^t)HV
-               CALL cp_gemm('N', 'N', nao, nmob, nao, rone, ks, v_mat(ik)%matrix, rzero, hc)
+               CALL parallel_gemm('N', 'N', nao, nmob, nao, rone, ks, v_mat(ik)%matrix, rzero, hc)
 
                a_block = 0.0_dp
                IF (SIZE(hc%local_data, 2) == nmob) THEN
@@ -873,7 +873,7 @@ CONTAINS
          END DO ! ib
 
          CALL timeset(routineN//"_ortho", hand5)
-         CALL cp_gemm('T', 'N', nmo, nmo, nao, rone, c0, c0, rzero, chc)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, c0, rzero, chc)
 
          CALL cp_fm_cholesky_decompose(chc, nmo)
          CALL cp_fm_triangular_multiply(chc, c0, 'R', invert_tr=.TRUE.)

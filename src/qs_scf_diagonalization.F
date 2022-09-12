@@ -44,7 +44,6 @@ MODULE qs_scf_diagonalization
         copy_info_type, cp_fm_add_to_element, cp_fm_cleanup_copy_general, cp_fm_create, &
         cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
         cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -68,6 +67,7 @@ MODULE qs_scf_diagonalization
                                               kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: prepare_preconditioner,&
                                               restart_preconditioner
    USE qs_density_matrices,             ONLY: calculate_density_matrix
@@ -737,13 +737,13 @@ CONTAINS
             CALL cp_fm_to_fm(mo_coeff, c0)
             CALL cp_fm_create(work, c0%matrix_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, c0, work, nmo)
-            CALL cp_gemm('T', 'N', nmo, nmo, nao, rone, c0, work, rzero, chc)
+            CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, work, rzero, chc)
             CALL cp_fm_release(work)
             !diagonalize C'HC
             CALL choose_eigv_solver(chc, evec, mo_eigenvalues)
 
             !rotate the mos by the eigenvectors of C'HC
-            CALL cp_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, mo_coeff)
+            CALL parallel_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, mo_coeff)
 
             CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
                                    smear=scf_control%smear)
@@ -1165,10 +1165,10 @@ CONTAINS
          ! from AO basis to MO basis: K(MO) = C(T)*K(AO)*C
 
          CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, ksa, moa, 0.0_dp, work)
-         CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, moa, work, 0.0_dp, ksa)
+         CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, moa, work, 0.0_dp, ksa)
 
          CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, ksb, moa, 0.0_dp, work)
-         CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, moa, work, 0.0_dp, ksb)
+         CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, moa, work, 0.0_dp, ksb)
 
          ! Combine the spin unrestricted alpha and beta Kohn-Sham matrices
          ! in the MO basis
@@ -1198,8 +1198,8 @@ CONTAINS
 
          ! K(AO) = Q*K(MO)*Q(T)
 
-         CALL cp_gemm("N", "T", nao, nao, nao, 1.0_dp, ksa, mo2ao, 0.0_dp, work)
-         CALL cp_gemm("N", "N", nao, nao, nao, 1.0_dp, mo2ao, work, 0.0_dp, ksa)
+         CALL parallel_gemm("N", "T", nao, nao, nao, 1.0_dp, ksa, mo2ao, 0.0_dp, work)
+         CALL parallel_gemm("N", "N", nao, nao, nao, 1.0_dp, mo2ao, work, 0.0_dp, ksa)
 
       ELSE
 
@@ -1261,7 +1261,7 @@ CONTAINS
          ! for level-shifting using the current MO set
 
          CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, ksa, moa, 0.0_dp, work)
-         CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, moa, work, 0.0_dp, ksa)
+         CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, moa, work, 0.0_dp, ksa)
 
          ! Apply level-shifting using 50:50 split of the shift (could be relaxed)
 
@@ -1292,7 +1292,7 @@ CONTAINS
                                         "MULTIPLY", pos="LEFT", transa="T")
          CASE (cholesky_off)
             CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, ksa, ortho, 0.0_dp, work)
-            CALL cp_gemm("N", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, ksa)
+            CALL parallel_gemm("N", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, ksa)
          END SELECT
 
       END IF
@@ -1306,7 +1306,7 @@ CONTAINS
       IF (level_shift_loc /= 0.0_dp) THEN
          ! Use old MO set for back-transformation if level-shifting was applied
          CALL cp_fm_to_fm(moa, ortho)
-         CALL cp_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, moa)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, moa)
       ELSE
          IF (orthogonal_basis) THEN
             CALL cp_fm_to_fm(work, moa)
@@ -1317,7 +1317,7 @@ CONTAINS
             CASE (cholesky_inverse)
                CALL cp_fm_cholesky_restore(work, nmo, ortho, moa, "MULTIPLY")
             CASE (cholesky_off)
-               CALL cp_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, moa)
+               CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, moa)
             END SELECT
          END IF
       END IF
@@ -1511,12 +1511,12 @@ CONTAINS
                NULLIFY (chc, evec)
                chc => scf_env%krylov_space%chc_mat(ispin)%matrix
                evec => scf_env%krylov_space%c_vec(ispin)%matrix
-               CALL cp_gemm('N', 'N', nao, nmo, nao, rone, ks, c0, rzero, work)
-               CALL cp_gemm('T', 'N', nmo, nmo, nao, rone, c0, work, rzero, chc)
+               CALL parallel_gemm('N', 'N', nao, nmo, nao, rone, ks, c0, rzero, work)
+               CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, work, rzero, chc)
                !Diagonalize  (C^t)HC
                CALL choose_eigv_solver(chc, evec, mo_eigenvalues)
                !Rotate the C vectors
-               CALL cp_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, c1)
+               CALL parallel_gemm('N', 'N', nao, nmo, nmo, rone, c0, evec, rzero, c1)
                c0 => scf_env%krylov_space%mo_refine(ispin)%matrix
             END IF
 

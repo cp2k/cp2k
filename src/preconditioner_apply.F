@@ -18,7 +18,6 @@ MODULE preconditioner_apply
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_type
@@ -31,6 +30,7 @@ MODULE preconditioner_apply
                                               ot_precond_solver_inv_chol,&
                                               ot_precond_solver_update
    USE kinds,                           ONLY: dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_types,            ONLY: preconditioner_type
 #include "./base/base_uses.f90"
 
@@ -144,8 +144,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
-      CALL cp_gemm('N', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
-                   matrix_in, 0.0_dp, matrix_out)
+      CALL parallel_gemm('N', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
+                         matrix_in, 0.0_dp, matrix_out)
       CALL timestop(handle)
 
    END SUBROUTINE apply_full_single
@@ -238,8 +238,8 @@ CONTAINS
                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
 
       !
-      CALL cp_gemm('T', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
-                   matrix_in, 0.0_dp, matrix_tmp)
+      CALL parallel_gemm('T', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
+                         matrix_in, 0.0_dp, matrix_tmp)
 
       ! do the right scaling
       DO j = 1, ncol_local
@@ -251,8 +251,8 @@ CONTAINS
       END DO
 
       ! mult back
-      CALL cp_gemm('N', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
-                   matrix_tmp, 0.0_dp, matrix_out)
+      CALL parallel_gemm('N', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
+                         matrix_tmp, 0.0_dp, matrix_out)
 
       CALL cp_fm_release(matrix_tmp)
 

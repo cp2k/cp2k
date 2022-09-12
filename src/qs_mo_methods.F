@@ -36,7 +36,6 @@ MODULE qs_mo_methods
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
@@ -49,6 +48,7 @@ MODULE qs_mo_methods
                                               dbcsr_type_no_symmetry
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -113,7 +113,7 @@ CONTAINS
       CALL cp_fm_create(overlap_vv, fm_struct_tmp, "overlap_vv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
-      CALL cp_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, svmatrix, rzero, overlap_vv)
+      CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, svmatrix, rzero, overlap_vv)
       CALL cp_fm_cholesky_decompose(overlap_vv)
       CALL cp_fm_triangular_multiply(overlap_vv, vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
 
@@ -159,7 +159,7 @@ CONTAINS
       CALL cp_fm_create(overlap_vv, fm_struct_tmp, "overlap_vv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
-      CALL cp_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, svmatrix, rzero, overlap_vv)
+      CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, svmatrix, rzero, overlap_vv)
       CALL cp_fm_cholesky_decompose(overlap_vv)
       CALL cp_fm_triangular_multiply(overlap_vv, vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
       CALL cp_fm_triangular_multiply(overlap_vv, svmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
@@ -215,7 +215,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(vmatrix, fm_vmatrix)
       CALL copy_dbcsr_to_fm(svmatrix, fm_svmatrix)
 
-      CALL cp_gemm('T', 'N', ncol, ncol, n, rone, fm_vmatrix, fm_svmatrix, rzero, overlap_vv)
+      CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, fm_vmatrix, fm_svmatrix, rzero, overlap_vv)
       CALL cp_fm_cholesky_decompose(overlap_vv)
       CALL cp_fm_triangular_multiply(overlap_vv, fm_vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
       CALL cp_fm_triangular_multiply(overlap_vv, fm_svmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
@@ -328,9 +328,9 @@ CONTAINS
       CALL cp_fm_create(work, fm_struct_tmp, "work")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
-      CALL cp_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, sc, rzero, csc)
+      CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, sc, rzero, csc)
       CALL cp_fm_power(csc, work, -0.5_dp, threshold, ndep)
-      CALL cp_gemm('N', 'N', n, ncol, ncol, rone, vmatrix, csc, rzero, sc)
+      CALL parallel_gemm('N', 'N', n, ncol, ncol, rone, vmatrix, csc, rzero, sc)
       CALL cp_fm_to_fm(sc, vmatrix, ncol, 1, 1)
 
       CALL cp_fm_release(csc)
@@ -376,7 +376,7 @@ CONTAINS
       CALL cp_fm_create(overlap_vv, fm_struct_tmp, "overlap_vv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
-      CALL cp_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, vmatrix, rzero, overlap_vv)
+      CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, vmatrix, rzero, overlap_vv)
       CALL cp_fm_cholesky_decompose(overlap_vv)
       CALL cp_fm_triangular_multiply(overlap_vv, vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
 
@@ -460,8 +460,8 @@ CONTAINS
          ! h subblock and diag
          CALL cp_dbcsr_sm_fm_multiply(ks_matrix, orbitals, weighted_vectors, ncol_global)
 
-         CALL cp_gemm('T', 'N', ncol_global, ncol_global, nrow_global, 1.0_dp, &
-                      orbitals, weighted_vectors, 0.0_dp, h_block)
+         CALL parallel_gemm('T', 'N', ncol_global, ncol_global, nrow_global, 1.0_dp, &
+                            orbitals, weighted_vectors, 0.0_dp, h_block)
 
          ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
          IF (compute_evecs) THEN
@@ -472,13 +472,13 @@ CONTAINS
 
          ! rotate the orbitals
          IF (do_rotation_local) THEN
-            CALL cp_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
-                         orbitals, e_vectors, 0.0_dp, weighted_vectors)
+            CALL parallel_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
+                               orbitals, e_vectors, 0.0_dp, weighted_vectors)
             CALL cp_fm_to_fm(weighted_vectors, orbitals)
             IF (PRESENT(co_rotate)) THEN
                IF (ASSOCIATED(co_rotate)) THEN
-                  CALL cp_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
-                               co_rotate, e_vectors, 0.0_dp, weighted_vectors)
+                  CALL parallel_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
+                                     co_rotate, e_vectors, 0.0_dp, weighted_vectors)
                   CALL cp_fm_to_fm(weighted_vectors, co_rotate)
                END IF
             END IF
@@ -486,8 +486,8 @@ CONTAINS
                IF (ASSOCIATED(co_rotate_dbcsr)) THEN
                   CALL cp_fm_create(weighted_vectors2, orbitals%matrix_struct, "weighted_vectors")
                   CALL copy_dbcsr_to_fm(co_rotate_dbcsr, weighted_vectors2)
-                  CALL cp_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
-                               weighted_vectors2, e_vectors, 0.0_dp, weighted_vectors)
+                  CALL parallel_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
+                                     weighted_vectors2, e_vectors, 0.0_dp, weighted_vectors)
                   CALL copy_fm_to_dbcsr(weighted_vectors, co_rotate_dbcsr)
                   CALL cp_fm_release(weighted_vectors2)
                END IF
@@ -615,7 +615,7 @@ CONTAINS
          !CALL cp_dbcsr_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global)
 
          CALL dbcsr_multiply('T', 'N', 1.0_dp, orbitals, weighted_vectors, 0.0_dp, h_block)
-         !CALL cp_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
+         !CALL parallel_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
          !                orbitals,weighted_vectors,0.0_dp,h_block)
 
          ! if eigenvectors are required, go for syevd, otherwise only compute eigenvalues
@@ -628,14 +628,14 @@ CONTAINS
          ! rotate the orbitals
          IF (do_rotation_local) THEN
             CALL dbcsr_multiply('N', 'N', 1.0_dp, orbitals, e_vectors, 0.0_dp, weighted_vectors)
-            !CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+            !CALL parallel_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
             !             orbitals,e_vectors,0.0_dp,weighted_vectors)
             CALL dbcsr_copy(orbitals, weighted_vectors)
             !CALL cp_fm_to_fm(weighted_vectors,orbitals)
             IF (PRESENT(co_rotate)) THEN
                IF (ASSOCIATED(co_rotate)) THEN
                   CALL dbcsr_multiply('N', 'N', 1.0_dp, co_rotate, e_vectors, 0.0_dp, weighted_vectors)
-                  !CALL cp_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                  !CALL parallel_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                   !     co_rotate,e_vectors,0.0_dp,weighted_vectors)
                   CALL dbcsr_copy(co_rotate, weighted_vectors)
                   !CALL cp_fm_to_fm(weighted_vectors,co_rotate)
@@ -728,8 +728,8 @@ CONTAINS
                                      context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
             CALL cp_fm_create(overlap, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
-            CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
-                         svec, 0.0_dp, overlap)
+            CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
+                               svec, 0.0_dp, overlap)
             CALL cp_fm_release(svec)
          ELSE
             ! orthogonal basis C^T C
@@ -740,8 +740,8 @@ CONTAINS
                                      context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
             CALL cp_fm_create(overlap, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
-            CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
-                         mo_array(ispin)%mo_set%mo_coeff, 0.0_dp, overlap)
+            CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
+                               mo_array(ispin)%mo_set%mo_coeff, 0.0_dp, overlap)
          END IF
          CALL cp_fm_get_info(overlap, nrow_local=nrow_local, ncol_local=ncol_local, &
                              row_indices=row_indices, col_indices=col_indices)
@@ -800,8 +800,8 @@ CONTAINS
          CALL cp_fm_create(overlap, tmp_fm_struct)
          CALL cp_fm_create(evecs, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
-         CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
-                      mo_array(ispin)%mo_set%mo_coeff, 0.0_dp, overlap)
+         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
+                            mo_array(ispin)%mo_set%mo_coeff, 0.0_dp, overlap)
          CALL choose_eigv_solver(overlap, evecs, evals)
          mo_mag_min = MIN(MINVAL(evals), mo_mag_min)
          mo_mag_max = MAX(MAXVAL(evals), mo_mag_max)

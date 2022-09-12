@@ -41,7 +41,6 @@ MODULE xas_tdp_correction
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -65,6 +64,7 @@ MODULE xas_tdp_correction
    USE machine,                         ONLY: m_flush
    USE mathlib,                         ONLY: complex_diag
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -315,13 +315,13 @@ CONTAINS
             ALLOCATE (homo_evals(ispin)%array(nhomo(ispin)))
             CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, homo_coeffs(ispin)%matrix, &
                                          homo_work, ncol=nhomo(ispin))
-            CALL cp_gemm('T', 'N', nhomo(ispin), nhomo(ispin), nao, 1.0_dp, homo_coeffs(ispin)%matrix, &
-                         homo_work, 0.0_dp, hoho_fock)
+            CALL parallel_gemm('T', 'N', nhomo(ispin), nhomo(ispin), nao, 1.0_dp, homo_coeffs(ispin)%matrix, &
+                               homo_work, 0.0_dp, hoho_fock)
 
             !diagonalize and get pseudo-canonical MOs
             CALL choose_eigv_solver(hoho_fock, hoho_work, homo_evals(ispin)%array)
-            CALL cp_gemm('N', 'N', nao, nhomo(ispin), nhomo(ispin), 1.0_dp, homo_coeffs(ispin)%matrix, &
-                         hoho_work, 0.0_dp, homo_work)
+            CALL parallel_gemm('N', 'N', nao, nhomo(ispin), nhomo(ispin), 1.0_dp, homo_coeffs(ispin)%matrix, &
+                               hoho_work, 0.0_dp, homo_work)
             CALL cp_fm_to_fm(homo_work, homo_coeffs(ispin)%matrix)
 
             !overwrite the donor_state's contract coeffs with those
@@ -339,13 +339,13 @@ CONTAINS
             ALLOCATE (lumo_evals(ispin)%array(nlumo(ispin)))
             CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, lumo_coeffs(ispin)%matrix, &
                                          lumo_work, ncol=nlumo(ispin))
-            CALL cp_gemm('T', 'N', nlumo(ispin), nlumo(ispin), nao, 1.0_dp, lumo_coeffs(ispin)%matrix, &
-                         lumo_work, 0.0_dp, lulu_fock)
+            CALL parallel_gemm('T', 'N', nlumo(ispin), nlumo(ispin), nao, 1.0_dp, lumo_coeffs(ispin)%matrix, &
+                               lumo_work, 0.0_dp, lulu_fock)
 
             !diagonalize and get pseudo-canonical MOs
             CALL choose_eigv_solver(lulu_fock, lulu_work, lumo_evals(ispin)%array)
-            CALL cp_gemm('N', 'N', nao, nlumo(ispin), nlumo(ispin), 1.0_dp, lumo_coeffs(ispin)%matrix, &
-                         lulu_work, 0.0_dp, lumo_work)
+            CALL parallel_gemm('N', 'N', nao, nlumo(ispin), nlumo(ispin), 1.0_dp, lumo_coeffs(ispin)%matrix, &
+                               lulu_work, 0.0_dp, lumo_work)
             CALL cp_fm_to_fm(lumo_work, lumo_coeffs(ispin)%matrix)
 
             CALL cp_fm_release(lulu_fock)
@@ -357,15 +357,15 @@ CONTAINS
             ALLOCATE (homo_evals(ispin)%array(nhomo(ispin)))
             CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, homo_coeffs(ispin)%matrix, &
                                          homo_work, ncol=nhomo(ispin))
-            CALL cp_gemm('T', 'N', nhomo(ispin), nhomo(ispin), nao, 1.0_dp, homo_coeffs(ispin)%matrix, &
-                         homo_work, 0.0_dp, hoho_work)
+            CALL parallel_gemm('T', 'N', nhomo(ispin), nhomo(ispin), nao, 1.0_dp, homo_coeffs(ispin)%matrix, &
+                               homo_work, 0.0_dp, hoho_work)
             CALL cp_fm_get_diag(hoho_work, homo_evals(ispin)%array)
 
             ALLOCATE (lumo_evals(ispin)%array(nlumo(ispin)))
             CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, lumo_coeffs(ispin)%matrix, &
                                          lumo_work, ncol=nlumo(ispin))
-            CALL cp_gemm('T', 'N', nlumo(ispin), nlumo(ispin), nao, 1.0_dp, lumo_coeffs(ispin)%matrix, &
-                         lumo_work, 0.0_dp, lulu_work)
+            CALL parallel_gemm('T', 'N', nlumo(ispin), nlumo(ispin), nao, 1.0_dp, lumo_coeffs(ispin)%matrix, &
+                               lumo_work, 0.0_dp, lulu_work)
             CALL cp_fm_get_diag(lulu_work, lumo_evals(ispin)%array)
 
          END IF
@@ -1820,59 +1820,59 @@ CONTAINS
       ! Compute the KS matrix in this basis, add it to the real part of the final matrix
       !alpha-alpha block in upper left quadrant
       CALL cp_dbcsr_sm_fm_multiply(matrix_ks(1)%matrix, alpha_gs_coeffs, ao_domo_work, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, alpha_gs_coeffs, ao_domo_work, 0.0_dp, &
-                   domo_domo_work)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, alpha_gs_coeffs, ao_domo_work, 0.0_dp, &
+                         domo_domo_work)
       CALL cp_fm_to_fm_submat(msource=domo_domo_work, mtarget=real_fm, nrow=ndo_mo, ncol=ndo_mo, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=1, t_firstcol=1)
 
       !beta-beta block in lower right quadrant
       beta_spin = 1; IF (xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks) beta_spin = 2
       CALL cp_dbcsr_sm_fm_multiply(matrix_ks(beta_spin)%matrix, beta_gs_coeffs, ao_domo_work, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, beta_gs_coeffs, ao_domo_work, 0.0_dp, &
-                   domo_domo_work)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, beta_gs_coeffs, ao_domo_work, 0.0_dp, &
+                         domo_domo_work)
       CALL cp_fm_to_fm_submat(msource=domo_domo_work, mtarget=real_fm, nrow=ndo_mo, ncol=ndo_mo, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=ndo_mo + 1, t_firstcol=ndo_mo + 1)
 
       ! Compute the SOC matrix elements and add them to the real or imaginary part of the matrix
       ! alpha-alpha block, only Hz not zero, purely imaginary, addition
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, alpha_gs_coeffs, ao_domo_work, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, alpha_gs_coeffs, ao_domo_work, 0.0_dp, &
-                   domo_domo_work)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, alpha_gs_coeffs, ao_domo_work, 0.0_dp, &
+                         domo_domo_work)
       CALL cp_fm_to_fm_submat(msource=domo_domo_work, mtarget=img_fm, nrow=ndo_mo, ncol=ndo_mo, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=1, t_firstcol=1)
 
       ! beta-beta block, only Hz not zero, purely imaginary, substraciton
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_z, beta_gs_coeffs, ao_domo_work, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, -1.0_dp, beta_gs_coeffs, ao_domo_work, 0.0_dp, &
-                   domo_domo_work)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, -1.0_dp, beta_gs_coeffs, ao_domo_work, 0.0_dp, &
+                         domo_domo_work)
       CALL cp_fm_to_fm_submat(msource=domo_domo_work, mtarget=img_fm, nrow=ndo_mo, ncol=ndo_mo, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=ndo_mo + 1, t_firstcol=ndo_mo + 1)
 
       ! alpha-beta block, two non-zero terms in Hx and Hy
       ! Hx term, purely imaginary, addition
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, beta_gs_coeffs, ao_domo_work, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, alpha_gs_coeffs, ao_domo_work, 0.0_dp, &
-                   domo_domo_work)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, alpha_gs_coeffs, ao_domo_work, 0.0_dp, &
+                         domo_domo_work)
       CALL cp_fm_to_fm_submat(msource=domo_domo_work, mtarget=img_fm, nrow=ndo_mo, ncol=ndo_mo, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=1, t_firstcol=ndo_mo + 1)
       ! Hy term, purely real, addition
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, beta_gs_coeffs, ao_domo_work, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, alpha_gs_coeffs, ao_domo_work, 0.0_dp, &
-                   domo_domo_work)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, alpha_gs_coeffs, ao_domo_work, 0.0_dp, &
+                         domo_domo_work)
       CALL cp_fm_to_fm_submat(msource=domo_domo_work, mtarget=real_fm, nrow=ndo_mo, ncol=ndo_mo, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=1, t_firstcol=ndo_mo + 1)
 
       ! beta-alpha block, two non-zero terms in Hx and Hy
       ! Hx term, purely imaginary, addition
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_x, alpha_gs_coeffs, ao_domo_work, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, beta_gs_coeffs, ao_domo_work, 0.0_dp, &
-                   domo_domo_work)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, 1.0_dp, beta_gs_coeffs, ao_domo_work, 0.0_dp, &
+                         domo_domo_work)
       CALL cp_fm_to_fm_submat(msource=domo_domo_work, mtarget=img_fm, nrow=ndo_mo, ncol=ndo_mo, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=ndo_mo + 1, t_firstcol=1)
       ! Hy term, purely real, substraction
       CALL cp_dbcsr_sm_fm_multiply(orb_soc_y, alpha_gs_coeffs, ao_domo_work, ncol=ndo_mo)
-      CALL cp_gemm('T', 'N', ndo_mo, ndo_mo, nao, -1.0_dp, beta_gs_coeffs, ao_domo_work, 0.0_dp, &
-                   domo_domo_work)
+      CALL parallel_gemm('T', 'N', ndo_mo, ndo_mo, nao, -1.0_dp, beta_gs_coeffs, ao_domo_work, 0.0_dp, &
+                         domo_domo_work)
       CALL cp_fm_to_fm_submat(msource=domo_domo_work, mtarget=real_fm, nrow=ndo_mo, ncol=ndo_mo, &
                               s_firstrow=1, s_firstcol=1, t_firstrow=ndo_mo + 1, t_firstcol=1)
 

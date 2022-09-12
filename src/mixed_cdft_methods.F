@@ -37,7 +37,6 @@ MODULE mixed_cdft_methods
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_write_formatted
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -94,6 +93,7 @@ MODULE mixed_cdft_methods
    USE mixed_environment_types,         ONLY: get_mixed_env,&
                                               mixed_environment_type,&
                                               set_mixed_env
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -1396,9 +1396,9 @@ CONTAINS
                ipermutation = ipermutation + 1
                CALL cp_dbcsr_sm_fm_multiply(mixed_matrix_s, mixed_mo_coeff(istate, ispin)%matrix, &
                                             tmp2, nmo, 1.0_dp, 0.0_dp)
-               CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                            mixed_mo_coeff(jstate, ispin)%matrix, &
-                            tmp2, 0.0_dp, mo_overlap(ipermutation)%matrix)
+               CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                                  mixed_mo_coeff(jstate, ispin)%matrix, &
+                                  tmp2, 0.0_dp, mo_overlap(ipermutation)%matrix)
                IF (print_mo) &
                   CALL cp_fm_write_formatted(mo_overlap(ipermutation)%matrix, mounit, &
                                              "# MO overlap matrix (step "//TRIM(ADJUSTL(cp_to_string(mixed_cdft%sim_step)))// &
@@ -1416,9 +1416,9 @@ CONTAINS
                   CALL cp_dbcsr_sm_fm_multiply(w_matrix(istate, ivar)%matrix, &
                                                mixed_mo_coeff(istate, ispin)%matrix, &
                                                tmp2, nmo, 1.0_dp, 0.0_dp)
-                  CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                               mixed_mo_coeff(jstate, ispin)%matrix, &
-                               tmp2, 0.0_dp, w_matrix_mo(istate, jstate, ivar)%matrix)
+                  CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                                     mixed_mo_coeff(jstate, ispin)%matrix, &
+                                     tmp2, 0.0_dp, w_matrix_mo(istate, jstate, ivar)%matrix)
                END DO
             END DO
          END DO
@@ -2168,15 +2168,15 @@ CONTAINS
                                          mo_tmp, nmo, 1.0_dp, 0.0_dp)
             ! C_i^T * (S*C_r)
             CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
-            CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                         mixed_mo_coeff(istate, ispin)%matrix, &
-                         mo_tmp, 0.0_dp, mo_overlap_wfn)
+            CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                               mixed_mo_coeff(istate, ispin)%matrix, &
+                               mo_tmp, 0.0_dp, mo_overlap_wfn)
             CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(1, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
             ! C_j^T * (S*C_r)
             CALL cp_fm_set_all(mo_overlap_wfn, alpha=0.0_dp)
-            CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                         mixed_mo_coeff(jstate, ispin)%matrix, &
-                         mo_tmp, 0.0_dp, mo_overlap_wfn)
+            CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                               mixed_mo_coeff(jstate, ispin)%matrix, &
+                               mo_tmp, 0.0_dp, mo_overlap_wfn)
             CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(2, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
          END DO
          CALL cp_fm_release(mo_overlap_wfn)

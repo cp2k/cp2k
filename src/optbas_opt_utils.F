@@ -23,7 +23,6 @@ MODULE optbas_opt_utils
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
                                               dbcsr_distribution_type,&
@@ -38,6 +37,7 @@ MODULE optbas_opt_utils
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE molecule_types,                  ONLY: molecule_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_condnum,                      ONLY: overlap_condnum
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -123,7 +123,7 @@ CONTAINS
          fval = fval - 2.0_dp*trace + 2.0_dp*nmo
          !
          CALL cp_fm_create(tmp2, matrix_struct=mo_coeff%matrix_struct)
-         CALL cp_gemm('N', 'N', norb, nmo, norb, 1.0_dp, S_inv_orb, tmp1, 0.0_dp, tmp2)
+         CALL parallel_gemm('N', 'N', norb, nmo, norb, 1.0_dp, S_inv_orb, tmp1, 0.0_dp, tmp2)
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, tmp2, tmp1, nmo)
          CALL cp_fm_trace(tmp2, tmp1, tmp_energy)
          energy = energy + tmp_energy*(3.0_dp - REAL(nspins, KIND=dp))
@@ -194,10 +194,10 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct)
          !
          CALL cp_dbcsr_sm_fm_multiply(sauxorb(1)%matrix, mo_coeff, tmp1, nmo)
-         CALL cp_gemm('N', 'N', naux, nmo, naux, 1.0_dp, fm_sinv, tmp1, 0.0_dp, tmp2)
-         CALL cp_gemm('T', 'N', nmo, nmo, naux, 1.0_dp, tmp1, tmp2, 0.0_dp, tmat)
+         CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, fm_sinv, tmp1, 0.0_dp, tmp2)
+         CALL parallel_gemm('T', 'N', nmo, nmo, naux, 1.0_dp, tmp1, tmp2, 0.0_dp, tmat)
          CALL cp_fm_power(tmat, work, -0.5_dp, threshold, ndep)
-         CALL cp_gemm('N', 'N', naux, nmo, nmo, 1.0_dp, tmp2, tmat, 0.0_dp, mo_coeff_aux)
+         CALL parallel_gemm('N', 'N', naux, nmo, nmo, 1.0_dp, tmp2, tmat, 0.0_dp, mo_coeff_aux)
          !
          CALL cp_fm_release(work)
          CALL cp_fm_release(tmat)

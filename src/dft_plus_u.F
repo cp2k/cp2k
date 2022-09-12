@@ -38,7 +38,6 @@ MODULE dft_plus_u
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -60,6 +59,7 @@ MODULE dft_plus_u
    USE mathlib,                         ONLY: jacobi
    USE message_passing,                 ONLY: mp_sum
    USE orbital_symbols,                 ONLY: sgf_symbol
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
@@ -414,16 +414,16 @@ CONTAINS
          ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
 
          CALL cp_dbcsr_sm_fm_multiply(sm_p, fm_s_half, fm_work1, nsgf)
-         CALL cp_gemm(transa="N", &
-                      transb="N", &
-                      m=nsgf, &
-                      n=nsgf, &
-                      k=nsgf, &
-                      alpha=1.0_dp, &
-                      matrix_a=fm_s_half, &
-                      matrix_b=fm_work1, &
-                      beta=0.0_dp, &
-                      matrix_c=fm_work2)
+         CALL parallel_gemm(transa="N", &
+                            transb="N", &
+                            m=nsgf, &
+                            n=nsgf, &
+                            k=nsgf, &
+                            alpha=1.0_dp, &
+                            matrix_a=fm_s_half, &
+                            matrix_b=fm_work1, &
+                            beta=0.0_dp, &
+                            matrix_c=fm_work2)
          IF (debug) THEN
             CALL cp_dbcsr_write_sparse_matrix(sm_p, 4, 6, qs_env, para_env, &
                                               output_unit=output_unit)

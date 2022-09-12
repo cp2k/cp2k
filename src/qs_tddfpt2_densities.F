@@ -13,11 +13,11 @@ MODULE qs_tddfpt2_densities
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_scale
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_p_type
@@ -91,9 +91,9 @@ CONTAINS
 
       CALL qs_rho_get(rho_orb_struct, rho_ao=rho_ij_ao)
       DO ispin = 1, nspins
-         CALL cp_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, &
-                      sub_env%mos_occ(ispin)%matrix, sub_env%mos_occ(ispin)%matrix, &
-                      0.0_dp, wfm_rho_orb)
+         CALL parallel_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, &
+                            sub_env%mos_occ(ispin)%matrix, sub_env%mos_occ(ispin)%matrix, &
+                            0.0_dp, wfm_rho_orb)
 
          CALL copy_fm_to_dbcsr(wfm_rho_orb, rho_ij_ao(ispin)%matrix, keep_sparsity=.TRUE.)
       END DO
@@ -198,10 +198,10 @@ CONTAINS
       DO ispin = 1, nspins
          ! TO DO: consider sub_env%admm_A to be a DBCSR matrix
          CALL copy_dbcsr_to_fm(rho_ao_orb(ispin)%matrix, wfm_rho_orb)
-         CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, sub_env%admm_A, &
-                      wfm_rho_orb, 0.0_dp, wfm_aux_orb)
-         CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, sub_env%admm_A, wfm_aux_orb, &
-                      0.0_dp, wfm_rho_aux_fit)
+         CALL parallel_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, sub_env%admm_A, &
+                            wfm_rho_orb, 0.0_dp, wfm_aux_orb)
+         CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, sub_env%admm_A, wfm_aux_orb, &
+                            0.0_dp, wfm_rho_aux_fit)
          CALL copy_fm_to_dbcsr(wfm_rho_aux_fit, rho_ao_aux_fit(ispin)%matrix, keep_sparsity=.TRUE.)
 
          CALL calculate_rho_elec(matrix_p=rho_ao_aux_fit(ispin)%matrix, &

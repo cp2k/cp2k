@@ -42,7 +42,6 @@ MODULE xas_tdp_methods
         cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, &
         cp_fm_p_type, cp_fm_read_unformatted, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, &
         cp_fm_to_fm_submat, cp_fm_type, cp_fm_write_unformatted
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -79,6 +78,7 @@ MODULE xas_tdp_methods
    USE mathlib,                         ONLY: get_diag
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_bcast
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
    USE particle_methods,                ONLY: get_particle_set
@@ -1402,7 +1402,7 @@ CONTAINS
 
             ! Computing the KS matrix in the subset of MOs
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, lmo_fm, work, ncol=nlmo)
-            CALL cp_gemm('T', 'N', nlmo, nlmo, nao, 1.0_dp, lmo_fm, work, 0.0_dp, ks_fm)
+            CALL parallel_gemm('T', 'N', nlmo, nlmo, nao, 1.0_dp, lmo_fm, work, 0.0_dp, ks_fm)
 
             ! Diagonalizing the KS matrix in the subset of MOs
             ALLOCATE (evals(nlmo))
@@ -1410,7 +1410,7 @@ CONTAINS
             DEALLOCATE (evals)
 
             ! Express the MOs in the basis that diagonalizes KS
-            CALL cp_gemm('N', 'N', nao, nlmo, nlmo, 1.0_dp, lmo_fm, evecs, 0.0_dp, work)
+            CALL parallel_gemm('N', 'N', nao, nlmo, nlmo, 1.0_dp, lmo_fm, evecs, 0.0_dp, work)
 
             ! Replacing the new MOs back in the MO coeffs
             i = 0
@@ -1715,7 +1715,7 @@ CONTAINS
 !              Compute gs_coeff^T * matrix_ks * gs_coeff to get the epsilon_ij matrix
                DO ispin = 1, nspins
                   CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, gs_coeffs, work_mat, ncol=ndo_so)
-                  CALL cp_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, work_mat, 0.0_dp, eval_mat)
+                  CALL parallel_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, work_mat, 0.0_dp, eval_mat)
 
 !                 Put the epsilon_ii into the donor_state. No off-diagonal element because of subset diag
                   CALL cp_fm_get_diag(eval_mat, diag)
@@ -1731,7 +1731,7 @@ CONTAINS
 !              Compute gs_coeff^T * matrix_ks * gs_coeff to get the epsilon_ij matrix
                DO ispin = 1, 2
                   CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, gs_coeffs, work_mat, ncol=ndo_so)
-                  CALL cp_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, work_mat, 0.0_dp, eval_mat)
+                  CALL parallel_gemm('T', 'N', ndo_so, ndo_so, nao, 1.0_dp, gs_coeffs, work_mat, 0.0_dp, eval_mat)
 
                   CALL cp_fm_get_diag(eval_mat, diag)
                   donor_state%energy_evals(:, ispin) = diag(:)
@@ -1852,8 +1852,8 @@ CONTAINS
             DO j = 1, 2
                CALL cp_fm_set_all(zij_fm_set(j, i)%matrix, 0.0_dp)
                CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j, i)%matrix, vectors, opvec, ncol=n_centers)
-               CALL cp_gemm("T", "N", n_centers, n_centers, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
-                            zij_fm_set(j, i)%matrix)
+               CALL parallel_gemm("T", "N", n_centers, n_centers, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
+                                  zij_fm_set(j, i)%matrix)
             END DO
          END DO
 
@@ -2088,7 +2088,7 @@ CONTAINS
          !Compute dip*gs_coeffs
          CALL cp_dbcsr_sm_fm_multiply(dipmat(j)%matrix, donor_state%gs_coeffs, col_work, ncol=ngs)
          !compute lr_coeffs*dip*gs_coeffs
-         CALL cp_gemm('T', 'N', ndo_so*nosc, ngs, nao, 1.0_dp, lr_coeffs, col_work, 0.0_dp, mat_work)
+         CALL parallel_gemm('T', 'N', ndo_so*nosc, ngs, nao, 1.0_dp, lr_coeffs, col_work, 0.0_dp, mat_work)
 
          !Loop over the excited states
          DO iosc = 1, nosc
@@ -2204,7 +2204,7 @@ CONTAINS
          !Compute quad*gs_coeffs
          CALL cp_dbcsr_sm_fm_multiply(quadmat(j)%matrix, donor_state%gs_coeffs, col_work, ncol=ngs)
          !compute lr_coeffs*quadmat*gs_coeffs
-         CALL cp_gemm('T', 'N', ndo_so*nosc, ngs, nao, 1.0_dp, lr_coeffs, col_work, 0.0_dp, mat_work)
+         CALL parallel_gemm('T', 'N', ndo_so*nosc, ngs, nao, 1.0_dp, lr_coeffs, col_work, 0.0_dp, mat_work)
 
          !Loop over the excited states
          DO iosc = 1, nosc
@@ -2875,7 +2875,7 @@ CONTAINS
       CALL cp_fm_copy_general(evecs, work_fm, para_env)
       CALL cp_fm_column_scale(work_fm, scaling)
 
-      CALL cp_gemm('N', 'T', nao, nao, nao, 1.0_dp, work_fm, evecs, 0.0_dp, fm_prec)
+      CALL parallel_gemm('N', 'T', nao, nao, nao, 1.0_dp, work_fm, evecs, 0.0_dp, fm_prec)
 
       !Copy into dbcsr format
       ALLOCATE (xas_tdp_env%ot_prec(ispin)%matrix)

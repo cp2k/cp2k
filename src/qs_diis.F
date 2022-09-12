@@ -31,7 +31,6 @@ MODULE qs_diis
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -46,6 +45,7 @@ MODULE qs_diis
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathlib,                         ONLY: diamat_all
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_diis_types,                   ONLY: qs_diis_buffer_type,&
                                               qs_diis_buffer_type_sparse
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -338,8 +338,8 @@ CONTAINS
             ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
             ! or for an orthogonal basis
             ! new_errors <- KC*C^T - C*(KC)^T = K*P - P*K with S = I
-            CALL cp_gemm("N", "T", nao, nao, homo, 1.0_dp, sc, kc(ispin)%matrix, 0.0_dp, new_errors)
-            CALL cp_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, sc, -1.0_dp, new_errors)
+            CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, sc, kc(ispin)%matrix, 0.0_dp, new_errors)
+            CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, sc, -1.0_dp, new_errors)
 
             DEALLOCATE (occ)
 
@@ -354,12 +354,12 @@ CONTAINS
                ! sc <- S*C
                CALL cp_fm_symm("L", "U", nao, homo, 2.0_dp, new_errors, c, 0.0_dp, sc)
                ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
-               CALL cp_gemm("N", "T", nao, nao, homo, 1.0_dp, sc, kc(ispin)%matrix, 0.0_dp, new_errors)
-               CALL cp_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, sc, -1.0_dp, new_errors)
+               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, sc, kc(ispin)%matrix, 0.0_dp, new_errors)
+               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, sc, -1.0_dp, new_errors)
             ELSE
                ! new_errors <- KC*(C)^T - C*(KC)^T = K*P - P*K
-               CALL cp_gemm("N", "T", nao, nao, homo, 1.0_dp, c, kc(ispin)%matrix, 0.0_dp, new_errors)
-               CALL cp_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, c, -1.0_dp, new_errors)
+               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, c, kc(ispin)%matrix, 0.0_dp, new_errors)
+               CALL parallel_gemm("N", "T", nao, nao, homo, 1.0_dp, kc(ispin)%matrix, c, -1.0_dp, new_errors)
             END IF
 
          END IF

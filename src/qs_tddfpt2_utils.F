@@ -33,7 +33,6 @@ MODULE qs_tddfpt2_utils
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -59,6 +58,7 @@ MODULE qs_tddfpt2_utils
                                               int_8
    USE message_passing,                 ONLY: mp_min,&
                                               mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -619,8 +619,8 @@ CONTAINS
             CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks_oep(ispin)%matrix, gs_mos(ispin)%mos_occ, &
                                          work_fm, ncol=nmo_occ, alpha=1.0_dp, beta=0.0_dp)
-            CALL cp_gemm('T', 'N', nmo_occ, nmo_occ, nao, 1.0_dp, gs_mos(ispin)%mos_occ, work_fm, &
-                         0.0_dp, gs_mos(ispin)%evals_occ_matrix)
+            CALL parallel_gemm('T', 'N', nmo_occ, nmo_occ, nao, 1.0_dp, gs_mos(ispin)%mos_occ, work_fm, &
+                               0.0_dp, gs_mos(ispin)%evals_occ_matrix)
             CALL cp_fm_release(work_fm)
          END DO
          IF (iounit > 0) THEN

@@ -25,7 +25,6 @@ MODULE rt_propagation_forces
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
@@ -34,6 +33,7 @@ MODULE rt_propagation_forces
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: one,&
                                               zero
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -427,23 +427,23 @@ CONTAINS
          CALL cp_dbcsr_sm_fm_multiply(KS_aux_im(ispin)%matrix, mos_admm(re)%matrix, tmp_aux_mo(im)%matrix, nmo, 4.0_dp, 1.0_dp)
 
 ! Next step compute S-1*H
-         CALL cp_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(re)%matrix, 0.0_dp, tmp_aux_mo1(re)%matrix)
-         CALL cp_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(im)%matrix, 0.0_dp, tmp_aux_mo1(im)%matrix)
+        CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(re)%matrix, 0.0_dp, tmp_aux_mo1(re)%matrix)
+        CALL parallel_gemm('N', 'N', naux, nmo, naux, 1.0_dp, admm_env%S_inv, tmp_aux_mo(im)%matrix, 0.0_dp, tmp_aux_mo1(im)%matrix)
 
 ! Here we go on with Ws=S-1*H * C^H (take care of sign of the imaginary part!!!)
 
-         CALL cp_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(re)%matrix, mos(re)%matrix, 0.0_dp, &
-                      tmp_aux_nao(re)%matrix)
-         CALL cp_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im)%matrix, mos(im)%matrix, 1.0_dp, &
-                      tmp_aux_nao(re)%matrix)
-         CALL cp_gemm("N", "T", naux, nao, nmo, 1.0_dp, tmp_aux_mo1(re)%matrix, mos(im)%matrix, 0.0_dp, &
-                      tmp_aux_nao(im)%matrix)
-         CALL cp_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im)%matrix, mos(re)%matrix, 1.0_dp, &
-                      tmp_aux_nao(im)%matrix)
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(re)%matrix, mos(re)%matrix, 0.0_dp, &
+                            tmp_aux_nao(re)%matrix)
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im)%matrix, mos(im)%matrix, 1.0_dp, &
+                            tmp_aux_nao(re)%matrix)
+         CALL parallel_gemm("N", "T", naux, nao, nmo, 1.0_dp, tmp_aux_mo1(re)%matrix, mos(im)%matrix, 0.0_dp, &
+                            tmp_aux_nao(im)%matrix)
+         CALL parallel_gemm("N", "T", naux, nao, nmo, -1.0_dp, tmp_aux_mo1(im)%matrix, mos(re)%matrix, 1.0_dp, &
+                            tmp_aux_nao(im)%matrix)
 
 ! Let's do the final bit  Wq=S-1*H * C^H * A^T
-         CALL cp_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(re)%matrix, admm_env%A, 0.0_dp, tmp_aux_aux(re)%matrix)
-         CALL cp_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(im)%matrix, admm_env%A, 0.0_dp, tmp_aux_aux(im)%matrix)
+         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(re)%matrix, admm_env%A, 0.0_dp, tmp_aux_aux(re)%matrix)
+         CALL parallel_gemm('N', 'T', naux, naux, nao, -1.0_dp, tmp_aux_nao(im)%matrix, admm_env%A, 0.0_dp, tmp_aux_aux(im)%matrix)
 
          ! *** copy to sparse matrix
          CALL copy_fm_to_dbcsr(tmp_aux_nao(re)%matrix, matrix_w_q, keep_sparsity=.TRUE.)

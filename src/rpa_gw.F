@@ -41,7 +41,6 @@ MODULE rpa_gw
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
@@ -82,6 +81,7 @@ MODULE rpa_gw
    USE mp2_types,                       ONLY: mp2_type,&
                                               one_dim_real_array,&
                                               two_dim_int_array
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE qs_band_structure,               ONLY: calculate_kp_orbitals
@@ -971,11 +971,11 @@ CONTAINS
       END DO
 
       ! multiply with L from the left and the right to get the screened Coulomb interaction
-      CALL cp_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_Q, &
-                   0.0_dp, fm_mat_work)
+      CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1)%matrix, fm_mat_Q, &
+                         0.0_dp, fm_mat_work)
 
-      CALL cp_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L(1, 1)%matrix, &
-                   0.0_dp, fm_mat_Q)
+      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L(1, 1)%matrix, &
+                         0.0_dp, fm_mat_Q)
 
       ! Fourier transform from w to t
       DO iquad = 1, num_integ_points
@@ -1047,9 +1047,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! S_work_(nm)Q = B_(nm)P * ([1+Q]^-1-1)_PQ
-      CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_nm_gw, k=dimen_RI, alpha=1.0_dp, &
-                   matrix_a=fm_mat_Q, matrix_b=fm_mat_S_gw, beta=0.0_dp, &
-                   matrix_c=fm_mat_S_gw_work)
+      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_nm_gw, k=dimen_RI, alpha=1.0_dp, &
+                         matrix_a=fm_mat_Q, matrix_b=fm_mat_S_gw, beta=0.0_dp, &
+                         matrix_c=fm_mat_S_gw_work)
 
       CALL cp_fm_get_info(matrix=fm_mat_S_gw, &
                           ncol_local=ncol_local, &
@@ -2114,9 +2114,9 @@ CONTAINS
 
          CALL mp_sync(para_env%group)
 
-         CALL cp_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
-                      matrix_a=fm_mat_eigv_P, matrix_b=fm_mat_scaled_eigv_P, beta=0.0_dp, &
-                      matrix_c=fm_mat_P_sqrt_inv)
+         CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+                            matrix_a=fm_mat_eigv_P, matrix_b=fm_mat_scaled_eigv_P, beta=0.0_dp, &
+                            matrix_c=fm_mat_P_sqrt_inv)
 
          CALL copy_fm_to_dbcsr(fm_mat_P_sqrt_inv, matrix_P_sqrt_inv, keep_sparsity=.FALSE.)
 
@@ -4532,9 +4532,9 @@ CONTAINS
          CALL timeset(routineN//"_RI_HFX_operation_1", handle3)
 
          ! get density matrix
-         CALL cp_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
-                      matrix_a=fm_mo_coeff_occ, matrix_b=fm_mo_coeff_occ, beta=0.0_dp, &
-                      matrix_c=fm_scaled_dm_occ_tau)
+         CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+                            matrix_a=fm_mo_coeff_occ, matrix_b=fm_mo_coeff_occ, beta=0.0_dp, &
+                            matrix_c=fm_scaled_dm_occ_tau)
 
          CALL timestop(handle3)
 
@@ -5682,13 +5682,13 @@ CONTAINS
 
       CALL mp_sync(para_env%group)
 
-      CALL cp_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
-                   matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
-                   matrix_c=fm_scaled_dm_occ_tau)
+      CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+                         matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
+                         matrix_c=fm_scaled_dm_occ_tau)
 
-      CALL cp_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
-                   matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
-                   matrix_c=fm_scaled_dm_virt_tau)
+      CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+                         matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
+                         matrix_c=fm_scaled_dm_virt_tau)
 
       CALL dbcsr_set(mat_greens_fct_occ, 0.0_dp)
 

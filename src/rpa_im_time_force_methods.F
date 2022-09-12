@@ -41,7 +41,6 @@ MODULE rpa_im_time_force_methods
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
@@ -98,6 +97,7 @@ MODULE rpa_im_time_force_methods
                                               virial_gpw_potential
    USE mp2_types,                       ONLY: mp2_type
    USE orbital_pointers,                ONLY: ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -2218,10 +2218,10 @@ CONTAINS
 
             !sum_YP_tau in the auxiliary basis
             CALL copy_dbcsr_to_fm(force_data%sum_YP_tau(ispin)%matrix, admm_env%work_orb_orb)
-            CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, admm_env%work_orb_orb, &
-                         0.0_dp, admm_env%work_aux_orb)
-            CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
-                         0.0_dp, admm_env%work_aux_aux)
+            CALL parallel_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, admm_env%work_orb_orb, &
+                               0.0_dp, admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
+                               0.0_dp, admm_env%work_aux_aux)
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_admm(ispin)%matrix, keep_sparsity=.TRUE.)
 
             !save the admm representation od sum_YP_tau
@@ -2413,10 +2413,10 @@ CONTAINS
          nao_aux = admm_env%nao_aux_fit
          DO ispin = 1, nspins
             CALL copy_dbcsr_to_fm(force_data%sum_ker_tau(ispin)%matrix, admm_env%work_orb_orb)
-            CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, admm_env%work_orb_orb, &
-                         0.0_dp, admm_env%work_aux_orb)
-            CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
-                         0.0_dp, admm_env%work_aux_aux)
+            CALL parallel_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, admm_env%work_orb_orb, &
+                               0.0_dp, admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
+                               0.0_dp, admm_env%work_aux_aux)
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, ker_tau_admm(ispin)%matrix, keep_sparsity=.TRUE.)
          END DO
 
@@ -2499,10 +2499,10 @@ CONTAINS
             CALL dbcsr_set(dbcsr_work, 0.0_dp)
             DO ispin = 1, nspins
                CALL copy_dbcsr_to_fm(work_admm(ispin)%matrix, admm_env%work_aux_aux)
-               CALL cp_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
-                            0.0_dp, admm_env%work_aux_orb)
-               CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
-                            0.0_dp, admm_env%work_orb_orb)
+               CALL parallel_gemm('N', 'N', nao_aux, nao, nao_aux, 1.0_dp, admm_env%work_aux_aux, admm_env%A, &
+                                  0.0_dp, admm_env%work_aux_orb)
+               CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, admm_env%work_aux_orb, &
+                                  0.0_dp, admm_env%work_orb_orb)
                CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_work, keep_sparsity=.TRUE.)
                CALL dbcsr_add(dbcsr_p_work(ispin)%matrix, dbcsr_work, 1.0_dp, 1.0_dp)
             END DO
@@ -3595,9 +3595,9 @@ CONTAINS
 
                      CALL cp_dbcsr_sm_fm_multiply(scrm_admm(ispin)%matrix, admm_env%A, &
                                                   admm_env%work_aux_orb, nao)
-                     CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
-                                  1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                                  admm_env%work_orb_orb)
+                     CALL parallel_gemm('T', 'N', nao, nao, nao_aux, &
+                                        1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                                        admm_env%work_orb_orb)
                      CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbcsr_work, keep_sparsity=.TRUE.)
                      CALL dbcsr_add(matrix_hz(ispin)%matrix, dbcsr_work, 1.0_dp, 1.0_dp)
                   END DO

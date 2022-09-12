@@ -30,7 +30,6 @@ MODULE qs_density_matrices
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -42,6 +41,7 @@ MODULE qs_density_matrices
                                               dbcsr_set,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
 #include "./base/base_uses.f90"
@@ -255,8 +255,8 @@ CONTAINS
 
       ! the convention seems to require the half here, the factor of two is presumably taken care of
       ! internally in qs_core_hamiltonian
-      CALL cp_gemm('T', 'N', ncol_global, ncol_global, nrow_global, 0.5_dp, &
-                   mo_set%mo_coeff, weighted_vectors, 0.0_dp, h_block)
+      CALL parallel_gemm('T', 'N', ncol_global, ncol_global, nrow_global, 0.5_dp, &
+                         mo_set%mo_coeff, weighted_vectors, 0.0_dp, h_block)
 
       IF (do_symm) THEN
          ! at the minimum things are anyway symmetric, but numerically it might not be the case
@@ -266,8 +266,8 @@ CONTAINS
       END IF
 
       ! this could overwrite the mo_derivs to save the weighted_vectors
-      CALL cp_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
-                   mo_set%mo_coeff, h_block, 0.0_dp, weighted_vectors)
+      CALL parallel_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
+                         mo_set%mo_coeff, h_block, 0.0_dp, weighted_vectors)
 
       CALL dbcsr_set(w_matrix, 0.0_dp)
       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=w_matrix, &
@@ -347,7 +347,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_p, p)
       CALL cp_fm_upper_to_full(p, work)
       CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, ks, p, 0.0_dp, work)
-      CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, p, work, 0.0_dp, ks)
+      CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, p, work, 0.0_dp, ks)
       CALL dbcsr_set(matrix_w, 0.0_dp)
       CALL copy_fm_to_dbcsr(ks, matrix_w, keep_sparsity=.TRUE.)
 
@@ -393,8 +393,8 @@ CONTAINS
       CALL cp_fm_create(ksmat, fm_struct_tmp, name="KS")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mo_set%mo_coeff, scrv, ncol)
-      CALL cp_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mo_set%mo_coeff, scrv, 0.0_dp, ksmat)
-      CALL cp_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mo_set%mo_coeff, ksmat, 0.0_dp, scrv)
+      CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mo_set%mo_coeff, scrv, 0.0_dp, ksmat)
+      CALL parallel_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mo_set%mo_coeff, ksmat, 0.0_dp, scrv)
       CALL dbcsr_set(w_matrix, 0.0_dp)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=psi1, &
                                  ncol=mo_set%homo, alpha=0.5_dp)
@@ -444,8 +444,8 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_mat)
 
       CALL cp_dbcsr_sm_fm_multiply(hzm, c0vec, hcvec, norb)
-      CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, c0vec, hcvec, 0.0_dp, chcmat)
-      CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, c0vec, chcmat, 0.0_dp, hcvec)
+      CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, c0vec, hcvec, 0.0_dp, chcmat)
+      CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, c0vec, chcmat, 0.0_dp, hcvec)
 
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=hcvec, matrix_g=c0vec, ncol=norb, alpha=falpha)
 
@@ -488,8 +488,8 @@ CONTAINS
       CALL cp_fm_create(ksmat, fm_struct_tmp, name="KS")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_dbcsr_sm_fm_multiply(ks_matrix, mos_occ, scrv, ncol)
-      CALL cp_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mos_occ, scrv, 0.0_dp, ksmat)
-      CALL cp_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, xvec, ksmat, 0.0_dp, scrv)
+      CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, mos_occ, scrv, 0.0_dp, ksmat)
+      CALL parallel_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, xvec, ksmat, 0.0_dp, scrv)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=xvec, ncol=ncol, alpha=0.5_dp)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=xvec, matrix_g=scrv, ncol=ncol, alpha=0.5_dp)
       CALL cp_fm_release(scrv)
@@ -536,9 +536,9 @@ CONTAINS
 
       CALL cp_dbcsr_sm_fm_multiply(ks_matrix, xvec, scrv, ncol, 1.0_dp, 0.0_dp)
       CALL cp_dbcsr_sm_fm_multiply(s_matrix, xvec, scrv, ncol, eval, -1.0_dp)
-      CALL cp_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, xvec, scrv, 0.0_dp, xsxmat)
+      CALL parallel_gemm("T", "N", ncol, ncol, nrow, 1.0_dp, xvec, scrv, 0.0_dp, xsxmat)
 
-      CALL cp_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mos_occ, xsxmat, 0.0_dp, scrv)
+      CALL parallel_gemm("N", "N", nrow, ncol, ncol, 1.0_dp, mos_occ, xsxmat, 0.0_dp, scrv)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=scrv, matrix_g=mos_occ, ncol=ncol, alpha=0.5_dp)
       CALL cp_dbcsr_plus_fm_fm_t(w_matrix, matrix_v=mos_occ, matrix_g=scrv, ncol=ncol, alpha=0.5_dp)
 
