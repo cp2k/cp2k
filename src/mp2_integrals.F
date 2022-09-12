@@ -253,7 +253,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
          ends_array_mc_block_int, ends_array_mc_int, my_B_size, my_B_virtual_end, &
          my_B_virtual_start, sizes_AO, sizes_AO_split, sizes_RI, sizes_RI_split, &
-         starts_array_mc_block_int, starts_array_mc_int, sub_proc_map, virtual
+         starts_array_mc_block_int, starts_array_mc_int, virtual
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(3)                              :: bounds_3c, pcoord, pdims, pdims_t3c, &
                                                             periodic
@@ -476,13 +476,6 @@ CONTAINS
             END IF
          END IF
 
-         ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-         DO i = 0, para_env_sub%num_pe - 1
-            sub_proc_map(i) = i
-            sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
-            sub_proc_map(para_env_sub%num_pe + i) = i
-         END DO
-
          ! array that will store the (ia|K) integrals
          ALLOCATE (BIb_C(nspins))
          DO ispin = 1, nspins
@@ -537,7 +530,7 @@ CONTAINS
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat(ispin), &
                                             BIb_C(ispin)%array(LLL, :, :), &
                                             mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
-                                            eps_filter, sub_proc_map, &
+                                            eps_filter, &
                                             my_B_virtual_end(ispin), my_B_virtual_start(ispin))
                END DO
                CALL contract_B_L(BIb_C(ispin)%array, my_Lrows, gd_B_virtual(ispin)%sizes, &
@@ -552,7 +545,7 @@ CONTAINS
                      CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat_gw(ispin), &
                                                BIb_C_gw(ispin)%array(LLL, :, :), &
                                                mo_coeff_gw(ispin)%matrix, mo_coeff_all(ispin)%matrix, eps_filter, &
-                                               sub_proc_map, my_B_all_end, my_B_all_start)
+                                               my_B_all_end, my_B_all_start)
                   END DO
                   CALL contract_B_L(BIb_C_gw(ispin)%array, my_Lrows, gd_B_all%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                     ngroup, color_sub, para_env%group, para_env_sub)
@@ -566,7 +559,7 @@ CONTAINS
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat_bse_ab, &
                                             BIb_C_bse_ab(LLL, :, :), &
                                             mo_coeff_v(1)%matrix, mo_coeff_v(1)%matrix, eps_filter, &
-                                            sub_proc_map, my_B_all_end, my_B_all_start)
+                                            my_B_all_end, my_B_all_start)
                END DO
                CALL contract_B_L(BIb_C_bse_ab, my_Lrows, gd_B_virt_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
@@ -576,7 +569,7 @@ CONTAINS
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu_local_L(LLL), intermed_mat_bse_ij, &
                                             BIb_C_bse_ij(LLL, :, :), &
                                             mo_coeff_o(1)%matrix, mo_coeff_o(1)%matrix, eps_filter, &
-                                            sub_proc_map, my_B_occ_bse_end, my_B_occ_bse_start)
+                                            my_B_occ_bse_end, my_B_occ_bse_start)
                END DO
                CALL contract_B_L(BIb_C_bse_ij, my_Lrows, gd_B_occ_bse%sizes, gd_array%sizes, qs_env%mp2_env%eri_blksize, &
                                  ngroup, color_sub, para_env%group, para_env_sub)
@@ -603,7 +596,7 @@ CONTAINS
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, intermed_mat(ispin), &
                                             BIb_C(ispin)%array(i_counter, :, :), &
                                             mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, eps_filter, &
-                                            sub_proc_map, my_B_virtual_end(ispin), my_B_virtual_start(ispin))
+                                            my_B_virtual_end(ispin), my_B_virtual_start(ispin))
 
                END DO
 
@@ -613,7 +606,7 @@ CONTAINS
                      CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, intermed_mat_gw(ispin), &
                                                BIb_C_gw(ispin)%array(i_counter, :, :), &
                                                mo_coeff_gw(ispin)%matrix, mo_coeff_all(ispin)%matrix, eps_filter, &
-                                               sub_proc_map, my_B_all_end, my_B_all_start)
+                                               my_B_all_end, my_B_all_start)
 
                   END DO
                END IF
@@ -646,8 +639,6 @@ CONTAINS
             CALL release_intermediate_matrices(intermed_mat_bse_ab)
             CALL release_intermediate_matrices(intermed_mat_bse_ij)
          END IF
-
-         DEALLOCATE (sub_proc_map)
 
          ! imag. time = low-scaling SOS-MP2, RPA, GW
       ELSE
@@ -1131,20 +1122,18 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param eps_filter ...
-!> \param sub_proc_map ...
 !> \param my_B_end ...
 !> \param my_B_start ...
 ! **************************************************************************************************
    SUBROUTINE ao_to_mo_and_store_B(para_env, mat_munu, intermed_mat, BIb_jb, &
                                    mo_coeff_o, mo_coeff_v, eps_filter, &
-                                   sub_proc_map, my_B_end, my_B_start)
+                                   my_B_end, my_B_start)
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
       TYPE(intermediate_matrix_type), INTENT(INOUT)      :: intermed_mat
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       INTEGER, INTENT(IN)                                :: my_B_end, my_B_start
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ao_to_mo_and_store_B'
@@ -1165,7 +1154,7 @@ CONTAINS
       IF (.NOT. (TRIM(intermed_mat%descr) .EQ. "bse_ab")) THEN
 
          CALL grep_my_integrals(para_env, intermed_mat%fm_BIb_jb, BIb_jb, intermed_mat%max_row_col_local, &
-                                sub_proc_map, intermed_mat%local_col_row_info, &
+                                intermed_mat%local_col_row_info, &
                                 my_B_end, my_B_start)
 
       END IF
@@ -1354,19 +1343,17 @@ CONTAINS
 !> \param fm_BIb_jb ...
 !> \param BIb_jb ...
 !> \param max_row_col_local ...
-!> \param proc_map ...
 !> \param local_col_row_info ...
 !> \param my_B_virtual_end ...
 !> \param my_B_virtual_start ...
 ! **************************************************************************************************
    SUBROUTINE grep_my_integrals(para_env_sub, fm_BIb_jb, BIb_jb, max_row_col_local, &
-                                proc_map, local_col_row_info, &
+                                local_col_row_info, &
                                 my_B_virtual_end, my_B_virtual_start)
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       INTEGER, INTENT(IN)                                :: max_row_col_local
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info
       INTEGER, INTENT(IN)                                :: my_B_virtual_end, my_B_virtual_start
 
@@ -1409,8 +1396,8 @@ CONTAINS
          local_BI(1:nrow_rec, 1:ncol_rec) = fm_BIb_jb%local_data(1:nrow_rec, 1:ncol_rec)
 
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_send = proc_map(para_env_sub%mepos + proc_shift)
-            proc_receive = proc_map(para_env_sub%mepos - proc_shift)
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+            proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
             ! first exchange information on the local data
             rec_col_row_info = 0

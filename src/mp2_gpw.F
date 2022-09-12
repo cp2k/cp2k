@@ -675,9 +675,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup'
 
       INTEGER :: handle, i_global, iiB, j_global, jjB, max_row_col_local, my_mu_end, my_mu_size, &
-         my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
-         proc_receive_static, proc_send, proc_send_static, proc_shift, virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map
+         my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive_static, &
+         proc_send_static, proc_shift, virtual
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: local_col_row_info, rec_col_row_info
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, col_indices_rec, &
                                                             row_indices, row_indices_rec
@@ -696,17 +695,6 @@ CONTAINS
       ! local storage for the C matrix
       ALLOCATE (C(my_mu_size, dimen))
       C = 0.0_dp
-
-      ! proc_map, vector that replicate the processor numbers also
-      ! for negative and positive number > num_pe
-      ! needed to know which is the processor, to respect to another one,
-      ! for a given shift
-      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe - 1))
-      DO iiB = 0, para_env%num_pe - 1
-         proc_map(iiB) = iiB
-         proc_map(-iiB - 1) = para_env%num_pe - iiB - 1
-         proc_map(para_env%num_pe + iiB) = iiB
-      END DO
 
       CALL cp_fm_get_info(matrix=mo_coeff, &
                           matrix_struct=fm_struct_coeff, &
@@ -746,12 +734,9 @@ CONTAINS
       END DO
 
       ! start ring communication for collecting the data from the other
-      proc_send_static = proc_map(para_env%mepos + 1)
-      proc_receive_static = proc_map(para_env%mepos - 1)
+      proc_send_static = MODULO(para_env%mepos + 1, para_env%num_pe)
+      proc_receive_static = MODULO(para_env%mepos - 1, para_env%num_pe)
       DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = proc_map(para_env%mepos + proc_shift)
-         proc_receive = proc_map(para_env%mepos - proc_shift)
-
          ! first exchange information on the local data
          rec_col_row_info = 0
          CALL mp_sendrecv(local_col_row_info, proc_send_static, rec_col_row_info, proc_receive_static, para_env%group)
@@ -793,15 +778,6 @@ CONTAINS
 
       DEALLOCATE (local_col_row_info)
       DEALLOCATE (rec_col_row_info)
-      DEALLOCATE (proc_map)
-
-      ! proc_map, for the sub_group
-      ALLOCATE (proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-      DO iiB = 0, para_env_sub%num_pe - 1
-         proc_map(iiB) = iiB
-         proc_map(-iiB - 1) = para_env_sub%num_pe - iiB - 1
-         proc_map(para_env_sub%num_pe + iiB) = iiB
-      END DO
 
       ! split the C matrix into occupied and virtual
       ALLOCATE (Cocc(my_mu_size, homo))
@@ -814,11 +790,11 @@ CONTAINS
       ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
       CALL build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_o, Cocc, &
                                   homo, my_mu_start, my_mu_end, &
-                                  mat_munu, gd_array, proc_map)
+                                  mat_munu, gd_array)
 
       CALL build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_v, Cvirt, &
                                   virtual, my_mu_start, my_mu_end, &
-                                  mat_munu, gd_array, proc_map)
+                                  mat_munu, gd_array)
 
       IF (my_do_gw) THEN
 
@@ -828,18 +804,17 @@ CONTAINS
             C(1:my_mu_size, homo - gw_corr_lev_occ + 1:homo + gw_corr_lev_virt)
          CALL build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_gw, Cgw, &
                                      gw_corr_lev_occ + gw_corr_lev_virt, my_mu_start, my_mu_end, &
-                                     mat_munu, gd_array, proc_map)
+                                     mat_munu, gd_array)
 
          ! all levels
          CALL build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_all, C, &
                                      dimen, my_mu_start, my_mu_end, &
-                                     mat_munu, gd_array, proc_map)
+                                     mat_munu, gd_array)
 
       ELSE
          DEALLOCATE (C)
       END IF
 
-      DEALLOCATE (proc_map)
       CALL release_group_dist(gd_array)
       DEALLOCATE (local_C)
 
@@ -858,12 +833,11 @@ CONTAINS
 !> \param my_mu_end ...
 !> \param mat_munu ...
 !> \param gd_array ...
-!> \param proc_map ...
 !> \author Jan Wilhelm, Code by Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE build_mo_coeff_v_o_all(mp2_env, para_env_sub, mo_coeff_to_build, Cread, &
                                      number_of_level, my_mu_start, my_mu_end, &
-                                     mat_munu, gd_array, proc_map)
+                                     mat_munu, gd_array)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_to_build
@@ -872,7 +846,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: number_of_level, my_mu_start, my_mu_end
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_mo_coeff_v_o_all'
 
@@ -911,8 +884,8 @@ CONTAINS
       ! start ring communication in the subgroup for collecting the data from the other
       ! proc (occupied)
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = proc_map(para_env_sub%mepos + proc_shift)
-         proc_receive = proc_map(para_env_sub%mepos - proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
          CALL get_group_dist(gd_array, proc_receive, rec_mu_start, rec_mu_end, rec_mu_size)
 

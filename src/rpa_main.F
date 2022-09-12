@@ -226,7 +226,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_ri_compute_en'
 
       INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen_homo_square, &
-         dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, i, ierr, iiB, &
+         dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, ierr, iiB, &
          input_num_integ_groups, integ_group_size, ispin, jjB, min_integ_group_size, &
          my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
          my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
@@ -234,7 +234,7 @@ CONTAINS
          ngroup, nrow_block_mat, nspins, num_integ_group, num_integ_points, pos_integ_group
       INTEGER(KIND=int_8)                                :: mem
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dimen_ia, my_ia_end, my_ia_size, &
-                                                            my_ia_start, sub_proc_map, virtual
+                                                            my_ia_start, virtual
       LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
       REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
@@ -465,14 +465,6 @@ CONTAINS
 
       CALL timeset(routineN//"_reorder", handle2)
 
-      ! create the sub_proc_map
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-      DO i = 0, para_env_sub%num_pe - 1
-         sub_proc_map(i) = i
-         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
-         sub_proc_map(para_env_sub%num_pe + i) = i
-      END DO
-
       ! not necessary for imaginary time
 
       ALLOCATE (BIb_C_2D(nspins))
@@ -483,7 +475,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL calculate_BIb_C_2D(BIb_C_2D(ispin)%array, BIb_C(ispin)%array, para_env_sub, dimen_ia(ispin), &
                                     homo(ispin), virtual(ispin), gd_B_virtual(ispin), &
-                                    sub_proc_map, my_ia_size(ispin), my_ia_start(ispin), my_ia_end(ispin), my_group_L_size)
+                                    my_ia_size(ispin), my_ia_start(ispin), my_ia_end(ispin), my_group_L_size)
 
             DEALLOCATE (BIb_C(ispin)%array)
             CALL release_group_dist(gd_B_virtual(ispin))
@@ -502,7 +494,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL calculate_BIb_C_2D(BIb_C_2D_gw(ispin)%array, BIb_C_gw(ispin)%array, para_env_sub, dimen_nm_gw, &
                                        gw_corr_lev_occ(ispin) + gw_corr_lev_virt(ispin), nmo, gd_B_all, &
-                                       sub_proc_map, my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
+                                       my_nm_gw_size, my_nm_gw_start, my_nm_gw_end, my_group_L_size)
                DEALLOCATE (BIb_C_gw(ispin)%array)
             END DO
 
@@ -521,7 +513,7 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ij(1)%array, BIb_C_bse_ij, para_env_sub, dimen_homo_square, &
                                  homo(1), homo(1), gd_B_occ_bse, &
-                                 sub_proc_map, my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
+                                 my_ij_comb_bse_size, my_ij_comb_bse_start, my_ij_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ij)
          CALL release_group_dist(gd_B_occ_bse)
@@ -534,7 +526,7 @@ CONTAINS
 
          CALL calculate_BIb_C_2D(BIb_C_2D_bse_ab(1)%array, BIb_C_bse_ab, para_env_sub, dimen_virt_square, &
                                  virtual(1), virtual(1), gd_B_virt_bse, &
-                                 sub_proc_map, my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
+                                 my_ab_comb_bse_size, my_ab_comb_bse_start, my_ab_comb_bse_end, my_group_L_size)
 
          DEALLOCATE (BIb_C_bse_ab)
          CALL release_group_dist(gd_B_virt_bse)
@@ -635,8 +627,6 @@ CONTAINS
                        matrix_s, do_kpoints_from_Gamma, kpoints, gd_array, color_sub, &
                        do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2, calc_forces=calc_forces)
 
-      DEALLOCATE (sub_proc_map)
-
       CALL release_group_dist(gd_array)
 
       CALL cp_para_env_release(para_env_RPA)
@@ -688,7 +678,6 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param gd_B_virtual ...
-!> \param sub_proc_map ...
 !> \param my_ia_size ...
 !> \param my_ia_start ...
 !> \param my_ia_end ...
@@ -697,7 +686,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
                                  gd_B_virtual, &
-                                 sub_proc_map, my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
+                                 my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: BIb_C_2D
@@ -706,7 +695,6 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, INTENT(IN)                                :: dimen_ia, homo, virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       INTEGER                                            :: my_ia_size, my_ia_start, my_ia_end, &
                                                             my_group_L_size
 
@@ -742,8 +730,8 @@ CONTAINS
       IF (para_env_sub%num_pe > 1) THEN
          ALLOCATE (BIb_C_rec_1D(INT(my_group_L_size, int_8)*maxsize(gd_B_virtual)*MIN(homo, occ_chunk)))
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
-            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+            proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
             CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 

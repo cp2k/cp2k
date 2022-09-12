@@ -149,7 +149,7 @@ CONTAINS
          size_EX_send, size_of_exchange_group, sub_sub_color, virtual, virtual_beta, wfn_calc, &
          wfn_calc_best
       INTEGER(KIND=int_8)                                :: mem
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: proc_map, sub_proc_map, vector_B_sizes, &
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: vector_B_sizes, &
                                                             vector_batch_A_size_group, &
                                                             vector_batch_I_size_group
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: color_array, local_col_row_info
@@ -387,21 +387,6 @@ CONTAINS
       ! in mp_comm_split_direct the color is given by my_a_virtual_start and my_b_virtual_start
       CALL cp_para_env_split(para_env_exchange, para_env, sub_sub_color)
 
-      ! crate the proc maps
-      ALLOCATE (proc_map(-para_env_exchange%num_pe:2*para_env_exchange%num_pe - 1))
-      DO i = 0, para_env_exchange%num_pe - 1
-         proc_map(i) = i
-         proc_map(-i - 1) = para_env_exchange%num_pe - i - 1
-         proc_map(para_env_exchange%num_pe + i) = i
-      END DO
-
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-      DO i = 0, para_env_sub%num_pe - 1
-         sub_proc_map(i) = i
-         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
-         sub_proc_map(para_env_sub%num_pe + i) = i
-      END DO
-
       ! create an array containing the information for communication
       CALL create_group_dist(gd_exchange, my_I_occupied_start, my_I_occupied_end, my_I_batch_size, para_env_exchange)
 
@@ -513,8 +498,7 @@ CONTAINS
                CALL timeset(routineN//"_E_Ex_1", handle3)
                CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb)
                CALL grep_my_integrals(para_env_sub, fm_BIb_jb, BIb_C(1:my_B_size, 1:homo, i_counter), max_row_col_local, &
-                                      sub_proc_map, local_col_row_info, &
-                                      my_B_virtual_end, my_B_virtual_start)
+                                      local_col_row_info, my_B_virtual_end, my_B_virtual_start)
                CALL timestop(handle3)
             END IF
 
@@ -536,8 +520,8 @@ CONTAINS
             ! start communicating and collecting exchange contributions from
             ! other processes in my exchange group
             DO index_proc_shift = 1, size_of_exchange_group - 1
-               proc_send = proc_map(mepos_in_EX_group + index_proc_shift)
-               proc_receive = proc_map(mepos_in_EX_group - index_proc_shift)
+               proc_send = MODULO(mepos_in_EX_group + index_proc_shift, size_of_exchange_group)
+               proc_receive = MODULO(mepos_in_EX_group - index_proc_shift, size_of_exchange_group)
 
                CALL get_group_dist(gd_exchange, proc_receive, EX_start, EX_end, size_EX)
 
@@ -587,8 +571,6 @@ CONTAINS
          DEALLOCATE (local_col_row_info)
          DEALLOCATE (BIb_C)
       END IF
-      DEALLOCATE (proc_map)
-      DEALLOCATE (sub_proc_map)
       CALL release_group_dist(gd_exchange)
 
       CALL cp_para_env_release(para_env_exchange)
@@ -687,19 +669,17 @@ CONTAINS
 !> \param fm_BIb_jb ...
 !> \param BIb_jb ...
 !> \param max_row_col_local ...
-!> \param proc_map ...
 !> \param local_col_row_info ...
 !> \param my_B_virtual_end ...
 !> \param my_B_virtual_start ...
 ! **************************************************************************************************
    SUBROUTINE grep_my_integrals(para_env_sub, fm_BIb_jb, BIb_jb, max_row_col_local, &
-                                proc_map, local_col_row_info, &
+                                local_col_row_info, &
                                 my_B_virtual_end, my_B_virtual_start)
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       INTEGER, INTENT(IN)                                :: max_row_col_local
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info
       INTEGER, INTENT(IN)                                :: my_B_virtual_end, my_B_virtual_start
 
@@ -742,8 +722,8 @@ CONTAINS
          local_BI(1:nrow_rec, 1:ncol_rec) = fm_BIb_jb%local_data(1:nrow_rec, 1:ncol_rec)
 
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_send = proc_map(para_env_sub%mepos + proc_shift)
-            proc_receive = proc_map(para_env_sub%mepos - proc_shift)
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
+            proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
 
             ! first exchange information on the local data
             rec_col_row_info = 0

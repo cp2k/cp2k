@@ -93,14 +93,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gamma_fm_to_dbcsr'
 
-      INTEGER :: dimen_ia, dummy_proc, handle, i, i_global, i_local, iaia, iib, iii, itmp(2), &
+      INTEGER :: dimen_ia, dummy_proc, handle, i_global, i_local, iaia, iib, iii, itmp(2), &
          j_global, j_local, jjb, jjj, kkb, my_ia_end, my_ia_size, my_ia_start, mypcol, myprow, &
          ncol_block, ncol_local, npcol, nprow, nrow_block, nrow_local, number_of_rec, &
          number_of_send, proc_receive, proc_send, proc_shift, rec_counter, rec_iaia_end, &
          rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
          send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iii_vet, map_rec_size, map_send_size, &
-                                                            req_send, sub_proc_map
+                                                            req_send
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: grid_2_mepos, grid_ref_2_send_pos, &
                                                             group_grid_2_mepos, indices_map_my, &
                                                             mepos_2_grid, mepos_2_grid_group
@@ -211,17 +211,10 @@ CONTAINS
          END DO
       END DO
 
-      ! create the sub_proc_map
-      ALLOCATE (sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe - 1))
-      DO i = 0, para_env_sub%num_pe - 1
-         sub_proc_map(i) = i
-         sub_proc_map(-i - 1) = para_env_sub%num_pe - i - 1
-         sub_proc_map(para_env_sub%num_pe + i) = i
-      END DO
       ! allocate the buffer for sending data
       number_of_send = 0
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
          IF (map_send_size(proc_send) > 0) THEN
             number_of_send = number_of_send + 1
          END IF
@@ -234,7 +227,7 @@ CONTAINS
       ! finally allocate each message
       send_counter = 0
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+         proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
          size_send_buffer = map_send_size(proc_send)
          IF (map_send_size(proc_send) > 0) THEN
             send_counter = send_counter + 1
@@ -253,7 +246,7 @@ CONTAINS
       ! allocate the buffer for receiving data
       number_of_rec = 0
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
          IF (map_rec_size(proc_receive) > 0) THEN
             number_of_rec = number_of_rec + 1
          END IF
@@ -266,7 +259,7 @@ CONTAINS
       ! finally allocate each message and fill the array of indeces
       rec_counter = 0
       DO proc_shift = 1, para_env_sub%num_pe - 1
-         proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+         proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
          size_rec_buffer = map_rec_size(proc_receive)
          IF (map_rec_size(proc_receive) > 0) THEN
             rec_counter = rec_counter + 1
@@ -340,7 +333,7 @@ CONTAINS
          CALL cp_fm_set_all(matrix=fm_ia, alpha=0.0_dp)
          rec_counter = 0
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+            proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
             IF (map_rec_size(proc_receive) > 0) THEN
                rec_counter = rec_counter + 1
                buffer_rec(rec_counter)%msg = 0.0_dp
@@ -382,7 +375,7 @@ CONTAINS
          req_send = 0
          send_counter = 0
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
+            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             IF (map_send_size(proc_send) > 0) THEN
                send_counter = send_counter + 1
                CALL mp_isend(buffer_send(send_counter)%msg, proc_send, para_env_sub%group, &
@@ -394,7 +387,7 @@ CONTAINS
          ! receive the messages and fill the fm_ia
          rec_counter = 0
          DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
+            proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
             size_rec_buffer = map_rec_size(proc_receive)
             IF (map_rec_size(proc_receive) > 0) THEN
                rec_counter = rec_counter + 1
@@ -440,7 +433,6 @@ CONTAINS
       DEALLOCATE (buffer_send)
       DEALLOCATE (map_send_size)
       DEALLOCATE (map_rec_size)
-      DEALLOCATE (sub_proc_map)
       DEALLOCATE (grid_2_mepos)
       DEALLOCATE (mepos_2_grid)
       CALL release_group_dist(gd_ia)

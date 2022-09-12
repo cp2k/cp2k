@@ -95,7 +95,6 @@ MODULE cp_fm_types
 !> \param name the name of the matrix, used for printing
 !> \param id_nr identification number that makes this matrix unique
 !> \param ref_cont reference count (see doc/ReferenceCounting.html)
-!> \param print_count sequential number to make the printed files unique
 !> \param matrix_struct structure of this matrix
 !> \param local_data array with the data of the matrix (its contents
 !>        depend on the matrix type used: in parallel runs it will be
@@ -108,7 +107,7 @@ MODULE cp_fm_types
    TYPE cp_fm_type
 !    PRIVATE
       CHARACTER(LEN=60) :: name
-      INTEGER :: id_nr, ref_count, print_count
+      INTEGER :: id_nr, ref_count
       LOGICAL :: use_sp
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct
       REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data
@@ -181,7 +180,6 @@ CONTAINS
       last_fm_id_nr = last_fm_id_nr + 1
       matrix%id_nr = last_fm_id_nr
       matrix%ref_count = 1
-      matrix%print_count = 0
 
       matrix%use_sp = .FALSE.
       IF (PRESENT(use_sp)) matrix%use_sp = use_sp

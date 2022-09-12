@@ -426,8 +426,7 @@ CONTAINS
          step_size, total_num_RS_task
       INTEGER(int_8)                                     :: estimate_to_store_int, neris_tmp, &
                                                             neris_total, nprim_ints
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, nimages, proc_map, &
-                                                            proc_num_task, &
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, nimages, proc_num_task, &
                                                             same_size_kl_elements_counter
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: kl_list_proc, task_counter_RS, &
                                                             task_counter_RS_temp
@@ -555,17 +554,6 @@ CONTAINS
 
       ij_elem_max = elements_ij_proc
       CALL mp_max(ij_elem_max, para_env%group)
-
-      ! proc_map, vector that replicate the processor numbers also
-      ! for negative and positive number > num_pe
-      ! needed to know which is the processor, to respect to another one,
-      ! for a given shift
-      ALLOCATE (proc_map(-para_env%num_pe:2*para_env%num_pe - 1))
-      DO iiB = 0, para_env%num_pe - 1
-         proc_map(iiB) = iiB
-         proc_map(-iiB - 1) = para_env%num_pe - iiB - 1
-         proc_map(para_env%num_pe + iiB) = iiB
-      END DO
 
       ! calculate the minimum multiple of num_pe >= to Ni_occupied*occupied, in such a way
       ! that the i, j loop is performed exactly the same number of time for each procewssor
@@ -877,26 +865,24 @@ CONTAINS
                      CALL transform_occupied_orbitals_second(dimen, iatom, jatom, iset, jset, &
                                                              nsgfa(iset), nsgfb(jset), Ni_occupied, Nj_occupied, j_batch_start, &
                                                              BI1, C_T, mp2_biel, para_env, elements_ij_proc, &
-                                                             multiple, proc_map, BIb)
+                                                             multiple, BIb)
                   ELSE
                      CALL transform_occupied_orbitals_second_big( &
                         dimen, iatom, jatom, iset, jset, &
                         nsgfa(iset), nsgfb(jset), Ni_occupied, Nj_occupied, j_batch_start, &
-                        ij_elem_max, BI1, C_T, mp2_biel, para_env, elements_ij_proc, &
-                        proc_map, BIb)
+                        ij_elem_max, BI1, C_T, mp2_biel, para_env, elements_ij_proc, BIb)
                   END IF
                ELSE
                   IF (.NOT. mp2_env%direct_canonical%big_send) THEN
                      CALL transform_occupied_orbitals_second(dimen, iatom, jatom, iset, jset, &
                                                              nsgfa(iset), nsgfb(jset), Ni_occupied, Nj_occupied, j_batch_start, &
                                                              BI1, C_beta_T, mp2_biel, para_env, elements_ij_proc, &
-                                                             multiple, proc_map, BIb)
+                                                             multiple, BIb)
                   ELSE
                      CALL transform_occupied_orbitals_second_big( &
                         dimen, iatom, jatom, iset, jset, &
                         nsgfa(iset), nsgfb(jset), Ni_occupied, Nj_occupied, j_batch_start, &
-                        ij_elem_max, BI1, C_beta_T, mp2_biel, para_env, elements_ij_proc, &
-                        proc_map, BIb)
+                        ij_elem_max, BI1, C_beta_T, mp2_biel, para_env, elements_ij_proc, BIb)
                   END IF
                END IF
             END IF
@@ -993,8 +979,8 @@ CONTAINS
       DO iiB = my_num_call_sec_transf + 1, max_num_call_sec_transf
          DO index_proc_shift = 0, para_env%num_pe - 1
 
-            proc_send = proc_map(para_env%mepos + index_proc_shift)
-            proc_receive = proc_map(para_env%mepos - index_proc_shift)
+            proc_send = MODULO(para_env%mepos + index_proc_shift, para_env%num_pe)
+            proc_receive = MODULO(para_env%mepos - index_proc_shift, para_env%num_pe)
 
             case_send_receive = (proc_send /= para_env%mepos)
 
@@ -1244,14 +1230,13 @@ CONTAINS
 !> \param para_env ...
 !> \param elements_ij_proc ...
 !> \param multiple ...
-!> \param proc_map ...
 !> \param BIb ...
 ! **************************************************************************************************
    SUBROUTINE transform_occupied_orbitals_second(dimen, latom, katom, lset, kset, &
                                                  Ssize, Rsize, Ni_occupied, Nj_occupied, j_batch_start, &
                                                  BI1, C_T, mp2_biel, para_env, &
                                                  elements_ij_proc, &
-                                                 multiple, proc_map, BIb)
+                                                 multiple, BIb)
 
       INTEGER, INTENT(IN)                                :: dimen, latom, katom, lset, kset, Ssize, &
                                                             Rsize, Ni_occupied, Nj_occupied, &
@@ -1263,8 +1248,6 @@ CONTAINS
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: elements_ij_proc, multiple
-      INTEGER, DIMENSION((-para_env%num_pe):(2*para_env%&
-         num_pe-1)), INTENT(IN)                          :: proc_map
       REAL(KIND=dp), &
          DIMENSION(dimen, dimen, elements_ij_proc), &
          INTENT(INOUT)                                   :: BIb
@@ -1274,11 +1257,11 @@ CONTAINS
       INTEGER :: elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, index_proc_ij, &
          index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, R_offset_rec, &
          R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
+      INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
       LOGICAL                                            :: case_send_receive
       REAL(KIND=dp)                                      :: C_T_R, C_T_S
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_RS_mat_rec
       REAL(KIND=dp), DIMENSION(dimen, Rsize+Ssize)       :: BIb_RS_mat
-      INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
 
       CALL timeset(routineN, handle)
 
@@ -1293,8 +1276,8 @@ CONTAINS
 
       DO index_proc_shift = 0, para_env%num_pe - 1
 
-         proc_send = proc_map(para_env%mepos + index_proc_shift)
-         proc_receive = proc_map(para_env%mepos - index_proc_shift)
+         proc_send = MODULO(para_env%mepos + index_proc_shift, para_env%num_pe)
+         proc_receive = MODULO(para_env%mepos - index_proc_shift, para_env%num_pe)
 
          case_send_receive = (proc_send /= para_env%mepos)
 
@@ -1413,14 +1396,12 @@ CONTAINS
 !> \param mp2_biel ...
 !> \param para_env ...
 !> \param elements_ij_proc ...
-!> \param proc_map ...
 !> \param BIb ...
 ! **************************************************************************************************
    SUBROUTINE transform_occupied_orbitals_second_big(dimen, latom, katom, lset, kset, &
                                                      Ssize, Rsize, Ni_occupied, Nj_occupied, j_batch_start, &
                                                      ij_elem_max, BI1, C_T, mp2_biel, para_env, &
-                                                     elements_ij_proc, &
-                                                     proc_map, BIb)
+                                                     elements_ij_proc, BIb)
 
       INTEGER, INTENT(IN)                                :: dimen, latom, katom, lset, kset, Ssize, &
                                                             Rsize, Ni_occupied, Nj_occupied, &
@@ -1432,8 +1413,6 @@ CONTAINS
       TYPE(mp2_biel_type), INTENT(IN)                    :: mp2_biel
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: elements_ij_proc
-      INTEGER, DIMENSION((-para_env%num_pe):(2*para_env%&
-         num_pe-1)), INTENT(IN)                          :: proc_map
       REAL(KIND=dp), &
          DIMENSION(dimen, dimen, elements_ij_proc), &
          INTENT(INOUT)                                   :: BIb
@@ -1443,12 +1422,12 @@ CONTAINS
       INTEGER :: elements_ij_proc_rec, handle, i, index_ij_rec, index_ij_send, index_proc_ij, &
          index_proc_shift, j, n, proc_receive, proc_send, r, R_global, R_offset, R_offset_rec, &
          R_start, Rsize_rec, s, S_global, S_offset, S_offset_rec, Ssize_rec
+      INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
       LOGICAL                                            :: case_send_receive
       REAL(KIND=dp)                                      :: C_T_R, C_T_S
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_RS_mat_rec
       REAL(KIND=dp), &
          DIMENSION(dimen, Rsize+Ssize, ij_elem_max)      :: BIb_RS_mat
-      INTEGER, DIMENSION(5)                              :: size_parameter_rec, size_parameter_send
 
       CALL timeset(routineN, handle)
 
@@ -1463,8 +1442,8 @@ CONTAINS
 
       DO index_proc_shift = 0, para_env%num_pe - 1
 
-         proc_send = proc_map(para_env%mepos + index_proc_shift)
-         proc_receive = proc_map(para_env%mepos - index_proc_shift)
+         proc_send = MODULO(para_env%mepos + index_proc_shift, para_env%num_pe)
+         proc_receive = MODULO(para_env%mepos - index_proc_shift, para_env%num_pe)
 
          case_send_receive = (proc_send /= para_env%mepos)
 
