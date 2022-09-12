@@ -465,7 +465,7 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: eig
-      TYPE(cp_fm_type), POINTER, INTENT(OUT)   :: matrix_new, eigenvectors_new
+      TYPE(cp_fm_type), POINTER                :: matrix_new, eigenvectors_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_end'
 
