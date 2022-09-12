@@ -39,7 +39,6 @@ MODULE xas_methods
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_element, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
         cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -70,6 +69,7 @@ MODULE xas_methods
                                               dp
    USE memory_utilities,                ONLY: reallocate
    USE orbital_pointers,                ONLY: ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE periodic_table,                  ONLY: ptable
@@ -1355,8 +1355,8 @@ CONTAINS
          CALL cp_fm_set_all(fm_set(my_spin, i)%matrix, 0.0_dp)
          CALL cp_fm_set_all(fm_work, 0.0_dp)
          CALL cp_dbcsr_sm_fm_multiply(op_sm(i)%matrix, all_vectors, fm_work, ncol=nstate)
-         CALL cp_gemm("T", "N", 1, nstate, nao, 1.0_dp, excvec, &
-                      fm_work, 0.0_dp, fm_set(my_spin, i)%matrix, b_first_col=1)
+         CALL parallel_gemm("T", "N", 1, nstate, nao, 1.0_dp, excvec, &
+                            fm_work, 0.0_dp, fm_set(my_spin, i)%matrix, b_first_col=1)
       END DO
       CALL cp_fm_release(fm_work)
 

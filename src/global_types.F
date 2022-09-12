@@ -69,6 +69,7 @@ MODULE global_types
       CHARACTER(LEN=default_string_length)    :: diag_library = "ScaLAPACK"
       CHARACTER(LEN=default_string_length)    :: default_fft_library = "FFTSG"
       CHARACTER(LEN=default_path_length)      :: fftw_wisdom_file_name = "/etc/fftw/wisdom"
+      CHARACTER(LEN=default_string_length)    :: default_dgemm_library = "BLAS"
 
       INTEGER :: fft_pool_scratch_limit = 0 ! limit number of used FFT scratches
       INTEGER :: fftw_plan_type = 0 ! which kind of planning to use with FFTW

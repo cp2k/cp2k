@@ -43,7 +43,6 @@ MODULE admm_methods
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -67,6 +66,7 @@ MODULE admm_methods
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -491,15 +491,15 @@ CONTAINS
          IF (blocked) THEN
             CALL cp_fm_set_all(admm_env%A, 0.0_dp, 1.0_dp)
          ELSE
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                         1.0_dp, admm_env%S_inv, admm_env%Q, 0.0_dp, &
-                         admm_env%A)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                               1.0_dp, admm_env%S_inv, admm_env%Q, 0.0_dp, &
+                               admm_env%A)
 
             ! this multiplication is apparent not need for purify_none
             !! B=Q^(T)*A
-            CALL cp_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
-                         1.0_dp, admm_env%Q, admm_env%A, 0.0_dp, &
-                         admm_env%B)
+            CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
+                               1.0_dp, admm_env%Q, admm_env%A, 0.0_dp, &
+                               admm_env%B)
          END IF
       END IF
 
@@ -542,12 +542,12 @@ CONTAINS
          !! Lambda = C^(T)*B*C
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
-         CALL cp_gemm('N', 'N', nao_orb, nmo, nao_orb, &
-                      1.0_dp, admm_env%B, mo_coeff, 0.0_dp, &
-                      admm_env%work_orb_nmo(ispin)%matrix)
-         CALL cp_gemm('T', 'N', nmo, nmo, nao_orb, &
-                      1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
-                      admm_env%lambda(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_orb, nmo, nao_orb, &
+                            1.0_dp, admm_env%B, mo_coeff, 0.0_dp, &
+                            admm_env%work_orb_nmo(ispin)%matrix)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao_orb, &
+                            1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
+                            admm_env%lambda(ispin)%matrix)
          CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
 
          CALL cp_fm_cholesky_decompose(admm_env%work_nmo_nmo1(ispin)%matrix)
@@ -557,9 +557,9 @@ CONTAINS
          CALL cp_fm_to_fm(admm_env%work_nmo_nmo1(ispin)%matrix, admm_env%lambda_inv(ispin)%matrix)
 
          !! ** C_hat = AC
-         CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                      1.0_dp, admm_env%A, mo_coeff, 0.0_dp, &
-                      admm_env%C_hat(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
+                            1.0_dp, admm_env%A, mo_coeff, 0.0_dp, &
+                            admm_env%C_hat(ispin)%matrix)
          CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, mo_coeff_aux_fit)
 
       END DO
@@ -604,12 +604,12 @@ CONTAINS
          !! Lambda = C^(T)*B*C
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
-         CALL cp_gemm('N', 'N', nao_orb, nmo, nao_orb, &
-                      1.0_dp, admm_env%B, mo_coeff, 0.0_dp, &
-                      admm_env%work_orb_nmo(ispin)%matrix)
-         CALL cp_gemm('T', 'N', nmo, nmo, nao_orb, &
-                      1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
-                      admm_env%lambda(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_orb, nmo, nao_orb, &
+                            1.0_dp, admm_env%B, mo_coeff, 0.0_dp, &
+                            admm_env%work_orb_nmo(ispin)%matrix)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao_orb, &
+                            1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
+                            admm_env%lambda(ispin)%matrix)
          CALL cp_fm_to_fm(admm_env%lambda(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
 
          CALL cp_fm_syevd(admm_env%work_nmo_nmo1(ispin)%matrix, admm_env%R(ispin)%matrix, &
@@ -620,15 +620,15 @@ CONTAINS
          END DO
          CALL cp_fm_to_fm(admm_env%R(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
          CALL cp_fm_column_scale(admm_env%work_nmo_nmo1(ispin)%matrix, eig_work)
-         CALL cp_gemm('N', 'T', nmo, nmo, nmo, &
-                      1.0_dp, admm_env%work_nmo_nmo1(ispin)%matrix, admm_env%R(ispin)%matrix, 0.0_dp, &
-                      admm_env%lambda_inv_sqrt(ispin)%matrix)
-         CALL cp_gemm('N', 'N', nao_orb, nmo, nmo, &
-                      1.0_dp, mo_coeff, admm_env%lambda_inv_sqrt(ispin)%matrix, 0.0_dp, &
-                      admm_env%work_orb_nmo(ispin)%matrix)
-         CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                      1.0_dp, admm_env%A, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
-                      mo_coeff_aux_fit)
+         CALL parallel_gemm('N', 'T', nmo, nmo, nmo, &
+                            1.0_dp, admm_env%work_nmo_nmo1(ispin)%matrix, admm_env%R(ispin)%matrix, 0.0_dp, &
+                            admm_env%lambda_inv_sqrt(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_orb, nmo, nmo, &
+                            1.0_dp, mo_coeff, admm_env%lambda_inv_sqrt(ispin)%matrix, 0.0_dp, &
+                            admm_env%work_orb_nmo(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
+                            1.0_dp, admm_env%A, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
+                            mo_coeff_aux_fit)
 
          CALL cp_fm_to_fm(mo_coeff_aux_fit, admm_env%C_hat(ispin)%matrix)
          CALL cp_fm_set_all(admm_env%lambda_inv(ispin)%matrix, 0.0_dp, 1.0_dp)
@@ -668,9 +668,9 @@ CONTAINS
          CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit, &
                          occupation_numbers=occ_num_aux)
 
-         CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                      1.0_dp, admm_env%A, mo_coeff, 0.0_dp, &
-                      mo_coeff_aux_fit)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
+                            1.0_dp, admm_env%A, mo_coeff, 0.0_dp, &
+                            mo_coeff_aux_fit)
          CALL cp_fm_to_fm(mo_coeff_aux_fit, admm_env%C_hat(ispin)%matrix)
 
          occ_num_aux(1:nmo) = occ_num(1:nmo)
@@ -721,9 +721,9 @@ CONTAINS
       !! * This needs to be replaced with the a block modified P
 
       IF (.NOT. blocked) THEN
-         CALL cp_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nmo, &
-                      1.0_dp, mo_coeff_aux_fit, mo_coeff_aux_fit, 0.0_dp, &
-                      admm_env%P_to_be_purified(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nmo, &
+                            1.0_dp, mo_coeff_aux_fit, mo_coeff_aux_fit, 0.0_dp, &
+                            admm_env%P_to_be_purified(ispin)%matrix)
       END IF
 
       CALL cp_fm_to_fm(admm_env%S, admm_env%work_aux_aux)
@@ -754,17 +754,17 @@ CONTAINS
       CALL cp_fm_upper_to_full(admm_env%work_aux_aux3, admm_env%work_aux_aux)
 
       ! ** S^(-1)*R
-      CALL cp_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                   1.0_dp, admm_env%S_inv, admm_env%R_purify(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_aux_aux)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                         1.0_dp, admm_env%S_inv, admm_env%R_purify(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_aux_aux)
       ! ** S^(-1)*R*M
-      CALL cp_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                   1.0_dp, admm_env%work_aux_aux, admm_env%M_purify(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_aux_aux2)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                         1.0_dp, admm_env%work_aux_aux, admm_env%M_purify(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_aux_aux2)
       ! ** S^(-1)*R*M*R^T*S^(-1)
-      CALL cp_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                   1.0_dp, admm_env%work_aux_aux2, admm_env%work_aux_aux, 0.0_dp, &
-                   admm_env%work_aux_aux3)
+      CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                         1.0_dp, admm_env%work_aux_aux2, admm_env%work_aux_aux, 0.0_dp, &
+                         admm_env%work_aux_aux3)
 
       CALL copy_fm_to_dbcsr(admm_env%work_aux_aux3, density_matrix, keep_sparsity=.TRUE.)
 
@@ -815,18 +815,18 @@ CONTAINS
 
          IF (.NOT. admm_env%block_dm) THEN
             !** Get P from mo_coeffs, otherwise we have troubles with occupation numbers ...
-            CALL cp_gemm('N', 'T', nao_orb, nao_orb, nmo, &
-                         1.0_dp, mo_coeff, mo_coeff, 0.0_dp, &
-                         admm_env%work_orb_orb)
+            CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
+                               1.0_dp, mo_coeff, mo_coeff, 0.0_dp, &
+                               admm_env%work_orb_orb)
 
             !! A*P
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
-                         1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
-                         admm_env%work_aux_orb2)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
+                               1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
+                               admm_env%work_aux_orb2)
             !! A*P*A^T
-            CALL cp_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, &
-                         1.0_dp, admm_env%work_aux_orb2, admm_env%A, 0.0_dp, &
-                         admm_env%P_to_be_purified(ispin)%matrix)
+            CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, &
+                               1.0_dp, admm_env%work_aux_orb2, admm_env%A, 0.0_dp, &
+                               admm_env%P_to_be_purified(ispin)%matrix)
 
          END IF
 
@@ -871,34 +871,34 @@ CONTAINS
          CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix, admm_env%work_aux_aux)
 
          !! S^(-1)*R
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                      1.0_dp, admm_env%S_inv, admm_env%R_purify(ispin)%matrix, 0.0_dp, &
-                      admm_env%work_aux_aux)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                            1.0_dp, admm_env%S_inv, admm_env%R_purify(ispin)%matrix, 0.0_dp, &
+                            admm_env%work_aux_aux)
          !! K*S^(-1)*R
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                      1.0_dp, admm_env%K(ispin)%matrix, admm_env%work_aux_aux, 0.0_dp, &
-                      admm_env%work_aux_aux2)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                            1.0_dp, admm_env%K(ispin)%matrix, admm_env%work_aux_aux, 0.0_dp, &
+                            admm_env%work_aux_aux2)
          !! R^T*S^(-1)*K*S^(-1)*R
-         CALL cp_gemm('T', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                      1.0_dp, admm_env%work_aux_aux, admm_env%work_aux_aux2, 0.0_dp, &
-                      admm_env%work_aux_aux3)
+         CALL parallel_gemm('T', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                            1.0_dp, admm_env%work_aux_aux, admm_env%work_aux_aux2, 0.0_dp, &
+                            admm_env%work_aux_aux3)
          !! R^T*S^(-1)*K*S^(-1)*R x M
          CALL cp_fm_schur_product(admm_env%work_aux_aux3, admm_env%M_purify(ispin)%matrix, &
                                   admm_env%work_aux_aux)
 
          !! R^T*A
-         CALL cp_gemm('T', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                      1.0_dp, admm_env%R_purify(ispin)%matrix, admm_env%A, 0.0_dp, &
-                      admm_env%work_aux_orb)
+         CALL parallel_gemm('T', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                            1.0_dp, admm_env%R_purify(ispin)%matrix, admm_env%A, 0.0_dp, &
+                            admm_env%work_aux_orb)
 
          !! (R^T*S^(-1)*K*S^(-1)*R x M) * R^T*A
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                      1.0_dp, admm_env%work_aux_aux, admm_env%work_aux_orb, 0.0_dp, &
-                      admm_env%work_aux_orb2)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                            1.0_dp, admm_env%work_aux_aux, admm_env%work_aux_orb, 0.0_dp, &
+                            admm_env%work_aux_orb2)
          !! A^T*R*(R^T*S^(-1)*K*S^(-1)*R x M) * R^T*A
-         CALL cp_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
-                      1.0_dp, admm_env%work_aux_orb, admm_env%work_aux_orb2, 0.0_dp, &
-                      admm_env%work_orb_orb)
+         CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
+                            1.0_dp, admm_env%work_aux_orb, admm_env%work_aux_orb2, 0.0_dp, &
+                            admm_env%work_orb_orb)
 
          NULLIFY (matrix_k_tilde)
          ALLOCATE (matrix_k_tilde)
@@ -976,74 +976,74 @@ CONTAINS
          !! Symmetrize the guy
          CALL cp_fm_upper_to_full(admm_env%work_nmo_nmo1(ispin)%matrix, admm_env%lambda_inv2(ispin)%matrix)
          !! Take square
-         CALL cp_gemm('N', 'T', nmo, nmo, nmo, &
-                      1.0_dp, admm_env%work_nmo_nmo1(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, 0.0_dp, &
-                      admm_env%lambda_inv2(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nmo, nmo, nmo, &
+                            1.0_dp, admm_env%work_nmo_nmo1(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, 0.0_dp, &
+                            admm_env%lambda_inv2(ispin)%matrix)
 
          !! ** C_hat = AC
-         CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                      1.0_dp, admm_env%A, mo_coeff, 0.0_dp, &
-                      admm_env%C_hat(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
+                            1.0_dp, admm_env%A, mo_coeff, 0.0_dp, &
+                            admm_env%C_hat(ispin)%matrix)
 
          !! calc P_tilde from C_hat
-         CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
-                      1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%lambda_inv(ispin)%matrix, 0.0_dp, &
-                      admm_env%work_aux_nmo(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
+                            1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%lambda_inv(ispin)%matrix, 0.0_dp, &
+                            admm_env%work_aux_nmo(ispin)%matrix)
 
-         CALL cp_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nmo, &
-                      1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix, 0.0_dp, &
-                      admm_env%P_tilde(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nmo, &
+                            1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix, 0.0_dp, &
+                            admm_env%P_tilde(ispin)%matrix)
 
          !! ** C_hat*Lambda^{-2}
-         CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
-                      1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%lambda_inv2(ispin)%matrix, 0.0_dp, &
-                      admm_env%work_aux_nmo(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
+                            1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%lambda_inv2(ispin)%matrix, 0.0_dp, &
+                            admm_env%work_aux_nmo(ispin)%matrix)
 
          !! ** C_hat*Lambda^{-2}*C_hat^T
-         CALL cp_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nmo, &
-                      1.0_dp, admm_env%work_aux_nmo(ispin)%matrix, admm_env%C_hat(ispin)%matrix, 0.0_dp, &
-                      admm_env%work_aux_aux)
+         CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nmo, &
+                            1.0_dp, admm_env%work_aux_nmo(ispin)%matrix, admm_env%C_hat(ispin)%matrix, 0.0_dp, &
+                            admm_env%work_aux_aux)
 
          !! ** S*C_hat*Lambda^{-2}*C_hat^T
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                      1.0_dp, admm_env%S, admm_env%work_aux_aux, 0.0_dp, &
-                      admm_env%work_aux_aux2)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                            1.0_dp, admm_env%S, admm_env%work_aux_aux, 0.0_dp, &
+                            admm_env%work_aux_aux2)
 
          CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin)%matrix)
          CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix, admm_env%work_aux_aux)
 
          !! ** S*C_hat*Lambda^{-2}*C_hat^T*H_tilde
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                      1.0_dp, admm_env%work_aux_aux2, admm_env%K(ispin)%matrix, 0.0_dp, &
-                      admm_env%work_aux_aux)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                            1.0_dp, admm_env%work_aux_aux2, admm_env%K(ispin)%matrix, 0.0_dp, &
+                            admm_env%work_aux_aux)
 
          !! ** P_tilde*S
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                      1.0_dp, admm_env%P_tilde(ispin)%matrix, admm_env%S, 0.0_dp, &
-                      admm_env%work_aux_aux2)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                            1.0_dp, admm_env%P_tilde(ispin)%matrix, admm_env%S, 0.0_dp, &
+                            admm_env%work_aux_aux2)
 
          !! ** -S*C_hat*Lambda^{-2}*C_hat^T*H_tilde*P_tilde*S
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
-                      -1.0_dp, admm_env%work_aux_aux, admm_env%work_aux_aux2, 0.0_dp, &
-                      admm_env%work_aux_aux3)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
+                            -1.0_dp, admm_env%work_aux_aux, admm_env%work_aux_aux2, 0.0_dp, &
+                            admm_env%work_aux_aux3)
 
          !! ** -S*C_hat*Lambda^{-2}*C_hat^T*H_tilde*P_tilde*S+S*C_hat*Lambda^{-2}*C_hat^T*H_tilde
          CALL cp_fm_scale_and_add(1.0_dp, admm_env%work_aux_aux3, 1.0_dp, admm_env%work_aux_aux)
 
          !! first_part*A
-         CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                      1.0_dp, admm_env%work_aux_aux3, admm_env%A, 0.0_dp, &
-                      admm_env%work_aux_orb)
+         CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                            1.0_dp, admm_env%work_aux_aux3, admm_env%A, 0.0_dp, &
+                            admm_env%work_aux_orb)
 
          !! + first_part^T*A
-         CALL cp_gemm('T', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                      1.0_dp, admm_env%work_aux_aux3, admm_env%A, 1.0_dp, &
-                      admm_env%work_aux_orb)
+         CALL parallel_gemm('T', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                            1.0_dp, admm_env%work_aux_aux3, admm_env%A, 1.0_dp, &
+                            admm_env%work_aux_orb)
 
          !! A^T*(first+seccond)=H
-         CALL cp_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
-                      1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                      admm_env%work_orb_orb)
+         CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
+                            1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                            admm_env%work_orb_orb)
 
          NULLIFY (matrix_k_tilde)
          ALLOCATE (matrix_k_tilde)
@@ -1057,9 +1057,9 @@ CONTAINS
          CALL dbcsr_set(matrix_k_tilde, 0.0_dp)
          CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, matrix_k_tilde, keep_sparsity=.TRUE.)
 
-         CALL cp_gemm('N', 'N', nao_orb, nmo, nao_orb, &
-                      1.0_dp, admm_env%work_orb_orb, mo_coeff, 0.0_dp, &
-                      admm_env%mo_derivs_tmp(ispin)%matrix)
+         CALL parallel_gemm('N', 'N', nao_orb, nmo, nao_orb, &
+                            1.0_dp, admm_env%work_orb_orb, mo_coeff, 0.0_dp, &
+                            admm_env%mo_derivs_tmp(ispin)%matrix)
 
          CALL dbcsr_add(matrix_ks(ispin)%matrix, matrix_k_tilde, 1.0_dp, 1.0_dp)
 
@@ -1113,9 +1113,9 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin)%matrix)
       CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix, admm_env%work_aux_aux)
 
-      CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
-                   1.0_dp, admm_env%K(ispin)%matrix, mo_coeff_aux_fit, 0.0_dp, &
-                   admm_env%H(ispin)%matrix)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
+                         1.0_dp, admm_env%K(ispin)%matrix, mo_coeff_aux_fit, 0.0_dp, &
+                         admm_env%H(ispin)%matrix)
 
       CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
       ALLOCATE (scaling_factor(SIZE(occupation_numbers)))
@@ -1126,12 +1126,12 @@ CONTAINS
       CALL cp_fm_to_fm(admm_env%H(ispin)%matrix, mo_derivs_aux_fit(ispin)%matrix)
 
       ! *** Add first term
-      CALL cp_gemm('N', 'T', nao_aux_fit, nmo, nmo, &
-                   1.0_dp, admm_env%H(ispin)%matrix, admm_env%lambda_inv_sqrt(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_aux_nmo(ispin)%matrix)
-      CALL cp_gemm('T', 'N', nao_orb, nmo, nao_aux_fit, &
-                   1.0_dp, admm_env%A, admm_env%work_aux_nmo(ispin)%matrix, 0.0_dp, &
-                   admm_env%mo_derivs_tmp(ispin)%matrix)
+      CALL parallel_gemm('N', 'T', nao_aux_fit, nmo, nmo, &
+                         1.0_dp, admm_env%H(ispin)%matrix, admm_env%lambda_inv_sqrt(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_aux_nmo(ispin)%matrix)
+      CALL parallel_gemm('T', 'N', nao_orb, nmo, nao_aux_fit, &
+                         1.0_dp, admm_env%A, admm_env%work_aux_nmo(ispin)%matrix, 0.0_dp, &
+                         admm_env%mo_derivs_tmp(ispin)%matrix)
 
       ! *** Construct Matrix M for Hadamard Product
       pole = 0.0_dp
@@ -1165,50 +1165,50 @@ CONTAINS
       !! Part 2: B*C*(R*[R^(T)*c^(T)*A^(T)*H_aux_fit*R x M]*R^(T))^(T)
 
       ! *** H'*R
-      CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
-                   1.0_dp, admm_env%H(ispin)%matrix, admm_env%R(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_aux_nmo(ispin)%matrix)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
+                         1.0_dp, admm_env%H(ispin)%matrix, admm_env%R(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_aux_nmo(ispin)%matrix)
       ! *** A^(T)*H'*R
-      CALL cp_gemm('T', 'N', nao_orb, nmo, nao_aux_fit, &
-                   1.0_dp, admm_env%A, admm_env%work_aux_nmo(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_orb_nmo(ispin)%matrix)
+      CALL parallel_gemm('T', 'N', nao_orb, nmo, nao_aux_fit, &
+                         1.0_dp, admm_env%A, admm_env%work_aux_nmo(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_orb_nmo(ispin)%matrix)
       ! *** c^(T)*A^(T)*H'*R
-      CALL cp_gemm('T', 'N', nmo, nmo, nao_orb, &
-                   1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_nmo_nmo1(ispin)%matrix)
+      CALL parallel_gemm('T', 'N', nmo, nmo, nao_orb, &
+                         1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_nmo_nmo1(ispin)%matrix)
       ! *** R^(T)*c^(T)*A^(T)*H'*R
-      CALL cp_gemm('T', 'N', nmo, nmo, nmo, &
-                   1.0_dp, admm_env%R(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_nmo_nmo2(ispin)%matrix)
+      CALL parallel_gemm('T', 'N', nmo, nmo, nmo, &
+                         1.0_dp, admm_env%R(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_nmo_nmo2(ispin)%matrix)
       ! *** R^(T)*c^(T)*A^(T)*H'*R x M
       CALL cp_fm_schur_product(admm_env%work_nmo_nmo2(ispin)%matrix, &
                                admm_env%M(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix)
       ! *** R* (R^(T)*c^(T)*A^(T)*H'*R x M)
-      CALL cp_gemm('N', 'N', nmo, nmo, nmo, &
-                   1.0_dp, admm_env%R(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_nmo_nmo2(ispin)%matrix)
+      CALL parallel_gemm('N', 'N', nmo, nmo, nmo, &
+                         1.0_dp, admm_env%R(ispin)%matrix, admm_env%work_nmo_nmo1(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_nmo_nmo2(ispin)%matrix)
 
       ! *** R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)
-      CALL cp_gemm('N', 'T', nmo, nmo, nmo, &
-                   1.0_dp, admm_env%work_nmo_nmo2(ispin)%matrix, admm_env%R(ispin)%matrix, 0.0_dp, &
-                   admm_env%R_schur_R_t(ispin)%matrix)
+      CALL parallel_gemm('N', 'T', nmo, nmo, nmo, &
+                         1.0_dp, admm_env%work_nmo_nmo2(ispin)%matrix, admm_env%R(ispin)%matrix, 0.0_dp, &
+                         admm_env%R_schur_R_t(ispin)%matrix)
 
       ! *** B^(T)*c
-      CALL cp_gemm('T', 'N', nao_orb, nmo, nao_orb, &
-                   1.0_dp, admm_env%B, mo_coeff, 0.0_dp, &
-                   admm_env%work_orb_nmo(ispin)%matrix)
+      CALL parallel_gemm('T', 'N', nao_orb, nmo, nao_orb, &
+                         1.0_dp, admm_env%B, mo_coeff, 0.0_dp, &
+                         admm_env%work_orb_nmo(ispin)%matrix)
 
       ! *** Add first term to fm_H
       ! *** B^(T)*c* R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)
-      CALL cp_gemm('N', 'N', nao_orb, nmo, nmo, &
-                   1.0_dp, admm_env%work_orb_nmo(ispin)%matrix, admm_env%R_schur_R_t(ispin)%matrix, 1.0_dp, &
-                   admm_env%mo_derivs_tmp(ispin)%matrix)
+      CALL parallel_gemm('N', 'N', nao_orb, nmo, nmo, &
+                         1.0_dp, admm_env%work_orb_nmo(ispin)%matrix, admm_env%R_schur_R_t(ispin)%matrix, 1.0_dp, &
+                         admm_env%mo_derivs_tmp(ispin)%matrix)
 
       ! *** Add second term to fm_H
       ! *** B*C *[ R* (R^(T)*c^(T)*A^(T)*H'*R x M) *R^(T)]^(T)
-      CALL cp_gemm('N', 'T', nao_orb, nmo, nmo, &
-                   1.0_dp, admm_env%work_orb_nmo(ispin)%matrix, admm_env%R_schur_R_t(ispin)%matrix, 1.0_dp, &
-                   admm_env%mo_derivs_tmp(ispin)%matrix)
+      CALL parallel_gemm('N', 'T', nao_orb, nmo, nmo, &
+                         1.0_dp, admm_env%work_orb_nmo(ispin)%matrix, admm_env%R_schur_R_t(ispin)%matrix, 1.0_dp, &
+                         admm_env%mo_derivs_tmp(ispin)%matrix)
 
       DO i = 1, SIZE(scaling_factor)
          scaling_factor(i) = 1.0_dp/scaling_factor(i)
@@ -1312,13 +1312,13 @@ CONTAINS
             CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix, admm_env%work_aux_aux)
 
             !! K*A
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                         1.0_dp, admm_env%K(ispin)%matrix, admm_env%A, 0.0_dp, &
-                         admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                               1.0_dp, admm_env%K(ispin)%matrix, admm_env%A, 0.0_dp, &
+                               admm_env%work_aux_orb)
             !! A^T*K*A
-            CALL cp_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
-                         1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                         admm_env%work_orb_orb)
+            CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
+                               1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                               admm_env%work_orb_orb)
 
             NULLIFY (matrix_k_tilde)
             ALLOCATE (matrix_k_tilde)
@@ -1400,13 +1400,13 @@ CONTAINS
                CALL cp_fm_upper_to_full(admm_env%work_aux_aux4, admm_env%work_aux_aux5)
 
                ! s_aux*T
-               CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                            1.0_dp, admm_env%work_aux_aux4, admm_env%A, 0.0_dp, &
-                            admm_env%work_aux_orb3)
+               CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
+                                  1.0_dp, admm_env%work_aux_aux4, admm_env%A, 0.0_dp, &
+                                  admm_env%work_aux_orb3)
                ! T^T*s_aux*T
-               CALL cp_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
-                            1.0_dp, admm_env%A, admm_env%work_aux_orb3, 0.0_dp, &
-                            admm_env%work_orb_orb3)
+               CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
+                                  1.0_dp, admm_env%A, admm_env%work_aux_orb3, 0.0_dp, &
+                                  admm_env%work_orb_orb3)
 
                NULLIFY (matrix_TtsT)
                ALLOCATE (matrix_TtsT)
@@ -1703,9 +1703,9 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin)%matrix)
       CALL cp_fm_upper_to_full(admm_env%K(ispin)%matrix, admm_env%work_aux_aux)
 
-      CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
-                   1.0_dp, admm_env%K(ispin)%matrix, mo_coeff_aux_fit, 0.0_dp, &
-                   admm_env%H(ispin)%matrix)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
+                         1.0_dp, admm_env%K(ispin)%matrix, mo_coeff_aux_fit, 0.0_dp, &
+                         admm_env%H(ispin)%matrix)
 
       CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
       ALLOCATE (scaling_factor(SIZE(occupation_numbers)))
@@ -1754,28 +1754,28 @@ CONTAINS
       scaling_factor = 0.5_dp
 
       !! ** calculate first part
-      CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
-                   1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%lambda_inv(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_aux_nmo(ispin)%matrix)
-      CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
-                   1.0_dp, admm_env%K(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_aux_nmo2(ispin)%matrix)
-      CALL cp_gemm('T', 'N', nao_orb, nmo, nao_aux_fit, &
-                   2.0_dp, admm_env%A, admm_env%work_aux_nmo2(ispin)%matrix, 0.0_dp, &
-                   admm_env%mo_derivs_tmp(ispin)%matrix)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
+                         1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%lambda_inv(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_aux_nmo(ispin)%matrix)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
+                         1.0_dp, admm_env%K(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_aux_nmo2(ispin)%matrix)
+      CALL parallel_gemm('T', 'N', nao_orb, nmo, nao_aux_fit, &
+                         2.0_dp, admm_env%A, admm_env%work_aux_nmo2(ispin)%matrix, 0.0_dp, &
+                         admm_env%mo_derivs_tmp(ispin)%matrix)
       !! ** calculate second part
-      CALL cp_gemm('T', 'N', nmo, nmo, nao_aux_fit, &
-                   1.0_dp, admm_env%work_aux_nmo(ispin)%matrix, admm_env%work_aux_nmo2(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_orb_orb)
-      CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
-                   1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%work_orb_orb, 0.0_dp, &
-                   admm_env%work_aux_orb)
-      CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
-                   1.0_dp, admm_env%S, admm_env%work_aux_orb, 0.0_dp, &
-                   admm_env%work_aux_nmo(ispin)%matrix)
-      CALL cp_gemm('T', 'N', nao_orb, nmo, nao_aux_fit, &
-                   -2.0_dp, admm_env%A, admm_env%work_aux_nmo(ispin)%matrix, 1.0_dp, &
-                   admm_env%mo_derivs_tmp(ispin)%matrix)
+      CALL parallel_gemm('T', 'N', nmo, nmo, nao_aux_fit, &
+                         1.0_dp, admm_env%work_aux_nmo(ispin)%matrix, admm_env%work_aux_nmo2(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_orb_orb)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
+                         1.0_dp, admm_env%C_hat(ispin)%matrix, admm_env%work_orb_orb, 0.0_dp, &
+                         admm_env%work_aux_orb)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
+                         1.0_dp, admm_env%S, admm_env%work_aux_orb, 0.0_dp, &
+                         admm_env%work_aux_nmo(ispin)%matrix)
+      CALL parallel_gemm('T', 'N', nao_orb, nmo, nao_aux_fit, &
+                         -2.0_dp, admm_env%A, admm_env%work_aux_nmo(ispin)%matrix, 1.0_dp, &
+                         admm_env%mo_derivs_tmp(ispin)%matrix)
 
       CALL cp_fm_column_scale(admm_env%mo_derivs_tmp(ispin)%matrix, scaling_factor)
 
@@ -1940,21 +1940,21 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL copy_dbcsr_to_fm(matrix_hz(ispin)%matrix, admm_env%work_aux_aux)
-         CALL cp_gemm("N", "T", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
-                      admm_env%work_aux_aux, 0.0_dp, admm_env%work_aux_aux2)
-         CALL cp_gemm("N", "N", naux, nao, naux, 1.0_dp, admm_env%work_aux_aux2, &
-                      admm_env%A, 0.0_dp, admm_env%work_aux_orb)
+         CALL parallel_gemm("N", "T", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
+                            admm_env%work_aux_aux, 0.0_dp, admm_env%work_aux_aux2)
+         CALL parallel_gemm("N", "N", naux, nao, naux, 1.0_dp, admm_env%work_aux_aux2, &
+                            admm_env%A, 0.0_dp, admm_env%work_aux_orb)
          CALL copy_dbcsr_to_fm(matrix_pz(ispin)%matrix, admm_env%work_orb_orb)
          ! admm_env%work_aux_orb2 = S-1*H*A*P
-         CALL cp_gemm("N", "N", naux, nao, nao, 1.0_dp, admm_env%work_aux_orb, &
-                      admm_env%work_orb_orb, 1.0_dp, admm_env%work_aux_orb2)
+         CALL parallel_gemm("N", "N", naux, nao, nao, 1.0_dp, admm_env%work_aux_orb, &
+                            admm_env%work_orb_orb, 1.0_dp, admm_env%work_aux_orb2)
       END DO
 
       CALL copy_fm_to_dbcsr(admm_env%work_aux_orb2, matrix_w_q, keep_sparsity=.TRUE.)
 
       ! admm_env%work_aux_aux = S-1*H*A*P*A(T)
-      CALL cp_gemm("N", "T", naux, naux, nao, 1.0_dp, admm_env%work_aux_orb2, &
-                   admm_env%A, 0.0_dp, admm_env%work_aux_aux)
+      CALL parallel_gemm("N", "T", naux, naux, nao, 1.0_dp, admm_env%work_aux_orb2, &
+                         admm_env%A, 0.0_dp, admm_env%work_aux_aux)
       CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s, keep_sparsity=.TRUE.)
 
       CALL dbcsr_scale(matrix_w_q, -my_fval)
@@ -2090,57 +2090,57 @@ CONTAINS
 
          ! *** S'^(-T)*H'
          IF (.NOT. admm_env%purification_method == do_admm_purify_none) THEN
-            CALL cp_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit, &
-                         1.0_dp, admm_env%S_inv, admm_env%mo_derivs_aux_fit(ispin)%matrix, 0.0_dp, &
-                         admm_env%work_aux_nmo(ispin)%matrix)
+            CALL parallel_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit, &
+                               1.0_dp, admm_env%S_inv, admm_env%mo_derivs_aux_fit(ispin)%matrix, 0.0_dp, &
+                               admm_env%work_aux_nmo(ispin)%matrix)
          ELSE
 
-            CALL cp_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit, &
-                         1.0_dp, admm_env%S_inv, admm_env%H(ispin)%matrix, 0.0_dp, &
-                         admm_env%work_aux_nmo(ispin)%matrix)
+            CALL parallel_gemm('T', 'N', nao_aux_fit, nmo, nao_aux_fit, &
+                               1.0_dp, admm_env%S_inv, admm_env%H(ispin)%matrix, 0.0_dp, &
+                               admm_env%work_aux_nmo(ispin)%matrix)
          END IF
 
          ! *** S'^(-T)*H'*Lambda^(-T/2)
-         CALL cp_gemm('N', 'T', nao_aux_fit, nmo, nmo, &
-                      1.0_dp, admm_env%work_aux_nmo(ispin)%matrix, admm_env%lambda_inv_sqrt(ispin)%matrix, 0.0_dp, &
-                      admm_env%work_aux_nmo2(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nao_aux_fit, nmo, nmo, &
+                            1.0_dp, admm_env%work_aux_nmo(ispin)%matrix, admm_env%lambda_inv_sqrt(ispin)%matrix, 0.0_dp, &
+                            admm_env%work_aux_nmo2(ispin)%matrix)
 
          ! *** C*Lambda^(-1/2)*H'^(T)*S'^(-1) minus sign due to force = -dE/dR
-         CALL cp_gemm('N', 'T', nao_aux_fit, nao_orb, nmo, &
-                      -1.0_dp, admm_env%work_aux_nmo2(ispin)%matrix, mo_coeff, 0.0_dp, &
-                      admm_env%work_aux_orb)
+         CALL parallel_gemm('N', 'T', nao_aux_fit, nao_orb, nmo, &
+                            -1.0_dp, admm_env%work_aux_nmo2(ispin)%matrix, mo_coeff, 0.0_dp, &
+                            admm_env%work_aux_orb)
 
          ! *** A*C*Lambda^(-1/2)*H'^(T)*S'^(-1), minus sign to recover from above
-         CALL cp_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, &
-                      -1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
-                      admm_env%work_aux_aux)
+         CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, &
+                            -1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
+                            admm_env%work_aux_aux)
 
          IF (.NOT. (admm_env%purification_method == do_admm_purify_none)) THEN
             ! *** C*Y
-            CALL cp_gemm('N', 'N', nao_orb, nmo, nmo, &
-                         1.0_dp, mo_coeff, admm_env%R_schur_R_t(ispin)%matrix, 0.0_dp, &
-                         admm_env%work_orb_nmo(ispin)%matrix)
+            CALL parallel_gemm('N', 'N', nao_orb, nmo, nmo, &
+                               1.0_dp, mo_coeff, admm_env%R_schur_R_t(ispin)%matrix, 0.0_dp, &
+                               admm_env%work_orb_nmo(ispin)%matrix)
             ! *** C*Y^(T)*C^(T)
-            CALL cp_gemm('N', 'T', nao_orb, nao_orb, nmo, &
-                         1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
-                         admm_env%work_orb_orb)
+            CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
+                               1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
+                               admm_env%work_orb_orb)
             ! *** A*C*Y^(T)*C^(T) Add to work aux_orb, minus sign due to force = -dE/dR
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
-                         -1.0_dp, admm_env%A, admm_env%work_orb_orb, 1.0_dp, &
-                         admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
+                               -1.0_dp, admm_env%A, admm_env%work_orb_orb, 1.0_dp, &
+                               admm_env%work_aux_orb)
 
             ! *** C*Y^(T)
-            CALL cp_gemm('N', 'T', nao_orb, nmo, nmo, &
-                         1.0_dp, mo_coeff, admm_env%R_schur_R_t(ispin)%matrix, 0.0_dp, &
-                         admm_env%work_orb_nmo(ispin)%matrix)
+            CALL parallel_gemm('N', 'T', nao_orb, nmo, nmo, &
+                               1.0_dp, mo_coeff, admm_env%R_schur_R_t(ispin)%matrix, 0.0_dp, &
+                               admm_env%work_orb_nmo(ispin)%matrix)
             ! *** C*Y*C^(T)
-            CALL cp_gemm('N', 'T', nao_orb, nao_orb, nmo, &
-                         1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
-                         admm_env%work_orb_orb)
+            CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
+                               1.0_dp, mo_coeff, admm_env%work_orb_nmo(ispin)%matrix, 0.0_dp, &
+                               admm_env%work_orb_orb)
             ! *** A*C*Y*C^(T) Add to work aux_orb, minus sign due to -dE/dR
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
-                         -1.0_dp, admm_env%A, admm_env%work_orb_orb, 1.0_dp, &
-                         admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
+                               -1.0_dp, admm_env%A, admm_env%work_orb_orb, 1.0_dp, &
+                               admm_env%work_aux_orb)
          END IF
 
          ! Add derivative contribution matrix*dQ/dR in additional last term in
@@ -2151,27 +2151,27 @@ CONTAINS
             ! *** scale admm_env%work_aux_orb by gsi due to inner derivative
             CALL cp_fm_scale(admm_env%gsi(ispin), admm_env%work_aux_orb)
             ! ***  as in ADMMP only with different sign
-            CALL cp_gemm('N', 'T', nao_orb, nao_orb, nmo, &
-                         4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
-                         mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
+            CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
+                               4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
+                               mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
 
             ! *** prefactor*A*C*C^(T) Add to work aux_orb
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
-                         1.0_dp, admm_env%A, admm_env%work_orb_orb2, 1.0_dp, &
-                         admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
+                               1.0_dp, admm_env%A, admm_env%work_orb_orb2, 1.0_dp, &
+                               admm_env%work_aux_orb)
 
             ! ADMMP
          ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
                   .NOT. admm_env%charge_constrain) THEN
             ! *** prefactor*C*C^(T), nspins since 2/n_spin*C*C^(T)=P
-            CALL cp_gemm('N', 'T', nao_orb, nao_orb, nmo, &
-                         -4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
-                         mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
+            CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
+                               -4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
+                               mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
 
             ! *** prefactor*A*C*C^(T) Add to work aux_orb
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
-                         1.0_dp, admm_env%A, admm_env%work_orb_orb2, 1.0_dp, &
-                         admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
+                               1.0_dp, admm_env%A, admm_env%work_orb_orb2, 1.0_dp, &
+                               admm_env%work_aux_orb)
 
             ! ADMMQ
          ELSE IF (admm_env%scaling_model == do_admm_exch_scaling_none .AND. &
@@ -2179,14 +2179,14 @@ CONTAINS
             ! *** scale admm_env%work_aux_orb by gsi due to inner derivative
             CALL cp_fm_scale(admm_env%gsi(ispin), admm_env%work_aux_orb)
             ! ***  as in ADMMP only with different sign
-            CALL cp_gemm('N', 'T', nao_orb, nao_orb, nmo, &
-                         4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
-                         mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
+            CALL parallel_gemm('N', 'T', nao_orb, nao_orb, nmo, &
+                               4.0_dp*(admm_env%gsi(ispin))*admm_env%lambda_merlot(ispin)/dft_control%nspins, &
+                               mo_coeff, mo_coeff, 0.0_dp, admm_env%work_orb_orb2)
 
             ! *** prefactor*A*C*C^(T) Add to work aux_orb
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
-                         1.0_dp, admm_env%A, admm_env%work_orb_orb2, 1.0_dp, &
-                         admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
+                               1.0_dp, admm_env%A, admm_env%work_orb_orb2, 1.0_dp, &
+                               admm_env%work_aux_orb)
          END IF
 
          ! *** copy to sparse matrix
@@ -2194,13 +2194,13 @@ CONTAINS
 
          IF (.NOT. (admm_env%purification_method == do_admm_purify_none)) THEN
             ! *** A*C*Y^(T)*C^(T)
-            CALL cp_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
-                         1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
-                         admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, &
+                               1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
+                               admm_env%work_aux_orb)
             ! *** A*C*Y^(T)*C^(T)*A^(T) add to aux_aux, minus sign cancels
-            CALL cp_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, &
-                         1.0_dp, admm_env%work_aux_orb, admm_env%A, 1.0_dp, &
-                         admm_env%work_aux_aux)
+            CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, &
+                               1.0_dp, admm_env%work_aux_orb, admm_env%A, 1.0_dp, &
+                               admm_env%work_aux_aux)
          END IF
 
          ! *** copy to sparse matrix
@@ -2356,9 +2356,9 @@ CONTAINS
       CALL cp_fm_to_fm(admm_env%C_hat(ispin)%matrix, admm_env%work_aux_nmo(ispin)%matrix)
       CALL cp_fm_column_scale(admm_env%work_aux_nmo(ispin)%matrix, mo_set%occupation_numbers(1:mo_set%homo))
 
-      CALL cp_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
-                   1.0_dp, admm_env%work_aux_nmo(ispin)%matrix, admm_env%lambda_inv(ispin)%matrix, 0.0_dp, &
-                   admm_env%work_aux_nmo2(ispin)%matrix)
+      CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nmo, &
+                         1.0_dp, admm_env%work_aux_nmo(ispin)%matrix, admm_env%lambda_inv(ispin)%matrix, 0.0_dp, &
+                         admm_env%work_aux_nmo2(ispin)%matrix)
 
       ! The following IF doesn't do anything unless !alpha=mo_set%maxocc is uncommented.
       IF (.NOT. mo_set%uniform_occupation) THEN ! not all orbitals 1..homo are equally occupied
@@ -2523,10 +2523,10 @@ CONTAINS
       CALL cp_fm_get_info(admm_env%work_orb_orb, nrow_global=nao, ncol_global=ncol)
       DO ispin = 1, nspins
          CALL copy_dbcsr_to_fm(dm(ispin)%matrix, admm_env%work_orb_orb)
-         CALL cp_gemm('N', 'N', nao_aux, ncol, nao, 1.0_dp, admm_env%A, &
-                      admm_env%work_orb_orb, 0.0_dp, admm_env%work_aux_orb)
-         CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%A, &
-                      admm_env%work_aux_orb, 0.0_dp, admm_env%work_aux_aux)
+         CALL parallel_gemm('N', 'N', nao_aux, ncol, nao, 1.0_dp, admm_env%A, &
+                            admm_env%work_orb_orb, 0.0_dp, admm_env%work_aux_orb)
+         CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%A, &
+                            admm_env%work_aux_orb, 0.0_dp, admm_env%work_aux_aux)
          CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, dm_admm(ispin)%matrix, keep_sparsity=.TRUE.)
       END DO
 

@@ -34,7 +34,6 @@ MODULE matrix_exp
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
@@ -45,6 +44,7 @@ MODULE matrix_exp
                                               mp_max,&
                                               mp_reordering,&
                                               mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -116,16 +116,16 @@ CONTAINS
 
       DO i = 1, nloop
          tmp = tmp*(REAL(i, dp)*2.0_dp - 1.0_dp)
-         CALL cp_gemm("N", "N", ndim, ndim, ndim, square_fac, im_matrix, T1, zero, &
-                      !       CALL cp_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T1,zero,&
-                      T2)
+         CALL parallel_gemm("N", "N", ndim, ndim, ndim, square_fac, im_matrix, T1, zero, &
+                            !       CALL parallel_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T1,zero,&
+                            T2)
          Tfac = 1._dp/tmp
          IF (MOD(i, 2) == 0) Tfac = -Tfac
          CALL cp_fm_scale_and_add(one, Tres_im, Tfac, T2)
          tmp = tmp*REAL(i, dp)*2.0_dp
-         CALL cp_gemm("N", "N", ndim, ndim, ndim, square_fac, im_matrix, T2, zero, &
-                      !       CALL cp_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T2,zero,&
-                      T1)
+         CALL parallel_gemm("N", "N", ndim, ndim, ndim, square_fac, im_matrix, T2, zero, &
+                            !       CALL parallel_gemm("N","N",ndim,ndim,ndim,one,im_matrix,T2,zero,&
+                            T1)
          Tfac = 1._dp/tmp
          IF (MOD(i, 2) == 1) Tfac = -Tfac
          CALL cp_fm_scale_and_add(one, Tres_re, Tfac, T1)
@@ -516,7 +516,7 @@ CONTAINS
             my_fac = (-rone)**j
             IF (i .LE. p) scaleN = CMPLX(my_fac*fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, dp)
             scaleD = CMPLX(my_fac*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), 0.0_dp, dp)
-            CALL cp_gemm("N", "N", ndim, ndim, ndim, square_fac, im_part, T2, rzero, Tres)
+            CALL parallel_gemm("N", "N", ndim, ndim, ndim, square_fac, im_part, T2, rzero, Tres)
 
             DO k = 1, ldim
                Npq%local_data(:, k) = Npq%local_data(:, k) + scaleN*Tres%local_data(:, k)
@@ -527,7 +527,7 @@ CONTAINS
                i = 2*j + 1
                IF (i .LE. p) scaleN = CMPLX(my_fac*fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), rzero, dp)
                scaleD = CMPLX(-my_fac*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), rzero, dp)
-               CALL cp_gemm("N", "N", ndim, ndim, ndim, square_fac, im_part, Tres, rzero, T2)
+               CALL parallel_gemm("N", "N", ndim, ndim, ndim, square_fac, im_part, Tres, rzero, T2)
 
                DO k = 1, ldim
                   Npq%local_data(:, k) = Npq%local_data(:, k) + scaleN*CMPLX(rzero, T2%local_data(:, k), dp)
@@ -639,8 +639,8 @@ CONTAINS
             my_fac = (-1.0_dp)**j
             scaleN = fac(p + q - j)*fac(p)/(fac(p + q)*fac(j)*fac(p - j))
             scaleD = my_fac*fac(p + q - j)*fac(q)/(fac(p + q)*fac(j)*fac(q - j))
-            CALL cp_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(j, 2) + 1)%matrix, T1, &
-                         zero, mult_p(MOD(j + 1, 2) + 1)%matrix)
+            CALL parallel_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(j, 2) + 1)%matrix, T1, &
+                               zero, mult_p(MOD(j + 1, 2) + 1)%matrix)
 
             DO k = 1, ldim
                Npq%local_data(:, k) = Npq%local_data(:, k) + scaleN*mult_p(MOD(j + 1, 2) + 1)%matrix%local_data(:, k)
@@ -655,8 +655,8 @@ CONTAINS
       mult_p(1)%matrix => T1
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, zero, &
-                         mult_p(MOD(i + 1, 2) + 1)%matrix)
+            CALL parallel_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, zero, &
+                               mult_p(MOD(i + 1, 2) + 1)%matrix)
             fin_p => mult_p(MOD(i + 1, 2) + 1)%matrix
          END DO
       ELSE
@@ -767,7 +767,7 @@ CONTAINS
       ! arnoldi subspace procedure to get H_approx
       DO i = 2, narnoldi + 1
          !Be careful, imaginary matrix multiplied with complex. Unfortunately requires a swap of arrays afterwards
-         CALL cp_gemm("N", "N", nao, newdim, nao, 1.0_dp, Him, V_mats(i - 1)%matrix, 0.0_dp, V_mats(i)%matrix)
+         CALL parallel_gemm("N", "N", nao, newdim, nao, 1.0_dp, Him, V_mats(i - 1)%matrix, 0.0_dp, V_mats(i)%matrix)
 
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(mos_new,V_mats,ncol_local,i)
          DO icol_local = 1, ncol_local
@@ -777,7 +777,7 @@ CONTAINS
          END DO
 
          IF (PRESENT(Hre)) THEN
-            CALL cp_gemm("N", "N", nao, newdim, nao, 1.0_dp, Hre, V_mats(i - 1)%matrix, 1.0_dp, V_mats(i)%matrix)
+            CALL parallel_gemm("N", "N", nao, newdim, nao, 1.0_dp, Hre, V_mats(i - 1)%matrix, 1.0_dp, V_mats(i)%matrix)
          END IF
 
          DO l = 1, i - 1

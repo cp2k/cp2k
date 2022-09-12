@@ -25,7 +25,6 @@ MODULE qs_energy_window
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -43,6 +42,7 @@ MODULE qs_energy_window
                                               section_vals_val_get
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -199,7 +199,7 @@ CONTAINS
       !Rotate the eigenvectors back out of the orthonormal basis
       CALL copy_dbcsr_to_fm(S_minus_half, S_minus_half_fm)
       !calculate the density caused by the mos in the energy window
-      CALL cp_gemm("N", "N", nao, nao, nao, one, S_minus_half_fm, eigenvectors, zero, eigenvectors_nonorth)
+      CALL parallel_gemm("N", "N", nao, nao, nao, one, S_minus_half_fm, eigenvectors, zero, eigenvectors_nonorth)
 
       IF (debug) THEN
          !check difference to actual density
@@ -207,7 +207,7 @@ CONTAINS
                                   ncol_global=nelectron_total/2)
          CALL cp_fm_create(window_fm, window_fm_struct)
          CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, nelectron_total/2, 1, 1)
-         CALL cp_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
+         CALL parallel_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
          !ensure the correct sparsity
          CALL copy_fm_to_dbcsr(P_window_fm, tmp)
          CALL dbcsr_copy(window, matrix_ks(1)%matrix)
@@ -234,7 +234,7 @@ CONTAINS
          CALL cp_fm_create(window_eigenvectors, ao_ao_fmstruct)
          ALLOCATE (window_eigenvalues(nao))
          CALL cp_fm_to_fm(eigenvectors, window_fm, nelectron_total/2, 1, 1)
-         CALL cp_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
+         CALL parallel_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
          CALL choose_eigv_solver(P_window_fm, window_eigenvectors, window_eigenvalues)
          DO i = 1, nao
             IF (unit_nr > 0) THEN
@@ -268,13 +268,13 @@ CONTAINS
          CALL cp_fm_create(window_fm, window_fm_struct)
          !copy the mos in the energy window into a separate matrix
          CALL cp_fm_to_fm(eigenvectors, window_fm, next - last, last + 1, 1)
-         CALL cp_gemm("N", "T", nao, nao, next - last, one, window_fm, window_fm, zero, P_window_fm)
+         CALL parallel_gemm("N", "T", nao, nao, next - last, one, window_fm, window_fm, zero, P_window_fm)
          CALL cp_fm_trace(P_window_fm, rho_ao_ortho_fm, occupation)
          IF (print_cube) THEN
             CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, next - last, last + 1, 1)
             !print the energy window to a cube file
             !calculate the density caused by the mos in the energy window
-            CALL cp_gemm("N", "T", nao, nao, next - last, one, window_fm, window_fm, zero, P_window_fm)
+            CALL parallel_gemm("N", "T", nao, nao, next - last, one, window_fm, window_fm, zero, P_window_fm)
             CALL copy_fm_to_dbcsr(P_window_fm, tmp)
             !ensure the correct sparsity
             CALL dbcsr_copy(window, matrix_ks(1)%matrix)

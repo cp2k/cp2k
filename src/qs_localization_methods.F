@@ -47,7 +47,6 @@ MODULE qs_localization_methods
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
         cp_fm_maxabsrownorm, cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
         cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -66,6 +65,7 @@ MODULE qs_localization_methods
                                               mp_sendrecv,&
                                               mp_sum,&
                                               mp_sync
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_methods,                   ONLY: make_basis_simple
 #include "./base/base_uses.f90"
 
@@ -167,7 +167,7 @@ CONTAINS
                CTmp%local_data(i, p) = C%local_data(i, p)/SQRT(C%local_data(i, p)**2 + f2_eps)
             END DO
          END DO
-         CALL cp_gemm('T', 'N', k, k, n, 1.0_dp, CTmp, C, 0.0_dp, G)
+         CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, CTmp, C, 0.0_dp, G)
          ! antisymmetrize
          CALL cp_fm_transpose(G, U)
          CALL cp_fm_scale_and_add(-0.5_dp, G, 0.5_dp, U)
@@ -193,7 +193,7 @@ CONTAINS
             CALL cp_fm_to_fm(G, Gp1)
             DO i = 2, taylor_order
                ! new power of G
-               CALL cp_gemm('N', 'N', k, k, k, 1.0_dp, G, Gp1, 0.0_dp, Gp2)
+               CALL parallel_gemm('N', 'N', k, k, k, 1.0_dp, G, Gp1, 0.0_dp, Gp2)
                CALL cp_fm_to_fm(Gp2, Gp1)
                ! add to the taylor expansion so far
                expfactor = expfactor/REAL(i, KIND=dp)
@@ -205,7 +205,7 @@ CONTAINS
          END IF
          !
          ! incrementaly rotate the MOs
-         CALL cp_gemm('N', 'N', n, k, k, 1.0_dp, C, U, 0.0_dp, CTmp)
+         CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, C, U, 0.0_dp, CTmp)
          CALL cp_fm_to_fm(CTmp, C)
          !
          ! printing
@@ -788,7 +788,7 @@ CONTAINS
             CALL cp_cfm_set_submatrix(V, tmp_cmat, nocc + 1, nocc + 1, northo, nextra)
             DEALLOCATE (tmp_cmat)
          CASE (2) ! MO based coeffs
-            CALL cp_gemm("T", "N", nmo, ndummy, nao, 1.0_dp, vectors_all, mos_guess, 0.0_dp, matrix_V_all)
+            CALL parallel_gemm("T", "N", nmo, ndummy, nao, 1.0_dp, vectors_all, mos_guess, 0.0_dp, matrix_V_all)
             ALLOCATE (tmp_arr(nmo))
             ALLOCATE (tmp_mat(nmo, ndummy))
             ALLOCATE (tmp_mat_1(nmo, nstate))
@@ -1409,7 +1409,7 @@ CONTAINS
       NULLIFY (wf)
       CALL cp_fm_create(wf, vectors%matrix_struct)
       CALL cp_fm_get_info(vectors, nrow_global=n, ncol_global=k)
-      CALL cp_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf)
+      CALL parallel_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf)
       CALL cp_fm_to_fm(wf, vectors)
       CALL cp_fm_release(wf)
    END SUBROUTINE rotate_orbitals
@@ -1430,7 +1430,7 @@ CONTAINS
       CALL cp_fm_get_info(vec_all, nrow_global=n, ncol_global=k)
       CALL cp_fm_get_info(rmat, ncol_global=l)
 
-      CALL cp_gemm("N", "N", n, l, k, 1.0_dp, vec_all, rmat, 0.0_dp, wf)
+      CALL parallel_gemm("N", "N", n, l, k, 1.0_dp, vec_all, rmat, 0.0_dp, wf)
       CALL cp_fm_to_fm(wf, vectors)
       CALL cp_fm_release(wf)
    END SUBROUTINE rotate_orbitals_edf
@@ -1659,13 +1659,13 @@ CONTAINS
       CALL cp_fm_syevd(mat_t, mat_U, evals)
       DO idim = 1, dim2
          ! rotate z's
-         CALL cp_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(1, idim)%matrix, mat_U, 0.0_dp, mat_t)
-         CALL cp_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(1, idim)%matrix)
-         CALL cp_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(2, idim)%matrix, mat_U, 0.0_dp, mat_t)
-         CALL cp_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(2, idim)%matrix)
+         CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(1, idim)%matrix, mat_U, 0.0_dp, mat_t)
+         CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(1, idim)%matrix)
+         CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(2, idim)%matrix, mat_U, 0.0_dp, mat_t)
+         CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(2, idim)%matrix)
       END DO
       ! collect rotation matrix
-      CALL cp_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_R, mat_U, 0.0_dp, mat_t)
+      CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_R, mat_U, 0.0_dp, mat_t)
       CALL cp_fm_to_fm(mat_t, mat_R)
 
       unit_nr = -1
@@ -1739,13 +1739,13 @@ CONTAINS
 
          DO idim = 1, dim2
             ! rotate z's
-            CALL cp_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(1, idim)%matrix, mat_U, 0.0_dp, mat_t)
-            CALL cp_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(1, idim)%matrix)
-            CALL cp_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(2, idim)%matrix, mat_U, 0.0_dp, mat_t)
-            CALL cp_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(2, idim)%matrix)
+            CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(1, idim)%matrix, mat_U, 0.0_dp, mat_t)
+            CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(1, idim)%matrix)
+            CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, zij(2, idim)%matrix, mat_U, 0.0_dp, mat_t)
+            CALL parallel_gemm('T', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_U, mat_t, 0.0_dp, zij(2, idim)%matrix)
          END DO
          ! collect rotation matrix
-         CALL cp_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_R, mat_U, 0.0_dp, mat_t)
+         CALL parallel_gemm('N', 'N', nrow_global, nrow_global, nrow_global, 1.0_dp, mat_R, mat_U, 0.0_dp, mat_t)
          CALL cp_fm_to_fm(mat_t, mat_R)
 
          CALL check_tolerance_new(weights, zij, tolerance, value)
@@ -1902,7 +1902,7 @@ CONTAINS
             END DO
             ! collect rotation matrix
             matrix_H%local_data = REAL(cmat_U%local_data, KIND=dp)
-            CALL cp_gemm('N', 'N', n, n, n, 1.0_dp, matrix_R, matrix_H, 0.0_dp, matrix_T)
+            CALL parallel_gemm('N', 'N', n, n, n, 1.0_dp, matrix_R, matrix_H, 0.0_dp, matrix_T)
             CALL cp_fm_to_fm(matrix_T, matrix_R)
 
             CALL cp_cfm_set_all(cmat_U, czero, cone)
@@ -2152,7 +2152,7 @@ CONTAINS
 
       ! collect rotation matrix
       matrix_H%local_data = REAL(cmat_U%local_data, KIND=dp)
-      CALL cp_gemm('N', 'N', n, n, n, 1.0_dp, matrix_R, matrix_H, 0.0_dp, matrix_T)
+      CALL parallel_gemm('N', 'N', n, n, n, 1.0_dp, matrix_R, matrix_H, 0.0_dp, matrix_T)
       CALL cp_fm_to_fm(matrix_T, matrix_R)
       CALL rotate_orbitals(matrix_R, vectors)
       CALL cp_fm_release(matrix_R)
@@ -3023,8 +3023,8 @@ CONTAINS
          DO j = 1, SIZE(zij_fm_set, 1)
             CALL cp_fm_set_all(zij_fm_set(j, i)%matrix, 0.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(op_sm_set(j, i)%matrix, vectors, opvec, ncol=nmoloc)
-            CALL cp_gemm("T", "N", nmoloc, nmoloc, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
-                         zij_fm_set(j, i)%matrix)
+            CALL parallel_gemm("T", "N", nmoloc, nmoloc, nao, 1.0_dp, vectors, opvec, 0.0_dp, &
+                               zij_fm_set(j, i)%matrix)
          END DO
       END DO
 
@@ -3082,7 +3082,7 @@ CONTAINS
       CALL cp_fm_create(tmp, vectors%matrix_struct)
       CALL cp_fm_set_all(tmp, 0.0_dp, 1.0_dp)
       CALL cp_fm_to_fm(vectors, tmp)
-      CALL cp_gemm('N', 'N', ncolT, nrowT, nrowT, 1.0_dp, tmp, Qf, 0.0_dp, vectors)
+      CALL parallel_gemm('N', 'N', ncolT, nrowT, nrowT, 1.0_dp, tmp, Qf, 0.0_dp, vectors)
 
       ! Cleanup
       CALL cp_fm_release(CTp)

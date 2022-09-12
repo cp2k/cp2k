@@ -47,7 +47,6 @@ MODULE mp2_ri_2c
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
         cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -85,6 +84,7 @@ MODULE mp2_ri_2c
    USE mp2_eri,                         ONLY: mp2_eri_2c_integrate
    USE mp2_eri_gpw,                     ONLY: mp2_eri_2c_integrate_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -285,20 +285,20 @@ CONTAINS
             CALL cp_fm_create(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_S_inv_work, 0.0_dp)
 
-            CALL cp_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix, &
-                         fm_matrix_L_RI_metric(1, 1)%matrix, 0.0_dp, fm_matrix_S_inv_work)
+            CALL parallel_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix, &
+                               fm_matrix_L_RI_metric(1, 1)%matrix, 0.0_dp, fm_matrix_S_inv_work)
 
             IF (do_svd) THEN
                ! We have to reset the size of fm_matrix_L_RI_metric
                CALL reset_size_matrix(fm_matrix_L_RI_metric(1, 1)%matrix, dimen_RI_red, fm_matrix_L%matrix_struct)
 
                ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
-               CALL cp_gemm('T', 'N', dimen_RI, dimen_RI_red, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
-                            0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
+               CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI_red, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
+                                  0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
             ELSE
                ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V)
-               CALL cp_gemm('T', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
-                            0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
+               CALL parallel_gemm('T', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_S_inv_work, fm_matrix_L, &
+                                  0.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix)
             END IF
 
             ! clean the S_inv matrix

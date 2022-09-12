@@ -22,7 +22,6 @@ MODULE qs_tddfpt2_eigensolver
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
         cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_logger_type
    USE cp_output_handling,              ONLY: cp_iterate
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -38,6 +37,7 @@ MODULE qs_tddfpt2_eigensolver
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE memory_utilities,                ONLY: reallocate
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -113,8 +113,8 @@ CONTAINS
             CALL cp_fm_create(evortho, matrix_struct)
             DO ivect = 1, nvects
                ! evortho: C0 * C0^T * S * C1 == (S * C0 * C0^T)^T * C1
-               CALL cp_gemm('T', 'N', nao, nactive, nao, 1.0_dp, S_C0_C0T(ispin)%matrix, &
-                            evects(ispin, ivect)%matrix, 0.0_dp, evortho)
+               CALL parallel_gemm('T', 'N', nao, nactive, nao, 1.0_dp, S_C0_C0T(ispin)%matrix, &
+                                  evects(ispin, ivect)%matrix, 0.0_dp, evortho)
                CALL cp_fm_scale_and_add(1.0_dp, evects(ispin, ivect)%matrix, -1.0_dp, evortho)
             END DO
             CALL cp_fm_release(evortho)
@@ -171,8 +171,8 @@ CONTAINS
          CALL cp_fm_struct_release(matrix_struct_tmp)
          DO ivect = 1, nvects
             ! aortho = S_0^T * S * C_1
-            CALL cp_gemm('T', 'N', nocc, nactive, nao, 1.0_dp, S_C0(ispin)%matrix, &
-                         evects(ispin, ivect)%matrix, 0.0_dp, aortho)
+            CALL parallel_gemm('T', 'N', nocc, nactive, nao, 1.0_dp, S_C0(ispin)%matrix, &
+                               evects(ispin, ivect)%matrix, 0.0_dp, aortho)
             CALL cp_fm_maxabsval(aortho, maxabs_val)
             is_nonortho = maxabs_val > max_norm
             IF (is_nonortho) THEN
@@ -597,8 +597,8 @@ CONTAINS
                                             ncol=nactive(ispin), alpha=-lambda, beta=0.0_dp)
                CALL cp_fm_scale_and_add(1.0_dp, awork(ispin)%matrix, 1.0_dp, Aop_ritz(ispin, irv)%matrix)
                !
-               CALL cp_gemm('T', 'N', nmo_virt(ispin), nactive(ispin), nao, 1.0_dp, gs_mos(ispin)%mos_virt, &
-                            awork(ispin)%matrix, 0.0_dp, vomat(ispin)%matrix)
+               CALL parallel_gemm('T', 'N', nmo_virt(ispin), nactive(ispin), nao, 1.0_dp, gs_mos(ispin)%mos_virt, &
+                                  awork(ispin)%matrix, 0.0_dp, vomat(ispin)%matrix)
 
                DO icol_local = 1, ncols_local
                   e_occ_plus_lambda = gs_mos(ispin)%evals_occ(col_indices_local(icol_local)) + lambda
@@ -615,8 +615,8 @@ CONTAINS
                   END DO
                END DO
 
-               CALL cp_gemm('N', 'N', nao, nactive(ispin), nmo_virt(ispin), 1.0_dp, gs_mos(ispin)%mos_virt, &
-                            vomat(ispin)%matrix, 0.0_dp, residual_vects(ispin, irv)%matrix)
+               CALL parallel_gemm('N', 'N', nao, nactive(ispin), nmo_virt(ispin), 1.0_dp, gs_mos(ispin)%mos_virt, &
+                                  vomat(ispin)%matrix, 0.0_dp, residual_vects(ispin, irv)%matrix)
             END DO
          END DO
          !

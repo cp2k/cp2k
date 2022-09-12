@@ -25,7 +25,6 @@ MODULE mp2_ri_grad_util
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
@@ -45,6 +44,7 @@ MODULE mp2_ri_grad_util
                                               mp_waitall
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -198,9 +198,9 @@ CONTAINS
          CALL cp_fm_create(fm_Gamma, fm_struct_ia, name="fm_Gamma")
          CALL cp_fm_struct_release(fm_struct_ia)
          ! perform the matrix multiplication
-         CALL cp_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                      matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp, &
-                      matrix_c=fm_Gamma)
+         CALL parallel_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp, &
+                            matrix_c=fm_Gamma)
          ! release the Y matrix
          CALL cp_fm_release(fm_Y)
 
@@ -208,17 +208,17 @@ CONTAINS
          NULLIFY (fm_Gamma_PQ_temp)
          ! create temp matrix
          CALL cp_fm_create(fm_Gamma_PQ_temp, fm_struct_RI, name="fm_Gamma_PQ_temp")
-         CALL cp_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp, &
-                      matrix_a=fm_Gamma, matrix_b=fm_ia_P, beta=0.0_dp, &
-                      matrix_c=fm_Gamma_PQ_temp)
+         CALL parallel_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp, &
+                            matrix_a=fm_Gamma, matrix_b=fm_ia_P, beta=0.0_dp, &
+                            matrix_c=fm_Gamma_PQ_temp)
          CALL cp_fm_release(fm_ia_P)
          ! create fm_Gamma_PQ matrix
          CALL cp_fm_create(fm_Gamma_PQ, fm_struct_RI, name="fm_Gamma_PQ")
          CALL cp_fm_struct_release(fm_struct_RI)
          ! perform matrix multiplication
-         CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                      matrix_a=fm_Gamma_PQ_temp, matrix_b=PQ_half, beta=0.0_dp, &
-                      matrix_c=fm_Gamma_PQ)
+         CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=fm_Gamma_PQ_temp, matrix_b=PQ_half, beta=0.0_dp, &
+                            matrix_c=fm_Gamma_PQ)
          CALL cp_fm_release(fm_Gamma_PQ_temp)
          CALL cp_fm_release(PQ_half)
 
@@ -226,31 +226,31 @@ CONTAINS
          NULLIFY (fm_Gamma_PQ_temp)
          ! create temp matrix
          CALL cp_fm_create(fm_Gamma_PQ_temp, fm_struct_RI, name="fm_Gamma_PQ_temp")
-         CALL cp_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp, &
-                      matrix_a=fm_Y, matrix_b=fm_ia_P, beta=0.0_dp, &
-                      matrix_c=fm_Gamma_PQ_temp)
+         CALL parallel_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp, &
+                            matrix_a=fm_Y, matrix_b=fm_ia_P, beta=0.0_dp, &
+                            matrix_c=fm_Gamma_PQ_temp)
          CALL cp_fm_release(fm_ia_P)
 
          NULLIFY (fm_Gamma)
          CALL cp_fm_create(fm_Gamma, fm_struct_ia, name="fm_Gamma")
          CALL cp_fm_struct_release(fm_struct_ia)
          ! perform the matrix multiplication
-         CALL cp_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                      matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp, &
-                      matrix_c=fm_Gamma)
+         CALL parallel_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp, &
+                            matrix_c=fm_Gamma)
          CALL cp_fm_release(fm_Y)
 
          NULLIFY (fm_Gamma_PQ_temp_2)
          CALL cp_fm_create(fm_Gamma_PQ_temp_2, fm_struct_RI, name="fm_Gamma_PQ_temp_2")
-         CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                      matrix_a=fm_Gamma_PQ_temp, matrix_b=operator_half, beta=0.0_dp, &
-                      matrix_c=fm_Gamma_PQ_temp_2)
+         CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=fm_Gamma_PQ_temp, matrix_b=operator_half, beta=0.0_dp, &
+                            matrix_c=fm_Gamma_PQ_temp_2)
 
          NULLIFY (fm_Gamma_PQ_2)
          CALL cp_fm_create(fm_Gamma_PQ_2, fm_struct_RI, name="fm_Gamma_PQ_2")
-         CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
-                      matrix_a=PQ_half, matrix_b=fm_Gamma_PQ_temp_2, beta=0.0_dp, &
-                      matrix_c=fm_Gamma_PQ_temp)
+         CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
+                            matrix_a=PQ_half, matrix_b=fm_Gamma_PQ_temp_2, beta=0.0_dp, &
+                            matrix_c=fm_Gamma_PQ_temp)
          CALL cp_fm_to_fm(fm_Gamma_PQ_temp, fm_Gamma_PQ_2)
          CALL cp_fm_geadd(1.0_dp, "T", fm_Gamma_PQ_temp, 1.0_dp, fm_Gamma_PQ_2)
          CALL cp_fm_release(fm_Gamma_PQ_temp)
@@ -259,9 +259,9 @@ CONTAINS
          NULLIFY (fm_Gamma_PQ)
          CALL cp_fm_create(fm_Gamma_PQ, fm_struct_RI)
          CALL cp_fm_struct_release(fm_struct_RI)
-         CALL cp_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-1.0_dp, &
-                      matrix_a=operator_half, matrix_b=fm_Gamma_PQ_temp_2, beta=0.0_dp, &
-                      matrix_c=fm_Gamma_PQ)
+         CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-1.0_dp, &
+                            matrix_a=operator_half, matrix_b=fm_Gamma_PQ_temp_2, beta=0.0_dp, &
+                            matrix_c=fm_Gamma_PQ)
          CALL cp_fm_release(operator_half)
          CALL cp_fm_release(fm_Gamma_PQ_temp_2)
       END IF

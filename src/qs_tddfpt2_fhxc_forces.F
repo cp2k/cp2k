@@ -38,7 +38,6 @@ MODULE qs_tddfpt2_fhxc_forces
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_vectorssum
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -73,6 +72,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -246,22 +246,22 @@ CONTAINS
          !
          DO ispin = 1, nspins
             CALL copy_dbcsr_to_fm(matrix_px1(ispin)%matrix, admm_env%work_orb_orb)
-            CALL cp_gemm('N', 'N', nao_aux, nao, nao, &
-                         1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
-                         admm_env%work_aux_orb)
-            CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, &
-                         1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
-                         admm_env%work_aux_aux)
+            CALL parallel_gemm('N', 'N', nao_aux, nao, nao, &
+                               1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
+                               admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, &
+                               1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
+                               admm_env%work_aux_aux)
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_px1_admm(ispin)%matrix, &
                                   keep_sparsity=.TRUE.)
 
             CALL copy_dbcsr_to_fm(matrix_px1_asymm(ispin)%matrix, admm_env%work_orb_orb)
-            CALL cp_gemm('N', 'N', nao_aux, nao, nao, &
-                         1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
-                         admm_env%work_aux_orb)
-            CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, &
-                         1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
-                         admm_env%work_aux_aux)
+            CALL parallel_gemm('N', 'N', nao_aux, nao, nao, &
+                               1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
+                               admm_env%work_aux_orb)
+            CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, &
+                               1.0_dp, admm_env%work_aux_orb, admm_env%A, 0.0_dp, &
+                               admm_env%work_aux_aux)
             CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_px1_admm_asymm(ispin)%matrix, &
                                   keep_sparsity=.TRUE.)
          END DO
@@ -539,9 +539,9 @@ CONTAINS
                   ! fx
                   CALL cp_dbcsr_sm_fm_multiply(mfx(ispin)%matrix, admm_env%A, &
                                                admm_env%work_aux_orb, nao)
-                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
-                               1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                               admm_env%work_orb_orb)
+                  CALL parallel_gemm('T', 'N', nao, nao, nao_aux, &
+                                     1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                                     admm_env%work_orb_orb)
                   CALL dbcsr_copy(dbwork, matrix_fx(1)%matrix)
                   CALL dbcsr_set(dbwork, 0.0_dp)
                   CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbwork, keep_sparsity=.TRUE.)
@@ -549,9 +549,9 @@ CONTAINS
                   ! gx
                   CALL cp_dbcsr_sm_fm_multiply(mgx(ispin)%matrix, admm_env%A, &
                                                admm_env%work_aux_orb, nao)
-                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
-                               1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                               admm_env%work_orb_orb)
+                  CALL parallel_gemm('T', 'N', nao, nao, nao_aux, &
+                                     1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                                     admm_env%work_orb_orb)
                   CALL dbcsr_set(dbwork, 0.0_dp)
                   CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbwork, keep_sparsity=.TRUE.)
                   CALL dbcsr_add(matrix_gx(ispin)%matrix, dbwork, 1.0_dp, 1.0_dp)
@@ -668,9 +668,9 @@ CONTAINS
             DO ispin = 1, nspins
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_admm(ispin)%matrix, admm_env%A, &
                                             admm_env%work_aux_orb, nao)
-               CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
-                            1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                            admm_env%work_orb_orb)
+               CALL parallel_gemm('T', 'N', nao, nao, nao_aux, &
+                                  1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                                  admm_env%work_orb_orb)
                CALL dbcsr_copy(dbwork, matrix_hfx(1)%matrix)
                CALL dbcsr_set(dbwork, 0.0_dp)
                CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbwork, keep_sparsity=.TRUE.)
@@ -678,9 +678,9 @@ CONTAINS
                !anti-symmetric case
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_admm_asymm(ispin)%matrix, admm_env%A, &
                                             admm_env%work_aux_orb, nao)
-               CALL cp_gemm('T', 'N', nao, nao, nao_aux, &
-                            1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
-                            admm_env%work_orb_orb)
+               CALL parallel_gemm('T', 'N', nao, nao, nao_aux, &
+                                  1.0_dp, admm_env%A, admm_env%work_aux_orb, 0.0_dp, &
+                                  admm_env%work_orb_orb)
                CALL dbcsr_copy(dbwork_asymm, matrix_hfx_asymm(1)%matrix)
                CALL dbcsr_set(dbwork_asymm, 0.0_dp)
                CALL copy_fm_to_dbcsr(admm_env%work_orb_orb, dbwork_asymm, keep_sparsity=.TRUE.)
@@ -847,8 +847,8 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, evect(ispin)%matrix, &
                                          cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
-            CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
+            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
                                          norb, alpha=-focc, beta=1.0_dp)
             !
@@ -862,8 +862,8 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(matrix_fx(ispin)%matrix, evect(ispin)%matrix, &
                                          cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_fx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
-            CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
+            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
                                          norb, alpha=-focc, beta=1.0_dp)
             !
@@ -876,8 +876,8 @@ CONTAINS
                                          cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
-            CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, mos, cvcmat, 0.0_dp, vcvec)
+            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, mos, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
                                        ncol=norb, alpha=0.5_dp)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos, &
@@ -892,8 +892,8 @@ CONTAINS
                                          cpmos(ispin)%matrix, norb, alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=1.0_dp)
             !
-            CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
+            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
                                          norb, alpha=-focc, beta=1.0_dp)
             !
@@ -1195,23 +1195,23 @@ CONTAINS
             ct => work%ctransformed(ispin)%matrix
             CALL cp_fm_to_fm(ct, cvec)
             CALL cp_fm_row_scale(cvec, tv)
-            CALL cp_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
-                         cvec, 0.0_dp, ucmatrix)
-            CALL cp_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
-                         X(ispin)%matrix, 0.0_dp, uxmatrix)
-            CALL cp_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, uxmatrix, ucmatrix, 0.0_dp, t0matrix)
+            CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
+                               cvec, 0.0_dp, ucmatrix)
+            CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
+                               X(ispin)%matrix, 0.0_dp, uxmatrix)
+            CALL parallel_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, uxmatrix, ucmatrix, 0.0_dp, t0matrix)
             xt => xtransformed(ispin)%matrix
             CALL cp_fm_to_fm(xt, cvec)
             CALL cp_fm_row_scale(cvec, tv)
-            CALL cp_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
-                         cvec, 0.0_dp, uxmatrix)
-            CALL cp_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
-                         gs_mos(ispin)%mos_occ, 0.0_dp, ucmatrix)
-            CALL cp_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, ucmatrix, uxmatrix, 1.0_dp, t0matrix)
+            CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
+                               cvec, 0.0_dp, uxmatrix)
+            CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
+                               gs_mos(ispin)%mos_occ, 0.0_dp, ucmatrix)
+            CALL parallel_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, ucmatrix, uxmatrix, 1.0_dp, t0matrix)
             CALL cp_fm_schur_product(work%slambda, t0matrix, t1matrix)
             !
-            CALL cp_gemm('N', 'N', nsgf, nsgf, nsgf, spinfac, work%S_eigenvectors, t1matrix, &
-                         0.0_dp, t0matrix)
+            CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, spinfac, work%S_eigenvectors, t1matrix, &
+                               0.0_dp, t0matrix)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=t0matrix, &
                                        matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=1.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=work%S_eigenvectors, &
@@ -1238,8 +1238,8 @@ CONTAINS
                                      ncol_global=norb, para_env=fmstruct%para_env)
             CALL cp_fm_create(cvcmat, fmstruct_mat)
             CALL cp_fm_struct_release(fmstruct_mat)
-            CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
-            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
+            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
+            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
                                          nactive(ispin), alpha=-2.0_dp*spinfac, beta=1.0_dp)
             ! wx1
@@ -1339,21 +1339,21 @@ CONTAINS
             CALL fm_pool_create_fm(work%fm_pool_ao_mo_occ(ispin)%pool, uxmatrix)
             ct => work%ctransformed(ispin)%matrix
             CALL cp_dbcsr_sm_fm_multiply(pdens, ct, cvec, norb, 1.0_dp, 0.0_dp)
-            CALL cp_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
-                         cvec, 0.0_dp, ucmatrix)
-            CALL cp_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
-                         X(ispin)%matrix, 0.0_dp, uxmatrix)
-            CALL cp_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, uxmatrix, ucmatrix, 0.0_dp, t0matrix)
+            CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
+                               cvec, 0.0_dp, ucmatrix)
+            CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
+                               X(ispin)%matrix, 0.0_dp, uxmatrix)
+            CALL parallel_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, uxmatrix, ucmatrix, 0.0_dp, t0matrix)
             xt => xtransformed(ispin)%matrix
             CALL cp_dbcsr_sm_fm_multiply(ptrans, xt, cvec, norb, 1.0_dp, 0.0_dp)
-            CALL cp_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
-                         cvec, 0.0_dp, uxmatrix)
-            CALL cp_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
-                         gs_mos(ispin)%mos_occ, 0.0_dp, ucmatrix)
-            CALL cp_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, ucmatrix, uxmatrix, 1.0_dp, t0matrix)
+            CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
+                               cvec, 0.0_dp, uxmatrix)
+            CALL parallel_gemm('T', 'N', nsgf, norb, nsgf, 1.0_dp, work%S_eigenvectors, &
+                               gs_mos(ispin)%mos_occ, 0.0_dp, ucmatrix)
+            CALL parallel_gemm('N', 'T', nsgf, nsgf, norb, 1.0_dp, ucmatrix, uxmatrix, 1.0_dp, t0matrix)
             CALL cp_fm_schur_product(work%slambda, t0matrix, t1matrix)
-            CALL cp_gemm('N', 'N', nsgf, nsgf, nsgf, -1.0_dp, work%S_eigenvectors, t1matrix, &
-                         0.0_dp, t0matrix)
+            CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, -1.0_dp, work%S_eigenvectors, t1matrix, &
+                               0.0_dp, t0matrix)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=t0matrix, &
                                        matrix_g=work%S_eigenvectors, ncol=nsgf, alpha=1.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(matrix_plo(ispin)%matrix, matrix_v=work%S_eigenvectors, &
@@ -1378,8 +1378,8 @@ CONTAINS
                                      ncol_global=norb, para_env=fmstruct%para_env)
             CALL cp_fm_create(cvcmat, fmstruct_mat)
             CALL cp_fm_struct_release(fmstruct_mat)
-            CALL cp_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
-            CALL cp_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
+            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
+            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, X(ispin)%matrix, cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin)%matrix, &
                                          norb, alpha=xfac, beta=1.0_dp)
             ! wx1

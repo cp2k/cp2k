@@ -25,7 +25,6 @@ MODULE qs_mom_methods
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm,&
                                               cp_fm_vectorssum
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_constants,                 ONLY: momproj_norm,&
                                               momproj_sum,&
@@ -33,6 +32,7 @@ MODULE qs_mom_methods
                                               momtype_mom
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_p_type,&
@@ -470,7 +470,7 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, svec, nmo)
 
             ! overlap = C(reference occupied)^T * S * C(new)
-            CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff_ref, svec, 0.0_dp, overlap)
+            CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff_ref, svec, 0.0_dp, overlap)
 
             ALLOCATE (proj(nmo))
             ALLOCATE (inds(nmo))

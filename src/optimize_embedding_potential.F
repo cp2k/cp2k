@@ -30,7 +30,6 @@ MODULE optimize_embedding_potential
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_release, &
         cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_write_unformatted
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -61,6 +60,7 @@ MODULE optimize_embedding_potential
                                               mp_max,&
                                               mp_sum
    USE mixed_environment_utils,         ONLY: get_subsys_map_index
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -1221,14 +1221,14 @@ CONTAINS
                                  s_firstrow=opt_embed%dimen_aux + 1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=1)
          ! Multiply
-         CALL cp_gemm(transa="N", transb="N", m=opt_embed%dimen_aux, n=1, &
-                      k=opt_embed%dimen_aux, alpha=1.0_dp, &
-                      matrix_a=opt_embed%kinetic_mat, matrix_b=embed_pot_coeff_spinless, &
-                      beta=0.0_dp, matrix_c=spinless_reg)
-         CALL cp_gemm(transa="N", transb="N", m=opt_embed%dimen_aux, n=1, &
-                      k=opt_embed%dimen_aux, alpha=1.0_dp, &
-                      matrix_a=opt_embed%kinetic_mat, matrix_b=embed_pot_coeff_spin, &
-                      beta=0.0_dp, matrix_c=spin_reg)
+         CALL parallel_gemm(transa="N", transb="N", m=opt_embed%dimen_aux, n=1, &
+                            k=opt_embed%dimen_aux, alpha=1.0_dp, &
+                            matrix_a=opt_embed%kinetic_mat, matrix_b=embed_pot_coeff_spinless, &
+                            beta=0.0_dp, matrix_c=spinless_reg)
+         CALL parallel_gemm(transa="N", transb="N", m=opt_embed%dimen_aux, n=1, &
+                            k=opt_embed%dimen_aux, alpha=1.0_dp, &
+                            matrix_a=opt_embed%kinetic_mat, matrix_b=embed_pot_coeff_spin, &
+                            beta=0.0_dp, matrix_c=spin_reg)
          ! Copy from the auxiliary structures to the full regularization term
          CALL cp_fm_to_fm_submat(msource=spinless_reg, &
                                  mtarget=regular_term, &
@@ -1247,10 +1247,10 @@ CONTAINS
          CALL cp_fm_release(spinless_reg)
 
       ELSE ! Simply multiply
-         CALL cp_gemm(transa="N", transb="N", m=opt_embed%dimen_var_aux, n=1, &
-                      k=opt_embed%dimen_var_aux, alpha=1.0_dp, &
-                      matrix_a=opt_embed%kinetic_mat, matrix_b=opt_embed%embed_pot_coef, &
-                      beta=0.0_dp, matrix_c=regular_term)
+         CALL parallel_gemm(transa="N", transb="N", m=opt_embed%dimen_var_aux, n=1, &
+                            k=opt_embed%dimen_var_aux, alpha=1.0_dp, &
+                            matrix_a=opt_embed%kinetic_mat, matrix_b=opt_embed%embed_pot_coef, &
+                            beta=0.0_dp, matrix_c=regular_term)
       END IF
 
       ! Scale by the regularization parameter and add to the gradient
@@ -1657,10 +1657,10 @@ CONTAINS
             CALL cp_fm_to_fm(fm_U_scale, opt_embed%embed_pot_hess)
 
             ! Find the step in diagonal representation, begin with gradient
-            CALL cp_gemm(transa="T", transb="N", m=opt_embed%dimen_var_aux, n=1, &
-                         k=opt_embed%dimen_var_aux, alpha=1.0_dp, &
-                         matrix_a=fm_U, matrix_b=opt_embed%embed_pot_grad, beta=0.0_dp, &
-                         matrix_c=diag_grad)
+            CALL parallel_gemm(transa="T", transb="N", m=opt_embed%dimen_var_aux, n=1, &
+                               k=opt_embed%dimen_var_aux, alpha=1.0_dp, &
+                               matrix_a=fm_U, matrix_b=opt_embed%embed_pot_grad, beta=0.0_dp, &
+                               matrix_c=diag_grad)
 
             CALL cp_fm_get_info(matrix=opt_embed%embed_pot_coef, &
                                 nrow_local=nrow_local, &
@@ -1678,10 +1678,10 @@ CONTAINS
             CALL cp_fm_trace(diag_step, diag_step, opt_embed%step_len)
 
             ! Transform step to a non-diagonal representation
-            CALL cp_gemm(transa="N", transb="N", m=opt_embed%dimen_var_aux, n=1, &
-                         k=opt_embed%dimen_var_aux, alpha=1.0_dp, &
-                         matrix_a=fm_U, matrix_b=diag_step, beta=0.0_dp, &
-                         matrix_c=opt_embed%step)
+            CALL parallel_gemm(transa="N", transb="N", m=opt_embed%dimen_var_aux, n=1, &
+                               k=opt_embed%dimen_var_aux, alpha=1.0_dp, &
+                               matrix_a=fm_U, matrix_b=diag_step, beta=0.0_dp, &
+                               matrix_c=opt_embed%step)
 
             ! Now use fm_U_scale for scaled eigenvectors
             CALL cp_fm_to_fm(fm_U, fm_U_scale)
@@ -1703,10 +1703,10 @@ CONTAINS
                END IF
                CALL cp_fm_trace(diag_step, diag_step, opt_embed%step_len)
                ! Transform step to a non-diagonal representation
-               CALL cp_gemm(transa="N", transb="N", m=opt_embed%dimen_var_aux, n=1, &
-                            k=opt_embed%dimen_var_aux, alpha=1.0_dp, &
-                            matrix_a=fm_U, matrix_b=diag_step, beta=0.0_dp, &
-                            matrix_c=opt_embed%step)
+               CALL parallel_gemm(transa="N", transb="N", m=opt_embed%dimen_var_aux, n=1, &
+                                  k=opt_embed%dimen_var_aux, alpha=1.0_dp, &
+                                  matrix_a=fm_U, matrix_b=diag_step, beta=0.0_dp, &
+                                  matrix_c=opt_embed%step)
                CALL cp_fm_trace(opt_embed%step, opt_embed%step, opt_embed%step_len)
 
                ! Recalculate step in diagonal representation
@@ -2022,20 +2022,20 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, y, -1.0_dp, prev_grad)
 
       ! First term
-      CALL cp_gemm(transa="N", transb="N", m=mat_size, n=1, &
-                   k=mat_size, alpha=1.0_dp, &
-                   matrix_a=prev_inv_Hess, matrix_b=y, beta=0.0_dp, &
-                   matrix_c=B_inv_y)
+      CALL parallel_gemm(transa="N", transb="N", m=mat_size, n=1, &
+                         k=mat_size, alpha=1.0_dp, &
+                         matrix_a=prev_inv_Hess, matrix_b=y, beta=0.0_dp, &
+                         matrix_c=B_inv_y)
 
-      CALL cp_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
-                   k=1, alpha=1.0_dp, &
-                   matrix_a=step, matrix_b=step, beta=0.0_dp, &
-                   matrix_c=s_s)
+      CALL parallel_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
+                         k=1, alpha=1.0_dp, &
+                         matrix_a=step, matrix_b=step, beta=0.0_dp, &
+                         matrix_c=s_s)
 
-      CALL cp_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
-                   k=1, alpha=1.0_dp, &
-                   matrix_a=step, matrix_b=y, beta=0.0_dp, &
-                   matrix_c=s_y)
+      CALL parallel_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
+                         k=1, alpha=1.0_dp, &
+                         matrix_a=step, matrix_b=y, beta=0.0_dp, &
+                         matrix_c=s_y)
 
       CALL cp_fm_trace(step, y, s_dot_y)
 
@@ -2049,15 +2049,15 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, inv_Hess, factor1, s_s)
 
       ! Second term
-      CALL cp_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
-                   k=1, alpha=1.0_dp, &
-                   matrix_a=B_inv_y, matrix_b=step, beta=0.0_dp, &
-                   matrix_c=B_inv_y_s)
+      CALL parallel_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
+                         k=1, alpha=1.0_dp, &
+                         matrix_a=B_inv_y, matrix_b=step, beta=0.0_dp, &
+                         matrix_c=B_inv_y_s)
 
-      CALL cp_gemm(transa="N", transb="N", m=mat_size, n=mat_size, &
-                   k=mat_size, alpha=1.0_dp, &
-                   matrix_a=s_y, matrix_b=prev_inv_Hess, beta=0.0_dp, &
-                   matrix_c=s_y_B_inv)
+      CALL parallel_gemm(transa="N", transb="N", m=mat_size, n=mat_size, &
+                         k=mat_size, alpha=1.0_dp, &
+                         matrix_a=s_y, matrix_b=prev_inv_Hess, beta=0.0_dp, &
+                         matrix_c=s_y_B_inv)
 
       CALL cp_fm_scale_and_add(1.0_dp, B_inv_y_s, 1.0_dp, s_y_B_inv)
 
@@ -2142,32 +2142,32 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, y, -1.0_dp, prev_grad)
 
       ! First term
-      CALL cp_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
-                   k=1, alpha=1.0_dp, &
-                   matrix_a=y, matrix_b=y, beta=0.0_dp, &
-                   matrix_c=y_y_t)
+      CALL parallel_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
+                         k=1, alpha=1.0_dp, &
+                         matrix_a=y, matrix_b=y, beta=0.0_dp, &
+                         matrix_c=y_y_t)
 
       CALL cp_fm_trace(y, step, y_t_s)
 
       CALL cp_fm_scale_and_add(1.0_dp, Hess, (1.0_dp/y_t_s), y_y_t)
 
       ! Second term
-      CALL cp_gemm(transa="N", transb="N", m=mat_size, n=1, &
-                   k=mat_size, alpha=1.0_dp, &
-                   matrix_a=Hess, matrix_b=step, beta=0.0_dp, &
-                   matrix_c=B_s)
+      CALL parallel_gemm(transa="N", transb="N", m=mat_size, n=1, &
+                         k=mat_size, alpha=1.0_dp, &
+                         matrix_a=Hess, matrix_b=step, beta=0.0_dp, &
+                         matrix_c=B_s)
 
       CALL cp_fm_trace(B_s, step, s_B_s)
 
-      CALL cp_gemm(transa="T", transb="N", m=1, n=mat_size, &
-                   k=mat_size, alpha=1.0_dp, &
-                   matrix_a=step, matrix_b=Hess, beta=0.0_dp, &
-                   matrix_c=s_t_B)
+      CALL parallel_gemm(transa="T", transb="N", m=1, n=mat_size, &
+                         k=mat_size, alpha=1.0_dp, &
+                         matrix_a=step, matrix_b=Hess, beta=0.0_dp, &
+                         matrix_c=s_t_B)
 
-      CALL cp_gemm(transa="N", transb="N", m=mat_size, n=mat_size, &
-                   k=1, alpha=1.0_dp, &
-                   matrix_a=B_s, matrix_b=s_t_B, beta=0.0_dp, &
-                   matrix_c=B_s_s_B)
+      CALL parallel_gemm(transa="N", transb="N", m=mat_size, n=mat_size, &
+                         k=1, alpha=1.0_dp, &
+                         matrix_a=B_s, matrix_b=s_t_B, beta=0.0_dp, &
+                         matrix_c=B_s_s_B)
 
       CALL cp_fm_scale_and_add(1.0_dp, Hess, -(1.0_dp/s_B_s), B_s_s_B)
 
@@ -2232,17 +2232,17 @@ CONTAINS
       CALL cp_fm_to_fm(grad, y)
       CALL cp_fm_scale_and_add(1.0_dp, y, -1.0_dp, prev_grad)
 
-      CALL cp_gemm(transa="N", transb="N", m=mat_size, n=1, &
-                   k=mat_size, alpha=1.0_dp, &
-                   matrix_a=Hess, matrix_b=step, beta=0.0_dp, &
-                   matrix_c=B_x)
+      CALL parallel_gemm(transa="N", transb="N", m=mat_size, n=1, &
+                         k=mat_size, alpha=1.0_dp, &
+                         matrix_a=Hess, matrix_b=step, beta=0.0_dp, &
+                         matrix_c=B_x)
 
       CALL cp_fm_scale_and_add(1.0_dp, y, -1.0_dp, B_x)
 
-      CALL cp_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
-                   k=1, alpha=1.0_dp, &
-                   matrix_a=y, matrix_b=y, beta=0.0_dp, &
-                   matrix_c=y_B_x_y_B_x)
+      CALL parallel_gemm(transa="N", transb="T", m=mat_size, n=mat_size, &
+                         k=1, alpha=1.0_dp, &
+                         matrix_a=y, matrix_b=y, beta=0.0_dp, &
+                         matrix_c=y_B_x_y_B_x)
 
       ! Scaling factor
       CALL cp_fm_trace(y, step, factor)
@@ -2286,10 +2286,10 @@ CONTAINS
       CALL cp_fm_trace(opt_embed%step, opt_embed%embed_pot_grad, lin_term)
 
       ! Quadratic term
-      CALL cp_gemm(transa="N", transb="N", m=opt_embed%dimen_aux, n=1, &
-                   k=opt_embed%dimen_aux, alpha=1.0_dp, &
-                   matrix_a=opt_embed%embed_pot_Hess, matrix_b=opt_embed%step, &
-                   beta=0.0_dp, matrix_c=H_b)
+      CALL parallel_gemm(transa="N", transb="N", m=opt_embed%dimen_aux, n=1, &
+                         k=opt_embed%dimen_aux, alpha=1.0_dp, &
+                         matrix_a=opt_embed%embed_pot_Hess, matrix_b=opt_embed%step, &
+                         beta=0.0_dp, matrix_c=H_b)
       CALL cp_fm_trace(opt_embed%step, H_b, quad_term)
 
       pred_ener_change = lin_term + 0.5_dp*quad_term

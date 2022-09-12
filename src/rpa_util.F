@@ -33,7 +33,6 @@ MODULE rpa_util
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
         cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -57,6 +56,7 @@ MODULE rpa_util
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_sum
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE rpa_gw_kpoints_util,             ONLY: compute_wkp_W
@@ -861,9 +861,9 @@ CONTAINS
       SELECT CASE (mm_style)
       CASE (wfc_mm_style_gemm)
          ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
-         CALL cp_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=alpha, &
-                      matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
-                      matrix_c=fm_mat_Q_gemm)
+         CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=alpha, &
+                            matrix_a=fm_mat_S, matrix_b=fm_mat_S, beta=0.0_dp, &
+                            matrix_c=fm_mat_Q_gemm)
       CASE (wfc_mm_style_syrk)
          ! will only compute the upper half of the matrix, which is fine, since we only use it for cholesky later
          CALL cp_fm_syrk(uplo='U', trans='N', k=dimen_ia, alpha=alpha, matrix_a=fm_mat_S, &
@@ -1282,8 +1282,8 @@ CONTAINS
 
       CALL copy_dbcsr_to_fm(mat_work, fm_mat_work)
 
-      CALL cp_gemm('N', 'N', dimen_RI_red, dimen_RI_red, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_work, &
-                   0.0_dp, fm_mat_Q)
+      CALL parallel_gemm('N', 'N', dimen_RI_red, dimen_RI_red, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_work, &
+                         0.0_dp, fm_mat_Q)
 
       ! Reset mat_work to save memory
       CALL dbcsr_set(mat_work, 0.0_dp)

@@ -18,7 +18,6 @@ MODULE qs_tddfpt2_operators
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -28,6 +27,7 @@ MODULE qs_tddfpt2_operators
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -118,9 +118,9 @@ CONTAINS
 
             IF (ASSOCIATED(gs_mos(ispin)%evals_occ_matrix)) THEN
                ! orbital energy correction: evals_occ_matrix is not a diagonal matrix
-               CALL cp_gemm('N', 'N', nao, nactive, nactive, 1.0_dp, &
-                            S_evects(ispin, ivect)%matrix, gs_mos(ispin)%evals_occ_matrix, &
-                            0.0_dp, hevec)
+               CALL parallel_gemm('N', 'N', nao, nactive, nactive, 1.0_dp, &
+                                  S_evects(ispin, ivect)%matrix, gs_mos(ispin)%evals_occ_matrix, &
+                                  0.0_dp, hevec)
             ELSE
                CALL cp_fm_to_fm(S_evects(ispin, ivect)%matrix, hevec)
                CALL cp_fm_column_scale(hevec, gs_mos(ispin)%evals_occ)
@@ -509,17 +509,17 @@ CONTAINS
             DO ispin = 1, nspins
 
                !The symmetric density matrix
-               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
-                            gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
-               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, gs_mos(ispin)%mos_occ, &
-                            evects(ispin, ivect)%matrix, 1.0_dp, wfm_rho_orb)
+               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
+                                  gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
+               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, gs_mos(ispin)%mos_occ, &
+                                  evects(ispin, ivect)%matrix, 1.0_dp, wfm_rho_orb)
 
                CALL dbcsr_set(work_hmat_symm(ispin)%matrix, 0.0_dp)
                IF (do_admm) THEN
-                  CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
-                               wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
-                  CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
-                               0.0_dp, admm_env%work_aux_aux)
+                  CALL parallel_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
+                                     wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
+                  CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
+                                     0.0_dp, admm_env%work_aux_aux)
                   CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao_symm(ispin)%matrix, keep_sparsity=.TRUE.)
                ELSE
                   CALL copy_fm_to_dbcsr(wfm_rho_orb, work_rho_ia_ao_symm(ispin)%matrix, keep_sparsity=.TRUE.)
@@ -533,11 +533,11 @@ CONTAINS
                   CALL cp_dbcsr_sm_fm_multiply(work_hmat_symm(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
                                                ncol=nao, alpha=1.0_dp, beta=0.0_dp)
 
-                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
-                               admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
+                  CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
+                                     admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
-                  CALL cp_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                               gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+                  CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
+                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
                END DO
             ELSE
                DO ispin = 1, nspins
@@ -551,17 +551,17 @@ CONTAINS
             DO ispin = 1, nspins
 
                !The symmetric density matrix
-               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
-                            gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
-               CALL cp_gemm('N', 'T', nao, nao, nactive(ispin), -0.5_dp, gs_mos(ispin)%mos_occ, &
-                            evects(ispin, ivect)%matrix, 1.0_dp, wfm_rho_orb)
+               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 0.5_dp, evects(ispin, ivect)%matrix, &
+                                  gs_mos(ispin)%mos_occ, 0.0_dp, wfm_rho_orb)
+               CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), -0.5_dp, gs_mos(ispin)%mos_occ, &
+                                  evects(ispin, ivect)%matrix, 1.0_dp, wfm_rho_orb)
 
                CALL dbcsr_set(work_hmat_asymm(ispin)%matrix, 0.0_dp)
                IF (do_admm) THEN
-                  CALL cp_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
-                               wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
-                  CALL cp_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
-                               0.0_dp, admm_env%work_aux_aux)
+                  CALL parallel_gemm('N', 'N', nao_aux, nao, nao, 1.0_dp, admm_env%A, &
+                                     wfm_rho_orb, 0.0_dp, admm_env%work_aux_orb)
+                  CALL parallel_gemm('N', 'T', nao_aux, nao_aux, nao, 1.0_dp, admm_env%work_aux_orb, admm_env%A, &
+                                     0.0_dp, admm_env%work_aux_aux)
                   CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, work_rho_ia_ao_asymm(ispin)%matrix, keep_sparsity=.TRUE.)
                ELSE
                   CALL copy_fm_to_dbcsr(wfm_rho_orb, work_rho_ia_ao_asymm(ispin)%matrix, keep_sparsity=.TRUE.)
@@ -575,11 +575,11 @@ CONTAINS
                   CALL cp_dbcsr_sm_fm_multiply(work_hmat_asymm(ispin)%matrix, admm_env%A, admm_env%work_aux_orb, &
                                                ncol=nao, alpha=1.0_dp, beta=0.0_dp)
 
-                  CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
-                               admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
+                  CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, admm_env%A, &
+                                     admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
-                  CALL cp_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                               gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
+                  CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
+                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect)%matrix)
                END DO
             ELSE
                DO ispin = 1, nspins

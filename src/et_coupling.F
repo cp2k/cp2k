@@ -24,7 +24,6 @@ MODULE et_coupling
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -37,6 +36,7 @@ MODULE et_coupling
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -137,9 +137,9 @@ CONTAINS
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, qs_env%et_coupling%et_mo_coeff(i)%matrix, &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
-         CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                      qs_env%mos(i)%mo_set%mo_coeff, &
-                      tmp2, 0.0_dp, SMO)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                            qs_env%mos(i)%mo_set%mo_coeff, &
+                            tmp2, 0.0_dp, SMO)
 
 !    calculate the MO-representation of the restraint matrix A
 
@@ -147,9 +147,9 @@ CONTAINS
                                       qs_env%et_coupling%et_mo_coeff(i)%matrix, &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
 
-         CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                      qs_env%mos(i)%mo_set%mo_coeff, &
-                      tmp2, 0.0_dp, rest_MO(1)%matrix)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                            qs_env%mos(i)%mo_set%mo_coeff, &
+                            tmp2, 0.0_dp, rest_MO(1)%matrix)
 
 !    calculate the MO-representation of the restraint matrix D
 
@@ -157,9 +157,9 @@ CONTAINS
                                       qs_env%mos(i)%mo_set%mo_coeff, &
                                       tmp2, nmo, 1.0_dp, 0.0_dp)
 
-         CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
-                      qs_env%et_coupling%et_mo_coeff(i)%matrix, &
-                      tmp2, 0.0_dp, rest_MO(2)%matrix)
+         CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, &
+                            qs_env%et_coupling%et_mo_coeff(i)%matrix, &
+                            tmp2, 0.0_dp, rest_MO(2)%matrix)
 
          CALL cp_fm_invert(SMO, inverse_mat, S_det(i))
 

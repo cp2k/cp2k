@@ -39,12 +39,13 @@ MODULE input_cp2k_global
                                               GRID_BACKEND_REF
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
-        do_atom, do_band, do_cosma, do_cp2k, do_diag_elpa, do_diag_scalapack, do_farming, &
-        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
-        energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
-        fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
-        negf_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
+        do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_diag_elpa, &
+        do_diag_scalapack, do_farming, do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, &
+        do_scalapack, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, &
+        ehrenfest, electronic_spectra_run, energy_force_run, energy_run, fftw_plan_estimate, &
+        fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, &
+        linear_response_run, mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, &
+        real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -79,7 +80,7 @@ CONTAINS
    SUBROUTINE create_global_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      INTEGER                                            :: default_diag
+      INTEGER                                            :: default_dgemm, default_diag
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, sub_section
 
@@ -123,6 +124,24 @@ CONTAINS
                           enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL"), &
                           enum_desc=s2a("ELPA library", "ScaLAPACK library", "ScaLAPACK library"), &
                           citations=(/Marek2014/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+      default_dgemm = do_dgemm_spla
+#else
+      default_dgemm = do_dgemm_blas
+#endif
+      CALL keyword_create(keyword, __LOCATION__, name="PREFERRED_DGEMM_LIBRARY", &
+                          description="Specifies the DGEMM library to be used. If not available, "// &
+                          "the BLAS routine is used. This keyword affects some DGEMM calls in the WFC code and turns on their "// &
+                          "acceleration with SpLA. This keyword affects only local DGEMM calls, not the calls to PDGEMM "// &
+                          "(see keyword FM%TYPE_OF_MATRIX_MULTIPLICATION).", &
+                          usage="PREFERRED_DGEMM_LIBRARY SPLA", &
+                          default_i_val=default_dgemm, &
+                          enum_i_vals=(/do_dgemm_spla, do_dgemm_blas/), &
+                          enum_c_vals=s2a("SPLA", "BLAS"), &
+                          enum_desc=s2a("SPLA library", "BLAS library"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

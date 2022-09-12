@@ -20,7 +20,6 @@ MODULE wannier_states
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -34,6 +33,7 @@ MODULE wannier_states
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE wannier_states_types,            ONLY: wannier_centres_type
@@ -144,8 +144,8 @@ CONTAINS
       DO i = 1, ns
          CALL cp_fm_to_fm(mo_localized, b, 1, states(i), 1)
          CALL cp_dbcsr_sm_fm_multiply(Hks, b, c, 1)
-         CALL cp_gemm('T', 'N', 1, 1, nrow_global, 1.0_dp, &
-                      b, c, 0.0_dp, d)
+         CALL parallel_gemm('T', 'N', 1, 1, nrow_global, 1.0_dp, &
+                            b, c, 0.0_dp, d)
          CALL cp_fm_get_element(d, 1, 1, WannierCentres%WannierHamDiag(i))
          !               if (iproc==para_env%mepos) WRITE(unit_mat,'(f16.8,2x)', advance='no')WannierCentres%WannierHamDiag(i)
          IF (unit_mat > 0) WRITE (unit_mat, '(i0,1x,4(f16.8,2x))') states(i), &

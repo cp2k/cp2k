@@ -18,7 +18,6 @@ MODULE qs_tddfpt2_fhxc
                                               cp_fm_p_type,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
@@ -28,6 +27,7 @@ MODULE qs_tddfpt2_fhxc
                                               dp
    USE lri_environment_types,           ONLY: lri_kind_type
    USE message_passing,                 ONLY: mp_sum
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_env_types,                    ONLY: pw_env_get
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_scale,&
@@ -346,8 +346,8 @@ CONTAINS
                   DO ispin = 1, nspins
                      CALL cp_dbcsr_sm_fm_multiply(A_xc_munu_sub(ispin)%matrix, sub_env%admm_A, &
                                                   work_aux_orb, nao)
-                     CALL cp_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, sub_env%admm_A, &
-                                  work_aux_orb, 0.0_dp, work_orb_orb)
+                     CALL parallel_gemm('T', 'N', nao, nao, nao_aux, 1.0_dp, sub_env%admm_A, &
+                                        work_aux_orb, 0.0_dp, work_orb_orb)
                      CALL dbcsr_copy(dbwork, work_matrices%A_ia_munu_sub(1)%matrix)
                      CALL dbcsr_set(dbwork, 0.0_dp)
                      CALL copy_fm_to_dbcsr(work_orb_orb, dbwork, keep_sparsity=.TRUE.)

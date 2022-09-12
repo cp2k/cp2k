@@ -32,7 +32,6 @@ MODULE qs_linres_methods
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -61,6 +60,7 @@ MODULE qs_linres_methods
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE message_passing,                 ONLY: mp_bcast
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: apply_preconditioner,&
                                               make_preconditioner
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
@@ -306,7 +306,7 @@ CONTAINS
          CALL cp_fm_create(buf, mo_coeff%matrix_struct)
          CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, mo_coeff, buf, ncol)
-         CALL cp_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin)%matrix)
+         CALL parallel_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin)%matrix)
          CALL cp_fm_release(buf)
          !
          ! S * C0
@@ -666,7 +666,7 @@ CONTAINS
       ! H * v
       CALL cp_dbcsr_sm_fm_multiply(matrix_ks, v, Av, ncol)
       ! v * e  (chc already multiplied by -1)
-      CALL cp_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, v, chc, 0.0_dp, buf)
+      CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, v, chc, 0.0_dp, buf)
       ! S * ve
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, buf, Av, ncol, alpha=1.0_dp, beta=1.0_dp)
       !Results is H*C1 - S*<iHj>*C1
@@ -719,9 +719,9 @@ CONTAINS
          CPASSERT(nt == nv)
          !
          ! buf = v' * S_psi0
-         CALL cp_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin)%matrix, S_psi0(ispin)%matrix, 0.0_dp, buf)
+         CALL parallel_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin)%matrix, S_psi0(ispin)%matrix, 0.0_dp, buf)
          ! v = v - psi0 * buf'
-         CALL cp_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
          CALL cp_fm_release(buf)
       END DO
@@ -771,9 +771,9 @@ CONTAINS
          CPASSERT(nt == nv)
          !
          ! buf = v' * psi0
-         CALL cp_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin)%matrix, psi0(ispin)%matrix, 0.0_dp, buf)
+         CALL parallel_gemm('T', 'N', mv, mp, nv, 1.0_dp, v(ispin)%matrix, psi0(ispin)%matrix, 0.0_dp, buf)
          ! v = v - S_psi0 * buf'
-         CALL cp_gemm('N', 'T', nv, mv, mp, -1.0_dp, S_psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
+         CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, S_psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
          CALL cp_fm_release(buf)
       END DO

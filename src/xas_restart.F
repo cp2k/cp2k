@@ -31,7 +31,6 @@ MODULE xas_restart
                                               cp_fm_set_submatrix,&
                                               cp_fm_type,&
                                               cp_fm_write_unformatted
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -47,6 +46,7 @@ MODULE xas_restart
                                               default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_bcast
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -493,8 +493,8 @@ CONTAINS
       ! ** use the maximum overlap criterion to find the index of the excited orbital
       CALL cp_fm_create(fm_work, mo_coeff%matrix_struct)
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, fm_work, ncol=nmo)
-      CALL cp_gemm("T", "N", 1, xas_env%nexc_search, nao, 1.0_dp, excvec_coeff, &
-                   fm_work, 0.0_dp, excvec_overlap, b_first_col=1)
+      CALL parallel_gemm("T", "N", 1, xas_env%nexc_search, nao, 1.0_dp, excvec_coeff, &
+                         fm_work, 0.0_dp, excvec_overlap, b_first_col=1)
       CALL cp_fm_get_info(matrix=excvec_overlap, col_indices=col_indices, &
                           nrow_global=m, ncol_global=n)
       CALL cp_fm_get_submatrix(excvec_overlap, vecbuffer2, 1, 1, &

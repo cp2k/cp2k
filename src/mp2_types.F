@@ -34,10 +34,10 @@ MODULE mp2_types
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
-                                              offload_gemm_create,&
-                                              offload_gemm_destroy,&
-                                              offload_gemm_set_op_threshold_gpu
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm_create,&
+                                              local_gemm_destroy,&
+                                              local_gemm_set_op_threshold_gpu
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
 #include "./base/base_uses.f90"
@@ -267,7 +267,7 @@ MODULE mp2_types
       LOGICAL  :: do_svd
       REAL(KIND=dp) :: eps_range
       TYPE(libint_potential_type) :: ri_metric
-      TYPE(C_ptr)                 :: offload_gemm_ctx
+      TYPE(C_ptr)                 :: local_gemm_ctx
    END TYPE
 
    TYPE integ_mat_buffer_type
@@ -320,7 +320,7 @@ CONTAINS
       IF (ASSOCIATED(mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w)) DEALLOCATE (mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w)
       IF (ASSOCIATED(mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t)) DEALLOCATE (mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t)
 
-      CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
+      CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
 
       CALL timestop(handle)
 
@@ -346,8 +346,8 @@ CONTAINS
       ! these two functions are empty if spla is build without gpu support and
       ! OFFLOAD_GEMM is not given at compilation time
 
-      CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
-      CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
+      CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
+      CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
 
       NULLIFY (mp2_env%ri_rpa%x_data)
 

@@ -37,7 +37,6 @@ MODULE qs_scf_methods
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
@@ -49,6 +48,7 @@ MODULE qs_scf_methods
                                               cholesky_restore
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_max
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_density_mixing_types,         ONLY: mixing_storage_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
@@ -358,8 +358,8 @@ CONTAINS
       IF (use_jacobi) THEN
 
          CALL cp_fm_symm("L", "U", nao, homo, 1.0_dp, matrix_ks_fm, mo_coeff, 0.0_dp, work)
-         CALL cp_gemm("T", "N", homo, nao - homo, nao, 1.0_dp, work, mo_coeff, &
-                      0.0_dp, matrix_ks_fm, b_first_col=homo + 1, c_first_col=homo + 1)
+         CALL parallel_gemm("T", "N", homo, nao - homo, nao, 1.0_dp, work, mo_coeff, &
+                            0.0_dp, matrix_ks_fm, b_first_col=homo + 1, c_first_col=homo + 1)
 
          ! Block Jacobi (pseudo-diagonalization, only one sweep)
          CALL cp_fm_block_jacobi(matrix_ks_fm, mo_coeff, mo_eigenvalues, &
@@ -368,7 +368,7 @@ CONTAINS
       ELSE ! full S^(-1/2) has been computed
 
          CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, matrix_ks_fm, ortho, 0.0_dp, work)
-         CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, matrix_ks_fm)
+         CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, matrix_ks_fm)
 
          IF (do_level_shift) &
             CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao, &
@@ -376,8 +376,8 @@ CONTAINS
 
          CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
 
-         CALL cp_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, &
-                      mo_coeff)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, &
+                            mo_coeff)
 
          IF (do_level_shift) &
             CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
@@ -438,8 +438,8 @@ CONTAINS
 
       IF (use_jacobi) THEN
          CALL cp_fm_symm("L", "U", nao, homo, 1.0_dp, matrix_ks, mo_coeff, 0.0_dp, work)
-         CALL cp_gemm("T", "N", homo, nao - homo, nao, 1.0_dp, work, mo_coeff, &
-                      0.0_dp, matrix_ks, b_first_col=homo + 1, c_first_col=homo + 1)
+         CALL parallel_gemm("T", "N", homo, nao - homo, nao, 1.0_dp, work, mo_coeff, &
+                            0.0_dp, matrix_ks, b_first_col=homo + 1, c_first_col=homo + 1)
          ! Block Jacobi (pseudo-diagonalization, only one sweep)
          CALL cp_fm_block_jacobi(matrix_ks, mo_coeff, mo_eigenvalues, jacobi_threshold, homo + 1)
       ELSE
@@ -811,7 +811,7 @@ CONTAINS
             CALL cp_fm_triangular_multiply(matrix_u_fm, u_mo, side="L", transpose_tr=.FALSE., &
                                            invert_tr=.FALSE., uplo_tr="U", n_rows=nao, n_cols=nmo, alpha=1.0_dp)
          ELSE
-            CALL cp_gemm("N", "N", nao, nmo, nao, 1.0_dp, matrix_u_fm, mo_coeff, 0.0_dp, u_mo)
+            CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, matrix_u_fm, mo_coeff, 0.0_dp, u_mo)
          END IF
       ELSE
          ! assume U is an identity matrix
@@ -832,7 +832,7 @@ CONTAINS
       DEALLOCATE (weights)
 
       ! NewKS = U^{-1,T} * KS * U^{-1} + (U * C) * DELTA * (U * C)^T
-      CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, u_mo, u_mo_scaled, 1.0_dp, matrix_ks_fm)
+      CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, u_mo, u_mo_scaled, 1.0_dp, matrix_ks_fm)
 
       CALL cp_fm_release(u_mo_scaled)
       CALL cp_fm_release(u_mo)

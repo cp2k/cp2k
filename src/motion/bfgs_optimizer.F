@@ -39,7 +39,7 @@ MODULE bfgs_optimizer
                           cp_fm_to_fm, &
                           cp_fm_type, &
                           cp_fm_write_unformatted
-   USE cp_gemm_interface, ONLY: cp_gemm
+   USE parallel_gemm_api, ONLY: parallel_gemm
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_type, &
                               cp_to_string
@@ -246,7 +246,7 @@ CONTAINS
             END DO
             CALL cp_fm_to_fm(eigvec_mat, hess_tmp)
             CALL cp_fm_column_scale(eigvec_mat, eigval)
-            CALL cp_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, hess_mat)
+            CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, hess_mat)
          END IF
       ELSE
          CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
@@ -774,7 +774,7 @@ CONTAINS
       CALL cp_fm_get_info(eigvec_mat, matrix_struct=matrix_struct)
       CALL cp_fm_create(tmp, matrix_struct, name="tmp")
 
-      CALL cp_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, tmp)
+      CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, tmp)
 
       CALL cp_fm_transpose(tmp, hess_tmp)
       CALL cp_fm_release(tmp)

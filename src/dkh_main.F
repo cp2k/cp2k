@@ -25,8 +25,8 @@ MODULE dkh_main
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE kinds,                           ONLY: dp
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: c_light_au
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -192,7 +192,7 @@ CONTAINS
 
       CALL cp_fm_to_fm(matrix_rev, matrix_aux)
       CALL cp_fm_column_scale(matrix_aux, ev0t)
-      CALL cp_gemm("N", "T", n, n, n, 1.0_dp, matrix_rev, matrix_aux, 0.0_dp, matrix_t)
+      CALL parallel_gemm("N", "T", n, n, n, 1.0_dp, matrix_rev, matrix_aux, 0.0_dp, matrix_t)
 
       !-----------------------------------------------------------------------
       !     Calculate kinematical factors for DKH
@@ -210,8 +210,8 @@ CONTAINS
 
       CALL cp_fm_cholesky_reduce(matrix_v, matrix_sinv)
       CALL cp_fm_upper_to_full(matrix_v, matrix_aux)
-      CALL cp_gemm("T", "N", n, n, n, 1.0_dp, matrix_eig, matrix_v, 0.0_dp, matrix_aux)
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_aux, matrix_eig, 0.0_dp, matrix_v)
+      CALL parallel_gemm("T", "N", n, n, n, 1.0_dp, matrix_eig, matrix_v, 0.0_dp, matrix_aux)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_aux, matrix_eig, 0.0_dp, matrix_v)
 
       !-----------------------------------------------------------------------
       !     Transform pVp integrals to T-basis (pVp -> pVp(t))
@@ -219,8 +219,8 @@ CONTAINS
 
       CALL cp_fm_cholesky_reduce(matrix_pVp, matrix_sinv)
       CALL cp_fm_upper_to_full(matrix_pVp, matrix_aux)
-      CALL cp_gemm("T", "N", n, n, n, 1.0_dp, matrix_eig, matrix_pVp, 0.0_dp, matrix_aux)
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_aux, matrix_eig, 0.0_dp, matrix_pVp)
+      CALL parallel_gemm("T", "N", n, n, n, 1.0_dp, matrix_eig, matrix_pVp, 0.0_dp, matrix_aux)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_aux, matrix_eig, 0.0_dp, matrix_pVp)
 
       !-----------------------------------------------------------------------
       !     Calculate even1 in T-basis
@@ -246,8 +246,8 @@ CONTAINS
          !     Transform even3 back to position space
          !-----------------------------------------------------------------------
 
-         CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_rev, matrix_ev3, 0.0_dp, matrix_aux)
-         CALL cp_gemm("N", "T", n, n, n, 1.0_dp, matrix_aux, matrix_rev, 0.0_dp, matrix_ev3)
+         CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_rev, matrix_ev3, 0.0_dp, matrix_aux)
+         CALL parallel_gemm("N", "T", n, n, n, 1.0_dp, matrix_aux, matrix_rev, 0.0_dp, matrix_ev3)
 
          !-----------------------------------------------------------------------
          !     Calculate even4 in T-basis, only if requested
@@ -262,8 +262,8 @@ CONTAINS
             !     Transform even4 back to position space
             !-----------------------------------------------------------------------
 
-            !        CALL cp_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev4,0.0_dp,matrix_aux)
-            !        CALL cp_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev4)
+            !        CALL parallel_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev4,0.0_dp,matrix_aux)
+            !        CALL parallel_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev4)
 
          END IF
       END IF
@@ -272,15 +272,15 @@ CONTAINS
       !     Transform even1 back to position space
       !----------------------------------------------------------------------
 
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_rev, matrix_ev1, 0.0_dp, matrix_aux)
-      CALL cp_gemm("N", "T", n, n, n, 1.0_dp, matrix_aux, matrix_rev, 0.0_dp, matrix_ev1)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_rev, matrix_ev1, 0.0_dp, matrix_aux)
+      CALL parallel_gemm("N", "T", n, n, n, 1.0_dp, matrix_aux, matrix_rev, 0.0_dp, matrix_ev1)
 
       !-----------------------------------------------------------------------
       !     Transform even2 back to position space
       !-----------------------------------------------------------------------
 
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_rev, matrix_ev2, 0.0_dp, matrix_aux)
-      CALL cp_gemm("N", "T", n, n, n, 1.0_dp, matrix_aux, matrix_rev, 0.0_dp, matrix_ev2)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_rev, matrix_ev2, 0.0_dp, matrix_aux)
+      CALL parallel_gemm("N", "T", n, n, n, 1.0_dp, matrix_aux, matrix_rev, 0.0_dp, matrix_ev2)
 
       !-----------------------------------------------------------------------
       !     Calculate v in position space
@@ -547,17 +547,17 @@ CONTAINS
 
       !  Calculate w1o1:
 
-      CALL cp_gemm("N", "N", n, n, n, -1.0_dp, matrix_apVVpa, matrix_ava, 0.0_dp, matrix_aux2)
+      CALL parallel_gemm("N", "N", n, n, n, -1.0_dp, matrix_apVVpa, matrix_ava, 0.0_dp, matrix_aux2)
       CALL mat_muld(matrix_aux2, matrix_apVVpa, matrix_apVpa, n, 1.0_dp, 1.0_dp, tt, rr, matrix_aux)
       CALL mat_mulm(matrix_aux2, matrix_avva, matrix_ava, n, 1.0_dp, 1.0_dp, tt, rr, matrix_aux)
-      CALL cp_gemm("N", "N", n, n, n, -1.0_dp, matrix_avva, matrix_apVpa, 1.0_dp, matrix_aux2)
+      CALL parallel_gemm("N", "N", n, n, n, -1.0_dp, matrix_avva, matrix_apVpa, 1.0_dp, matrix_aux2)
 
       !  Calculate o1w1 (already stored in ev2):
 
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_apVpa, matrix_avva, 0.0_dp, matrix_ev2)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_apVpa, matrix_avva, 0.0_dp, matrix_ev2)
       CALL mat_muld(matrix_ev2, matrix_apVpa, matrix_apVVpa, n, -1.0_dp, 1.0_dp, tt, rr, matrix_aux)
       CALL mat_mulm(matrix_ev2, matrix_ava, matrix_avva, n, -1.0_dp, 1.0_dp, tt, rr, matrix_aux)
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_ava, matrix_apVVpa, 1.0_dp, matrix_ev2)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_ava, matrix_apVVpa, 1.0_dp, matrix_ev2)
 
       !-----------------------------------------------------------------------
       !     2.   1/2 [W1,O1] = 1/2 W1O1 -  1/2 O1W1
@@ -685,26 +685,26 @@ CONTAINS
 
       !  Calculate w1w1:
 
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_apVVpa, matrix_avva, 0.0_dp, matrix_w1w1)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_apVVpa, matrix_avva, 0.0_dp, matrix_w1w1)
       CALL mat_muld(matrix_w1w1, matrix_apVVpa, matrix_apVVpa, n, -1.0_dp, 1.0_dp, tt, rr, matrix_aux2)
       CALL mat_mulm(matrix_w1w1, matrix_avva, matrix_avva, n, -1.0_dp, 1.0_dp, tt, rr, matrix_aux2)
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_avva, matrix_apVVpa, 1.0_dp, matrix_w1w1)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_avva, matrix_apVVpa, 1.0_dp, matrix_w1w1)
 
       !  Calculate w1e1w1: (warning: ev3 is scratch array)
 
       CALL mat_muld(matrix_aux, matrix_apVVpa, matrix_pe1p, n, 1.0_dp, 0.0_dp, tt, rr, matrix_aux2)
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_avva, matrix_pe1p, 0.0_dp, matrix_aux2)
-      CALL cp_gemm("N", "N", n, n, n, 1.0_dp, matrix_aux, matrix_avva, 0.0_dp, matrix_w1e1w1)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_avva, matrix_pe1p, 0.0_dp, matrix_aux2)
+      CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_aux, matrix_avva, 0.0_dp, matrix_w1e1w1)
       CALL mat_muld(matrix_w1e1w1, matrix_aux, matrix_apVVpa, n, -1.0_dp, 1.0_dp, tt, rr, matrix_ev3)
-      CALL cp_gemm("N", "N", n, n, n, -1.0_dp, matrix_aux2, matrix_avva, 1.0_dp, matrix_w1e1w1)
+      CALL parallel_gemm("N", "N", n, n, n, -1.0_dp, matrix_aux2, matrix_avva, 1.0_dp, matrix_w1e1w1)
       CALL mat_muld(matrix_w1e1w1, matrix_aux2, matrix_apVVpa, n, 1.0_dp, 1.0_dp, tt, rr, matrix_ev3)
 
       !-----------------------------------------------------------------------
       !     2.   ev3 = 1/2 (W1^2)E1 + 1/2 E1(W1^2) - W1E1W1
       !-----------------------------------------------------------------------
 
-      CALL cp_gemm("N", "N", n, n, n, 0.5_dp, matrix_w1w1, matrix_ev1, 0.0_dp, matrix_ev3)
-      CALL cp_gemm("N", "N", n, n, n, 0.5_dp, matrix_ev1, matrix_w1w1, 1.0_dp, matrix_ev3)
+      CALL parallel_gemm("N", "N", n, n, n, 0.5_dp, matrix_w1w1, matrix_ev1, 0.0_dp, matrix_ev3)
+      CALL parallel_gemm("N", "N", n, n, n, 0.5_dp, matrix_ev1, matrix_w1w1, 1.0_dp, matrix_ev3)
       CALL cp_fm_scale_and_add(1.0_dp, matrix_ev3, -1.0_dp, matrix_w1e1w1)
 
       !-----------------------------------------------------------------------
@@ -1203,7 +1203,7 @@ CONTAINS
       END DO
       CALL cp_fm_column_scale(matrix_aux, vec)
 
-      CALL cp_gemm("N", "N", n, n, n, alpha, matrix_aux, matrix_r, beta, matrix_p)
+      CALL parallel_gemm("N", "N", n, n, n, alpha, matrix_aux, matrix_r, beta, matrix_p)
 
    END SUBROUTINE mat_mulm
 
@@ -1255,7 +1255,7 @@ CONTAINS
 
       CALL cp_fm_column_scale(matrix_aux, vec)
 
-      CALL cp_gemm("N", "N", n, n, n, alpha, matrix_aux, matrix_r, beta, matrix_p)
+      CALL parallel_gemm("N", "N", n, n, n, alpha, matrix_aux, matrix_r, beta, matrix_p)
 
    END SUBROUTINE mat_muld
 

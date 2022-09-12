@@ -42,7 +42,6 @@ MODULE library_tests
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -81,6 +80,7 @@ MODULE library_tests
                                               mpi_perf_test
    USE minimax_exp,                     ONLY: validate_exp_minimax
    USE mp2_grids,                       ONLY: test_least_square_ft
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE parallel_rng_types,              ONLY: UNIFORM,&
                                               rng_stream_type
    USE pw_grid_types,                   ONLY: FULLSPACE,&
@@ -1388,7 +1388,7 @@ CONTAINS
          t1 = m_walltime()
          DO i_loop = 1, N_loop
             t3 = m_walltime()
-            CALL cp_gemm(transa, transb, k, n, m, 1.0_dp, matrix_a, matrix_b, 0.0_dp, matrix_c)
+            CALL parallel_gemm(transa, transb, k, n, m, 1.0_dp, matrix_a, matrix_b, 0.0_dp, matrix_c)
             t4 = m_walltime()
             IF (iw > 0) THEN
                WRITE (iw, '(T2,A,T50,F12.6)') "cp_fm_gemm timing: ", (t4 - t3)

@@ -26,7 +26,6 @@ MODULE qs_dcdr_utils
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
         cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -54,6 +53,7 @@ MODULE qs_dcdr_utils
    USE message_passing,                 ONLY: mp_bcast
    USE molecule_types,                  ONLY: molecule_type
    USE moments_utils,                   ONLY: get_reference_point
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -982,9 +982,9 @@ CONTAINS
       ! chc = mo * matrix_ks * mo
       CALL cp_fm_get_info(buf)
       CALL cp_fm_get_info(dcdr_env%chc(1)%matrix)
-      CALL cp_gemm('T', 'N', nmo, nmo, nao, &
-                   1.0_dp, mo_coeff, buf, &
-                   0.0_dp, dcdr_env%chc(1)%matrix)
+      CALL parallel_gemm('T', 'N', nmo, nmo, nao, &
+                         1.0_dp, mo_coeff, buf, &
+                         0.0_dp, dcdr_env%chc(1)%matrix)
 
       CALL cp_fm_release(buf)
 

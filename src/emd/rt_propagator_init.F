@@ -28,7 +28,6 @@ MODULE rt_propagator_init
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -45,6 +44,7 @@ MODULE rt_propagator_init
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
    USE matrix_exp,                      ONLY: get_nsquare_norder
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: mo_set_p_type
@@ -263,10 +263,10 @@ CONTAINS
          CALL cp_fm_upper_to_full(H_fm, tmp_mat_H)
          CALL cp_fm_scale(t, H_fm)
 
-         CALL cp_gemm("N", "N", ndim, ndim, ndim, one, H_fm, S_minus_half, zero, &
-                      tmp_mat_H)
-         CALL cp_gemm("N", "N", ndim, ndim, ndim, one, S_minus_half, tmp_mat_H, zero, &
-                      H_fm)
+         CALL parallel_gemm("N", "N", ndim, ndim, ndim, one, H_fm, S_minus_half, zero, &
+                            tmp_mat_H)
+         CALL parallel_gemm("N", "N", ndim, ndim, ndim, one, S_minus_half, tmp_mat_H, zero, &
+                            H_fm)
 
          CALL cp_fm_syevd(H_fm, tmp_mat_H, eigval_H)
          min_eval = MINVAL(eigval_H)
@@ -397,8 +397,8 @@ CONTAINS
             tmp%local_data(j, i) = eigenvec%local_data(j, i)*Eval(l)
          END DO
       END DO
-      CALL cp_gemm("N", "T", ndim, ndim, ndim, one, tmp, eigenvec, zero, &
-                   matrix)
+      CALL parallel_gemm("N", "T", ndim, ndim, ndim, one, tmp, eigenvec, zero, &
+                         matrix)
 
       CALL cp_fm_release(tmp)
       CALL timestop(handle)

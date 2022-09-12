@@ -25,7 +25,6 @@ MODULE rpa_im_time
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
@@ -50,6 +49,7 @@ MODULE rpa_im_time
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_sync
    USE mp2_types,                       ONLY: mp2_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -790,13 +790,13 @@ CONTAINS
          size_dm_occ = nmo
          size_dm_virt = nmo
 
-         CALL cp_gemm(transa="N", transb="T", m=size_dm_occ, n=size_dm_occ, k=nmo, alpha=1.0_dp, &
-                      matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
-                      matrix_c=fm_scaled_dm_occ_tau)
+         CALL parallel_gemm(transa="N", transb="T", m=size_dm_occ, n=size_dm_occ, k=nmo, alpha=1.0_dp, &
+                            matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
+                            matrix_c=fm_scaled_dm_occ_tau)
 
-         CALL cp_gemm(transa="N", transb="T", m=size_dm_virt, n=size_dm_virt, k=nmo, alpha=1.0_dp, &
-                      matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
-                      matrix_c=fm_scaled_dm_virt_tau)
+         CALL parallel_gemm(transa="N", transb="T", m=size_dm_virt, n=size_dm_virt, k=nmo, alpha=1.0_dp, &
+                            matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
+                            matrix_c=fm_scaled_dm_virt_tau)
 
          IF (jquad == 1) THEN
 
@@ -947,12 +947,12 @@ CONTAINS
             CALL cp_fm_column_scale(fwork, exp_scaling)
 
             ! Re(c)*Re(c)
-            CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, rpmat)
+            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, rpmat)
             mo_set => kp%mos(2, ispin)%mo_set
             ! Im(c)*Re(c)
-            CALL cp_gemm("N", "T", nao, nao, nmo, -1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, cpmat)
+            CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, cpmat)
             ! Re(c)*Im(c)
-            CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, fwork, mo_set%mo_coeff, 1.0_dp, cpmat)
+            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, fwork, mo_set%mo_coeff, 1.0_dp, cpmat)
 
             CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
 
@@ -978,7 +978,7 @@ CONTAINS
 
             CALL cp_fm_column_scale(fwork, exp_scaling)
             ! Im(c)*Im(c)
-            CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 1.0_dp, rpmat)
+            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 1.0_dp, rpmat)
 
          END DO
 

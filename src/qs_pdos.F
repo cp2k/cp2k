@@ -33,7 +33,6 @@ MODULE qs_pdos
                                               cp_fm_init_random,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -56,6 +55,7 @@ MODULE qs_pdos
                                               nsoset
    USE orbital_symbols,                 ONLY: l_sym,&
                                               sgf_symbol
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE preconditioner_types,            ONLY: preconditioner_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -274,8 +274,8 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                nrow_global=nrow_global, ncol_global=ncol_global)
       CALL cp_fm_create(matrix_shalfc, fm_struct_tmp, name="matrix_shalfc")
-      CALL cp_gemm("N", "N", nrow_global, ncol_global, nrow_global, &
-                   1.0_dp, matrix_shalf, mo_coeff, 0.0_dp, matrix_shalfc)
+      CALL parallel_gemm("N", "N", nrow_global, ncol_global, nrow_global, &
+                         1.0_dp, matrix_shalf, mo_coeff, 0.0_dp, matrix_shalfc)
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       IF (do_virt) THEN
@@ -284,8 +284,8 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                   nrow_global=nrow_global, ncol_global=nvirt)
          CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_shalfc")
-         CALL cp_gemm("N", "N", nrow_global, nvirt, nrow_global, &
-                      1.0_dp, matrix_shalf, mo_virt, 0.0_dp, matrix_work)
+         CALL parallel_gemm("N", "N", nrow_global, nvirt, nrow_global, &
+                            1.0_dp, matrix_shalf, mo_virt, 0.0_dp, matrix_work)
          CALL cp_fm_struct_release(fm_struct_tmp)
       END IF
 

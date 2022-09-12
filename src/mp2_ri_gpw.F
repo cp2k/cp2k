@@ -30,6 +30,11 @@ MODULE mp2_ri_gpw
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm,&
+                                              local_gemm_create,&
+                                              local_gemm_destroy,&
+                                              local_gemm_set_op_threshold_gpu
    USE machine,                         ONLY: m_flush,&
                                               m_memory,&
                                               m_walltime
@@ -42,11 +47,6 @@ MODULE mp2_ri_gpw
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: mp2_type,&
                                               three_dim_real_array
-   USE offload_gemm,                    ONLY: OFFLOAD_GEMM_PU_GPU,&
-                                              offload_dgemm,&
-                                              offload_gemm_create,&
-                                              offload_gemm_destroy,&
-                                              offload_gemm_set_op_threshold_gpu
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -149,11 +149,11 @@ CONTAINS
 
       CALL dgemm_counter_init(dgemm_counter, unit_nr, mp2_env%ri_mp2%print_dgemm_info)
 
-      ! offload_gemm_ctx has a very footprint the first time this routine is
+      ! local_gemm_ctx has a very footprint the first time this routine is
       ! called.
-      IF (.NOT. c_associated(mp2_env%offload_gemm_ctx)) THEN
-         CALL offload_gemm_create(mp2_env%offload_gemm_ctx, OFFLOAD_GEMM_PU_GPU)
-         CALL offload_gemm_set_op_threshold_gpu(mp2_env%offload_gemm_ctx, 128*128*128*2)
+      IF (.NOT. c_associated(mp2_env%local_gemm_ctx)) THEN
+         CALL local_gemm_create(mp2_env%local_gemm_ctx, LOCAL_GEMM_PU_GPU)
+         CALL local_gemm_set_op_threshold_gpu(mp2_env%local_gemm_ctx, 128*128*128*2)
       END IF
 
       CALL mp2_ri_get_integ_group_size( &
@@ -356,10 +356,10 @@ CONTAINS
                               local_ba = 0.0_dp
                            END IF
                            CALL dgemm_counter_start(dgemm_counter)
-                           CALL offload_dgemm('T', 'N', my_B_size(ispin), my_B_size(jspin), dimen_RI, 1.0_dp, &
-                                              my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
-                                              0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), &
-                                              my_B_size(ispin), mp2_env%offload_gemm_ctx)
+                           CALL local_gemm('T', 'N', my_B_size(ispin), my_B_size(jspin), dimen_RI, 1.0_dp, &
+                                           my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
+                                           0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), &
+                                           my_B_size(ispin), mp2_env%local_gemm_ctx)
                            ! Additional integrals only for alpha_beta case and forces
                            IF (my_alpha_beta_case .AND. calc_forces) THEN
                               local_ba(my_B_virtual_start(jspin):my_B_virtual_end(jspin), :) = &
@@ -380,10 +380,10 @@ CONTAINS
                                                external_i_aL, proc_receive, &
                                                para_env_sub%group, tag)
 
-                              CALL offload_dgemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
-                                                 external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
+                              CALL local_gemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
+                                              external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
                                           0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(jspin)), rec_B_size, &
-                                                 mp2_env%offload_gemm_ctx)
+                                              mp2_env%local_gemm_ctx)
 
                               ! Additional integrals only for alpha_beta case and forces
                               IF (my_alpha_beta_case .AND. calc_forces) THEN
@@ -398,10 +398,10 @@ CONTAINS
                                                   external_i_aL, proc_receive, &
                                                   para_env_sub%group, tag)
 
-                                 CALL offload_dgemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
-                                                    external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
+                                 CALL local_gemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
+                                                 external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
                                           0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(ispin)), rec_B_size, &
-                                                    mp2_env%offload_gemm_ctx)
+                                                 mp2_env%local_gemm_ctx)
                               END IF
                            END DO
                            IF (my_alpha_beta_case .AND. calc_forces) THEN
@@ -697,9 +697,9 @@ CONTAINS
 
       CALL dgemm_counter_write(dgemm_counter, para_env)
 
-      ! release memory allocated by offload_dgemm when run on GPU. offload_gemm_ctx is null on cpu only runs
-      CALL offload_gemm_destroy(mp2_env%offload_gemm_ctx)
-      mp2_env%offload_gemm_ctx = C_NULL_PTR
+      ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
+      CALL local_gemm_destroy(mp2_env%local_gemm_ctx)
+      mp2_env%local_gemm_ctx = C_NULL_PTR
       CALL timestop(handle)
 
    END SUBROUTINE mp2_ri_gpw_compute_en
@@ -1678,25 +1678,25 @@ CONTAINS
 
       CALL dgemm_counter_start(dgemm_counter)
       IF (.NOT. (alpha_beta)) THEN
-         CALL offload_dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(ispin), 1.0_dp, &
-                            t_ab, virtual(ispin), local_ab, virtual(ispin), &
-                            1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, &
-                                     my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin), mp2_env%offload_gemm_ctx)
+         CALL local_gemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(ispin), 1.0_dp, &
+                         t_ab, virtual(ispin), local_ab, virtual(ispin), &
+                         1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, &
+                                       my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin), mp2_env%local_gemm_ctx)
          mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
       ELSE
-         CALL offload_dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(jspin), mp2_env%scale_S, &
-                            local_ba, virtual(jspin), local_ba, virtual(jspin), 1.0_dp, &
+         CALL local_gemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(jspin), mp2_env%scale_S, &
+                         local_ba, virtual(jspin), local_ba, virtual(jspin), 1.0_dp, &
                         mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin), &
-                            mp2_env%offload_gemm_ctx)
+                         mp2_env%local_gemm_ctx)
 
          mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
 
-         CALL offload_dgemm('T', 'N', my_B_size(jspin), my_B_size(jspin), virtual(ispin), mp2_env%scale_S, &
-                            local_ab, virtual(ispin), local_ab, virtual(ispin), 1.0_dp, &
+         CALL local_gemm('T', 'N', my_B_size(jspin), my_B_size(jspin), virtual(ispin), mp2_env%scale_S, &
+                         local_ab, virtual(ispin), local_ab, virtual(ispin), 1.0_dp, &
                         mp2_env%ri_grad%P_ab(jspin)%array(:, my_B_virtual_start(jspin):my_B_virtual_end(jspin)), my_B_size(jspin), &
-                            mp2_env%offload_gemm_ctx)
+                         mp2_env%local_gemm_ctx)
 
          mp2_env%ri_grad%P_ij(jspin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(jspin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
@@ -1706,11 +1706,11 @@ CONTAINS
       ! due to spin in alpha-beta case.
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
 
-         CALL offload_dgemm('N', 'T', my_B_size(ispin), virtual(ispin), my_B_size(ispin), 1.0_dp, &
-                            t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
-                            local_ab, virtual(ispin), &
-                            1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array, my_B_size(ispin), &
-                            mp2_env%offload_gemm_ctx)
+         CALL local_gemm('N', 'T', my_B_size(ispin), virtual(ispin), my_B_size(ispin), 1.0_dp, &
+                         t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                         local_ab, virtual(ispin), &
+                         1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array, my_B_size(ispin), &
+                         mp2_env%local_gemm_ctx)
 
          mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
@@ -1730,15 +1730,15 @@ CONTAINS
                           para_env_sub%group)
 
          IF (.NOT. (alpha_beta)) THEN
-            CALL offload_dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
-                               t_ab, virtual(ispin), external_ab, virtual(ispin), &
+            CALL local_gemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
+                            t_ab, virtual(ispin), external_ab, virtual(ispin), &
                             1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin), &
-                               mp2_env%offload_gemm_ctx)
+                            mp2_env%local_gemm_ctx)
          ELSE
-            CALL offload_dgemm('T', 'N', my_B_size(jspin), rec_B_size, virtual(ispin), mp2_env%scale_S, &
-                               local_ab, virtual(ispin), external_ab, virtual(ispin), &
-                               1.0_dp, mp2_env%ri_grad%P_ab(jspin)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
-                               my_B_size(jspin), mp2_env%offload_gemm_ctx)
+            CALL local_gemm('T', 'N', my_B_size(jspin), rec_B_size, virtual(ispin), mp2_env%scale_S, &
+                            local_ab, virtual(ispin), external_ab, virtual(ispin), &
+                            1.0_dp, mp2_env%ri_grad%P_ab(jspin)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
+                            my_B_size(jspin), mp2_env%local_gemm_ctx)
 
             ! For alpha-beta part of alpha-density we need a new parallel code
             ! And new external_ab (of a different size)
@@ -1749,10 +1749,10 @@ CONTAINS
             CALL mp_sendrecv(local_ba, proc_send, &
                              external_ab, proc_receive, &
                              para_env_sub%group)
-            CALL offload_dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
-                               local_ba, virtual(jspin), external_ab, virtual(jspin), &
+            CALL local_gemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
+                            local_ba, virtual(jspin), external_ab, virtual(jspin), &
                             1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin), &
-                               mp2_env%offload_gemm_ctx)
+                            mp2_env%local_gemm_ctx)
          END IF
 
          IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
@@ -1765,11 +1765,11 @@ CONTAINS
             send_ab(1:send_B_size, 1:virtual(ispin)) => buffer_1D(offset + 1:offset + INT(send_B_size, int_8)*virtual(ispin))
             send_ab = 0.0_dp
 
-            CALL offload_dgemm('N', 'T', send_B_size, virtual(ispin), my_B_size(ispin), 1.0_dp, &
-                               t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
-                               local_ab, virtual(ispin), &
-                               0.0_dp, send_ab, send_B_size, &
-                               mp2_env%offload_gemm_ctx)
+            CALL local_gemm('N', 'T', send_B_size, virtual(ispin), my_B_size(ispin), 1.0_dp, &
+                            t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
+                            local_ab, virtual(ispin), &
+                            0.0_dp, send_ab, send_B_size, &
+                            mp2_env%local_gemm_ctx)
             CALL mp_sendrecv(send_ab, proc_send, &
                              external_ab, proc_receive, &
                              para_env_sub%group)
@@ -1795,17 +1795,17 @@ CONTAINS
       CALL dgemm_counter_start(dgemm_counter)
       IF (.NOT. alpha_beta) THEN
          ! Alpha-alpha, beta-beta and closed shell
-         CALL offload_dgemm('N', 'T', my_B_size(ispin), dimen_RI, my_B_size(ispin), 1.0_dp, &
-                            t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
-                            my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size(ispin), &
-                            mp2_env%offload_gemm_ctx)
+         CALL local_gemm('N', 'T', my_B_size(ispin), dimen_RI, my_B_size(ispin), 1.0_dp, &
+                         t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                         my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size(ispin), &
+                         mp2_env%local_gemm_ctx)
       ELSE ! Alpha-beta
-         CALL offload_dgemm('N', 'T', my_B_size(ispin), dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
-                            local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
-                            my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size(ispin), mp2_env%offload_gemm_ctx)
-         CALL offload_dgemm('T', 'T', my_B_size(jspin), dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
-                            local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
-                            my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(jspin), mp2_env%offload_gemm_ctx)
+         CALL local_gemm('N', 'T', my_B_size(ispin), dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
+                         local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                         my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size(ispin), mp2_env%local_gemm_ctx)
+         CALL local_gemm('T', 'T', my_B_size(jspin), dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
+                         local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                         my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(jspin), mp2_env%local_gemm_ctx)
       END IF
 
       IF (para_env_sub%num_pe > 1) THEN
@@ -1825,20 +1825,20 @@ CONTAINS
          send_ab(1:send_B_size, 1:dimen_RI) => buffer_1D(offset + 1:offset + INT(dimen_RI, int_8)*send_B_size)
          send_ab = 0.0_dp
          IF (.NOT. alpha_beta) THEN
-            CALL offload_dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), 1.0_dp, &
-                               t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
-                               my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
-                               mp2_env%offload_gemm_ctx)
+            CALL local_gemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), 1.0_dp, &
+                            t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
+                            my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
+                            mp2_env%local_gemm_ctx)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
 
             Y_i_aP(:, :) = Y_i_aP + external_ab
 
          ELSE ! Alpha-beta case
             ! Alpha-alpha part
-            CALL offload_dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
-                               local_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
-                               my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
-                               mp2_env%offload_gemm_ctx)
+            CALL local_gemm('N', 'T', send_B_size, dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
+                            local_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
+                            my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
+                            mp2_env%local_gemm_ctx)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
             Y_i_aP(:, :) = Y_i_aP + external_ab
          END IF
@@ -1859,10 +1859,10 @@ CONTAINS
             CALL get_group_dist(gd_B_virtual(jspin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
             send_ab(1:send_B_size, 1:dimen_RI) => buffer_1D(offset + 1:offset + INT(dimen_RI, int_8)*send_B_size)
             send_ab = 0.0_dp
-            CALL offload_dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
-                               local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
-                               my_local_i_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
-                               mp2_env%offload_gemm_ctx)
+            CALL local_gemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
+                            local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
+                            my_local_i_aL, dimen_RI, 0.0_dp, send_ab, send_B_size, &
+                            mp2_env%local_gemm_ctx)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
             Y_j_aP(:, :) = Y_j_aP + external_ab
 
@@ -1877,10 +1877,10 @@ CONTAINS
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha-alpha, beta-beta and closed shell
          CALL dgemm_counter_start(dgemm_counter)
-         CALL offload_dgemm('T', 'T', my_B_size(ispin), dimen_RI, my_B_size(ispin), 1.0_dp, &
-                            t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
-                            my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(ispin), &
-                            mp2_env%offload_gemm_ctx)
+         CALL local_gemm('T', 'T', my_B_size(ispin), dimen_RI, my_B_size(ispin), 1.0_dp, &
+                         t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                         my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(ispin), &
+                         mp2_env%local_gemm_ctx)
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
             proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -1894,9 +1894,9 @@ CONTAINS
                              external_ab, proc_receive, para_env_sub%group)
 
             ! Alpha-alpha, beta-beta and closed shell
-            CALL offload_dgemm('T', 'T', my_B_size(ispin), dimen_RI, rec_B_size, 1.0_dp, &
-                               t_ab(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size, &
-                               external_ab, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(ispin), mp2_env%offload_gemm_ctx)
+            CALL local_gemm('T', 'T', my_B_size(ispin), dimen_RI, rec_B_size, 1.0_dp, &
+                            t_ab(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size, &
+                            external_ab, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(ispin), mp2_env%local_gemm_ctx)
          END DO
 
          CALL dgemm_counter_stop(dgemm_counter, my_B_size(ispin), dimen_RI, virtual(ispin))
@@ -2371,10 +2371,10 @@ CONTAINS
                   CALL dgemm_counter_start(dgemm_counter)
                   ALLOCATE (local_ab(my_virtual, size_B_k))
                   local_ab = 0.0_dp
-                  CALL offload_dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
-                                     local_aL_i, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
-                                     0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), 1:size_B_k), size_B_i, &
-                                     mp2_env%offload_gemm_ctx)
+                  CALL local_gemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
+                                  local_aL_i, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
+                                  0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), 1:size_B_k), size_B_i, &
+                                  mp2_env%local_gemm_ctx)
                   DO proc_shift = 1, para_env_sub%num_pe - 1
                      proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
                      proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -2387,10 +2387,10 @@ CONTAINS
                                       external_aL, proc_receive, &
                                       para_env_sub%group, tag)
 
-                     CALL offload_dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
-                                        external_aL, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
-                                        0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
-                                        mp2_env%offload_gemm_ctx)
+                     CALL local_gemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
+                                     external_aL, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
+                                     0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
+                                     mp2_env%local_gemm_ctx)
                   END DO
                   CALL dgemm_counter_stop(dgemm_counter, my_virtual, size_B_k, dimen_RI)
                   CALL timestop(handle2)
@@ -2449,10 +2449,10 @@ CONTAINS
                   CALL timeset(routineN//"_exp_jk", handle2)
                   local_ab = 0.0_dp
                   CALL dgemm_counter_start(dgemm_counter)
-                  CALL offload_dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
-                                     local_aL_j, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
-                                     0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), 1:size_B_k), size_B_i, &
-                                     mp2_env%offload_gemm_ctx)
+                  CALL local_gemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
+                                  local_aL_j, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
+                                  0.0_dp, local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), 1:size_B_k), size_B_i, &
+                                  mp2_env%local_gemm_ctx)
                   DO proc_shift = 1, para_env_sub%num_pe - 1
                      proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
                      proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
@@ -2464,10 +2464,10 @@ CONTAINS
                      CALL mp_sendrecv(local_aL_j, proc_send, &
                                       external_aL, proc_receive, &
                                       para_env_sub%group, tag)
-                     CALL offload_dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
-                                        external_aL, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
-                                        0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
-                                        mp2_env%offload_gemm_ctx)
+                     CALL local_gemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
+                                     external_aL, dimen_RI, local_aL_k(:, :, kkB), dimen_RI, &
+                                     0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size, &
+                                     mp2_env%local_gemm_ctx)
                   END DO
                   CALL dgemm_counter_stop(dgemm_counter, my_virtual, size_B_k, dimen_RI)
                   CALL timestop(handle2)

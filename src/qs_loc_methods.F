@@ -39,7 +39,6 @@ MODULE qs_loc_methods
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
         cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -79,6 +78,7 @@ MODULE qs_loc_methods
    USE message_passing,                 ONLY: mp_sum
    USE motion_utils,                    ONLY: get_output_format
    USE orbital_pointers,                ONLY: ncoset
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set,&
                                               write_particle_coordinates
@@ -381,19 +381,19 @@ CONTAINS
          ncol = nsgf(iatom)
 
          ! multiply fmxfm, using only part of the ao : Ct x S
-         CALL cp_gemm('N', 'N', nao, nmoloc, nao, 1.0_dp, ov_fm, vectors, 0.0_dp, opvec, &
-                      a_first_col=1, a_first_row=1, b_first_col=1, b_first_row=1)
+         CALL parallel_gemm('N', 'N', nao, nmoloc, nao, 1.0_dp, ov_fm, vectors, 0.0_dp, opvec, &
+                            a_first_col=1, a_first_row=1, b_first_col=1, b_first_row=1)
 
-         CALL cp_gemm('T', 'N', nmoloc, nmoloc, ncol, 0.5_dp, vectors, opvec, &
-                      0.0_dp, zij_fm_set(iatom, 1)%matrix, &
-                      a_first_col=1, a_first_row=isgf, b_first_col=1, b_first_row=isgf)
+         CALL parallel_gemm('T', 'N', nmoloc, nmoloc, ncol, 0.5_dp, vectors, opvec, &
+                            0.0_dp, zij_fm_set(iatom, 1)%matrix, &
+                            a_first_col=1, a_first_row=isgf, b_first_col=1, b_first_row=isgf)
 
-         CALL cp_gemm('N', 'N', nao, nmoloc, ncol, 1.0_dp, ov_fm, vectors, 0.0_dp, opvec, &
-                      a_first_col=isgf, a_first_row=1, b_first_col=1, b_first_row=isgf)
+         CALL parallel_gemm('N', 'N', nao, nmoloc, ncol, 1.0_dp, ov_fm, vectors, 0.0_dp, opvec, &
+                            a_first_col=isgf, a_first_row=1, b_first_col=1, b_first_row=isgf)
 
-         CALL cp_gemm('T', 'N', nmoloc, nmoloc, nao, 0.5_dp, vectors, opvec, &
-                      1.0_dp, zij_fm_set(iatom, 1)%matrix, &
-                      a_first_col=1, a_first_row=1, b_first_col=1, b_first_row=1)
+         CALL parallel_gemm('T', 'N', nmoloc, nmoloc, nao, 0.5_dp, vectors, opvec, &
+                            1.0_dp, zij_fm_set(iatom, 1)%matrix, &
+                            a_first_col=1, a_first_row=1, b_first_col=1, b_first_row=1)
 
       END DO ! iatom
 
