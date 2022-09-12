@@ -10,6 +10,7 @@ MODULE offload_gemm
                             C_NULL_PTR, &
                             C_PTR
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+   USE input_constants, ONLY: do_dgemm_spla
    USE spla, ONLY: SPLA_PU_HOST, &
                    SPLA_PU_GPU, &
                    SPLA_OP_NONE, &
@@ -38,11 +39,15 @@ MODULE offload_gemm
    PUBLIC :: offload_dgemm, &
              offload_gemm_create, &
              offload_gemm_destroy, &
-             offload_gemm_set_op_threshold_gpu
+             offload_gemm_set_op_threshold_gpu, &
+             offload_gemm_set_library
 
    INTEGER, PARAMETER, PUBLIC :: &
       OFFLOAD_GEMM_PU_HOST = 0, &
       OFFLOAD_GEMM_PU_GPU = 1
+
+   INTEGER, PRIVATE :: do_dgemm = 1
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -103,7 +108,7 @@ CONTAINS
 
 !     no point of using SPLA offloading on CPU ONLY nodes
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      IF (PRESENT(ctx)) THEN
+      IF (PRESENT(ctx) .AND. do_dgemm == do_dgemm_spla) THEN
 
          IF (opA == 'N') spla_op_A = SPLA_OP_NONE
          IF (opA == 'T') spla_op_A = SPLA_OP_TRANSPOSE
@@ -147,17 +152,20 @@ CONTAINS
       TYPE(c_ptr), INTENT(out) :: ctx
       INTEGER, INTENT(in) :: pu
 
-      INTEGER error_
-
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      CALL offload_activate_chosen_device()
+      INTEGER :: error_
 
-      error_ = spla_ctx_create(ctx, pu)
-      CPASSERT(error_ == SPLA_SUCCESS)
+      IF (do_dgemm == do_dgemm_spla) THEN
+         CALL offload_activate_chosen_device()
+
+         error_ = spla_ctx_create(ctx, pu)
+         CPASSERT(error_ == SPLA_SUCCESS)
+      ELSE
+         ctx = C_NULL_PTR
+      END IF
 #else
       MARK_USED(pu)
       MARK_USED(ctx)
-      error_ = 0
       ctx = C_NULL_PTR
 #endif
    END SUBROUTINE offload_gemm_create
@@ -169,16 +177,17 @@ CONTAINS
    SUBROUTINE offload_gemm_destroy(ctx)
       TYPE(c_ptr), INTENT(inout) :: ctx
 
-      INTEGER error_
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+      INTEGER :: error_
 
-#if defined(__SPLA)  && defined(__OFFLOAD_GEMM)
-      CALL offload_activate_chosen_device()
+      IF (do_dgemm == do_dgemm_spla) THEN
+         CALL offload_activate_chosen_device()
 
-      error_ = spla_ctx_destroy(ctx)
-      CPASSERT(error_ == SPLA_SUCCESS)
+         error_ = spla_ctx_destroy(ctx)
+         CPASSERT(error_ == SPLA_SUCCESS)
+      END IF
 #else
       MARK_USED(ctx)
-      error_ = 0
 #endif
       ctx = C_NULL_PTR
    END SUBROUTINE offload_gemm_destroy
@@ -192,10 +201,9 @@ CONTAINS
       TYPE(c_ptr)                                        :: ctx
       INTEGER, INTENT(in)                                :: opThresholdGPU
 
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       INTEGER                                            :: error__
 
-      error__ = 0
-#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       CALL offload_activate_chosen_device()
       error__ = spla_ctx_set_op_threshold_gpu(ctx, opThresholdGPU)
 #else
@@ -203,4 +211,15 @@ CONTAINS
       MARK_USED(opThresholdGPU)
 #endif
    END SUBROUTINE offload_gemm_set_op_threshold_gpu
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dgemm_library ...
+! **************************************************************************************************
+   SUBROUTINE offload_gemm_set_library(dgemm_library)
+      INTEGER, INTENT(IN)                                :: dgemm_library
+
+      do_dgemm = dgemm_library
+   END SUBROUTINE offload_gemm_set_library
+
 END MODULE offload_gemm
