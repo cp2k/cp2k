@@ -342,7 +342,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -484,10 +484,10 @@ CONTAINS
       grid_distributed = rs_v%desc%distributed
 
       DO ikind = 1, SIZE(atomic_kind_set, 1)
-         NULLIFY (orb_basis_set, atom_list, harmonics)
+         NULLIFY (basis_1c_set, atom_list, harmonics)
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
          CALL get_qs_kind(qs_kind_set(ikind), &
-                          basis_set=orb_basis_set, &
+                          basis_set=basis_1c_set, basis_type="GAPW_1C", &
                           paw_atom=paw_atom, &
                           harmonics=harmonics)
 
@@ -498,7 +498,7 @@ CONTAINS
                              l0_ikind=l0_ikind, Qlm_gg=Qlm_gg, &
                              rpgf0_s=rpgf0)
 
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+         CALL get_gto_basis_set(gto_basis_set=basis_1c_set, &
                                 lmax=lmax, lmin=lmin, &
                                 maxso=maxso, maxl=maxl, &
                                 nset=nset, npgf=npgf)

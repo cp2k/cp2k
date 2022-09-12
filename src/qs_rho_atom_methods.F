@@ -130,7 +130,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: my_CG_dxyz
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
 
@@ -138,14 +138,14 @@ CONTAINS
 
       !Note: tau is taken care of separately in qs_vxc_atom.F
 
-      NULLIFY (orb_basis)
+      NULLIFY (basis_1c)
       NULLIFY (harmonics, grid_atom)
       NULLIFY (lmin, lmax, npgf, zet, my_CG, my_CG_dxyz, coeff)
 
-      CALL get_qs_kind(qs_kind, basis_set=orb_basis, grid_atom=grid_atom, &
-                       paw_proj_set=paw_proj, harmonics=harmonics)
+      CALL get_qs_kind(qs_kind, grid_atom=grid_atom, paw_proj_set=paw_proj, harmonics=harmonics)
+      CALL get_qs_kind(qs_kind, basis_set=basis_1c, basis_type="GAPW_1C")
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, &
+      CALL get_gto_basis_set(gto_basis_set=basis_1c, lmax=lmax, lmin=lmin, &
                              maxl=maxl, npgf=npgf, nset=nset, zet=zet, &
                              maxso=maxso)
 
@@ -434,9 +434,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff'
 
       INTEGER :: bo(2), handle, i, iac, iatom, ibc, icol, ikind, img, irow, ispin, istat, jatom, &
-         jkind, kac, katom, kbc, kkind, len_CPC, len_PC1, max_gau, max_nsgf, maxsoc, mepos, &
-         n_cont_a, n_cont_b, nat_kind, natom, nimages, nkind, nsatbas, nsetc, nsoctot, nspins, &
-         num_pe
+         jkind, kac, katom, kbc, kkind, len_CPC, len_PC1, max_gau, max_nsgf, mepos, n_cont_a, &
+         n_cont_b, nat_kind, natom, nimages, nkind, nsatbas, nsoctot, nspins, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(3)                              :: cell_b
       INTEGER, DIMENSION(:), POINTER                     :: a_list, list_a, list_b
@@ -452,7 +451,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b, orb_basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -463,9 +462,6 @@ CONTAINS
 !$    INTEGER                                            :: lock, number_of_locks
 
       CALL timeset(routineN, handle)
-
-      NULLIFY (dft_control)
-      NULLIFY (orb_basis_set)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -553,8 +549,8 @@ CONTAINS
 !$OMP                 , basis_set_a, basis_set_b          &
 !$OMP                 , pmax, irow, icol, img             &
 !$OMP                 , found                             &
-!$OMP                 , kkind, orb_basis_set, paw_proj    &
-!$OMP                 , paw_atom, nsetc, maxsoc, nsatbas  &
+!$OMP                 , kkind, paw_proj                   &
+!$OMP                 , paw_atom, nsatbas                 &
 !$OMP                 , nsoctot, katom                    &
 !$OMP                 , iac , alist_ac, kac, n_cont_a, list_a     &
 !$OMP                 , ibc , alist_bc, kbc, n_cont_b, list_b     &
@@ -623,10 +619,7 @@ CONTAINS
 
          DO kkind = 1, nkind
             CALL get_qs_kind(qs_kind_set(kkind), &
-                             basis_set=orb_basis_set, &
                              paw_proj_set=paw_proj, paw_atom=paw_atom)
-
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, nset=nsetc, maxso=maxsoc)
 
             IF (.NOT. paw_atom) CYCLE
 
@@ -789,12 +782,12 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (orb_basis_set)
+      NULLIFY (basis_1c_set)
       NULLIFY (my_CG, grid_atom, harmonics, atom_list)
 
       CPASSERT(ASSOCIATED(atomic_kind_set))
@@ -905,13 +898,13 @@ CONTAINS
 
 !     *** calculate the spherical harmonics on the grid ***
 
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, maxl=maxl)
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_1c_set, basis_type="GAPW_1C")
+         CALL get_gto_basis_set(gto_basis_set=basis_1c_set, maxl=maxl)
          maxs = nsoset(maxl)
          CALL create_harmonics_atom(harmonics, &
                                     my_CG, na, llmax, maxs, max_s_harm, ll, grid_atom%wa, &
                                     grid_atom%azi, grid_atom%pol)
-         CALL get_maxl_CG(harmonics, orb_basis_set, llmax, max_s_harm)
+         CALL get_maxl_CG(harmonics, basis_1c_set, llmax, max_s_harm)
 
       END DO
 

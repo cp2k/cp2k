@@ -33,6 +33,7 @@ MODULE basis_set_container_types
                                                lri_aux_basis = 104, &
                                                aux_fit_basis = 105, &
                                                soft_basis = 106, &
+                                               gapw_1c_basis = 107, &
                                                mao_basis = 108, &
                                                harris_basis = 109, &
                                                aux_gw_basis = 110, &
@@ -114,6 +115,8 @@ CONTAINS
          basis_type_nr = aux_fit_soft_basis
       CASE ("ORB_SOFT")
          basis_type_nr = soft_basis
+      CASE ("GAPW_1C")
+         basis_type_nr = gapw_1c_basis
       CASE ("MAO")
          basis_type_nr = mao_basis
       CASE ("HARRIS")

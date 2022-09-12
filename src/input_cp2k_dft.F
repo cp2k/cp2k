@@ -2864,6 +2864,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="GAPW_1C_BASIS", &
+                          description="Specifies how to construct the GAPW one center basis set.", &
+                          usage="GAPW_1C_BASIS MEDIUM", &
+                          enum_c_vals=s2a("ORB", "SMALL", "MEDIUM", "LARGE", "VERY_LARGE"), &
+                          enum_desc=s2a("Use primitive Gaussians from orbital basis set.", &
+                                        "Small number of primitive Gaussians.", &
+                                        "Medium number of primitive Gaussians.", &
+                                        "Large number of primitive Gaussians.", &
+                                        "Very Large number of primitive Gaussians."), &
+                          enum_i_vals=(/gapw_1c_orb, gapw_1c_small, gapw_1c_medium, &
+                                        gapw_1c_large, gapw_1c_very_large/), &
+                          default_i_val=gapw_1c_orb)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Logicals
       CALL keyword_create(keyword, __LOCATION__, name="LS_SCF", &
                           description="Perform a linear scaling SCF", &

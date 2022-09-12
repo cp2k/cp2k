@@ -57,6 +57,7 @@ MODULE qs_kind_types
         all_potential_type, allocate_potential, deallocate_potential, get_potential, &
         gth_potential_type, init_potential, local_potential_type, read_potential, &
         set_default_all_potential, set_potential, sgp_potential_type, write_potential
+   USE gapw_1c_basis_set,               ONLY: create_1c_basis
    USE input_constants,                 ONLY: &
         do_method_am1, do_method_dftb, do_method_mndo, do_method_mndod, do_method_pdg, &
         do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_pw, &
@@ -1291,10 +1292,10 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, OPTIONAL                                  :: modify_qs_control
 
-      INTEGER                                            :: ikind, nkind
+      INTEGER                                            :: bas1c, ikind, nkind
       LOGICAL                                            :: gpw, my_mod_control, paw_atom
       REAL(dp)                                           :: max_rad_local_type, rc
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, soft_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_kind_type), POINTER                        :: qs_kind
 
@@ -1312,25 +1313,28 @@ CONTAINS
 
             qs_kind => qs_kind_set(ikind)
 
-            NULLIFY (soft_basis)
-            CALL allocate_gto_basis_set(soft_basis)
-
             CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis)
             CALL get_qs_kind(qs_kind=qs_kind, hard_radius=rc, &
                              max_rad_local=max_rad_local_type, gpw_type_forced=gpw)
 
+            NULLIFY (soft_basis)
+            CALL allocate_gto_basis_set(soft_basis)
             CALL create_soft_basis(orb_basis, soft_basis, &
                                    qs_control%gapw_control%eps_fit, rc, paw_atom, &
                                    qs_control%gapw_control%force_paw, gpw)
             CALL add_basis_set_to_container(qs_kind%basis_sets, soft_basis, "ORB_SOFT")
-
             CALL set_qs_kind(qs_kind=qs_kind, paw_atom=paw_atom)
+
+            bas1c = qs_control%gapw_control%basis_1c
+            NULLIFY (basis_1c)
+            CALL allocate_gto_basis_set(basis_1c)
+            CALL create_1c_basis(orb_basis, basis_1c, bas1c)
+            CALL add_basis_set_to_container(qs_kind%basis_sets, basis_1c, "GAPW_1C")
 
             IF (paw_atom) THEN
                CALL allocate_paw_proj_set(qs_kind%paw_proj_set)
                CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj)
-
-               CALL projectors(paw_proj, orb_basis, rc, qs_control, max_rad_local_type, &
+               CALL projectors(paw_proj, basis_1c, rc, qs_control, max_rad_local_type, &
                                force_env_section)
             ELSE
                IF (my_mod_control) qs_control%gapw_control%non_paw_atoms = .TRUE.

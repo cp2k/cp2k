@@ -1237,18 +1237,18 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: slm, zet
       REAL(dp), DIMENSION(:, :, :), POINTER              :: dslm_dxyz
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
 
-      NULLIFY (harmonics, grid_atom, orb_basis, lmax, lmin, npgf, zet, slm, dslm_dxyz, o2nindex, paw_proj)
+      NULLIFY (harmonics, grid_atom, basis_1c, lmax, lmin, npgf, zet, slm, dslm_dxyz, o2nindex, paw_proj)
 
       CALL timeset(routineN, handle)
 
       !We need to put 0.5* grad_g1 dot grad_gw on the grid
       !For this we need grid info, basis info, and projector info
-      CALL get_qs_kind(qs_kind, basis_set=orb_basis, grid_atom=grid_atom, &
-                       harmonics=harmonics, paw_proj_set=paw_proj)
+      CALL get_qs_kind(qs_kind, grid_atom=grid_atom, harmonics=harmonics, paw_proj_set=paw_proj)
+      CALL get_qs_kind(qs_kind, basis_set=basis_1c, basis_type="GAPW_1C")
 
       nr = grid_atom%nr
       na = grid_atom%ng_sphere
@@ -1262,7 +1262,7 @@ CONTAINS
       tau_h = 0.0_dp
       tau_s = 0.0_dp
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, npgf=npgf, &
+      CALL get_gto_basis_set(gto_basis_set=basis_1c, lmax=lmax, lmin=lmin, npgf=npgf, &
                              nset=nset, zet=zet, maxso=maxso)
 
       !Separate the functions into purely r and purely angular parts, precompute them all
@@ -1546,7 +1546,7 @@ CONTAINS
 
       NULLIFY (lmin, lmax, npgf, zet, my_CG)
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, &
+      CALL get_gto_basis_set(gto_basis_set=basis_1c, lmax=lmax, lmin=lmin, &
                              maxso=maxso, maxl=maxl, npgf=npgf, &
                              nset=nset, zet=zet)
 
@@ -1716,7 +1716,7 @@ CONTAINS
 
       NULLIFY (lmin, lmax, npgf, zet, my_CG, my_CG_dxyz)
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, &
+      CALL get_gto_basis_set(gto_basis_set=basis_1c, lmax=lmax, lmin=lmin, &
                              maxso=maxso, maxl=maxl, npgf=npgf, &
                              nset=nset, zet=zet)
 
@@ -1964,7 +1964,7 @@ CONTAINS
 
       NULLIFY (zet, slm, dslm_dxyz, lmax, lmin, npgf)
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, &
+      CALL get_gto_basis_set(gto_basis_set=basis_1c, lmax=lmax, lmin=lmin, &
                              maxso=maxso, npgf=npgf, nset=nset, zet=zet)
 
       na = grid_atom%ng_sphere

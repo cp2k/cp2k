@@ -239,7 +239,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -257,7 +257,7 @@ CONTAINS
       NULLIFY (atomic_kind_set, qs_kind_set, rho_atom_set, rho0_atom_set)
       NULLIFY (rho0_mpole, rhoz_set)
       NULLIFY (atom_list, grid_atom, harmonics)
-      NULLIFY (orb_basis, lmin, lmax, npgf, zet)
+      NULLIFY (basis_1c, lmin, lmax, npgf, zet)
       NULLIFY (gsph, atprop)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -308,14 +308,15 @@ CONTAINS
 
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
          CALL get_qs_kind(qs_kind_set(ikind), &
-                          basis_set=orb_basis, &
                           grid_atom=grid_atom, &
                           harmonics=harmonics, ngrid_rad=nr, &
                           max_iso_not0=max_iso_not0, paw_atom=paw_atom)
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          basis_set=basis_1c, basis_type="GAPW_1C")
 
          IF (paw_atom) THEN
 !===========    PAW   ===============
-            CALL get_gto_basis_set(gto_basis_set=orb_basis, lmax=lmax, lmin=lmin, &
+            CALL get_gto_basis_set(gto_basis_set=basis_1c, lmax=lmax, lmin=lmin, &
                                    maxso=maxso, npgf=npgf, maxl=maxl, &
                                    nset=nset, zet=zet)
 
