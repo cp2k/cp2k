@@ -15,8 +15,7 @@ MODULE rpa_gw_sigma_x
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
-                                              cp_cfm_scale_and_add_fm
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -65,6 +64,7 @@ MODULE rpa_gw_sigma_x
    USE mp2_integrals,                   ONLY: compute_kpoints
    USE mp2_ri_2c,                       ONLY: setup_abs_cutoffs_chi_and_trunc_coulomb_potential
    USE mp2_types,                       ONLY: mp2_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -860,12 +860,12 @@ CONTAINS
             CALL cp_cfm_scale_and_add_fm(z_one, cfm_mos, gaussi, mo_set_im%mo_coeff)
 
             ! tmp = V(k)*C(k)
-            CALL cp_cfm_gemm('N', 'N', nmo, nmo, nmo, z_one, cfm_sigma_x_minus_vxc, &
-                             cfm_mos, z_zero, cfm_tmp)
+            CALL parallel_gemm('N', 'N', nmo, nmo, nmo, z_one, cfm_sigma_x_minus_vxc, &
+                               cfm_mos, z_zero, cfm_tmp)
 
             ! V_n(k) = C^H(k)*tmp
-            CALL cp_cfm_gemm('C', 'N', nmo, nmo, nmo, z_one, cfm_mos, cfm_tmp, &
-                             z_zero, cfm_sigma_x_minus_vxc_mo_basis)
+            CALL parallel_gemm('C', 'N', nmo, nmo, nmo, z_one, cfm_mos, cfm_tmp, &
+                               z_zero, cfm_sigma_x_minus_vxc_mo_basis)
 
             DO jjB = 1, ncol_local
 

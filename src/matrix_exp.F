@@ -12,8 +12,7 @@
 
 MODULE matrix_exp
 
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
-                                              cp_cfm_scale_and_add,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add,&
                                               cp_cfm_solve
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_p_type,&
@@ -210,8 +209,8 @@ CONTAINS
 
       DO i = 1, ntaylor
          tmp = tmp*REAL(i, dp)
-         CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, T1, T2, z_zero, &
-                          T3)
+         CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, T1, T2, z_zero, &
+                            T3)
          Tfac = CMPLX(1._dp/tmp, 0.0_dp, kind=dp)
          CALL cp_cfm_scale_and_add(z_one, Tres, Tfac, T3)
          CALL cp_cfm_to_cfm(T3, T2)
@@ -219,8 +218,8 @@ CONTAINS
 
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, Tres, Tres, z_zero, &
-                             T2)
+            CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, Tres, Tres, z_zero, &
+                               T2)
             CALL cp_cfm_to_cfm(T2, Tres)
          END DO
       END IF
@@ -406,8 +405,8 @@ CONTAINS
          DO i = 2, npade
             IF (i .LE. p) scaleN = CMPLX(fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, kind=dp)
             scaleD = CMPLX((-1.0_dp)**i*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), 0.0_dp, kind=dp)
-            CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, T1, mult_p(MOD(i, 2) + 1)%matrix, z_zero, &
-                             mult_p(MOD(i + 1, 2) + 1)%matrix)
+            CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, T1, mult_p(MOD(i, 2) + 1)%matrix, z_zero, &
+                               mult_p(MOD(i + 1, 2) + 1)%matrix)
             IF (i .LE. p) CALL cp_cfm_scale_and_add(z_one, Npq, scaleN, mult_p(MOD(i + 1, 2) + 1)%matrix)
             IF (i .LE. q) CALL cp_cfm_scale_and_add(z_one, Dpq, scaleD, mult_p(MOD(i + 1, 2) + 1)%matrix)
          END DO
@@ -419,8 +418,8 @@ CONTAINS
       mult_p(1)%matrix => Tres
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-           CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, z_zero, &
-                             mult_p(MOD(i + 1, 2) + 1)%matrix)
+         CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, z_zero, &
+                               mult_p(MOD(i + 1, 2) + 1)%matrix)
             fin_p => mult_p(MOD(i + 1, 2) + 1)%matrix
          END DO
       ELSE
@@ -543,8 +542,8 @@ CONTAINS
       cmult_p(1)%matrix => T1
       IF (nsquare .GT. 0) THEN
          DO i = 1, nsquare
-         CALL cp_cfm_gemm("N", "N", ndim, ndim, ndim, z_one, cmult_p(MOD(i, 2) + 1)%matrix, cmult_p(MOD(i, 2) + 1)%matrix, z_zero, &
-                             cmult_p(MOD(i + 1, 2) + 1)%matrix)
+       CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, cmult_p(MOD(i, 2) + 1)%matrix, cmult_p(MOD(i, 2) + 1)%matrix, z_zero, &
+                               cmult_p(MOD(i + 1, 2) + 1)%matrix)
             fin_p => cmult_p(MOD(i + 1, 2) + 1)%matrix
          END DO
       ELSE

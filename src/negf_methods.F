@@ -14,8 +14,7 @@ MODULE negf_methods
                                               Papior2017,&
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
-                                              cp_cfm_scale,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_trace
    USE cp_cfm_types,                    ONLY: &
@@ -104,6 +103,7 @@ MODULE negf_methods
    USE negf_subgroup_types,             ONLY: negf_sub_env_create,&
                                               negf_sub_env_release,&
                                               negf_subgroup_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: e_charge,&
                                               evolt,&
                                               kelvin,&
@@ -1634,14 +1634,14 @@ CONTAINS
                ! the array 'self_energy_contacts' as a set of work matrices
                DO icontact = 1, ncontacts
                   IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
-                     CALL cp_cfm_gemm('N', 'C', nrows, nrows, nrows, &
-                                      z_one, gamma_contacts_group(icontact, ipoint)%matrix, &
-                                      g_ret_s_group(ipoint)%matrix, &
-                                      z_zero, self_energy_contacts(icontact)%matrix)
-                     CALL cp_cfm_gemm('N', 'N', nrows, nrows, nrows, &
-                                      z_one, g_ret_s_group(ipoint)%matrix, &
-                                      self_energy_contacts(icontact)%matrix, &
-                                      z_zero, gret_gamma_gadv_group(icontact, ipoint)%matrix)
+                     CALL parallel_gemm('N', 'C', nrows, nrows, nrows, &
+                                        z_one, gamma_contacts_group(icontact, ipoint)%matrix, &
+                                        g_ret_s_group(ipoint)%matrix, &
+                                        z_zero, self_energy_contacts(icontact)%matrix)
+                     CALL parallel_gemm('N', 'N', nrows, nrows, nrows, &
+                                        z_one, g_ret_s_group(ipoint)%matrix, &
+                                        self_energy_contacts(icontact)%matrix, &
+                                        z_zero, gret_gamma_gadv_group(icontact, ipoint)%matrix)
                   END IF
                END DO
             END IF
@@ -1801,14 +1801,14 @@ CONTAINS
          DO ipoint = 1, npoints
             IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
                ! gamma_1 * g_adv_s * gamma_2
-               CALL cp_cfm_gemm('N', 'C', nrows, nrows, nrows, &
-                                z_one, gamma_contacts_group(transm_contact1, ipoint)%matrix, &
-                                g_ret_s_group(ipoint)%matrix, &
-                                z_zero, self_energy_contacts(transm_contact1)%matrix)
-               CALL cp_cfm_gemm('N', 'N', nrows, nrows, nrows, &
-                                z_one, self_energy_contacts(transm_contact1)%matrix, &
-                                gamma_contacts_group(transm_contact2, ipoint)%matrix, &
-                                z_zero, self_energy_contacts(transm_contact2)%matrix)
+               CALL parallel_gemm('N', 'C', nrows, nrows, nrows, &
+                                  z_one, gamma_contacts_group(transm_contact1, ipoint)%matrix, &
+                                  g_ret_s_group(ipoint)%matrix, &
+                                  z_zero, self_energy_contacts(transm_contact1)%matrix)
+               CALL parallel_gemm('N', 'N', nrows, nrows, nrows, &
+                                  z_one, self_energy_contacts(transm_contact1)%matrix, &
+                                  gamma_contacts_group(transm_contact2, ipoint)%matrix, &
+                                  z_zero, self_energy_contacts(transm_contact2)%matrix)
 
                !  Trace[ g_ret_s * gamma_1 * g_adv_s * gamma_2 ]
                CALL cp_cfm_trace(g_ret_s_group(ipoint)%matrix, &

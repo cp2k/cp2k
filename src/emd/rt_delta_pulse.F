@@ -12,8 +12,7 @@
 MODULE rt_delta_pulse
    USE cell_types,                      ONLY: cell_type
    USE commutator_rpnl,                 ONLY: build_com_mom_nl
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                              cp_cfm_gemm
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
@@ -271,8 +270,8 @@ CONTAINS
          CALL cp_cfm_column_scale(oo_v, eigenvalues_sqrt)
          DEALLOCATE (eigenvalues)
          DEALLOCATE (eigenvalues_sqrt)
-         CALL cp_cfm_gemm('N', 'C', nmo, nmo, nmo, (1.0_dp, 0.0_dp), &
-                          oo_v, oo_vt, (0.0_dp, 0.0_dp), oo_c)
+         CALL parallel_gemm('N', 'C', nmo, nmo, nmo, (1.0_dp, 0.0_dp), &
+                            oo_v, oo_vt, (0.0_dp, 0.0_dp), oo_c)
          oo_1%local_data = REAL(oo_c%local_data, KIND=dp)
          oo_2%local_data = AIMAG(oo_c%local_data)
          CALL cp_cfm_release(oo_c)
@@ -422,8 +421,8 @@ CONTAINS
          CALL cp_cfm_column_scale(oo_v, eigenvalues_sqrt)
          DEALLOCATE (eigenvalues)
          DEALLOCATE (eigenvalues_sqrt)
-         CALL cp_cfm_gemm('N', 'C', nmo, nmo, nmo, (1.0_dp, 0.0_dp), &
-                          oo_v, oo_vt, (0.0_dp, 0.0_dp), oo_c)
+         CALL parallel_gemm('N', 'C', nmo, nmo, nmo, (1.0_dp, 0.0_dp), &
+                            oo_v, oo_vt, (0.0_dp, 0.0_dp), oo_c)
          oo_1%local_data = REAL(oo_c%local_data, KIND=dp)
          oo_2%local_data = AIMAG(oo_c%local_data)
          CALL cp_cfm_release(oo_c)
