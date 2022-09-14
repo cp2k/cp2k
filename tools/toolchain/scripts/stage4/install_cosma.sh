@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.6.1"
-cosma_sha256="69aa6634a030674f0d9be61e7b0bf0dc17acf0fc9e7a90b40e3179e2254c8d67"
+cosma_ver="2.6.2"
+cosma_sha256="2debb5123cc35aeebc5fd2f8a46cfd6356d1e27618c9bb57129ecd09aa400940"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -35,13 +35,13 @@ case "$with_cosma" in
         echo "COSMA-v${cosma_ver}.tar.gz is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${cosma_sha256} \
-          "https://github.com/eth-cscs/COSMA/releases/download/v${cosma_ver}/COSMA-v${cosma_ver}.tar.gz" \
+          "https://github.com/eth-cscs/COSMA/releases/download/v${cosma_ver}/cosma.tar.gz" \
           -o COSMA-v${cosma_ver}.tar.gz
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d COSMA-${cosma_ver} ] && rm -rf COSMA-${cosma_ver}
       tar -xzf COSMA-v${cosma_ver}.tar.gz
-      cd COSMA-v${cosma_ver}
+      cd cosma
 
       # Build CPU version.
       [ -d build-cpu ] && rm -rf "build-cpu"
