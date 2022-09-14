@@ -52,8 +52,10 @@ MODULE cp_fm_types
 
    PUBLIC :: cp_fm_add_to_element, &
              cp_fm_create_p, &
+             cp_fm_create, &
              cp_fm_retain, &
              cp_fm_release_p, &
+             cp_fm_release, &
              cp_fm_get_info, &
              cp_fm_set_element, &
              cp_fm_get_element, &
@@ -144,6 +146,24 @@ MODULE cp_fm_types
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param matrix_struct ...
+!> \param name ...
+!> \param use_sp ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_create_p(matrix, matrix_struct, name, use_sp)
+      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
+      LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
+
+      ALLOCATE (matrix)
+      CALL cp_fm_create(matrix, matrix_struct, name, use_sp)
+
+   END SUBROUTINE cp_fm_create_p
+
+! **************************************************************************************************
 !> \brief creates a new full matrix with the given structure
 !> \param matrix the matrix to be created
 !> \param matrix_struct the structure of matrix
@@ -155,13 +175,13 @@ CONTAINS
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_create_p(matrix, matrix_struct, name, use_sp)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+   SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp)
+      TYPE(cp_fm_type), INTENT(OUT)                      :: matrix
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
       LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_create_p'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_create'
 
       INTEGER                                            :: handle, ncol_local, npcol, nprow, &
                                                             nrow_local
@@ -174,7 +194,6 @@ CONTAINS
 #endif
 
       CPASSERT(ASSOCIATED(matrix_struct))
-      ALLOCATE (matrix)
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(matrix%matrix_struct)
@@ -216,7 +235,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_create_p
+   END SUBROUTINE cp_fm_create
 
 ! **************************************************************************************************
 !> \brief retains a full matrix
@@ -235,45 +254,58 @@ CONTAINS
    END SUBROUTINE cp_fm_retain
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_release_p(matrix)
+      TYPE(cp_fm_type), POINTER                          :: matrix
+
+      IF (ASSOCIATED(matrix)) THEN
+         CALL cp_fm_release(matrix)
+         IF (matrix%ref_count < 1) THEN
+            DEALLOCATE (matrix)
+         END IF
+      END IF
+      NULLIFY (matrix)
+
+   END SUBROUTINE cp_fm_release_p
+
+! **************************************************************************************************
 !> \brief releases a full matrix
 !> \param matrix the matrix to release
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_release_p(matrix)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+   SUBROUTINE cp_fm_release(matrix)
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_release_p'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_release'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(matrix)) THEN
-         CPASSERT(matrix%ref_count > 0)
-         matrix%ref_count = matrix%ref_count - 1
-         IF (matrix%ref_count < 1) THEN
-            IF (ASSOCIATED(matrix%local_data)) THEN
-               DEALLOCATE (matrix%local_data)
-            END IF
-            IF (ASSOCIATED(matrix%local_data_sp)) THEN
-               DEALLOCATE (matrix%local_data_sp)
-            END IF
-            matrix%name = ""
-            CALL cp_fm_struct_release(matrix%matrix_struct)
-            DEALLOCATE (matrix)
+      CPASSERT(matrix%ref_count > 0)
+      matrix%ref_count = matrix%ref_count - 1
+      IF (matrix%ref_count < 1) THEN
+         IF (ASSOCIATED(matrix%local_data)) THEN
+            DEALLOCATE (matrix%local_data)
          END IF
+         IF (ASSOCIATED(matrix%local_data_sp)) THEN
+            DEALLOCATE (matrix%local_data_sp)
+         END IF
+         matrix%name = ""
+         CALL cp_fm_struct_release(matrix%matrix_struct)
       END IF
-      NULLIFY (matrix)
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_release_p
+   END SUBROUTINE cp_fm_release
 
 ! **************************************************************************************************
 !> \brief This routine performs a soft copy. The destination matrix is NOT meant to be released
-!>        with cp_fm_release_p; otherwise, the POINTERs within the source matrix become undefined.
+!>        with cp_fm_release or cp_fm_release_p; otherwise, the POINTERs within the source matrix become undefined.
 !> \param source ...
 !> \param destination ...
 ! **************************************************************************************************

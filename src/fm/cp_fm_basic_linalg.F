@@ -15,8 +15,8 @@ MODULE cp_fm_basic_linalg
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_to_fm, &
+        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_set_element, cp_fm_set_submatrix, cp_fm_to_fm, &
         cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,&
                                               cp_to_string
@@ -1451,10 +1451,10 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
       REAL(KIND=dp)                            :: determinant, my_eps_svd
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-      TYPE(cp_fm_type), POINTER                :: matrix_lu
+      TYPE(cp_fm_type)                :: matrix_lu
 
 #if defined(__SCALAPACK)
-      TYPE(cp_fm_type), POINTER                :: u, vt, sigma, inv_sigma_ut
+      TYPE(cp_fm_type)                :: u, vt, sigma, inv_sigma_ut
       INTEGER                                  :: i, info, liwork, lwork, group, exponent_of_minus_one
       INTEGER, DIMENSION(9)                    :: desca
       LOGICAL                                  :: quenched
@@ -1469,9 +1469,9 @@ CONTAINS
       my_eps_svd = 0.0_dp
       IF (PRESENT(eps_svd)) my_eps_svd = eps_svd
 
-      CALL cp_fm_create_p(matrix=matrix_lu, &
-                          matrix_struct=matrix_a%matrix_struct, &
-                          name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
+      CALL cp_fm_create(matrix=matrix_lu, &
+                        matrix_struct=matrix_a%matrix_struct, &
+                        name="A_lu"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
       CALL cp_fm_to_fm(matrix_a, matrix_lu)
 
       a => matrix_lu%local_data
@@ -1520,13 +1520,13 @@ CONTAINS
          CALL pdgetrs('N', n, n, matrix_lu%local_data, 1, 1, desca, ipivot, matrix_inverse%local_data, 1, 1, desca, info)
       ELSE
          ! Use singular value decomposition
-         CALL cp_fm_create_p(matrix=u, &
-                             matrix_struct=matrix_a%matrix_struct, &
-                             name="LEFT_SINGULAR_MATRIX")
+         CALL cp_fm_create(matrix=u, &
+                           matrix_struct=matrix_a%matrix_struct, &
+                           name="LEFT_SINGULAR_MATRIX")
          CALL cp_fm_set_all(u, alpha=0.0_dp)
-         CALL cp_fm_create_p(matrix=vt, &
-                             matrix_struct=matrix_a%matrix_struct, &
-                             name="RIGHT_SINGULAR_MATRIX")
+         CALL cp_fm_create(matrix=vt, &
+                           matrix_struct=matrix_a%matrix_struct, &
+                           name="RIGHT_SINGULAR_MATRIX")
          CALL cp_fm_set_all(vt, alpha=0.0_dp)
          ALLOCATE (diag(n))
          diag(:) = 0.0_dp
@@ -1547,9 +1547,9 @@ CONTAINS
          IF (info /= 0 .AND. info /= n + 1) &
             CPABORT("Singular value decomposition of matrix failed.")
          ! (Pseudo)inverse and (pseudo)determinant
-         CALL cp_fm_create_p(matrix=sigma, &
-                             matrix_struct=matrix_a%matrix_struct, &
-                             name="SINGULAR_VALUE_MATRIX")
+         CALL cp_fm_create(matrix=sigma, &
+                           matrix_struct=matrix_a%matrix_struct, &
+                           name="SINGULAR_VALUE_MATRIX")
          CALL cp_fm_set_all(sigma, alpha=0.0_dp)
          determinant = 1.0_dp
          quenched = .FALSE.
@@ -1574,9 +1574,9 @@ CONTAINS
                          "Linear dependencies were detected in the SVD inversion of matrix "//TRIM(ADJUSTL(matrix_a%name))// &
                          ". At least one singular value has been quenched.")
          ! Sigma^-1 * U^T
-         CALL cp_fm_create_p(matrix=inv_sigma_ut, &
-                             matrix_struct=matrix_a%matrix_struct, &
-                             name="SINGULAR_VALUE_MATRIX")
+         CALL cp_fm_create(matrix=inv_sigma_ut, &
+                           matrix_struct=matrix_a%matrix_struct, &
+                           name="SINGULAR_VALUE_MATRIX")
          CALL cp_fm_set_all(inv_sigma_ut, alpha=0.0_dp)
          CALL pdgemm('N', 'T', n, n, n, 1.0_dp, sigma%local_data, 1, 1, desca, &
                      u%local_data, 1, 1, desca, 0.0_dp, inv_sigma_ut%local_data, 1, 1, desca)
@@ -1586,10 +1586,10 @@ CONTAINS
                      inv_sigma_ut%local_data, 1, 1, desca, 0.0_dp, matrix_inverse%local_data, 1, 1, desca)
          ! Clean up
          DEALLOCATE (work)
-         CALL cp_fm_release_p(u)
-         CALL cp_fm_release_p(vt)
-         CALL cp_fm_release_p(sigma)
-         CALL cp_fm_release_p(inv_sigma_ut)
+         CALL cp_fm_release(u)
+         CALL cp_fm_release(vt)
+         CALL cp_fm_release(sigma)
+         CALL cp_fm_release(inv_sigma_ut)
       END IF
 #else
       IF (my_eps_svd .EQ. 0.0_dp) THEN
@@ -1605,7 +1605,7 @@ CONTAINS
                                      determinant, eigval)
       END IF
 #endif
-      CALL cp_fm_release_p(matrix_lu)
+      CALL cp_fm_release(matrix_lu)
       DEALLOCATE (ipivot)
       IF (PRESENT(det_a)) det_a = determinant
    END SUBROUTINE cp_fm_invert
