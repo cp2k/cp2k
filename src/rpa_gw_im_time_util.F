@@ -18,8 +18,8 @@ MODULE rpa_gw_im_time_util
                                               pbc
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -177,7 +177,7 @@ CONTAINS
       CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
       NULLIFY (fm_mat_mo_coeff_gw)
-      CALL cp_fm_create(fm_mat_mo_coeff_gw, mo_coeff%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_mo_coeff_gw, mo_coeff%matrix_struct)
       CALL cp_fm_to_fm(mo_coeff, fm_mat_mo_coeff_gw)
 
       ! set MO coeffs to zero where
@@ -297,7 +297,7 @@ CONTAINS
 
       END DO
 
-      CALL cp_fm_release(fm_mat_mo_coeff_gw)
+      CALL cp_fm_release_p(fm_mat_mo_coeff_gw)
 
       IF (do_ic_model) THEN
          pdims = 0

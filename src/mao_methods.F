@@ -29,8 +29,8 @@ MODULE mao_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -455,10 +455,10 @@ CONTAINS
       CALL dbcsr_get_info(smat, nfullrows_total=norb)
       CALL cp_fm_struct_create(fmstruct=matrix_struct, context=kpoints%blacs_env_all, &
                                nrow_global=norb, ncol_global=norb)
-      CALL cp_fm_create(fmksmat, matrix_struct)
-      CALL cp_fm_create(fmsmat, matrix_struct)
-      CALL cp_fm_create(fmvec, matrix_struct)
-      CALL cp_fm_create(fmwork, matrix_struct)
+      CALL cp_fm_create_p(fmksmat, matrix_struct)
+      CALL cp_fm_create_p(fmsmat, matrix_struct)
+      CALL cp_fm_create_p(fmvec, matrix_struct)
+      CALL cp_fm_create_p(fmwork, matrix_struct)
       ALLOCATE (eigenvalues(norb))
 
       ! DBCSR matrix
@@ -482,10 +482,10 @@ CONTAINS
 
       DEALLOCATE (eigenvalues)
       CALL dbcsr_release(tempmat)
-      CALL cp_fm_release(fmksmat)
-      CALL cp_fm_release(fmsmat)
-      CALL cp_fm_release(fmvec)
-      CALL cp_fm_release(fmwork)
+      CALL cp_fm_release_p(fmksmat)
+      CALL cp_fm_release_p(fmsmat)
+      CALL cp_fm_release_p(fmvec)
+      CALL cp_fm_release_p(fmwork)
       CALL cp_fm_struct_release(matrix_struct)
 
    END SUBROUTINE calculate_p_gamma

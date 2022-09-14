@@ -19,9 +19,9 @@ MODULE stm_images
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -197,7 +197,7 @@ CONTAINS
             occupation(ispin)%array(1 + nmo:ndim) = 0.0_dp
             CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=ndim, &
                                      template_fmstruct=mo_coeff%matrix_struct)
-            CALL cp_fm_create(mo_arrays(ispin)%matrix, fm_struct_tmp, name="mo_arrays")
+            CALL cp_fm_create_p(mo_arrays(ispin)%matrix, fm_struct_tmp, name="mo_arrays")
             CALL cp_fm_struct_release(fm_struct_tmp)
             CALL cp_fm_to_fm(mo_coeff, mo_arrays(ispin)%matrix, nmo, 1, 1)
             CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix, mo_arrays(ispin)%matrix, &
@@ -213,7 +213,7 @@ CONTAINS
          IF (nadd_unocc(ispin) > 0) THEN
             DEALLOCATE (evals(ispin)%array)
             DEALLOCATE (occupation(ispin)%array)
-            CALL cp_fm_release(mo_arrays(ispin)%matrix)
+            CALL cp_fm_release_p(mo_arrays(ispin)%matrix)
          END IF
       END DO
       DEALLOCATE (mo_arrays)
@@ -337,8 +337,8 @@ CONTAINS
 
          CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=istates, &
                                   template_fmstruct=mo_arrays(1)%matrix%matrix_struct)
-         CALL cp_fm_create(matrix_v, fm_struct_tmp, name="matrix_v")
-         CALL cp_fm_create(matrix_vf, fm_struct_tmp, name="matrix_vf")
+         CALL cp_fm_create_p(matrix_v, fm_struct_tmp, name="matrix_v")
+         CALL cp_fm_create_p(matrix_vf, fm_struct_tmp, name="matrix_vf")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          ALLOCATE (occ_tot(istates))
@@ -393,8 +393,8 @@ CONTAINS
             CALL cp_print_key_finished_output(unit_nr, logger, stm_section, mpi_io=mpi_io)
          END DO
 
-         CALL cp_fm_release(matrix_v)
-         CALL cp_fm_release(matrix_vf)
+         CALL cp_fm_release_p(matrix_v)
+         CALL cp_fm_release_p(matrix_vf)
          DEALLOCATE (occ_tot)
 
       END DO

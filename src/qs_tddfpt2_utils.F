@@ -25,10 +25,10 @@ MODULE qs_tddfpt2_utils
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
@@ -199,7 +199,7 @@ CONTAINS
 
       IF (ASSOCIATED(mos_virt)) THEN
          DO ispin = 1, SIZE(mos_virt)
-            IF (ASSOCIATED(mos_virt(ispin)%matrix)) CALL cp_fm_release(mos_virt(ispin)%matrix)
+            IF (ASSOCIATED(mos_virt(ispin)%matrix)) CALL cp_fm_release_p(mos_virt(ispin)%matrix)
          END DO
          DEALLOCATE (mos_virt)
       END IF
@@ -291,8 +291,8 @@ CONTAINS
       CALL cp_fm_struct_create(ao_mo_virt_fm_struct, nrow_global=nao, ncol_global=nmo_virt, context=blacs_env)
 
       NULLIFY (gs_mos%mos_occ, gs_mos%mos_virt, gs_mos%evals_occ_matrix)
-      CALL cp_fm_create(gs_mos%mos_occ, ao_mo_occ_fm_struct)
-      CALL cp_fm_create(gs_mos%mos_virt, ao_mo_virt_fm_struct)
+      CALL cp_fm_create_p(gs_mos%mos_occ, ao_mo_occ_fm_struct)
+      CALL cp_fm_create_p(gs_mos%mos_virt, ao_mo_virt_fm_struct)
 
       ALLOCATE (gs_mos%evals_occ(nmo_occ))
       ALLOCATE (gs_mos%evals_virt(nmo_virt))
@@ -331,9 +331,9 @@ CONTAINS
 
          ! ++ allocate temporary matrices
          NULLIFY (matrix_ks_fm, ortho_fm, work_fm)
-         CALL cp_fm_create(matrix_ks_fm, ao_ao_fm_struct)
-         CALL cp_fm_create(ortho_fm, ao_ao_fm_struct)
-         CALL cp_fm_create(work_fm, ao_ao_fm_struct)
+         CALL cp_fm_create_p(matrix_ks_fm, ao_ao_fm_struct)
+         CALL cp_fm_create_p(ortho_fm, ao_ao_fm_struct)
+         CALL cp_fm_create_p(work_fm, ao_ao_fm_struct)
          CALL cp_fm_struct_release(ao_ao_fm_struct)
 
          ! some stuff from the subroutine general_eigenproblem()
@@ -359,9 +359,9 @@ CONTAINS
          END IF
 
          ! -- clean up needless matrices
-         CALL cp_fm_release(work_fm)
-         CALL cp_fm_release(ortho_fm)
-         CALL cp_fm_release(matrix_ks_fm)
+         CALL cp_fm_release_p(work_fm)
+         CALL cp_fm_release_p(ortho_fm)
+         CALL cp_fm_release_p(matrix_ks_fm)
       ELSE
          CALL get_mo_set(mo_set, mo_coeff=mo_coeff_extended, &
                          eigenvalues=mo_evals_extended, occupation_numbers=mo_occ_extended)
@@ -370,7 +370,7 @@ CONTAINS
       ! compute the phase of molecular orbitals;
       ! matrix work_fm holds occupied molecular orbital coefficients distributed among all the processors
       !CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=blacs_env)
-      CALL cp_fm_create(work_fm, ao_mo_occ_fm_struct)
+      CALL cp_fm_create_p(work_fm, ao_mo_occ_fm_struct)
       CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
 
       CALL cp_fm_to_fm(mo_coeff_extended, work_fm, ncol=nmo_occ, source_start=1, target_start=1)
@@ -449,7 +449,7 @@ CONTAINS
          gs_mos%evals_virt(1:nmo_virt) = mo_evals_extended(nmo_occ + 1:nmo_occ + nmo_virt)
       END IF
 
-      CALL cp_fm_release(work_fm)
+      CALL cp_fm_release_p(work_fm)
 
       IF (do_eigen) CALL deallocate_mo_set(mos_extended)
 
@@ -482,13 +482,13 @@ CONTAINS
          DEALLOCATE (gs_mos%evals_occ)
 
       IF (ASSOCIATED(gs_mos%evals_occ_matrix)) &
-         CALL cp_fm_release(gs_mos%evals_occ_matrix)
+         CALL cp_fm_release_p(gs_mos%evals_occ_matrix)
 
       IF (ASSOCIATED(gs_mos%mos_virt)) &
-         CALL cp_fm_release(gs_mos%mos_virt)
+         CALL cp_fm_release_p(gs_mos%mos_virt)
 
       IF (ASSOCIATED(gs_mos%mos_occ)) &
-         CALL cp_fm_release(gs_mos%mos_occ)
+         CALL cp_fm_release_p(gs_mos%mos_occ)
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt_release_ground_state_mos
@@ -610,18 +610,18 @@ CONTAINS
             nmo_occ = SIZE(gs_mos(ispin)%evals_occ)
             CALL cp_fm_struct_create(mo_occ_mo_occ_fm_struct, nrow_global=nmo_occ, ncol_global=nmo_occ, &
                                      context=blacs_env)
-            CALL cp_fm_create(gs_mos(ispin)%evals_occ_matrix, mo_occ_mo_occ_fm_struct)
+            CALL cp_fm_create_p(gs_mos(ispin)%evals_occ_matrix, mo_occ_mo_occ_fm_struct)
             CALL cp_fm_struct_release(mo_occ_mo_occ_fm_struct)
             ! work_fm is a temporary [nao x nmo_occ] matrix
             CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, &
                                      context=blacs_env)
-            CALL cp_fm_create(work_fm, ao_mo_occ_fm_struct)
+            CALL cp_fm_create_p(work_fm, ao_mo_occ_fm_struct)
             CALL cp_fm_struct_release(ao_mo_occ_fm_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks_oep(ispin)%matrix, gs_mos(ispin)%mos_occ, &
                                          work_fm, ncol=nmo_occ, alpha=1.0_dp, beta=0.0_dp)
             CALL parallel_gemm('T', 'N', nmo_occ, nmo_occ, nao, 1.0_dp, gs_mos(ispin)%mos_occ, work_fm, &
                                0.0_dp, gs_mos(ispin)%evals_occ_matrix)
-            CALL cp_fm_release(work_fm)
+            CALL cp_fm_release_p(work_fm)
          END DO
          IF (iounit > 0) THEN
             WRITE (iounit, "(1X,A)") &
@@ -709,26 +709,26 @@ CONTAINS
             IF (nhomo == nu) THEN
                ! downshift with -eos_shift using occupied orbitals
                nos = nu - nl
-               CALL cp_fm_create(cmos, fmstruct)
+               CALL cp_fm_create_p(cmos, fmstruct)
                CALL cp_fm_get_info(coeff, nrow_global=nrow)
                CALL cp_fm_to_fm_submat(coeff, cmos, nrow, nos, 1, nl + 1, 1, 1)
-               CALL cp_fm_create(cvec, fmstruct)
+               CALL cp_fm_create_p(cvec, fmstruct)
                CALL cp_dbcsr_sm_fm_multiply(smat, cmos, cvec, nos, 1.0_dp, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nos, &
                                           alpha=-eos_shift, keep_sparsity=.TRUE.)
-               CALL cp_fm_release(cmos)
-               CALL cp_fm_release(cvec)
+               CALL cp_fm_release_p(cmos)
+               CALL cp_fm_release_p(cvec)
             ELSE
                ! upshift with eos_shift using virtual orbitals
                coeff => gs_mos(ispin)%mos_virt
                CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nvirt)
                nos = nu - nhomo
                CPASSERT(nvirt >= nos)
-               CALL cp_fm_create(cvec, fmstruct)
+               CALL cp_fm_create_p(cvec, fmstruct)
                CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nos, 1.0_dp, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nos, &
                                           alpha=eos_shift, keep_sparsity=.TRUE.)
-               CALL cp_fm_release(cvec)
+               CALL cp_fm_release_p(cvec)
             END IF
          END DO
          ! virtual shift
@@ -738,21 +738,21 @@ CONTAINS
                               alpha_scalar=1.0_dp, beta_scalar=ev_shift)
                coeff => gs_mos(ispin)%mos_occ
                CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nhomo)
-               CALL cp_fm_create(cvec, fmstruct)
+               CALL cp_fm_create_p(cvec, fmstruct)
                CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nhomo, 1.0_dp, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nhomo, &
                                           alpha=-ev_shift, keep_sparsity=.TRUE.)
-               CALL cp_fm_release(cvec)
+               CALL cp_fm_release_p(cvec)
                IF (nhomo < nu) THEN
                   nos = nu - nhomo
                   coeff => gs_mos(ispin)%mos_virt
                   CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nvirt)
                   CPASSERT(nvirt >= nos)
-                  CALL cp_fm_create(cvec, fmstruct)
+                  CALL cp_fm_create_p(cvec, fmstruct)
                   CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nos, 1.0_dp, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nos, &
                                              alpha=-ev_shift, keep_sparsity=.TRUE.)
-                  CALL cp_fm_release(cvec)
+                  CALL cp_fm_release_p(cvec)
                END IF
             END DO
          END IF
@@ -766,11 +766,11 @@ CONTAINS
                               alpha_scalar=1.0_dp, beta_scalar=ev_shift)
                coeff => gs_mos(ispin)%mos_occ
                CALL cp_fm_get_info(coeff, matrix_struct=fmstruct, ncol_global=nhomo)
-               CALL cp_fm_create(cvec, fmstruct)
+               CALL cp_fm_create_p(cvec, fmstruct)
                CALL cp_dbcsr_sm_fm_multiply(smat, coeff, cvec, nhomo, 1.0_dp, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(matrix_ks(ispin)%matrix, matrix_v=cvec, ncol=nhomo, &
                                           alpha=-ev_shift, keep_sparsity=.TRUE.)
-               CALL cp_fm_release(cvec)
+               CALL cp_fm_release_p(cvec)
             END DO
          END IF
       END IF
@@ -949,7 +949,7 @@ CONTAINS
 
             DO jspin = 1, nspins
                ! .NOT. ASSOCIATED(evects(jspin, istate)%matrix))
-               CALL cp_fm_create(evects(jspin, istate)%matrix, fm_struct_evects(jspin)%struct)
+               CALL cp_fm_create_p(evects(jspin, istate)%matrix, fm_struct_evects(jspin)%struct)
                CALL cp_fm_set_all(evects(jspin, istate)%matrix, 0.0_dp)
 
                IF (jspin == ispin) &

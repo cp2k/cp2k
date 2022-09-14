@@ -31,10 +31,10 @@ MODULE bfgs_optimizer
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
-   USE cp_fm_types, ONLY: cp_fm_create, &
+   USE cp_fm_types, ONLY: cp_fm_create_p, &
                           cp_fm_get_info, &
                           cp_fm_read_unformatted, &
-                          cp_fm_release, &
+                          cp_fm_release_p, &
                           cp_fm_set_all, &
                           cp_fm_to_fm, &
                           cp_fm_type, &
@@ -206,9 +206,9 @@ CONTAINS
                                globenv%blacs_repeatable)
       CALL cp_fm_struct_create(fm_struct_hes, para_env=para_env, context=blacs_env, &
                                nrow_global=ndf, ncol_global=ndf)
-      CALL cp_fm_create(hess_mat, fm_struct_hes, name="hess_mat")
-      CALL cp_fm_create(hess_tmp, fm_struct_hes, name="hess_tmp")
-      CALL cp_fm_create(eigvec_mat, fm_struct_hes, name="eigvec_mat")
+      CALL cp_fm_create_p(hess_mat, fm_struct_hes, name="hess_mat")
+      CALL cp_fm_create_p(hess_tmp, fm_struct_hes, name="hess_tmp")
+      CALL cp_fm_create_p(eigvec_mat, fm_struct_hes, name="eigvec_mat")
       ALLOCATE (eigval(ndf))
       eigval(:) = 0.0_dp
 
@@ -431,9 +431,9 @@ CONTAINS
                               gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit)
 
       CALL cp_fm_struct_release(fm_struct_hes)
-      CALL cp_fm_release(hess_mat)
-      CALL cp_fm_release(eigvec_mat)
-      CALL cp_fm_release(hess_tmp)
+      CALL cp_fm_release_p(hess_mat)
+      CALL cp_fm_release_p(eigvec_mat)
+      CALL cp_fm_release_p(hess_tmp)
 
       CALL cp_blacs_env_release(blacs_env)
       DEALLOCATE (xold)
@@ -772,12 +772,12 @@ CONTAINS
 
       CALL cp_fm_column_scale(hess_tmp, eigval)
       CALL cp_fm_get_info(eigvec_mat, matrix_struct=matrix_struct)
-      CALL cp_fm_create(tmp, matrix_struct, name="tmp")
+      CALL cp_fm_create_p(tmp, matrix_struct, name="tmp")
 
       CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, tmp)
 
       CALL cp_fm_transpose(tmp, hess_tmp)
-      CALL cp_fm_release(tmp)
+      CALL cp_fm_release_p(tmp)
 
 !    ** New step **
 

@@ -19,9 +19,9 @@ MODULE rpa_im_time
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -907,7 +907,7 @@ CONTAINS
       ALLOCATE (exp_scaling(nmo))
 
       CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
-      CALL cp_fm_create(fwork, matrix_struct)
+      CALL cp_fm_create_p(fwork, matrix_struct)
 
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
       kplocal = kp_range(2) - kp_range(1) + 1
@@ -984,7 +984,7 @@ CONTAINS
 
       END DO
 
-      CALL cp_fm_release(fwork)
+      CALL cp_fm_release_p(fwork)
       DEALLOCATE (exp_scaling)
 
       CALL timestop(handle)
@@ -1257,7 +1257,7 @@ CONTAINS
       NULLIFY (xkp, wkp)
 
       NULLIFY (fm_mat_work)
-      CALL cp_fm_create(fm_mat_work, kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_work, kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 
       CALL get_kpoint_info(kpoints_G, nkp=nkp, xkp=xkp, wkp=wkp)
@@ -1334,7 +1334,7 @@ CONTAINS
 
       END DO
 
-      CALL cp_fm_release(fm_mat_work)
+      CALL cp_fm_release_p(fm_mat_work)
       DEALLOCATE (atom_from_ao_index)
 
       CALL timestop(handle)

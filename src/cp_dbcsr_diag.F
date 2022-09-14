@@ -31,8 +31,8 @@ MODULE cp_dbcsr_diag
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
@@ -88,8 +88,8 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullrows_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
-      CALL cp_fm_create(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
+      CALL cp_fm_create_p(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_fm_create_p(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL copy_dbcsr_to_fm(matrix, fm_matrix)
@@ -98,8 +98,8 @@ CONTAINS
 
       CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
 
-      CALL cp_fm_release(fm_matrix)
-      CALL cp_fm_release(fm_eigenvectors)
+      CALL cp_fm_release_p(fm_matrix)
+      CALL cp_fm_release_p(fm_eigenvectors)
 
       CALL timestop(handle)
 
@@ -151,21 +151,21 @@ CONTAINS
       NULLIFY (fm_matrix, fm_eigenvectors, fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=n, &
                                ncol_global=n, para_env=para_env)
-      CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_fm_create_p(fm_matrix, fm_struct, name="fm_matrix")
 
       CALL copy_dbcsr_to_fm(matrix, fm_matrix)
 
       IF (PRESENT(eigenvectors)) THEN
-         CALL cp_fm_create(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
+         CALL cp_fm_create_p(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
          CALL cp_fm_syevx(fm_matrix, fm_eigenvectors, eigenvalues, neig, work_syevx)
          CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
-         CALL cp_fm_release(fm_eigenvectors)
+         CALL cp_fm_release_p(fm_eigenvectors)
       ELSE
          CALL cp_fm_syevx(fm_matrix, eigenvalues=eigenvalues, neig=neig, work_syevx=work_syevx)
       END IF
 
       CALL cp_fm_struct_release(fm_struct)
-      CALL cp_fm_release(fm_matrix)
+      CALL cp_fm_release_p(fm_matrix)
 
       CALL timestop(handle)
 
@@ -253,8 +253,8 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullrows_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
-      CALL cp_fm_create(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
+      CALL cp_fm_create_p(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_fm_create_p(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL copy_dbcsr_to_fm(matrix, fm_matrix)
@@ -262,12 +262,12 @@ CONTAINS
       CALL cp_fm_power(fm_matrix, fm_eigenvectors, exponent, threshold, n_dependent, verbose, eigenvalues_prv)
 
       CALL copy_fm_to_dbcsr(fm_matrix, matrix)
-      CALL cp_fm_release(fm_matrix)
+      CALL cp_fm_release_p(fm_matrix)
 
       IF (PRESENT(eigenvalues)) eigenvalues(:) = eigenvalues_prv
       IF (PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
 
-      CALL cp_fm_release(fm_eigenvectors)
+      CALL cp_fm_release_p(fm_eigenvectors)
 
       CALL timestop(handle)
 

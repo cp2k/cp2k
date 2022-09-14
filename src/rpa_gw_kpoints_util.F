@@ -40,9 +40,9 @@ MODULE rpa_gw_kpoints_util
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_retain
@@ -370,7 +370,7 @@ CONTAINS
       CALL cp_cfm_set_all(cfm_mat_L, z_zero)
 
       NULLIFY (fm_mat_work)
-      CALL cp_fm_create(fm_mat_work, fm_mat_L_re%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_work, fm_mat_L_re%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 
       ! 1. Convert the dbcsr matrix mat_P_omega_kp (that is chi(k,iw)) to a full matrix and
@@ -401,7 +401,7 @@ CONTAINS
 
       CALL cp_cfm_release(cfm_mat_work)
       CALL cp_cfm_release(cfm_mat_L)
-      CALL cp_fm_release(fm_mat_work)
+      CALL cp_fm_release_p(fm_mat_work)
 
       CALL timestop(handle)
 
@@ -1089,11 +1089,11 @@ CONTAINS
       CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
 
       NULLIFY (fm_mat_work_global)
-      CALL cp_fm_create(fm_mat_work_global, fm_mat_W_tau(1)%matrix%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_work_global, fm_mat_W_tau(1)%matrix%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work_global, 0.0_dp)
 
       NULLIFY (fm_mat_work_local)
-      CALL cp_fm_create(fm_mat_work_local, cfm_mat_Q%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_work_local, cfm_mat_Q%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work_local, 0.0_dp)
 
       CALL timestop(handle2)
@@ -1286,8 +1286,8 @@ CONTAINS
       CALL cp_cfm_release(cfm_mat_work)
       CALL cp_cfm_release(cfm_mat_work_2)
       CALL cp_cfm_release(cfm_mat_L)
-      CALL cp_fm_release(fm_mat_work_global)
-      CALL cp_fm_release(fm_mat_work_local)
+      CALL cp_fm_release_p(fm_mat_work_global)
+      CALL cp_fm_release_p(fm_mat_work_local)
       DEALLOCATE (atom_from_RI_index)
 
       CALL timestop(handle2)
@@ -1857,7 +1857,7 @@ CONTAINS
       CALL cp_cfm_create(csmat, matrix_struct)
       CALL cp_cfm_create(cmos, matrix_struct)
       CALL cp_cfm_create(cwork, matrix_struct)
-      CALL cp_fm_create(fm_work, matrix_struct)
+      CALL cp_fm_create_p(fm_work, matrix_struct)
 
       DO ikp = 1, nkp
 
@@ -1911,7 +1911,7 @@ CONTAINS
       CALL cp_cfm_release(csmat)
       CALL cp_cfm_release(cwork)
       CALL cp_cfm_release(cmos)
-      CALL cp_fm_release(fm_work)
+      CALL cp_fm_release_p(fm_work)
 
       CALL timestop(handle)
 

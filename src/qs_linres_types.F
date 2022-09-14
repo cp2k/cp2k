@@ -19,7 +19,7 @@ MODULE qs_linres_types
                                               cp_2d_r_p_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release_p
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
@@ -1478,7 +1478,7 @@ CONTAINS
             IF (ASSOCIATED(polar_env%dBerry_psi0)) THEN
                DO idir = 1, SIZE(polar_env%dBerry_psi0, 1)
                   DO ispin = 1, SIZE(polar_env%dBerry_psi0, 2)
-                     CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
+                     CALL cp_fm_release_p(polar_env%dBerry_psi0(idir, ispin)%matrix)
                   END DO
                END DO
                DEALLOCATE (polar_env%dBerry_psi0)
@@ -1486,7 +1486,7 @@ CONTAINS
             IF (ASSOCIATED(polar_env%psi1_dBerry)) THEN
                DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)
                   DO ispin = 1, SIZE(polar_env%psi1_dBerry, 2)
-                     CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
+                     CALL cp_fm_release_p(polar_env%psi1_dBerry(idir, ispin)%matrix)
                   END DO
                END DO
                DEALLOCATE (polar_env%psi1_dBerry)

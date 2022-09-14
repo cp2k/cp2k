@@ -21,11 +21,11 @@ MODULE rpa_communication
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_indxg2l,&
                                               cp_fm_indxg2p,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -143,7 +143,7 @@ CONTAINS
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=homo, &
                                ncol_global=virtual, para_env=para_env_sub)
-      CALL cp_fm_create(fm_ia, fm_struct, name="fm_ia")
+      CALL cp_fm_create_p(fm_ia, fm_struct, name="fm_ia")
 
       ! release structure
       CALL cp_fm_struct_release(fm_struct)
@@ -438,9 +438,9 @@ CONTAINS
       CALL release_group_dist(gd_ia)
 
       ! release buffer matrix
-      CALL cp_fm_release(fm_ia)
+      CALL cp_fm_release_p(fm_ia)
       ! release auxiliary gamma
-      CALL cp_fm_release(fm_mat_Gamma_3)
+      CALL cp_fm_release_p(fm_mat_Gamma_3)
 
       CALL timestop(handle)
 

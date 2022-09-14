@@ -21,8 +21,8 @@ MODULE qs_energy_window
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -155,12 +155,12 @@ CONTAINS
       CALL dbcsr_create(window, template=matrix_s(1)%matrix, matrix_type="N")
       CALL dbcsr_create(rho_ao_ortho, template=matrix_s(1)%matrix, matrix_type="N")
       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, context=blacs_env, nrow_global=nao, ncol_global=nao)
-      CALL cp_fm_create(P_window_fm, ao_ao_fmstruct)
-      CALL cp_fm_create(matrix_ks_fm, ao_ao_fmstruct)
-      CALL cp_fm_create(rho_ao_ortho_fm, ao_ao_fmstruct)
-      CALL cp_fm_create(S_minus_half_fm, ao_ao_fmstruct)
-      CALL cp_fm_create(eigenvectors, ao_ao_fmstruct)
-      CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
+      CALL cp_fm_create_p(P_window_fm, ao_ao_fmstruct)
+      CALL cp_fm_create_p(matrix_ks_fm, ao_ao_fmstruct)
+      CALL cp_fm_create_p(rho_ao_ortho_fm, ao_ao_fmstruct)
+      CALL cp_fm_create_p(S_minus_half_fm, ao_ao_fmstruct)
+      CALL cp_fm_create_p(eigenvectors, ao_ao_fmstruct)
+      CALL cp_fm_create_p(eigenvectors_nonorth, ao_ao_fmstruct)
       NULLIFY (rho_r, rho_g)
       ALLOCATE (rho_r, rho_g)
       NULLIFY (rho_r%pw, rho_g%pw)
@@ -205,7 +205,7 @@ CONTAINS
          !check difference to actual density
          CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, &
                                   ncol_global=nelectron_total/2)
-         CALL cp_fm_create(window_fm, window_fm_struct)
+         CALL cp_fm_create_p(window_fm, window_fm_struct)
          CALL cp_fm_to_fm(eigenvectors_nonorth, window_fm, nelectron_total/2, 1, 1)
          CALL parallel_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
          !ensure the correct sparsity
@@ -226,12 +226,12 @@ CONTAINS
          frob_norm = dbcsr_frobenius_norm(window)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Difference between calculated ground-state density and current density: ", frob_norm
          CALL cp_fm_struct_release(window_fm_struct)
-         CALL cp_fm_create(tmp_fm, ao_ao_fmstruct)
+         CALL cp_fm_create_p(tmp_fm, ao_ao_fmstruct)
          CALL cp_fm_to_fm(rho_ao_ortho_fm, tmp_fm)
-         CALL cp_fm_create(P_eigenvectors, ao_ao_fmstruct)
+         CALL cp_fm_create_p(P_eigenvectors, ao_ao_fmstruct)
          ALLOCATE (P_eigenvalues(nao))
          CALL choose_eigv_solver(tmp_fm, P_eigenvectors, P_eigenvalues)
-         CALL cp_fm_create(window_eigenvectors, ao_ao_fmstruct)
+         CALL cp_fm_create_p(window_eigenvectors, ao_ao_fmstruct)
          ALLOCATE (window_eigenvalues(nao))
          CALL cp_fm_to_fm(eigenvectors, window_fm, nelectron_total/2, 1, 1)
          CALL parallel_gemm("N", "T", nao, nao, nelectron_total/2, 2*one, window_fm, window_fm, zero, P_window_fm)
@@ -242,11 +242,11 @@ CONTAINS
             END IF
          END DO
          DEALLOCATE (P_eigenvalues)
-         CALL cp_fm_release(tmp_fm)
-         CALL cp_fm_release(P_eigenvectors)
+         CALL cp_fm_release_p(tmp_fm)
+         CALL cp_fm_release_p(P_eigenvectors)
          DEALLOCATE (window_eigenvalues)
-         CALL cp_fm_release(window_eigenvectors)
-         CALL cp_fm_release(window_fm)
+         CALL cp_fm_release_p(window_eigenvectors)
+         CALL cp_fm_release_p(window_fm)
       END IF
 
       !create energy windows
@@ -265,7 +265,7 @@ CONTAINS
          !calculate the occupation
          !not sure how bad this is now load balanced due to using the same blacs_env
          CALL cp_fm_struct_create(fmstruct=window_fm_struct, context=blacs_env, nrow_global=nao, ncol_global=next - last)
-         CALL cp_fm_create(window_fm, window_fm_struct)
+         CALL cp_fm_create_p(window_fm, window_fm_struct)
          !copy the mos in the energy window into a separate matrix
          CALL cp_fm_to_fm(eigenvectors, window_fm, next - last, last + 1, 1)
          CALL parallel_gemm("N", "T", nao, nao, next - last, one, window_fm, window_fm, zero, P_window_fm)
@@ -302,7 +302,7 @@ CONTAINS
                   " Number of states: ", next - last, " Occupation: ", occupation
             END IF
          END IF
-         CALL cp_fm_release(window_fm)
+         CALL cp_fm_release_p(window_fm)
          CALL cp_fm_struct_release(window_fm_struct)
       END DO
 
@@ -315,12 +315,12 @@ CONTAINS
       CALL dbcsr_release(rho_ao_ortho)
       DEALLOCATE (window, rho_ao_ortho)
       CALL cp_fm_struct_release(ao_ao_fmstruct)
-      CALL cp_fm_release(matrix_ks_fm)
-      CALL cp_fm_release(rho_ao_ortho_fm)
-      CALL cp_fm_release(eigenvectors)
-      CALL cp_fm_release(P_window_fm)
-      CALL cp_fm_release(eigenvectors_nonorth)
-      CALL cp_fm_release(S_minus_half_fm)
+      CALL cp_fm_release_p(matrix_ks_fm)
+      CALL cp_fm_release_p(rho_ao_ortho_fm)
+      CALL cp_fm_release_p(eigenvectors)
+      CALL cp_fm_release_p(P_window_fm)
+      CALL cp_fm_release_p(eigenvectors_nonorth)
+      CALL cp_fm_release_p(S_minus_half_fm)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
       DEALLOCATE (rho_r, rho_g)

@@ -31,7 +31,7 @@ MODULE qs_active_space_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_p_type, cp_fm_release_p, &
         cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -518,7 +518,7 @@ CONTAINS
          ALLOCATE (mos_localized(nspins))
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-            CALL cp_fm_create(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
+            CALL cp_fm_create_p(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
             CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin)%matrix)
          END DO
          ! occupied states
@@ -806,7 +806,7 @@ CONTAINS
       ! Kohn-Sham / Fock operator
       IF (ASSOCIATED(active_space_env%ks_sub)) THEN
          DO is = 1, SIZE(active_space_env%ks_sub)
-            CALL cp_fm_release(active_space_env%ks_sub(is)%matrix)
+            CALL cp_fm_release_p(active_space_env%ks_sub(is)%matrix)
          END DO
          DEALLOCATE (active_space_env%ks_sub)
       END IF
@@ -825,7 +825,7 @@ CONTAINS
       ! Vxc matrix
       IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
          DO is = 1, SIZE(active_space_env%vxc_sub)
-            CALL cp_fm_release(active_space_env%vxc_sub(is)%matrix)
+            CALL cp_fm_release_p(active_space_env%vxc_sub(is)%matrix)
          END DO
          DEALLOCATE (active_space_env%vxc_sub)
       END IF
@@ -844,7 +844,7 @@ CONTAINS
       ! Core Hamiltonian
       IF (ASSOCIATED(active_space_env%h_sub)) THEN
          DO is = 1, SIZE(active_space_env%h_sub)
-            CALL cp_fm_release(active_space_env%h_sub(is)%matrix)
+            CALL cp_fm_release_p(active_space_env%h_sub(is)%matrix)
          END DO
          DEALLOCATE (active_space_env%h_sub)
       END IF
@@ -895,7 +895,7 @@ CONTAINS
 
       IF (nmo > 0) THEN
 
-         CALL cp_fm_create(vectors, orbitals%matrix_struct, "vectors")
+         CALL cp_fm_create_p(vectors, orbitals%matrix_struct, "vectors")
 
          CALL create_subspace_matrix(orbitals, op_sub, nmo)
 
@@ -903,7 +903,7 @@ CONTAINS
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nrow, 1.0_dp, orbitals, vectors, 0.0_dp, op_sub)
 
-         CALL cp_fm_release(vectors)
+         CALL cp_fm_release_p(vectors)
 
       END IF
 
@@ -934,7 +934,7 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=n, &
                                   para_env=orbitals%matrix_struct%para_env, &
                                   context=orbitals%matrix_struct%context)
-         CALL cp_fm_create(op_sub, fm_struct, name="Subspace operator")
+         CALL cp_fm_create_p(op_sub, fm_struct, name="Subspace operator")
          CALL cp_fm_struct_release(fm_struct)
 
       END IF
@@ -1712,15 +1712,15 @@ CONTAINS
          !
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO is = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release(active_space_env%fock_sub(is)%matrix)
+               CALL cp_fm_release_p(active_space_env%fock_sub(is)%matrix)
             END DO
             DEALLOCATE (active_space_env%fock_sub)
          END IF
          ALLOCATE (active_space_env%fock_sub(nspins))
          DO is = 1, nspins
             matrix => active_space_env%ks_sub(is)%matrix
-            CALL cp_fm_create(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
-                              name="Active Fock operator")
+            CALL cp_fm_create_p(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
+                                name="Active Fock operator")
          END DO
          matrix => active_space_env%fock_sub(1)%matrix
          DO i1 = 1, norb
@@ -1764,15 +1764,15 @@ CONTAINS
          !
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO is = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release(active_space_env%fock_sub(is)%matrix)
+               CALL cp_fm_release_p(active_space_env%fock_sub(is)%matrix)
             END DO
             DEALLOCATE (active_space_env%fock_sub)
          END IF
          ALLOCATE (active_space_env%fock_sub(nspins))
          DO is = 1, nspins
             matrix => active_space_env%ks_sub(is)%matrix
-            CALL cp_fm_create(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
-                              name="Active Fock operator")
+            CALL cp_fm_create_p(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
+                                name="Active Fock operator")
          END DO
 
          matrix => active_space_env%fock_sub(1)%matrix
@@ -2054,18 +2054,18 @@ CONTAINS
          CALL dbcsr_copy(rho_ao(ispin)%matrix, pinact)
          ! create active density matrix in AO basis
          pmat => p_ref(ispin)%matrix
-         CALL cp_fm_create(lamat, pmat%matrix_struct)
+         CALL cp_fm_create_p(lamat, pmat%matrix_struct)
          CALL cp_fm_to_fm(pmat, lamat)
          ! calclulate SQRT(P): P = U*U
          CALL cp_fm_sqrt(lamat)
          ! R = C * U
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_active, nao=nao, nmo=nmo)
-         CALL cp_fm_create(vec, fm_active%matrix_struct)
+         CALL cp_fm_create_p(vec, fm_active%matrix_struct)
          CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, fm_active, lamat, 0.0_dp, vec)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix, &
                                     matrix_v=vec, ncol=nmo, alpha=1.0_dp)
-         CALL cp_fm_release(vec)
-         CALL cp_fm_release(lamat)
+         CALL cp_fm_release_p(vec)
+         CALL cp_fm_release_p(lamat)
       END DO
 
       ! let's also calculate Vxc
@@ -2104,8 +2104,8 @@ CONTAINS
       CALL cp_fm_get_info(amat, nrow_global=n)
       ALLOCATE (eigv(n))
       ! scratch arrays
-      CALL cp_fm_create(vmat, amat%matrix_struct)
-      CALL cp_fm_create(bmat, amat%matrix_struct)
+      CALL cp_fm_create_p(vmat, amat%matrix_struct)
+      CALL cp_fm_create_p(bmat, amat%matrix_struct)
       ! diag
       CALL cp_fm_syevd(amat, vmat, eigv)
       ! SQRT
@@ -2118,8 +2118,8 @@ CONTAINS
       CALL parallel_gemm("N", "T", n, n, n, 1.0_dp, bmat, vmat, 0.0_dp, amat)
       ! clean up
       DEALLOCATE (eigv)
-      CALL cp_fm_release(vmat)
-      CALL cp_fm_release(bmat)
+      CALL cp_fm_release_p(vmat)
+      CALL cp_fm_release_p(bmat)
 
    END SUBROUTINE cp_fm_sqrt
 

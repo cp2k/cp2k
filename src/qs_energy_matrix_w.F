@@ -16,9 +16,9 @@ MODULE qs_energy_matrix_w
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
@@ -107,7 +107,7 @@ CONTAINS
             ALLOCATE (fmwork(2))
             DO is = 1, SIZE(fmwork)
                NULLIFY (fmwork(is)%matrix)
-               CALL cp_fm_create(fmwork(is)%matrix, matrix_struct=ao_ao_fmstruct)
+               CALL cp_fm_create_p(fmwork(is)%matrix, matrix_struct=ao_ao_fmstruct)
             END DO
             CALL cp_fm_struct_release(ao_ao_fmstruct)
 
@@ -118,7 +118,7 @@ CONTAINS
                                           matrix_s_kp(1, 1)%matrix, sab_nl, fmwork)
 
             DO is = 1, SIZE(fmwork)
-               CALL cp_fm_release(fmwork(is)%matrix)
+               CALL cp_fm_release_p(fmwork(is)%matrix)
             END DO
             DEALLOCATE (fmwork)
 

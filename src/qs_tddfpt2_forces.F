@@ -24,10 +24,10 @@ MODULE qs_tddfpt2_forces
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -434,19 +434,19 @@ CONTAINS
       NULLIFY (fmstruct2)
       CALL cp_fm_struct_create(fmstruct=fmstruct2, template_fmstruct=fmstruct, &
                                nrow_global=norb, ncol_global=norb)
-      CALL cp_fm_create(xxmat, matrix_struct=fmstruct2)
+      CALL cp_fm_create_p(xxmat, matrix_struct=fmstruct2)
       CALL cp_fm_struct_release(fmstruct2)
-      CALL cp_fm_create(cxmat, matrix_struct=fmstruct)
+      CALL cp_fm_create_p(cxmat, matrix_struct=fmstruct)
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, evect, cxmat, norb, alpha=1.0_dp, beta=0.0_dp)
       CALL parallel_gemm('T', 'N', norb, norb, nao, 1.0_dp, cxmat, evect, 0.0_dp, xxmat)
       CALL parallel_gemm('N', 'N', nao, norb, norb, 1.0_dp, mos_occ, xxmat, 0.0_dp, cxmat)
-      CALL cp_fm_release(xxmat)
+      CALL cp_fm_release_p(xxmat)
       ! C*C^T*XX
       CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_v=mos_occ, matrix_g=cxmat, &
                                  ncol=norb, alpha=-0.5_dp)
       CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_g=mos_occ, matrix_v=cxmat, &
                                  ncol=norb, alpha=-0.5_dp)
-      CALL cp_fm_release(cxmat)
+      CALL cp_fm_release_p(cxmat)
       !
       ! Test for Tr(Pe*S)=0
       CALL dbcsr_dot(matrix_pe, matrix_s, tmp)
@@ -986,17 +986,17 @@ CONTAINS
          scmat => work%S_C0(ispin)%matrix
          rvecs => cpmos(ispin)%matrix
          CALL cp_fm_get_info(rvecs, nrow_global=nao, ncol_global=norb)
-         CALL cp_fm_create(cvec, rvecs%matrix_struct, "cvec")
+         CALL cp_fm_create_p(cvec, rvecs%matrix_struct, "cvec")
          CALL cp_fm_struct_create(fmstruct, context=rvecs%matrix_struct%context, nrow_global=norb, &
                                   ncol_global=norb, para_env=rvecs%matrix_struct%para_env)
-         CALL cp_fm_create(umat, fmstruct, "umat")
+         CALL cp_fm_create_p(umat, fmstruct, "umat")
          CALL cp_fm_struct_release(fmstruct)
          !
          CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, omos, scmat, 0.0_dp, umat)
          CALL cp_fm_copy_general(rvecs, cvec, rvecs%matrix_struct%para_env)
          CALL parallel_gemm("N", "T", nao, norb, norb, 1.0_dp, cvec, umat, 0.0_dp, rvecs)
-         CALL cp_fm_release(cvec)
-         CALL cp_fm_release(umat)
+         CALL cp_fm_release_p(cvec)
+         CALL cp_fm_release_p(umat)
       END DO
 
       CALL timestop(handle)

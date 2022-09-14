@@ -24,11 +24,11 @@ MODULE rpa_rse
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_diag,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
@@ -174,7 +174,7 @@ CONTAINS
                                nrow_global=dimen, ncol_global=dimen)
       DO ispin = 1, nspins
          NULLIFY (fm_P_mu_nu(ispin)%matrix)
-         CALL cp_fm_create(fm_P_mu_nu(ispin)%matrix, fm_struct_tmp, name="P_mu_nu")
+         CALL cp_fm_create_p(fm_P_mu_nu(ispin)%matrix, fm_struct_tmp, name="P_mu_nu")
          CALL cp_fm_set_all(fm_P_mu_nu(ispin)%matrix, 0.0_dp)
       END DO
       CALL cp_fm_struct_release(fm_struct_tmp)
@@ -185,8 +185,8 @@ CONTAINS
       ALLOCATE (fm_X_mo(nspins), fm_XC_mo(nspins))
       DO ispin = 1, nspins
          NULLIFY (fm_X_mo(ispin)%matrix, fm_XC_mo(ispin)%matrix)
-         CALL cp_fm_create(fm_X_mo(ispin)%matrix, fm_struct_tmp, name="f_X_mo")
-         CALL cp_fm_create(fm_XC_mo(ispin)%matrix, fm_struct_tmp, name="f_XC_mo")
+         CALL cp_fm_create_p(fm_X_mo(ispin)%matrix, fm_struct_tmp, name="f_X_mo")
+         CALL cp_fm_create_p(fm_XC_mo(ispin)%matrix, fm_struct_tmp, name="f_XC_mo")
          CALL cp_fm_set_all(fm_X_mo(ispin)%matrix, 0.0_dp)
          CALL cp_fm_set_all(fm_XC_mo(ispin)%matrix, 0.0_dp)
       END DO
@@ -195,13 +195,13 @@ CONTAINS
       NULLIFY (fm_ao)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create(fm_ao, fm_struct_tmp, name="f_ao")
+      CALL cp_fm_create_p(fm_ao, fm_struct_tmp, name="f_ao")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(fm_ao, 0.0_dp)
       NULLIFY (fm_ao_mo)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create(fm_ao_mo, fm_struct_tmp, name="f_ao_mo")
+      CALL cp_fm_create_p(fm_ao_mo, fm_struct_tmp, name="f_ao_mo")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(fm_ao_mo, 0.0_dp)
 
@@ -278,12 +278,12 @@ CONTAINS
 
       ! Release staff
       DEALLOCATE (diag_diff)
-      CALL cp_fm_release(fm_ao)
-      CALL cp_fm_release(fm_ao_mo)
+      CALL cp_fm_release_p(fm_ao)
+      CALL cp_fm_release_p(fm_ao_mo)
       DO ispin = 1, nspins
-         CALL cp_fm_release(fm_P_mu_nu(ispin)%matrix)
-         CALL cp_fm_release(fm_X_mo(ispin)%matrix)
-         CALL cp_fm_release(fm_XC_mo(ispin)%matrix)
+         CALL cp_fm_release_p(fm_P_mu_nu(ispin)%matrix)
+         CALL cp_fm_release_p(fm_X_mo(ispin)%matrix)
+         CALL cp_fm_release_p(fm_XC_mo(ispin)%matrix)
          CALL dbcsr_release(mat_mu_nu(ispin)%matrix)
          DEALLOCATE (mat_mu_nu(ispin)%matrix)
       END DO
@@ -543,8 +543,8 @@ CONTAINS
          NULLIFY (fm_F_oo, fm_O, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=homo(ispin), ncol_global=homo(ispin))
-         CALL cp_fm_create(fm_F_oo, fm_struct_tmp, name="F_oo")
-         CALL cp_fm_create(fm_O, fm_struct_tmp, name="O")
+         CALL cp_fm_create_p(fm_F_oo, fm_struct_tmp, name="F_oo")
+         CALL cp_fm_create_p(fm_O, fm_struct_tmp, name="O")
          CALL cp_fm_set_all(fm_F_oo, 0.0_dp)
          CALL cp_fm_set_all(fm_O, 0.0_dp)
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -557,8 +557,8 @@ CONTAINS
          NULLIFY (fm_F_vv, fm_U, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=virtual, ncol_global=virtual)
-         CALL cp_fm_create(fm_F_vv, fm_struct_tmp, name="F_vv")
-         CALL cp_fm_create(fm_U, fm_struct_tmp, name="U")
+         CALL cp_fm_create_p(fm_F_vv, fm_struct_tmp, name="F_vv")
+         CALL cp_fm_create_p(fm_U, fm_struct_tmp, name="U")
          CALL cp_fm_set_all(fm_F_vv, 0.0_dp)
          CALL cp_fm_set_all(fm_U, 0.0_dp)
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -586,8 +586,8 @@ CONTAINS
          NULLIFY (fm_F_ov, fm_tmp, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=homo(ispin), ncol_global=virtual)
-         CALL cp_fm_create(fm_F_ov, fm_struct_tmp, name="F_ov")
-         CALL cp_fm_create(fm_tmp, fm_struct_tmp, name="tmp")
+         CALL cp_fm_create_p(fm_F_ov, fm_struct_tmp, name="F_ov")
+         CALL cp_fm_create_p(fm_tmp, fm_struct_tmp, name="tmp")
          CALL cp_fm_set_all(fm_F_ov, 0.0_dp)
          CALL cp_fm_set_all(fm_tmp, 0.0_dp)
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -630,12 +630,12 @@ CONTAINS
          DEALLOCATE (eig_o)
          DEALLOCATE (eig_v)
 
-         CALL cp_fm_release(fm_F_ov)
-         CALL cp_fm_release(fm_F_oo)
-         CALL cp_fm_release(fm_F_vv)
-         CALL cp_fm_release(fm_U)
-         CALL cp_fm_release(fm_O)
-         CALL cp_fm_release(fm_tmp)
+         CALL cp_fm_release_p(fm_F_ov)
+         CALL cp_fm_release_p(fm_F_oo)
+         CALL cp_fm_release_p(fm_F_vv)
+         CALL cp_fm_release_p(fm_U)
+         CALL cp_fm_release_p(fm_O)
+         CALL cp_fm_release_p(fm_tmp)
 
       END DO
 

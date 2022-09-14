@@ -13,10 +13,10 @@ MODULE qs_tddfpt2_fhxc
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -338,10 +338,10 @@ CONTAINS
                   END IF
                   ALLOCATE (dbwork)
                   CALL dbcsr_create(dbwork, template=work_matrices%A_ia_munu_sub(1)%matrix)
-                  CALL cp_fm_create(work_aux_orb, &
-                                    matrix_struct=work_matrices%wfm_aux_orb_sub%matrix_struct)
-                  CALL cp_fm_create(work_orb_orb, &
-                                    matrix_struct=work_matrices%rho_ao_orb_fm_sub%matrix_struct)
+                  CALL cp_fm_create_p(work_aux_orb, &
+                                      matrix_struct=work_matrices%wfm_aux_orb_sub%matrix_struct)
+                  CALL cp_fm_create_p(work_orb_orb, &
+                                      matrix_struct=work_matrices%rho_ao_orb_fm_sub%matrix_struct)
                   CALL cp_fm_get_info(work_aux_orb, nrow_global=nao_aux, ncol_global=nao)
                   DO ispin = 1, nspins
                      CALL cp_dbcsr_sm_fm_multiply(A_xc_munu_sub(ispin)%matrix, sub_env%admm_A, &
@@ -359,8 +359,8 @@ CONTAINS
                      CALL pw_pool_give_back_pw(auxbas_pw_pool, V_rspace_sub(ispin)%pw)
                   END DO
                   DEALLOCATE (V_rspace_sub)
-                  CALL cp_fm_release(work_aux_orb)
-                  CALL cp_fm_release(work_orb_orb)
+                  CALL cp_fm_release_p(work_aux_orb)
+                  CALL cp_fm_release_p(work_orb_orb)
                   DO ispin = 1, nspins
                      CALL dbcsr_deallocate_matrix(A_xc_munu_sub(ispin)%matrix)
                   END DO

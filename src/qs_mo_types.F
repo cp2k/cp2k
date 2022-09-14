@@ -25,9 +25,9 @@ MODULE qs_mo_types
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                               fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
@@ -167,7 +167,7 @@ CONTAINS
       nmo = mo_set_new%nmo
 
       NULLIFY (mo_set_new%mo_coeff)
-      CALL cp_fm_create(mo_set_new%mo_coeff, mo_set_old%mo_coeff%matrix_struct)
+      CALL cp_fm_create_p(mo_set_new%mo_coeff, mo_set_old%mo_coeff%matrix_struct)
       CALL cp_fm_to_fm(mo_set_old%mo_coeff, mo_set_new%mo_coeff)
 
       NULLIFY (mo_set_new%mo_coeff_b)
@@ -266,10 +266,10 @@ CONTAINS
          CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
       ELSE IF (PRESENT(fm_ref)) THEN
          CPASSERT(ASSOCIATED(fm_ref))
-         CALL cp_fm_create(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
+         CALL cp_fm_create_p(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
       ELSE IF (PRESENT(fm_struct)) THEN
          CPASSERT(ASSOCIATED(fm_struct))
-         CALL cp_fm_create(mo_set%mo_coeff, fm_struct, name=name)
+         CALL cp_fm_create_p(mo_set%mo_coeff, fm_struct, name=name)
       END IF
       CALL cp_fm_get_info(mo_set%mo_coeff, nrow_global=nao, ncol_global=nmo)
 
@@ -364,7 +364,7 @@ CONTAINS
          IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
             DEALLOCATE (mo_set%occupation_numbers)
          END IF
-         CALL cp_fm_release(mo_set%mo_coeff)
+         CALL cp_fm_release_p(mo_set%mo_coeff)
          IF (ASSOCIATED(mo_set%mo_coeff_b)) CALL dbcsr_release_p(mo_set%mo_coeff_b)
          DEALLOCATE (mo_set)
       END IF

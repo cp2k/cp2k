@@ -29,9 +29,9 @@ MODULE qs_loc_utils
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
-        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, &
-        cp_fm_write_unformatted
+        cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
+        cp_fm_p_type, cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
+        cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -124,7 +124,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(mo_loc_history)) THEN
          ALLOCATE (mo_loc_history(SIZE(mo_loc)))
          DO i = 1, SIZE(mo_loc_history)
-            CALL cp_fm_create(mo_loc_history(i)%matrix, mo_loc(i)%matrix%matrix_struct)
+            CALL cp_fm_create_p(mo_loc_history(i)%matrix, mo_loc(i)%matrix%matrix_struct)
          END DO
       END IF
 
@@ -165,15 +165,15 @@ CONTAINS
       CPASSERT(ncol == ncol_ref)
 
       NULLIFY (fm_struct_tmp, o1, o2, o3, o4, smo)
-      CALL cp_fm_create(smo, mo_ref%matrix_struct)
+      CALL cp_fm_create_p(smo, mo_ref%matrix_struct)
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, &
                                ncol_global=ncol, para_env=mo_new%matrix_struct%para_env, &
                                context=mo_new%matrix_struct%context)
-      CALL cp_fm_create(o1, fm_struct_tmp)
-      CALL cp_fm_create(o2, fm_struct_tmp)
-      CALL cp_fm_create(o3, fm_struct_tmp)
-      CALL cp_fm_create(o4, fm_struct_tmp)
+      CALL cp_fm_create_p(o1, fm_struct_tmp)
+      CALL cp_fm_create_p(o2, fm_struct_tmp)
+      CALL cp_fm_create_p(o3, fm_struct_tmp)
+      CALL cp_fm_create_p(o4, fm_struct_tmp)
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! o1 = (mo_new)^T matrix_S mo_ref
@@ -204,11 +204,11 @@ CONTAINS
       ! CALL parallel_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1)
       ! WRITE(*,*) o1%local_data
 
-      CALL cp_fm_release(o1)
-      CALL cp_fm_release(o2)
-      CALL cp_fm_release(o3)
-      CALL cp_fm_release(o4)
-      CALL cp_fm_release(smo)
+      CALL cp_fm_release_p(o1)
+      CALL cp_fm_release_p(o2)
+      CALL cp_fm_release_p(o3)
+      CALL cp_fm_release_p(o4)
+      CALL cp_fm_release_p(smo)
 
       CALL timestop(handle)
 
@@ -237,7 +237,7 @@ CONTAINS
 
       NULLIFY (rmat)
 
-      CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create_p(rmat, zij_fm_set(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp)
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
@@ -286,7 +286,7 @@ CONTAINS
       END DO
 
       CALL rotate_orbitals(rmat, vectors)
-      CALL cp_fm_release(rmat)
+      CALL cp_fm_release_p(rmat)
 
    END SUBROUTINE jacobi_rotation_pipek
 
@@ -399,7 +399,7 @@ CONTAINS
                           row_indices=row_indices, col_indices=col_indices)
       ALLOCATE (diag(nrow_global, natom))
 
-      CALL cp_fm_create(force, zij_fm_set(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create_p(force, zij_fm_set(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(force, 0._dp)
 
       DO iatom = 1, natom
@@ -425,7 +425,7 @@ CONTAINS
 
       CALL cp_fm_maxabsval(force, tolerance)
 
-      CALL cp_fm_release(force)
+      CALL cp_fm_release_p(force)
 
    END SUBROUTINE check_tolerance_real
 
@@ -495,7 +495,7 @@ CONTAINS
             nmosub = localized_wfn_control%nloc_states(ispin)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
-            CALL cp_fm_create(moloc_coeff(ispin)%matrix, tmp_fm_struct)
+            CALL cp_fm_create_p(moloc_coeff(ispin)%matrix, tmp_fm_struct)
 
             CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
                                 ncol_global=nmosub)
@@ -614,7 +614,7 @@ CONTAINS
                DO iatom = 1, natoms
                   NULLIFY (qs_loc_env%op_fm_set(iatom, ispin)%matrix)
 
-                  CALL cp_fm_create(qs_loc_env%op_fm_set(iatom, ispin)%matrix, tmp_fm_struct)
+                  CALL cp_fm_create_p(qs_loc_env%op_fm_set(iatom, ispin)%matrix, tmp_fm_struct)
 
                   CALL cp_fm_get_info(qs_loc_env%op_fm_set(iatom, ispin)%matrix, nrow_global=nmosub)
                   CPASSERT(nmo >= nmosub)

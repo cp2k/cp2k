@@ -27,11 +27,11 @@ MODULE qs_pdos
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_init_random,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -260,12 +260,12 @@ CONTAINS
       IF (calc_matsh) THEN
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                   nrow_global=nrow_global, ncol_global=nrow_global)
-         CALL cp_fm_create(matrix_shalf, fm_struct_tmp, name="matrix_shalf")
-         CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_work")
+         CALL cp_fm_create_p(matrix_shalf, fm_struct_tmp, name="matrix_shalf")
+         CALL cp_fm_create_p(matrix_work, fm_struct_tmp, name="matrix_work")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL copy_dbcsr_to_fm(s_matrix(1)%matrix, matrix_shalf)
          CALL cp_fm_power(matrix_shalf, matrix_work, 0.5_dp, EPSILON(0.0_dp), n_dependent)
-         CALL cp_fm_release(matrix_work)
+         CALL cp_fm_release_p(matrix_work)
       ELSE
          matrix_shalf => external_matrix_shalf
       END IF
@@ -273,7 +273,7 @@ CONTAINS
       ! Multiply S^(1/2) time the mOS coefficients to get orthonormalized MOS
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                nrow_global=nrow_global, ncol_global=ncol_global)
-      CALL cp_fm_create(matrix_shalfc, fm_struct_tmp, name="matrix_shalfc")
+      CALL cp_fm_create_p(matrix_shalfc, fm_struct_tmp, name="matrix_shalfc")
       CALL parallel_gemm("N", "N", nrow_global, ncol_global, nrow_global, &
                          1.0_dp, matrix_shalf, mo_coeff, 0.0_dp, matrix_shalfc)
       CALL cp_fm_struct_release(fm_struct_tmp)
@@ -283,13 +283,13 @@ CONTAINS
             " Compute ", nvirt, " additional unoccupied KS orbitals"
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                   nrow_global=nrow_global, ncol_global=nvirt)
-         CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_shalfc")
+         CALL cp_fm_create_p(matrix_work, fm_struct_tmp, name="matrix_shalfc")
          CALL parallel_gemm("N", "N", nrow_global, nvirt, nrow_global, &
                             1.0_dp, matrix_shalf, mo_virt, 0.0_dp, matrix_work)
          CALL cp_fm_struct_release(fm_struct_tmp)
       END IF
 
-      IF (calc_matsh) CALL cp_fm_release(matrix_shalf)
+      IF (calc_matsh) CALL cp_fm_release_p(matrix_shalf)
       ! Array to store the PDOS per kind and angular momentum
       do_ldos = .FALSE.
       ldos_section => section_vals_get_subs_vals(dft_section, "PRINT%PDOS%LDOS")
@@ -665,7 +665,7 @@ CONTAINS
          END DO
       END DO ! imo
 
-      CALL cp_fm_release(matrix_shalfc)
+      CALL cp_fm_release_p(matrix_shalfc)
       DEALLOCATE (vecbuffer)
 
       CALL section_vals_val_get(dft_section, "PRINT%PDOS%APPEND", l_val=append)
@@ -901,8 +901,8 @@ CONTAINS
       END IF
       IF (do_virt) THEN
          DEALLOCATE (evals_virt)
-         CALL cp_fm_release(mo_virt)
-         CALL cp_fm_release(matrix_work)
+         CALL cp_fm_release_p(mo_virt)
+         CALL cp_fm_release_p(matrix_work)
          DEALLOCATE (eigenvalues)
          DEALLOCATE (occupation_numbers)
       END IF
@@ -958,7 +958,7 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                nrow_global=nrow_global, ncol_global=nvirt)
-      CALL cp_fm_create(mo_virt, fm_struct_tmp, name="virtual")
+      CALL cp_fm_create_p(mo_virt, fm_struct_tmp, name="virtual")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_init_random(mo_virt, nvirt)
 

@@ -17,10 +17,10 @@ MODULE rt_propagation_utils
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
@@ -374,9 +374,9 @@ CONTAINS
          alpha = 3*one - REAL(SIZE(mos_new)/2, dp)
          CALL dbcsr_set(rho_ao(i)%matrix, zero)
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
-         CALL cp_fm_create(mos_occ%matrix, &
-                           matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
-                           name="mos_occ")
+         CALL cp_fm_create_p(mos_occ%matrix, &
+                             matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
+                             name="mos_occ")
          CALL cp_fm_to_fm(mos_new(re)%matrix, mos_occ%matrix)
          CALL cp_fm_column_scale(mos_occ%matrix, mos(i)%mo_set%occupation_numbers/alpha)
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix, &
@@ -390,7 +390,7 @@ CONTAINS
                                     matrix_v=mos_occ%matrix, &
                                     ncol=ncol, &
                                     alpha=alpha)
-         CALL cp_fm_release(mos_occ%matrix)
+         CALL cp_fm_release_p(mos_occ%matrix)
       END DO
       CALL qs_rho_update_rho(rho, qs_env)
 
@@ -482,12 +482,12 @@ CONTAINS
       DO i = 1, SIZE(mos_new)/2
          re = 2*i - 1; im = 2*i
          alpha = 3.0_dp - REAL(SIZE(matrix_p_im), dp)
-         CALL cp_fm_create(mos_occ(re)%matrix, &
-                           matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
-                           name="mos_occ")
-         CALL cp_fm_create(mos_occ(im)%matrix, &
-                           matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
-                           name="mos_occ")
+         CALL cp_fm_create_p(mos_occ(re)%matrix, &
+                             matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
+                             name="mos_occ")
+         CALL cp_fm_create_p(mos_occ(im)%matrix, &
+                             matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
+                             name="mos_occ")
          CALL dbcsr_set(matrix_p_im(i)%matrix, 0.0_dp)
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
          CALL cp_fm_to_fm(mos_new(re)%matrix, mos_occ(re)%matrix)

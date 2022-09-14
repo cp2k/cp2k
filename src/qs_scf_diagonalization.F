@@ -41,8 +41,8 @@ MODULE qs_scf_diagonalization
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        copy_info_type, cp_fm_add_to_element, cp_fm_cleanup_copy_general, cp_fm_create, &
-        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        copy_info_type, cp_fm_add_to_element, cp_fm_cleanup_copy_general, cp_fm_create_p, &
+        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release_p, &
         cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -397,8 +397,8 @@ CONTAINS
       CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
 
       IF (use_real_wfn) THEN
-         CALL cp_fm_create(rksmat, matrix_struct)
-         CALL cp_fm_create(rsmat, matrix_struct)
+         CALL cp_fm_create_p(rksmat, matrix_struct)
+         CALL cp_fm_create_p(rsmat, matrix_struct)
       ELSE
          CALL cp_cfm_create(cksmat, matrix_struct)
          CALL cp_cfm_create(csmat, matrix_struct)
@@ -579,8 +579,8 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(tmpmat)
 
       IF (use_real_wfn) THEN
-         CALL cp_fm_release(rksmat)
-         CALL cp_fm_release(rsmat)
+         CALL cp_fm_release_p(rksmat)
+         CALL cp_fm_release_p(rsmat)
       ELSE
          CALL cp_cfm_release(cksmat)
          CALL cp_cfm_release(csmat)
@@ -735,10 +735,10 @@ CONTAINS
             evec => subspace_env%c_vec(ispin)%matrix
             c0 => subspace_env%c0(ispin)%matrix
             CALL cp_fm_to_fm(mo_coeff, c0)
-            CALL cp_fm_create(work, c0%matrix_struct)
+            CALL cp_fm_create_p(work, c0%matrix_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, c0, work, nmo)
             CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, work, rzero, chc)
-            CALL cp_fm_release(work)
+            CALL cp_fm_release_p(work)
             !diagonalize C'HC
             CALL choose_eigv_solver(chc, evec, mo_eigenvalues)
 
@@ -859,13 +859,13 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
-         CALL cp_fm_create(subspace_env%c0(ispin)%matrix, mo_coeff%matrix_struct)
+         CALL cp_fm_create_p(subspace_env%c0(ispin)%matrix, mo_coeff%matrix_struct)
          NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo, &
                                   para_env=mo_coeff%matrix_struct%para_env, &
                                   context=mo_coeff%matrix_struct%context)
-         CALL cp_fm_create(subspace_env%chc_mat(ispin)%matrix, fm_struct_tmp, "chc")
-         CALL cp_fm_create(subspace_env%c_vec(ispin)%matrix, fm_struct_tmp, "vec")
+         CALL cp_fm_create_p(subspace_env%chc_mat(ispin)%matrix, fm_struct_tmp, "chc")
+         CALL cp_fm_create_p(subspace_env%c_vec(ispin)%matrix, fm_struct_tmp, "vec")
          CALL cp_fm_struct_release(fm_struct_tmp)
       END DO
 

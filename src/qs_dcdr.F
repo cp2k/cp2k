@@ -23,10 +23,10 @@ MODULE qs_dcdr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_diag,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -229,14 +229,14 @@ CONTAINS
 
       ! The overlap derivative terms for the Sternheimer equation
       ! buf = mo * (-mo * matrix_ks * mo)
-      CALL cp_fm_create(buf, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create_p(buf, dcdr_env%likemos_fm_struct)
       CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
                          -1.0_dp, dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, &
                          0.0_dp, buf)
 
       CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, buf, dcdr_env%op_dR(1)%matrix, &
                                    nmo, alpha=1.0_dp, beta=1.0_dp)
-      CALL cp_fm_release(buf)
+      CALL cp_fm_release_p(buf)
 
       ! SL multiply by -1 for response solver (H-S<H> C + dR_coupled= - (op_dR)
       CALL cp_fm_scale(-1.0_dp, dcdr_env%op_dR(1)%matrix)
@@ -290,8 +290,8 @@ CONTAINS
       NULLIFY (psi1(1)%matrix, h1_psi0(1)%matrix)
 
       psi0_order(1)%matrix => dcdr_env%mo_coeff(1)%matrix
-      CALL cp_fm_create(psi1(1)%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(h1_psi0(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create_p(psi1(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create_p(h1_psi0(1)%matrix, dcdr_env%likemos_fm_struct)
 
       ! Restart
       IF (linres_control%linres_restart) THEN
@@ -327,8 +327,8 @@ CONTAINS
       END IF
 
       ! clean up
-      CALL cp_fm_release(psi1(1)%matrix)
-      CALL cp_fm_release(h1_psi0(1)%matrix)
+      CALL cp_fm_release_p(psi1(1)%matrix)
+      CALL cp_fm_release_p(h1_psi0(1)%matrix)
       DEALLOCATE (psi1, h1_psi0, psi0_order)
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -379,8 +379,8 @@ CONTAINS
 
       ALLOCATE (tmp_fm_like_mos)
       ALLOCATE (overlap1_MO)
-      CALL cp_fm_create(tmp_fm_like_mos%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(overlap1_MO%matrix, dcdr_env%momo_fm_struct)
+      CALL cp_fm_create_p(tmp_fm_like_mos%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create_p(overlap1_MO%matrix, dcdr_env%momo_fm_struct)
 
       ! Compute S^(1,R)_(ij)
       CALL cp_fm_set_all(tmp_fm_like_mos%matrix, 0.0_dp)
@@ -440,8 +440,8 @@ CONTAINS
       END IF
 
       ! And deallocate all the things!
-      CALL cp_fm_release(tmp_fm_like_mos%matrix)
-      CALL cp_fm_release(overlap1_MO%matrix)
+      CALL cp_fm_release_p(tmp_fm_like_mos%matrix)
+      CALL cp_fm_release_p(overlap1_MO%matrix)
       DEALLOCATE (tmp_fm_like_mos)
       DEALLOCATE (overlap1_MO)
 
@@ -542,10 +542,10 @@ CONTAINS
       ALLOCATE (diagonal_elements(nmo))
 
       ! Allocate temporary matrices
-      CALL cp_fm_create(tmp_fm%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create_p(tmp_fm%matrix, dcdr_env%likemos_fm_struct)
       DO i = 1, 3
-         CALL cp_fm_create(tmp_fm_momo(i)%matrix, dcdr_env%momo_fm_struct)
-         CALL cp_fm_create(tmp_fm_like_mos(i)%matrix, dcdr_env%likemos_fm_struct)
+         CALL cp_fm_create_p(tmp_fm_momo(i)%matrix, dcdr_env%momo_fm_struct)
+         CALL cp_fm_create_p(tmp_fm_like_mos(i)%matrix, dcdr_env%likemos_fm_struct)
       END DO
 
       ! Build the full coefficient derivatives.
@@ -654,10 +654,10 @@ CONTAINS
       END IF
 
       ! And deallocate all the things!
-      CALL cp_fm_release(tmp_fm%matrix)
+      CALL cp_fm_release_p(tmp_fm%matrix)
       DO i = 1, 3
-         CALL cp_fm_release(tmp_fm_like_mos(i)%matrix)
-         CALL cp_fm_release(tmp_fm_momo(i)%matrix)
+         CALL cp_fm_release_p(tmp_fm_like_mos(i)%matrix)
+         CALL cp_fm_release_p(tmp_fm_momo(i)%matrix)
       END DO
       DEALLOCATE (tmp_fm, tmp_fm_like_mos, tmp_fm_momo)
       DEALLOCATE (diagonal_elements)

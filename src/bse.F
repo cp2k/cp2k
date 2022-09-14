@@ -14,9 +14,9 @@ MODULE bse
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -395,15 +395,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_create(fm_mat_S_bar_ia_bse, fm_mat_S%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_S_bar_ia_bse, fm_mat_S%matrix_struct)
       CALL cp_fm_to_fm(fm_mat_S, fm_mat_S_bar_ia_bse)
       CALL cp_fm_set_all(fm_mat_S_bar_ia_bse, 0.0_dp)
 
-      CALL cp_fm_create(fm_mat_S_bar_ij_bse, fm_mat_S_ij_bse%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_S_bar_ij_bse, fm_mat_S_ij_bse%matrix_struct)
       CALL cp_fm_to_fm(fm_mat_S_ij_bse, fm_mat_S_bar_ij_bse)
       CALL cp_fm_set_all(fm_mat_S_bar_ij_bse, 0.0_dp)
 
-      CALL cp_fm_create(fm_mat_work, fm_mat_Q_static_bse_gemm%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_work, fm_mat_Q_static_bse_gemm%matrix_struct)
       CALL cp_fm_to_fm(fm_mat_Q_static_bse_gemm, fm_mat_work)
       CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 
@@ -454,9 +454,9 @@ CONTAINS
       CALL allocate_and_fill_local_array(B_abQ_bse_local, fm_mat_S_ab_bse, gd_array, color_sub, virtual, virtual, &
                                          dimen_RI, para_env)
 
-      CALL cp_fm_release(fm_mat_S_bar_ia_bse)
-      CALL cp_fm_release(fm_mat_S_bar_ij_bse)
-      CALL cp_fm_release(fm_mat_work)
+      CALL cp_fm_release_p(fm_mat_S_bar_ia_bse)
+      CALL cp_fm_release_p(fm_mat_S_bar_ij_bse)
+      CALL cp_fm_release_p(fm_mat_work)
 
       CALL timestop(handle)
 

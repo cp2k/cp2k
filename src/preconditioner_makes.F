@@ -35,10 +35,10 @@ MODULE preconditioner_makes
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_diag,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
@@ -227,7 +227,7 @@ CONTAINS
       NULLIFY (fm_h, fm_s, fm_struct_tmp, evals)
 
       IF (ASSOCIATED(fm)) THEN
-         CALL cp_fm_release(fm)
+         CALL cp_fm_release_p(fm)
       END IF
       CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
@@ -235,9 +235,9 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(fm, fm_struct_tmp, name="preconditioner")
-      CALL cp_fm_create(fm_h, fm_struct_tmp, name="fm_h")
-      CALL cp_fm_create(fm_s, fm_struct_tmp, name="fm_s")
+      CALL cp_fm_create_p(fm, fm_struct_tmp, name="preconditioner")
+      CALL cp_fm_create_p(fm_h, fm_struct_tmp, name="fm_h")
+      CALL cp_fm_create_p(fm_s, fm_struct_tmp, name="fm_s")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL copy_dbcsr_to_fm(matrix_h, fm_h)
@@ -283,8 +283,8 @@ CONTAINS
       CALL cp_fm_to_fm(fm_s, fm)
 
       DEALLOCATE (evals)
-      CALL cp_fm_release(fm_h)
-      CALL cp_fm_release(fm_s)
+      CALL cp_fm_release_p(fm_h)
+      CALL cp_fm_release_p(fm_s)
 
       CALL timestop(handle)
 
@@ -316,7 +316,7 @@ CONTAINS
       NULLIFY (fm_h, fm_s, fm_struct_tmp, evals)
 
       IF (ASSOCIATED(fm)) THEN
-         CALL cp_fm_release(fm)
+         CALL cp_fm_release_p(fm)
       END IF
       CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
@@ -324,9 +324,9 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(fm, fm_struct_tmp, name="preconditioner")
-      CALL cp_fm_create(fm_h, fm_struct_tmp, name="fm_h")
-      CALL cp_fm_create(fm_s, fm_struct_tmp, name="fm_s")
+      CALL cp_fm_create_p(fm, fm_struct_tmp, name="preconditioner")
+      CALL cp_fm_create_p(fm_h, fm_struct_tmp, name="fm_h")
+      CALL cp_fm_create_p(fm_s, fm_struct_tmp, name="fm_s")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL copy_dbcsr_to_fm(matrix_h, fm_h)
@@ -341,8 +341,8 @@ CONTAINS
       CALL cp_fm_to_fm(fm_s, fm)
 
       DEALLOCATE (evals)
-      CALL cp_fm_release(fm_h)
-      CALL cp_fm_release(fm_s)
+      CALL cp_fm_release_p(fm_h)
+      CALL cp_fm_release_p(fm_s)
 
       CALL timestop(handle)
 
@@ -388,15 +388,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm)
+      IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release_p(preconditioner_env%fm)
       CALL cp_fm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
+      CALL cp_fm_create_p(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
       matrix_pre => preconditioner_env%fm
-      CALL cp_fm_create(ortho, fm_struct_tmp, name="ortho")
-      CALL cp_fm_create(matrix_tmp, fm_struct_tmp, name="matrix_tmp")
+      CALL cp_fm_create_p(ortho, fm_struct_tmp, name="ortho")
+      CALL cp_fm_create_p(matrix_tmp, fm_struct_tmp, name="matrix_tmp")
       CALL cp_fm_struct_release(fm_struct_tmp)
       ALLOCATE (preconditioner_env%full_evals(n))
       ALLOCATE (preconditioner_env%occ_evals(k))
@@ -415,13 +415,13 @@ CONTAINS
       !    with P=C0 C0 ^ T
       !    (1 - PS)^T H (1-PS) + (PS)^T (H - lambda S ) (PS)
       !    we exploit that the C0 are already the ritz states of H
-      CALL cp_fm_create(matrix_sc0, matrix_c0%matrix_struct, name="sc0")
+      CALL cp_fm_create_p(matrix_sc0, matrix_c0%matrix_struct, name="sc0")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, matrix_c0, matrix_sc0, k)
-      CALL cp_fm_create(matrix_hc0, matrix_c0%matrix_struct, name="hc0")
+      CALL cp_fm_create_p(matrix_hc0, matrix_c0%matrix_struct, name="hc0")
       CALL cp_dbcsr_sm_fm_multiply(matrix_h, matrix_c0, matrix_hc0, k)
 
       ! An aside, try to estimate the error on the ritz values, we'll need it later on
-      CALL cp_fm_create(matrix_shc0, matrix_c0%matrix_struct, name="shc0")
+      CALL cp_fm_create_p(matrix_shc0, matrix_c0%matrix_struct, name="shc0")
 
       SELECT CASE (preconditioner_env%cholesky_use)
       CASE (cholesky_inverse)
@@ -437,7 +437,7 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=k, ncol_global=k, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(matrix_s1, fm_struct_tmp, name="matrix_s1")
+      CALL cp_fm_create_p(matrix_s1, fm_struct_tmp, name="matrix_s1")
       CALL cp_fm_struct_release(fm_struct_tmp)
       ! since we only use diagonal elements this is a bit of a waste
       CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, matrix_shc0, matrix_shc0, 0.0_dp, matrix_s1)
@@ -445,8 +445,8 @@ CONTAINS
       CALL cp_fm_get_diag(matrix_s1, diag)
       error_estimate = MAXVAL(SQRT(ABS(diag - c0_evals**2)))
       DEALLOCATE (diag)
-      CALL cp_fm_release(matrix_s1)
-      CALL cp_fm_release(matrix_shc0)
+      CALL cp_fm_release_p(matrix_s1)
+      CALL cp_fm_release_p(matrix_shc0)
       ! we'll only use the energy gap, if our estimate of the error on the eigenvalues
       ! is small enough. A large error combined with a small energy gap would otherwise lead to
       ! an aggressive but bad preconditioner. Only when the error is small (MD), we can precondition
@@ -460,12 +460,12 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=k, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(matrix_left, fm_struct_tmp, name="matrix_left")
+      CALL cp_fm_create_p(matrix_left, fm_struct_tmp, name="matrix_left")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL parallel_gemm('T', 'N', k, n, n, 1.0_dp, matrix_c0, matrix_tmp, 0.0_dp, matrix_left)
       ! tmp = (1 - PS)^T H (1-PS)
       CALL parallel_gemm('N', 'N', n, n, k, -1.0_dp, matrix_sc0, matrix_left, 1.0_dp, matrix_tmp)
-      CALL cp_fm_release(matrix_left)
+      CALL cp_fm_release_p(matrix_left)
 
       ALLOCATE (shifted_evals(k))
       lambda = lambda_base + error_estimate
@@ -500,16 +500,16 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=k, ncol_global=k, &
                                   context=preconditioner_env%ctxt, &
                                   para_env=preconditioner_env%para_env)
-         CALL cp_fm_create(matrix_s1, fm_struct_tmp, name="matrix_s1")
-         CALL cp_fm_create(matrix_s2, fm_struct_tmp, name="matrix_s2")
+         CALL cp_fm_create_p(matrix_s1, fm_struct_tmp, name="matrix_s1")
+         CALL cp_fm_create_p(matrix_s2, fm_struct_tmp, name="matrix_s2")
          CALL cp_fm_struct_release(fm_struct_tmp)
          ALLOCATE (norms(k))
          CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, matrix_sc0, matrix_tmp, 0.0_dp, matrix_s1)
          CALL choose_eigv_solver(matrix_s1, matrix_s2, norms)
          WRITE (*, *) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms) - 1.0_dp))
          DEALLOCATE (norms)
-         CALL cp_fm_release(matrix_s1)
-         CALL cp_fm_release(matrix_s2)
+         CALL cp_fm_release_p(matrix_s1)
+         CALL cp_fm_release_p(matrix_s2)
       END IF
 
       ! 3) replace the lowest k evals and evecs with what they should be
@@ -518,10 +518,10 @@ CONTAINS
       preconditioner_env%full_evals(1:k) = c0_evals
       CALL cp_fm_to_fm(matrix_c0, matrix_pre, k, 1, 1)
 
-      CALL cp_fm_release(matrix_sc0)
-      CALL cp_fm_release(matrix_hc0)
-      CALL cp_fm_release(ortho)
-      CALL cp_fm_release(matrix_tmp)
+      CALL cp_fm_release_p(matrix_sc0)
+      CALL cp_fm_release_p(matrix_hc0)
+      CALL cp_fm_release_p(ortho)
+      CALL cp_fm_release_p(matrix_tmp)
       DEALLOCATE (shifted_evals)
       CALL timestop(handle)
 
@@ -557,14 +557,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm)
+      IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release_p(preconditioner_env%fm)
       CALL cp_fm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
+      CALL cp_fm_create_p(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
       matrix_pre => preconditioner_env%fm
-      CALL cp_fm_create(matrix_tmp, fm_struct_tmp, name="matrix_tmp")
+      CALL cp_fm_create_p(matrix_tmp, fm_struct_tmp, name="matrix_tmp")
       CALL cp_fm_struct_release(fm_struct_tmp)
       ALLOCATE (preconditioner_env%full_evals(n))
       ALLOCATE (preconditioner_env%occ_evals(k))
@@ -575,16 +575,16 @@ CONTAINS
       !    with P=C0 C0 ^ T
       !    (1 - PS)^T H (1-PS) + (PS)^T (H - lambda S ) (PS)
       !    we exploit that the C0 are already the ritz states of H
-      CALL cp_fm_create(matrix_sc0, matrix_c0%matrix_struct, name="sc0")
+      CALL cp_fm_create_p(matrix_sc0, matrix_c0%matrix_struct, name="sc0")
       CALL cp_fm_to_fm(matrix_c0, matrix_sc0)
-      CALL cp_fm_create(matrix_hc0, matrix_c0%matrix_struct, name="hc0")
+      CALL cp_fm_create_p(matrix_hc0, matrix_c0%matrix_struct, name="hc0")
       CALL cp_dbcsr_sm_fm_multiply(matrix_h, matrix_c0, matrix_hc0, k)
 
       ! An aside, try to estimate the error on the ritz values, we'll need it later on
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=k, ncol_global=k, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(matrix_s1, fm_struct_tmp, name="matrix_s1")
+      CALL cp_fm_create_p(matrix_s1, fm_struct_tmp, name="matrix_s1")
       CALL cp_fm_struct_release(fm_struct_tmp)
       ! since we only use diagonal elements this is a bit of a waste
       CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, matrix_hc0, matrix_hc0, 0.0_dp, matrix_s1)
@@ -592,7 +592,7 @@ CONTAINS
       CALL cp_fm_get_diag(matrix_s1, diag)
       error_estimate = MAXVAL(SQRT(ABS(diag - c0_evals**2)))
       DEALLOCATE (diag)
-      CALL cp_fm_release(matrix_s1)
+      CALL cp_fm_release_p(matrix_s1)
       ! we'll only use the energy gap, if our estimate of the error on the eigenvalues
       ! is small enough. A large error combined with a small energy gap would otherwise lead to
       ! an aggressive but bad preconditioner. Only when the error is small (MD), we can precondition
@@ -607,12 +607,12 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=k, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create(matrix_left, fm_struct_tmp, name="matrix_left")
+      CALL cp_fm_create_p(matrix_left, fm_struct_tmp, name="matrix_left")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL parallel_gemm('T', 'N', k, n, n, 1.0_dp, matrix_c0, matrix_tmp, 0.0_dp, matrix_left)
       ! tmp = (1 - PS)^T H (1-PS)
       CALL parallel_gemm('N', 'N', n, n, k, -1.0_dp, matrix_sc0, matrix_left, 1.0_dp, matrix_tmp)
-      CALL cp_fm_release(matrix_left)
+      CALL cp_fm_release_p(matrix_left)
 
       ALLOCATE (shifted_evals(k))
       lambda = lambda_base + error_estimate
@@ -630,8 +630,8 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=k, ncol_global=k, &
                                   context=preconditioner_env%ctxt, &
                                   para_env=preconditioner_env%para_env)
-         CALL cp_fm_create(matrix_s1, fm_struct_tmp, name="matrix_s1")
-         CALL cp_fm_create(matrix_s2, fm_struct_tmp, name="matrix_s2")
+         CALL cp_fm_create_p(matrix_s1, fm_struct_tmp, name="matrix_s1")
+         CALL cp_fm_create_p(matrix_s2, fm_struct_tmp, name="matrix_s2")
          CALL cp_fm_struct_release(fm_struct_tmp)
          ALLOCATE (norms(k))
          CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, matrix_sc0, matrix_tmp, 0.0_dp, matrix_s1)
@@ -639,8 +639,8 @@ CONTAINS
 
          WRITE (*, *) "matrix norm deviation (should be close to zero): ", MAXVAL(ABS(ABS(norms) - 1.0_dp))
          DEALLOCATE (norms)
-         CALL cp_fm_release(matrix_s1)
-         CALL cp_fm_release(matrix_s2)
+         CALL cp_fm_release_p(matrix_s1)
+         CALL cp_fm_release_p(matrix_s2)
       END IF
 
       ! 3) replace the lowest k evals and evecs with what they should be
@@ -649,9 +649,9 @@ CONTAINS
       preconditioner_env%full_evals(1:k) = c0_evals
       CALL cp_fm_to_fm(matrix_c0, matrix_pre, k, 1, 1)
 
-      CALL cp_fm_release(matrix_sc0)
-      CALL cp_fm_release(matrix_hc0)
-      CALL cp_fm_release(matrix_tmp)
+      CALL cp_fm_release_p(matrix_sc0)
+      CALL cp_fm_release_p(matrix_hc0)
+      CALL cp_fm_release_p(matrix_tmp)
       DEALLOCATE (shifted_evals)
 
       CALL timestop(handle)

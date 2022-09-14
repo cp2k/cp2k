@@ -23,10 +23,10 @@ MODULE qs_tddfpt_eigensolver
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_element,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_set_element,&
                                               cp_fm_to_fm
@@ -383,20 +383,20 @@ CONTAINS
          !--------------------------------------------!
          ! deallocate memory for the reduced matrices !
          !--------------------------------------------!
-         IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release(Atilde%matrix)
-         IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release(Us%matrix)
+         IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release_p(Atilde%matrix)
+         IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release_p(Us%matrix)
          IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct)
 
          !------------------------------------------!
          ! allocate memory for the reduced matrices !
          !------------------------------------------!
          CALL cp_fm_struct_create(tilde_fm_struct, para_env, blacs_env, k, k)
-         CALL cp_fm_create(Atilde%matrix, &
-                           tilde_fm_struct, &
-                           routineP//"Atilde")
-         CALL cp_fm_create(Us%matrix, &
-                           tilde_fm_struct, &
-                           routineP//"Us")
+         CALL cp_fm_create_p(Atilde%matrix, &
+                             tilde_fm_struct, &
+                             routineP//"Atilde")
+         CALL cp_fm_create_p(Us%matrix, &
+                             tilde_fm_struct, &
+                             routineP//"Us")
 
          !---------------------------------------!
          ! calc the matrix Atilde = transp(b)*Ab !
@@ -488,19 +488,19 @@ CONTAINS
       DO spin = 1, nspins
          DO i = 1, max_kv
             IF (ASSOCIATED(b(i, spin)%matrix)) &
-               CALL cp_fm_release(b(i, spin)%matrix)
+               CALL cp_fm_release_p(b(i, spin)%matrix)
             IF (ASSOCIATED(Ab(i, spin)%matrix)) &
-               CALL cp_fm_release(Ab(i, spin)%matrix)
+               CALL cp_fm_release_p(Ab(i, spin)%matrix)
             IF (ASSOCIATED(Sb(i, spin)%matrix)) &
-               CALL cp_fm_release(Sb(i, spin)%matrix)
+               CALL cp_fm_release_p(Sb(i, spin)%matrix)
          END DO
       END DO
 
       !----------!
       ! clean up !
       !----------!
-      IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release(Atilde%matrix)
-      IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release(Us%matrix)
+      IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release_p(Atilde%matrix)
+      IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release_p(Us%matrix)
       IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct)
       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
       CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
@@ -509,11 +509,11 @@ CONTAINS
          CALL cp_fm_struct_release(kv_fm_struct(spin)%struct)
          DO i = 1, max_kv
             IF (ASSOCIATED(b(i, spin)%matrix)) &
-               CALL cp_fm_release(b(i, spin)%matrix)
+               CALL cp_fm_release_p(b(i, spin)%matrix)
             IF (ASSOCIATED(Ab(i, spin)%matrix)) &
-               CALL cp_fm_release(Ab(i, spin)%matrix)
+               CALL cp_fm_release_p(Ab(i, spin)%matrix)
             IF (ASSOCIATED(Sb(i, spin)%matrix)) &
-               CALL cp_fm_release(Sb(i, spin)%matrix)
+               CALL cp_fm_release_p(Sb(i, spin)%matrix)
          END DO
       END DO
       DEALLOCATE (b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct)
@@ -624,8 +624,8 @@ CONTAINS
             NULLIFY (vectors(index, spin)%matrix)
             mat_name = routineP//vectors_name//TRIM(cp_to_string(index)) &
                        //","//TRIM(cp_to_string(spin))
-            CALL cp_fm_create(vectors(index, spin)%matrix, &
-                              fm_struct(spin)%struct, mat_name)
+            CALL cp_fm_create_p(vectors(index, spin)%matrix, &
+                                fm_struct(spin)%struct, mat_name)
             IF (.NOT. ASSOCIATED(vectors(index, spin)%matrix)) &
                CPABORT("Could not allocate "//TRIM(mat_name)//".")
          END DO

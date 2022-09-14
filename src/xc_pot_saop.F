@@ -16,11 +16,11 @@ MODULE xc_pot_saop
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
@@ -320,9 +320,9 @@ CONTAINS
                          mo_coeff=mo_coeff, &
                          eigenvalues=mo_eigenvalues, &
                          homo=homo)
-         CALL cp_fm_create(single_mo_coeff(ispin)%matrix, &
-                           mo_coeff%matrix_struct, &
-                           "orbital density matrix")
+         CALL cp_fm_create_p(single_mo_coeff(ispin)%matrix, &
+                             mo_coeff%matrix_struct, &
+                             "orbital density matrix")
 
          CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
                              nrow_global=nrow(ispin), ncol_global=ncol(ispin))
@@ -429,7 +429,7 @@ CONTAINS
 
          END DO
 
-         CALL cp_fm_release(single_mo_coeff(ispin)%matrix)
+         CALL cp_fm_release_p(single_mo_coeff(ispin)%matrix)
          CALL dbcsr_deallocate_matrix(orbital_density_matrix(ispin)%matrix)
 
          DEALLOCATE (coeff_col)
@@ -614,9 +614,9 @@ CONTAINS
                          mo_coeff=mo_coeff(ispin)%matrix, &
                          eigenvalues=mo_eigenvalues(ispin)%array, &
                          homo=homo(ispin))
-         CALL cp_fm_create(single_mo_coeff(ispin)%matrix, &
-                           mo_coeff(ispin)%matrix%matrix_struct, &
-                           "orbital density matrix")
+         CALL cp_fm_create_p(single_mo_coeff(ispin)%matrix, &
+                             mo_coeff(ispin)%matrix%matrix_struct, &
+                             "orbital density matrix")
          CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
                              nrow_global=nrow(ispin), ncol_global=ncol(ispin))
          ALLOCATE (orbital_density_matrix(ispin)%matrix)
@@ -1043,7 +1043,7 @@ CONTAINS
 
       CALL local_rho_set_release(local_rho_set)
       DO ispin = 1, nspins
-         CALL cp_fm_release(single_mo_coeff(ispin)%matrix)
+         CALL cp_fm_release_p(single_mo_coeff(ispin)%matrix)
       END DO
       DEALLOCATE (mo_coeff, single_mo_coeff, mo_eigenvalues)
       CALL dbcsr_deallocate_matrix_set(orbital_density_matrix)

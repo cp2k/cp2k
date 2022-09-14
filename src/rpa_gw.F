@@ -38,8 +38,8 @@ MODULE rpa_gw
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, cp_fm_p_type, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_filter, &
@@ -237,7 +237,7 @@ CONTAINS
       DO jquad = 1, num_integ_points
 
          NULLIFY (fm_mat_W(jquad)%matrix)
-         CALL cp_fm_create(fm_mat_W(jquad)%matrix, fm_mat_Q%matrix_struct)
+         CALL cp_fm_create_p(fm_mat_W(jquad)%matrix, fm_mat_Q%matrix_struct)
          CALL cp_fm_to_fm(fm_mat_Q, fm_mat_W(jquad)%matrix)
          CALL cp_fm_set_all(fm_mat_W(jquad)%matrix, 0.0_dp)
 
@@ -450,7 +450,7 @@ CONTAINS
          ALLOCATE (fm_mat_S_gw_work(nspins))
          DO ispin = 1, nspins
             NULLIFY (fm_mat_S_gw_work(ispin)%matrix)
-            CALL cp_fm_create(fm_mat_S_gw_work(ispin)%matrix, fm_mat_S_gw(ispin)%matrix%matrix_struct)
+            CALL cp_fm_create_p(fm_mat_S_gw_work(ispin)%matrix, fm_mat_S_gw(ispin)%matrix%matrix_struct)
             CALL cp_fm_set_all(matrix=fm_mat_S_gw_work(ispin)%matrix, alpha=0.0_dp)
          END DO
 
@@ -603,7 +603,7 @@ CONTAINS
 
       IF (my_do_gw) THEN
          DO ispin = 1, nspins
-            CALL cp_fm_release(fm_mat_S_gw_work(ispin)%matrix)
+            CALL cp_fm_release_p(fm_mat_S_gw_work(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_S_gw_work)
          DEALLOCATE (vec_Sigma_x_minus_vxc_gw)
@@ -687,7 +687,7 @@ CONTAINS
       IF (.NOT. do_kpoints_cubic_RPA) THEN
 
          DO jquad = 1, SIZE(fm_mat_W, 1)
-            CALL cp_fm_release(fm_mat_W(jquad)%matrix)
+            CALL cp_fm_release_p(fm_mat_W(jquad)%matrix)
          END DO
 
          DEALLOCATE (fm_mat_W)
@@ -2041,22 +2041,22 @@ CONTAINS
                            matrix_type=dbcsr_type_no_symmetry)
 
          NULLIFY (fm_mat_s_aux_aux_inv)
-         CALL cp_fm_create(fm_mat_s_aux_aux_inv, fm_struct_aux_aux, name="inverse overlap mat")
+         CALL cp_fm_create_p(fm_mat_s_aux_aux_inv, fm_struct_aux_aux, name="inverse overlap mat")
 
          NULLIFY (fm_mat_work_aux_aux)
-         CALL cp_fm_create(fm_mat_work_aux_aux, fm_struct_aux_aux, name="work mat")
+         CALL cp_fm_create_p(fm_mat_work_aux_aux, fm_struct_aux_aux, name="work mat")
 
          NULLIFY (fm_mat_P)
-         CALL cp_fm_create(fm_mat_P, fm_mo_coeff%matrix_struct)
+         CALL cp_fm_create_p(fm_mat_P, fm_mo_coeff%matrix_struct)
 
          NULLIFY (fm_mat_eigv_P)
-         CALL cp_fm_create(fm_mat_eigv_P, fm_mo_coeff%matrix_struct)
+         CALL cp_fm_create_p(fm_mat_eigv_P, fm_mo_coeff%matrix_struct)
 
          NULLIFY (fm_mat_scaled_eigv_P)
-         CALL cp_fm_create(fm_mat_scaled_eigv_P, fm_mo_coeff%matrix_struct)
+         CALL cp_fm_create_p(fm_mat_scaled_eigv_P, fm_mo_coeff%matrix_struct)
 
          NULLIFY (fm_mat_P_sqrt_inv)
-         CALL cp_fm_create(fm_mat_P_sqrt_inv, fm_mo_coeff%matrix_struct)
+         CALL cp_fm_create_p(fm_mat_P_sqrt_inv, fm_mo_coeff%matrix_struct)
 
          NULLIFY (evals_P)
          ALLOCATE (evals_P(nmo))
@@ -2311,12 +2311,12 @@ CONTAINS
 
          CALL cp_fm_struct_release(fm_struct_aux_aux)
 
-         CALL cp_fm_release(fm_mat_s_aux_aux_inv)
-         CALL cp_fm_release(fm_mat_work_aux_aux)
-         CALL cp_fm_release(fm_mat_P)
-         CALL cp_fm_release(fm_mat_eigv_P)
-         CALL cp_fm_release(fm_mat_scaled_eigv_P)
-         CALL cp_fm_release(fm_mat_P_sqrt_inv)
+         CALL cp_fm_release_p(fm_mat_s_aux_aux_inv)
+         CALL cp_fm_release_p(fm_mat_work_aux_aux)
+         CALL cp_fm_release_p(fm_mat_P)
+         CALL cp_fm_release_p(fm_mat_eigv_P)
+         CALL cp_fm_release_p(fm_mat_scaled_eigv_P)
+         CALL cp_fm_release_p(fm_mat_P_sqrt_inv)
 
          ! Deallocate the neighbor list structure
          CALL release_neighbor_list_sets(sgwgw_list)
@@ -5125,9 +5125,9 @@ CONTAINS
       CALL cp_cfm_create(vxc_ao_mo, matrix_struct)
       CALL cp_cfm_create(vxc_mo_mo, matrix_struct)
       CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
-      CALL cp_fm_create(fm_Sigma_x_minus_vxc_mo_mo, matrix_struct)
-      CALL cp_fm_create(fm_tmp_re, matrix_struct)
-      CALL cp_fm_create(fm_tmp_im, matrix_struct)
+      CALL cp_fm_create_p(fm_Sigma_x_minus_vxc_mo_mo, matrix_struct)
+      CALL cp_fm_create_p(fm_tmp_re, matrix_struct)
+      CALL cp_fm_create_p(fm_tmp_im, matrix_struct)
 
       CALL cp_cfm_get_info(cfm_mo_coeff, nrow_global=nmo)
       ALLOCATE (diag_Sigma_x_minus_vxc_mo_mo(nmo))
@@ -5174,9 +5174,9 @@ CONTAINS
       CALL cp_cfm_release(vxc_ao_mo)
       CALL cp_cfm_release(vxc_mo_mo)
       CALL cp_cfm_release(cfm_mo_coeff)
-      CALL cp_fm_release(fm_Sigma_x_minus_vxc_mo_mo)
-      CALL cp_fm_release(fm_tmp_re)
-      CALL cp_fm_release(fm_tmp_im)
+      CALL cp_fm_release_p(fm_Sigma_x_minus_vxc_mo_mo)
+      CALL cp_fm_release_p(fm_tmp_re)
+      CALL cp_fm_release_p(fm_tmp_im)
 
       DEALLOCATE (diag_Sigma_x_minus_vxc_mo_mo)
 
@@ -5252,7 +5252,7 @@ CONTAINS
       CALL cp_cfm_set_all(cfm_self_energy_ao_mo, z_zero)
       CALL cp_cfm_set_all(cfm_self_energy_mo_mo, z_zero)
 
-      CALL cp_fm_create(fm_self_energy_mo_mo, matrix_struct)
+      CALL cp_fm_create_p(fm_self_energy_mo_mo, matrix_struct)
       CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
 
       DO ikp = 1, nkp_Sigma
@@ -5285,7 +5285,7 @@ CONTAINS
       CALL cp_cfm_release(cfm_self_energy_ao_mo)
       CALL cp_cfm_release(cfm_self_energy_mo_mo)
       CALL cp_cfm_release(cfm_mo_coeff)
-      CALL cp_fm_release(fm_self_energy_mo_mo)
+      CALL cp_fm_release_p(fm_self_energy_mo_mo)
 
       DEALLOCATE (diag_self_energy)
 
@@ -5312,8 +5312,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (fm_mat_re, fm_mat_im)
-      CALL cp_fm_create(fm_mat_re, cfm_mat%matrix_struct)
-      CALL cp_fm_create(fm_mat_im, cfm_mat%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_re, cfm_mat%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_im, cfm_mat%matrix_struct)
       CALL cp_fm_set_all(fm_mat_re, 0.0_dp)
       CALL cp_fm_set_all(fm_mat_im, 0.0_dp)
 
@@ -5322,8 +5322,8 @@ CONTAINS
 
       CALL cp_fm_to_cfm(fm_mat_re, fm_mat_im, cfm_mat)
 
-      CALL cp_fm_release(fm_mat_re)
-      CALL cp_fm_release(fm_mat_im)
+      CALL cp_fm_release_p(fm_mat_re)
+      CALL cp_fm_release_p(fm_mat_im)
 
       CALL timestop(handle)
 

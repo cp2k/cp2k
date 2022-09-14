@@ -39,8 +39,8 @@ MODULE xas_tdp_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, &
-        cp_fm_p_type, cp_fm_read_unformatted, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, &
+        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, &
+        cp_fm_p_type, cp_fm_read_unformatted, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, &
         cp_fm_to_fm_submat, cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -1380,13 +1380,13 @@ CONTAINS
             nlmo = COUNT(xas_tdp_env%mos_of_ex_atoms(:, iat, ispin) == 1)
             CALL cp_fm_struct_create(lmo_struct, nrow_global=nao, ncol_global=nlmo, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create(lmo_fm, lmo_struct)
-            CALL cp_fm_create(work, lmo_struct)
+            CALL cp_fm_create_p(lmo_fm, lmo_struct)
+            CALL cp_fm_create_p(work, lmo_struct)
 
             CALL cp_fm_struct_create(ks_struct, nrow_global=nlmo, ncol_global=nlmo, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create(ks_fm, ks_struct)
-            CALL cp_fm_create(evecs, ks_struct)
+            CALL cp_fm_create_p(ks_fm, ks_struct)
+            CALL cp_fm_create_p(evecs, ks_struct)
 
             ! Loop over the localized MOs associated to this atom
             i = 0
@@ -1424,11 +1424,11 @@ CONTAINS
             END DO
 
             ! Excited atom clean-up
-            CALL cp_fm_release(lmo_fm)
-            CALL cp_fm_release(work)
+            CALL cp_fm_release_p(lmo_fm)
+            CALL cp_fm_release_p(work)
             CALL cp_fm_struct_release(lmo_struct)
-            CALL cp_fm_release(ks_fm)
-            CALL cp_fm_release(evecs)
+            CALL cp_fm_release_p(ks_fm)
+            CALL cp_fm_release_p(evecs)
             CALL cp_fm_struct_release(ks_struct)
          END DO !iat
       END DO !ispin
@@ -1631,7 +1631,7 @@ CONTAINS
 !        Storing the MOs in the donor_state, as vectors column: first columns alpha spin, then beta
          CALL cp_fm_struct_create(gs_struct, nrow_global=nao, ncol_global=n_states*nspins, &
                                   para_env=para_env, context=blacs_env)
-         CALL cp_fm_create(donor_state%gs_coeffs, gs_struct)
+         CALL cp_fm_create_p(donor_state%gs_coeffs, gs_struct)
 
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
@@ -1701,10 +1701,10 @@ CONTAINS
 !           => need epsilon_ij = <psi_i|F|psi_j> = sum_{pq} c_{qi}c_{pj} F_{pq}
 !           Note: only have digonal elements by construction
             ndo_so = nspins*n_states
-            CALL cp_fm_create(work_mat, gs_struct)
+            CALL cp_fm_create_p(work_mat, gs_struct)
             CALL cp_fm_struct_create(eval_mat_struct, nrow_global=ndo_so, ncol_global=ndo_so, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create(eval_mat, eval_mat_struct)
+            CALL cp_fm_create_p(eval_mat, eval_mat_struct)
             ALLOCATE (diag(ndo_so))
 
             IF (.NOT. xas_tdp_control%do_roks) THEN
@@ -1742,8 +1742,8 @@ CONTAINS
             END IF
 
 !           Clean-up
-            CALL cp_fm_release(work_mat)
-            CALL cp_fm_release(eval_mat)
+            CALL cp_fm_release_p(work_mat)
+            CALL cp_fm_release_p(eval_mat)
             CALL cp_fm_struct_release(eval_mat_struct)
 
          END IF ! do_localize and/or ROKS
@@ -1825,7 +1825,7 @@ CONTAINS
 !  Prepare for zij
       vectors => moloc_coeff(1)%matrix
       CALL cp_fm_get_info(vectors, nrow_global=nao)
-      CALL cp_fm_create(opvec, vectors%matrix_struct)
+      CALL cp_fm_create_p(opvec, vectors%matrix_struct)
 
       CALL cp_fm_struct_create(tmp_fm_struct, para_env=para_env, context=blacs_env, &
                                ncol_global=n_centers, nrow_global=n_centers)
@@ -1838,7 +1838,7 @@ CONTAINS
       ALLOCATE (zij_fm_set(2, dim_op))
       DO i = 1, dim_op
          DO j = 1, 2
-            CALL cp_fm_create(zij_fm_set(j, i)%matrix, tmp_fm_struct)
+            CALL cp_fm_create_p(zij_fm_set(j, i)%matrix, tmp_fm_struct)
          END DO
       END DO
 
@@ -1864,11 +1864,11 @@ CONTAINS
       END DO !ispins
 
 !  Clean-up
-      CALL cp_fm_release(opvec)
+      CALL cp_fm_release_p(opvec)
       CALL cp_fm_struct_release(tmp_fm_struct)
       DO i = 1, dim_op
          DO j = 1, 2
-            CALL cp_fm_release(zij_fm_set(j, i)%matrix)
+            CALL cp_fm_release_p(zij_fm_set(j, i)%matrix)
          END DO
       END DO
       DEALLOCATE (zij_fm_set)
@@ -2076,8 +2076,8 @@ CONTAINS
                           context=blacs_env, nrow_global=nao)
       CALL cp_fm_struct_create(mat_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=ndo_so*nosc, ncol_global=ngs)
-      CALL cp_fm_create(mat_work, mat_struct)
-      CALL cp_fm_create(col_work, col_struct)
+      CALL cp_fm_create_p(mat_work, mat_struct)
+      CALL cp_fm_create_p(col_work, col_struct)
 
       ALLOCATE (tot_contr(ndo_mo), dip_block(ndo_so, ngs))
       pref = 2.0_dp; IF (do_sc) pref = 1.0_dp !because of singlet definition u = 1/sqrt(2)(c_a+c_b)
@@ -2120,8 +2120,8 @@ CONTAINS
       END IF
 
       !clean-up
-      CALL cp_fm_release(mat_work)
-      CALL cp_fm_release(col_work)
+      CALL cp_fm_release_p(mat_work)
+      CALL cp_fm_release_p(col_work)
       CALL cp_fm_struct_release(mat_struct)
 
       CALL timestop(handle)
@@ -2190,8 +2190,8 @@ CONTAINS
                           context=blacs_env, nrow_global=nao)
       CALL cp_fm_struct_create(mat_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=ndo_so*nosc, ncol_global=ngs)
-      CALL cp_fm_create(mat_work, mat_struct)
-      CALL cp_fm_create(col_work, col_struct)
+      CALL cp_fm_create_p(mat_work, mat_struct)
+      CALL cp_fm_create_p(col_work, col_struct)
 
       ALLOCATE (quad_block(ndo_so, ngs), tot_contr(ndo_mo))
       pref = 2.0_dp; IF (do_sc) pref = 1.0_dp !because of singlet definition u = 1/sqrt(2)*...
@@ -2241,8 +2241,8 @@ CONTAINS
       osc_str(:) = pref*1._dp/20._dp*a_fine**2*lr_evals(:)**3*(osc_str(:) - 1._dp/3._dp*trace(:)**2)
 
       !clean-up
-      CALL cp_fm_release(mat_work)
-      CALL cp_fm_release(col_work)
+      CALL cp_fm_release_p(mat_work)
+      CALL cp_fm_release_p(col_work)
       CALL cp_fm_struct_release(mat_struct)
 
       CALL timestop(handle)
@@ -2386,7 +2386,7 @@ CONTAINS
       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, last_sgf=last_sgf)
       nsgf = last_sgf(at_index) - first_sgf(at_index) + 1
 
-      CALL cp_fm_create(work_vect, col_vect_struct)
+      CALL cp_fm_create_p(work_vect, col_vect_struct)
 
 !  Take the product of S*coeffs
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_coeffs, work_vect, ncol=ndo_so)
@@ -2423,7 +2423,7 @@ CONTAINS
 
 !  Clean-up
       DEALLOCATE (first_sgf, last_sgf, work_array)
-      CALL cp_fm_release(work_vect)
+      CALL cp_fm_release_p(work_vect)
 
    END SUBROUTINE perform_mulliken_on_donor_state
 
@@ -2531,7 +2531,7 @@ CONTAINS
 
       CALL cp_fm_struct_create(mo_struct, context=blacs_env, para_env=para_env, &
                                nrow_global=nao, ncol_global=nmo)
-      CALL cp_fm_create(mo_coeff, mo_struct)
+      CALL cp_fm_create_p(mo_coeff, mo_struct)
 
       !Dump the TDDFT excited state AMEW wavefunction into a file for restart in RTP
       IF (do_wfn_restart) THEN
@@ -2581,13 +2581,13 @@ CONTAINS
          IF (.NOT. ASSOCIATED(xas_tdp_env%matrix_shalf) .AND. do_pdos) THEN
             CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &
                                      nrow_global=nao, ncol_global=nao)
-            CALL cp_fm_create(xas_tdp_env%matrix_shalf, fm_struct)
-            CALL cp_fm_create(work_fm, fm_struct)
+            CALL cp_fm_create_p(xas_tdp_env%matrix_shalf, fm_struct)
+            CALL cp_fm_create_p(work_fm, fm_struct)
 
             CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, xas_tdp_env%matrix_shalf)
             CALL cp_fm_power(xas_tdp_env%matrix_shalf, work_fm, 0.5_dp, EPSILON(0.0_dp), n_dependent)
 
-            CALL cp_fm_release(work_fm)
+            CALL cp_fm_release_p(work_fm)
             CALL cp_fm_struct_release(fm_struct)
          END IF
 
@@ -2701,7 +2701,7 @@ CONTAINS
       END DO
 
       !clean-up
-      CALL cp_fm_release(mo_coeff)
+      CALL cp_fm_release_p(mo_coeff)
       CALL cp_fm_struct_release(mo_struct)
       IF (do_cubes) DEALLOCATE (centers, state_list)
 
@@ -2764,10 +2764,10 @@ CONTAINS
          !Going through fm to diagonalize
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=nao, ncol_global=nao)
-         CALL cp_fm_create(amatrix, fm_struct)
-         CALL cp_fm_create(bmatrix, fm_struct)
-         CALL cp_fm_create(evecs, fm_struct)
-         CALL cp_fm_create(work_fm, fm_struct)
+         CALL cp_fm_create_p(amatrix, fm_struct)
+         CALL cp_fm_create_p(bmatrix, fm_struct)
+         CALL cp_fm_create_p(evecs, fm_struct)
+         CALL cp_fm_create_p(work_fm, fm_struct)
          ALLOCATE (evals(nao))
          ALLOCATE (xas_tdp_env%lumo_evals(ispin)%array(nlumo(ispin)))
 
@@ -2780,7 +2780,7 @@ CONTAINS
          !Storing results
          CALL cp_fm_struct_create(lumo_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=nao, ncol_global=nlumo(ispin))
-         CALL cp_fm_create(xas_tdp_env%lumo_evecs(ispin)%matrix, lumo_struct)
+         CALL cp_fm_create_p(xas_tdp_env%lumo_evecs(ispin)%matrix, lumo_struct)
 
          CALL cp_fm_to_fm_submat(evecs, xas_tdp_env%lumo_evecs(ispin)%matrix, nrow=nao, &
                                  ncol=nlumo(ispin), s_firstrow=1, s_firstcol=nocc(ispin) + 1, &
@@ -2791,10 +2791,10 @@ CONTAINS
          CALL build_ot_spin_prec(evecs, evals, ispin, xas_tdp_env, xas_tdp_control, qs_env)
 
          !clean-up
-         CALL cp_fm_release(amatrix)
-         CALL cp_fm_release(bmatrix)
-         CALL cp_fm_release(evecs)
-         CALL cp_fm_release(work_fm)
+         CALL cp_fm_release_p(amatrix)
+         CALL cp_fm_release_p(bmatrix)
+         CALL cp_fm_release_p(evecs)
+         CALL cp_fm_release_p(work_fm)
          CALL cp_fm_struct_release(fm_struct)
          CALL cp_fm_struct_release(lumo_struct)
          DEALLOCATE (evals)
@@ -2844,7 +2844,7 @@ CONTAINS
       do_os = xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks
       CALL get_qs_env(qs_env, para_env=para_env, nelectron_spin=nelec_spin, matrix_s=matrix_s)
       CALL cp_fm_get_info(evecs, nrow_global=nao, matrix_struct=fm_struct)
-      CALL cp_fm_create(fm_prec, fm_struct)
+      CALL cp_fm_create_p(fm_prec, fm_struct)
       ALLOCATE (scaling(nao))
       nocc = nelec_spin(1)/2
       nspins = 1
@@ -2870,7 +2870,7 @@ CONTAINS
       scaling(1:nocc) = 1.0_dp
 
       !Building the precond as an fm
-      CALL cp_fm_create(work_fm, fm_struct)
+      CALL cp_fm_create_p(work_fm, fm_struct)
 
       CALL cp_fm_copy_general(evecs, work_fm, para_env)
       CALL cp_fm_column_scale(work_fm, scaling)
@@ -2883,8 +2883,8 @@ CONTAINS
       CALL copy_fm_to_dbcsr(fm_prec, xas_tdp_env%ot_prec(ispin)%matrix)
       CALL dbcsr_filter(xas_tdp_env%ot_prec(ispin)%matrix, xas_tdp_control%eps_filter)
 
-      CALL cp_fm_release(work_fm)
-      CALL cp_fm_release(fm_prec)
+      CALL cp_fm_release_p(work_fm)
+      CALL cp_fm_release_p(fm_prec)
 
       CALL timestop(handle)
 
@@ -3396,7 +3396,7 @@ CONTAINS
       !read evecs
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &
                                nrow_global=nao, ncol_global=nex*donor_state%ndo_mo*nspins)
-      CALL cp_fm_create(lr_coeffs, fm_struct)
+      CALL cp_fm_create_p(lr_coeffs, fm_struct)
       CALL cp_fm_read_unformatted(lr_coeffs, rst_unit)
       CALL cp_fm_struct_release(fm_struct)
 

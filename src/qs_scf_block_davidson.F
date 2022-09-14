@@ -35,9 +35,9 @@ MODULE qs_scf_block_davidson
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_diag,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
@@ -134,23 +134,23 @@ CONTAINS
 
          ! compute Ritz values
          ritz_coeff = 0.0_dp
-         CALL cp_fm_create(m_hc, mo_coeff%matrix_struct, name="hc")
+         CALL cp_fm_create_p(m_hc, mo_coeff%matrix_struct, name="hc")
          CALL cp_dbcsr_sm_fm_multiply(matrix_h, mo_coeff, m_hc, nmo)
-         CALL cp_fm_create(m_sc, mo_coeff%matrix_struct, name="sc")
+         CALL cp_fm_create_p(m_sc, mo_coeff%matrix_struct, name="sc")
          CALL cp_dbcsr_sm_fm_multiply(matrix_s, mo_coeff, m_sc, nmo)
 
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo, &
                                   context=mo_coeff%matrix_struct%context, &
                                   para_env=mo_coeff%matrix_struct%para_env)
-         CALL cp_fm_create(m_tmp, fm_struct_tmp, name="matrix_tmp")
+         CALL cp_fm_create_p(m_tmp, fm_struct_tmp, name="matrix_tmp")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff, m_hc, 0.0_dp, m_tmp)
          CALL cp_fm_get_diag(m_tmp, ritz_coeff)
-         CALL cp_fm_release(m_tmp)
+         CALL cp_fm_release_p(m_tmp)
 
          ! Check for converged eigenvectors
-!      CALL cp_fm_create(c_z,mo_coeff%matrix_struct,name="tmp")
+!      CALL cp_fm_create_p(c_z,mo_coeff%matrix_struct,name="tmp")
          c_z => bdav_env%matrix_z
          c_pz => bdav_env%matrix_pz
          CALL cp_fm_to_fm(m_sc, c_z)
@@ -214,8 +214,8 @@ CONTAINS
                END IF
             END DO
             nset_not_conv = nset
-            CALL cp_fm_release(m_sc)
-            CALL cp_fm_release(m_hc)
+            CALL cp_fm_release_p(m_sc)
+            CALL cp_fm_release_p(m_hc)
             NULLIFY (c_z, c_pz)
          END IF
 
@@ -240,9 +240,9 @@ CONTAINS
                                      context=mo_coeff%matrix_struct%context, &
                                      para_env=mo_coeff%matrix_struct%para_env)
             !allocate h_fm
-            CALL cp_fm_create(h_fm, fm_struct_tmp, name="matrix_tmp")
+            CALL cp_fm_create_p(h_fm, fm_struct_tmp, name="matrix_tmp")
             !allocate s_fm
-            CALL cp_fm_create(s_fm, fm_struct_tmp, name="matrix_tmp")
+            CALL cp_fm_create_p(s_fm, fm_struct_tmp, name="matrix_tmp")
             !copy matrix_h in h_fm
             CALL copy_dbcsr_to_fm(matrix_h, h_fm)
             CALL cp_fm_upper_to_full(h_fm, s_fm)
@@ -252,7 +252,7 @@ CONTAINS
             CALL copy_dbcsr_to_fm(matrix_s, s_fm)
 
             !allocate c_out
-            CALL cp_fm_create(c_out, fm_struct_tmp, name="matrix_tmp")
+            CALL cp_fm_create_p(c_out, fm_struct_tmp, name="matrix_tmp")
             ! set c_out to zero
             CALL cp_fm_set_all(c_out, 0.0_dp)
             CALL cp_fm_struct_release(fm_struct_tmp)
@@ -261,10 +261,10 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo_converged, &
                                      context=mo_coeff%matrix_struct%context, &
                                      para_env=mo_coeff%matrix_struct%para_env)
-            CALL cp_fm_create(c_conv, fm_struct_tmp, name="c_conv")
+            CALL cp_fm_create_p(c_conv, fm_struct_tmp, name="c_conv")
             CALL cp_fm_set_all(c_conv, 0.0_dp)
             !allocate m_tmp
-            CALL cp_fm_create(m_tmp, fm_struct_tmp, name="m_tmp_nxmc")
+            CALL cp_fm_create_p(m_tmp, fm_struct_tmp, name="m_tmp_nxmc")
             CALL cp_fm_struct_release(fm_struct_tmp)
          END IF
 
@@ -272,14 +272,14 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo_not_converged, &
                                   context=mo_coeff%matrix_struct%context, &
                                   para_env=mo_coeff%matrix_struct%para_env)
-         CALL cp_fm_create(c_notconv, fm_struct_tmp, name="c_notconv")
+         CALL cp_fm_create_p(c_notconv, fm_struct_tmp, name="c_notconv")
          CALL cp_fm_set_all(c_notconv, 0.0_dp)
          IF (nmo_converged > 0) THEN
-            CALL cp_fm_create(m_hc, fm_struct_tmp, name="m_hc")
-            CALL cp_fm_create(m_sc, fm_struct_tmp, name="m_sc")
+            CALL cp_fm_create_p(m_hc, fm_struct_tmp, name="m_hc")
+            CALL cp_fm_create_p(m_sc, fm_struct_tmp, name="m_sc")
             !allocate c_z
-            CALL cp_fm_create(c_z, fm_struct_tmp, name="c_z")
-            CALL cp_fm_create(c_pz, fm_struct_tmp, name="c_pz")
+            CALL cp_fm_create_p(c_z, fm_struct_tmp, name="c_z")
+            CALL cp_fm_create_p(c_pz, fm_struct_tmp, name="c_pz")
             CALL cp_fm_set_all(c_z, 0.0_dp)
 
             ! sum contributions to c_out
@@ -297,13 +297,13 @@ CONTAINS
             ! project c_out out of H
             lambda = 100.0_dp*ABS(eigenvalues(homo))
             CALL cp_fm_scale_and_add(lambda, c_out, 1.0_dp, h_fm)
-            CALL cp_fm_release(m_tmp)
-            CALL cp_fm_release(h_fm)
+            CALL cp_fm_release_p(m_tmp)
+            CALL cp_fm_release_p(h_fm)
 
          END IF
 
          !allocate m_tmp
-         CALL cp_fm_create(m_tmp, fm_struct_tmp, name="m_tmp_nxm")
+         CALL cp_fm_create_p(m_tmp, fm_struct_tmp, name="m_tmp_nxm")
          CALL cp_fm_struct_release(fm_struct_tmp)
          IF (nmo_converged > 0) THEN
             ALLOCATE (eig_not_conv(nmo_not_converged))
@@ -338,14 +338,14 @@ CONTAINS
          ELSE
             CALL cp_fm_to_fm(c_z, c_pz)
          END IF
-         CALL cp_fm_release(m_tmp)
+         CALL cp_fm_release_p(m_tmp)
 
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo_not_converged, ncol_global=nmo_not_converged, &
                                   context=mo_coeff%matrix_struct%context, &
                                   para_env=mo_coeff%matrix_struct%para_env)
 
-         CALL cp_fm_create(m_tmp, fm_struct_tmp, name="m_tmp_mxm")
-         CALL cp_fm_create(mt_tmp, fm_struct_tmp, name="mt_tmp_mxm")
+         CALL cp_fm_create_p(m_tmp, fm_struct_tmp, name="m_tmp_mxm")
+         CALL cp_fm_create_p(mt_tmp, fm_struct_tmp, name="mt_tmp_mxm")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          nmat = nmo_not_converged
@@ -354,10 +354,10 @@ CONTAINS
                                   context=mo_coeff%matrix_struct%context, &
                                   para_env=mo_coeff%matrix_struct%para_env)
 
-         CALL cp_fm_create(s_block, fm_struct_tmp, name="sb")
-         CALL cp_fm_create(h_block, fm_struct_tmp, name="hb")
-         CALL cp_fm_create(v_block, fm_struct_tmp, name="vb")
-         CALL cp_fm_create(w_block, fm_struct_tmp, name="wb")
+         CALL cp_fm_create_p(s_block, fm_struct_tmp, name="sb")
+         CALL cp_fm_create_p(h_block, fm_struct_tmp, name="hb")
+         CALL cp_fm_create_p(v_block, fm_struct_tmp, name="vb")
+         CALL cp_fm_create_p(w_block, fm_struct_tmp, name="wb")
          ALLOCATE (evals(nmat2))
 
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -380,16 +380,16 @@ CONTAINS
          CALL cp_fm_transpose(m_tmp, mt_tmp)
          CALL cp_fm_to_fm_submat(mt_tmp, h_block, nmat, nmat, 1, 1, 1, 1 + nmat)
 
-         CALL cp_fm_release(mt_tmp)
+         CALL cp_fm_release_p(mt_tmp)
 
          ! reuse m_sc and m_hc to computr HZ and SZ
          IF (nmo_converged > 0) THEN
             CALL parallel_gemm('N', 'N', nao, nmat, nao, 1.0_dp, c_out, c_pz, 0.0_dp, m_hc)
             CALL cp_fm_symm('L', 'U', nao, nmo_not_converged, 1.0_dp, s_fm, c_pz, 0.0_dp, m_sc)
 
-            CALL cp_fm_release(c_out)
-            CALL cp_fm_release(c_conv)
-            CALL cp_fm_release(s_fm)
+            CALL cp_fm_release_p(c_out)
+            CALL cp_fm_release_p(c_conv)
+            CALL cp_fm_release_p(s_fm)
          ELSE
             CALL cp_dbcsr_sm_fm_multiply(matrix_h, c_pz, m_hc, nmo)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s, c_pz, m_sc, nmo)
@@ -402,7 +402,7 @@ CONTAINS
          CALL parallel_gemm('T', 'N', nmat, nmat, nao, 1.0_dp, c_pz, m_hc, 0.0_dp, m_tmp)
          CALL cp_fm_to_fm_submat(m_tmp, h_block, nmat, nmat, 1, 1, 1 + nmat, 1 + nmat)
 
-         CALL cp_fm_release(m_sc)
+         CALL cp_fm_release_p(m_sc)
 
          ! solution of the reduced eigenvalues problem
          CALL reduce_extended_space(s_block, h_block, v_block, w_block, evals, nmat2)
@@ -413,17 +413,17 @@ CONTAINS
          CALL cp_fm_to_fm_submat(v_block, m_tmp, nmat, nmat, 1 + nmat, 1, 1, 1)
          CALL parallel_gemm('N', 'N', nao, nmat, nmat, 1.0_dp, c_pz, m_tmp, 1.0_dp, m_hc)
 
-         CALL cp_fm_release(m_tmp)
+         CALL cp_fm_release_p(m_tmp)
 
-         CALL cp_fm_release(c_notconv)
-         CALL cp_fm_release(s_block)
-         CALL cp_fm_release(h_block)
-         CALL cp_fm_release(w_block)
-         CALL cp_fm_release(v_block)
+         CALL cp_fm_release_p(c_notconv)
+         CALL cp_fm_release_p(s_block)
+         CALL cp_fm_release_p(h_block)
+         CALL cp_fm_release_p(w_block)
+         CALL cp_fm_release_p(v_block)
 
          IF (nmo_converged > 0) THEN
-            CALL cp_fm_release(c_z)
-            CALL cp_fm_release(c_pz)
+            CALL cp_fm_release_p(c_z)
+            CALL cp_fm_release_p(c_pz)
             jj = 1
             DO j = 1, nset_not_conv
                i_first = inotconv_set(j, 1)
@@ -441,7 +441,7 @@ CONTAINS
          END IF
          DEALLOCATE (evals)
 
-         CALL cp_fm_release(m_hc)
+         CALL cp_fm_release_p(m_hc)
 
          CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b) !fm->dbcsr
 
@@ -660,7 +660,7 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo_converged, &
                                      context=mo_coeff%matrix_struct%context, &
                                      para_env=mo_coeff%matrix_struct%para_env)
-            CALL cp_fm_create(mo_conv_fm, fm_struct_tmp, name="mo_conv_fm")
+            CALL cp_fm_create_p(mo_conv_fm, fm_struct_tmp, name="mo_conv_fm")
 
             CALL cp_fm_struct_release(fm_struct_tmp)
 
@@ -700,13 +700,13 @@ CONTAINS
 
             CALL dbcsr_release_p(mo_conv)
             CALL dbcsr_release_p(smo_conv)
-            CALL cp_fm_release(mo_conv_fm)
+            CALL cp_fm_release_p(mo_conv_fm)
 
             !allocate c_notconv_fm
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo_not_converged, &
                                      context=mo_coeff%matrix_struct%context, &
                                      para_env=mo_coeff%matrix_struct%para_env)
-            CALL cp_fm_create(mo_notconv_fm, fm_struct_tmp, name="mo_notconv_fm")
+            CALL cp_fm_create_p(mo_notconv_fm, fm_struct_tmp, name="mo_notconv_fm")
             CALL cp_fm_struct_release(fm_struct_tmp)
 
             ! extract mo_notconv from mo_coeff full matrix
@@ -788,8 +788,8 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmat, ncol_global=nmat, &
                                   context=mo_coeff%matrix_struct%context, &
                                   para_env=mo_coeff%matrix_struct%para_env)
-         CALL cp_fm_create(matrix_mm_fm, fm_struct_tmp, name="m_tmp_mxm")
-         CALL cp_fm_create(matrix_mmt_fm, fm_struct_tmp, name="mt_tmp_mxm")
+         CALL cp_fm_create_p(matrix_mm_fm, fm_struct_tmp, name="m_tmp_mxm")
+         CALL cp_fm_create_p(matrix_mmt_fm, fm_struct_tmp, name="mt_tmp_mxm")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          !allocate 2NMOx2NMO full matrices
@@ -798,10 +798,10 @@ CONTAINS
                                   context=mo_coeff%matrix_struct%context, &
                                   para_env=mo_coeff%matrix_struct%para_env)
 
-         CALL cp_fm_create(s_block, fm_struct_tmp, name="sb")
-         CALL cp_fm_create(h_block, fm_struct_tmp, name="hb")
-         CALL cp_fm_create(v_block, fm_struct_tmp, name="vb")
-         CALL cp_fm_create(w_block, fm_struct_tmp, name="wb")
+         CALL cp_fm_create_p(s_block, fm_struct_tmp, name="sb")
+         CALL cp_fm_create_p(h_block, fm_struct_tmp, name="hb")
+         CALL cp_fm_create_p(v_block, fm_struct_tmp, name="vb")
+         CALL cp_fm_create_p(w_block, fm_struct_tmp, name="wb")
          ALLOCATE (evals(nmat2))
          CALL cp_fm_struct_release(fm_struct_tmp)
 
@@ -828,7 +828,7 @@ CONTAINS
          CALL cp_fm_transpose(matrix_mm_fm, matrix_mmt_fm)
          CALL cp_fm_to_fm_submat(matrix_mmt_fm, h_block, nmat, nmat, 1, 1, 1, 1 + nmat)
 
-         CALL cp_fm_release(matrix_mmt_fm)
+         CALL cp_fm_release_p(matrix_mmt_fm)
 
          ! (reuse matrix_sc and matrix_hc to computr HZ and SZ)
          CALL dbcsr_get_info(matrix_pz, nfullrows_total=n, nfullcols_total=k)
@@ -857,8 +857,8 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmat, &
                                   context=mo_coeff%matrix_struct%context, &
                                   para_env=mo_coeff%matrix_struct%para_env)
-         CALL cp_fm_create(matrix_nm_fm, fm_struct_tmp, name="m_nxm")
-         CALL cp_fm_create(matrix_z_fm, fm_struct_tmp, name="m_nxm")
+         CALL cp_fm_create_p(matrix_nm_fm, fm_struct_tmp, name="m_nxm")
+         CALL cp_fm_create_p(matrix_z_fm, fm_struct_tmp, name="m_nxm")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          CALL copy_dbcsr_to_fm(matrix_pz, matrix_z_fm)
@@ -870,12 +870,12 @@ CONTAINS
 
          CALL dbcsr_release_p(matrix_z)
          CALL dbcsr_release_p(matrix_pz)
-         CALL cp_fm_release(matrix_z_fm)
-         CALL cp_fm_release(s_block)
-         CALL cp_fm_release(h_block)
-         CALL cp_fm_release(w_block)
-         CALL cp_fm_release(v_block)
-         CALL cp_fm_release(matrix_mm_fm)
+         CALL cp_fm_release_p(matrix_z_fm)
+         CALL cp_fm_release_p(s_block)
+         CALL cp_fm_release_p(h_block)
+         CALL cp_fm_release_p(w_block)
+         CALL cp_fm_release_p(v_block)
+         CALL cp_fm_release_p(matrix_mm_fm)
 
          ! in case some vector are already converged only a subset of vectors are copied in the MOS
          IF (nmo_converged > 0) THEN
@@ -893,14 +893,14 @@ CONTAINS
 
             CALL dbcsr_release_p(mo_notconv)
             CALL dbcsr_release_p(c_out)
-            CALL cp_fm_release(mo_notconv_fm)
+            CALL cp_fm_release_p(mo_notconv_fm)
          ELSE
             CALL cp_fm_to_fm(matrix_nm_fm, mo_coeff)
             eigenvalues(1:nmo) = evals(1:nmo)
          END IF
          DEALLOCATE (evals)
 
-         CALL cp_fm_release(matrix_nm_fm)
+         CALL cp_fm_release_p(matrix_nm_fm)
          CALL copy_fm_to_dbcsr(mo_coeff, mo_coeff_b) !fm->dbcsr
 
          t2 = m_walltime()

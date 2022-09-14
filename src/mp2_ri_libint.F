@@ -30,9 +30,9 @@ MODULE mp2_ri_libint
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_submatrix,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -677,7 +677,7 @@ CONTAINS
       NULLIFY (fm_struct_L)
       CALL cp_fm_struct_create(fm_struct_L, context=blacs_env, nrow_global=RI_dimen, &
                                ncol_global=RI_dimen, para_env=para_env)
-      CALL cp_fm_create(fm_matrix_L, fm_struct_L, name="fm_matrix_L")
+      CALL cp_fm_create_p(fm_matrix_L, fm_struct_L, name="fm_matrix_L")
       CALL cp_fm_struct_release(fm_struct_L)
       CALL cp_blacs_env_release(blacs_env)
 
@@ -694,7 +694,7 @@ CONTAINS
       ! replicate L matrix to each proc
       L_full_matrix = 0.0_dp
       CALL cp_fm_get_submatrix(fm_matrix_L, L_full_matrix, 1, 1, RI_dimen, RI_dimen, .FALSE.)
-      CALL cp_fm_release(fm_matrix_L)
+      CALL cp_fm_release_p(fm_matrix_L)
 
       ! clean lower part
       DO iiB = 1, RI_dimen

@@ -22,8 +22,8 @@ MODULE cp_dbcsr_cholesky
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
@@ -82,7 +82,7 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_fm_create_p(fm_matrix, fm_struct, name="fm_matrix")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL copy_dbcsr_to_fm(matrix, fm_matrix)
@@ -121,7 +121,7 @@ CONTAINS
 
       CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
-      CALL cp_fm_release(fm_matrix)
+      CALL cp_fm_release_p(fm_matrix)
 
       CALL timestop(handle)
 
@@ -164,7 +164,7 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullrows_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_fm_create_p(fm_matrix, fm_struct, name="fm_matrix")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL copy_dbcsr_to_fm(matrix, fm_matrix)
@@ -202,14 +202,14 @@ CONTAINS
       CPASSERT(info == 0)
 
       IF (upper_to_full) THEN
-         CALL cp_fm_create(fm_matrix_tmp, fm_matrix%matrix_struct, name="fm_matrix_tmp")
+         CALL cp_fm_create_p(fm_matrix_tmp, fm_matrix%matrix_struct, name="fm_matrix_tmp")
          CALL cp_fm_upper_to_full(fm_matrix, fm_matrix_tmp)
-         CALL cp_fm_release(fm_matrix_tmp)
+         CALL cp_fm_release_p(fm_matrix_tmp)
       END IF
 
       CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
-      CALL cp_fm_release(fm_matrix)
+      CALL cp_fm_release_p(fm_matrix)
 
       CALL timestop(handle)
 
@@ -262,19 +262,19 @@ CONTAINS
       CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_fm_create_p(fm_matrix, fm_struct, name="fm_matrix")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL dbcsr_get_info(matrixb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrixb, fm_struct, name="fm_matrixb")
+      CALL cp_fm_create_p(fm_matrixb, fm_struct, name="fm_matrixb")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL dbcsr_get_info(matrixout, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrixout, fm_struct, name="fm_matrixout")
+      CALL cp_fm_create_p(fm_matrixout, fm_struct, name="fm_matrixout")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL copy_dbcsr_to_fm(matrix, fm_matrix)
@@ -370,9 +370,9 @@ CONTAINS
 
       CALL copy_fm_to_dbcsr(fm_matrixout, matrixout)
 
-      CALL cp_fm_release(fm_matrix)
-      CALL cp_fm_release(fm_matrixb)
-      CALL cp_fm_release(fm_matrixout)
+      CALL cp_fm_release_p(fm_matrix)
+      CALL cp_fm_release_p(fm_matrixb)
+      CALL cp_fm_release_p(fm_matrixout)
 
       CALL timestop(handle)
 

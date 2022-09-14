@@ -35,7 +35,7 @@ MODULE hfx_admm_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_type
@@ -256,7 +256,7 @@ CONTAINS
             ALLOCATE (mo_derivs_aux_fit(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
-               CALL cp_fm_create(mo_derivs_aux_fit(ispin)%matrix, mo_coeff_aux_fit%matrix_struct)
+               CALL cp_fm_create_p(mo_derivs_aux_fit(ispin)%matrix, mo_coeff_aux_fit%matrix_struct)
             END DO
             admm_env%mo_derivs_aux_fit => mo_derivs_aux_fit
          END IF

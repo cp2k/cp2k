@@ -19,10 +19,10 @@ MODULE et_coupling
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
@@ -113,23 +113,23 @@ CONTAINS
                          nao=nao, &
                          nmo=nmo)
 
-         CALL cp_fm_create(matrix=tmp2, &
-                           matrix_struct=qs_env%mos(i)%mo_set%mo_coeff%matrix_struct, &
-                           name="ET_TMP"//TRIM(ADJUSTL(cp_to_string(2)))//"MATRIX")
-         CALL cp_fm_create(matrix=inverse_mat, &
-                           matrix_struct=mo_mo_fmstruct, &
-                           name="INVERSE"//TRIM(ADJUSTL(cp_to_string(2)))//"MATRIX")
-         CALL cp_fm_create(matrix=Tinverse, &
-                           matrix_struct=mo_mo_fmstruct, &
-                           name="T_INVERSE"//TRIM(ADJUSTL(cp_to_string(2)))//"MATRIX")
-         CALL cp_fm_create(matrix=SMO, &
-                           matrix_struct=mo_mo_fmstruct, &
-                           name="ET_SMO"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
+         CALL cp_fm_create_p(matrix=tmp2, &
+                             matrix_struct=qs_env%mos(i)%mo_set%mo_coeff%matrix_struct, &
+                             name="ET_TMP"//TRIM(ADJUSTL(cp_to_string(2)))//"MATRIX")
+         CALL cp_fm_create_p(matrix=inverse_mat, &
+                             matrix_struct=mo_mo_fmstruct, &
+                             name="INVERSE"//TRIM(ADJUSTL(cp_to_string(2)))//"MATRIX")
+         CALL cp_fm_create_p(matrix=Tinverse, &
+                             matrix_struct=mo_mo_fmstruct, &
+                             name="T_INVERSE"//TRIM(ADJUSTL(cp_to_string(2)))//"MATRIX")
+         CALL cp_fm_create_p(matrix=SMO, &
+                             matrix_struct=mo_mo_fmstruct, &
+                             name="ET_SMO"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
          DO j = 1, 2
             NULLIFY (rest_MO(j)%matrix)
-            CALL cp_fm_create(matrix=rest_MO(j)%matrix, &
-                              matrix_struct=mo_mo_fmstruct, &
-                              name="ET_rest_MO"//TRIM(ADJUSTL(cp_to_string(j)))//"MATRIX")
+            CALL cp_fm_create_p(matrix=rest_MO(j)%matrix, &
+                                matrix_struct=mo_mo_fmstruct, &
+                                name="ET_rest_MO"//TRIM(ADJUSTL(cp_to_string(j)))//"MATRIX")
          END DO
 
 !   calculate MO-overlap
@@ -188,12 +188,12 @@ CONTAINS
 
          CALL mp_sum(b(i), para_env%group)
 
-         CALL cp_fm_release(tmp2)
-         CALL cp_fm_release(rest_MO(1)%matrix)
-         CALL cp_fm_release(rest_MO(2)%matrix)
-         CALL cp_fm_release(SMO)
-         CALL cp_fm_release(Tinverse)
-         CALL cp_fm_release(inverse_mat)
+         CALL cp_fm_release_p(tmp2)
+         CALL cp_fm_release_p(rest_MO(1)%matrix)
+         CALL cp_fm_release_p(rest_MO(2)%matrix)
+         CALL cp_fm_release_p(SMO)
+         CALL cp_fm_release_p(Tinverse)
+         CALL cp_fm_release_p(inverse_mat)
       END DO
       DEALLOCATE (rest_MO)
 

@@ -20,9 +20,9 @@ MODULE mp2_gpw_method
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
@@ -204,7 +204,7 @@ CONTAINS
          CALL dbcsr_get_info(matrix_ia_jb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, nrow_global=nfullrows_total, &
                                   ncol_global=nfullcols_total, para_env=para_env_sub)
-         CALL cp_fm_create(fm_BIb_jb, fm_struct, name="fm_BIb_jb")
+         CALL cp_fm_create_p(fm_BIb_jb, fm_struct, name="fm_BIb_jb")
 
          CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb)
          CALL cp_fm_struct_release(fm_struct)
@@ -567,7 +567,7 @@ CONTAINS
       DEALLOCATE (my_Cvirt)
 
       IF (calc_ex) THEN
-         CALL cp_fm_release(fm_BIb_jb)
+         CALL cp_fm_release_p(fm_BIb_jb)
          DEALLOCATE (local_col_row_info)
          DEALLOCATE (BIb_C)
       END IF

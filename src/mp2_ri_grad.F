@@ -23,8 +23,8 @@ MODULE mp2_ri_grad
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
+        cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_p_type, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -462,7 +462,7 @@ CONTAINS
          NULLIFY (L1_mu_i(ispin)%matrix, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
                                   nrow_global=dimen, ncol_global=homo(ispin))
-         CALL cp_fm_create(L1_mu_i(ispin)%matrix, fm_struct_tmp, name="Lag_mu_i")
+         CALL cp_fm_create_p(L1_mu_i(ispin)%matrix, fm_struct_tmp, name="Lag_mu_i")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(L1_mu_i(ispin)%matrix, 0.0_dp)
          CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1(ispin), fm=L1_mu_i(ispin)%matrix)
@@ -473,7 +473,7 @@ CONTAINS
          NULLIFY (L2_nu_a(ispin)%matrix, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
                                   nrow_global=dimen, ncol_global=virtual(ispin))
-         CALL cp_fm_create(L2_nu_a(ispin)%matrix, fm_struct_tmp, name="Lag_nu_a")
+         CALL cp_fm_create_p(L2_nu_a(ispin)%matrix, fm_struct_tmp, name="Lag_nu_a")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(L2_nu_a(ispin)%matrix, 0.0_dp)
          CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2(ispin), fm=L2_nu_a(ispin)%matrix)
@@ -708,7 +708,7 @@ CONTAINS
       NULLIFY (L_mu_q, fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create(L_mu_q, fm_struct_tmp, name="Lag_mu_q")
+      CALL cp_fm_create_p(L_mu_q, fm_struct_tmp, name="Lag_mu_q")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(L_mu_q, 0.0_dp)
 
@@ -1111,8 +1111,8 @@ CONTAINS
       ! release para_env_exchange
       CALL cp_para_env_release(para_env_exchange)
 
-      CALL cp_fm_release(L1_mu_i)
-      CALL cp_fm_release(L2_nu_a)
+      CALL cp_fm_release_p(L1_mu_i)
+      CALL cp_fm_release_p(L2_nu_a)
       DEALLOCATE (pos_info_ex)
       DEALLOCATE (grid_2_mepos)
       DEALLOCATE (sizes)
@@ -1125,7 +1125,7 @@ CONTAINS
       NULLIFY (fm_P_ij, fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=homo, ncol_global=homo)
-      CALL cp_fm_create(fm_P_ij, fm_struct_tmp, name="fm_P_ij")
+      CALL cp_fm_create_p(fm_P_ij, fm_struct_tmp, name="fm_P_ij")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(fm_P_ij, 0.0_dp)
 
@@ -1193,7 +1193,7 @@ CONTAINS
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create(mp2_env%ri_grad%P_mo(kspin)%matrix, fm_struct_tmp, name="P_MP2_MO")
+      CALL cp_fm_create_p(mp2_env%ri_grad%P_mo(kspin)%matrix, fm_struct_tmp, name="P_MP2_MO")
       CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(kspin)%matrix, 0.0_dp)
 
       ! start with the (easy) occ-occ block and locally held P_ab elements
@@ -1203,7 +1203,7 @@ CONTAINS
 
       ! Fill occ-occ block
       CALL cp_fm_to_fm_submat(fm_P_ij, mp2_env%ri_grad%P_mo(kspin)%matrix, homo, homo, 1, 1, 1, 1)
-      CALL cp_fm_release(fm_P_ij)
+      CALL cp_fm_release_p(fm_P_ij)
 
       CALL cp_fm_get_info(mp2_env%ri_grad%P_mo(kspin)%matrix, &
                           nrow_local=nrow_local, &
@@ -1339,7 +1339,7 @@ CONTAINS
          END DO
       END IF
 
-      CALL cp_fm_create(mp2_env%ri_grad%W_mo(kspin)%matrix, fm_struct_tmp, name="W_MP2_MO")
+      CALL cp_fm_create_p(mp2_env%ri_grad%W_mo(kspin)%matrix, fm_struct_tmp, name="W_MP2_MO")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! all block
@@ -1384,7 +1384,7 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=homo, ncol_global=virtual)
-      CALL cp_fm_create(mp2_env%ri_grad%L_jb(kspin)%matrix, fm_struct_tmp, name="fm_L_jb")
+      CALL cp_fm_create_p(mp2_env%ri_grad%L_jb(kspin)%matrix, fm_struct_tmp, name="fm_L_jb")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! first Virtual
@@ -1407,7 +1407,7 @@ CONTAINS
                          c_first_row=1)
 
       ! finally release L_mu_q
-      CALL cp_fm_release(L_mu_q)
+      CALL cp_fm_release_p(L_mu_q)
       CALL timestop(handle2)
 
       ! here we should be done next CPHF

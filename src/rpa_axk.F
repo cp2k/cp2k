@@ -25,9 +25,9 @@ MODULE rpa_axk
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat_general,&
@@ -140,9 +140,9 @@ CONTAINS
 
       CALL cp_fm_get_info(matrix=fm_mat_Q, &
                           matrix_struct=fm_struct)
-      CALL cp_fm_create(fm_mat_U, fm_struct, name="fm_mat_U")
-      CALL cp_fm_create(fm_mat_R_half, fm_struct, name="fm_mat_R_half")
-      CALL cp_fm_create(fm_mat_Q_tmp, fm_struct, name="fm_mat_Q_tmp")
+      CALL cp_fm_create_p(fm_mat_U, fm_struct, name="fm_mat_U")
+      CALL cp_fm_create_p(fm_mat_R_half, fm_struct, name="fm_mat_R_half")
+      CALL cp_fm_create_p(fm_mat_Q_tmp, fm_struct, name="fm_mat_Q_tmp")
       CALL cp_fm_set_all(matrix=fm_mat_Q_tmp, alpha=0.0_dp)
       CALL cp_fm_set_all(matrix=fm_mat_U, alpha=0.0_dp)
       CALL cp_fm_set_all(matrix=fm_mat_R_half, alpha=0.0_dp)
@@ -184,7 +184,7 @@ CONTAINS
       ! get info of fm_mat_S and initialize Gamma_3
       NULLIFY (fm_mat_Gamma_3, fm_struct)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S%matrix_struct, nrow_global=dimen_ia, ncol_global=dimen_RI)
-      CALL cp_fm_create(fm_mat_Gamma_3, fm_struct)
+      CALL cp_fm_create_p(fm_mat_Gamma_3, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
       CALL cp_fm_get_info(matrix=fm_mat_S, &
@@ -201,7 +201,7 @@ CONTAINS
 
       ! Redistribute fm_mat_R_half for "rectangular" multiplication: ia*P P*P
       NULLIFY (fm_mat_R_half_gemm)
-      CALL cp_fm_create(fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
+      CALL cp_fm_create_p(fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
       CALL cp_fm_set_all(matrix=fm_mat_R_half_gemm, alpha=0.0_dp)
 
       CALL cp_fm_to_fm_submat_general(fm_mat_R_half, fm_mat_R_half_gemm, dimen_RI, dimen_RI, 1, 1, 1, 1, &
@@ -216,10 +216,10 @@ CONTAINS
       CALL remove_scaling_factor_rpa(fm_mat_S, virtual, eig, homo, omega)
 
       ! Release full matrix stuff
-      CALL cp_fm_release(fm_mat_Q_tmp)
-      CALL cp_fm_release(fm_mat_U)
-      CALL cp_fm_release(fm_mat_R_half)
-      CALL cp_fm_release(fm_mat_R_half_gemm)
+      CALL cp_fm_release_p(fm_mat_Q_tmp)
+      CALL cp_fm_release_p(fm_mat_U)
+      CALL cp_fm_release_p(fm_mat_R_half)
+      CALL cp_fm_release_p(fm_mat_R_half_gemm)
 
       ! Retrieve mo coefficients in dbcsr format
       NULLIFY (mo_coeff_o, mo_coeff_v)
@@ -242,7 +242,7 @@ CONTAINS
                              my_group_L_end, my_group_L_size)
 
       ! Release Gamma_3
-      CALL cp_fm_release(fm_mat_Gamma_3)
+      CALL cp_fm_release_p(fm_mat_Gamma_3)
 
       ! Create more dbcsr matrices
 

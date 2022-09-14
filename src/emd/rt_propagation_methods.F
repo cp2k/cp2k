@@ -29,10 +29,10 @@ MODULE rt_propagation_methods
                                               cp_fm_struct_double,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
@@ -163,9 +163,9 @@ CONTAINS
          CALL get_rtp(rtp=rtp, mos_new=mos_new)
          ALLOCATE (delta_mos(SIZE(mos_new)))
          DO i = 1, SIZE(mos_new)
-            CALL cp_fm_create(delta_mos(i)%matrix, &
-                              matrix_struct=mos_new(i)%matrix%matrix_struct, &
-                              name="delta_mos"//TRIM(ADJUSTL(cp_to_string(i))))
+            CALL cp_fm_create_p(delta_mos(i)%matrix, &
+                                matrix_struct=mos_new(i)%matrix%matrix_struct, &
+                                name="delta_mos"//TRIM(ADJUSTL(cp_to_string(i))))
             CALL cp_fm_to_fm(mos_new(i)%matrix, delta_mos(i)%matrix)
          END DO
       END IF
@@ -724,9 +724,9 @@ CONTAINS
                                      mos_new(2*i)%matrix%matrix_struct%context, &
                                      .TRUE., .FALSE.)
 
-            CALL cp_fm_create(fm_tmp, matrix_struct)
-            CALL cp_fm_create(fm_tmp1, matrix_struct)
-            CALL cp_fm_create(fm_tmp2, mos_new(2*i)%matrix%matrix_struct)
+            CALL cp_fm_create_p(fm_tmp, matrix_struct)
+            CALL cp_fm_create_p(fm_tmp1, matrix_struct)
+            CALL cp_fm_create_p(fm_tmp2, mos_new(2*i)%matrix%matrix_struct)
             CALL cp_cfm_create(cfm_tmp, mos_new(2*i)%matrix%matrix_struct)
             CALL cp_cfm_create(cfm_tmp1, mos_new(2*i)%matrix%matrix_struct)
 
@@ -773,10 +773,10 @@ CONTAINS
 
 ! deallocate work matrices
             CALL cp_cfm_release(csc)
-            CALL cp_fm_release(fm_tmp)
-            CALL cp_fm_release(fm_tmp)
-            CALL cp_fm_release(fm_tmp1)
-            CALL cp_fm_release(fm_tmp2)
+            CALL cp_fm_release_p(fm_tmp)
+            CALL cp_fm_release_p(fm_tmp)
+            CALL cp_fm_release_p(fm_tmp1)
+            CALL cp_fm_release_p(fm_tmp2)
             CALL cp_cfm_release(cfm_tmp)
             CALL cp_cfm_release(cfm_tmp1)
          END DO

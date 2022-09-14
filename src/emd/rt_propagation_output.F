@@ -21,10 +21,10 @@ MODULE rt_propagation_output
                                               cp_fm_struct_double,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -284,8 +284,8 @@ CONTAINS
          re = ispin*2 - 1
          im = ispin*2
          ! get S*C
-         CALL cp_fm_create(svec_re, mos_new(im)%matrix%matrix_struct)
-         CALL cp_fm_create(svec_im, mos_new(im)%matrix%matrix_struct)
+         CALL cp_fm_create_p(svec_re, mos_new(im)%matrix%matrix_struct)
+         CALL cp_fm_create_p(svec_im, mos_new(im)%matrix%matrix_struct)
          CALL cp_fm_get_info(mos_new(im)%matrix, &
                              nrow_global=n, ncol_global=k)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s, mos_new(re)%matrix, &
@@ -297,7 +297,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=k, ncol_global=k, &
                                   para_env=mos_new(re)%matrix%matrix_struct%para_env, &
                                   context=mos_new(re)%matrix%matrix_struct%context)
-         CALL cp_fm_create(overlap_re, tmp_fm_struct)
+         CALL cp_fm_create_p(overlap_re, tmp_fm_struct)
 
          CALL cp_fm_struct_release(tmp_fm_struct)
 
@@ -306,8 +306,8 @@ CONTAINS
          CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mos_new(im)%matrix, &
                             svec_im, 1.0_dp, overlap_re)
 
-         CALL cp_fm_release(svec_re)
-         CALL cp_fm_release(svec_im)
+         CALL cp_fm_release_p(svec_re)
+         CALL cp_fm_release_p(svec_im)
 
          CALL cp_fm_get_info(overlap_re, nrow_local=nrow_local, ncol_local=ncol_local, &
                              row_indices=row_indices, col_indices=col_indices)
@@ -318,7 +318,7 @@ CONTAINS
                max_alpha = MAX(max_alpha, ABS(alpha))
             END DO
          END DO
-         CALL cp_fm_release(overlap_re)
+         CALL cp_fm_release_p(overlap_re)
       END DO
       CALL mp_max(max_alpha, mos_new(1)%matrix%matrix_struct%para_env%group)
       CALL mp_max(max_beta, mos_new(1)%matrix%matrix_struct%para_env%group)
@@ -380,8 +380,8 @@ CONTAINS
                                   double_col, &
                                   double_row)
 
-         CALL cp_fm_create(work, matrix_struct=newstruct)
-         CALL cp_fm_create(work1, matrix_struct=newstruct)
+         CALL cp_fm_create_p(work, matrix_struct=newstruct)
+         CALL cp_fm_create_p(work1, matrix_struct=newstruct)
 
          CALL cp_fm_get_info(delta_mos(re)%matrix, ncol_local=lcol, ncol_global=nmo, &
                              nrow_global=nao)
@@ -396,7 +396,7 @@ CONTAINS
 
          CALL cp_dbcsr_sm_fm_multiply(matrix_s, work, work1, ncol=newdim)
 
-         CALL cp_fm_release(work)
+         CALL cp_fm_release_p(work)
 
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, ncol_global=nmo, &
                                   para_env=delta_mos(re)%matrix%matrix_struct%para_env, &
@@ -407,8 +407,8 @@ CONTAINS
                                   double_col, &
                                   double_row)
 
-         CALL cp_fm_create(work, matrix_struct=newstruct1)
-         CALL cp_fm_create(work2, matrix_struct=newstruct1)
+         CALL cp_fm_create_p(work, matrix_struct=newstruct1)
+         CALL cp_fm_create_p(work2, matrix_struct=newstruct1)
 
          CALL parallel_gemm("T", "N", nmo, newdim, nao, one, delta_mos(re)%matrix, &
                             work1, zero, work)
@@ -425,9 +425,9 @@ CONTAINS
             END DO
          END DO
 
-         CALL cp_fm_release(work)
-         CALL cp_fm_release(work1)
-         CALL cp_fm_release(work2)
+         CALL cp_fm_release_p(work)
+         CALL cp_fm_release_p(work1)
+         CALL cp_fm_release_p(work2)
          CALL cp_fm_struct_release(tmp_fm_struct)
          CALL cp_fm_struct_release(newstruct)
          CALL cp_fm_struct_release(newstruct1)

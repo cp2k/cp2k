@@ -30,9 +30,9 @@ MODULE et_coupling_proj
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
@@ -164,9 +164,9 @@ CONTAINS
          IF (ASSOCIATED(ec%fermi)) &
             DEALLOCATE (ec%fermi)
          IF (ASSOCIATED(ec%m_transf)) &
-            CALL cp_fm_release(matrix=ec%m_transf)
+            CALL cp_fm_release_p(matrix=ec%m_transf)
          IF (ASSOCIATED(ec%m_transf_inv)) &
-            CALL cp_fm_release(matrix=ec%m_transf_inv)
+            CALL cp_fm_release_p(matrix=ec%m_transf_inv)
 
          IF (ASSOCIATED(ec%block)) THEN
 
@@ -184,7 +184,7 @@ CONTAINS
                   DO j = 1, SIZE(ec%block(i)%hab, 1)
                      DO k = 1, SIZE(ec%block(i)%hab, 2)
                         IF (ASSOCIATED(ec%block(i)%hab(j, k)%matrix)) &
-                           CALL cp_fm_release(matrix=ec%block(i)%hab(j, k)%matrix)
+                           CALL cp_fm_release_p(matrix=ec%block(i)%hab(j, k)%matrix)
                      END DO
                   END DO
                   DEALLOCATE (ec%block(i)%hab)
@@ -639,17 +639,17 @@ CONTAINS
       ! KS Hamiltonian
       CALL get_qs_env(qs_env, matrix_ks=mat_h)
       ! Transformation matrix
-      CALL cp_fm_create(matrix=ec%m_transf, matrix_struct=fm_s, &
-                        name='S^(-1/2) TRANSFORMATION MATRIX')
-      CALL cp_fm_create(matrix=ec%m_transf_inv, matrix_struct=fm_s, &
-                        name='S^(+1/2) TRANSFORMATION MATRIX')
+      CALL cp_fm_create_p(matrix=ec%m_transf, matrix_struct=fm_s, &
+                          name='S^(-1/2) TRANSFORMATION MATRIX')
+      CALL cp_fm_create_p(matrix=ec%m_transf_inv, matrix_struct=fm_s, &
+                          name='S^(+1/2) TRANSFORMATION MATRIX')
       CALL get_s_half_inv_matrix(qs_env, ec%m_transf, ec%m_transf_inv, mat_w)
 
       DO i = 1, n_spins
 
          ! Full-matrix format
-         CALL cp_fm_create(matrix=mat_t(i)%matrix, matrix_struct=fm_s, &
-                           name='KS HAMILTONIAN IN SEPARATED ORTHOGONALIZED BASIS SET')
+         CALL cp_fm_create_p(matrix=mat_t(i)%matrix, matrix_struct=fm_s, &
+                             name='KS HAMILTONIAN IN SEPARATED ORTHOGONALIZED BASIS SET')
          CALL copy_dbcsr_to_fm(mat_h(i)%matrix, mat_t(i)%matrix)
 
          ! Transform KS Hamiltonian to the orthogonalized AO basis set
@@ -726,8 +726,8 @@ CONTAINS
             ! Memory allocation
             CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                      nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(i)%n_ao)
-            CALL cp_fm_create(matrix=dat(i)%matrix, matrix_struct=fm_s, &
-                              name='H_KS DIAGONAL BLOCK')
+            CALL cp_fm_create_p(matrix=dat(i)%matrix, matrix_struct=fm_s, &
+                                name='H_KS DIAGONAL BLOCK')
 
             ALLOCATE (vec_e(ec%block(i)%n_ao))
             CPASSERT(ASSOCIATED(vec_e))
@@ -738,7 +738,7 @@ CONTAINS
                                     ec%block(i)%n_ao, j, j, 1, 1)
 
             ! Diagonalization
-            CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='UNITARY MATRIX')
+            CALL cp_fm_create_p(matrix=mat_u, matrix_struct=fm_s, name='UNITARY MATRIX')
             CALL choose_eigv_solver(dat(i)%matrix, mat_u, vec_e)
             CALL cp_fm_to_fm(mat_u, dat(i)%matrix)
 
@@ -747,7 +747,7 @@ CONTAINS
 
             ! Clean memory
             CALL cp_fm_struct_release(fmstruct=fm_s)
-            CALL cp_fm_release(matrix=mat_u)
+            CALL cp_fm_release_p(matrix=mat_u)
             DEALLOCATE (vec_e)
 
             ! Off-set for next block
@@ -765,8 +765,8 @@ CONTAINS
                   ! Memory allocation
                   CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                            nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(j)%n_ao)
-                  CALL cp_fm_create(matrix=ec%block(i)%hab(spin, j)%matrix, matrix_struct=fm_s, &
-                                    name='H_KS OFF-DIAGONAL BLOCK')
+                  CALL cp_fm_create_p(matrix=ec%block(i)%hab(spin, j)%matrix, matrix_struct=fm_s, &
+                                      name='H_KS OFF-DIAGONAL BLOCK')
 
                   ! Copy block data
                   CALL cp_fm_to_fm_submat(mat_h(spin)%matrix, &
@@ -774,7 +774,7 @@ CONTAINS
                                           ec%block(j)%n_ao, k, l, 1, 1)
 
                   ! Transformation
-                  CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
+                  CALL cp_fm_create_p(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
                   CALL parallel_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
                                      1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, j)%matrix, 0.0_dp, mat_u)
                   CALL parallel_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
@@ -782,7 +782,7 @@ CONTAINS
 
                   ! Clean memory
                   CALL cp_fm_struct_release(fmstruct=fm_s)
-                  CALL cp_fm_release(matrix=mat_u)
+                  CALL cp_fm_release_p(matrix=mat_u)
 
                END IF
                ! Off-set for next block
@@ -796,7 +796,7 @@ CONTAINS
          IF (ASSOCIATED(dat)) THEN
             DO i = 1, SIZE(dat)
                IF (ASSOCIATED(dat(i)%matrix)) &
-                  CALL cp_fm_release(matrix=dat(i)%matrix)
+                  CALL cp_fm_release_p(matrix=dat(i)%matrix)
             END DO
          END IF
       END DO
@@ -945,9 +945,9 @@ CONTAINS
          CPASSERT(ASSOCIATED(mat_w))
          DO j = 1, n_spins
             n_mo = ec%block(blk)%n_ao
-            CALL cp_fm_create(matrix=mat_w(j)%matrix, &
-                              matrix_struct=ec%block(blk)%mo(j)%mo_set%mo_coeff%matrix_struct, &
-                              name='BLOCK MOs IN ORTHONORMAL BASIS SET')
+            CALL cp_fm_create_p(matrix=mat_w(j)%matrix, &
+                                matrix_struct=ec%block(blk)%mo(j)%mo_set%mo_coeff%matrix_struct, &
+                                name='BLOCK MOs IN ORTHONORMAL BASIS SET')
             CALL parallel_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
                                ec%block(blk)%mo(j)%mo_set%mo_coeff, 0.0_dp, mat_w(j)%matrix)
          END DO
@@ -1002,7 +1002,7 @@ CONTAINS
 
          ! Clean memory
          DO j = 1, n_spins
-            CALL cp_fm_release(matrix=mat_w(j)%matrix)
+            CALL cp_fm_release_p(matrix=mat_w(j)%matrix)
          END DO
          DEALLOCATE (mat_w)
 
@@ -1318,16 +1318,16 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=mat_s)
 
       ! Calculate S*C product
-      CALL cp_fm_create(matrix=mat_sc, matrix_struct=mo%mo_coeff%matrix_struct, &
-                        name='S*C PRODUCT MATRIX')
+      CALL cp_fm_create_p(matrix=mat_sc, matrix_struct=mo%mo_coeff%matrix_struct, &
+                          name='S*C PRODUCT MATRIX')
       CALL cp_dbcsr_sm_fm_multiply(mat_s(1)%matrix, mo%mo_coeff, mat_sc, n_mo)
 
       ! Calculate C^T*S*C
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                nrow_global=n_mo, ncol_global=n_mo)
-      CALL cp_fm_create(matrix=mat_t, matrix_struct=fm_s, &
-                        name='C^T*S*C OVERLAP PRODUCT MATRIX')
+      CALL cp_fm_create_p(matrix=mat_t, matrix_struct=fm_s, &
+                          name='C^T*S*C OVERLAP PRODUCT MATRIX')
       CALL parallel_gemm('T', 'N', n_mo, n_mo, n_ao, 1.0_dp, mo%mo_coeff, mat_sc, 0.0_dp, mat_t)
 
       ! Normalization
@@ -1339,8 +1339,8 @@ CONTAINS
 
       ! Clean memory
       CALL cp_fm_struct_release(fmstruct=fm_s)
-      CALL cp_fm_release(matrix=mat_sc)
-      CALL cp_fm_release(matrix=mat_t)
+      CALL cp_fm_release_p(matrix=mat_sc)
+      CALL cp_fm_release_p(matrix=mat_t)
       IF (ASSOCIATED(vec_t)) &
          DEALLOCATE (vec_t)
 
@@ -1402,8 +1402,8 @@ CONTAINS
       NULLIFY (mat_w)
 
       ! Working matrix
-      CALL cp_fm_create(matrix=mat_w, matrix_struct=mo%mo_coeff%matrix_struct, &
-                        name='BLOCK MO-TRANSFORMATION WORKING MATRIX')
+      CALL cp_fm_create_p(matrix=mat_w, matrix_struct=mo%mo_coeff%matrix_struct, &
+                          name='BLOCK MO-TRANSFORMATION WORKING MATRIX')
       CALL cp_fm_set_all(mat_w, 0.0_dp)
 
       ! Matrix-element reordering
@@ -1454,7 +1454,7 @@ CONTAINS
       CALL normalize_mo_vectors(qs_env, mo, n_ao, n_mo)
 
       ! Clean memory
-      CALL cp_fm_release(matrix=mat_w)
+      CALL cp_fm_release_p(matrix=mat_w)
 
    END SUBROUTINE set_mo_coefficients
 
@@ -1538,7 +1538,7 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                nrow_global=n_ao, ncol_global=n_mo)
-      CALL cp_fm_create(matrix=mo%mo_coeff, matrix_struct=fm_s, name='BLOCK STATES')
+      CALL cp_fm_create_p(matrix=mo%mo_coeff, matrix_struct=fm_s, name='BLOCK STATES')
 
       ! Transform MO coefficients to original non-orthogonal basis set
       CALL set_mo_coefficients(qs_env, ec, id, mo, mat_u, n_ao, n_mo)
@@ -1875,7 +1875,7 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                nrow_global=n_ao, ncol_global=n_ao)
-      CALL cp_fm_create(matrix=mat_w, matrix_struct=fm_s, name='FULL WORK MATRIX')
+      CALL cp_fm_create_p(matrix=mat_w, matrix_struct=fm_s, name='FULL WORK MATRIX')
 
       ! Spin polarization / K-point sampling
       CALL get_qs_env(qs_env, dft_control=dft_cntrl, do_kpoints=do_kp)
@@ -1975,11 +1975,11 @@ CONTAINS
 
       ! Clean memory
       CALL cp_fm_struct_release(fmstruct=fm_s)
-      CALL cp_fm_release(matrix=mat_w)
+      CALL cp_fm_release_p(matrix=mat_w)
       IF (ASSOCIATED(mat_h)) THEN
          DO i = 1, SIZE(mat_h)
             IF (ASSOCIATED(mat_h(i)%matrix)) &
-               CALL cp_fm_release(matrix=mat_h(i)%matrix)
+               CALL cp_fm_release_p(matrix=mat_h(i)%matrix)
          END DO
          DEALLOCATE (mat_h)
       END IF

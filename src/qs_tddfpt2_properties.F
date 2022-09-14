@@ -33,10 +33,10 @@ MODULE qs_tddfpt2_properties
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
@@ -210,7 +210,7 @@ CONTAINS
 
          DO ideriv = 1, nderivs
             NULLIFY (dipole_op_mos_occ(ideriv, ispin)%matrix)
-            CALL cp_fm_create(dipole_op_mos_occ(ideriv, ispin)%matrix, fm_struct)
+            CALL cp_fm_create_p(dipole_op_mos_occ(ideriv, ispin)%matrix, fm_struct)
          END DO
       END DO
 
@@ -219,7 +219,7 @@ CONTAINS
       DO ispin = 1, nspins
          NULLIFY (S_mos_virt(ispin)%matrix)
          CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
-         CALL cp_fm_create(S_mos_virt(ispin)%matrix, fm_struct)
+         CALL cp_fm_create_p(S_mos_virt(ispin)%matrix, fm_struct)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                                       gs_mos(ispin)%mos_virt, &
                                       S_mos_virt(ispin)%matrix, &
@@ -277,7 +277,7 @@ CONTAINS
 
             DO i_cos_sin = 1, 2
                NULLIFY (gamma_real_imag(i_cos_sin, ispin)%matrix)
-               CALL cp_fm_create(gamma_real_imag(i_cos_sin, ispin)%matrix, fm_struct)
+               CALL cp_fm_create_p(gamma_real_imag(i_cos_sin, ispin)%matrix, fm_struct)
             END DO
             CALL cp_fm_struct_release(fm_struct)
 
@@ -285,13 +285,13 @@ CONTAINS
             CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
             DO i_cos_sin = 1, 2
                NULLIFY (opvec(i_cos_sin, ispin)%matrix)
-               CALL cp_fm_create(opvec(i_cos_sin, ispin)%matrix, fm_struct)
+               CALL cp_fm_create_p(opvec(i_cos_sin, ispin)%matrix, fm_struct)
             END DO
 
             ! dBerry * C_0
             DO ideriv = 1, nderivs
                NULLIFY (dBerry_mos_occ(ideriv, ispin)%matrix)
-               CALL cp_fm_create(dBerry_mos_occ(ideriv, ispin)%matrix, fm_struct)
+               CALL cp_fm_create_p(dBerry_mos_occ(ideriv, ispin)%matrix, fm_struct)
                CALL cp_fm_set_all(dBerry_mos_occ(ideriv, ispin)%matrix, 0.0_dp)
             END DO
          END DO
@@ -352,11 +352,11 @@ CONTAINS
          ! --- release berry-phase-related work matrices
          DO ispin = nspins, 1, -1
             DO i_cos_sin = SIZE(opvec, 1), 1, -1
-               CALL cp_fm_release(opvec(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_release_p(opvec(i_cos_sin, ispin)%matrix)
             END DO
 
             DO i_cos_sin = SIZE(gamma_real_imag, 1), 1, -1
-               CALL cp_fm_release(gamma_real_imag(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_release_p(gamma_real_imag(i_cos_sin, ispin)%matrix)
             END DO
 
             CALL cp_cfm_release(gamma_inv_00(ispin)%matrix)
@@ -367,7 +367,7 @@ CONTAINS
 
          NULLIFY (fm_struct, wfm_ao_ao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
-         CALL cp_fm_create(wfm_ao_ao, fm_struct)
+         CALL cp_fm_create_p(wfm_ao_ao, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
          ! trans_dipole = 2|e|/|G_mu| * Tr Imag(evects^T * (gamma_real - i gamma_imag) * C_0 * gamma_inv_00) +
@@ -391,11 +391,11 @@ CONTAINS
             END DO
          END DO
 
-         CALL cp_fm_release(wfm_ao_ao)
+         CALL cp_fm_release_p(wfm_ao_ao)
 
          DO ispin = nspins, 1, -1
             DO ideriv = SIZE(dBerry_mos_occ, 1), 1, -1
-               CALL cp_fm_release(dBerry_mos_occ(ideriv, ispin)%matrix)
+               CALL cp_fm_release_p(dBerry_mos_occ(ideriv, ispin)%matrix)
             END DO
          END DO
          DEALLOCATE (dBerry_mos_occ)
@@ -425,13 +425,13 @@ CONTAINS
 
          NULLIFY (fm_struct, wfm_ao_ao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
-         CALL cp_fm_create(wfm_ao_ao, fm_struct)
+         CALL cp_fm_create_p(wfm_ao_ao, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
          DO ispin = 1, nspins
             NULLIFY (rRc_mos_occ)
             CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
-            CALL cp_fm_create(rRc_mos_occ, fm_struct)
+            CALL cp_fm_create_p(rRc_mos_occ, fm_struct)
 
             ! wfm_ao_ao = S * mos_virt * mos_virt^T
             CALL parallel_gemm('N', 'T', nao, nao, nmo_virt(ispin), &
@@ -449,10 +449,10 @@ CONTAINS
                                   0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
             END DO
 
-            CALL cp_fm_release(rRc_mos_occ)
+            CALL cp_fm_release_p(rRc_mos_occ)
          END DO
 
-         CALL cp_fm_release(wfm_ao_ao)
+         CALL cp_fm_release_p(wfm_ao_ao)
          CALL dbcsr_deallocate_matrix_set(rRc_xyz)
 
       CASE (tddfpt_dipole_velocity)
@@ -467,8 +467,8 @@ CONTAINS
             NULLIFY (fm_struct, ediff_inv, wfm_mo_virt_mo_occ)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), &
                                      ncol_global=nmo_occ(ispin), context=blacs_env)
-            CALL cp_fm_create(ediff_inv, fm_struct)
-            CALL cp_fm_create(wfm_mo_virt_mo_occ, fm_struct)
+            CALL cp_fm_create_p(ediff_inv, fm_struct)
+            CALL cp_fm_create_p(wfm_mo_virt_mo_occ, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
 
             CALL cp_fm_get_info(ediff_inv, nrow_local=nrows_local, ncol_local=ncols_local, &
@@ -519,8 +519,8 @@ CONTAINS
                                   0.0_dp, dipole_op_mos_occ(ideriv, ispin)%matrix)
             END DO
 
-            CALL cp_fm_release(wfm_mo_virt_mo_occ)
-            CALL cp_fm_release(ediff_inv)
+            CALL cp_fm_release_p(wfm_mo_virt_mo_occ)
+            CALL cp_fm_release_p(ediff_inv)
          END DO
          CALL dbcsr_deallocate_matrix_set(scrm)
 
@@ -530,7 +530,7 @@ CONTAINS
 
       ! --- release work matrices
       DO ispin = nspins, 1, -1
-         CALL cp_fm_release(S_mos_virt(ispin)%matrix)
+         CALL cp_fm_release_p(S_mos_virt(ispin)%matrix)
       END DO
       DEALLOCATE (S_mos_virt)
 
@@ -737,7 +737,7 @@ CONTAINS
          DO ispin = 1, nspins
             NULLIFY (S_mos_virt(ispin)%matrix)
             CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
-            CALL cp_fm_create(S_mos_virt(ispin)%matrix, fm_struct)
+            CALL cp_fm_create_p(S_mos_virt(ispin)%matrix, fm_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s, &
                                          gs_mos(ispin)%mos_virt, &
                                          S_mos_virt(ispin)%matrix, &
@@ -746,7 +746,7 @@ CONTAINS
             NULLIFY (fm_struct, weights_fm(ispin)%matrix)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), &
                                      context=blacs_env)
-            CALL cp_fm_create(weights_fm(ispin)%matrix, fm_struct)
+            CALL cp_fm_create_p(weights_fm(ispin)%matrix, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
          END DO
 
@@ -905,8 +905,8 @@ CONTAINS
       END IF
 
       DO ispin = nspins, 1, -1
-         CALL cp_fm_release(weights_fm(ispin)%matrix)
-         CALL cp_fm_release(S_mos_virt(ispin)%matrix)
+         CALL cp_fm_release_p(weights_fm(ispin)%matrix)
+         CALL cp_fm_release_p(S_mos_virt(ispin)%matrix)
       END DO
       DEALLOCATE (S_mos_virt, weights_fm)
 
@@ -1007,9 +1007,9 @@ CONTAINS
                CALL cp_fm_get_info(ev, matrix_struct=fm_struct)
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
                                         ncol_global=ntomax)
-               CALL cp_fm_create(tmat, fm_mo_struct)
+               CALL cp_fm_create_p(tmat, fm_mo_struct)
                CALL init_mo_set(nto_set(i)%mo_set, fm_ref=tmat, name=nto_name(i))
-               CALL cp_fm_release(tmat)
+               CALL cp_fm_release_p(tmat)
                CALL cp_fm_struct_release(fm_mo_struct)
             END DO
             !
@@ -1021,19 +1021,19 @@ CONTAINS
             DO ispin = 1, nspins
                ev => evects(ispin, istate)%matrix
                CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
-               CALL cp_fm_create(Sev, fm_struct)
+               CALL cp_fm_create_p(Sev, fm_struct)
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
                                         nrow_global=nmo, ncol_global=nmo)
-               CALL cp_fm_create(tmat, fm_mo_struct)
-               CALL cp_fm_create(teig(ispin)%matrix, fm_mo_struct)
+               CALL cp_fm_create_p(tmat, fm_mo_struct)
+               CALL cp_fm_create_p(teig(ispin)%matrix, fm_mo_struct)
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
                CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
 
                CALL choose_eigv_solver(tmat, teig(ispin)%matrix, eigenvalues(1:nmo, ispin))
 
                CALL cp_fm_struct_release(fm_mo_struct)
-               CALL cp_fm_release(tmat)
-               CALL cp_fm_release(Sev)
+               CALL cp_fm_release_p(tmat)
+               CALL cp_fm_release_p(Sev)
             END DO
             ! find major determinants i->a
             ia_index = 0
@@ -1057,19 +1057,19 @@ CONTAINS
                CALL cp_fm_get_info(teig(ispin)%matrix, matrix_struct=fm_struct)
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
                                         nrow_global=nmo, ncol_global=1)
-               CALL cp_fm_create(tmat, fm_mo_struct)
+               CALL cp_fm_create_p(tmat, fm_mo_struct)
                CALL cp_fm_struct_release(fm_mo_struct)
                CALL cp_fm_get_info(gs_mos(1)%mos_occ, matrix_struct=fm_struct)
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
                                         ncol_global=1)
-               CALL cp_fm_create(wvec, fm_mo_struct)
+               CALL cp_fm_create_p(wvec, fm_mo_struct)
                CALL cp_fm_struct_release(fm_mo_struct)
                CALL cp_fm_to_fm(teig(ispin)%matrix, tmat, 1, ia, 1)
                CALL parallel_gemm('N', 'N', nao, 1, nmo, 1.0_dp, gs_mos(ispin)%mos_occ, &
                                   tmat, 0.0_dp, wvec)
                CALL cp_fm_to_fm(wvec, nto_set(1)%mo_set%mo_coeff, 1, 1, i)
-               CALL cp_fm_release(wvec)
-               CALL cp_fm_release(tmat)
+               CALL cp_fm_release_p(wvec)
+               CALL cp_fm_release_p(tmat)
             END DO
             ! particle states
             CALL set_mo_set(nto_set(2)%mo_set, nmo=nnto)
@@ -1077,7 +1077,7 @@ CONTAINS
                ispin = ia_index(2, i)
                ev => evects(ispin, istate)%matrix
                CALL cp_fm_get_info(ev, matrix_struct=fm_struct, ncol_global=nmo)
-               CALL cp_fm_create(Sev, fm_struct)
+               CALL cp_fm_create_p(Sev, fm_struct)
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
                CALL dbcsr_create(pdens, template=matrix_s, matrix_type=dbcsr_type_no_symmetry)
                ! P(nu,mu) = SUM_j XT(nu,j)*CT(mu,j)
@@ -1117,11 +1117,11 @@ CONTAINS
                CALL cp_fm_get_info(gs_mos(1)%mos_occ, matrix_struct=fm_struct)
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
                                         nrow_global=nao, ncol_global=1)
-               CALL cp_fm_create(wvec, fm_mo_struct)
+               CALL cp_fm_create_p(wvec, fm_mo_struct)
                CALL cp_fm_struct_release(fm_mo_struct)
                CALL copy_dbcsr_to_fm(xvec, wvec)
                CALL cp_fm_to_fm(wvec, nto_set(2)%mo_set%mo_coeff, 1, 1, i)
-               CALL cp_fm_release(wvec)
+               CALL cp_fm_release_p(wvec)
                !
                CALL dbcsr_release(rep_col_vec)
                CALL dbcsr_release(rep_row_vec)
@@ -1131,7 +1131,7 @@ CONTAINS
                CALL dbcsr_release(tvec)
                CALL dbcsr_release(xvec)
 
-               CALL cp_fm_release(Sev)
+               CALL cp_fm_release_p(Sev)
                CALL dbcsr_release(pdens)
             END DO
             ! print
@@ -1158,7 +1158,7 @@ CONTAINS
             !
             DEALLOCATE (eigenvalues)
             DO ispin = 1, nspins
-               CALL cp_fm_release(teig(ispin)%matrix)
+               CALL cp_fm_release_p(teig(ispin)%matrix)
             END DO
             DEALLOCATE (teig)
             !
@@ -1203,12 +1203,12 @@ CONTAINS
       CALL cp_fm_get_info(mos_occ, matrix_struct=fm_struct, nrow_global=nao, ncol_global=nmo)
       CALL cp_fm_struct_create(fmstruct=fm_vec_struct, template_fmstruct=fm_struct, &
                                nrow_global=nao, ncol_global=1)
-      CALL cp_fm_create(vec, fm_vec_struct)
-      CALL cp_fm_create(svec, fm_vec_struct)
+      CALL cp_fm_create_p(vec, fm_vec_struct)
+      CALL cp_fm_create_p(svec, fm_vec_struct)
       CALL cp_fm_struct_release(fm_vec_struct)
       CALL cp_fm_struct_create(fmstruct=fm_vec_struct, template_fmstruct=fm_struct, &
                                nrow_global=nmo, ncol_global=1)
-      CALL cp_fm_create(csvec, fm_vec_struct)
+      CALL cp_fm_create_p(csvec, fm_vec_struct)
       CALL cp_fm_struct_release(fm_vec_struct)
 
       CALL copy_dbcsr_to_fm(vin, vec)
@@ -1221,9 +1221,9 @@ CONTAINS
       CALL cp_fm_scale(norm(1), vec)
       CALL copy_fm_to_dbcsr(vec, vout, keep_sparsity=.FALSE.)
 
-      CALL cp_fm_release(csvec)
-      CALL cp_fm_release(svec)
-      CALL cp_fm_release(vec)
+      CALL cp_fm_release_p(csvec)
+      CALL cp_fm_release_p(svec)
+      CALL cp_fm_release_p(vec)
 
       CALL timestop(handle)
 

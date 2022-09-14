@@ -20,9 +20,9 @@ MODULE dkh_main
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
@@ -147,17 +147,17 @@ CONTAINS
       NULLIFY (matrix_sinv)
       NULLIFY (matrix_pe1p)
 
-      CALL cp_fm_create(matrix_eig, matrix_full)
-      CALL cp_fm_create(matrix_aux, matrix_full)
-      CALL cp_fm_create(matrix_aux2, matrix_full)
-      CALL cp_fm_create(matrix_rev, matrix_full)
-      CALL cp_fm_create(matrix_se, matrix_full)
-      CALL cp_fm_create(matrix_ev1, matrix_full)
-      CALL cp_fm_create(matrix_ev2, matrix_full)
-      CALL cp_fm_create(matrix_sinv, matrix_full)
-      CALL cp_fm_create(matrix_ev3, matrix_full)
-      CALL cp_fm_create(matrix_ev4, matrix_full)
-      CALL cp_fm_create(matrix_pe1p, matrix_full)
+      CALL cp_fm_create_p(matrix_eig, matrix_full)
+      CALL cp_fm_create_p(matrix_aux, matrix_full)
+      CALL cp_fm_create_p(matrix_aux2, matrix_full)
+      CALL cp_fm_create_p(matrix_rev, matrix_full)
+      CALL cp_fm_create_p(matrix_se, matrix_full)
+      CALL cp_fm_create_p(matrix_ev1, matrix_full)
+      CALL cp_fm_create_p(matrix_ev2, matrix_full)
+      CALL cp_fm_create_p(matrix_sinv, matrix_full)
+      CALL cp_fm_create_p(matrix_ev3, matrix_full)
+      CALL cp_fm_create_p(matrix_ev4, matrix_full)
+      CALL cp_fm_create_p(matrix_pe1p, matrix_full)
 
       !-----------------------------------------------------------------------
       !     Now with Cholesky decomposition
@@ -296,17 +296,17 @@ CONTAINS
          END IF
       END IF
 
-      CALL cp_fm_release(matrix_eig)
-      CALL cp_fm_release(matrix_aux)
-      CALL cp_fm_release(matrix_aux2)
-      CALL cp_fm_release(matrix_rev)
-      CALL cp_fm_release(matrix_se)
-      CALL cp_fm_release(matrix_ev1)
-      CALL cp_fm_release(matrix_ev2)
-      CALL cp_fm_release(matrix_sinv)
-      CALL cp_fm_release(matrix_ev3)
-      CALL cp_fm_release(matrix_ev4)
-      CALL cp_fm_release(matrix_pe1p)
+      CALL cp_fm_release_p(matrix_eig)
+      CALL cp_fm_release_p(matrix_aux)
+      CALL cp_fm_release_p(matrix_aux2)
+      CALL cp_fm_release_p(matrix_rev)
+      CALL cp_fm_release_p(matrix_se)
+      CALL cp_fm_release_p(matrix_ev1)
+      CALL cp_fm_release_p(matrix_ev2)
+      CALL cp_fm_release_p(matrix_sinv)
+      CALL cp_fm_release_p(matrix_ev3)
+      CALL cp_fm_release_p(matrix_ev4)
+      CALL cp_fm_release_p(matrix_pe1p)
 
       CALL cp_fm_struct_release(matrix_full)
 
@@ -430,7 +430,7 @@ CONTAINS
                                ncol_global=1)
 
       NULLIFY (vec_a)
-      CALL cp_fm_create(vec_a, vec_full)
+      CALL cp_fm_create_p(vec_a, vec_full)
 
       CALL cp_fm_get_info(matrix_v, nrow_local=nrow_local, &
                           row_indices=row_indices)
@@ -453,7 +453,7 @@ CONTAINS
 
       CALL cp_fm_scale_and_add(4.0_dp, matrix_pe1p, 1.0_dp, matrix_aux2)
 
-      CALL cp_fm_release(vec_a)
+      CALL cp_fm_release_p(vec_a)
       CALL cp_fm_struct_release(vec_full)
 
    END SUBROUTINE peven1p
@@ -514,11 +514,11 @@ CONTAINS
       NULLIFY (matrix_apVpa)
       NULLIFY (matrix_apVVpa)
 
-      CALL cp_fm_create(matrix_aux2, matrix_full)
-      CALL cp_fm_create(matrix_ava, matrix_full)
-      CALL cp_fm_create(matrix_avva, matrix_full)
-      CALL cp_fm_create(matrix_apVpa, matrix_full)
-      CALL cp_fm_create(matrix_apVVpa, matrix_full)
+      CALL cp_fm_create_p(matrix_aux2, matrix_full)
+      CALL cp_fm_create_p(matrix_ava, matrix_full)
+      CALL cp_fm_create_p(matrix_avva, matrix_full)
+      CALL cp_fm_create_p(matrix_apVpa, matrix_full)
+      CALL cp_fm_create_p(matrix_apVVpa, matrix_full)
 
       CALL cp_fm_to_fm(matrix_v, matrix_ava)
       CALL cp_fm_to_fm(matrix_v, matrix_avva)
@@ -569,11 +569,11 @@ CONTAINS
       !     3.   Finish up the stuff!!
       !-----------------------------------------------------------------------
 
-      CALL cp_fm_release(matrix_aux2)
-      CALL cp_fm_release(matrix_ava)
-      CALL cp_fm_release(matrix_avva)
-      CALL cp_fm_release(matrix_apVpa)
-      CALL cp_fm_release(matrix_apVVpa)
+      CALL cp_fm_release_p(matrix_aux2)
+      CALL cp_fm_release_p(matrix_ava)
+      CALL cp_fm_release_p(matrix_avva)
+      CALL cp_fm_release_p(matrix_apVpa)
+      CALL cp_fm_release_p(matrix_apVVpa)
 
       CALL cp_fm_struct_release(matrix_full)
 
@@ -662,11 +662,11 @@ CONTAINS
       NULLIFY (matrix_avva)
       NULLIFY (matrix_apVVpa)
 
-      CALL cp_fm_create(matrix_aux2, matrix_full)
-      CALL cp_fm_create(matrix_w1w1, matrix_full)
-      CALL cp_fm_create(matrix_w1e1w1, matrix_full)
-      CALL cp_fm_create(matrix_avva, matrix_full)
-      CALL cp_fm_create(matrix_apVVpa, matrix_full)
+      CALL cp_fm_create_p(matrix_aux2, matrix_full)
+      CALL cp_fm_create_p(matrix_w1w1, matrix_full)
+      CALL cp_fm_create_p(matrix_w1e1w1, matrix_full)
+      CALL cp_fm_create_p(matrix_avva, matrix_full)
+      CALL cp_fm_create_p(matrix_apVVpa, matrix_full)
 
       CALL cp_fm_to_fm(matrix_v, matrix_avva)
       CALL cp_fm_to_fm(matrix_pVp, matrix_apVVpa)
@@ -711,11 +711,11 @@ CONTAINS
       !     3.   Finish up the stuff!!
       !-----------------------------------------------------------------------
 
-      CALL cp_fm_release(matrix_aux2)
-      CALL cp_fm_release(matrix_avva)
-      CALL cp_fm_release(matrix_apVVpa)
-      CALL cp_fm_release(matrix_w1w1)
-      CALL cp_fm_release(matrix_w1e1w1)
+      CALL cp_fm_release_p(matrix_aux2)
+      CALL cp_fm_release_p(matrix_avva)
+      CALL cp_fm_release_p(matrix_apVVpa)
+      CALL cp_fm_release_p(matrix_w1w1)
+      CALL cp_fm_release_p(matrix_w1e1w1)
 
       CALL cp_fm_struct_release(matrix_full)
 
@@ -1074,7 +1074,7 @@ CONTAINS
                                ncol_global=1)
 
       NULLIFY (vec_a)
-      CALL cp_fm_create(vec_a, vec_full)
+      CALL cp_fm_create_p(vec_a, vec_full)
 
       CALL cp_fm_get_info(matrix_x, nrow_local=nrow_local, &
                           row_indices=row_indices)
@@ -1093,7 +1093,7 @@ CONTAINS
       !       END DO
       !     END DO
 
-      CALL cp_fm_release(vec_a)
+      CALL cp_fm_release_p(vec_a)
       CALL cp_fm_struct_release(vec_full)
 
    END SUBROUTINE mat_axa
@@ -1141,7 +1141,7 @@ CONTAINS
                           row_indices=row_indices)
 
       NULLIFY (vec_a)
-      CALL cp_fm_create(vec_a, vec_full)
+      CALL cp_fm_create_p(vec_a, vec_full)
 
       DO i = 1, nrow_local
          vec_a%local_data(i, 1) = a(row_indices(i))*r(row_indices(i))
@@ -1151,7 +1151,7 @@ CONTAINS
       CALL cp_fm_upper_to_full(matrix_aux, matrix_axa)
       CALL cp_fm_schur_product(matrix_x, matrix_aux, matrix_axa)
 
-      CALL cp_fm_release(vec_a)
+      CALL cp_fm_release_p(vec_a)
       CALL cp_fm_struct_release(vec_full)
 
    END SUBROUTINE mat_arxra

@@ -30,10 +30,10 @@ MODULE mp2
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -322,12 +322,12 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrix_s, fm_struct, name="fm_matrix_s")
+      CALL cp_fm_create_p(fm_matrix_s, fm_struct, name="fm_matrix_s")
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_matrix_s)
 
-      CALL cp_fm_create(fm_matrix_ks, fm_struct, name="fm_matrix_ks")
+      CALL cp_fm_create_p(fm_matrix_ks, fm_struct, name="fm_matrix_ks")
 
-      CALL cp_fm_create(fm_matrix_work, fm_struct, name="fm_matrix_work")
+      CALL cp_fm_create_p(fm_matrix_work, fm_struct, name="fm_matrix_work")
       CALL cp_fm_set_all(matrix=fm_matrix_work, alpha=0.0_dp)
 
       CALL cp_fm_struct_release(fm_struct)
@@ -413,9 +413,9 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
       END DO
 
-      CALL cp_fm_release(fm_matrix_s)
-      CALL cp_fm_release(fm_matrix_ks)
-      CALL cp_fm_release(fm_matrix_work)
+      CALL cp_fm_release_p(fm_matrix_s)
+      CALL cp_fm_release_p(fm_matrix_ks)
+      CALL cp_fm_release_p(fm_matrix_work)
       CALL mpools_release(mpools=my_mpools)
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")

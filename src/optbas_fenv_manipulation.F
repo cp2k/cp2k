@@ -20,8 +20,8 @@ MODULE optbas_fenv_manipulation
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_output_handling,              ONLY: debug_print_level
@@ -241,15 +241,15 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nao, &
                                para_env=para_env, context=context)
 
-      CALL cp_fm_create(matrix_s_inv, matrix_struct=fm_struct_tmp)
-      CALL cp_fm_create(work1, matrix_struct=fm_struct_tmp)
+      CALL cp_fm_create_p(matrix_s_inv, matrix_struct=fm_struct_tmp)
+      CALL cp_fm_create_p(work1, matrix_struct=fm_struct_tmp)
       CALL copy_dbcsr_to_fm(matrix_s, matrix_s_inv)
       CALL cp_fm_upper_to_full(matrix_s_inv, work1)
       CALL cp_fm_cholesky_decompose(matrix_s_inv)
       CALL cp_fm_cholesky_invert(matrix_s_inv)
       CALL cp_fm_upper_to_full(matrix_s_inv, work1)
       CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_fm_release(work1)
+      CALL cp_fm_release_p(work1)
 
    END SUBROUTINE calculate_overlap_inverse
 

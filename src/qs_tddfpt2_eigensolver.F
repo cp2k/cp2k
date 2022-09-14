@@ -20,8 +20,8 @@ MODULE qs_tddfpt2_eigensolver
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
-        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
+        cp_fm_p_type, cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_type
    USE cp_output_handling,              ONLY: cp_iterate
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -110,14 +110,14 @@ CONTAINS
             CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct, &
                                 nrow_global=nao, ncol_global=nactive)
             NULLIFY (evortho)
-            CALL cp_fm_create(evortho, matrix_struct)
+            CALL cp_fm_create_p(evortho, matrix_struct)
             DO ivect = 1, nvects
                ! evortho: C0 * C0^T * S * C1 == (S * C0 * C0^T)^T * C1
                CALL parallel_gemm('T', 'N', nao, nactive, nao, 1.0_dp, S_C0_C0T(ispin)%matrix, &
                                   evects(ispin, ivect)%matrix, 0.0_dp, evortho)
                CALL cp_fm_scale_and_add(1.0_dp, evects(ispin, ivect)%matrix, -1.0_dp, evortho)
             END DO
-            CALL cp_fm_release(evortho)
+            CALL cp_fm_release_p(evortho)
          END DO
       END IF
 
@@ -167,7 +167,7 @@ CONTAINS
          CALL cp_fm_struct_create(matrix_struct_tmp, nrow_global=nocc, &
                                   ncol_global=nactive, template_fmstruct=matrix_struct)
          NULLIFY (aortho)
-         CALL cp_fm_create(aortho, matrix_struct_tmp)
+         CALL cp_fm_create_p(aortho, matrix_struct_tmp)
          CALL cp_fm_struct_release(matrix_struct_tmp)
          DO ivect = 1, nvects
             ! aortho = S_0^T * S * C_1
@@ -176,11 +176,11 @@ CONTAINS
             CALL cp_fm_maxabsval(aortho, maxabs_val)
             is_nonortho = maxabs_val > max_norm
             IF (is_nonortho) THEN
-               CALL cp_fm_release(aortho)
+               CALL cp_fm_release_p(aortho)
                EXIT loop
             END IF
          END DO
-         CALL cp_fm_release(aortho)
+         CALL cp_fm_release_p(aortho)
       END DO loop
 
       CALL timestop(handle)
@@ -462,8 +462,8 @@ CONTAINS
       CALL cp_fm_get_info(krylov_vects(1, 1)%matrix, context=blacs_env_global)
 
       CALL cp_fm_struct_create(fm_struct, nrow_global=nkvs, ncol_global=nkvs, context=blacs_env_global)
-      CALL cp_fm_create(Atilde_fm, fm_struct)
-      CALL cp_fm_create(evects_Atilde_fm, fm_struct)
+      CALL cp_fm_create_p(Atilde_fm, fm_struct)
+      CALL cp_fm_create_p(evects_Atilde_fm, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
       ! *** compute upper-diagonal reduced action matrix ***
@@ -495,8 +495,8 @@ CONTAINS
 
       ALLOCATE (evects_Atilde(nkvs, nrvs))
       CALL cp_fm_get_submatrix(evects_Atilde_fm, evects_Atilde, start_row=1, start_col=1, n_rows=nkvs, n_cols=nrvs)
-      CALL cp_fm_release(evects_Atilde_fm)
-      CALL cp_fm_release(Atilde_fm)
+      CALL cp_fm_release_p(evects_Atilde_fm)
+      CALL cp_fm_release_p(Atilde_fm)
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(act, ikv, irv, ispin), &
@@ -574,12 +574,12 @@ CONTAINS
             CALL cp_fm_get_info(matrix=ritz_vects(ispin, 1)%matrix, matrix_struct=ao_mo_struct, &
                                 ncol_global=nactive(ispin))
             NULLIFY (awork(ispin)%matrix)
-            CALL cp_fm_create(awork(ispin)%matrix, ao_mo_struct)
+            CALL cp_fm_create_p(awork(ispin)%matrix, ao_mo_struct)
             !
             CALL cp_fm_struct_create(virt_mo_struct, nrow_global=nmo_virt(ispin), &
                                      ncol_global=nactive(ispin), template_fmstruct=ao_mo_struct)
             NULLIFY (vomat(ispin)%matrix)
-            CALL cp_fm_create(vomat(ispin)%matrix, virt_mo_struct)
+            CALL cp_fm_create_p(vomat(ispin)%matrix, virt_mo_struct)
             CALL cp_fm_struct_release(virt_mo_struct)
          END DO
 
@@ -621,8 +621,8 @@ CONTAINS
          END DO
          !
          DO ispin = 1, nspins
-            CALL cp_fm_release(awork(ispin)%matrix)
-            CALL cp_fm_release(vomat(ispin)%matrix)
+            CALL cp_fm_release_p(awork(ispin)%matrix)
+            CALL cp_fm_release_p(vomat(ispin)%matrix)
          END DO
          DEALLOCATE (awork, vomat)
       END IF

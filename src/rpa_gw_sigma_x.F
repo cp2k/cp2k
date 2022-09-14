@@ -29,9 +29,9 @@ MODULE rpa_gw_sigma_x
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -825,8 +825,8 @@ CONTAINS
       NULLIFY (fwork_re, fwork_im, cfm_mos, cfm_sigma_x_minus_vxc, &
                cfm_sigma_x_minus_vxc_mo_basis, cfm_tmp)
       CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
-      CALL cp_fm_create(fwork_re, matrix_struct)
-      CALL cp_fm_create(fwork_im, matrix_struct)
+      CALL cp_fm_create_p(fwork_re, matrix_struct)
+      CALL cp_fm_create_p(fwork_im, matrix_struct)
       CALL cp_cfm_create(cfm_mos, matrix_struct)
       CALL cp_cfm_create(cfm_sigma_x_minus_vxc, matrix_struct)
       CALL cp_cfm_create(cfm_sigma_x_minus_vxc_mo_basis, matrix_struct)
@@ -921,8 +921,8 @@ CONTAINS
          END IF
       END DO
 
-      CALL cp_fm_release(fwork_re)
-      CALL cp_fm_release(fwork_im)
+      CALL cp_fm_release_p(fwork_re)
+      CALL cp_fm_release_p(fwork_im)
       CALL cp_cfm_release(cfm_mos)
       CALL cp_cfm_release(cfm_sigma_x_minus_vxc)
       CALL cp_cfm_release(cfm_sigma_x_minus_vxc_mo_basis)

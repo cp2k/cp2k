@@ -15,9 +15,9 @@ MODULE optimize_dmfet_potential
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_maxabsval,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -136,10 +136,10 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=nao, ncol_global=nao)
-      CALL cp_fm_create(opt_dmfet%dmfet_pot, fm_struct, name="dmfet_pot")
-      CALL cp_fm_create(opt_dmfet%dm_subsys, fm_struct, name="dm_subsys")
-      CALL cp_fm_create(opt_dmfet%dm_total, fm_struct, name="dm_total")
-      CALL cp_fm_create(opt_dmfet%dm_diff, fm_struct, name="dm_diff")
+      CALL cp_fm_create_p(opt_dmfet%dmfet_pot, fm_struct, name="dmfet_pot")
+      CALL cp_fm_create_p(opt_dmfet%dm_subsys, fm_struct, name="dm_subsys")
+      CALL cp_fm_create_p(opt_dmfet%dm_total, fm_struct, name="dm_total")
+      CALL cp_fm_create_p(opt_dmfet%dm_diff, fm_struct, name="dm_diff")
 
       CALL cp_fm_set_all(opt_dmfet%dmfet_pot, 0.0_dp)
       CALL cp_fm_set_all(opt_dmfet%dm_subsys, 0.0_dp)
@@ -148,10 +148,10 @@ CONTAINS
 
       ! Beta spin counterparts
       IF (opt_dmfet%open_shell_embed) THEN
-         CALL cp_fm_create(opt_dmfet%dmfet_pot_beta, fm_struct, name="dmfet_pot_beta")
-         CALL cp_fm_create(opt_dmfet%dm_subsys_beta, fm_struct, name="dm_subsys_beta")
-         CALL cp_fm_create(opt_dmfet%dm_total_beta, fm_struct, name="dm_total_beta")
-         CALL cp_fm_create(opt_dmfet%dm_diff_beta, fm_struct, name="dm_diff_beta")
+         CALL cp_fm_create_p(opt_dmfet%dmfet_pot_beta, fm_struct, name="dmfet_pot_beta")
+         CALL cp_fm_create_p(opt_dmfet%dm_subsys_beta, fm_struct, name="dm_subsys_beta")
+         CALL cp_fm_create_p(opt_dmfet%dm_total_beta, fm_struct, name="dm_total_beta")
+         CALL cp_fm_create_p(opt_dmfet%dm_diff_beta, fm_struct, name="dm_diff_beta")
 
          CALL cp_fm_set_all(opt_dmfet%dmfet_pot_beta, 0.0_dp)
          CALL cp_fm_set_all(opt_dmfet%dm_subsys_beta, 0.0_dp)
@@ -182,16 +182,16 @@ CONTAINS
    SUBROUTINE release_dmfet_opt(opt_dmfet)
       TYPE(opt_dmfet_pot_type)                           :: opt_dmfet
 
-      CALL cp_fm_release(opt_dmfet%dmfet_pot)
-      CALL cp_fm_release(opt_dmfet%dm_subsys)
-      CALL cp_fm_release(opt_dmfet%dm_total)
-      CALL cp_fm_release(opt_dmfet%dm_diff)
+      CALL cp_fm_release_p(opt_dmfet%dmfet_pot)
+      CALL cp_fm_release_p(opt_dmfet%dm_subsys)
+      CALL cp_fm_release_p(opt_dmfet%dm_total)
+      CALL cp_fm_release_p(opt_dmfet%dm_diff)
 
       IF (opt_dmfet%open_shell_embed) THEN
-         CALL cp_fm_release(opt_dmfet%dmfet_pot_beta)
-         CALL cp_fm_release(opt_dmfet%dm_subsys_beta)
-         CALL cp_fm_release(opt_dmfet%dm_total_beta)
-         CALL cp_fm_release(opt_dmfet%dm_diff_beta)
+         CALL cp_fm_release_p(opt_dmfet%dmfet_pot_beta)
+         CALL cp_fm_release_p(opt_dmfet%dm_subsys_beta)
+         CALL cp_fm_release_p(opt_dmfet%dm_total_beta)
+         CALL cp_fm_release_p(opt_dmfet%dm_diff_beta)
       END IF
 
       DEALLOCATE (opt_dmfet%w_func)

@@ -14,9 +14,9 @@
 ! **************************************************************************************************
 MODULE preconditioner_apply
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
@@ -196,13 +196,13 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
-      CALL cp_fm_create(work, matrix_in%matrix_struct, name="apply_full_single", &
-                        use_sp=matrix_in%use_sp)
+      CALL cp_fm_create_p(work, matrix_in%matrix_struct, name="apply_full_single", &
+                          use_sp=matrix_in%use_sp)
       CALL cp_fm_cholesky_restore(matrix_in, k, preconditioner_env%fm, work,&
            &                      "SOLVE", transa="T")
       CALL cp_fm_cholesky_restore(work, k, preconditioner_env%fm, matrix_out,&
            &                      "SOLVE", transa="N")
-      CALL cp_fm_release(work)
+      CALL cp_fm_release_p(work)
 
       CALL timestop(handle)
 
@@ -233,7 +233,7 @@ CONTAINS
 
       CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
 
-      CALL cp_fm_create(matrix_tmp, matrix_in%matrix_struct, name="apply_full_all")
+      CALL cp_fm_create_p(matrix_tmp, matrix_in%matrix_struct, name="apply_full_all")
       CALL cp_fm_get_info(matrix_tmp, nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
 
@@ -254,7 +254,7 @@ CONTAINS
       CALL parallel_gemm('N', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
                          matrix_tmp, 0.0_dp, matrix_out)
 
-      CALL cp_fm_release(matrix_tmp)
+      CALL cp_fm_release_p(matrix_tmp)
 
       CALL timestop(handle)
 

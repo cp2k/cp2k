@@ -44,8 +44,8 @@ MODULE mp2_ri_2c
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -205,7 +205,7 @@ CONTAINS
 
       IF (do_im_time .AND. calc_forces) THEN
          !need a copy of the (P|Q) integrals
-         CALL cp_fm_create(fm_matrix_PQ, fm_matrix_L%matrix_struct)
+         CALL cp_fm_create_p(fm_matrix_PQ, fm_matrix_L%matrix_struct)
          CALL cp_fm_to_fm(fm_matrix_L, fm_matrix_PQ)
       END IF
 
@@ -267,7 +267,7 @@ CONTAINS
             IF (calc_forces .AND. (.NOT. do_im_time)) THEN
                ! For the gradients, we make a copy of the inverse root of L
                NULLIFY (fm_matrix_V)
-               CALL cp_fm_create(fm_matrix_V, fm_matrix_L%matrix_struct)
+               CALL cp_fm_create_p(fm_matrix_V, fm_matrix_L%matrix_struct)
                CALL cp_fm_to_fm(fm_matrix_L, fm_matrix_V)
 
                CALL decomp_mat_L(fm_matrix_V, do_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
@@ -281,7 +281,7 @@ CONTAINS
                               gd_array, ngroup, dimen_RI, dimen_RI_red, para_env)
 
             NULLIFY (fm_matrix_S_inv_work)
-            CALL cp_fm_create(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
+            CALL cp_fm_create_p(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_S_inv_work, 0.0_dp)
 
             CALL parallel_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix, &
@@ -301,7 +301,7 @@ CONTAINS
             END IF
 
             ! clean the S_inv matrix
-            CALL cp_fm_release(fm_matrix_S_inv_work)
+            CALL cp_fm_release_p(fm_matrix_S_inv_work)
          END IF
 
          IF (.NOT. do_im_time) THEN
@@ -309,7 +309,7 @@ CONTAINS
             CALL cp_fm_to_fm(fm_matrix_L_RI_metric(1, 1)%matrix, fm_matrix_L)
             DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
             DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
-               CALL cp_fm_release(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
+               CALL cp_fm_release_p(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
             END DO
             END DO
             DEALLOCATE (fm_matrix_L_RI_metric)
@@ -322,7 +322,7 @@ CONTAINS
 
          DO i_size = 1, SIZE(fm_matrix_L_kpoints, 1)
          DO i_real_imag = 1, SIZE(fm_matrix_L_kpoints, 2)
-            CALL cp_fm_release(fm_matrix_L_kpoints(i_size, i_real_imag)%matrix)
+            CALL cp_fm_release_p(fm_matrix_L_kpoints(i_size, i_real_imag)%matrix)
          END DO
          END DO
 
@@ -353,9 +353,9 @@ CONTAINS
             CALL grep_Lcols(fm_matrix_V, my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
          END IF
       END IF
-      CALL cp_fm_release(fm_matrix_L)
+      CALL cp_fm_release_p(fm_matrix_L)
       IF (calc_forces .AND. .NOT. (do_im_time .OR. compare_potential_types(qs_env%mp2_env%ri_metric, &
-                                                               qs_env%mp2_env%potential_parameter))) CALL cp_fm_release(fm_matrix_V)
+                                                             qs_env%mp2_env%potential_parameter))) CALL cp_fm_release_p(fm_matrix_V)
       CALL cp_para_env_release(para_env_L)
 
       CALL timestop(handle)
@@ -457,8 +457,8 @@ CONTAINS
       ALLOCATE (fm_matrix_L_kpoints(nkp, 2))
       DO ikp = 1, nkp
          DO i_real_imag = 1, 2
-            CALL cp_fm_create(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, &
-                              fm_matrix_L_RI_metric(1, i_real_imag)%matrix%matrix_struct)
+            CALL cp_fm_create_p(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, &
+                                fm_matrix_L_RI_metric(1, i_real_imag)%matrix%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, 0.0_dp)
          END DO
       END DO
@@ -669,7 +669,7 @@ CONTAINS
       ALLOCATE (fm_matrix_L_RI_metric(nkp, n_real_imag))
       DO i_size = 1, nkp
          DO i_real_imag = 1, n_real_imag
-            CALL cp_fm_create(fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix, fm_matrix_L%matrix_struct)
+            CALL cp_fm_create_p(fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix, fm_matrix_L%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix, 0.0_dp)
          END DO
       END DO
@@ -680,7 +680,7 @@ CONTAINS
 
       NULLIFY (fm_matrix_S_global)
 
-      CALL cp_fm_create(fm_matrix_S_global, fm_struct)
+      CALL cp_fm_create_p(fm_matrix_S_global, fm_struct)
       CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
 
       IF (do_kpoints) THEN
@@ -745,7 +745,7 @@ CONTAINS
 
       CALL cp_fm_struct_release(fm_struct)
 
-      CALL cp_fm_release(fm_matrix_S_global)
+      CALL cp_fm_release_p(fm_matrix_S_global)
 
       IF (.NOT. put_mat_KS_env) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_s_RI_aux_transl)
@@ -1032,7 +1032,7 @@ CONTAINS
 
          cond_num = MAXVAL(ABS(egen_L))/MINVAL(ABS(egen_L))
 
-         CALL cp_fm_release(fm_matrix_L_diag)
+         CALL cp_fm_release_p(fm_matrix_L_diag)
 
          DEALLOCATE (egen_L)
       END IF
@@ -1077,7 +1077,7 @@ CONTAINS
       evals = 0
 
       NULLIFY (evecs)
-      CALL cp_fm_create(evecs, matrix%matrix_struct)
+      CALL cp_fm_create_p(evecs, matrix%matrix_struct)
 
       ! Perform the EVD (=SVD of a positive semidefinite matrix)
       CALL choose_eigv_solver(matrix, evecs, evals)
@@ -1137,7 +1137,7 @@ CONTAINS
       ! Copy the needed eigenvectors
       CALL cp_fm_to_fm(evecs, matrix, needed_evals, num_small_evals + 1)
 
-      CALL cp_fm_release(evecs)
+      CALL cp_fm_release_p(evecs)
 
       CALL timestop(handle)
 
@@ -1165,10 +1165,10 @@ CONTAINS
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, ncol_global=new_size, template_fmstruct=fm_struct_template, force_block=.TRUE.)
 
-      CALL cp_fm_release(matrix)
+      CALL cp_fm_release_p(matrix)
 
       NULLIFY (matrix)
-      CALL cp_fm_create(matrix, fm_struct)
+      CALL cp_fm_create_p(matrix, fm_struct)
       CALL cp_fm_set_all(matrix, 0.0_dp)
 
       CALL cp_fm_struct_release(fm_struct)
@@ -1668,13 +1668,13 @@ CONTAINS
       ! create the full matrix L defined in the L group
       NULLIFY (fm_matrix_L)
       IF (PRESENT(fm_matrix_L_extern)) THEN
-         CALL cp_fm_create(fm_matrix_L, fm_matrix_L_extern%matrix_struct, name=name)
+         CALL cp_fm_create_p(fm_matrix_L, fm_matrix_L_extern%matrix_struct, name=name)
       ELSE
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_L, nrow_global=dimen_RI, &
                                   ncol_global=dimen_RI, para_env=para_env_L)
 
-         CALL cp_fm_create(fm_matrix_L, fm_struct, name=name)
+         CALL cp_fm_create_p(fm_matrix_L, fm_struct, name=name)
 
          CALL cp_fm_struct_release(fm_struct)
       END IF

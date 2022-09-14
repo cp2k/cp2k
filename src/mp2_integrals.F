@@ -29,10 +29,10 @@ MODULE mp2_integrals
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -1084,7 +1084,7 @@ CONTAINS
       CALL dbcsr_get_info(intermed_mat%matrix_ia_jb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env_sub)
-      CALL cp_fm_create(intermed_mat%fm_BIb_jb, fm_struct, name="fm_BIb_jb_"//matrix_name_2)
+      CALL cp_fm_create_p(intermed_mat%fm_BIb_jb, fm_struct, name="fm_BIb_jb_"//matrix_name_2)
 
       CALL copy_dbcsr_to_fm(intermed_mat%matrix_ia_jb, intermed_mat%fm_BIb_jb)
       CALL cp_fm_struct_release(fm_struct)
@@ -1171,7 +1171,7 @@ CONTAINS
 
       CALL dbcsr_release(intermed_mat%matrix_ia_jnu)
       CALL dbcsr_release(intermed_mat%matrix_ia_jb)
-      CALL cp_fm_release(intermed_mat%fm_BIb_jb)
+      CALL cp_fm_release_p(intermed_mat%fm_BIb_jb)
       DEALLOCATE (intermed_mat%local_col_row_info)
 
    END SUBROUTINE

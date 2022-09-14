@@ -28,9 +28,9 @@ MODULE population_analyses
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_diag,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_methods,               ONLY: cp_results_erase,&
@@ -172,16 +172,16 @@ CONTAINS
                                   context=blacs_env, &
                                   nrow_global=nsgf, &
                                   ncol_global=nsgf)
-         CALL cp_fm_create(matrix=fm_s_half, &
-                           matrix_struct=fmstruct, &
-                           name="S^(1/2) MATRIX")
-         CALL cp_fm_create(matrix=fm_work1, &
-                           matrix_struct=fmstruct, &
-                           name="FULL WORK MATRIX 1")
+         CALL cp_fm_create_p(matrix=fm_s_half, &
+                             matrix_struct=fmstruct, &
+                             name="S^(1/2) MATRIX")
+         CALL cp_fm_create_p(matrix=fm_work1, &
+                             matrix_struct=fmstruct, &
+                             name="FULL WORK MATRIX 1")
          headline = "SYMMETRICALLY ORTHOGONALISED DENSITY MATRIX"
-         CALL cp_fm_create(matrix=fm_work2, &
-                           matrix_struct=fmstruct, &
-                           name=TRIM(headline))
+         CALL cp_fm_create_p(matrix=fm_work2, &
+                             matrix_struct=fmstruct, &
+                             name=TRIM(headline))
          CALL cp_fm_struct_release(fmstruct=fmstruct)
 
          ! Build full S^(1/2) matrix (computationally expensive)
@@ -229,9 +229,9 @@ CONTAINS
          END IF
 
          ! Release local working storage
-         CALL cp_fm_release(matrix=fm_s_half)
-         CALL cp_fm_release(matrix=fm_work1)
-         CALL cp_fm_release(matrix=fm_work2)
+         CALL cp_fm_release_p(matrix=fm_s_half)
+         CALL cp_fm_release_p(matrix=fm_work1)
+         CALL cp_fm_release_p(matrix=fm_work2)
          IF (ASSOCIATED(orbpop)) THEN
             DEALLOCATE (orbpop)
          END IF

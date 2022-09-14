@@ -28,8 +28,8 @@ MODULE qs_initial_guess
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -555,9 +555,9 @@ CONTAINS
                                      template_fmstruct=ao_mo_struct)
             ALLOCATE (work1(1))
             NULLIFY (work1(1)%matrix)
-            CALL cp_fm_create(work1(1)%matrix, ao_ao_struct)
-            CALL cp_fm_create(work2, ao_ao_struct)
-            CALL cp_fm_create(ortho, ao_ao_struct)
+            CALL cp_fm_create_p(work1(1)%matrix, ao_ao_struct)
+            CALL cp_fm_create_p(work2, ao_ao_struct)
+            CALL cp_fm_create_p(ortho, ao_ao_struct)
             CALL copy_dbcsr_to_fm(matrix_s_kp(1, 1)%matrix, ortho)
             CALL cp_fm_cholesky_decompose(ortho)
             CALL cp_fm_struct_release(ao_ao_struct)
@@ -604,9 +604,9 @@ CONTAINS
 
          ! release intermediate matrices
          IF (need_wm) THEN
-            CALL cp_fm_release(ortho)
-            CALL cp_fm_release(work2)
-            CALL cp_fm_release(work1(1)%matrix)
+            CALL cp_fm_release_p(ortho)
+            CALL cp_fm_release_p(work2)
+            CALL cp_fm_release_p(work1(1)%matrix)
             DEALLOCATE (work1)
             NULLIFY (work1, work2, ortho)
          END IF
@@ -647,7 +647,7 @@ CONTAINS
                      CALL cp_fm_set_all(mo_coeff, 0.0_dp)
                      CALL cp_fm_init_random(mo_coeff, nmo)
 
-                     CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
+                     CALL cp_fm_create_p(sv, mo_coeff%matrix_struct, "SV")
                      ! multiply times PS
                      IF (has_unit_metric) THEN
                         CALL cp_fm_to_fm(mo_coeff, sv)
@@ -657,7 +657,7 @@ CONTAINS
                      END IF
                      CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
 
-                     CALL cp_fm_release(sv)
+                     CALL cp_fm_release_p(sv)
                      ! and ortho the result
                      IF (has_unit_metric) THEN
                         CALL make_basis_simple(mo_coeff, nmo)
@@ -687,7 +687,7 @@ CONTAINS
                         CALL cp_fm_set_all(mo_coeff, 0.0_dp)
                         CALL cp_fm_init_random(mo_coeff, nmo)
 
-                        CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
+                        CALL cp_fm_create_p(sv, mo_coeff%matrix_struct, "SV")
                         ! multiply times PS
                         IF (has_unit_metric) THEN
                            CALL cp_fm_to_fm(mo_coeff, sv)
@@ -697,7 +697,7 @@ CONTAINS
                         END IF
                         CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
 
-                        CALL cp_fm_release(sv)
+                        CALL cp_fm_release_p(sv)
                         ! and ortho the result
                         IF (has_unit_metric) THEN
                            CALL make_basis_simple(mo_coeff, nmo)
@@ -722,7 +722,7 @@ CONTAINS
             ! We fit a function to the square root of the density
             CALL qs_rho_update_rho(rho, qs_env)
             CPASSERT(1 == 0)
-!         CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
+!         CALL cp_fm_create_p(sv,mo_coeff%matrix_struct,"SV")
 !         DO ispin=1,nspin
 !           CALL integrate_ppl_rspace(qs%rho%rho_r(ispin),qs_env)
 !           CALL cp_cfm_solve(overlap,mos)
@@ -730,7 +730,7 @@ CONTAINS
 !                           mo_coeff=mo_coeff, nmo=nmo, nao=nao)
 !           CALL cp_fm_init_random(mo_coeff,nmo)
 !         END DO
-!         CALL cp_fm_release(sv)
+!         CALL cp_fm_release_p(sv)
          END IF
 
          IF (scf_control%diagonalization%mom) THEN
@@ -1020,7 +1020,7 @@ CONTAINS
                                   mo_coeff=mo_coeff, &
                                   nmo=nmo, homo=homo)
                   CALL cp_fm_init_random(mo_coeff, nmo)
-                  CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
+                  CALL cp_fm_create_p(sv, mo_coeff%matrix_struct, "SV")
                   ! multiply times PS
                   IF (has_unit_metric) THEN
                      CALL cp_fm_to_fm(mo_coeff, sv)
@@ -1029,7 +1029,7 @@ CONTAINS
                   END IF
                   ! here we could easily multiply with the diag that we actually have replicated already
                   CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
-                  CALL cp_fm_release(sv)
+                  CALL cp_fm_release_p(sv)
                   ! and ortho the result
                   IF (has_unit_metric) THEN
                      CALL make_basis_simple(mo_coeff, nmo)

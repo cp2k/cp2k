@@ -32,9 +32,9 @@ MODULE qs_scf_methods
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -295,18 +295,18 @@ CONTAINS
 
 !    Solve the eigenvalue problem
       CALL copy_dbcsr_to_fm(ksbuf2, matrix_ks_fm)
-      CALL cp_fm_create(all_evecs, matrix_ks_fm%matrix_struct)
+      CALL cp_fm_create_p(all_evecs, matrix_ks_fm%matrix_struct)
       CALL choose_eigv_solver(matrix_ks_fm, all_evecs, mo_eigenvalues)
 
       ! select first nmo eigenvectors
-      CALL cp_fm_create(nmo_evecs, mo_coeff%matrix_struct)
+      CALL cp_fm_create_p(nmo_evecs, mo_coeff%matrix_struct)
       CALL cp_fm_to_fm(msource=all_evecs, mtarget=nmo_evecs, ncol=nmo)
-      CALL cp_fm_release(all_evecs)
+      CALL cp_fm_release_p(all_evecs)
 
 !    Restore the eigenvector of the general eig. problem
       CALL cp_dbcsr_sm_fm_multiply(ortho_dbcsr, nmo_evecs, mo_coeff, nmo)
 
-      CALL cp_fm_release(nmo_evecs)
+      CALL cp_fm_release_p(nmo_evecs)
       CALL timestop(handle)
 
    END SUBROUTINE eigensolver_dbcsr
@@ -799,8 +799,8 @@ CONTAINS
       CALL cp_fm_struct_create(ao_mo_fmstruct, nrow_global=nao, ncol_global=nmo, &
                                para_env=mo_coeff%matrix_struct%para_env, context=mo_coeff%matrix_struct%context)
 
-      CALL cp_fm_create(u_mo, ao_mo_fmstruct)
-      CALL cp_fm_create(u_mo_scaled, ao_mo_fmstruct)
+      CALL cp_fm_create_p(u_mo, ao_mo_fmstruct)
+      CALL cp_fm_create_p(u_mo_scaled, ao_mo_fmstruct)
 
       CALL cp_fm_struct_release(ao_mo_fmstruct)
 
@@ -834,8 +834,8 @@ CONTAINS
       ! NewKS = U^{-1,T} * KS * U^{-1} + (U * C) * DELTA * (U * C)^T
       CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, u_mo, u_mo_scaled, 1.0_dp, matrix_ks_fm)
 
-      CALL cp_fm_release(u_mo_scaled)
-      CALL cp_fm_release(u_mo)
+      CALL cp_fm_release_p(u_mo_scaled)
+      CALL cp_fm_release_p(u_mo)
 
       CALL timestop(handle)
 

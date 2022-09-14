@@ -14,7 +14,7 @@
 MODULE ec_env_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release_p
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type,&
                                               ls_scf_release
@@ -148,7 +148,7 @@ CONTAINS
          ! CP env
          IF (ASSOCIATED(ec_env%cpmos)) THEN
             DO iab = 1, SIZE(ec_env%cpmos)
-               CALL cp_fm_release(ec_env%cpmos(iab)%matrix)
+               CALL cp_fm_release_p(ec_env%cpmos(iab)%matrix)
             END DO
             DEALLOCATE (ec_env%cpmos)
             NULLIFY (ec_env%cpmos)

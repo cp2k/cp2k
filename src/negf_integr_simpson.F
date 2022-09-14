@@ -21,9 +21,9 @@ MODULE negf_integr_simpson
                                               cp_cfm_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
@@ -154,8 +154,8 @@ CONTAINS
 
       NULLIFY (sr_env%error_fm, sr_env%weights)
       CALL cp_fm_get_info(weights, local_data=w_data, nrow_local=nrows, ncol_local=ncols, matrix_struct=fm_struct)
-      CALL cp_fm_create(sr_env%error_fm, fm_struct)
-      CALL cp_fm_create(sr_env%weights, fm_struct)
+      CALL cp_fm_create_p(sr_env%error_fm, fm_struct)
+      CALL cp_fm_create_p(sr_env%weights, fm_struct)
       CALL cp_fm_get_info(sr_env%weights, local_data=w_data_my)
 
       ! use the explicit loop to avoid temporary arrays. The magic constant 15.0 is due to Simpson's rule error analysis.
@@ -212,8 +212,8 @@ CONTAINS
       IF (ASSOCIATED(sr_env%integral_cde)) CALL cp_cfm_release(sr_env%integral_cde)
       IF (ASSOCIATED(sr_env%integral_ace)) CALL cp_cfm_release(sr_env%integral_ace)
 
-      IF (ASSOCIATED(sr_env%error_fm)) CALL cp_fm_release(sr_env%error_fm)
-      IF (ASSOCIATED(sr_env%weights)) CALL cp_fm_release(sr_env%weights)
+      IF (ASSOCIATED(sr_env%error_fm)) CALL cp_fm_release_p(sr_env%error_fm)
+      IF (ASSOCIATED(sr_env%weights)) CALL cp_fm_release_p(sr_env%weights)
 
       IF (ALLOCATED(sr_env%tnodes)) DEALLOCATE (sr_env%tnodes)
 

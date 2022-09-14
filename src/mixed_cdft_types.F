@@ -16,7 +16,7 @@ MODULE mixed_cdft_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release_p
    USE cp_log_handling,                 ONLY: cp_logger_p_type,&
                                               cp_logger_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
@@ -615,7 +615,7 @@ CONTAINS
       IF (ASSOCIATED(matrix%mixed_mo_coeff)) THEN
          DO i = 1, SIZE(matrix%mixed_mo_coeff, 2)
             DO j = 1, SIZE(matrix%mixed_mo_coeff, 1)
-               CALL cp_fm_release(matrix%mixed_mo_coeff(j, i)%matrix)
+               CALL cp_fm_release_p(matrix%mixed_mo_coeff(j, i)%matrix)
             END DO
          END DO
          DEALLOCATE (matrix%mixed_mo_coeff)

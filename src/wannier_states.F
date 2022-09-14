@@ -14,10 +14,10 @@ MODULE wannier_states
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_element,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -119,8 +119,8 @@ CONTAINS
                                para_env=mo_localized%matrix_struct%para_env, &
                                context=mo_localized%matrix_struct%context)
 
-      CALL cp_fm_create(b, fm_struct_tmp, name="b")
-      CALL cp_fm_create(c, fm_struct_tmp, name="c")
+      CALL cp_fm_create_p(b, fm_struct_tmp, name="b")
+      CALL cp_fm_create_p(c, fm_struct_tmp, name="c")
 
       CALL cp_fm_struct_release(fm_struct_tmp)
 
@@ -128,7 +128,7 @@ CONTAINS
                                para_env=mo_localized%matrix_struct%para_env, &
                                context=mo_localized%matrix_struct%context)
 
-      CALL cp_fm_create(d, fm_struct_tmp, name="d")
+      CALL cp_fm_create_p(d, fm_struct_tmp, name="d")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       WannierCentres%WannierHamDiag = 0.0_dp
@@ -163,9 +163,9 @@ CONTAINS
             WRITE (output_unit, '(f16.8,2x,i0)') WannierCentres%WannierHamDiag(i), states(i)
          END DO
       END IF
-      CALL cp_fm_release(b)
-      CALL cp_fm_release(c)
-      CALL cp_fm_release(d)
+      CALL cp_fm_release_p(b)
+      CALL cp_fm_release_p(c)
+      CALL cp_fm_release_p(d)
       CALL timestop(handle)
    END SUBROUTINE construct_wannier_states
 

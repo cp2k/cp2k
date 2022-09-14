@@ -16,7 +16,7 @@ MODULE rt_make_propagators
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_to_fm
@@ -227,9 +227,9 @@ CONTAINS
       NULLIFY (propagator_matrix_fm)
       ALLOCATE (propagator_matrix_fm(SIZE(propagator_matrix)))
       DO i = 1, SIZE(propagator_matrix)
-         CALL cp_fm_create(propagator_matrix_fm(i)%matrix, &
-                           matrix_struct=rtp%ao_ao_fmstruct, &
-                           name="prop_fm")
+         CALL cp_fm_create_p(propagator_matrix_fm(i)%matrix, &
+                             matrix_struct=rtp%ao_ao_fmstruct, &
+                             name="prop_fm")
          CALL copy_dbcsr_to_fm(propagator_matrix(i)%matrix, propagator_matrix_fm(i)%matrix)
       END DO
 
@@ -349,13 +349,13 @@ CONTAINS
       NULLIFY (propagator_matrix_fm)
       ALLOCATE (propagator_matrix_fm(SIZE(propagator_matrix)))
       DO i = 1, SIZE(propagator)
-         CALL cp_fm_create(propagator_fm(i)%matrix, &
-                           matrix_struct=rtp%ao_ao_fmstruct, &
-                           name="prop_fm")
+         CALL cp_fm_create_p(propagator_fm(i)%matrix, &
+                             matrix_struct=rtp%ao_ao_fmstruct, &
+                             name="prop_fm")
          CALL copy_dbcsr_to_fm(propagator(i)%matrix, propagator_fm(i)%matrix)
-         CALL cp_fm_create(propagator_matrix_fm(i)%matrix, &
-                           matrix_struct=rtp%ao_ao_fmstruct, &
-                           name="prop_mat_fm")
+         CALL cp_fm_create_p(propagator_matrix_fm(i)%matrix, &
+                             matrix_struct=rtp%ao_ao_fmstruct, &
+                             name="prop_mat_fm")
          CALL copy_dbcsr_to_fm(propagator_matrix(i)%matrix, propagator_matrix_fm(i)%matrix)
       END DO
 

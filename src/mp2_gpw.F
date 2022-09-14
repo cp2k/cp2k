@@ -29,7 +29,7 @@ MODULE mp2_gpw
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: &
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
@@ -553,7 +553,7 @@ CONTAINS
             DEALLOCATE (mat_P_global%matrix)
 
             CALL cp_libint_static_cleanup()
-            IF (calc_forces) CALL cp_fm_release(fm_matrix_PQ)
+            IF (calc_forces) CALL cp_fm_release_p(fm_matrix_PQ)
          END IF
 
          ! Release some memory for AXK

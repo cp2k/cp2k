@@ -36,8 +36,8 @@ MODULE library_tests
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
@@ -1118,21 +1118,21 @@ CONTAINS
 
          ! create all needed matrices, and buffers for the eigenvalues
          NULLIFY (matrix)
-         CALL cp_fm_create(matrix=matrix, &
-                           matrix_struct=fmstruct, &
-                           name="MATRIX")
+         CALL cp_fm_create_p(matrix=matrix, &
+                             matrix_struct=fmstruct, &
+                             name="MATRIX")
          CALL cp_fm_set_all(matrix, 0.0_dp)
 
          NULLIFY (eigenvectors)
-         CALL cp_fm_create(matrix=eigenvectors, &
-                           matrix_struct=fmstruct, &
-                           name="EIGENVECTORS")
+         CALL cp_fm_create_p(matrix=eigenvectors, &
+                             matrix_struct=fmstruct, &
+                             name="EIGENVECTORS")
          CALL cp_fm_set_all(eigenvectors, 0.0_dp)
 
          NULLIFY (work)
-         CALL cp_fm_create(matrix=work, &
-                           matrix_struct=fmstruct, &
-                           name="WORK")
+         CALL cp_fm_create_p(matrix=work, &
+                             matrix_struct=fmstruct, &
+                             name="WORK")
          CALL cp_fm_set_all(matrix, 0.0_dp)
 
          ALLOCATE (eigenvalues(n))
@@ -1245,9 +1245,9 @@ CONTAINS
 
          ! Clean up
          DEALLOCATE (eigenvalues)
-         CALL cp_fm_release(matrix=work)
-         CALL cp_fm_release(matrix=eigenvectors)
-         CALL cp_fm_release(matrix=matrix)
+         CALL cp_fm_release_p(matrix=work)
+         CALL cp_fm_release_p(matrix=eigenvectors)
+         CALL cp_fm_release_p(matrix=matrix)
          CALL cp_fm_struct_release(fmstruct=fmstruct)
 
       END DO
@@ -1373,11 +1373,11 @@ CONTAINS
             ' using blocks of ', nrow_block_actual, ' by ', ncol_block_actual
 
          NULLIFY (matrix_a)
-         CALL cp_fm_create(matrix=matrix_a, matrix_struct=fmstruct_a, name="MATRIX A")
+         CALL cp_fm_create_p(matrix=matrix_a, matrix_struct=fmstruct_a, name="MATRIX A")
          NULLIFY (matrix_b)
-         CALL cp_fm_create(matrix=matrix_b, matrix_struct=fmstruct_b, name="MATRIX B")
+         CALL cp_fm_create_p(matrix=matrix_b, matrix_struct=fmstruct_b, name="MATRIX B")
          NULLIFY (matrix_c)
-         CALL cp_fm_create(matrix=matrix_c, matrix_struct=fmstruct_c, name="MATRIX C")
+         CALL cp_fm_create_p(matrix=matrix_c, matrix_struct=fmstruct_c, name="MATRIX C")
 
          CALL RANDOM_NUMBER(matrix_a%local_data)
          CALL RANDOM_NUMBER(matrix_b%local_data)
@@ -1405,9 +1405,9 @@ CONTAINS
             END IF
          END IF
 
-         CALL cp_fm_release(matrix=matrix_a)
-         CALL cp_fm_release(matrix=matrix_b)
-         CALL cp_fm_release(matrix=matrix_c)
+         CALL cp_fm_release_p(matrix=matrix_a)
+         CALL cp_fm_release_p(matrix=matrix_b)
+         CALL cp_fm_release_p(matrix=matrix_c)
          CALL cp_fm_struct_release(fmstruct=fmstruct_a)
          CALL cp_fm_struct_release(fmstruct=fmstruct_b)
          CALL cp_fm_struct_release(fmstruct=fmstruct_c)

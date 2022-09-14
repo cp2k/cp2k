@@ -29,9 +29,9 @@ MODULE minbas_wfn_analysis
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_diag,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -219,14 +219,14 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
          CALL cp_fm_struct_create(fm_struct_a, nrow_global=nao, ncol_global=nmao, &
                                   para_env=para_env, context=blacs_env)
-         CALL cp_fm_create(fm1, fm_struct_a)
+         CALL cp_fm_create_p(fm1, fm_struct_a)
          CALL cp_fm_struct_create(fm_struct_b, nrow_global=nmao, ncol_global=nmo, &
                                   para_env=para_env, context=blacs_env)
-         CALL cp_fm_create(fm2, fm_struct_b)
-         CALL cp_fm_create(fm3, fm_struct_b)
+         CALL cp_fm_create_p(fm2, fm_struct_b)
+         CALL cp_fm_create_p(fm3, fm_struct_b)
          CALL cp_fm_struct_create(fm_struct_c, nrow_global=nmo, ncol_global=nmo, &
                                   para_env=para_env, context=blacs_env)
-         CALL cp_fm_create(fm4, fm_struct_c)
+         CALL cp_fm_create_p(fm4, fm_struct_c)
          ALLOCATE (fnorm(nmo, nspin), ecount(natom, 3, nspin), prmao(natom, nspin))
          ecount = 0
          prmao = 0.0_dp
@@ -361,7 +361,7 @@ CONTAINS
             mo_set%eigenvalues = 0.0_dp
             ALLOCATE (mo_set%occupation_numbers(nmao))
             mo_set%occupation_numbers = 1.0_dp
-            CALL cp_fm_create(mo_set%mo_coeff, fm_struct_a)
+            CALL cp_fm_create_p(mo_set%mo_coeff, fm_struct_a)
             CALL copy_dbcsr_to_fm(quambo(ispin)%matrix, mo_set%mo_coeff)
          END DO
 
@@ -380,10 +380,10 @@ CONTAINS
          DEALLOCATE (mbas)
 
          DEALLOCATE (fnorm, ecount, prmao, mcharge)
-         CALL cp_fm_release(fm1)
-         CALL cp_fm_release(fm2)
-         CALL cp_fm_release(fm3)
-         CALL cp_fm_release(fm4)
+         CALL cp_fm_release_p(fm1)
+         CALL cp_fm_release_p(fm2)
+         CALL cp_fm_release_p(fm3)
+         CALL cp_fm_release_p(fm4)
          CALL cp_fm_struct_release(fm_struct_a)
          CALL cp_fm_struct_release(fm_struct_b)
          CALL cp_fm_struct_release(fm_struct_c)

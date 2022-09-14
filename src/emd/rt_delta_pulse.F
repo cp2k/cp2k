@@ -35,10 +35,10 @@ MODULE rt_delta_pulse
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -130,17 +130,17 @@ CONTAINS
                       particle_set=particle_set)
       com_nl = section_get_lval(section_vals=input, keyword_name="DFT%REAL_TIME_PROPAGATION%COM_NL")
       CALL get_rtp(rtp=rtp, S_inv=S_inv)
-      CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol")
-      CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm")
-      CALL cp_fm_create(tmpS, matrix_struct=rtp%ao_ao_fmstruct)
+      CALL cp_fm_create_p(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name="S_chol")
+      CALL cp_fm_create_p(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm")
+      CALL cp_fm_create_p(tmpS, matrix_struct=rtp%ao_ao_fmstruct)
       CALL copy_dbcsr_to_fm(S_inv, S_inv_fm)
       CALL cp_fm_upper_to_full(S_inv_fm, tmpS)
       CALL cp_fm_get_info(S_inv_fm, nrow_global=nrow_global)
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_chol)
       CALL cp_fm_cholesky_decompose(S_chol)
       NULLIFY (mat_ks, eigenvectors, mat_tmp)
-      CALL cp_fm_create(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks")
-      CALL cp_fm_create(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors")
+      CALL cp_fm_create_p(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks")
+      CALL cp_fm_create_p(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors")
 
       ! calculate non-local commutator
       IF (com_nl) THEN
@@ -165,7 +165,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(matrix_ks)
          ALLOCATE (eigenvalues(nrow_global))
-         CALL cp_fm_create(mat_tmp, matrix_struct=S_inv_fm%matrix_struct, name="mat_tmp")
+         CALL cp_fm_create_p(mat_tmp, matrix_struct=S_inv_fm%matrix_struct, name="mat_tmp")
 
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, mat_ks)
          CALL cp_fm_cholesky_reduce(mat_ks, S_chol)
@@ -177,7 +177,7 @@ CONTAINS
          nvirt = nao - nmo
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context, &
                                   nrow_global=nrow_global, ncol_global=nvirt)
-         CALL cp_fm_create(virtuals, matrix_struct=fm_struct_tmp, name="virtuals")
+         CALL cp_fm_create_p(virtuals, matrix_struct=fm_struct_tmp, name="virtuals")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_to_fm(eigenvectors, virtuals, nvirt, nmo + 1, 1)
 
@@ -186,7 +186,7 @@ CONTAINS
 
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context, &
                                   nrow_global=nvirt, ncol_global=nmo)
-         CALL cp_fm_create(momentum, matrix_struct=fm_struct_tmp, name="momentum")
+         CALL cp_fm_create_p(momentum, matrix_struct=fm_struct_tmp, name="momentum")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          ! the momentum operator (in a given direction)
@@ -224,24 +224,24 @@ CONTAINS
                local_data(irow, icol) = factor*local_data(irow, icol)
             END DO
          END DO
-         CALL cp_fm_release(mat_tmp)
+         CALL cp_fm_release_p(mat_tmp)
          DEALLOCATE (eigenvalues)
 
          ! now obtain the initial condition in mos_old
          CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
          CALL parallel_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, momentum, 0.0_dp, mos_old(2*ispin)%matrix)
 
-         CALL cp_fm_release(virtuals)
-         CALL cp_fm_release(momentum)
+         CALL cp_fm_release_p(virtuals)
+         CALL cp_fm_release_p(momentum)
 
          ! orthonormalize afterwards
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context, &
                                   nrow_global=nmo, ncol_global=nmo)
-         CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")
-         CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
+         CALL cp_fm_create_p(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")
+         CALL cp_fm_create_p(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
-         CALL cp_fm_create(mat_tmp, matrix_struct=mos_old(2*ispin - 1)%matrix%matrix_struct, name="tmp_mat")
+         CALL cp_fm_create_p(mat_tmp, matrix_struct=mos_old(2*ispin - 1)%matrix%matrix_struct, name="tmp_mat")
          ! get the complex overlap matrix
          ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mos_old(2*ispin - 1)%matrix, &
@@ -254,7 +254,7 @@ CONTAINS
                                       mat_tmp, ncol=nmo)
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*ispin)%matrix, mat_tmp, 1.0_dp, oo_1)
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*ispin - 1)%matrix, mat_tmp, 1.0_dp, oo_2)
-         CALL cp_fm_release(mat_tmp)
+         CALL cp_fm_release_p(mat_tmp)
 
          CALL cp_cfm_create(oo_c, oo_1%matrix_struct)
          CALL cp_cfm_create(oo_v, oo_1%matrix_struct)
@@ -288,20 +288,20 @@ CONTAINS
          CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*ispin)%matrix, oo_1, 1.0_dp, mos_new(2*ispin)%matrix)
          CALL cp_fm_to_fm(mos_new(2*ispin)%matrix, mos_old(2*ispin)%matrix)
 
-         CALL cp_fm_release(oo_1)
-         CALL cp_fm_release(oo_2)
+         CALL cp_fm_release_p(oo_1)
+         CALL cp_fm_release_p(oo_2)
       END DO
 
-      CALL cp_fm_release(S_chol)
-      CALL cp_fm_release(mat_ks)
-      CALL cp_fm_release(eigenvectors)
+      CALL cp_fm_release_p(S_chol)
+      CALL cp_fm_release_p(mat_ks)
+      CALL cp_fm_release_p(eigenvectors)
 
       IF (com_nl) CALL dbcsr_deallocate_matrix_set(matrix_rv)
 
 !***************************************************************
 !remove later
-      CALL cp_fm_release(S_inv_fm)
-      CALL cp_fm_release(tmpS)
+      CALL cp_fm_release_p(S_inv_fm)
+      CALL cp_fm_release_p(tmpS)
 !**************************************************************
       CALL timestop(handle)
 
@@ -348,20 +348,20 @@ CONTAINS
                       dft_control=dft_control)
       CALL get_rtp(rtp=rtp, S_inv=S_inv)
 
-      CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
+      CALL cp_fm_create_p(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
 
-      CALL cp_fm_create(tmp, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
+      CALL cp_fm_create_p(tmp, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
 
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_inv_fm)
       CALL cp_fm_cholesky_decompose(S_inv_fm)
       CALL cp_fm_cholesky_invert(S_inv_fm)
       CALL cp_fm_upper_to_full(S_inv_fm, tmp)
 
-      CALL cp_fm_create(mat_S, matrix_struct=S_inv_fm%matrix_struct, name="mat_S")
+      CALL cp_fm_create_p(mat_S, matrix_struct=S_inv_fm%matrix_struct, name="mat_S")
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, mat_S)
       CALL cp_fm_upper_to_full(mat_S, tmp)
 
-      CALL cp_fm_release(tmp)
+      CALL cp_fm_release_p(tmp)
 
       ! we need the berry matrix
       CALL get_qs_env(qs_env, cell=cell)
@@ -391,11 +391,11 @@ CONTAINS
          ! in a finite basis, unfortunately, inv(S)*operator is not unitary, so orthonormalize afterwards
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=S_inv_fm%matrix_struct%para_env, context=S_inv_fm%matrix_struct%context, &
                                   nrow_global=nmo, ncol_global=nmo)
-         CALL cp_fm_create(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")
-         CALL cp_fm_create(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
+         CALL cp_fm_create_p(oo_1, matrix_struct=fm_struct_tmp, name="oo_1")
+         CALL cp_fm_create_p(oo_2, matrix_struct=fm_struct_tmp, name="oo_2")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
-         CALL cp_fm_create(tmp, matrix_struct=mos_old(2*i - 1)%matrix%matrix_struct, name="tmp_mat")
+         CALL cp_fm_create_p(tmp, matrix_struct=mos_old(2*i - 1)%matrix%matrix_struct, name="tmp_mat")
          ! get the complex overlap matrix
          ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
          CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, mat_S, mos_old(2*i - 1)%matrix, 0.0_dp, tmp)
@@ -405,7 +405,7 @@ CONTAINS
          CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, mat_S, mos_old(2*i)%matrix, 0.0_dp, tmp)
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*i)%matrix, tmp, 1.0_dp, oo_1)
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*i - 1)%matrix, tmp, 1.0_dp, oo_2)
-         CALL cp_fm_release(tmp)
+         CALL cp_fm_release_p(tmp)
 
          CALL cp_cfm_create(oo_c, oo_1%matrix_struct)
          CALL cp_cfm_create(oo_v, oo_1%matrix_struct)
@@ -439,11 +439,11 @@ CONTAINS
          CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*i)%matrix, oo_1, 1.0_dp, mos_new(2*i)%matrix)
          CALL cp_fm_to_fm(mos_new(2*i)%matrix, mos_old(2*i)%matrix)
 
-         CALL cp_fm_release(oo_1)
-         CALL cp_fm_release(oo_2)
+         CALL cp_fm_release_p(oo_1)
+         CALL cp_fm_release_p(oo_2)
       END DO
 
-      CALL cp_fm_release(mat_S)
+      CALL cp_fm_release_p(mat_S)
 
       CALL dbcsr_deallocate_matrix(cosmat)
       CALL dbcsr_deallocate_matrix(sinmat)
@@ -452,7 +452,7 @@ CONTAINS
 !remove later
       CALL copy_fm_to_dbcsr(S_inv_fm, S_inv)
       CALL dbcsr_filter(S_inv, rtp%filter_eps)
-      CALL cp_fm_release(S_inv_fm)
+      CALL cp_fm_release_p(S_inv_fm)
 !**************************************************************
 
       CALL timestop(handle)

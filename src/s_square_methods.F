@@ -20,10 +20,10 @@ MODULE s_square_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
@@ -123,11 +123,11 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                      nrow_global=nalpha, ncol_global=nbeta)
             ! Prepare C(alpha)^T*S*C(beta)
-            CALL cp_fm_create(catscb, fm_struct_tmp, name="C(alpha)^T*S*C(beta)")
+            CALL cp_fm_create_p(catscb, fm_struct_tmp, name="C(alpha)^T*S*C(beta)")
             CALL cp_fm_struct_release(fm_struct_tmp)
             ! Create S*C(beta)
             CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp)
-            CALL cp_fm_create(scb, fm_struct_tmp, name="S*C(beta)")
+            CALL cp_fm_create_p(scb, fm_struct_tmp, name="S*C(beta)")
             ! Compute S*C(beta)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_beta, scb, nbeta)
             ! Compute C(alpha)^T*S*C(beta)
@@ -154,15 +154,15 @@ CONTAINS
                CALL parallel_gemm('N', 'T', nao, nalpha, nbeta, -strength, scb, catscb, 1.0_dp, mo_derivs(1)%matrix)
                ! Create S*C(alpha)
                CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp)
-               CALL cp_fm_create(sca, fm_struct_tmp, name="S*C(alpha)")
+               CALL cp_fm_create_p(sca, fm_struct_tmp, name="S*C(alpha)")
                ! Compute S*C(alpha)
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, c_alpha, sca, nalpha)
                ! Add -strength*S*C(alpha)*C(alpha)^T*S*C(beta) to the beta MO derivatives
                CALL parallel_gemm('N', 'N', nao, nbeta, nalpha, -strength, sca, catscb, 1.0_dp, mo_derivs(2)%matrix)
-               CALL cp_fm_release(sca)
+               CALL cp_fm_release_p(sca)
             END IF
-            CALL cp_fm_release(scb)
-            CALL cp_fm_release(catscb)
+            CALL cp_fm_release_p(scb)
+            CALL cp_fm_release_p(catscb)
          ELSE
             IF (.NOT. has_uniform_occupation_alpha) THEN
                CPHINT("The alpha orbitals (MOs) have a non-uniform occupation")

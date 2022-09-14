@@ -38,10 +38,10 @@ MODULE qs_p_env_methods
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_retain,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -751,7 +751,7 @@ CONTAINS
       CPASSERT(0 < spin)
       CPASSERT(spin <= dft_control%nspins)
 
-      CALL cp_fm_create(tmp, v%matrix_struct)
+      CALL cp_fm_create_p(tmp, v%matrix_struct)
 
       k_p => matrix_ks(spin)%matrix
       CALL cp_fm_get_info(v, ncol_global=ncol)
@@ -769,7 +769,7 @@ CONTAINS
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tmp, &
                                    res, p_env%n_mo(spin), alpha=1.0_dp, beta=1.0_dp)
 
-      CALL cp_fm_release(tmp)
+      CALL cp_fm_release_p(tmp)
       CALL timestop(handle)
 
    END SUBROUTINE p_op_l1_spin
@@ -914,7 +914,7 @@ CONTAINS
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &
                                   ncol_global=maxnmo, template_fmstruct=maxmo_maxmo_fmstruct)
-         CALL cp_fm_create(tmp_matrix, matrix_struct=tmp_fmstruct)
+         CALL cp_fm_create_p(tmp_matrix, matrix_struct=tmp_fmstruct)
          CALL cp_fm_struct_release(tmp_fmstruct)
       END IF
 
@@ -946,7 +946,7 @@ CONTAINS
       IF (max_cols <= nmo2) THEN
          CALL fm_pool_give_back_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
-         CALL cp_fm_release(tmp_matrix)
+         CALL cp_fm_release_p(tmp_matrix)
       END IF
 
       CALL timestop(handle)
@@ -1006,7 +1006,7 @@ CONTAINS
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &
                                   ncol_global=maxnmo, template_fmstruct=maxmo_maxmo_fmstruct)
-         CALL cp_fm_create(tmp_matrix, matrix_struct=tmp_fmstruct)
+         CALL cp_fm_create_p(tmp_matrix, matrix_struct=tmp_fmstruct)
          CALL cp_fm_struct_release(tmp_fmstruct)
       END IF
 
@@ -1038,7 +1038,7 @@ CONTAINS
       IF (max_cols <= nmo2) THEN
          CALL fm_pool_give_back_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
-         CALL cp_fm_release(tmp_matrix)
+         CALL cp_fm_release_p(tmp_matrix)
       END IF
 
       CALL timestop(handle)

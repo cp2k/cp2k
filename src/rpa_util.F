@@ -31,7 +31,7 @@ MODULE rpa_util
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release_p, &
         cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
@@ -209,10 +209,10 @@ CONTAINS
          NULLIFY (fm_mo_coeff_occ(ispin)%matrix, fm_mo_coeff_virt(ispin)%matrix)
       END DO
 
-      CALL cp_fm_create(fm_scaled_dm_occ_tau, mo_coeff(1)%matrix%matrix_struct)
+      CALL cp_fm_create_p(fm_scaled_dm_occ_tau, mo_coeff(1)%matrix%matrix_struct)
       CALL cp_fm_set_all(fm_scaled_dm_occ_tau, 0.0_dp)
 
-      CALL cp_fm_create(fm_scaled_dm_virt_tau, mo_coeff(1)%matrix%matrix_struct)
+      CALL cp_fm_create_p(fm_scaled_dm_virt_tau, mo_coeff(1)%matrix%matrix_struct)
       CALL cp_fm_set_all(fm_scaled_dm_virt_tau, 0.0_dp)
 
       DO ispin = 1, SIZE(mo_coeff)
@@ -303,18 +303,18 @@ CONTAINS
       END IF
 
       NULLIFY (fm_mo_coeff_occ_scaled)
-      CALL cp_fm_create(fm_mo_coeff_occ_scaled, fm_mo_coeff_occ(1)%matrix%matrix_struct)
+      CALL cp_fm_create_p(fm_mo_coeff_occ_scaled, fm_mo_coeff_occ(1)%matrix%matrix_struct)
       CALL cp_fm_to_fm(fm_mo_coeff_occ(1)%matrix, fm_mo_coeff_occ_scaled)
       CALL cp_fm_set_all(matrix=fm_mo_coeff_occ_scaled, alpha=0.0_dp)
 
       NULLIFY (fm_mo_coeff_virt_scaled)
-      CALL cp_fm_create(fm_mo_coeff_virt_scaled, fm_mo_coeff_virt(1)%matrix%matrix_struct)
+      CALL cp_fm_create_p(fm_mo_coeff_virt_scaled, fm_mo_coeff_virt(1)%matrix%matrix_struct)
       CALL cp_fm_to_fm(fm_mo_coeff_virt(1)%matrix, fm_mo_coeff_virt_scaled)
       CALL cp_fm_set_all(matrix=fm_mo_coeff_virt_scaled, alpha=0.0_dp)
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          NULLIFY (fm_mat_RI_global_work)
-         CALL cp_fm_create(fm_mat_RI_global_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
+         CALL cp_fm_create_p(fm_mat_RI_global_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
          CALL cp_fm_to_fm(fm_matrix_L_RI_metric(1, 1)%matrix, fm_mat_RI_global_work)
          CALL cp_fm_set_all(fm_mat_RI_global_work, 0.0_dp)
       END IF
@@ -338,7 +338,7 @@ CONTAINS
       ! Create Scalapack working matrix for the contraction with the metric
       IF (dimen_RI == dimen_RI_red) THEN
          NULLIFY (fm_mat_work)
-         CALL cp_fm_create(fm_mat_work, fm_mat_Q%matrix_struct)
+         CALL cp_fm_create_p(fm_mat_work, fm_mat_Q%matrix_struct)
          CALL cp_fm_to_fm(fm_mat_Q, fm_mat_work)
          CALL cp_fm_set_all(matrix=fm_mat_work, alpha=0.0_dp)
 
@@ -348,7 +348,7 @@ CONTAINS
                                   ncol_global=dimen_RI_red, nrow_global=dimen_RI)
 
          NULLIFY (fm_mat_work)
-         CALL cp_fm_create(fm_mat_work, fm_struct)
+         CALL cp_fm_create_p(fm_mat_work, fm_struct)
          CALL cp_fm_set_all(matrix=fm_mat_work, alpha=0.0_dp)
 
          CALL cp_fm_struct_release(fm_struct)
@@ -416,7 +416,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_create(fm_mo_coeff_occ, mo_coeff%matrix_struct)
+      CALL cp_fm_create_p(fm_mo_coeff_occ, mo_coeff%matrix_struct)
       CALL cp_fm_set_all(fm_mo_coeff_occ, 0.0_dp)
       CALL cp_fm_to_fm(mo_coeff, fm_mo_coeff_occ)
 
@@ -427,7 +427,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL cp_fm_create(fm_mo_coeff_virt, mo_coeff%matrix_struct)
+      CALL cp_fm_create_p(fm_mo_coeff_virt, mo_coeff%matrix_struct)
       CALL cp_fm_set_all(fm_mo_coeff_virt, 0.0_dp)
       CALL cp_fm_to_fm(mo_coeff, fm_mo_coeff_virt)
 
@@ -533,11 +533,11 @@ CONTAINS
          DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
             IF (do_kpoints) THEN
                IF (ANY(ikp_local(:) == i_size)) THEN
-                  CALL cp_fm_create(fm_mat_L(i_size, j_size)%matrix, fm_struct_sub_kp)
+                  CALL cp_fm_create_p(fm_mat_L(i_size, j_size)%matrix, fm_struct_sub_kp)
                   CALL cp_fm_set_all(fm_mat_L(i_size, j_size)%matrix, 0.0_dp)
                END IF
             ELSE
-               CALL cp_fm_create(fm_mat_L(i_size, j_size)%matrix, fm_struct)
+               CALL cp_fm_create_p(fm_mat_L(i_size, j_size)%matrix, fm_struct)
                CALL cp_fm_set_all(fm_mat_L(i_size, j_size)%matrix, 0.0_dp)
             END IF
          END DO
@@ -557,7 +557,7 @@ CONTAINS
 
       ! Allocate buffer matrix
       NULLIFY (fm_mat_L_transposed)
-      CALL cp_fm_create(fm_mat_L_transposed, fm_struct)
+      CALL cp_fm_create_p(fm_mat_L_transposed, fm_struct)
       CALL cp_fm_set_all(matrix=fm_mat_L_transposed, alpha=0.0_dp)
 
       IF (dimen_RI /= dimen_RI_red) CALL cp_fm_struct_release(fm_struct)
@@ -587,12 +587,12 @@ CONTAINS
       ! Release old matrix
       DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
       DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
-         CALL cp_fm_release(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
+         CALL cp_fm_release_p(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
       END DO
       END DO
       DEALLOCATE (fm_matrix_L_RI_metric)
       ! Release buffer
-      CALL cp_fm_release(fm_mat_L_transposed)
+      CALL cp_fm_release_p(fm_mat_L_transposed)
 
       IF (allocate_dbcsr_L) THEN
 
@@ -1153,30 +1153,30 @@ CONTAINS
       nspins = SIZE(fm_mo_coeff_occ)
       my_open_shell = (nspins == 2)
 
-      CALL cp_fm_release(fm_scaled_dm_occ_tau)
-      CALL cp_fm_release(fm_scaled_dm_virt_tau)
+      CALL cp_fm_release_p(fm_scaled_dm_occ_tau)
+      CALL cp_fm_release_p(fm_scaled_dm_virt_tau)
       DO ispin = 1, SIZE(fm_mo_coeff_occ)
-         CALL cp_fm_release(fm_mo_coeff_occ(ispin)%matrix)
-         CALL cp_fm_release(fm_mo_coeff_virt(ispin)%matrix)
+         CALL cp_fm_release_p(fm_mo_coeff_occ(ispin)%matrix)
+         CALL cp_fm_release_p(fm_mo_coeff_virt(ispin)%matrix)
       END DO
-      CALL cp_fm_release(fm_mo_coeff_occ_scaled)
-      CALL cp_fm_release(fm_mo_coeff_virt_scaled)
+      CALL cp_fm_release_p(fm_mo_coeff_occ_scaled)
+      CALL cp_fm_release_p(fm_mo_coeff_virt_scaled)
 
       DO i_size = 1, SIZE(fm_mat_L, 1)
          DO j_size = 1, SIZE(fm_mat_L, 2)
             IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                IF (ANY(ikp_local(:) == i_size)) THEN
-                  CALL cp_fm_release(fm_mat_L(i_size, j_size)%matrix)
-                  CALL cp_fm_release(fm_mat_SiVtrSi(i_size, j_size)%matrix)
+                  CALL cp_fm_release_p(fm_mat_L(i_size, j_size)%matrix)
+                  CALL cp_fm_release_p(fm_mat_SiVtrSi(i_size, j_size)%matrix)
                END IF
             ELSE
-               CALL cp_fm_release(fm_mat_L(i_size, j_size)%matrix)
+               CALL cp_fm_release_p(fm_mat_L(i_size, j_size)%matrix)
             END IF
          END DO
       END DO
       DEALLOCATE (fm_mat_L)
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) DEALLOCATE (fm_mat_SiVtrSi)
-      CALL cp_fm_release(fm_mat_work)
+      CALL cp_fm_release_p(fm_mat_work)
 
       IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
          CALL dbcsr_release(mat_work)
@@ -1219,7 +1219,7 @@ CONTAINS
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          CALL cp_cfm_release(cfm_mat_Q)
-         CALL cp_fm_release(fm_mat_RI_global_work)
+         CALL cp_fm_release_p(fm_mat_RI_global_work)
          CALL dbcsr_deallocate_matrix_set(mat_P_omega_kp)
          DEALLOCATE (wkp_W)
          DEALLOCATE (wkp_V)

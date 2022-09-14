@@ -19,10 +19,10 @@ MODULE molecular_moments
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -172,9 +172,9 @@ CONTAINS
                CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=ns, &
                                         para_env=mo_localized%matrix_struct%para_env, &
                                         context=mo_localized%matrix_struct%context)
-               CALL cp_fm_create(mvector, fm_struct, name="mvector")
-               CALL cp_fm_create(omvector, fm_struct, name="omvector")
-               CALL cp_fm_create(momv, fm_struct, name="omvector")
+               CALL cp_fm_create_p(mvector, fm_struct, name="mvector")
+               CALL cp_fm_create_p(omvector, fm_struct, name="omvector")
+               CALL cp_fm_create_p(momv, fm_struct, name="omvector")
                CALL cp_fm_struct_release(fm_struct)
                !
                DO i = 1, ns
@@ -186,9 +186,9 @@ CONTAINS
                   moment_set(i, imol) = moment_set(i, imol) - zwfc*SUM(momv%local_data)
                END DO
                !
-               CALL cp_fm_release(mvector)
-               CALL cp_fm_release(omvector)
-               CALL cp_fm_release(momv)
+               CALL cp_fm_release_p(mvector)
+               CALL cp_fm_release_p(omvector)
+               CALL cp_fm_release_p(momv)
                DEALLOCATE (states)
             END DO
             DO i = 1, nm

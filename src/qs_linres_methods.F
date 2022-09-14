@@ -23,11 +23,11 @@ MODULE qs_linres_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -157,7 +157,7 @@ CONTAINS
       ALLOCATE (mos_localized(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_create(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
+         CALL cp_fm_create_p(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin)%matrix)
       END DO
 
@@ -280,22 +280,22 @@ CONTAINS
       !
       DO ispin = 1, nspins
          NULLIFY (r(ispin)%matrix, p(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
-         CALL cp_fm_create(r(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create(p(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create(z(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create(Ap(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create_p(r(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create_p(p(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create_p(z(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create_p(Ap(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
       END DO
       !
       ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
       ALLOCATE (chc(nspins), Sc(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
-         CALL cp_fm_create(Sc(ispin)%matrix, mo_coeff%matrix_struct)
+         CALL cp_fm_create_p(Sc(ispin)%matrix, mo_coeff%matrix_struct)
          NULLIFY (tmp_fm_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, &
                                   context=mo_coeff%matrix_struct%context)
-         CALL cp_fm_create(chc(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create_p(chc(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
       !
@@ -303,11 +303,11 @@ CONTAINS
          !
          ! C0_order' * H * C0_order
          mo_coeff => psi0_order(ispin)%matrix
-         CALL cp_fm_create(buf, mo_coeff%matrix_struct)
+         CALL cp_fm_create_p(buf, mo_coeff%matrix_struct)
          CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, mo_coeff, buf, ncol)
          CALL parallel_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin)%matrix)
-         CALL cp_fm_release(buf)
+         CALL cp_fm_release_p(buf)
          !
          ! S * C0
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
@@ -539,13 +539,13 @@ CONTAINS
       !
       ! clean up
       DO ispin = 1, nspins
-         CALL cp_fm_release(r(ispin)%matrix)
-         CALL cp_fm_release(p(ispin)%matrix)
-         CALL cp_fm_release(z(ispin)%matrix)
-         CALL cp_fm_release(Ap(ispin)%matrix)
+         CALL cp_fm_release_p(r(ispin)%matrix)
+         CALL cp_fm_release_p(p(ispin)%matrix)
+         CALL cp_fm_release_p(z(ispin)%matrix)
+         CALL cp_fm_release_p(Ap(ispin)%matrix)
          !
-         CALL cp_fm_release(Sc(ispin)%matrix)
-         CALL cp_fm_release(chc(ispin)%matrix)
+         CALL cp_fm_release_p(Sc(ispin)%matrix)
+         CALL cp_fm_release_p(chc(ispin)%matrix)
       END DO
       DEALLOCATE (tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !
@@ -660,7 +660,7 @@ CONTAINS
       !
       NULLIFY (buf)
       !
-      CALL cp_fm_create(buf, v%matrix_struct)
+      CALL cp_fm_create_p(buf, v%matrix_struct)
       !
       CALL cp_fm_get_info(v, ncol_global=ncol, nrow_global=nrow)
       ! H * v
@@ -671,7 +671,7 @@ CONTAINS
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, buf, Av, ncol, alpha=1.0_dp, beta=1.0_dp)
       !Results is H*C1 - S*<iHj>*C1
       !
-      CALL cp_fm_release(buf)
+      CALL cp_fm_release_p(buf)
       !
       CALL timestop(handle)
       !
@@ -709,7 +709,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
                                   para_env=v(ispin)%matrix%matrix_struct%para_env, &
                                   context=v(ispin)%matrix%matrix_struct%context)
-         CALL cp_fm_create(buf, tmp_fm_struct)
+         CALL cp_fm_create_p(buf, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          !
          CALL cp_fm_get_info(buf, ncol_global=mt, nrow_global=nt)
@@ -723,7 +723,7 @@ CONTAINS
          ! v = v - psi0 * buf'
          CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
-         CALL cp_fm_release(buf)
+         CALL cp_fm_release_p(buf)
       END DO
       !
       CALL timestop(handle)
@@ -761,7 +761,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
                                   para_env=v(ispin)%matrix%matrix_struct%para_env, &
                                   context=v(ispin)%matrix%matrix_struct%context)
-         CALL cp_fm_create(buf, tmp_fm_struct)
+         CALL cp_fm_create_p(buf, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          !
          CALL cp_fm_get_info(buf, ncol_global=mt, nrow_global=nt)
@@ -775,7 +775,7 @@ CONTAINS
          ! v = v - S_psi0 * buf'
          CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, S_psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
-         CALL cp_fm_release(buf)
+         CALL cp_fm_release_p(buf)
       END DO
       !
       CALL timestop(handle)

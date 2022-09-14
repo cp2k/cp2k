@@ -22,7 +22,7 @@ MODULE rt_propagation_forces
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_create_dist_r_unrot
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_p_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE dbcsr_api,                       ONLY: &
@@ -390,7 +390,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       NULLIFY (sab_aux_fit_asymm, sab_aux_fit_vs_orb, ks_env)
-!   CALL cp_fm_create(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix")
+!   CALL cp_fm_create_p(tmp_aux_aux,admm_env%fm_struct_tmp,name="fm matrix")
 
       CALL get_qs_env(qs_env, ks_env=ks_env)
       CALL get_admm_env(admm_env, sab_aux_fit_asymm=sab_aux_fit_asymm, &
@@ -410,15 +410,15 @@ CONTAINS
          naux = admm_env%nao_aux_fit; nmo = admm_env%nmo(ispin); nao = admm_env%nao_orb
 
          ALLOCATE (tmp_aux_aux(2), tmp_aux_nao(2), tmp_aux_mo(2), tmp_aux_mo1(2))
-         CALL cp_fm_create(tmp_aux_aux(1)%matrix, admm_env%work_aux_aux%matrix_struct, name="taa")
-         CALL cp_fm_create(tmp_aux_aux(2)%matrix, admm_env%work_aux_aux%matrix_struct, name="taa")
-         CALL cp_fm_create(tmp_aux_nao(1)%matrix, admm_env%work_aux_orb%matrix_struct, name="tao")
-         CALL cp_fm_create(tmp_aux_nao(2)%matrix, admm_env%work_aux_orb%matrix_struct, name="tao")
+         CALL cp_fm_create_p(tmp_aux_aux(1)%matrix, admm_env%work_aux_aux%matrix_struct, name="taa")
+         CALL cp_fm_create_p(tmp_aux_aux(2)%matrix, admm_env%work_aux_aux%matrix_struct, name="taa")
+         CALL cp_fm_create_p(tmp_aux_nao(1)%matrix, admm_env%work_aux_orb%matrix_struct, name="tao")
+         CALL cp_fm_create_p(tmp_aux_nao(2)%matrix, admm_env%work_aux_orb%matrix_struct, name="tao")
          mstruct => admm_env%work_aux_nmo(ispin)%matrix%matrix_struct
-         CALL cp_fm_create(tmp_aux_mo(1)%matrix, mstruct, name="tam")
-         CALL cp_fm_create(tmp_aux_mo(2)%matrix, mstruct, name="tam")
-         CALL cp_fm_create(tmp_aux_mo1(1)%matrix, mstruct, name="tam")
-         CALL cp_fm_create(tmp_aux_mo1(2)%matrix, mstruct, name="tam")
+         CALL cp_fm_create_p(tmp_aux_mo(1)%matrix, mstruct, name="tam")
+         CALL cp_fm_create_p(tmp_aux_mo(2)%matrix, mstruct, name="tam")
+         CALL cp_fm_create_p(tmp_aux_mo1(1)%matrix, mstruct, name="tam")
+         CALL cp_fm_create_p(tmp_aux_mo1(2)%matrix, mstruct, name="tam")
 
 ! First calculate H=KS_aux*C~, real part ends on work_aux_aux2, imaginary part ends at work_aux_aux3
          CALL cp_dbcsr_sm_fm_multiply(KS_aux_re(ispin)%matrix, mos_admm(re)%matrix, tmp_aux_mo(re)%matrix, nmo, 4.0_dp, 0.0_dp)

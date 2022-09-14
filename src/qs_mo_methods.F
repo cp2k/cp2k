@@ -31,9 +31,9 @@ MODULE qs_mo_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
@@ -103,22 +103,22 @@ CONTAINS
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
       IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
 
-      CALL cp_fm_create(svmatrix, vmatrix%matrix_struct, "SV")
+      CALL cp_fm_create_p(svmatrix, vmatrix%matrix_struct, "SV")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vmatrix, svmatrix, ncol)
 
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
                                para_env=vmatrix%matrix_struct%para_env, &
                                context=vmatrix%matrix_struct%context)
-      CALL cp_fm_create(overlap_vv, fm_struct_tmp, "overlap_vv")
+      CALL cp_fm_create_p(overlap_vv, fm_struct_tmp, "overlap_vv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, svmatrix, rzero, overlap_vv)
       CALL cp_fm_cholesky_decompose(overlap_vv)
       CALL cp_fm_triangular_multiply(overlap_vv, vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
 
-      CALL cp_fm_release(overlap_vv)
-      CALL cp_fm_release(svmatrix)
+      CALL cp_fm_release_p(overlap_vv)
+      CALL cp_fm_release_p(svmatrix)
 
       CALL timestop(handle)
 
@@ -156,7 +156,7 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
                                para_env=vmatrix%matrix_struct%para_env, &
                                context=vmatrix%matrix_struct%context)
-      CALL cp_fm_create(overlap_vv, fm_struct_tmp, "overlap_vv")
+      CALL cp_fm_create_p(overlap_vv, fm_struct_tmp, "overlap_vv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, svmatrix, rzero, overlap_vv)
@@ -164,7 +164,7 @@ CONTAINS
       CALL cp_fm_triangular_multiply(overlap_vv, vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
       CALL cp_fm_triangular_multiply(overlap_vv, svmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
 
-      CALL cp_fm_release(overlap_vv)
+      CALL cp_fm_release_p(overlap_vv)
 
       CALL timestop(handle)
 
@@ -203,13 +203,13 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_tmp, context=blacs_env, nrow_global=ncol, &
                                ncol_global=ncol, para_env=para_env)
-      CALL cp_fm_create(overlap_vv, fm_struct_tmp, name="fm_overlap_vv")
+      CALL cp_fm_create_p(overlap_vv, fm_struct_tmp, name="fm_overlap_vv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL cp_fm_struct_create(fm_struct_tmp, context=blacs_env, nrow_global=n, &
                                ncol_global=ncol_global, para_env=para_env)
-      CALL cp_fm_create(fm_vmatrix, fm_struct_tmp, name="fm_vmatrix")
-      CALL cp_fm_create(fm_svmatrix, fm_struct_tmp, name="fm_svmatrix")
+      CALL cp_fm_create_p(fm_vmatrix, fm_struct_tmp, name="fm_vmatrix")
+      CALL cp_fm_create_p(fm_svmatrix, fm_struct_tmp, name="fm_svmatrix")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL copy_dbcsr_to_fm(vmatrix, fm_vmatrix)
@@ -223,9 +223,9 @@ CONTAINS
       CALL copy_fm_to_dbcsr(fm_vmatrix, vmatrix)
       CALL copy_fm_to_dbcsr(fm_svmatrix, svmatrix)
 
-      CALL cp_fm_release(overlap_vv)
-      CALL cp_fm_release(fm_vmatrix)
-      CALL cp_fm_release(fm_svmatrix)
+      CALL cp_fm_release_p(overlap_vv)
+      CALL cp_fm_release_p(fm_vmatrix)
+      CALL cp_fm_release_p(fm_svmatrix)
 
       CALL timestop(handle)
 
@@ -268,7 +268,7 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
                                para_env=vmatrix%matrix_struct%para_env, &
                                context=vmatrix%matrix_struct%context)
-      CALL cp_fm_create(overlap_vv, fm_struct_tmp, "overlap_vv")
+      CALL cp_fm_create_p(overlap_vv, fm_struct_tmp, "overlap_vv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL cp_fm_triangular_multiply(ortho, vmatrix, n_cols=ncol)
@@ -277,7 +277,7 @@ CONTAINS
       CALL cp_fm_triangular_multiply(overlap_vv, vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
       CALL cp_fm_triangular_multiply(ortho, vmatrix, n_cols=ncol, invert_tr=.TRUE.)
 
-      CALL cp_fm_release(overlap_vv)
+      CALL cp_fm_release_p(overlap_vv)
 
       CALL timestop(handle)
 
@@ -317,15 +317,15 @@ CONTAINS
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
       IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
 
-      CALL cp_fm_create(sc, vmatrix%matrix_struct, "SC")
+      CALL cp_fm_create_p(sc, vmatrix%matrix_struct, "SC")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vmatrix, sc, ncol)
 
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
                                para_env=vmatrix%matrix_struct%para_env, &
                                context=vmatrix%matrix_struct%context)
-      CALL cp_fm_create(csc, fm_struct_tmp, "csc")
-      CALL cp_fm_create(work, fm_struct_tmp, "work")
+      CALL cp_fm_create_p(csc, fm_struct_tmp, "csc")
+      CALL cp_fm_create_p(work, fm_struct_tmp, "work")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, sc, rzero, csc)
@@ -333,9 +333,9 @@ CONTAINS
       CALL parallel_gemm('N', 'N', n, ncol, ncol, rone, vmatrix, csc, rzero, sc)
       CALL cp_fm_to_fm(sc, vmatrix, ncol, 1, 1)
 
-      CALL cp_fm_release(csc)
-      CALL cp_fm_release(sc)
-      CALL cp_fm_release(work)
+      CALL cp_fm_release_p(csc)
+      CALL cp_fm_release_p(sc)
+      CALL cp_fm_release_p(work)
 
       CALL timestop(handle)
 
@@ -373,14 +373,14 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
                                para_env=vmatrix%matrix_struct%para_env, &
                                context=vmatrix%matrix_struct%context)
-      CALL cp_fm_create(overlap_vv, fm_struct_tmp, "overlap_vv")
+      CALL cp_fm_create_p(overlap_vv, fm_struct_tmp, "overlap_vv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL parallel_gemm('T', 'N', ncol, ncol, n, rone, vmatrix, vmatrix, rzero, overlap_vv)
       CALL cp_fm_cholesky_decompose(overlap_vv)
       CALL cp_fm_triangular_multiply(overlap_vv, vmatrix, n_cols=ncol, side='R', invert_tr=.TRUE.)
 
-      CALL cp_fm_release(overlap_vv)
+      CALL cp_fm_release_p(overlap_vv)
 
       CALL timestop(handle)
 
@@ -447,13 +447,13 @@ CONTAINS
 
          ALLOCATE (evals(ncol_global))
 
-         CALL cp_fm_create(weighted_vectors, orbitals%matrix_struct, "weighted_vectors")
+         CALL cp_fm_create_p(weighted_vectors, orbitals%matrix_struct, "weighted_vectors")
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global, ncol_global=ncol_global, &
                                   para_env=orbitals%matrix_struct%para_env, &
                                   context=orbitals%matrix_struct%context)
-         CALL cp_fm_create(h_block, fm_struct_tmp, name="h block")
+         CALL cp_fm_create_p(h_block, fm_struct_tmp, name="h block")
          IF (compute_evecs) THEN
-            CALL cp_fm_create(e_vectors, fm_struct_tmp, name="e vectors")
+            CALL cp_fm_create_p(e_vectors, fm_struct_tmp, name="e vectors")
          END IF
          CALL cp_fm_struct_release(fm_struct_tmp)
 
@@ -484,12 +484,12 @@ CONTAINS
             END IF
             IF (PRESENT(co_rotate_dbcsr)) THEN
                IF (ASSOCIATED(co_rotate_dbcsr)) THEN
-                  CALL cp_fm_create(weighted_vectors2, orbitals%matrix_struct, "weighted_vectors")
+                  CALL cp_fm_create_p(weighted_vectors2, orbitals%matrix_struct, "weighted_vectors")
                   CALL copy_dbcsr_to_fm(co_rotate_dbcsr, weighted_vectors2)
                   CALL parallel_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
                                      weighted_vectors2, e_vectors, 0.0_dp, weighted_vectors)
                   CALL copy_fm_to_dbcsr(weighted_vectors, co_rotate_dbcsr)
-                  CALL cp_fm_release(weighted_vectors2)
+                  CALL cp_fm_release_p(weighted_vectors2)
                END IF
             END IF
          END IF
@@ -519,10 +519,10 @@ CONTAINS
             END IF
          END IF
 
-         CALL cp_fm_release(weighted_vectors)
-         CALL cp_fm_release(h_block)
+         CALL cp_fm_release_p(weighted_vectors)
+         CALL cp_fm_release_p(h_block)
          IF (compute_evecs) THEN
-            CALL cp_fm_release(e_vectors)
+            CALL cp_fm_release_p(e_vectors)
          END IF
 
          DEALLOCATE (evals)
@@ -596,14 +596,14 @@ CONTAINS
                                             sym=dbcsr_type_no_symmetry)
 
 !!!!!!!!!!!!!!XXXXXXXXXXXXXXXXXXX!!!!!!!!!!!!!
-         !CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
+         !CALL cp_fm_create_p(h_block,fm_struct_tmp, name="h block")
          IF (compute_evecs) THEN
             CALL dbcsr_init_p(e_vectors)
             CALL cp_dbcsr_m_by_n_from_template(e_vectors, template=orbitals, m=ncol_global, n=ncol_global, &
                                                sym=dbcsr_type_no_symmetry)
 !           CALL dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
 !                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default)
-            !CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors")
+            !CALL cp_fm_create_p(e_vectors,fm_struct_tmp, name="e vectors")
          END IF
 !        CALL dbcsr_distribution_release (dist)
 !        CALL array_release (row_blk_size);CALL array_release (col_blk_size)
@@ -670,11 +670,11 @@ CONTAINS
 
          CALL dbcsr_release_p(weighted_vectors)
          CALL dbcsr_release_p(h_block)
-         !CALL cp_fm_release(weighted_vectors)
-         !CALL cp_fm_release(h_block)
+         !CALL cp_fm_release_p(weighted_vectors)
+         !CALL cp_fm_release_p(h_block)
          IF (compute_evecs) THEN
             CALL dbcsr_release_p(e_vectors)
-            !CALL cp_fm_release(e_vectors)
+            !CALL cp_fm_release_p(e_vectors)
          END IF
 
          DEALLOCATE (evals)
@@ -717,7 +717,7 @@ CONTAINS
       DO ispin = 1, nspin
          IF (PRESENT(matrix_s)) THEN
             ! get S*C
-            CALL cp_fm_create(svec, mo_array(ispin)%mo_set%mo_coeff%matrix_struct)
+            CALL cp_fm_create_p(svec, mo_array(ispin)%mo_set%mo_coeff%matrix_struct)
             CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff, &
                                 nrow_global=n, ncol_global=k)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s, mo_array(ispin)%mo_set%mo_coeff, &
@@ -726,11 +726,11 @@ CONTAINS
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=k, ncol_global=k, &
                                      para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
                                      context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
-            CALL cp_fm_create(overlap, tmp_fm_struct)
+            CALL cp_fm_create_p(overlap, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
             CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
                                svec, 0.0_dp, overlap)
-            CALL cp_fm_release(svec)
+            CALL cp_fm_release_p(svec)
          ELSE
             ! orthogonal basis C^T C
             CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff, &
@@ -738,7 +738,7 @@ CONTAINS
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=k, ncol_global=k, &
                                      para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
                                      context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
-            CALL cp_fm_create(overlap, tmp_fm_struct)
+            CALL cp_fm_create_p(overlap, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
             CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
                                mo_array(ispin)%mo_set%mo_coeff, 0.0_dp, overlap)
@@ -752,7 +752,7 @@ CONTAINS
                max_alpha = MAX(max_alpha, ABS(alpha))
             END DO
          END DO
-         CALL cp_fm_release(overlap)
+         CALL cp_fm_release_p(overlap)
       END DO
       CALL mp_max(max_alpha, mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env%group)
       orthonormality = max_alpha
@@ -797,16 +797,16 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=k, ncol_global=k, &
                                   para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
                                   context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
-         CALL cp_fm_create(overlap, tmp_fm_struct)
-         CALL cp_fm_create(evecs, tmp_fm_struct)
+         CALL cp_fm_create_p(overlap, tmp_fm_struct)
+         CALL cp_fm_create_p(evecs, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, mo_array(ispin)%mo_set%mo_coeff, &
                             mo_array(ispin)%mo_set%mo_coeff, 0.0_dp, overlap)
          CALL choose_eigv_solver(overlap, evecs, evals)
          mo_mag_min = MIN(MINVAL(evals), mo_mag_min)
          mo_mag_max = MAX(MAXVAL(evals), mo_mag_max)
-         CALL cp_fm_release(overlap)
-         CALL cp_fm_release(evecs)
+         CALL cp_fm_release_p(overlap)
+         CALL cp_fm_release_p(evecs)
          DEALLOCATE (evals)
       END DO
       CALL timestop(handle)

@@ -21,10 +21,10 @@ MODULE rt_propagator_init
                                               cp_fm_scale,&
                                               cp_fm_upper_to_full
    USE cp_fm_diag,                      ONLY: cp_fm_syevd
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -202,26 +202,26 @@ CONTAINS
 
       CALL get_rtp(rtp=rtp, S_inv=S_inv, dt=t)
 
-      CALL cp_fm_create(S_inv_fm, &
-                        matrix_struct=rtp%ao_ao_fmstruct, &
-                        name="S_inv")
+      CALL cp_fm_create_p(S_inv_fm, &
+                          matrix_struct=rtp%ao_ao_fmstruct, &
+                          name="S_inv")
       CALL copy_dbcsr_to_fm(S_inv, S_inv_fm)
 
-      CALL cp_fm_create(S_half, &
-                        matrix_struct=rtp%ao_ao_fmstruct, &
-                        name="S_half")
+      CALL cp_fm_create_p(S_half, &
+                          matrix_struct=rtp%ao_ao_fmstruct, &
+                          name="S_half")
 
-      CALL cp_fm_create(S_minus_half, &
-                        matrix_struct=rtp%ao_ao_fmstruct, &
-                        name="S_minus_half")
+      CALL cp_fm_create_p(S_minus_half, &
+                          matrix_struct=rtp%ao_ao_fmstruct, &
+                          name="S_minus_half")
 
-      CALL cp_fm_create(H_fm, &
-                        matrix_struct=rtp%ao_ao_fmstruct, &
-                        name="RTP_H_FM")
+      CALL cp_fm_create_p(H_fm, &
+                          matrix_struct=rtp%ao_ao_fmstruct, &
+                          name="RTP_H_FM")
 
-      CALL cp_fm_create(tmp_mat_H, &
-                        matrix_struct=rtp%ao_ao_fmstruct, &
-                        name="TMP_H")
+      CALL cp_fm_create_p(tmp_mat_H, &
+                          matrix_struct=rtp%ao_ao_fmstruct, &
+                          name="TMP_H")
 
       ndim = S_inv_fm%matrix_struct%nrow_global
       scale = 1.0_dp
@@ -230,13 +230,13 @@ CONTAINS
 
       ! Create the overlap matrices
 
-      CALL cp_fm_create(tmp, &
-                        matrix_struct=rtp%ao_ao_fmstruct, &
-                        name="tmp_mat")
+      CALL cp_fm_create_p(tmp, &
+                          matrix_struct=rtp%ao_ao_fmstruct, &
+                          name="tmp_mat")
 
-      CALL cp_fm_create(eigvec_H, &
-                        matrix_struct=rtp%ao_ao_fmstruct, &
-                        name="tmp_EVEC")
+      CALL cp_fm_create_p(eigvec_H, &
+                          matrix_struct=rtp%ao_ao_fmstruct, &
+                          name="tmp_EVEC")
 
       ALLOCATE (eigval_H(ndim))
       CALL copy_dbcsr_to_fm(s_mat(1)%matrix, tmp)
@@ -250,8 +250,8 @@ CONTAINS
       CALL backtransform_matrix(eigval_H, eigvec_H, S_minus_half)
       eigval_H(:) = one/eigval_H(:)
       CALL backtransform_matrix(eigval_H, eigvec_H, S_half)
-      CALL cp_fm_release(eigvec_H)
-      CALL cp_fm_release(tmp)
+      CALL cp_fm_release_p(eigvec_H)
+      CALL cp_fm_release_p(tmp)
 
       IF (rtp_control%mat_exp == do_taylor) method = 1
       IF (rtp_control%mat_exp == do_pade) method = 2
@@ -279,11 +279,11 @@ CONTAINS
       DEALLOCATE (eigval_H)
 
       CALL copy_fm_to_dbcsr(S_inv_fm, S_inv)
-      CALL cp_fm_release(S_inv_fm)
-      CALL cp_fm_release(S_half)
-      CALL cp_fm_release(S_minus_half)
-      CALL cp_fm_release(H_fm)
-      CALL cp_fm_release(tmp_mat_H)
+      CALL cp_fm_release_p(S_inv_fm)
+      CALL cp_fm_release_p(S_half)
+      CALL cp_fm_release_p(S_minus_half)
+      CALL cp_fm_release_p(H_fm)
+      CALL cp_fm_release_p(tmp_mat_H)
 
       CALL timestop(handle)
 
@@ -382,9 +382,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: tmp
 
       CALL timeset(routineN, handle)
-      CALL cp_fm_create(tmp, &
-                        matrix_struct=matrix%matrix_struct, &
-                        name="TMP_BT")
+      CALL cp_fm_create_p(tmp, &
+                          matrix_struct=matrix%matrix_struct, &
+                          name="TMP_BT")
       CALL cp_fm_get_info(matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
 
@@ -400,7 +400,7 @@ CONTAINS
       CALL parallel_gemm("N", "T", ndim, ndim, ndim, one, tmp, eigenvec, zero, &
                          matrix)
 
-      CALL cp_fm_release(tmp)
+      CALL cp_fm_release_p(tmp)
       CALL timestop(handle)
 
    END SUBROUTINE backtransform_matrix

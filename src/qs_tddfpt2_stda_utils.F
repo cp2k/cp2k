@@ -30,7 +30,7 @@ MODULE qs_tddfpt2_stda_utils
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
+        cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release_p, cp_fm_set_all, &
         cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_vectorssum
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -396,8 +396,8 @@ CONTAINS
                                   context=sub_env%blacs_env, &
                                   nrow_global=nsgf, &
                                   ncol_global=nsgf)
-         CALL cp_fm_create(matrix=fm_s_half, matrix_struct=fmstruct, name="S^(1/2) MATRIX")
-         CALL cp_fm_create(matrix=fm_work1, matrix_struct=fmstruct, name="TMP MATRIX")
+         CALL cp_fm_create_p(matrix=fm_s_half, matrix_struct=fmstruct, name="S^(1/2) MATRIX")
+         CALL cp_fm_create_p(matrix=fm_work1, matrix_struct=fmstruct, name="TMP MATRIX")
          CALL cp_fm_struct_release(fmstruct=fmstruct)
          CALL copy_dbcsr_to_fm(sm_s, fm_s_half)
          CALL cp_fm_power(fm_s_half, fm_work1, 0.5_dp, scf_control%eps_eigval, ndep)
@@ -406,8 +406,8 @@ CONTAINS
                          "Overlap matrix exhibits linear dependencies. At least some "// &
                          "eigenvalues have been quenched.")
          CALL copy_fm_to_dbcsr(fm_s_half, sm_h)
-         CALL cp_fm_release(matrix=fm_s_half)
-         CALL cp_fm_release(matrix=fm_work1)
+         CALL cp_fm_release_p(matrix=fm_s_half)
+         CALL cp_fm_release_p(matrix=fm_work1)
          IF (iounit > 0) WRITE (iounit, *)
       END IF
 
@@ -420,10 +420,10 @@ CONTAINS
       END DO
 
       ! for Lowdin forces
-      CALL cp_fm_create(matrix=fm_work1, matrix_struct=work%S_eigenvectors%matrix_struct, name="TMP MATRIX")
+      CALL cp_fm_create_p(matrix=fm_work1, matrix_struct=work%S_eigenvectors%matrix_struct, name="TMP MATRIX")
       CALL copy_dbcsr_to_fm(sm_s, fm_work1)
       CALL choose_eigv_solver(fm_work1, work%S_eigenvectors, work%S_eigenvalues)
-      CALL cp_fm_release(matrix=fm_work1)
+      CALL cp_fm_release_p(matrix=fm_work1)
       !
       ALLOCATE (slam(nsgf, 1))
       DO i = 1, nsgf
@@ -573,7 +573,7 @@ CONTAINS
          NULLIFY (fmstruct)
          ct => work%ctransformed(ispin)%matrix
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
-         CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
+         CALL cp_fm_create_p(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
       END DO
       CALL get_lowdin_x(work%shalf, X, xtransformed)
 
@@ -587,7 +587,7 @@ CONTAINS
          ct => work%ctransformed(ispin)%matrix
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct, nrow_global=nsgf)
          ALLOCATE (tv(nsgf))
-         CALL cp_fm_create(cvec, fmstruct)
+         CALL cp_fm_create_p(cvec, fmstruct)
          !
          ! *** Coulomb contribution
          !
@@ -598,7 +598,7 @@ CONTAINS
                xt => xtransformed(jspin)%matrix
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin)
                CALL cp_fm_get_info(ctjspin, matrix_struct=fmstructjspin, nrow_global=nsgf)
-               CALL cp_fm_create(cvecjspin, fmstructjspin)
+               CALL cp_fm_create_p(cvecjspin, fmstructjspin)
                ! CV(mu,j) = CT(mu,j)*XT(mu,j)
                CALL cp_fm_schur_product(ctjspin, xt, cvecjspin)
                ! TV(mu) = SUM_j CV(mu,j)
@@ -610,7 +610,7 @@ CONTAINS
                      tcharge(ia) = tcharge(ia) + tv(is)
                   END DO
                END DO
-               CALL cp_fm_release(cvecjspin)
+               CALL cp_fm_release_p(cvecjspin)
             END DO !jspin
             ! Apply tcharge*gab -> gtcharge
             ! gT(b) = SUM_a g(a,b)*TC(a)
@@ -727,12 +727,12 @@ CONTAINS
             DEALLOCATE (kind_of)
          END IF
          !
-         CALL cp_fm_release(cvec)
+         CALL cp_fm_release_p(cvec)
          DEALLOCATE (tv)
       END DO
 
       DO ispin = 1, nspins
-         CALL cp_fm_release(matrix=xtransformed(ispin)%matrix)
+         CALL cp_fm_release_p(matrix=xtransformed(ispin)%matrix)
       END DO
       DEALLOCATE (xtransformed)
       DEALLOCATE (tcharge, gtcharge)

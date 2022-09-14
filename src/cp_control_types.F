@@ -11,7 +11,7 @@
 ! **************************************************************************************************
 MODULE cp_control_types
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release_p
    USE input_constants,                 ONLY: do_full_density
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -983,7 +983,7 @@ CONTAINS
       IF (ASSOCIATED(tddfpt_control)) THEN
          IF (ASSOCIATED(tddfpt_control%lumos)) THEN
             DO ispin = 1, SIZE(tddfpt_control%lumos)
-               CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix)
+               CALL cp_fm_release_p(tddfpt_control%lumos(ispin)%matrix)
                !MK the following line just avoids a crash of TDDFT runs using
                !MK the sdbg version compiled with the NAG compiler when
                !MK tddfpt_control%lumos is deallocated. This is most likely a

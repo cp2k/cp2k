@@ -20,9 +20,9 @@ MODULE cp_fm_diag_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_soft_copy,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -408,8 +408,8 @@ CONTAINS
                                      context=work_redistribute%blacs_env_new, &
                                      nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order, &
                                      ncol_block=ncol_block)
-            CALL cp_fm_create(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat")
-            CALL cp_fm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec")
+            CALL cp_fm_create_p(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat")
+            CALL cp_fm_create_p(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec")
             CALL cp_fm_struct_release(fm_struct_new)
 
             ! redistribute old
@@ -429,7 +429,7 @@ CONTAINS
          END IF
       ELSE
          ! No need to redistribute, just return pointers to the original arrays
-         ALLOCATE(matrix_new, eigenvectors_new)
+         ALLOCATE (matrix_new, eigenvectors_new)
          CALL cp_fm_soft_copy(matrix, matrix_new)
          CALL cp_fm_soft_copy(eigenvectors, eigenvectors_new)
       END IF
@@ -493,8 +493,8 @@ CONTAINS
             CALL pdgemr2d(n, n, eigenvectors_new%local_data(1, 1), 1, 1, eigenvectors_new%matrix_struct%descriptor, &
                           eigenvectors%local_data(1, 1), 1, 1, eigenvectors%matrix_struct%descriptor, &
                           eigenvectors%matrix_struct%context%group)
-            CALL cp_fm_release(matrix_new)
-            CALL cp_fm_release(eigenvectors_new)
+            CALL cp_fm_release_p(matrix_new)
+            CALL cp_fm_release_p(eigenvectors_new)
          ELSE
             ! these tasks must help redistribute (they own part of the data),
             ! but need fake 'new' data, and their descriptor must indicate this with -1

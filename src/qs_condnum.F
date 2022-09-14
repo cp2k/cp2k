@@ -20,8 +20,8 @@ MODULE qs_condnum
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_gershgorin_norm, &
@@ -116,8 +116,8 @@ CONTAINS
             CALL dbcsr_get_info(smat, nfullrows_total=nbas)
             CALL cp_fm_struct_create(fmstruct=matrix_struct, context=blacs_env, &
                                      nrow_global=nbas, ncol_global=nbas)
-            CALL cp_fm_create(fmsmat, matrix_struct)
-            CALL cp_fm_create(fmwork, matrix_struct)
+            CALL cp_fm_create_p(fmsmat, matrix_struct)
+            CALL cp_fm_create_p(fmwork, matrix_struct)
             ! transfer to FM
             CALL dbcsr_create(tempmat, template=smat, matrix_type=dbcsr_type_no_symmetry)
             CALL dbcsr_desymmetrize(smat, tempmat)
@@ -131,8 +131,8 @@ CONTAINS
             amnorm = cp_fm_norm(fmsmat, "1")
 
             CALL dbcsr_release(tempmat)
-            CALL cp_fm_release(fmsmat)
-            CALL cp_fm_release(fmwork)
+            CALL cp_fm_release_p(fmsmat)
+            CALL cp_fm_release_p(fmwork)
             CALL cp_fm_struct_release(matrix_struct)
 
             IF (iunit > 0) THEN

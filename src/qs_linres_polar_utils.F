@@ -23,10 +23,10 @@ MODULE qs_linres_polar_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -156,7 +156,7 @@ CONTAINS
          ! Remove previous matrices
          DO ispin = 1, nspins
             DO idir = 1, 3
-               CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
+               CALL cp_fm_release_p(polar_env%dBerry_psi0(idir, ispin)%matrix)
             END DO
          END DO
       END IF
@@ -166,7 +166,7 @@ CONTAINS
          ! Remove previous matrices
          DO ispin = 1, nspins
             DO idir = 1, 3
-               CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
+               CALL cp_fm_release_p(polar_env%psi1_dBerry(idir, ispin)%matrix)
             END DO
          END DO
       END IF
@@ -178,8 +178,8 @@ CONTAINS
                                   ncol_global=m, &
                                   context=mo_coeff%matrix_struct%context)
          DO idir = 1, 3
-            CALL cp_fm_create(polar_env%dBerry_psi0(idir, ispin)%matrix, tmp_fm_struct)
-            CALL cp_fm_create(polar_env%psi1_dBerry(idir, ispin)%matrix, tmp_fm_struct)
+            CALL cp_fm_create_p(polar_env%dBerry_psi0(idir, ispin)%matrix, tmp_fm_struct)
+            CALL cp_fm_create_p(polar_env%psi1_dBerry(idir, ispin)%matrix, tmp_fm_struct)
          END DO
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
@@ -440,8 +440,8 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nmo, &
                                   context=mo_coeff%matrix_struct%context)
-         CALL cp_fm_create(psi1(ispin)%matrix, tmp_fm_struct)
-         CALL cp_fm_create(h1_psi0(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create_p(psi1(ispin)%matrix, tmp_fm_struct)
+         CALL cp_fm_create_p(h1_psi0(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
 
@@ -500,8 +500,8 @@ CONTAINS
 
       ! Clean up
       DO ispin = 1, nspins
-         CALL cp_fm_release(psi1(ispin)%matrix)
-         CALL cp_fm_release(h1_psi0(ispin)%matrix)
+         CALL cp_fm_release_p(psi1(ispin)%matrix)
+         CALL cp_fm_release_p(h1_psi0(ispin)%matrix)
       END DO
       DEALLOCATE (psi1, h1_psi0, psi0_order)
 

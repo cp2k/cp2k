@@ -15,9 +15,9 @@ MODULE cp_fm_pool_types
    USE cp_fm_struct,                    ONLY: cp_fm_struct_release,&
                                               cp_fm_struct_retain,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
                                               cp_sll_fm_get_first_el,&
@@ -132,7 +132,7 @@ CONTAINS
       iterator => pool%cache
       DO
          IF (.NOT. cp_sll_fm_next(iterator, el_att=el_att)) EXIT
-         CALL cp_fm_release(el_att)
+         CALL cp_fm_release_p(el_att)
       END DO
       CALL cp_sll_fm_dealloc(pool%cache)
    END SUBROUTINE fm_pool_flush_cache
@@ -186,7 +186,7 @@ CONTAINS
 
       ELSE
          NULLIFY (element)
-         CALL cp_fm_create(element, matrix_struct=pool%el_struct)
+         CALL cp_fm_create_p(element, matrix_struct=pool%el_struct)
       END IF
 
       IF (PRESENT(name)) THEN
@@ -209,7 +209,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      transfers the ownership of the element to the pool
-!>      (it is as if you had called cp_fm_release)
+!>      (it is as if you had called cp_fm_release_p)
 !>      Accept give_backs of non associated elements?
 ! **************************************************************************************************
    SUBROUTINE fm_pool_give_back_fm(pool, element)

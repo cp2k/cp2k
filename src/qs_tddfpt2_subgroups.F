@@ -25,10 +25,10 @@ MODULE qs_tddfpt2_subgroups
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_retain,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -248,7 +248,7 @@ CONTAINS
             NULLIFY (sub_env%mos_occ(ispin)%matrix)
             CALL cp_fm_get_info(mos_occ(ispin)%matrix, nrow_global=nao, ncol_global=nmo_occ)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=sub_env%blacs_env)
-            CALL cp_fm_create(sub_env%mos_occ(ispin)%matrix, fm_struct)
+            CALL cp_fm_create_p(sub_env%mos_occ(ispin)%matrix, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
             CALL tddfpt_fm_replicate_across_subgroups(fm_src=mos_occ(ispin)%matrix, &
                                                       fm_dest_sub=sub_env%mos_occ(ispin)%matrix, sub_env=sub_env)
@@ -258,7 +258,7 @@ CONTAINS
             CALL get_qs_env(qs_env, admm_env=admm_env)
             CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux, ncol_global=nao)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao_aux, ncol_global=nao, context=sub_env%blacs_env)
-            CALL cp_fm_create(sub_env%admm_A, fm_struct)
+            CALL cp_fm_create_p(sub_env%admm_A, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
             CALL tddfpt_fm_replicate_across_subgroups(fm_src=admm_env%A, fm_dest_sub=sub_env%admm_A, sub_env=sub_env)
          END IF
@@ -470,10 +470,10 @@ CONTAINS
       sub_env%is_mgrid = .FALSE.
 
       IF (ASSOCIATED(sub_env%admm_A)) &
-         CALL cp_fm_release(sub_env%admm_A)
+         CALL cp_fm_release_p(sub_env%admm_A)
 
       DO i = SIZE(sub_env%mos_occ), 1, -1
-         CALL cp_fm_release(sub_env%mos_occ(i)%matrix)
+         CALL cp_fm_release_p(sub_env%mos_occ(i)%matrix)
       END DO
       DEALLOCATE (sub_env%mos_occ)
 

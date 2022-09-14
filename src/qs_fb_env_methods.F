@@ -31,8 +31,8 @@ MODULE qs_fb_env_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_release,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -384,15 +384,15 @@ CONTAINS
                                ncol_global=filtered_nfullrowsORcols_total)
       ! both fm_matrix_filtered_s and fm_matrix_filtered_ks are reused
       ! for each spin channel
-      CALL cp_fm_create(fm_matrix_filtered_s, &
-                        fm_struct, &
-                        name="FM_MATRIX_FILTERED_S")
-      CALL cp_fm_create(fm_matrix_filtered_ks, &
-                        fm_struct, &
-                        name="FM_MATRIX_FILTERED_KS")
+      CALL cp_fm_create_p(fm_matrix_filtered_s, &
+                          fm_struct, &
+                          name="FM_MATRIX_FILTERED_S")
+      CALL cp_fm_create_p(fm_matrix_filtered_ks, &
+                          fm_struct, &
+                          name="FM_MATRIX_FILTERED_KS")
       ! creaate work matrix
-      CALL cp_fm_create(fm_matrix_work, fm_struct, name="FM_MATRIX_WORK")
-      CALL cp_fm_create(fm_matrix_ortho, fm_struct, name="FM_MATRIX_ORTHO")
+      CALL cp_fm_create_p(fm_matrix_work, fm_struct, name="FM_MATRIX_WORK")
+      CALL cp_fm_create_p(fm_matrix_ortho, fm_struct, name="FM_MATRIX_ORTHO")
       ! all fm matrices are created, so can release fm_struct
       CALL cp_fm_struct_release(fm_struct)
 
@@ -440,10 +440,10 @@ CONTAINS
       ! release temporary matrices
       CALL dbcsr_release(matrix_filtered_s)
       CALL dbcsr_release(matrix_filtered_ks)
-      CALL cp_fm_release(fm_matrix_filtered_s)
-      CALL cp_fm_release(fm_matrix_filtered_ks)
-      CALL cp_fm_release(fm_matrix_work)
-      CALL cp_fm_release(fm_matrix_ortho)
+      CALL cp_fm_release_p(fm_matrix_filtered_s)
+      CALL cp_fm_release_p(fm_matrix_filtered_ks)
+      CALL cp_fm_release_p(fm_matrix_work)
+      CALL cp_fm_release_p(fm_matrix_ortho)
 
       ! ----------------------------------------------------------------------
       ! Construct New Density Matrix
@@ -526,9 +526,9 @@ CONTAINS
                                context=blacs_env, &
                                nrow_global=original_nfullrowsORcols_total, &
                                ncol_global=filtered_nfullrowsORcols_total)
-      CALL cp_fm_create(fm_matrix_filter, &
-                        filter_fm_struct, &
-                        name="FM_MATRIX_FILTER")
+      CALL cp_fm_create_p(fm_matrix_filter, &
+                          filter_fm_struct, &
+                          name="FM_MATRIX_FILTER")
       CALL cp_fm_struct_release(filter_fm_struct)
 
       DO ispin = 1, nspin
@@ -575,7 +575,7 @@ CONTAINS
       END DO ! ispin
 
       ! release temporary matrices
-      CALL cp_fm_release(fm_matrix_filter)
+      CALL cp_fm_release_p(fm_matrix_filter)
 
       ! ----------------------------------------------------------------------
       ! Final Clean Up

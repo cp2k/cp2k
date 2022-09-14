@@ -12,10 +12,10 @@ MODULE qs_tddfpt2_operators
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
@@ -109,7 +109,7 @@ CONTAINS
          CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct, &
                              nrow_global=nao, ncol_global=nactive)
          NULLIFY (hevec)
-         CALL cp_fm_create(hevec, matrix_struct)
+         CALL cp_fm_create_p(hevec, matrix_struct)
 
          DO ivect = 1, nvects
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, evects(ispin, ivect)%matrix, &
@@ -129,7 +129,7 @@ CONTAINS
             ! KS * C1 - S * C1 * occupied_orbital_energies
             CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect)%matrix, -1.0_dp, hevec)
          END DO
-         CALL cp_fm_release(hevec)
+         CALL cp_fm_release_p(hevec)
       END DO
 
       CALL timestop(handle)

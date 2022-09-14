@@ -27,8 +27,8 @@ MODULE kpoint_methods
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
-        cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, &
+        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create_p, cp_fm_finish_copy_general, &
+        cp_fm_get_info, cp_fm_p_type, cp_fm_release_p, cp_fm_start_copy_general, cp_fm_to_fm, &
         cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_cart_create,&
@@ -513,7 +513,7 @@ CONTAINS
                IF (ASSOCIATED(kp%pmat)) THEN
                   DO is = 1, SIZE(kp%pmat, 2)
                      DO ic = 1, SIZE(kp%pmat, 1)
-                        CALL cp_fm_release(kp%pmat(ic, is)%matrix)
+                        CALL cp_fm_release_p(kp%pmat(ic, is)%matrix)
                      END DO
                   END DO
                   DEALLOCATE (kp%pmat)
@@ -521,14 +521,14 @@ CONTAINS
                ALLOCATE (kp%pmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
-                     CALL cp_fm_create(kp%pmat(ic, is)%matrix, matrix_struct)
+                     CALL cp_fm_create_p(kp%pmat(ic, is)%matrix, matrix_struct)
                   END DO
                END DO
                ! energy weighted density matrix
                IF (ASSOCIATED(kp%wmat)) THEN
                   DO is = 1, SIZE(kp%wmat, 2)
                      DO ic = 1, SIZE(kp%wmat, 1)
-                        CALL cp_fm_release(kp%wmat(ic, is)%matrix)
+                        CALL cp_fm_release_p(kp%wmat(ic, is)%matrix)
                      END DO
                   END DO
                   DEALLOCATE (kp%wmat)
@@ -536,7 +536,7 @@ CONTAINS
                ALLOCATE (kp%wmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
-                     CALL cp_fm_create(kp%wmat(ic, is)%matrix, matrix_struct)
+                     CALL cp_fm_create_p(kp%wmat(ic, is)%matrix, matrix_struct)
                   END DO
                END DO
             END DO
@@ -959,7 +959,7 @@ CONTAINS
       mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
       CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
       CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
-      CALL cp_fm_create(fwork, matrix_struct)
+      CALL cp_fm_create_p(fwork, matrix_struct)
 
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
       kplocal = kp_range(2) - kp_range(1) + 1
@@ -1016,7 +1016,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL cp_fm_release(fwork)
+      CALL cp_fm_release_p(fwork)
 
       CALL timestop(handle)
 

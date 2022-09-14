@@ -39,9 +39,9 @@ MODULE cp_dbcsr_operations
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
-   USE cp_fm_types, ONLY: cp_fm_create, &
+   USE cp_fm_types, ONLY: cp_fm_create_p, &
                           cp_fm_get_info, &
-                          cp_fm_release, &
+                          cp_fm_release_p, &
                           cp_fm_to_fm, &
                           cp_fm_type
    USE cp_para_types, ONLY: cp_para_env_type
@@ -384,13 +384,13 @@ CONTAINS
       CALL dbcsr_get_info(matrix_a, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrix_a, fm_struct, name="fm_matrix_a")
+      CALL cp_fm_create_p(fm_matrix_a, fm_struct, name="fm_matrix_a")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL dbcsr_get_info(matrix_b, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create(fm_matrix_b, fm_struct, name="fm_matrix_b")
+      CALL cp_fm_create_p(fm_matrix_b, fm_struct, name="fm_matrix_b")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL copy_dbcsr_to_fm(matrix_a, fm_matrix_a)
@@ -400,8 +400,8 @@ CONTAINS
 
       CALL copy_fm_to_dbcsr(fm_matrix_b, matrix_b)
 
-      CALL cp_fm_release(fm_matrix_a)
-      CALL cp_fm_release(fm_matrix_b)
+      CALL cp_fm_release_p(fm_matrix_a)
+      CALL cp_fm_release_p(fm_matrix_b)
 
    END SUBROUTINE dbcsr_copy_columns_hack
 
@@ -747,7 +747,7 @@ CONTAINS
             CALL cp_fm_get_info(matrix_v, nrow_global=nao)
             CALL cp_fm_struct_create(fm_struct_tmp, context=matrix_v%matrix_struct%context, nrow_global=nao, &
                                      ncol_global=nao, para_env=matrix_v%matrix_struct%para_env)
-            CALL cp_fm_create(fm_matrix, fm_struct_tmp, name="fm matrix")
+            CALL cp_fm_create_p(fm_matrix, fm_struct_tmp, name="fm matrix")
             CALL cp_fm_struct_release(fm_struct_tmp)
             CALL copy_dbcsr_to_fm(sparse_matrix, fm_matrix)
             CALL dbcsr_copy(sparse_matrix3, sparse_matrix)
@@ -808,7 +808,7 @@ CONTAINS
             END IF
             CALL dbcsr_release(sparse_matrix2)
             CALL dbcsr_release(sparse_matrix3)
-            CALL cp_fm_release(fm_matrix)
+            CALL cp_fm_release_p(fm_matrix)
          END IF
          CALL dbcsr_release(mat_v)
          IF (PRESENT(matrix_g)) CALL dbcsr_release(mat_g)

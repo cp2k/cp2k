@@ -51,9 +51,9 @@ MODULE cp_fm_types
              cp_fm_p_type, copy_info_type
 
    PUBLIC :: cp_fm_add_to_element, &
-             cp_fm_create, &
+             cp_fm_create_p, &
              cp_fm_retain, &
-             cp_fm_release, &
+             cp_fm_release_p, &
              cp_fm_get_info, &
              cp_fm_set_element, &
              cp_fm_get_element, &
@@ -155,13 +155,13 @@ CONTAINS
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_create(matrix, matrix_struct, name, use_sp)
+   SUBROUTINE cp_fm_create_p(matrix, matrix_struct, name, use_sp)
       TYPE(cp_fm_type), POINTER                          :: matrix
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
       LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_create'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_create_p'
 
       INTEGER                                            :: handle, ncol_local, npcol, nprow, &
                                                             nrow_local
@@ -216,7 +216,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_create
+   END SUBROUTINE cp_fm_create_p
 
 ! **************************************************************************************************
 !> \brief retains a full matrix
@@ -241,10 +241,10 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_release(matrix)
+   SUBROUTINE cp_fm_release_p(matrix)
       TYPE(cp_fm_type), POINTER                          :: matrix
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_release'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_release_p'
 
       INTEGER                                            :: handle
 
@@ -269,11 +269,11 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_release
+   END SUBROUTINE cp_fm_release_p
 
 ! **************************************************************************************************
 !> \brief This routine performs a soft copy. The destination matrix is NOT meant to be released
-!>        with cp_fm_release; otherwise, the POINTERs within the source matrix become undefined.
+!>        with cp_fm_release_p; otherwise, the POINTERs within the source matrix become undefined.
 !> \param source ...
 !> \param destination ...
 ! **************************************************************************************************

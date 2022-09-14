@@ -26,10 +26,10 @@ MODULE matrix_exp
    USE cp_fm_struct,                    ONLY: cp_fm_struct_double,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
+   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
+                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -91,19 +91,19 @@ CONTAINS
 
       square_fac = 1.0_dp/(2.0_dp**REAL(nsquare, dp))
 !    CALL cp_fm_scale(square_fac,im_matrix)
-      CALL cp_fm_create(T1, &
-                        matrix_struct=im_matrix%matrix_struct, &
-                        name="T1")
+      CALL cp_fm_create_p(T1, &
+                          matrix_struct=im_matrix%matrix_struct, &
+                          name="T1")
 
-      CALL cp_fm_create(T2, &
-                        matrix_struct=T1%matrix_struct, &
-                        name="T2")
-      CALL cp_fm_create(Tres_im, &
-                        matrix_struct=T1%matrix_struct, &
-                        name="T3")
-      CALL cp_fm_create(Tres_re, &
-                        matrix_struct=T1%matrix_struct, &
-                        name="Tres")
+      CALL cp_fm_create_p(T2, &
+                          matrix_struct=T1%matrix_struct, &
+                          name="T2")
+      CALL cp_fm_create_p(Tres_im, &
+                          matrix_struct=T1%matrix_struct, &
+                          name="T3")
+      CALL cp_fm_create_p(Tres_re, &
+                          matrix_struct=T1%matrix_struct, &
+                          name="Tres")
       tmp = 1.0_dp
 
       CALL cp_fm_set_all(Tres_re, zero, one)
@@ -144,10 +144,10 @@ CONTAINS
          CALL cp_fm_to_fm(Tres_im, exp_H(2)%matrix)
       END IF
 
-      CALL cp_fm_release(T1)
-      CALL cp_fm_release(T2)
-      CALL cp_fm_release(Tres_re)
-      CALL cp_fm_release(Tres_im)
+      CALL cp_fm_release_p(T1)
+      CALL cp_fm_release_p(T2)
+      CALL cp_fm_release_p(Tres_re)
+      CALL cp_fm_release_p(Tres_im)
 
       CALL timestop(handle)
 
@@ -487,13 +487,13 @@ CONTAINS
                          matrix_struct=Dpq%matrix_struct, &
                          name="T1")
 
-      CALL cp_fm_create(T2, &
-                        matrix_struct=T1%matrix_struct, &
-                        name="T2")
+      CALL cp_fm_create_p(T2, &
+                          matrix_struct=T1%matrix_struct, &
+                          name="T2")
 
-      CALL cp_fm_create(Tres, &
-                        matrix_struct=T1%matrix_struct, &
-                        name="Tres")
+      CALL cp_fm_create_p(Tres, &
+                          matrix_struct=T1%matrix_struct, &
+                          name="Tres")
 
 !    DO i=1,ldim
 !       local_data_im(:,i)=local_data_im(:,i)/square_fac
@@ -558,8 +558,8 @@ CONTAINS
       CALL cp_cfm_release(Npq)
       CALL cp_cfm_release(Dpq)
       CALL cp_cfm_release(T1)
-      CALL cp_fm_release(T2)
-      CALL cp_fm_release(Tres)
+      CALL cp_fm_release_p(T2)
+      CALL cp_fm_release_p(Tres)
       DEALLOCATE (cmult_p)
       CALL timestop(handle)
    END SUBROUTINE exp_pade_only_imaginary
@@ -597,25 +597,25 @@ CONTAINS
       square_fac = 2.0_dp**REAL(nsquare, dp)
       ALLOCATE (mult_p(2))
 
-      CALL cp_fm_create(Dpq, &
-                        matrix_struct=matrix%matrix_struct, &
-                        name="Dpq")
+      CALL cp_fm_create_p(Dpq, &
+                          matrix_struct=matrix%matrix_struct, &
+                          name="Dpq")
 
-      CALL cp_fm_create(Npq, &
-                        matrix_struct=Dpq%matrix_struct, &
-                        name="Npq")
+      CALL cp_fm_create_p(Npq, &
+                          matrix_struct=Dpq%matrix_struct, &
+                          name="Npq")
 
-      CALL cp_fm_create(T1, &
-                        matrix_struct=Dpq%matrix_struct, &
-                        name="T1")
+      CALL cp_fm_create_p(T1, &
+                          matrix_struct=Dpq%matrix_struct, &
+                          name="T1")
 
-      CALL cp_fm_create(T2, &
-                        matrix_struct=T1%matrix_struct, &
-                        name="T2")
+      CALL cp_fm_create_p(T2, &
+                          matrix_struct=T1%matrix_struct, &
+                          name="T2")
 
-      CALL cp_fm_create(Tres, &
-                        matrix_struct=T1%matrix_struct, &
-                        name="Tres")
+      CALL cp_fm_create_p(Tres, &
+                          matrix_struct=T1%matrix_struct, &
+                          name="Tres")
 
       DO i = 1, ldim
          T2%local_data(:, i) = local_data(:, i)/square_fac
@@ -666,11 +666,11 @@ CONTAINS
          exp_H%local_data(:, k) = fin_p%local_data(:, k)
       END DO
 
-      CALL cp_fm_release(Npq)
-      CALL cp_fm_release(Dpq)
-      CALL cp_fm_release(T1)
-      CALL cp_fm_release(T2)
-      CALL cp_fm_release(Tres)
+      CALL cp_fm_release_p(Npq)
+      CALL cp_fm_release_p(Dpq)
+      CALL cp_fm_release_p(T1)
+      CALL cp_fm_release_p(T2)
+      CALL cp_fm_release_p(Tres)
       DEALLOCATE (mult_p)
       CALL timestop(handle)
 
@@ -738,8 +738,8 @@ CONTAINS
       H_approx_save = rzero
 
       DO i = 1, narnoldi + 1
-         CALL cp_fm_create(V_mats(i)%matrix, matrix_struct=newstruct, &
-                           name="V_mat"//cp_to_string(i))
+         CALL cp_fm_create_p(V_mats(i)%matrix, matrix_struct=newstruct, &
+                             name="V_mat"//cp_to_string(i))
       END DO
       CALL cp_fm_get_info(V_mats(1)%matrix, ncol_global=newdim)
 
@@ -961,7 +961,7 @@ CONTAINS
       !deallocate all work matrices
 
       DO i = 1, SIZE(V_mats)
-         CALL cp_fm_release(V_mats(i)%matrix)
+         CALL cp_fm_release_p(V_mats(i)%matrix)
       END DO
       CALL cp_fm_struct_release(newstruct)
       CALL mp_comm_free(col_group)

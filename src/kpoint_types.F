@@ -16,7 +16,7 @@ MODULE kpoint_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release
+                                              cp_fm_release_p
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -705,7 +705,7 @@ CONTAINS
          IF (ASSOCIATED(kp_env%pmat)) THEN
             DO is = 1, SIZE(kp_env%pmat, 2)
                DO ic = 1, SIZE(kp_env%pmat, 1)
-                  CALL cp_fm_release(kp_env%pmat(ic, is)%matrix)
+                  CALL cp_fm_release_p(kp_env%pmat(ic, is)%matrix)
                END DO
             END DO
             DEALLOCATE (kp_env%pmat)
@@ -714,7 +714,7 @@ CONTAINS
          IF (ASSOCIATED(kp_env%wmat)) THEN
             DO is = 1, SIZE(kp_env%wmat, 2)
                DO ic = 1, SIZE(kp_env%wmat, 1)
-                  CALL cp_fm_release(kp_env%wmat(ic, is)%matrix)
+                  CALL cp_fm_release_p(kp_env%wmat(ic, is)%matrix)
                END DO
             END DO
             DEALLOCATE (kp_env%wmat)
