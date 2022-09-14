@@ -57,6 +57,7 @@ MODULE qs_scf_post_gpw
                                               dbcsr_type
    USE dct,                             ONLY: pw_shrink
    USE et_coupling_types,               ONLY: set_et_coupling_type
+   USE hfx_ri,                          ONLY: print_ri_hfx
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
                                               comp_hirshfeld_i_charges,&
                                               create_shape_function,&
@@ -1873,10 +1874,10 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name
-      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, nd(3), ngto, niso, &
-         nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, unit_nr, &
-         unit_nr_voro
-      LOGICAL :: append_cube, append_voro, do_kpoints, mpi_io, omit_headers, print_it, &
+      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nd(3), ngto, &
+         niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
+         unit_nr, unit_nr_voro
+      LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
          print_total_density, rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: q_max, rho_hard, rho_soft, rho_total, &
                                                             rho_total_rspace, udvol, volume
@@ -1908,12 +1909,12 @@ CONTAINS
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
       TYPE(rho_atom_type), POINTER                       :: rho_atom
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, print_key, &
-                                                            print_key_bqb, print_key_voro, &
-                                                            xc_section
+      TYPE(section_vals_type), POINTER                   :: dft_section, hfx_section, input, &
+                                                            print_key, print_key_bqb, &
+                                                            print_key_voro, xc_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
+      NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, hfx_section, &
                atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, rho_ao, rho_r, &
                dft_section, xc_section, input, particles, subsys, matrix_vxc, v_hartree_rspace, vee)
 
@@ -2634,6 +2635,16 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MINBAS_ANALYSIS", extension=".mao", log_filename=.FALSE.)
          CALL minbas_analysis(qs_env, print_key, unit_nr)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MINBAS_ANALYSIS")
+      END IF
+
+      ! Print the density in the RI-HFX basis
+      hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
+      CALL section_vals_get(hfx_section, explicit=do_hfx)
+      CALL section_vals_get(hfx_section, n_repetition=n_rep_hf)
+      IF (do_hfx) THEN
+         DO i = 1, n_rep_hf
+            IF (qs_env%x_data(i, 1)%do_hfx_ri) CALL print_ri_hfx(qs_env%x_data(i, 1)%ri_data, qs_env)
+         END DO
       END IF
 
       CALL timestop(handle)

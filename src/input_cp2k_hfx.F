@@ -659,11 +659,44 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL section_create(subsection, __LOCATION__, name="PRINT", &
+                          description="Section of possible print options in the RI-HFX code.", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RI_INFO", &
                                        description="Controls the printing of DBCSR tensor log in RI HFX.", &
                                        print_level=high_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
-      CALL section_add_subsection(section, print_key)
+      CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RI_DENSITY_COEFFS", &
+                                       description="Controls the printing of the projection of the elecontric "// &
+                                       "density on the RI_HFX basis. n(r) = sum_s c_s*phi_RI_s(r), "// &
+                                       "where c_s = sum_pqr P_pq (pq|r) (r|s)^-1 and | is the RI_METRIC", &
+                                       print_level=high_print_level, filename="RI_DENSITY_COEFFS", &
+                                       common_iter_levels=3)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MULTIPLY_BY_RI_2C_INTEGRALS", &
+                          variants=s2a("MULT_BY_RI", "MULT_BY_S", "MULT_BY_RI_INTS"), &
+                          description="Whether the RI density coefficients to be printed should "// &
+                          "be pre-multiplied by the RI_METRIC 2c-integrals: (r|s)*C_s.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "RI_METRIC_2C_INTS", &
+                                       description="Controls the printing of RI 2-center integrals for the "// &
+                                       "HFX potential.", &
+                                       print_level=high_print_level, filename="RI_2C_INTS", &
+                                       common_iter_levels=3)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
    END SUBROUTINE
 

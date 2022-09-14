@@ -1029,7 +1029,7 @@ CONTAINS
       ri_data%eps_schwarz_forces = x_data%screening_parameter%eps_schwarz_forces
 
       logger => cp_get_default_logger()
-      unit_nr_dbcsr = cp_print_key_unit_nr(logger, ri_data%ri_section, "RI_INFO", &
+      unit_nr_dbcsr = cp_print_key_unit_nr(logger, ri_data%ri_section, "PRINT%RI_INFO", &
                                            extension=".dbcsrLog")
 
       unit_nr = cp_print_key_unit_nr(logger, ri_data%hfx_section, "HF_INFO", &
@@ -1905,7 +1905,7 @@ CONTAINS
                IF (ASSOCIATED(actual_x_data%ri_data%ri_section)) THEN
                   logger => cp_get_default_logger()
                   CALL cp_print_key_finished_output(actual_x_data%ri_data%unit_nr_dbcsr, logger, actual_x_data%ri_data%ri_section, &
-                                                    "RI_INFO")
+                                                    "PRINT%RI_INFO")
                END IF
                IF (ASSOCIATED(actual_x_data%ri_data%hfx_section)) THEN
                   logger => cp_get_default_logger()
