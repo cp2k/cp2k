@@ -652,10 +652,9 @@ CONTAINS
 #endif
 
       CALL keyword_create(keyword, __LOCATION__, name="TYPE_OF_MATRIX_MULTIPLICATION", &
-                          description="Allows to switch between scalapack pdgemm and dbcsr_multiply. "// &
-                          "On normal systems pdgemm is recommended on system with GPU "// &
-                          "is optimized and can give better performance. NOTE: if DBCSR is employed "// &
-                          "FORCE_BLOCK_SIZE should be set. The performance on GPU's depends "// &
+                          description="Allows to switch between scalapack pxgemm and COSMA pxgemm. "// &
+                          "COSMA reduces the communication costs but increases the memory demands. "// &
+                          "The performance of Scalapack's pxgemm on GPU's depends "// &
                           "crucially on the BLOCK_SIZES. Make sure optimized kernels are available.", &
                           default_i_val=default_matmul, &
                           enum_i_vals=(/do_scalapack, do_scalapack, do_cosma/), &
