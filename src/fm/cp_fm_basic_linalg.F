@@ -536,13 +536,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief computes the Frobenius norm of matrix_a
+!> \brief computes the Frobenius norm of matrix_a
 !> \param matrix_a : m x n matrix
-!> \param norm ...
+!> \return ...
 !> \author VW
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_frobenius_norm(matrix_a, norm)
+   FUNCTION cp_fm_frobenius_norm(matrix_a) RESULT(norm)
       TYPE(cp_fm_type), INTENT(IN)             :: matrix_a
-      REAL(KIND=dp), INTENT(OUT)               :: norm
+      REAL(KIND=dp)                            :: norm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_frobenius_norm'
 
@@ -567,7 +568,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_fm_frobenius_norm
+   END FUNCTION cp_fm_frobenius_norm
 
 ! **************************************************************************************************
 !> \brief performs a rank-k update of a symmetric matrix_c

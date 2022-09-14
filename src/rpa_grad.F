@@ -15,8 +15,7 @@ MODULE rpa_grad
                                               c_associated
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type,&
                                               get_blacs_info
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
-                                              cp_fm_geadd,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_upper_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_invert
@@ -737,7 +736,6 @@ CONTAINS
                                                             jspin, ncol_local, nrow_local, nspins, &
                                                             row_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: mat_S_3D, mat_work_iaP_3D
       TYPE(cp_fm_type), POINTER                          :: fm_work_iaP, fm_work_PQ
@@ -819,8 +817,6 @@ CONTAINS
                             matrix_c=fm_work_iaP)
          CALL dgemm_counter_stop(dgemm_counter, dimen_ia, dimen_RI, dimen_RI)
          CALL timestop(handle2)
-
-         CALL cp_fm_frobenius_norm(fm_work_iaP, norm)
 
          IF (do_ri_sos_laplace_mp2) THEN
             CALL calc_P_sos_mp2(homo(ispin), fm_mat_S(ispin)%matrix, fm_work_iaP, &

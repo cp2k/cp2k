@@ -221,7 +221,7 @@ CONTAINS
             ! copy the response
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_efg(ispin, ijdir)%matrix)
-               CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
+               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
                chk = chk + fro
             END DO
             !
@@ -279,7 +279,7 @@ CONTAINS
             ! copy the response
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_pso(ispin, idir)%matrix)
-               CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
+               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
                chk = chk + fro
             END DO
             !
@@ -335,7 +335,7 @@ CONTAINS
          ! copy the response
          DO ispin = 1, nspins
             CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_fc(ispin)%matrix)
-            CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
+            fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
             chk = chk + fro
          END DO
          !
@@ -393,7 +393,7 @@ CONTAINS
             ! copy the response
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_dso(ispin, idir)%matrix)
-               CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
+               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
                chk = chk + fro
             END DO
             !

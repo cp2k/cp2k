@@ -173,7 +173,7 @@ CONTAINS
          !
          !-------------------------------------------------------------------
          !
-         CALL cp_fm_frobenius_norm(G, gnorm)
+         gnorm = cp_fm_frobenius_norm(G)
          !write(*,*) 'qs_localize: norm(G)=',gnorm
          !
          ! rescale for steepest descent
@@ -185,7 +185,7 @@ CONTAINS
          ! first order
          expfactor = 1.0_dp
          CALL cp_fm_scale_and_add(1.0_dp, U, expfactor, G)
-         CALL cp_fm_frobenius_norm(G, tnorm)
+         tnorm = cp_fm_frobenius_norm(G)
          !write(*,*) 'Taylor expansion i=',1,' norm(X^i)/i!=',tnorm
          IF (tnorm .GT. 1.0E-10_dp) THEN
             ! other orders
@@ -197,7 +197,7 @@ CONTAINS
                ! add to the taylor expansion so far
                expfactor = expfactor/REAL(i, KIND=dp)
                CALL cp_fm_scale_and_add(1.0_dp, U, expfactor, Gp1)
-               CALL cp_fm_frobenius_norm(Gp1, tnorm)
+               tnorm = cp_fm_frobenius_norm(Gp1)
                !write(*,*) 'Taylor expansion i=',i,' norm(X^i)/i!=',tnorm*expfactor
                IF (tnorm*expfactor .LT. 1.0E-10_dp) EXIT
             END DO
