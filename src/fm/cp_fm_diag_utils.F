@@ -23,6 +23,7 @@ MODULE cp_fm_diag_utils
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_soft_copy,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -284,7 +285,7 @@ CONTAINS
    SUBROUTINE cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, &
                                        caller_is_elpa, redist_info)
 
-      TYPE(cp_fm_type), INTENT(IN), TARGET     :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)     :: matrix, eigenvectors
       TYPE(cp_fm_type), POINTER                :: matrix_new, eigenvectors_new
       LOGICAL, OPTIONAL, INTENT(IN)            :: caller_is_elpa
 
@@ -428,8 +429,9 @@ CONTAINS
          END IF
       ELSE
          ! No need to redistribute, just return pointers to the original arrays
-         matrix_new => matrix
-         eigenvectors_new => eigenvectors
+         ALLOCATE(matrix_new, eigenvectors_new)
+         CALL cp_fm_soft_copy(matrix, matrix_new)
+         CALL cp_fm_soft_copy(eigenvectors, eigenvectors_new)
       END IF
 
       IF (PRESENT(redist_info)) &

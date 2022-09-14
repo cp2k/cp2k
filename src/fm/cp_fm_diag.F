@@ -168,7 +168,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE choose_eigv_solver(matrix, eigenvectors, eigenvalues, info)
 
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL                     :: info
 
@@ -1209,9 +1209,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
 
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: work
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig'
 
@@ -1251,9 +1251,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
 
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig_canon'

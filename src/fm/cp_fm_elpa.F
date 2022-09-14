@@ -275,7 +275,7 @@ CONTAINS
 !> \param eigenvalues eigenvalues of the input matrix
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET  :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_elpa'
