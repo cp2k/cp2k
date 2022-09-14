@@ -167,6 +167,7 @@ EOF
 leak:cosma::communicator::communicator
 leak:cosma::cosma_context<double>::register_state
 leak:cosma::pxgemm<double>
+leak:cosma::cosma_context<std::complex<double> >::register_state
 EOF
 fi
 
