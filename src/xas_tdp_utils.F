@@ -12,7 +12,6 @@
 
 MODULE xas_tdp_utils
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -2999,10 +2998,10 @@ CONTAINS
          CALL cp_fm_to_cfm(msourcer=amew_dip(i)%matrix, mtarget=work1_cfm)
 
          !compute amew_coeffs^dagger * amew_dip * amew_gs to get the transition moments
-         CALL cp_cfm_gemm('C', 'N', ntot, ntot, ntot, (1.0_dp, 0.0_dp), soc_evecs_cfm, work1_cfm, &
-                          (0.0_dp, 0.0_dp), work2_cfm)
-         CALL cp_cfm_gemm('N', 'N', ntot, 1, ntot, (1.0_dp, 0.0_dp), work2_cfm, soc_evecs_cfm, &
-                          (0.0_dp, 0.0_dp), dip_cfm)
+         CALL parallel_gemm('C', 'N', ntot, ntot, ntot, (1.0_dp, 0.0_dp), soc_evecs_cfm, work1_cfm, &
+                            (0.0_dp, 0.0_dp), work2_cfm)
+         CALL parallel_gemm('N', 'N', ntot, 1, ntot, (1.0_dp, 0.0_dp), work2_cfm, soc_evecs_cfm, &
+                            (0.0_dp, 0.0_dp), dip_cfm)
 
          CALL cp_cfm_get_submatrix(dip_cfm, transdip)
 
@@ -3110,10 +3109,10 @@ CONTAINS
          CALL cp_fm_to_cfm(msourcer=amew_quad(i)%matrix, mtarget=work1_cfm)
 
          !compute amew_coeffs^dagger * amew_quad * amew_gs to get the transition moments
-         CALL cp_cfm_gemm('C', 'N', ntot, ntot, ntot, (1.0_dp, 0.0_dp), soc_evecs_cfm, work1_cfm, &
-                          (0.0_dp, 0.0_dp), work2_cfm)
-         CALL cp_cfm_gemm('N', 'N', ntot, 1, ntot, (1.0_dp, 0.0_dp), work2_cfm, soc_evecs_cfm, &
-                          (0.0_dp, 0.0_dp), quad_cfm)
+         CALL parallel_gemm('C', 'N', ntot, ntot, ntot, (1.0_dp, 0.0_dp), soc_evecs_cfm, work1_cfm, &
+                            (0.0_dp, 0.0_dp), work2_cfm)
+         CALL parallel_gemm('N', 'N', ntot, 1, ntot, (1.0_dp, 0.0_dp), work2_cfm, soc_evecs_cfm, &
+                            (0.0_dp, 0.0_dp), quad_cfm)
 
          CALL cp_cfm_get_submatrix(quad_cfm, transquad)
 

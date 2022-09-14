@@ -20,7 +20,6 @@ MODULE rpa_gw_kpoints_util
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert,&
                                               cp_cfm_column_scale,&
-                                              cp_cfm_gemm,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm,&
                                               cp_cfm_transpose
@@ -77,6 +76,7 @@ MODULE rpa_gw_kpoints_util
    USE mathlib,                         ONLY: invmat
    USE message_passing,                 ONLY: mp_sum,&
                                               mp_sync
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_band_structure,               ONLY: calculate_kpoints_for_bs
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -381,8 +381,8 @@ CONTAINS
       ! 2. Remove all negative eigenvalues from chi(k,iw)
       IF (make_chi_pos_definite) THEN
          CALL cp_cfm_matrix_exponential(cfm_mat_Q, cfm_mat_work, threshold=0.0_dp, exponent=0.5_dp)
-         CALL cp_cfm_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_Q, &
-                          z_zero, cfm_mat_work)
+         CALL parallel_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_Q, &
+                            z_zero, cfm_mat_work)
          CALL cp_cfm_to_cfm(cfm_mat_work, cfm_mat_Q)
 
       END IF
@@ -392,12 +392,12 @@ CONTAINS
       CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
 
       ! 4. work = P(iw,k)*L(k)
-      CALL cp_cfm_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
-                       z_zero, cfm_mat_work)
+      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
+                         z_zero, cfm_mat_work)
 
       ! 5. Q(iw,k) = L^H(k)*work
-      CALL cp_cfm_gemm('C', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
-                       z_zero, cfm_mat_Q)
+      CALL parallel_gemm('C', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
+                         z_zero, cfm_mat_Q)
 
       CALL cp_cfm_release(cfm_mat_work)
       CALL cp_cfm_release(cfm_mat_L)
@@ -1130,12 +1130,12 @@ CONTAINS
          CALL timeset(routineN//"_3.1", handle2)
 
          ! work = epsilon(iw,k)*L^H(k)
-         CALL cp_cfm_gemm('N', 'C', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
-                          z_zero, cfm_mat_work)
+         CALL parallel_gemm('N', 'C', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
+                            z_zero, cfm_mat_work)
 
          ! W(iw,k) = L(k)*work
-         CALL cp_cfm_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
-                          z_zero, cfm_mat_work_2)
+         CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
+                            z_zero, cfm_mat_work_2)
 
          CALL timestop(handle2)
 
@@ -1150,8 +1150,8 @@ CONTAINS
          ELSE
 
             ! S^-1(k)V(k)S^-1(k) = L(k)*L(k)^H
-            CALL cp_cfm_gemm('N', 'C', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_L, &
-                             z_zero, cfm_mat_work_2)
+            CALL parallel_gemm('N', 'C', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_L, &
+                               z_zero, cfm_mat_work_2)
          END IF
 
       END IF
@@ -1405,12 +1405,12 @@ CONTAINS
       CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
 
       ! work = epsilon(iw,k)*L^H(k)
-      CALL cp_cfm_gemm('N', 'C', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
-                       z_zero, cfm_mat_work)
+      CALL parallel_gemm('N', 'C', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
+                         z_zero, cfm_mat_work)
 
       ! W(iw,k) = L(k)*work
-      CALL cp_cfm_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
-                       z_zero, cfm_mat_Q)
+      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
+                         z_zero, cfm_mat_Q)
 
       DO iquad = 1, num_integ_points
          omega = tj(jquad)

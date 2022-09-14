@@ -31,6 +31,7 @@ MODULE negf_green_methods
                                               z_mone,&
                                               z_one,&
                                               z_zero
+   USE parallel_gemm_api,               ONLY: parallel_gemm
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -185,21 +186,21 @@ CONTAINS
          CALL cp_cfm_lu_invert(work%a_inv)
 
          ! scratch <- A_n^-1 * B_n
-         CALL cp_cfm_gemm('N', 'N', nrows, nrows, nrows, z_one, work%a_inv, work%b, z_zero, work%scratch)
+         CALL parallel_gemm('N', 'N', nrows, nrows, nrows, z_one, work%a_inv, work%b, z_zero, work%scratch)
          ! E_n = - C_n A_n^-1 B_n
          CALL cp_cfm_gemm('N', 'N', nrows, nrows, nrows, z_mone, work%c, work%scratch, z_zero, work%e)
          ! g_surf <- B_{n+1} = B_n A_n^-1 B_n
          ! keep B_n, as we need it to compute the matrix product B_n A_n^-1 C_n
-         CALL cp_cfm_gemm('N', 'N', nrows, nrows, nrows, z_one, work%b, work%scratch, z_zero, g_surf)
+         CALL parallel_gemm('N', 'N', nrows, nrows, nrows, z_one, work%b, work%scratch, z_zero, g_surf)
 
          ! scratch <- A_n^-1 * C_n
-         CALL cp_cfm_gemm('N', 'N', nrows, nrows, nrows, z_one, work%a_inv, work%c, z_zero, work%scratch)
+         CALL parallel_gemm('N', 'N', nrows, nrows, nrows, z_one, work%a_inv, work%c, z_zero, work%scratch)
          ! D_n = - B_n A_n^-1 C_n
          CALL cp_cfm_gemm('N', 'N', nrows, nrows, nrows, z_mone, work%b, work%scratch, z_zero, work%d)
          ! we do not need B_n any longer, so the matrix B now holds the B_{n+1} matrix
          CALL cp_cfm_to_cfm(g_surf, work%b)
          ! C_{n+1} = C_n A_n^-1 C_n
-         CALL cp_cfm_gemm('N', 'N', nrows, nrows, nrows, z_one, work%c, work%scratch, z_zero, g_surf)
+         CALL parallel_gemm('N', 'N', nrows, nrows, nrows, z_one, work%c, work%scratch, z_zero, g_surf)
          CALL cp_cfm_to_cfm(g_surf, work%c)
 
          ! A0_{n+1} = A0_n + D_n = A0_n - B_n A_n^-1 C_n
@@ -255,16 +256,16 @@ CONTAINS
          CALL cp_fm_get_info(s_sc0, nrow_global=nao_contact, ncol_global=nao_scattering)
 
          ! zwork2 = g_surf_c * [omega * S_SC0^T - KS_SC0^T]
-         CALL cp_cfm_gemm('N', 'N', nao_contact, nao_scattering, nao_contact, z_one, g_surf_c, zwork1, z_zero, zwork2)
+         CALL parallel_gemm('N', 'N', nao_contact, nao_scattering, nao_contact, z_one, g_surf_c, zwork1, z_zero, zwork2)
          ! [omega * S_SC0^T - KS_SC0^T]^T * g_surf_c * [omega * S_SC0^T - KS_SC0^T]
-         CALL cp_cfm_gemm('T', 'N', nao_scattering, nao_scattering, nao_contact, z_one, zwork1, zwork2, z_zero, self_energy_c)
+         CALL parallel_gemm('T', 'N', nao_scattering, nao_scattering, nao_contact, z_one, zwork1, zwork2, z_zero, self_energy_c)
       ELSE
          CALL cp_fm_get_info(s_sc0, nrow_global=nao_scattering, ncol_global=nao_contact)
 
          ! zwork2 = [omega * S_SC0 - KS_SC0] * g_surf_c
-         CALL cp_cfm_gemm('N', 'N', nao_scattering, nao_contact, nao_contact, z_one, zwork1, g_surf_c, z_zero, zwork2)
+         CALL parallel_gemm('N', 'N', nao_scattering, nao_contact, nao_contact, z_one, zwork1, g_surf_c, z_zero, zwork2)
          ! [omega * S_SC0 - KS_SC0] * g_surf_c * [omega * S_SC0 - KS_SC0]^T
-         CALL cp_cfm_gemm('N', 'T', nao_scattering, nao_scattering, nao_contact, z_one, zwork2, zwork1, z_zero, self_energy_c)
+         CALL parallel_gemm('N', 'T', nao_scattering, nao_scattering, nao_contact, z_one, zwork2, zwork1, z_zero, self_energy_c)
       END IF
 
       CALL timestop(handle)

@@ -23,8 +23,7 @@ MODULE mp2_ri_2c
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
-                                              cp_cfm_scale_and_add_fm
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
                                               cp_cfm_to_fm,&
@@ -1508,25 +1507,25 @@ CONTAINS
          CALL cp_cfm_matrix_exponential(cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, threshold=eps_eigval_S, exponent=-0.5_dp)
 
          ! get S^(-1) = U^(-H)U^(-1)
-         CALL cp_cfm_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_tmp, cfm_matrix_S_tmp, &
-                          czero, cfm_matrix_S_inv_tmp)
+         CALL parallel_gemm("C", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_tmp, cfm_matrix_S_tmp, &
+                            czero, cfm_matrix_S_inv_tmp)
 
          CALL cp_cfm_matrix_exponential(cfm_matrix_L_tmp, cfm_matrix_S_tmp, threshold=0.0_dp, exponent=0.5_dp)
 
          ! get K = S^(-1)*L, where L is the Cholesky decomposition of V = L^T*L
-         CALL cp_cfm_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_L_tmp, &
-                          czero, cfm_matrix_K_tmp)
+         CALL parallel_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_L_tmp, &
+                            czero, cfm_matrix_K_tmp)
 
          ! move
          CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_L_RI_metric(ikp, 1)%matrix, fm_matrix_L_RI_metric(ikp, 2)%matrix)
 
          ! S^(-1)*V_trunc
-         CALL cp_cfm_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_Vtrunc_tmp, cfm_matrix_S_inv_tmp, &
-                          czero, cfm_matrix_K_tmp)
+         CALL parallel_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_Vtrunc_tmp, cfm_matrix_S_inv_tmp, &
+                            czero, cfm_matrix_K_tmp)
 
          ! S^(-1)*V_trunc*S^{-1}
-         CALL cp_cfm_gemm("N", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_K_tmp, &
-                          czero, cfm_matrix_Vtrunc_tmp)
+         CALL parallel_gemm("N", "N", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_S_inv_tmp, cfm_matrix_K_tmp, &
+                            czero, cfm_matrix_Vtrunc_tmp)
 
          ! move
          CALL cp_cfm_to_fm(cfm_matrix_Vtrunc_tmp, fm_matrix_Sinv_Vtrunc_Sinv(ikp, 1)%matrix, &

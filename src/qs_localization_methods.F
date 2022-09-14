@@ -19,7 +19,6 @@ MODULE qs_localization_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                              cp_cfm_gemm,&
                                               cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_schur_product,&
@@ -841,7 +840,7 @@ CONTAINS
                CALL cp_cfm_get_submatrix(V, tmp_cmat, nocc + 1, 1, northo, nstate)
                CALL cp_cfm_set_submatrix(VL, tmp_cmat, 1, 1, northo, nstate)
                DEALLOCATE (tmp_cmat)
-               CALL cp_cfm_gemm("C", "N", nextra, nstate, northo, cone, c_tilde, VL, czero, UL)
+               CALL parallel_gemm("C", "N", nextra, nstate, northo, cone, c_tilde, VL, czero, UL)
                ALLOCATE (tmp_cmat(nextra, nstate))
                CALL cp_cfm_get_submatrix(UL, tmp_cmat, 1, 1, nextra, nstate)
                CALL cp_cfm_set_submatrix(U, tmp_cmat, nocc + 1, 1, nextra, nstate)
@@ -862,7 +861,7 @@ CONTAINS
             CALL cp_cfm_get_submatrix(U, tmp_cmat, nocc + 1, 1, nextra, nstate)
             CALL cp_cfm_set_submatrix(UL, tmp_cmat, 1, 1, nextra, nstate)
             DEALLOCATE (tmp_cmat)
-            CALL cp_cfm_gemm("N", "N", northo, nstate, nextra, cone, c_tilde, UL, czero, VL)
+            CALL parallel_gemm("N", "N", northo, nstate, nextra, cone, c_tilde, UL, czero, VL)
             ALLOCATE (tmp_cmat(northo, nstate))
             CALL cp_cfm_get_submatrix(VL, tmp_cmat)
             CALL cp_cfm_set_submatrix(V, tmp_cmat, nocc + 1, 1, northo, nstate)
@@ -912,7 +911,7 @@ CONTAINS
             ELSE
                CALL jacobi_rot_para_1(weights, c_zij, para_env, 1, tmp_cfm_2, tol_out=tol)
             END IF
-            CALL cp_cfm_gemm('N', 'N', nstate, nstate, nstate, cone, U, tmp_cfm_2, czero, tmp_cfm)
+            CALL parallel_gemm('N', 'N', nstate, nstate, nstate, cone, U, tmp_cfm_2, czero, tmp_cfm)
             CALL cp_cfm_to_cfm(tmp_cfm, U)
             CALL cp_cfm_release(tmp_cfm)
             CALL cp_cfm_release(tmp_cfm_2)
@@ -935,7 +934,7 @@ CONTAINS
                CALL cp_cfm_get_submatrix(U, tmp_cmat, 1, 1, nocc, nstate)
                CALL cp_cfm_set_submatrix(V, tmp_cmat, 1, 1, nocc, nstate)
                DEALLOCATE (tmp_cmat)
-               CALL cp_cfm_gemm("N", "N", northo, nstate, nextra, cone, c_tilde, UL, czero, VL)
+               CALL parallel_gemm("N", "N", northo, nstate, nextra, cone, c_tilde, UL, czero, VL)
                ALLOCATE (tmp_cmat(northo, nstate))
                CALL cp_cfm_get_submatrix(VL, tmp_cmat)
                CALL cp_cfm_set_submatrix(V, tmp_cmat, nocc + 1, 1, northo, nstate)
@@ -962,11 +961,11 @@ CONTAINS
          ! update z_ij
          DO idim = 1, dim2
             ! 'tmp_cfm_1 = zij_0*tmp_cfm'
-            CALL cp_cfm_gemm("N", "N", ndummy, nstate, ndummy, cone, zij_0(idim)%matrix, &
-                             tmp_cfm, czero, tmp_cfm_1)
+            CALL parallel_gemm("N", "N", ndummy, nstate, ndummy, cone, zij_0(idim)%matrix, &
+                               tmp_cfm, czero, tmp_cfm_1)
             ! 'c_zij = tmp_cfm_dagg*tmp_cfm_1'
-            CALL cp_cfm_gemm("C", "N", nstate, nstate, ndummy, cone, tmp_cfm, tmp_cfm_1, &
-                             czero, c_zij(idim)%matrix)
+            CALL parallel_gemm("C", "N", nstate, nstate, ndummy, cone, tmp_cfm, tmp_cfm_1, &
+                               czero, c_zij(idim)%matrix)
          END DO
          CALL cp_cfm_release(tmp_cfm)
          CALL cp_cfm_release(tmp_cfm_1)
@@ -998,26 +997,26 @@ CONTAINS
                weight = weights(idim)
                arr_zii = matrix_zii(:, idim)
                ! tmp_cfm = zij_0*V
-               CALL cp_cfm_gemm("N", "N", nmo, nstate, nmo, cone, &
-                                zij_0(idim)%matrix, V, czero, tmp_cfm)
+               CALL parallel_gemm("N", "N", nmo, nstate, nmo, cone, &
+                                  zij_0(idim)%matrix, V, czero, tmp_cfm)
                ! tmp_cfm = tmp_cfm*diag_zij_dagg
                CALL cp_cfm_column_scale(tmp_cfm, CONJG(arr_zii))
                ! tmp_cfm_1 = tmp_cfm*U_dagg
-               CALL cp_cfm_gemm("N", "C", nmo, nstate, nstate, cone, tmp_cfm, &
-                                U, czero, tmp_cfm_1)
+               CALL parallel_gemm("N", "C", nmo, nstate, nstate, cone, tmp_cfm, &
+                                  U, czero, tmp_cfm_1)
                CALL cp_cfm_scale(weight, tmp_cfm_1)
                ! zdiag = zdiag + tmp_cfm_1'
                CALL cp_cfm_scale_and_add(cone, zdiag, cone, tmp_cfm_1)
 
                ! tmp_cfm = zij_0_dagg*V
-               CALL cp_cfm_gemm("C", "N", nmo, nstate, nmo, cone, &
-                                zij_0(idim)%matrix, V, czero, tmp_cfm)
+               CALL parallel_gemm("C", "N", nmo, nstate, nmo, cone, &
+                                  zij_0(idim)%matrix, V, czero, tmp_cfm)
 
                ! tmp_cfm = tmp_cfm*diag_zij
                CALL cp_cfm_column_scale(tmp_cfm, arr_zii)
                ! tmp_cfm_1 = tmp_cfm*U_dagg
-               CALL cp_cfm_gemm("N", "C", nmo, nstate, nstate, cone, tmp_cfm, &
-                                U, czero, tmp_cfm_1)
+               CALL parallel_gemm("N", "C", nmo, nstate, nstate, cone, tmp_cfm, &
+                                  U, czero, tmp_cfm_1)
                CALL cp_cfm_scale(weight, tmp_cfm_1)
                ! zdiag = zdiag + tmp_cfm_1'
                CALL cp_cfm_scale_and_add(cone, zdiag, cone, tmp_cfm_1)
@@ -1032,10 +1031,10 @@ CONTAINS
             CALL cp_cfm_set_submatrix(grad_ctilde, tmp_cmat)
             DEALLOCATE (tmp_cmat)
             ! ctrans_lambda = c_tilde_dagg*grad_ctilde
-            CALL cp_cfm_gemm("C", "N", nextra, nextra, northo, cone, c_tilde, grad_ctilde, czero, ctrans_lambda)
+            CALL parallel_gemm("C", "N", nextra, nextra, northo, cone, c_tilde, grad_ctilde, czero, ctrans_lambda)
             !WRITE(*,*) "norm(ctrans_lambda) = ", cp_cfm_norm(ctrans_lambda, "F")
             ! 'grad_ctilde = - c_tilde*ctrans_lambda + grad_ctilde'
-            CALL cp_cfm_gemm("N", "N", northo, nextra, nextra, -cone, c_tilde, ctrans_lambda, cone, grad_ctilde)
+            CALL parallel_gemm("N", "N", northo, nextra, nextra, -cone, c_tilde, ctrans_lambda, cone, grad_ctilde)
          END IF ! nextra > 0
 
          ! tolerance
@@ -1724,8 +1723,8 @@ CONTAINS
             evals_exp(:) = EXP((0.0_dp, -1.0_dp)*evals(:))
             CALL cp_cfm_to_cfm(cmat_R, cmat_t1)
             CALL cp_cfm_column_scale(cmat_t1, evals_exp)
-            CALL cp_cfm_gemm('N', 'C', nrow_global, nrow_global, nrow_global, cone, &
-                             cmat_t1, cmat_R, czero, cmat_A)
+            CALL parallel_gemm('N', 'C', nrow_global, nrow_global, nrow_global, cone, &
+                               cmat_t1, cmat_R, czero, cmat_A)
             mat_U%local_data = REAL(cmat_A%local_data, KIND=dp) ! U is a real matrix
          ELSE
             do_emd = .FALSE.
@@ -1892,13 +1891,13 @@ CONTAINS
          evals_exp(:) = EXP((0.0_dp, -1.0_dp)*evals(:))
          CALL cp_cfm_to_cfm(cmat_R, cmat_t1)
          CALL cp_cfm_column_scale(cmat_t1, evals_exp)
-         CALL cp_cfm_gemm('N', 'C', n, n, n, cone, cmat_t1, cmat_R, czero, cmat_U)
+         CALL parallel_gemm('N', 'C', n, n, n, cone, cmat_t1, cmat_R, czero, cmat_U)
          cmat_U%local_data = REAL(cmat_U%local_data, KIND=dp) ! enforce numerics, U is a real matrix
 
          IF (new_direction .AND. MOD(line_searches, 20) .EQ. 5) THEN ! reset with A .eq. 0
             DO idim = 1, ndim
-               CALL cp_cfm_gemm('N', 'N', n, n, n, cone, c_zij(idim)%matrix, cmat_U, czero, cmat_t1)
-               CALL cp_cfm_gemm('C', 'N', n, n, n, cone, cmat_U, cmat_t1, czero, c_zij(idim)%matrix)
+               CALL parallel_gemm('N', 'N', n, n, n, cone, c_zij(idim)%matrix, cmat_U, czero, cmat_t1)
+               CALL parallel_gemm('C', 'N', n, n, n, cone, cmat_U, cmat_t1, czero, c_zij(idim)%matrix)
             END DO
             ! collect rotation matrix
             matrix_H%local_data = REAL(cmat_U%local_data, KIND=dp)
@@ -1920,8 +1919,8 @@ CONTAINS
          CALL cp_cfm_set_all(cmat_M, czero)
          omega = 0.0_dp
          DO idim = 1, ndim
-            CALL cp_cfm_gemm('N', 'N', n, n, n, cone, c_zij(idim)%matrix, cmat_U, czero, cmat_t1) ! t1=ZU
-            CALL cp_cfm_gemm('C', 'N', n, n, n, cone, cmat_U, cmat_t1, czero, cmat_t2) ! t2=(U^T)ZU
+            CALL parallel_gemm('N', 'N', n, n, n, cone, c_zij(idim)%matrix, cmat_U, czero, cmat_t1) ! t1=ZU
+            CALL parallel_gemm('C', 'N', n, n, n, cone, cmat_U, cmat_t1, czero, cmat_t2) ! t2=(U^T)ZU
             DO i = 1, n
                CALL cp_cfm_get_element(cmat_t2, i, i, diag_z(i, idim))
                SELECT CASE (2) ! allows for selection of different spread functionals
@@ -1970,11 +1969,11 @@ CONTAINS
          END DO
          ! compute gradient matrix_G
 
-         CALL cp_cfm_gemm('C', 'N', n, n, n, cone, cmat_M, cmat_R, czero, cmat_t1) ! t1=(M^T)(R^T)
-         CALL cp_cfm_gemm('C', 'N', n, n, n, cone, cmat_R, cmat_t1, czero, cmat_t2) ! t2=(R)t1
+         CALL parallel_gemm('C', 'N', n, n, n, cone, cmat_M, cmat_R, czero, cmat_t1) ! t1=(M^T)(R^T)
+         CALL parallel_gemm('C', 'N', n, n, n, cone, cmat_R, cmat_t1, czero, cmat_t2) ! t2=(R)t1
          CALL cp_cfm_schur_product(cmat_t2, cmat_B, cmat_t1)
-         CALL cp_cfm_gemm('N', 'C', n, n, n, cone, cmat_t1, cmat_R, czero, cmat_t2)
-         CALL cp_cfm_gemm('N', 'N', n, n, n, cone, cmat_R, cmat_t2, czero, cmat_t1)
+         CALL parallel_gemm('N', 'C', n, n, n, cone, cmat_t1, cmat_R, czero, cmat_t2)
+         CALL parallel_gemm('N', 'N', n, n, n, cone, cmat_R, cmat_t2, czero, cmat_t1)
          matrix_G%local_data = REAL(cmat_t1%local_data, KIND=dp)
          CALL cp_fm_transpose(matrix_G, matrix_T)
          CALL cp_fm_scale_and_add(-1.0_dp, matrix_G, 1.0_dp, matrix_T)

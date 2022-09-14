@@ -14,7 +14,6 @@ MODULE rt_propagation_methods
                                               Kuhne2007,&
                                               cite_reference
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
-                                              cp_cfm_gemm,&
                                               cp_cfm_triangular_multiply
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
@@ -56,6 +55,7 @@ MODULE rt_propagation_methods
    USE kinds,                           ONLY: dp
    USE ls_matrix_exp,                   ONLY: cp_complex_dbcsr_gemm_3
    USE mathlib,                         ONLY: binomial
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -763,7 +763,7 @@ CONTAINS
                cfm_tmp1%local_data(:, icol_local) = CMPLX(mos_new(2*i - 1)%matrix%local_data(:, icol_local), &
                                                           mos_new(2*i)%matrix%local_data(:, icol_local), dp)
             END DO
-            CALL cp_cfm_gemm('C', 'N', k, k, n, cone, cfm_tmp1, cfm_tmp, czero, csc)
+            CALL parallel_gemm('C', 'N', k, k, n, cone, cfm_tmp1, cfm_tmp, czero, csc)
             CALL cp_cfm_cholesky_decompose(csc)
             CALL cp_cfm_triangular_multiply(csc, cfm_tmp1, n_cols=k, side='R', invert_tr=.TRUE.)
             DO icol_local = 1, ncol_local
