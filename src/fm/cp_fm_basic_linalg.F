@@ -88,7 +88,7 @@ CONTAINS
    SUBROUTINE cp_fm_scale_and_add(alpha, matrix_a, beta, matrix_b)
 
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_a
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: beta
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_b
 
@@ -189,7 +189,7 @@ CONTAINS
    SUBROUTINE cp_fm_geadd(alpha, trans, matrix_a, beta, matrix_b)
       REAL(KIND=dp), INTENT(IN) :: alpha, beta
       CHARACTER, INTENT(IN) :: trans
-      TYPE(cp_fm_type), INTENT(INOUT) :: matrix_a, matrix_b
+      TYPE(cp_fm_type), INTENT(IN) :: matrix_a, matrix_b
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geadd'
 
@@ -266,7 +266,7 @@ CONTAINS
 !>      - Use cp_fm_get_diag instead of n times cp_fm_get_element (A. Bussy)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_lu_decompose(matrix_a, almost_determinant, correct_sign)
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix_a
       REAL(KIND=dp), INTENT(OUT)               :: almost_determinant
       LOGICAL, INTENT(IN), OPTIONAL            :: correct_sign
 
@@ -359,7 +359,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                :: alpha
       TYPE(cp_fm_type), INTENT(IN)             :: matrix_a, matrix_b
       REAL(KIND=dp), INTENT(IN)                :: beta
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_c
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL            :: a_first_col, a_first_row, &
                                                   b_first_col, b_first_row, &
                                                   c_first_col, c_first_row
@@ -495,7 +495,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                :: alpha
       TYPE(cp_fm_type), INTENT(IN)                :: matrix_a, matrix_b
       REAL(KIND=dp), INTENT(IN)                :: beta
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_c
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_symm'
 
@@ -594,7 +594,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)             :: matrix_a
       INTEGER, INTENT(IN)                      :: ia, ja
       REAL(KIND=dp), INTENT(IN)                :: beta
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_c
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syrk'
 
@@ -642,7 +642,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_schur_product(matrix_a, matrix_b, matrix_c)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_a, matrix_b, matrix_c
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_a, matrix_b, matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_schur_product'
 
@@ -1017,7 +1017,7 @@ CONTAINS
    SUBROUTINE cp_fm_triangular_multiply(triangular_matrix, matrix_b, side, &
                                         transpose_tr, invert_tr, uplo_tr, unit_diag_tr, n_rows, n_cols, &
                                         alpha)
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: triangular_matrix, matrix_b
+      TYPE(cp_fm_type), INTENT(IN)                       :: triangular_matrix, matrix_b
       CHARACTER, INTENT(in), OPTIONAL                    :: side
       LOGICAL, INTENT(in), OPTIONAL                      :: transpose_tr, invert_tr
       CHARACTER, INTENT(in), OPTIONAL                    :: uplo_tr
@@ -1106,7 +1106,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_scale(alpha, matrix_a)
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_scale'
 
@@ -1135,7 +1135,7 @@ CONTAINS
 !>      all matrix elements are transposed (see cp_fm_upper_to_half to symmetrise a matrix)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_transpose(matrix, matrixt)
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, matrixt
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix, matrixt
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_transpose'
 
@@ -1185,7 +1185,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_upper_to_full(matrix, work)
 
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, work
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix, work
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_upper_to_full'
 
@@ -1307,7 +1307,7 @@ CONTAINS
 !>      where every vector has a different prefactor
 ! **************************************************************************************************
    SUBROUTINE cp_fm_column_scale(matrixa, scaling)
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrixa
+      TYPE(cp_fm_type), INTENT(IN)          :: matrixa
       REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
 
       INTEGER                                  :: k, mypcol, myprow, n, ncol_global, &
@@ -1370,7 +1370,7 @@ CONTAINS
 !> \note
 ! **************************************************************************************************
    SUBROUTINE cp_fm_row_scale(matrixa, scaling)
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrixa
+      TYPE(cp_fm_type), INTENT(IN)          :: matrixa
       REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
 
       INTEGER                                  :: n, m, nrow_global, nrow_local, ncol_local
@@ -1441,7 +1441,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_invert(matrix_a, matrix_inverse, det_a, eps_svd, eigval)
 
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a, matrix_inverse
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix_a, matrix_inverse
       REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: det_a
       REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_svd
       REAL(KIND=dp), DIMENSION(:), POINTER, &
@@ -1618,7 +1618,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_triangular_invert(matrix_a, uplo_tr)
 
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix_a
       CHARACTER, INTENT(IN), OPTIONAL          :: uplo_tr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_triangular_invert'
@@ -1666,7 +1666,7 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE cp_fm_qr_factorization(matrix_a, matrix_r, nrow_fact, ncol_fact, first_row, first_col)
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a, matrix_r
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix_a, matrix_r
       INTEGER, INTENT(IN), OPTIONAL            :: nrow_fact, ncol_fact, &
                                                   first_row, first_col
 
@@ -1748,7 +1748,7 @@ CONTAINS
 !> \author Florian Schiffmann
 ! **************************************************************************************************
    SUBROUTINE cp_fm_solve(matrix_a, general_a)
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_a, general_a
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix_a, general_a
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_solve'
 
@@ -1824,7 +1824,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), INTENT(IN)                       :: A_re, A_im, B_re, B_im
       REAL(KIND=dp), INTENT(IN)                          :: beta
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: C_re, C_im
+      TYPE(cp_fm_type), INTENT(IN)                       :: C_re, C_im
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 
@@ -1875,7 +1875,7 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    SUBROUTINE cp_fm_lu_invert(matrix, info_out)
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix
       INTEGER, INTENT(OUT), OPTIONAL           :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_invert'
@@ -2157,7 +2157,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_pdgeqpf(matrix, tau, nrow, ncol, first_row, first_col)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                    :: matrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       INTEGER, INTENT(IN)                                :: nrow, ncol, first_row, first_col
 
@@ -2225,7 +2225,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_pdorgqr(matrix, tau, nrow, first_row, first_col)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                    :: matrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       INTEGER, INTENT(IN)                                :: nrow, first_row, first_col
 
@@ -2286,7 +2286,7 @@ CONTAINS
    SUBROUTINE cp_fm_Gram_Schmidt_orthonorm(matrix_a, B, nrows, ncols, start_row, start_col, &
                                            do_norm, do_print)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_a
       REAL(kind=dp), DIMENSION(:, :), INTENT(OUT)        :: B
       INTEGER, INTENT(IN), OPTIONAL                      :: nrows, ncols, start_row, start_col
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_norm, do_print

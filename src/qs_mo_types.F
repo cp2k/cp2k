@@ -249,7 +249,7 @@ CONTAINS
 
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_fm_pool_type), OPTIONAL, POINTER           :: fm_pool
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_ref
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_ref
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct
       CHARACTER(LEN=*), INTENT(in)                       :: name
 
@@ -265,7 +265,6 @@ CONTAINS
          CPASSERT(ASSOCIATED(fm_pool))
          CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
       ELSE IF (PRESENT(fm_ref)) THEN
-         CPASSERT(ASSOCIATED(fm_ref))
          CALL cp_fm_create_p(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
       ELSE IF (PRESENT(fm_struct)) THEN
          CPASSERT(ASSOCIATED(fm_struct))

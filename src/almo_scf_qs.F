@@ -27,8 +27,8 @@ MODULE almo_scf_qs
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_release_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -578,7 +578,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ncol_fm, nrow_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: mo_fm_copy
+      TYPE(cp_fm_type)                                   :: mo_fm_copy
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -586,7 +586,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! create and init scf_env (this is necessary to return MOs to qs)
-      NULLIFY (mos, mo_fm_copy, fm_struct_tmp, scf_env)
+      NULLIFY (mos, fm_struct_tmp, scf_env)
       CALL scf_env_create(scf_env)
 
       !CALL qs_scf_env_initialize(qs_env, scf_env)
@@ -612,13 +612,13 @@ CONTAINS
                                   context=almo_scf_env%blacs_env, &
                                   para_env=almo_scf_env%para_env)
 
-         CALL cp_fm_create_p(mo_fm_copy, fm_struct_tmp, name="t_orthogonal_converted_to_fm")
+         CALL cp_fm_create(mo_fm_copy, fm_struct_tmp, name="t_orthogonal_converted_to_fm")
          CALL cp_fm_struct_release(fm_struct_tmp)
          !CALL copy_dbcsr_to_fm(almo_scf_env%matrix_t(ispin), mo_fm_copy)
 
          CALL init_mo_set(mos(ispin)%mo_set, fm_ref=mo_fm_copy, name='fm_mo')
 
-         CALL cp_fm_release_p(mo_fm_copy)
+         CALL cp_fm_release(mo_fm_copy)
 
       END DO
 
