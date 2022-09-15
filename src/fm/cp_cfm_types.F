@@ -40,11 +40,13 @@ MODULE cp_cfm_types
 
    PUBLIC :: cp_cfm_type, cp_cfm_p_type, copy_cfm_info_type
    PUBLIC :: cp_cfm_cleanup_copy_general, &
+             cp_cfm_create_p, &
              cp_cfm_create, &
              cp_cfm_finish_copy_general, &
              cp_cfm_get_element, &
              cp_cfm_get_info, &
              cp_cfm_get_submatrix, &
+             cp_cfm_release_p, &
              cp_cfm_release, &
              cp_cfm_retain, &
              cp_cfm_set_all, &
@@ -123,8 +125,26 @@ CONTAINS
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_create(matrix, matrix_struct, name)
+   SUBROUTINE cp_cfm_create_p(matrix, matrix_struct, name)
       TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
+
+      ALLOCATE (matrix)
+      CALL cp_cfm_create(matrix, matrix_struct, name)
+
+   END SUBROUTINE cp_cfm_create_p
+
+! **************************************************************************************************
+!> \brief Creates a new full matrix with the given structure.
+!> \param matrix        matrix to be created
+!> \param matrix_struct structure of the matrix
+!> \param name          name of the matrix
+!> \note
+!>      preferred allocation routine
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_create(matrix, matrix_struct, name)
+      TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
@@ -136,7 +156,6 @@ CONTAINS
 #endif
 
       CPASSERT(ASSOCIATED(matrix_struct))
-      ALLOCATE (matrix)
       context => matrix_struct%context
       matrix%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(matrix%matrix_struct)
@@ -178,22 +197,33 @@ CONTAINS
 !> \brief Releases a full matrix.
 !> \param matrix the matrix to release
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_release(matrix)
+   SUBROUTINE cp_cfm_release_p(matrix)
       TYPE(cp_cfm_type), POINTER                         :: matrix
 
       IF (ASSOCIATED(matrix)) THEN
-         CPASSERT(matrix%ref_count > 0)
-         matrix%ref_count = matrix%ref_count - 1
-         IF (matrix%ref_count < 1) THEN
-            IF (ASSOCIATED(matrix%local_data)) THEN
-               DEALLOCATE (matrix%local_data)
-            END IF
-            matrix%name = ""
-            CALL cp_fm_struct_release(matrix%matrix_struct)
-            DEALLOCATE (matrix)
-         END IF
+         CALL cp_cfm_release(matrix)
+         IF (matrix%ref_count < 1) DEALLOCATE (matrix)
       END IF
       NULLIFY (matrix)
+
+   END SUBROUTINE cp_cfm_release_p
+
+! **************************************************************************************************
+!> \brief Releases a full matrix.
+!> \param matrix the matrix to release
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_release(matrix)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+
+      CPASSERT(matrix%ref_count > 0)
+      matrix%ref_count = matrix%ref_count - 1
+      IF (matrix%ref_count < 1) THEN
+         IF (ASSOCIATED(matrix%local_data)) THEN
+            DEALLOCATE (matrix%local_data)
+         END IF
+         matrix%name = ""
+         CALL cp_fm_struct_release(matrix%matrix_struct)
+      END IF
    END SUBROUTINE cp_cfm_release
 
 ! **************************************************************************************************

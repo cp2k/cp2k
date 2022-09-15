@@ -1377,7 +1377,7 @@ CONTAINS
 
    SUBROUTINE cp_fm_to_fm_submat(msource, mtarget, nrow, ncol, s_firstrow, s_firstcol, t_firstrow, t_firstcol)
 
-      TYPE(cp_fm_type), INTENT(IN)          :: msource, mtarget
+      TYPE(cp_fm_type), INTENT(IN)             :: msource, mtarget
       INTEGER, INTENT(IN)                      :: nrow, ncol, s_firstrow, &
                                                   s_firstcol, t_firstrow, &
                                                   t_firstcol
