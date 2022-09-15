@@ -27,9 +27,11 @@ MODULE qs_wannier90
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+                                              cp_fm_create,&
                                               cp_fm_create_p,&
                                               cp_fm_get_element,&
                                               cp_fm_p_type,&
+                                              cp_fm_release,&
                                               cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
@@ -182,8 +184,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmk1, fmk2
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_mmn, matrix_struct_work
-      TYPE(cp_fm_type), POINTER                          :: fm_tmp, fmdummy, fmi, fmr, mmn_imag, &
-                                                            mmn_real
+      TYPE(cp_fm_type)                                   :: fm_tmp, fmdummy, mmn_imag, mmn_real
+      TYPE(cp_fm_type), POINTER                          :: fmi, fmr
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
@@ -425,7 +427,7 @@ CONTAINS
                                para_env=para_env, &
                                context=blacs_env)
       ALLOCATE (fmk1(2), fmk2(2))
-      CALL cp_fm_create_p(fm_tmp, matrix_struct_work)
+      CALL cp_fm_create(fm_tmp, matrix_struct_work)
       DO i = 1, 2
          NULLIFY (fmk1(i)%matrix, fmk2(i)%matrix)
          CALL cp_fm_create_p(fmk1(i)%matrix, matrix_struct_work)
@@ -437,8 +439,8 @@ CONTAINS
                                ncol_global=nmo, &
                                para_env=para_env, &
                                context=blacs_env)
-      CALL cp_fm_create_p(mmn_real, matrix_struct_mmn)
-      CALL cp_fm_create_p(mmn_imag, matrix_struct_mmn)
+      CALL cp_fm_create(mmn_real, matrix_struct_mmn)
+      CALL cp_fm_create(mmn_imag, matrix_struct_mmn)
       ! allocate some work matrices
       ALLOCATE (rmatrix, cmatrix)
       CALL dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, &
@@ -464,7 +466,7 @@ CONTAINS
                CALL cp_fm_copy_general(fmr, fmk1(1)%matrix, para_env)
                CALL cp_fm_copy_general(fmi, fmk1(2)%matrix, para_env)
             ELSE
-               NULLIFY (fmr, fmi, kp, fmdummy)
+               NULLIFY (fmr, fmi, kp)
                CALL cp_fm_copy_general(fmdummy, fmk1(1)%matrix, para_env)
                CALL cp_fm_copy_general(fmdummy, fmk1(2)%matrix, para_env)
             END IF
@@ -482,7 +484,7 @@ CONTAINS
                   CALL cp_fm_copy_general(fmr, fmk2(1)%matrix, para_env)
                   CALL cp_fm_copy_general(fmi, fmk2(2)%matrix, para_env)
                ELSE
-                  NULLIFY (fmr, fmi, kp, fmdummy)
+                  NULLIFY (fmr, fmi, kp)
                   CALL cp_fm_copy_general(fmdummy, fmk2(1)%matrix, para_env)
                   CALL cp_fm_copy_general(fmdummy, fmk2(2)%matrix, para_env)
                END IF
@@ -541,10 +543,10 @@ CONTAINS
          CALL cp_fm_release_p(fmk1(i)%matrix)
          CALL cp_fm_release_p(fmk2(i)%matrix)
       END DO
-      CALL cp_fm_release_p(fm_tmp)
+      CALL cp_fm_release(fm_tmp)
       CALL cp_fm_struct_release(matrix_struct_mmn)
-      CALL cp_fm_release_p(mmn_real)
-      CALL cp_fm_release_p(mmn_imag)
+      CALL cp_fm_release(mmn_real)
+      CALL cp_fm_release(mmn_imag)
       DEALLOCATE (fmk1, fmk2)
       CALL dbcsr_deallocate_matrix(rmatrix)
       CALL dbcsr_deallocate_matrix(cmatrix)

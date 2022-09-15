@@ -36,9 +36,9 @@ MODULE qs_wf_history_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -484,7 +484,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, t0, t1, t2
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
-      TYPE(cp_fm_type), POINTER                          :: csc, fm_tmp, mo_coeff
+      TYPE(cp_fm_type)                                   :: csc, fm_tmp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_frozen_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
@@ -764,13 +765,13 @@ CONTAINS
          ! C_2 comes from using PS_2 as a projector acting on C_1
          CALL qs_rho_get(rho, rho_ao=rho_ao)
          DO ispin = 1, SIZE(mos)
-            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new, csc)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k, &
                                 matrix_struct=matrix_struct)
             CALL cp_fm_struct_create(matrix_struct_new, template_fmstruct=matrix_struct, &
                                      nrow_global=k, ncol_global=k)
-            CALL cp_fm_create_p(csc, matrix_struct_new)
+            CALL cp_fm_create(csc, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
 
             IF (use_overlap) THEN
@@ -781,7 +782,7 @@ CONTAINS
                                   t1_state%wf(ispin)%matrix, 0.0_dp, csc)
             END IF
             CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin)%matrix, csc, 0.0_dp, mo_coeff)
-            CALL cp_fm_release_p(csc)
+            CALL cp_fm_release(csc)
             CALL cp_fm_scale_and_add(-1.0_dp, mo_coeff, 2.0_dp, t1_state%wf(ispin)%matrix)
             CALL reorthogonalize_vectors(qs_env, &
                                          v_matrix=mo_coeff, &
@@ -812,14 +813,14 @@ CONTAINS
 
          my_orthogonal_wf = .TRUE.
          DO ispin = 1, SIZE(mos)
-            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new, csc, fm_tmp)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k, &
                                 matrix_struct=matrix_struct)
-            CALL cp_fm_create_p(fm_tmp, matrix_struct)
+            CALL cp_fm_create(fm_tmp, matrix_struct)
             CALL cp_fm_struct_create(matrix_struct_new, template_fmstruct=matrix_struct, &
                                      nrow_global=k, ncol_global=k)
-            CALL cp_fm_create_p(csc, matrix_struct_new)
+            CALL cp_fm_create(csc, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
             ! first the most recent
             t1_state => wfi_get_snapshot(wf_history, wf_index=1)
@@ -841,8 +842,8 @@ CONTAINS
                CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
             END DO
 
-            CALL cp_fm_release_p(csc)
-            CALL cp_fm_release_p(fm_tmp)
+            CALL cp_fm_release(csc)
+            CALL cp_fm_release(fm_tmp)
             CALL reorthogonalize_vectors(qs_env, &
                                          v_matrix=mo_coeff, &
                                          n_col=k)
@@ -876,18 +877,18 @@ CONTAINS
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
          DO ispin = 1, SIZE(mos)
-            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new, csc, fm_tmp)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, &
                                 nrow_global=n, &
                                 ncol_global=k, &
                                 matrix_struct=matrix_struct)
-            CALL cp_fm_create_p(fm_tmp, matrix_struct)
+            CALL cp_fm_create(fm_tmp, matrix_struct)
             CALL cp_fm_struct_create(matrix_struct_new, &
                                      template_fmstruct=matrix_struct, &
                                      nrow_global=k, &
                                      ncol_global=k)
-            CALL cp_fm_create_p(csc, matrix_struct_new)
+            CALL cp_fm_create(csc, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
             ! first the most recent
             t1_state => wfi_get_snapshot(wf_history, &
@@ -920,8 +921,8 @@ CONTAINS
                END IF
                CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
             END DO
-            CALL cp_fm_release_p(csc)
-            CALL cp_fm_release_p(fm_tmp)
+            CALL cp_fm_release(csc)
+            CALL cp_fm_release(fm_tmp)
             CALL reorthogonalize_vectors(qs_env, &
                                          v_matrix=mo_coeff, &
                                          n_col=k)
@@ -1022,7 +1023,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reorthogonalize_vectors(qs_env, v_matrix, n_col)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: v_matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: v_matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n_col
 
       CHARACTER(len=*), PARAMETER :: routineN = 'reorthogonalize_vectors'
@@ -1042,7 +1043,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(ASSOCIATED(v_matrix))
 
       CALL cp_fm_get_info(v_matrix, ncol_global=my_n_col)
       IF (PRESENT(n_col)) my_n_col = n_col

@@ -19,8 +19,10 @@ MODULE stm_images
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_p_type,&
+                                              cp_fm_release,&
                                               cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -285,7 +287,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occ_tot
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: matrix_v, matrix_vf
+      TYPE(cp_fm_type)                                   :: matrix_v, matrix_vf
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -337,8 +339,8 @@ CONTAINS
 
          CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=istates, &
                                   template_fmstruct=mo_arrays(1)%matrix%matrix_struct)
-         CALL cp_fm_create_p(matrix_v, fm_struct_tmp, name="matrix_v")
-         CALL cp_fm_create_p(matrix_vf, fm_struct_tmp, name="matrix_vf")
+         CALL cp_fm_create(matrix_v, fm_struct_tmp, name="matrix_v")
+         CALL cp_fm_create(matrix_vf, fm_struct_tmp, name="matrix_vf")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          ALLOCATE (occ_tot(istates))
@@ -393,8 +395,8 @@ CONTAINS
             CALL cp_print_key_finished_output(unit_nr, logger, stm_section, mpi_io=mpi_io)
          END DO
 
-         CALL cp_fm_release_p(matrix_v)
-         CALL cp_fm_release_p(matrix_vf)
+         CALL cp_fm_release(matrix_v)
+         CALL cp_fm_release(matrix_vf)
          DEALLOCATE (occ_tot)
 
       END DO

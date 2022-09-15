@@ -38,7 +38,7 @@ MODULE bfgs_optimizer
                           cp_fm_set_all, &
                           cp_fm_to_fm, &
                           cp_fm_type, &
-                          cp_fm_write_unformatted
+                          cp_fm_write_unformatted, cp_fm_create, cp_fm_release
    USE parallel_gemm_api, ONLY: parallel_gemm
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_type, &
@@ -131,7 +131,7 @@ CONTAINS
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_hes
-      TYPE(cp_fm_type), POINTER                          :: eigvec_mat, hess_mat, hess_tmp
+      TYPE(cp_fm_type)                          :: eigvec_mat, hess_mat, hess_tmp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -206,9 +206,9 @@ CONTAINS
                                globenv%blacs_repeatable)
       CALL cp_fm_struct_create(fm_struct_hes, para_env=para_env, context=blacs_env, &
                                nrow_global=ndf, ncol_global=ndf)
-      CALL cp_fm_create_p(hess_mat, fm_struct_hes, name="hess_mat")
-      CALL cp_fm_create_p(hess_tmp, fm_struct_hes, name="hess_tmp")
-      CALL cp_fm_create_p(eigvec_mat, fm_struct_hes, name="eigvec_mat")
+      CALL cp_fm_create(hess_mat, fm_struct_hes, name="hess_mat")
+      CALL cp_fm_create(hess_tmp, fm_struct_hes, name="hess_tmp")
+      CALL cp_fm_create(eigvec_mat, fm_struct_hes, name="eigvec_mat")
       ALLOCATE (eigval(ndf))
       eigval(:) = 0.0_dp
 
@@ -431,9 +431,9 @@ CONTAINS
                               gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit)
 
       CALL cp_fm_struct_release(fm_struct_hes)
-      CALL cp_fm_release_p(hess_mat)
-      CALL cp_fm_release_p(eigvec_mat)
-      CALL cp_fm_release_p(hess_tmp)
+      CALL cp_fm_release(hess_mat)
+      CALL cp_fm_release(eigvec_mat)
+      CALL cp_fm_release(hess_tmp)
 
       CALL cp_blacs_env_release(blacs_env)
       DEALLOCATE (xold)
@@ -465,7 +465,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: dg(ndf), eigval(ndf), work(ndf)
-      TYPE(cp_fm_type), POINTER                          :: eigvec_mat
+      TYPE(cp_fm_type), INTENT(IN)                       :: eigvec_mat
       REAL(KIND=dp), INTENT(INOUT)                       :: g(ndf)
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
@@ -633,7 +633,7 @@ CONTAINS
    SUBROUTINE bfgs(ndf, dx, dg, hess_mat, work, para_env)
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: dx(ndf), dg(ndf)
-      TYPE(cp_fm_type), POINTER                          :: hess_mat
+      TYPE(cp_fm_type), INTENT(IN)                       :: hess_mat
       REAL(KIND=dp), INTENT(INOUT)                       :: work(ndf)
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
@@ -746,7 +746,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: eigval(ndf)
-      TYPE(cp_fm_type), POINTER                          :: eigvec_mat, hess_tmp
+      TYPE(cp_fm_type), INTENT(IN)                       :: eigvec_mat, hess_tmp
       REAL(KIND=dp), INTENT(INOUT)                       :: dr(ndf), g(ndf)
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
       LOGICAL                                            :: use_rfo
@@ -757,7 +757,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER            :: local_data
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: tmp
+      TYPE(cp_fm_type)                          :: tmp
 
       CALL cp_fm_to_fm(eigvec_mat, hess_tmp)
       IF (use_rfo) THEN
@@ -772,12 +772,12 @@ CONTAINS
 
       CALL cp_fm_column_scale(hess_tmp, eigval)
       CALL cp_fm_get_info(eigvec_mat, matrix_struct=matrix_struct)
-      CALL cp_fm_create_p(tmp, matrix_struct, name="tmp")
+      CALL cp_fm_create(tmp, matrix_struct, name="tmp")
 
       CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, tmp)
 
       CALL cp_fm_transpose(tmp, hess_tmp)
-      CALL cp_fm_release_p(tmp)
+      CALL cp_fm_release(tmp)
 
 !    ** New step **
 
@@ -851,7 +851,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: work(ndf)
-      TYPE(cp_fm_type), POINTER                          :: hess_mat
+      TYPE(cp_fm_type), INTENT(IN)                           :: hess_mat
       REAL(KIND=dp), INTENT(INOUT)                       :: dr(ndf), g(ndf)
       LOGICAL, INTENT(INOUT)                             :: conv
       REAL(KIND=dp), INTENT(INOUT)                       :: pred
@@ -979,7 +979,7 @@ CONTAINS
    SUBROUTINE write_bfgs_hessian(geo_section, hess_mat, logger)
 
       TYPE(section_vals_type), POINTER                   :: geo_section
-      TYPE(cp_fm_type), POINTER                          :: hess_mat
+      TYPE(cp_fm_type), INTENT(IN)                          :: hess_mat
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_bfgs_hessian'
@@ -1009,7 +1009,7 @@ CONTAINS
    SUBROUTINE construct_initial_hess(force_env, hess_mat)
 
       TYPE(force_env_type), POINTER                      :: force_env
-      TYPE(cp_fm_type), POINTER                          :: hess_mat
+      TYPE(cp_fm_type), INTENT(IN)                          :: hess_mat
 
       INTEGER                                            :: i, iat_col, iat_row, iglobal, iind, j, &
                                                             jat_row, jglobal, jind, k, natom, &

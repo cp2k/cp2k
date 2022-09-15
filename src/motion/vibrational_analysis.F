@@ -25,8 +25,8 @@ MODULE vibrational_analysis
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_release_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_set_element,&
                                               cp_fm_type,&
@@ -1160,7 +1160,7 @@ CONTAINS
       INTEGER                                            :: handle, hesunit, i, j, ndf
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_hes
-      TYPE(cp_fm_type), POINTER                          :: hess_mat
+      TYPE(cp_fm_type)                                   :: hess_mat
 
       CALL timeset(routineN, handle)
 
@@ -1174,7 +1174,7 @@ CONTAINS
       ndf = ncoord
       CALL cp_fm_struct_create(fm_struct_hes, para_env=para_env, context=blacs_env, &
                                nrow_global=ndf, ncol_global=ndf)
-      CALL cp_fm_create_p(hess_mat, fm_struct_hes, name="hess_mat")
+      CALL cp_fm_create(hess_mat, fm_struct_hes, name="hess_mat")
       CALL cp_fm_set_all(hess_mat, alpha=0.0_dp, beta=0.0_dp)
 
       DO i = 1, ncoord
@@ -1187,7 +1187,7 @@ CONTAINS
       CALL cp_print_key_finished_output(hesunit, logger, vib_section, "PRINT%HESSIAN")
 
       CALL cp_fm_struct_release(fm_struct_hes)
-      CALL cp_fm_release_p(hess_mat)
+      CALL cp_fm_release(hess_mat)
       CALL cp_blacs_env_release(blacs_env)
 
       CALL timestop(handle)
