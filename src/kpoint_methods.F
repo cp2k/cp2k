@@ -27,9 +27,9 @@ MODULE kpoint_methods
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create_p, cp_fm_finish_copy_general, &
-        cp_fm_get_info, cp_fm_p_type, cp_fm_release_p, cp_fm_start_copy_general, cp_fm_to_fm, &
-        cp_fm_type
+        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_create_p, &
+        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_release_p, &
+        cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_cart_create,&
                                               cp_para_env_create,&
@@ -942,7 +942,8 @@ CONTAINS
       LOGICAL                                            :: wtype
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: cpmat, fwork, pmat, rpmat
+      TYPE(cp_fm_type)                                   :: fwork
+      TYPE(cp_fm_type), POINTER                          :: cpmat, pmat, rpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
 
@@ -959,7 +960,7 @@ CONTAINS
       mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)%mo_set
       CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
       CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
-      CALL cp_fm_create_p(fwork, matrix_struct)
+      CALL cp_fm_create(fwork, matrix_struct)
 
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
       kplocal = kp_range(2) - kp_range(1) + 1
@@ -1016,7 +1017,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL cp_fm_release_p(fwork)
+      CALL cp_fm_release(fwork)
 
       CALL timestop(handle)
 
@@ -1052,7 +1053,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:)    :: info
-      TYPE(cp_fm_type), POINTER                          :: fmdummy
+      TYPE(cp_fm_type)                                   :: fmdummy
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
       TYPE(dbcsr_type), POINTER                          :: cpmat, rpmat, scpmat, srpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -1087,7 +1088,6 @@ CONTAINS
       real_only = (nc == 1)
 
       para_env => kpoint%blacs_env_all%para_env
-      NULLIFY (fmdummy)
       ALLOCATE (info(nspin*nkp*nc))
 
       ! Start all the communication

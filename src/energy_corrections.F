@@ -37,9 +37,9 @@ MODULE energy_corrections
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_init_random,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm_triangular,&
                                               cp_fm_type
@@ -1769,7 +1769,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_ks, fm_mo, fm_ortho
+      TYPE(cp_fm_type)                                   :: fm_ks, fm_mo, fm_ortho
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: buf1_dbcsr, buf2_dbcsr, buf3_dbcsr, &
                                                             ortho_dbcsr, ref_matrix
@@ -1795,12 +1795,12 @@ CONTAINS
       CALL dbcsr_get_info(matrix_ks(1, 1)%matrix, nfullrows_total=nsize)
       ALLOCATE (eigenvalues(nsize))
 
-      NULLIFY (fm_ortho, fm_ks, fm_mo, fm_struct, ref_matrix)
+      NULLIFY (fm_struct, ref_matrix)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nsize, &
                                ncol_global=nsize, para_env=para_env)
-      CALL cp_fm_create_p(fm_ortho, fm_struct)
-      CALL cp_fm_create_p(fm_ks, fm_struct)
-      CALL cp_fm_create_p(fm_mo, fm_struct)
+      CALL cp_fm_create(fm_ortho, fm_struct)
+      CALL cp_fm_create(fm_ks, fm_struct)
+      CALL cp_fm_create(fm_mo, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
       ! factorization
@@ -1857,9 +1857,9 @@ CONTAINS
                              retain_sparsity=.TRUE., last_k=nmo(ispin))
       END DO
 
-      CALL cp_fm_release_p(fm_ks)
-      CALL cp_fm_release_p(fm_mo)
-      CALL cp_fm_release_p(fm_ortho)
+      CALL cp_fm_release(fm_ks)
+      CALL cp_fm_release(fm_mo)
+      CALL cp_fm_release(fm_ortho)
       CALL dbcsr_release(ortho_dbcsr)
       CALL dbcsr_release(buf1_dbcsr)
       CALL dbcsr_release(buf2_dbcsr)
@@ -2603,7 +2603,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, sv
+      TYPE(cp_fm_type)                                   :: sv
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
@@ -2709,13 +2710,12 @@ CONTAINS
          CALL cp_fm_set_all(mo_coeff, 0.0_dp)
          CALL cp_fm_init_random(mo_coeff, nmo)
 
-         NULLIFY (sv)
-         CALL cp_fm_create_p(sv, mo_coeff%matrix_struct, "SV")
+         CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
          ! multiply times PS
          ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1, 1)%matrix, mo_coeff, sv, nmo)
          CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
-         CALL cp_fm_release_p(sv)
+         CALL cp_fm_release(sv)
          ! and ortho the result
          ! If DFBT or SE, then needs has_unit_metrix option
          CALL make_basis_sm(mo_coeff, nmo, matrix_s(1, 1)%matrix)

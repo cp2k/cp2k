@@ -29,10 +29,11 @@ MODULE rt_propagation_methods
                                               cp_fm_struct_double,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
@@ -667,7 +668,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mo_hist
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
-      TYPE(cp_fm_type), POINTER                          :: fm_tmp, fm_tmp1, fm_tmp2
+      TYPE(cp_fm_type)                                   :: fm_tmp, fm_tmp1, fm_tmp2
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new, s_hist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_hist
 
@@ -717,16 +718,16 @@ CONTAINS
          mo_hist => rtp%history%mo_history
          s_hist => rtp%history%s_history
          DO i = 1, SIZE(mos_new)/2
-            NULLIFY (matrix_struct, matrix_struct_new, csc, fm_tmp, fm_tmp1, fm_tmp2, cfm_tmp, cfm_tmp1)
+            NULLIFY (matrix_struct, matrix_struct_new, csc, cfm_tmp, cfm_tmp1)
 
             CALL cp_fm_struct_double(matrix_struct, &
                                      mos_new(2*i)%matrix%matrix_struct, &
                                      mos_new(2*i)%matrix%matrix_struct%context, &
                                      .TRUE., .FALSE.)
 
-            CALL cp_fm_create_p(fm_tmp, matrix_struct)
-            CALL cp_fm_create_p(fm_tmp1, matrix_struct)
-            CALL cp_fm_create_p(fm_tmp2, mos_new(2*i)%matrix%matrix_struct)
+            CALL cp_fm_create(fm_tmp, matrix_struct)
+            CALL cp_fm_create(fm_tmp1, matrix_struct)
+            CALL cp_fm_create(fm_tmp2, mos_new(2*i)%matrix%matrix_struct)
             CALL cp_cfm_create_p(cfm_tmp, mos_new(2*i)%matrix%matrix_struct)
             CALL cp_cfm_create_p(cfm_tmp1, mos_new(2*i)%matrix%matrix_struct)
 
@@ -773,10 +774,9 @@ CONTAINS
 
 ! deallocate work matrices
             CALL cp_cfm_release_p(csc)
-            CALL cp_fm_release_p(fm_tmp)
-            CALL cp_fm_release_p(fm_tmp)
-            CALL cp_fm_release_p(fm_tmp1)
-            CALL cp_fm_release_p(fm_tmp2)
+            CALL cp_fm_release(fm_tmp)
+            CALL cp_fm_release(fm_tmp1)
+            CALL cp_fm_release(fm_tmp2)
             CALL cp_cfm_release_p(cfm_tmp)
             CALL cp_cfm_release_p(cfm_tmp1)
          END DO

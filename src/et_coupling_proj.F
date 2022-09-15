@@ -30,14 +30,9 @@ MODULE et_coupling_proj
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat,&
-                                              cp_fm_type,&
-                                              cp_fm_vectorssum
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, &
+        cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_vectorssum
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -412,10 +407,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_fm_matrix_array(mat, arr)
 
-      IMPLICIT NONE
-
       ! Routine arguments
-      TYPE(cp_fm_type), POINTER                          :: mat
+      TYPE(cp_fm_type), INTENT(IN)                        :: mat
       REAL(KIND=dp), DIMENSION(:, :), POINTER             :: arr
 
       ! Routine name for debug purposes
@@ -475,12 +468,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reorder_hamiltonian_matrix(ec, mat_h, mat_w)
 
-      IMPLICIT NONE
-
       ! Routine arguments
       TYPE(et_cpl), POINTER                              :: ec
-      TYPE(cp_fm_type), POINTER                          :: mat_h
-      TYPE(cp_fm_type), POINTER                          :: mat_w
+      TYPE(cp_fm_type), INTENT(IN)                       :: mat_h
+      TYPE(cp_fm_type), INTENT(IN)                       :: mat_w
 
       ! Routine name for debug purposes
 
@@ -576,7 +567,7 @@ CONTAINS
 
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: mat_t, mat_i, mat_w
+      TYPE(cp_fm_type), INTENT(IN)                       :: mat_t, mat_i, mat_w
 
       INTEGER                                            :: n_deps
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_s
@@ -622,7 +613,7 @@ CONTAINS
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_t
-      TYPE(cp_fm_type), POINTER                          :: mat_w
+      TYPE(cp_fm_type), INTENT(IN)                       :: mat_w
       INTEGER                                            :: n_ao, n_spins
 
       INTEGER                                            :: i
@@ -682,7 +673,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: dat
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
-      TYPE(cp_fm_type), POINTER                          :: mat_u
+      TYPE(cp_fm_type)                                   :: mat_u
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
 ! Routine name for debug purposes
@@ -692,7 +683,6 @@ CONTAINS
       NULLIFY (para_env)
       NULLIFY (fm_s)
       NULLIFY (dat)
-      NULLIFY (mat_u)
 
       ! Parallel environment
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
@@ -738,7 +728,7 @@ CONTAINS
                                     ec%block(i)%n_ao, j, j, 1, 1)
 
             ! Diagonalization
-            CALL cp_fm_create_p(matrix=mat_u, matrix_struct=fm_s, name='UNITARY MATRIX')
+            CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='UNITARY MATRIX')
             CALL choose_eigv_solver(dat(i)%matrix, mat_u, vec_e)
             CALL cp_fm_to_fm(mat_u, dat(i)%matrix)
 
@@ -747,7 +737,7 @@ CONTAINS
 
             ! Clean memory
             CALL cp_fm_struct_release(fmstruct=fm_s)
-            CALL cp_fm_release_p(matrix=mat_u)
+            CALL cp_fm_release(matrix=mat_u)
             DEALLOCATE (vec_e)
 
             ! Off-set for next block
@@ -774,7 +764,7 @@ CONTAINS
                                           ec%block(j)%n_ao, k, l, 1, 1)
 
                   ! Transformation
-                  CALL cp_fm_create_p(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
+                  CALL cp_fm_create(matrix=mat_u, matrix_struct=fm_s, name='FULL WORK MATRIX')
                   CALL parallel_gemm("T", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(i)%n_ao, &
                                      1.0_dp, dat(i)%matrix, ec%block(i)%hab(spin, j)%matrix, 0.0_dp, mat_u)
                   CALL parallel_gemm("N", "N", ec%block(i)%n_ao, ec%block(j)%n_ao, ec%block(j)%n_ao, &
@@ -782,7 +772,7 @@ CONTAINS
 
                   ! Clean memory
                   CALL cp_fm_struct_release(fmstruct=fm_s)
-                  CALL cp_fm_release_p(matrix=mat_u)
+                  CALL cp_fm_release(matrix=mat_u)
 
                END IF
                ! Off-set for next block
@@ -818,12 +808,10 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION get_mo_c2_sum(blk_at, mo, id, atom) RESULT(c2)
 
-      IMPLICIT NONE
-
       ! Routine arguments
       TYPE(et_cpl_atom), DIMENSION(:), POINTER           :: blk_at
-      TYPE(cp_fm_type), POINTER                          :: mo
-      INTEGER                                            :: id
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo
+      INTEGER, INTENT(IN)                                :: id
       INTEGER, DIMENSION(:), POINTER                     :: atom
 
       ! Returning value
@@ -904,10 +892,10 @@ CONTAINS
    SUBROUTINE print_mo_coeff(output_unit, qs_env, ec, blk, n_spins)
 
       ! Routine arguments
-      INTEGER                                            :: output_unit
+      INTEGER, INTENT(IN)                                :: output_unit
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
-      INTEGER                                            :: blk, n_spins
+      INTEGER, INTENT(IN)                                :: blk, n_spins
 
       INTEGER                                            :: j, k, l, m, n, n_ao, n_mo
       INTEGER, DIMENSION(:), POINTER                     :: list_at, list_mo
@@ -1024,12 +1012,12 @@ CONTAINS
    SUBROUTINE print_states(output_unit, mo, n_spins, label, mx_mo_a, mx_mo_b, fermi)
 
       ! Routine arguments
-      INTEGER                                            :: output_unit
+      INTEGER, INTENT(IN)                                :: output_unit
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
-      INTEGER                                            :: n_spins
-      CHARACTER(LEN=*)                                   :: label
-      INTEGER, OPTIONAL                                  :: mx_mo_a, mx_mo_b
-      LOGICAL, OPTIONAL                                  :: fermi
+      INTEGER, INTENT(IN)                                :: n_spins
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+      INTEGER, INTENT(IN), OPTIONAL                      :: mx_mo_a, mx_mo_b
+      LOGICAL, INTENT(IN), OPTIONAL                      :: fermi
 
       INTEGER                                            :: i, mx_a, mx_b, n
       LOGICAL                                            :: prnt_fm
@@ -1112,11 +1100,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_couplings(ec_sec, output_unit, logger, ec, mo)
 
-      IMPLICIT NONE
-
       ! Routine arguments
       TYPE(section_vals_type), POINTER                   :: ec_sec
-      INTEGER                                            :: output_unit
+      INTEGER, INTENT(IN)                                           :: output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(et_cpl), POINTER                              :: ec
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo
@@ -1294,12 +1280,12 @@ CONTAINS
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mo_set_type), POINTER                         :: mo
-      INTEGER                                            :: n_ao, n_mo
+      INTEGER, INTENT(IN)                                :: n_ao, n_mo
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_t
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
-      TYPE(cp_fm_type), POINTER                          :: mat_sc, mat_t
+      TYPE(cp_fm_type)                                   :: mat_sc, mat_t
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_s
 
@@ -1310,24 +1296,22 @@ CONTAINS
       NULLIFY (para_env)
       NULLIFY (fm_s)
       NULLIFY (mat_s)
-      NULLIFY (mat_sc)
-      NULLIFY (mat_t)
       NULLIFY (vec_t)
 
       ! Overlap matrix
       CALL get_qs_env(qs_env, matrix_s=mat_s)
 
       ! Calculate S*C product
-      CALL cp_fm_create_p(matrix=mat_sc, matrix_struct=mo%mo_coeff%matrix_struct, &
-                          name='S*C PRODUCT MATRIX')
+      CALL cp_fm_create(matrix=mat_sc, matrix_struct=mo%mo_coeff%matrix_struct, &
+                        name='S*C PRODUCT MATRIX')
       CALL cp_dbcsr_sm_fm_multiply(mat_s(1)%matrix, mo%mo_coeff, mat_sc, n_mo)
 
       ! Calculate C^T*S*C
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                nrow_global=n_mo, ncol_global=n_mo)
-      CALL cp_fm_create_p(matrix=mat_t, matrix_struct=fm_s, &
-                          name='C^T*S*C OVERLAP PRODUCT MATRIX')
+      CALL cp_fm_create(matrix=mat_t, matrix_struct=fm_s, &
+                        name='C^T*S*C OVERLAP PRODUCT MATRIX')
       CALL parallel_gemm('T', 'N', n_mo, n_mo, n_ao, 1.0_dp, mo%mo_coeff, mat_sc, 0.0_dp, mat_t)
 
       ! Normalization
@@ -1339,8 +1323,8 @@ CONTAINS
 
       ! Clean memory
       CALL cp_fm_struct_release(fmstruct=fm_s)
-      CALL cp_fm_release_p(matrix=mat_sc)
-      CALL cp_fm_release_p(matrix=mat_t)
+      CALL cp_fm_release(matrix=mat_sc)
+      CALL cp_fm_release(matrix=mat_t)
       IF (ASSOCIATED(vec_t)) &
          DEALLOCATE (vec_t)
 
@@ -1364,18 +1348,18 @@ CONTAINS
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
-      INTEGER                                            :: id
+      INTEGER, INTENT(IN)                                            :: id
       TYPE(mo_set_type), POINTER                         :: mo
-      TYPE(cp_fm_type), POINTER                          :: mat_u
-      INTEGER                                            :: n_ao
-      INTEGER                                            :: n_mo
+      TYPE(cp_fm_type), INTENT(IN)                       :: mat_u
+      INTEGER, INTENT(IN)                                :: n_ao
+      INTEGER, INTENT(IN)                     :: n_mo
 
       ! Routine name for debug purposes
 
       ! Local variables
       INTEGER                                            :: ir, ic, jr, jc, nr, nc
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type), POINTER                          :: mat_w
+      TYPE(cp_fm_type)                          :: mat_w
       TYPE(cp_para_env_type), POINTER                    :: para_env
 #if defined(__SCALAPACK)
       INTEGER                                            :: is_p_row, is_p_col, iu_p_row, iu_p_col
@@ -1399,11 +1383,10 @@ CONTAINS
 
       NULLIFY (blacs_env)
       NULLIFY (para_env)
-      NULLIFY (mat_w)
 
       ! Working matrix
-      CALL cp_fm_create_p(matrix=mat_w, matrix_struct=mo%mo_coeff%matrix_struct, &
-                          name='BLOCK MO-TRANSFORMATION WORKING MATRIX')
+      CALL cp_fm_create(matrix=mat_w, matrix_struct=mo%mo_coeff%matrix_struct, &
+                        name='BLOCK MO-TRANSFORMATION WORKING MATRIX')
       CALL cp_fm_set_all(mat_w, 0.0_dp)
 
       ! Matrix-element reordering
@@ -1454,7 +1437,7 @@ CONTAINS
       CALL normalize_mo_vectors(qs_env, mo, n_ao, n_mo)
 
       ! Clean memory
-      CALL cp_fm_release_p(matrix=mat_w)
+      CALL cp_fm_release(matrix=mat_w)
 
    END SUBROUTINE set_mo_coefficients
 
@@ -1473,8 +1456,8 @@ CONTAINS
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
-      INTEGER                                            :: id, spin
-      TYPE(cp_fm_type), POINTER                          :: mat_u
+      INTEGER, INTENT(IN)                                :: id, spin
+      TYPE(cp_fm_type), INTENT(IN)                       :: mat_u
       REAL(KIND=dp), DIMENSION(:), POINTER               :: vec_e
 
       INTEGER                                            :: n_ao, n_el, n_mo
@@ -1576,7 +1559,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(mo_set_type), POINTER                         :: mo
-      INTEGER                                            :: ib, im, is
+      INTEGER, INTENT(IN)                                :: ib, im, is
 
       CHARACTER(LEN=default_path_length)                 :: filename
       CHARACTER(LEN=default_string_length)               :: title
@@ -1658,7 +1641,7 @@ CONTAINS
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(et_cpl), POINTER                              :: ec
-      INTEGER                                            :: n_spins
+      INTEGER, INTENT(IN)                                :: n_spins
 
       INTEGER                                            :: i, j, k, l, n
       INTEGER, DIMENSION(:), POINTER                     :: list
@@ -1757,7 +1740,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mat_h
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
-      TYPE(cp_fm_type), POINTER                          :: mat_w
+      TYPE(cp_fm_type)                                   :: mat_w
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks, mo_der
@@ -1783,7 +1766,6 @@ CONTAINS
 
       NULLIFY (fm_s)
       NULLIFY (mat_h)
-      NULLIFY (mat_w)
       NULLIFY (ks, mo_der)
 
       NULLIFY (ec)
@@ -1875,7 +1857,7 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                nrow_global=n_ao, ncol_global=n_ao)
-      CALL cp_fm_create_p(matrix=mat_w, matrix_struct=fm_s, name='FULL WORK MATRIX')
+      CALL cp_fm_create(matrix=mat_w, matrix_struct=fm_s, name='FULL WORK MATRIX')
 
       ! Spin polarization / K-point sampling
       CALL get_qs_env(qs_env, dft_control=dft_cntrl, do_kpoints=do_kp)
@@ -1975,7 +1957,7 @@ CONTAINS
 
       ! Clean memory
       CALL cp_fm_struct_release(fmstruct=fm_s)
-      CALL cp_fm_release_p(matrix=mat_w)
+      CALL cp_fm_release(matrix=mat_w)
       IF (ASSOCIATED(mat_h)) THEN
          DO i = 1, SIZE(mat_h)
             IF (ASSOCIATED(mat_h(i)%matrix)) &
