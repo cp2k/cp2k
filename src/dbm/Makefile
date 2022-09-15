@@ -9,8 +9,14 @@ realclean: clean
 	rm -fv *.x
 
 CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra -Wno-vla-parameter
+
+NVCC := $(shell which nvcc)
 NVARCH := sm_70
 NVFLAGS := -g -O3 -lineinfo -arch $(NVARCH) -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
+
+HIPCC := $(shell which hipcc)
+HIPARCH := gfx90a
+HIPFLAGS := -fPIE -g -O3 --offload-arch=$(HIPARCH) -Wall -Wextra -Werror -I${ROCM_PATH}/include -D__OFFLOAD_HIP -D__HIP_PLATFORM_AMD__ -D__HIP_PLATFORM_AMD__
 
 ifneq ($(LIBXSMMROOT),)
 LIBS += \
@@ -45,8 +51,8 @@ ALL_OBJECTS := ../offload/offload_library.o \
         dbm_multiply_cpu.o \
         dbm_shard.o
 
+
 # Enable Cuda when nvcc compiler is present.
-NVCC := $(shell which nvcc)
 ifneq ($(NVCC),)
 LIBS += -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
 CFLAGS += -I${CUDA_PATH}/include -D__OFFLOAD_CUDA
@@ -54,19 +60,30 @@ ALL_OBJECTS += dbm_multiply_gpu.o
 
 %.o: %.cu $(ALL_HEADERS)
 	cd $(dir $<); $(NVCC) -c $(NVFLAGS) $(notdir $<)
+
+
+# Enable HIP/ROCm when hipcc compiler is present.
+else ifneq ($(HIPCC),)
+LIBS += -L${ROCM_PATH}/lib -lamdhip64 -lhipfft -lhipblas -lrocblas
+CFLAGS += -I${ROCM_PATH}/include -D__OFFLOAD_HIP -D__HIP_PLATFORM_AMD__
+ALL_OBJECTS += dbm_multiply_gpu.o
+
+%.o: %.cu $(ALL_HEADERS)
+	cd $(dir $<); $(HIPCC) -c $(HIPFLAGS) $(notdir $<)
 endif
 
+
+# Build with MPI when mpicc compiler is present.
 ifneq ($(MPICC),)
-# Build with MPI.
 %.o: %.c $(ALL_HEADERS)
 	cd $(dir $<); $(MPICC) -c -std=c11 $(CFLAGS) -D__parallel $(notdir $<)
 
 dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
 	$(MPICC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-else
 
-# Build without MPI.
+# Build without MPI otherwise.
+else
 %.o: %.c $(ALL_HEADERS)
 	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
