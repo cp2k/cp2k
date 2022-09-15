@@ -350,7 +350,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
@@ -1093,7 +1093,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
@@ -1680,7 +1680,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_aux_fit
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_aux_mo_derivs_none'
