@@ -548,13 +548,13 @@ CONTAINS
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
                IF (use_real_wfn) THEN
-                  CALL cp_fm_cleanup_copy_general(fmwork(1)%matrix, info(indx, 1))
-                  CALL cp_fm_cleanup_copy_general(fmwork(3)%matrix, info(indx, 2))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 1))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 2))
                ELSE
-                  CALL cp_fm_cleanup_copy_general(fmwork(1)%matrix, info(indx, 1))
-                  CALL cp_fm_cleanup_copy_general(fmwork(2)%matrix, info(indx, 2))
-                  CALL cp_fm_cleanup_copy_general(fmwork(3)%matrix, info(indx, 3))
-                  CALL cp_fm_cleanup_copy_general(fmwork(4)%matrix, info(indx, 4))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 1))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 2))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 3))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 4))
                END IF
             END DO
          END DO

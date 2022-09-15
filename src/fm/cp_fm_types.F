@@ -1456,7 +1456,7 @@ CONTAINS
          CALL cp_fm_finish_copy_general(destination, info)
       END IF
       IF (ASSOCIATED(source)) THEN
-         CALL cp_fm_cleanup_copy_general(source, info)
+         CALL cp_fm_cleanup_copy_general(info)
       END IF
 
       CALL timestop(handle)
@@ -1880,11 +1880,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Completes the copy operation: wait for comms clean up MPI state
-!> \param source fm matrix
 !> \param info all of the data that will be needed to complete the copy operation
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_cleanup_copy_general(source, info)
-      TYPE(cp_fm_type), POINTER                          :: source
+   SUBROUTINE cp_fm_cleanup_copy_general(info)
       TYPE(copy_info_type), INTENT(INOUT)                :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_cleanup_copy_general'
@@ -1895,9 +1893,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: send_buf
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(source))
-      MARK_USED(source)
 
       IF (.NOT. cp2k_is_parallel) THEN
          ! Don't do anything - no MPI state for the serial case

@@ -1179,11 +1179,7 @@ CONTAINS
 
                DO ic = 1, nc
                   indx = indx + 1
-                  IF (wtype) THEN
-                     CALL cp_fm_cleanup_copy_general(kp%wmat(ic, ispin)%matrix, info(indx))
-                  ELSE
-                     CALL cp_fm_cleanup_copy_general(kp%pmat(ic, ispin)%matrix, info(indx))
-                  END IF
+                  CALL cp_fm_cleanup_copy_general(info(indx))
                END DO
             ELSE
                ! calls with dummy arguments, so not included
