@@ -1803,7 +1803,7 @@ CONTAINS
 !> \param info all of the data that will be needed to complete the copy operation
 ! **************************************************************************************************
    SUBROUTINE cp_fm_finish_copy_general(destination, info)
-      TYPE(cp_fm_type), POINTER                          :: destination
+      TYPE(cp_fm_type), INTENT(IN)                       :: destination
       TYPE(copy_info_type), INTENT(INOUT)                :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_finish_copy_general'
@@ -1819,8 +1819,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: recv_buf, send_buf
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(destination))
 
       IF (.NOT. cp2k_is_parallel) THEN
          ! Now unpack the data from the 'send buffer'
