@@ -1471,8 +1471,8 @@ CONTAINS
 !> \param info all of the data that will be needed to complete the copy operation
 ! **************************************************************************************************
    SUBROUTINE cp_fm_start_copy_general(source, destination, para_env, info)
-      TYPE(cp_fm_type), POINTER                          :: source, destination
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
+      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(copy_info_type), INTENT(OUT)                  :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_start_copy_general'
@@ -1511,12 +1511,8 @@ CONTAINS
          END DO
       ELSE
          ! assumption of double precision data is carried forward from ScaLAPACK version
-         IF (ASSOCIATED(source)) THEN
-            IF (source%use_sp) CPABORT("only DP kind implemented")
-         END IF
-         IF (ASSOCIATED(destination)) THEN
-            IF (destination%use_sp) CPABORT("only DP kind implemented")
-         END IF
+         IF (source%use_sp) CPABORT("only DP kind implemented")
+         IF (destination%use_sp) CPABORT("only DP kind implemented")
 
          NULLIFY (recv_dist, send_dist)
          NULLIFY (recv_col_indices, recv_row_indices, send_col_indices, send_row_indices)
@@ -1530,14 +1526,14 @@ CONTAINS
          ! on a subset of the processes involved in the communication
          ! Check if the source and/or destination arguments are .not. ASSOCIATED():
          ! if so, skip the send / recv parts (since these processes do not participate in the sending/receiving distribution)
-         IF (ASSOCIATED(destination)) THEN
+         IF (ASSOCIATED(destination%matrix_struct)) THEN
             recv_dist => destination%matrix_struct
             recv_rank = recv_dist%para_env%mepos
          ELSE
             recv_rank = mp_proc_null
          END IF
 
-         IF (ASSOCIATED(source)) THEN
+         IF (ASSOCIATED(source%matrix_struct)) THEN
             send_dist => source%matrix_struct
             send_rank = send_dist%para_env%mepos
          ELSE
@@ -1548,7 +1544,7 @@ CONTAINS
          ALLOCATE (all_ranks(0:global_size - 1))
 
          CALL mp_allgather(send_rank, all_ranks, global_comm)
-         IF (ASSOCIATED(destination)) THEN
+         IF (ASSOCIATED(recv_dist)) THEN
             ALLOCATE (source2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
             DO i = 0, global_size - 1
                IF (all_ranks(i) .NE. mp_proc_null) THEN
@@ -1558,7 +1554,7 @@ CONTAINS
          END IF
 
          CALL mp_allgather(recv_rank, all_ranks, global_comm)
-         IF (ASSOCIATED(source)) THEN
+         IF (ASSOCIATED(send_dist)) THEN
             ALLOCATE (dest2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
             DO i = 0, global_size - 1
                IF (all_ranks(i) .NE. mp_proc_null) THEN
@@ -1581,7 +1577,7 @@ CONTAINS
             CALL mp_irecv(dest_num_pe, mp_any_source, global_comm, recv_req(4), tag=dest_tag)
          END IF
 
-         IF (ASSOCIATED(source)) THEN
+         IF (ASSOCIATED(send_dist)) THEN
             IF ((send_rank .EQ. 0)) THEN
                ! need to use separate buffers here in case this is actually global rank 0
                src_block_tmp = (/send_dist%nrow_block, send_dist%ncol_block/)
@@ -1590,7 +1586,7 @@ CONTAINS
             END IF
          END IF
 
-         IF (ASSOCIATED(destination)) THEN
+         IF (ASSOCIATED(recv_dist)) THEN
             IF ((recv_rank .EQ. 0)) THEN
                dest_block_tmp = (/recv_dist%nrow_block, recv_dist%ncol_block/)
                CALL mp_isend(dest_block_tmp, 0, global_comm, send_req(3), tag=dest_tag)
@@ -1608,13 +1604,13 @@ CONTAINS
             CALL mp_irecv(dest_blacs2mpi, mp_any_source, global_comm, recv_req(6), tag=dest_tag)
          END IF
 
-         IF (ASSOCIATED(source)) THEN
+         IF (ASSOCIATED(send_dist)) THEN
             IF ((send_rank .EQ. 0)) THEN
                CALL mp_isend(send_dist%context%blacs2mpi(:, :), 0, global_comm, send_req(5), tag=src_tag)
             END IF
          END IF
 
-         IF (ASSOCIATED(destination)) THEN
+         IF (ASSOCIATED(recv_dist)) THEN
             IF ((recv_rank .EQ. 0)) THEN
                CALL mp_isend(recv_dist%context%blacs2mpi(:, :), 0, global_comm, send_req(6), tag=dest_tag)
             END IF
@@ -1660,7 +1656,7 @@ CONTAINS
          !      wait for the sends
 
          ! DEST_1
-         IF (ASSOCIATED(destination)) THEN
+         IF (ASSOCIATED(recv_dist)) THEN
             CALL cp_fm_struct_get(recv_dist, row_indices=recv_row_indices, &
                                   col_indices=recv_col_indices &
                                   )
@@ -1719,10 +1715,10 @@ CONTAINS
             END DO
             info%recv_request => recv_request
             DEALLOCATE (source2global)
-         END IF ! ASSOCIATED(destination)
+         END IF ! ASSOCIATED(recv_dist)
 
          ! SRC_1
-         IF (ASSOCIATED(source)) THEN
+         IF (ASSOCIATED(send_dist)) THEN
             CALL cp_fm_struct_get(send_dist, row_indices=send_row_indices, &
                                   col_indices=send_col_indices &
                                   )
@@ -1788,7 +1784,7 @@ CONTAINS
             END DO
             info%send_request => send_request
             DEALLOCATE (send_count, send_disp, dest2global)
-         END IF ! ASSOCIATED(source)
+         END IF ! ASSOCIATED(send_dist)
          DEALLOCATE (dest_blacs2mpi)
 
       END IF !IF (.NOT. cp2k_is_parallel)
