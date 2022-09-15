@@ -16,8 +16,8 @@ MODULE rpa_util
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_release,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_set_all,&
                                               cp_cfm_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -251,7 +251,7 @@ CONTAINS
                               dimen_RI, ikp_local, first_ikp_local)
 
          NULLIFY (cfm_mat_Q)
-         CALL cp_cfm_create(cfm_mat_Q, fm_struct_sub_kp)
+         CALL cp_cfm_create_p(cfm_mat_Q, fm_struct_sub_kp)
          CALL cp_cfm_set_all(cfm_mat_Q, z_zero)
       ELSE
          first_ikp_local = 1
@@ -1218,7 +1218,7 @@ CONTAINS
       DEALLOCATE (has_mat_P_blocks)
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
-         CALL cp_cfm_release(cfm_mat_Q)
+         CALL cp_cfm_release_p(cfm_mat_Q)
          CALL cp_fm_release_p(fm_mat_RI_global_work)
          CALL dbcsr_deallocate_matrix_set(mat_P_omega_kp)
          DEALLOCATE (wkp_W)

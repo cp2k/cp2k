@@ -79,7 +79,7 @@ CONTAINS
    SUBROUTINE write_fm_with_basis_info(blacs_matrix, before, after, qs_env, para_env, &
                                        first_row, last_row, first_col, last_col, output_unit, omit_headers)
 
-      TYPE(cp_fm_type), POINTER                          :: blacs_matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: blacs_matrix
       INTEGER, INTENT(IN)                                :: before, after
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -95,7 +95,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       group = para_env%group
-      IF (.NOT. ASSOCIATED(blacs_matrix)) RETURN
+      IF (blacs_matrix%ref_count < 1) RETURN
       CALL cp_fm_get_info(blacs_matrix, name=matrix_name, nrow_global=nrow_global, &
                           ncol_global=ncol_global)
 

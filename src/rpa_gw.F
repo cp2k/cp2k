@@ -15,10 +15,10 @@ MODULE rpa_gw
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
@@ -698,7 +698,7 @@ CONTAINS
          DO jquad = 1, SIZE(cfm_mat_W_kp_tau, 2)
             DO ikp = 1, SIZE(cfm_mat_W_kp_tau, 1)
                IF (.NOT. (ANY(ikp_local(:) == ikp))) CYCLE
-               CALL cp_cfm_release(cfm_mat_W_kp_tau(ikp, jquad)%matrix)
+               CALL cp_cfm_release_p(cfm_mat_W_kp_tau(ikp, jquad)%matrix)
             END DO
          END DO
          DEALLOCATE (cfm_mat_W_kp_tau)
@@ -5119,12 +5119,12 @@ CONTAINS
 
       NULLIFY (ks_mat_ao_ao, ks_mat_no_xc_ao_ao, vxc_ao_ao, vxc_ao_mo, vxc_mo_mo, cfm_mo_coeff, fm_Sigma_x_minus_vxc_mo_mo, &
                fm_tmp_re, fm_tmp_im)
-      CALL cp_cfm_create(ks_mat_ao_ao, matrix_struct)
-      CALL cp_cfm_create(ks_mat_no_xc_ao_ao, matrix_struct)
-      CALL cp_cfm_create(vxc_ao_ao, matrix_struct)
-      CALL cp_cfm_create(vxc_ao_mo, matrix_struct)
-      CALL cp_cfm_create(vxc_mo_mo, matrix_struct)
-      CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
+      CALL cp_cfm_create_p(ks_mat_ao_ao, matrix_struct)
+      CALL cp_cfm_create_p(ks_mat_no_xc_ao_ao, matrix_struct)
+      CALL cp_cfm_create_p(vxc_ao_ao, matrix_struct)
+      CALL cp_cfm_create_p(vxc_ao_mo, matrix_struct)
+      CALL cp_cfm_create_p(vxc_mo_mo, matrix_struct)
+      CALL cp_cfm_create_p(cfm_mo_coeff, matrix_struct)
       CALL cp_fm_create_p(fm_Sigma_x_minus_vxc_mo_mo, matrix_struct)
       CALL cp_fm_create_p(fm_tmp_re, matrix_struct)
       CALL cp_fm_create_p(fm_tmp_im, matrix_struct)
@@ -5168,12 +5168,12 @@ CONTAINS
 
       END DO
 
-      CALL cp_cfm_release(ks_mat_ao_ao)
-      CALL cp_cfm_release(ks_mat_no_xc_ao_ao)
-      CALL cp_cfm_release(vxc_ao_ao)
-      CALL cp_cfm_release(vxc_ao_mo)
-      CALL cp_cfm_release(vxc_mo_mo)
-      CALL cp_cfm_release(cfm_mo_coeff)
+      CALL cp_cfm_release_p(ks_mat_ao_ao)
+      CALL cp_cfm_release_p(ks_mat_no_xc_ao_ao)
+      CALL cp_cfm_release_p(vxc_ao_ao)
+      CALL cp_cfm_release_p(vxc_ao_mo)
+      CALL cp_cfm_release_p(vxc_mo_mo)
+      CALL cp_cfm_release_p(cfm_mo_coeff)
       CALL cp_fm_release_p(fm_Sigma_x_minus_vxc_mo_mo)
       CALL cp_fm_release_p(fm_tmp_re)
       CALL cp_fm_release_p(fm_tmp_im)
@@ -5245,15 +5245,15 @@ CONTAINS
       NULLIFY (cfm_self_energy_ao_ao, cfm_self_energy_ao_mo, cfm_self_energy_mo_mo, cfm_mo_coeff)
       matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%mos(1, 1)%mo_set%mo_coeff%matrix_struct
 
-      CALL cp_cfm_create(cfm_self_energy_ao_ao, matrix_struct)
-      CALL cp_cfm_create(cfm_self_energy_ao_mo, matrix_struct)
-      CALL cp_cfm_create(cfm_self_energy_mo_mo, matrix_struct)
+      CALL cp_cfm_create_p(cfm_self_energy_ao_ao, matrix_struct)
+      CALL cp_cfm_create_p(cfm_self_energy_ao_mo, matrix_struct)
+      CALL cp_cfm_create_p(cfm_self_energy_mo_mo, matrix_struct)
       CALL cp_cfm_set_all(cfm_self_energy_ao_ao, z_zero)
       CALL cp_cfm_set_all(cfm_self_energy_ao_mo, z_zero)
       CALL cp_cfm_set_all(cfm_self_energy_mo_mo, z_zero)
 
       CALL cp_fm_create_p(fm_self_energy_mo_mo, matrix_struct)
-      CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
+      CALL cp_cfm_create_p(cfm_mo_coeff, matrix_struct)
 
       DO ikp = 1, nkp_Sigma
 
@@ -5281,10 +5281,10 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_kp_re)
       CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_kp_im)
 
-      CALL cp_cfm_release(cfm_self_energy_ao_ao)
-      CALL cp_cfm_release(cfm_self_energy_ao_mo)
-      CALL cp_cfm_release(cfm_self_energy_mo_mo)
-      CALL cp_cfm_release(cfm_mo_coeff)
+      CALL cp_cfm_release_p(cfm_self_energy_ao_ao)
+      CALL cp_cfm_release_p(cfm_self_energy_ao_mo)
+      CALL cp_cfm_release_p(cfm_self_energy_mo_mo)
+      CALL cp_cfm_release_p(cfm_mo_coeff)
       CALL cp_fm_release_p(fm_self_energy_mo_mo)
 
       DEALLOCATE (diag_self_energy)

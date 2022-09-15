@@ -26,10 +26,10 @@ MODULE rpa_gw_kpoints_util
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon,&
                                               cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
@@ -362,11 +362,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (cfm_mat_work)
-      CALL cp_cfm_create(cfm_mat_work, fm_mat_L_re%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_work, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
       NULLIFY (cfm_mat_L)
-      CALL cp_cfm_create(cfm_mat_L, fm_mat_L_re%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_L, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_L, z_zero)
 
       NULLIFY (fm_mat_work)
@@ -399,8 +399,8 @@ CONTAINS
       CALL parallel_gemm('C', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
                          z_zero, cfm_mat_Q)
 
-      CALL cp_cfm_release(cfm_mat_work)
-      CALL cp_cfm_release(cfm_mat_L)
+      CALL cp_cfm_release_p(cfm_mat_work)
+      CALL cp_cfm_release_p(cfm_mat_L)
       CALL cp_fm_release_p(fm_mat_work)
 
       CALL timestop(handle)
@@ -514,11 +514,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (cfm_mat_work)
-      CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_work, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
       NULLIFY (cfm_mat_Q_tmp)
-      CALL cp_cfm_create(cfm_mat_Q_tmp, cfm_mat_Q%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_Q_tmp, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_Q_tmp, z_zero)
 
       ! get info of fm_mat_Q
@@ -550,8 +550,8 @@ CONTAINS
 
       CPASSERT(info_chol == 0)
 
-      CALL cp_cfm_release(cfm_mat_work)
-      CALL cp_cfm_release(cfm_mat_Q_tmp)
+      CALL cp_cfm_release_p(cfm_mat_work)
+      CALL cp_cfm_release_p(cfm_mat_Q_tmp)
 
       CALL timestop(handle)
 
@@ -714,7 +714,7 @@ CONTAINS
             DO jkp = 1, nkp
                NULLIFY (cfm_mat_W_kp_tau(jkp, iquad)%matrix)
                IF (.NOT. (ANY(ikp_local(:) == jkp))) CYCLE
-               CALL cp_cfm_create(cfm_mat_W_kp_tau(jkp, iquad)%matrix, cfm_mat_Q%matrix_struct)
+               CALL cp_cfm_create_p(cfm_mat_W_kp_tau(jkp, iquad)%matrix, cfm_mat_Q%matrix_struct)
                CALL cp_cfm_set_all(matrix=cfm_mat_W_kp_tau(jkp, iquad)%matrix, alpha=z_zero)
             END DO
          END DO
@@ -1073,15 +1073,15 @@ CONTAINS
       CALL timeset(routineN//"_1", handle2)
 
       NULLIFY (cfm_mat_work)
-      CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_work, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
       NULLIFY (cfm_mat_work_2)
-      CALL cp_cfm_create(cfm_mat_work_2, cfm_mat_Q%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_work_2, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work_2, z_zero)
 
       NULLIFY (cfm_mat_L)
-      CALL cp_cfm_create(cfm_mat_L, cfm_mat_Q%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_L, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_L, z_zero)
 
       ! Copy fm_mat_L_re and fm_mat_L_re to cfm_mat_L
@@ -1283,9 +1283,9 @@ CONTAINS
          END IF
       END IF
 
-      CALL cp_cfm_release(cfm_mat_work)
-      CALL cp_cfm_release(cfm_mat_work_2)
-      CALL cp_cfm_release(cfm_mat_L)
+      CALL cp_cfm_release_p(cfm_mat_work)
+      CALL cp_cfm_release_p(cfm_mat_work_2)
+      CALL cp_cfm_release_p(cfm_mat_L)
       CALL cp_fm_release_p(fm_mat_work_global)
       CALL cp_fm_release_p(fm_mat_work_local)
       DEALLOCATE (atom_from_RI_index)
@@ -1366,11 +1366,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (cfm_mat_work)
-      CALL cp_cfm_create(cfm_mat_work, fm_mat_L_re%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_work, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
       NULLIFY (cfm_mat_L)
-      CALL cp_cfm_create(cfm_mat_L, fm_mat_L_re%matrix_struct)
+      CALL cp_cfm_create_p(cfm_mat_L, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_L, z_zero)
 
       CALL timeset(routineN//"_cholesky_inv", handle2)
@@ -1420,8 +1420,8 @@ CONTAINS
                                    beta=CMPLX(weight, KIND=dp), matrix_b=cfm_mat_Q)
       END DO
 
-      CALL cp_cfm_release(cfm_mat_work)
-      CALL cp_cfm_release(cfm_mat_L)
+      CALL cp_cfm_release_p(cfm_mat_work)
+      CALL cp_cfm_release_p(cfm_mat_L)
 
       CALL timestop(handle)
 
@@ -1853,10 +1853,10 @@ CONTAINS
 
       matrix_struct => kpoints%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct
 
-      CALL cp_cfm_create(cksmat, matrix_struct)
-      CALL cp_cfm_create(csmat, matrix_struct)
-      CALL cp_cfm_create(cmos, matrix_struct)
-      CALL cp_cfm_create(cwork, matrix_struct)
+      CALL cp_cfm_create_p(cksmat, matrix_struct)
+      CALL cp_cfm_create_p(csmat, matrix_struct)
+      CALL cp_cfm_create_p(cmos, matrix_struct)
+      CALL cp_cfm_create_p(cwork, matrix_struct)
       CALL cp_fm_create_p(fm_work, matrix_struct)
 
       DO ikp = 1, nkp
@@ -1907,10 +1907,10 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(matrix_s_desymm(1)%matrix)
       DEALLOCATE (matrix_s_desymm)
 
-      CALL cp_cfm_release(cksmat)
-      CALL cp_cfm_release(csmat)
-      CALL cp_cfm_release(cwork)
-      CALL cp_cfm_release(cmos)
+      CALL cp_cfm_release_p(cksmat)
+      CALL cp_cfm_release_p(csmat)
+      CALL cp_cfm_release_p(cwork)
+      CALL cp_cfm_release_p(cmos)
       CALL cp_fm_release_p(fm_work)
 
       CALL timestop(handle)

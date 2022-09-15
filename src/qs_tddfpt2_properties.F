@@ -12,9 +12,9 @@ MODULE qs_tddfpt2_properties
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_fm,&
                                               cp_fm_to_cfm
@@ -272,8 +272,8 @@ CONTAINS
                                      ncol_global=nmo_occ(ispin), context=blacs_env)
 
             NULLIFY (gamma_00(ispin)%matrix, gamma_inv_00(ispin)%matrix)
-            CALL cp_cfm_create(gamma_00(ispin)%matrix, fm_struct)
-            CALL cp_cfm_create(gamma_inv_00(ispin)%matrix, fm_struct)
+            CALL cp_cfm_create_p(gamma_00(ispin)%matrix, fm_struct)
+            CALL cp_cfm_create_p(gamma_inv_00(ispin)%matrix, fm_struct)
 
             DO i_cos_sin = 1, 2
                NULLIFY (gamma_real_imag(i_cos_sin, ispin)%matrix)
@@ -359,8 +359,8 @@ CONTAINS
                CALL cp_fm_release_p(gamma_real_imag(i_cos_sin, ispin)%matrix)
             END DO
 
-            CALL cp_cfm_release(gamma_inv_00(ispin)%matrix)
-            CALL cp_cfm_release(gamma_00(ispin)%matrix)
+            CALL cp_cfm_release_p(gamma_inv_00(ispin)%matrix)
+            CALL cp_cfm_release_p(gamma_00(ispin)%matrix)
          END DO
          DEALLOCATE (gamma_00, gamma_inv_00, gamma_real_imag, opvec)
          CALL dbcsr_deallocate_matrix_set(berry_cossin_xyz)

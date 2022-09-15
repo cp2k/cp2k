@@ -15,8 +15,8 @@ MODULE rt_propagation_methods
                                               cite_reference
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_triangular_multiply
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_release,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: rtp_control_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
@@ -727,8 +727,8 @@ CONTAINS
             CALL cp_fm_create_p(fm_tmp, matrix_struct)
             CALL cp_fm_create_p(fm_tmp1, matrix_struct)
             CALL cp_fm_create_p(fm_tmp2, mos_new(2*i)%matrix%matrix_struct)
-            CALL cp_cfm_create(cfm_tmp, mos_new(2*i)%matrix%matrix_struct)
-            CALL cp_cfm_create(cfm_tmp1, mos_new(2*i)%matrix%matrix_struct)
+            CALL cp_cfm_create_p(cfm_tmp, mos_new(2*i)%matrix%matrix_struct)
+            CALL cp_cfm_create_p(cfm_tmp1, mos_new(2*i)%matrix%matrix_struct)
 
             CALL cp_fm_get_info(fm_tmp, &
                                 ncol_global=kdbl)
@@ -742,7 +742,7 @@ CONTAINS
                                      template_fmstruct=mos_new(2*i)%matrix%matrix_struct, &
                                      nrow_global=k, &
                                      ncol_global=k)
-            CALL cp_cfm_create(csc, matrix_struct_new)
+            CALL cp_cfm_create_p(csc, matrix_struct_new)
 
             CALL cp_fm_struct_release(matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct)
@@ -772,13 +772,13 @@ CONTAINS
             END DO
 
 ! deallocate work matrices
-            CALL cp_cfm_release(csc)
+            CALL cp_cfm_release_p(csc)
             CALL cp_fm_release_p(fm_tmp)
             CALL cp_fm_release_p(fm_tmp)
             CALL cp_fm_release_p(fm_tmp1)
             CALL cp_fm_release_p(fm_tmp2)
-            CALL cp_cfm_release(cfm_tmp)
-            CALL cp_cfm_release(cfm_tmp1)
+            CALL cp_cfm_release_p(cfm_tmp)
+            CALL cp_cfm_release_p(cfm_tmp1)
          END DO
 
       END IF

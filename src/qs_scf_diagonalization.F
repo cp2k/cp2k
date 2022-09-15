@@ -17,8 +17,8 @@ MODULE qs_scf_diagonalization
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_release,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -400,13 +400,13 @@ CONTAINS
          CALL cp_fm_create_p(rksmat, matrix_struct)
          CALL cp_fm_create_p(rsmat, matrix_struct)
       ELSE
-         CALL cp_cfm_create(cksmat, matrix_struct)
-         CALL cp_cfm_create(csmat, matrix_struct)
-         CALL cp_cfm_create(cwork, matrix_struct)
+         CALL cp_cfm_create_p(cksmat, matrix_struct)
+         CALL cp_cfm_create_p(csmat, matrix_struct)
+         CALL cp_cfm_create_p(cwork, matrix_struct)
          kp => kpoints%kp_env(1)%kpoint_env
          CALL get_mo_set(kp%mos(1, 1)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, matrix_struct=mo_struct)
-         CALL cp_cfm_create(cmos, mo_struct)
+         CALL cp_cfm_create_p(cmos, mo_struct)
       END IF
 
       para_env => kpoints%blacs_env_all%para_env
@@ -582,10 +582,10 @@ CONTAINS
          CALL cp_fm_release_p(rksmat)
          CALL cp_fm_release_p(rsmat)
       ELSE
-         CALL cp_cfm_release(cksmat)
-         CALL cp_cfm_release(csmat)
-         CALL cp_cfm_release(cwork)
-         CALL cp_cfm_release(cmos)
+         CALL cp_cfm_release_p(cksmat)
+         CALL cp_cfm_release_p(csmat)
+         CALL cp_cfm_release_p(cwork)
+         CALL cp_cfm_release_p(cmos)
       END IF
       CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
 

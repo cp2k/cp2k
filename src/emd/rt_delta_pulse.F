@@ -14,8 +14,8 @@ MODULE rt_delta_pulse
    USE commutator_rpnl,                 ONLY: build_com_mom_nl
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_release,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -256,9 +256,9 @@ CONTAINS
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*ispin - 1)%matrix, mat_tmp, 1.0_dp, oo_2)
          CALL cp_fm_release_p(mat_tmp)
 
-         CALL cp_cfm_create(oo_c, oo_1%matrix_struct)
-         CALL cp_cfm_create(oo_v, oo_1%matrix_struct)
-         CALL cp_cfm_create(oo_vt, oo_1%matrix_struct)
+         CALL cp_cfm_create_p(oo_c, oo_1%matrix_struct)
+         CALL cp_cfm_create_p(oo_v, oo_1%matrix_struct)
+         CALL cp_cfm_create_p(oo_vt, oo_1%matrix_struct)
          oo_c%local_data = CMPLX(oo_1%local_data, oo_2%local_data, KIND=dp)
 
          ! compute inv(sqrt(overlap))
@@ -274,9 +274,9 @@ CONTAINS
                             oo_v, oo_vt, (0.0_dp, 0.0_dp), oo_c)
          oo_1%local_data = REAL(oo_c%local_data, KIND=dp)
          oo_2%local_data = AIMAG(oo_c%local_data)
-         CALL cp_cfm_release(oo_c)
-         CALL cp_cfm_release(oo_v)
-         CALL cp_cfm_release(oo_vt)
+         CALL cp_cfm_release_p(oo_c)
+         CALL cp_cfm_release_p(oo_v)
+         CALL cp_cfm_release_p(oo_vt)
 
          ! use this to compute the orthonormal vectors
          CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*ispin - 1)%matrix, oo_1, 0.0_dp, mos_new(2*ispin - 1)%matrix)
@@ -407,9 +407,9 @@ CONTAINS
          CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*i - 1)%matrix, tmp, 1.0_dp, oo_2)
          CALL cp_fm_release_p(tmp)
 
-         CALL cp_cfm_create(oo_c, oo_1%matrix_struct)
-         CALL cp_cfm_create(oo_v, oo_1%matrix_struct)
-         CALL cp_cfm_create(oo_vt, oo_1%matrix_struct)
+         CALL cp_cfm_create_p(oo_c, oo_1%matrix_struct)
+         CALL cp_cfm_create_p(oo_v, oo_1%matrix_struct)
+         CALL cp_cfm_create_p(oo_vt, oo_1%matrix_struct)
          oo_c%local_data = CMPLX(oo_1%local_data, oo_2%local_data, KIND=dp)
 
          ! compute inv(sqrt(overlap))
@@ -425,9 +425,9 @@ CONTAINS
                             oo_v, oo_vt, (0.0_dp, 0.0_dp), oo_c)
          oo_1%local_data = REAL(oo_c%local_data, KIND=dp)
          oo_2%local_data = AIMAG(oo_c%local_data)
-         CALL cp_cfm_release(oo_c)
-         CALL cp_cfm_release(oo_v)
-         CALL cp_cfm_release(oo_vt)
+         CALL cp_cfm_release_p(oo_c)
+         CALL cp_cfm_release_p(oo_v)
+         CALL cp_cfm_release_p(oo_vt)
 
          ! use this to compute the orthonormal vectors
          CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, mos_old(2*i - 1)%matrix, oo_1, 0.0_dp, mos_new(2*i - 1)%matrix)

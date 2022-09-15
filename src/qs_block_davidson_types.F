@@ -104,7 +104,7 @@ CONTAINS
    SUBROUTINE block_davidson_allocate(bdav_env, mo_coeff, nao, nmo)
 
       TYPE(davidson_type)                                :: bdav_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: nao, nmo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_allocate'

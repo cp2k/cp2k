@@ -11,10 +11,10 @@
 MODULE negf_integr_simpson
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
                                               cp_cfm_scale_and_add
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_retain,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
@@ -196,21 +196,21 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ALLOCATED(sr_env%subintervals)) THEN
          DO interval = SIZE(sr_env%subintervals), 1, -1
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fa)) CALL cp_cfm_release(sr_env%subintervals(interval)%fa)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fb)) CALL cp_cfm_release(sr_env%subintervals(interval)%fb)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fc)) CALL cp_cfm_release(sr_env%subintervals(interval)%fc)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fd)) CALL cp_cfm_release(sr_env%subintervals(interval)%fd)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fe)) CALL cp_cfm_release(sr_env%subintervals(interval)%fe)
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fa)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fa)
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fb)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fb)
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fc)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fc)
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fd)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fd)
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fe)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fe)
          END DO
 
          DEALLOCATE (sr_env%subintervals)
       END IF
 
-      IF (ASSOCIATED(sr_env%integral)) CALL cp_cfm_release(sr_env%integral)
-      IF (ASSOCIATED(sr_env%integral_conv)) CALL cp_cfm_release(sr_env%integral_conv)
-      IF (ASSOCIATED(sr_env%integral_abc)) CALL cp_cfm_release(sr_env%integral_abc)
-      IF (ASSOCIATED(sr_env%integral_cde)) CALL cp_cfm_release(sr_env%integral_cde)
-      IF (ASSOCIATED(sr_env%integral_ace)) CALL cp_cfm_release(sr_env%integral_ace)
+      IF (ASSOCIATED(sr_env%integral)) CALL cp_cfm_release_p(sr_env%integral)
+      IF (ASSOCIATED(sr_env%integral_conv)) CALL cp_cfm_release_p(sr_env%integral_conv)
+      IF (ASSOCIATED(sr_env%integral_abc)) CALL cp_cfm_release_p(sr_env%integral_abc)
+      IF (ASSOCIATED(sr_env%integral_cde)) CALL cp_cfm_release_p(sr_env%integral_cde)
+      IF (ASSOCIATED(sr_env%integral_ace)) CALL cp_cfm_release_p(sr_env%integral_ace)
 
       IF (ASSOCIATED(sr_env%error_fm)) CALL cp_fm_release_p(sr_env%error_fm)
       IF (ASSOCIATED(sr_env%weights)) CALL cp_fm_release_p(sr_env%weights)
@@ -404,11 +404,11 @@ CONTAINS
       ELSE
          ! first time -- allocate matrices and create a new set of intervals
          CALL cp_cfm_get_info(zdata_next(1)%matrix, matrix_struct=fm_struct)
-         CALL cp_cfm_create(sr_env%integral, fm_struct)
-         CALL cp_cfm_create(sr_env%integral_conv, fm_struct)
-         CALL cp_cfm_create(sr_env%integral_abc, fm_struct)
-         CALL cp_cfm_create(sr_env%integral_cde, fm_struct)
-         CALL cp_cfm_create(sr_env%integral_ace, fm_struct)
+         CALL cp_cfm_create_p(sr_env%integral, fm_struct)
+         CALL cp_cfm_create_p(sr_env%integral_conv, fm_struct)
+         CALL cp_cfm_create_p(sr_env%integral_abc, fm_struct)
+         CALL cp_cfm_create_p(sr_env%integral_cde, fm_struct)
+         CALL cp_cfm_create_p(sr_env%integral_ace, fm_struct)
 
          CALL cp_cfm_set_all(sr_env%integral_conv, z_zero)
 
@@ -430,7 +430,7 @@ CONTAINS
             CALL cp_cfm_retain(subintervals(interval)%fe)
          END DO
 
-         CALL cp_cfm_release(zdata_next(4*nintervals + 1)%matrix)
+         CALL cp_cfm_release_p(zdata_next(4*nintervals + 1)%matrix)
       END IF
 
       ! we kept the originals matrices for internal use, so nullify the pointers
@@ -504,11 +504,11 @@ CONTAINS
          ! CALL cp_cfm_to_cfm(sr_env%integral, sr_env%integral_conv)
 
          DO interval = nintervals_exist, 1, -1
-            CALL cp_cfm_release(subintervals(interval)%fa)
-            CALL cp_cfm_release(subintervals(interval)%fb)
-            CALL cp_cfm_release(subintervals(interval)%fc)
-            CALL cp_cfm_release(subintervals(interval)%fd)
-            CALL cp_cfm_release(subintervals(interval)%fe)
+            CALL cp_cfm_release_p(subintervals(interval)%fa)
+            CALL cp_cfm_release_p(subintervals(interval)%fb)
+            CALL cp_cfm_release_p(subintervals(interval)%fc)
+            CALL cp_cfm_release_p(subintervals(interval)%fd)
+            CALL cp_cfm_release_p(subintervals(interval)%fe)
          END DO
       ELSE
          ! sort subinterval according to their convergence, and drop convergent ones
@@ -536,11 +536,11 @@ CONTAINS
 
                sr_env%subintervals(nintervals) = subintervals(interval)
             ELSE
-               CALL cp_cfm_release(subintervals(interval)%fa)
-               CALL cp_cfm_release(subintervals(interval)%fb)
-               CALL cp_cfm_release(subintervals(interval)%fc)
-               CALL cp_cfm_release(subintervals(interval)%fd)
-               CALL cp_cfm_release(subintervals(interval)%fe)
+               CALL cp_cfm_release_p(subintervals(interval)%fa)
+               CALL cp_cfm_release_p(subintervals(interval)%fb)
+               CALL cp_cfm_release_p(subintervals(interval)%fc)
+               CALL cp_cfm_release_p(subintervals(interval)%fd)
+               CALL cp_cfm_release_p(subintervals(interval)%fe)
             END IF
          END DO
 

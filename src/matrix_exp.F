@@ -14,9 +14,9 @@ MODULE matrix_exp
 
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add,&
                                               cp_cfm_solve
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release,&
+                                              cp_cfm_release_p,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
@@ -26,13 +26,9 @@ MODULE matrix_exp
    USE cp_fm_struct,                    ONLY: cp_fm_struct_double,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
@@ -72,7 +68,7 @@ CONTAINS
 
    SUBROUTINE taylor_only_imaginary(exp_H, im_matrix, nsquare, ntaylor)
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: im_matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: im_matrix
       INTEGER, INTENT(in)                                :: nsquare, ntaylor
 
       CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary'
@@ -82,7 +78,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: square_fac, Tfac, tmp
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data_im
-      TYPE(cp_fm_type), POINTER                          :: T1, T2, Tres_im, Tres_re
+      TYPE(cp_fm_type)                                   :: T1, T2, Tres_im, Tres_re
 
       CALL timeset(routineN, handle)
 
@@ -91,19 +87,19 @@ CONTAINS
 
       square_fac = 1.0_dp/(2.0_dp**REAL(nsquare, dp))
 !    CALL cp_fm_scale(square_fac,im_matrix)
-      CALL cp_fm_create_p(T1, &
-                          matrix_struct=im_matrix%matrix_struct, &
-                          name="T1")
+      CALL cp_fm_create(T1, &
+                        matrix_struct=im_matrix%matrix_struct, &
+                        name="T1")
 
-      CALL cp_fm_create_p(T2, &
-                          matrix_struct=T1%matrix_struct, &
-                          name="T2")
-      CALL cp_fm_create_p(Tres_im, &
-                          matrix_struct=T1%matrix_struct, &
-                          name="T3")
-      CALL cp_fm_create_p(Tres_re, &
-                          matrix_struct=T1%matrix_struct, &
-                          name="Tres")
+      CALL cp_fm_create(T2, &
+                        matrix_struct=T1%matrix_struct, &
+                        name="T2")
+      CALL cp_fm_create(Tres_im, &
+                        matrix_struct=T1%matrix_struct, &
+                        name="T3")
+      CALL cp_fm_create(Tres_re, &
+                        matrix_struct=T1%matrix_struct, &
+                        name="Tres")
       tmp = 1.0_dp
 
       CALL cp_fm_set_all(Tres_re, zero, one)
@@ -144,10 +140,10 @@ CONTAINS
          CALL cp_fm_to_fm(Tres_im, exp_H(2)%matrix)
       END IF
 
-      CALL cp_fm_release_p(T1)
-      CALL cp_fm_release_p(T2)
-      CALL cp_fm_release_p(Tres_re)
-      CALL cp_fm_release_p(Tres_im)
+      CALL cp_fm_release(T1)
+      CALL cp_fm_release(T2)
+      CALL cp_fm_release(Tres_re)
+      CALL cp_fm_release(Tres_im)
 
       CALL timestop(handle)
 
@@ -168,7 +164,7 @@ CONTAINS
 
    SUBROUTINE taylor_full_complex(exp_H, re_part, im_part, nsquare, ntaylor)
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: re_part, im_part
+      TYPE(cp_fm_type), INTENT(IN)                       :: re_part, im_part
       INTEGER, INTENT(in)                                :: nsquare, ntaylor
 
       CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex'
@@ -185,23 +181,23 @@ CONTAINS
       CALL cp_fm_get_info(im_part, local_data=local_data_im)
       ndim = re_part%matrix_struct%nrow_global
 
-      CALL cp_cfm_create(T1, &
-                         matrix_struct=re_part%matrix_struct, &
-                         name="T1")
+      CALL cp_cfm_create_p(T1, &
+                           matrix_struct=re_part%matrix_struct, &
+                           name="T1")
 
       square_fac = 2.0_dp**REAL(nsquare, dp)
 
       T1%local_data = CMPLX(local_data_re/square_fac, local_data_im/square_fac, KIND=dp)
 
-      CALL cp_cfm_create(T2, &
-                         matrix_struct=T1%matrix_struct, &
-                         name="T2")
-      CALL cp_cfm_create(T3, &
-                         matrix_struct=T1%matrix_struct, &
-                         name="T3")
-      CALL cp_cfm_create(Tres, &
-                         matrix_struct=T1%matrix_struct, &
-                         name="Tres")
+      CALL cp_cfm_create_p(T2, &
+                           matrix_struct=T1%matrix_struct, &
+                           name="T2")
+      CALL cp_cfm_create_p(T3, &
+                           matrix_struct=T1%matrix_struct, &
+                           name="T3")
+      CALL cp_cfm_create_p(Tres, &
+                           matrix_struct=T1%matrix_struct, &
+                           name="Tres")
       tmp = 1.0_dp
       CALL cp_cfm_set_all(Tres, z_zero, z_one)
       CALL cp_cfm_set_all(T2, z_zero, z_one)
@@ -227,10 +223,10 @@ CONTAINS
       exp_H(1)%matrix%local_data = REAL(Tres%local_data, KIND=dp)
       exp_H(2)%matrix%local_data = AIMAG(Tres%local_data)
 
-      CALL cp_cfm_release(T1)
-      CALL cp_cfm_release(T2)
-      CALL cp_cfm_release(T3)
-      CALL cp_cfm_release(Tres)
+      CALL cp_cfm_release_p(T1)
+      CALL cp_cfm_release_p(T2)
+      CALL cp_cfm_release_p(T3)
+      CALL cp_cfm_release_p(Tres)
       CALL timestop(handle)
 
    END SUBROUTINE taylor_full_complex
@@ -345,7 +341,7 @@ CONTAINS
 
    SUBROUTINE exp_pade_full_complex(exp_H, re_part, im_part, nsquare, npade)
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: re_part, im_part
+      TYPE(cp_fm_type), INTENT(IN)                       :: re_part, im_part
       INTEGER, INTENT(in)                                :: nsquare, npade
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex'
@@ -368,25 +364,25 @@ CONTAINS
 
       ALLOCATE (mult_p(2))
 
-      CALL cp_cfm_create(Dpq, &
-                         matrix_struct=re_part%matrix_struct, &
-                         name="Dpq")
+      CALL cp_cfm_create_p(Dpq, &
+                           matrix_struct=re_part%matrix_struct, &
+                           name="Dpq")
 
       square_fac = 2.0_dp**REAL(nsquare, dp)
 
-      CALL cp_cfm_create(T1, &
-                         matrix_struct=Dpq%matrix_struct, &
-                         name="T1")
+      CALL cp_cfm_create_p(T1, &
+                           matrix_struct=Dpq%matrix_struct, &
+                           name="T1")
 
-      CALL cp_cfm_create(T2, &
-                         matrix_struct=T1%matrix_struct, &
-                         name="T2")
-      CALL cp_cfm_create(Npq, &
-                         matrix_struct=T1%matrix_struct, &
-                         name="Npq")
-      CALL cp_cfm_create(Tres, &
-                         matrix_struct=T1%matrix_struct, &
-                         name="Tres")
+      CALL cp_cfm_create_p(T2, &
+                           matrix_struct=T1%matrix_struct, &
+                           name="T2")
+      CALL cp_cfm_create_p(Npq, &
+                           matrix_struct=T1%matrix_struct, &
+                           name="Npq")
+      CALL cp_cfm_create_p(Tres, &
+                           matrix_struct=T1%matrix_struct, &
+                           name="Tres")
 
       DO i = 1, ldim
          T2%local_data(:, i) = CMPLX(local_data_re(:, i)/square_fac, local_data_im(:, i)/square_fac, KIND=dp)
@@ -430,11 +426,11 @@ CONTAINS
          exp_H(2)%matrix%local_data(:, i) = AIMAG(fin_p%local_data(:, i))
       END DO
 
-      CALL cp_cfm_release(Npq)
-      CALL cp_cfm_release(Dpq)
-      CALL cp_cfm_release(T1)
-      CALL cp_cfm_release(T2)
-      CALL cp_cfm_release(Tres)
+      CALL cp_cfm_release_p(Npq)
+      CALL cp_cfm_release_p(Dpq)
+      CALL cp_cfm_release_p(T1)
+      CALL cp_cfm_release_p(T2)
+      CALL cp_cfm_release_p(Tres)
       DEALLOCATE (mult_p)
       CALL timestop(handle)
 
@@ -452,7 +448,7 @@ CONTAINS
 
    SUBROUTINE exp_pade_only_imaginary(exp_H, im_part, nsquare, npade)
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: im_part
+      TYPE(cp_fm_type), INTENT(IN)                       :: im_part
       INTEGER, INTENT(in)                                :: nsquare, npade
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_only_imaginary'
@@ -465,7 +461,7 @@ CONTAINS
          POINTER                                         :: local_data_im
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: cmult_p
       TYPE(cp_cfm_type), POINTER                         :: Dpq, fin_p, Npq, T1
-      TYPE(cp_fm_type), POINTER                          :: T2, Tres
+      TYPE(cp_fm_type)                                   :: T2, Tres
 
       CALL timeset(routineN, handle)
       p = npade
@@ -475,25 +471,25 @@ CONTAINS
       square_fac = 1.0_dp/(2.0_dp**REAL(nsquare, dp))
       ALLOCATE (cmult_p(2))
 
-      CALL cp_cfm_create(Dpq, &
-                         matrix_struct=im_part%matrix_struct, &
-                         name="Dpq")
+      CALL cp_cfm_create_p(Dpq, &
+                           matrix_struct=im_part%matrix_struct, &
+                           name="Dpq")
 
-      CALL cp_cfm_create(Npq, &
-                         matrix_struct=Dpq%matrix_struct, &
-                         name="Npq")
+      CALL cp_cfm_create_p(Npq, &
+                           matrix_struct=Dpq%matrix_struct, &
+                           name="Npq")
 
-      CALL cp_cfm_create(T1, &
-                         matrix_struct=Dpq%matrix_struct, &
-                         name="T1")
+      CALL cp_cfm_create_p(T1, &
+                           matrix_struct=Dpq%matrix_struct, &
+                           name="T1")
 
-      CALL cp_fm_create_p(T2, &
-                          matrix_struct=T1%matrix_struct, &
-                          name="T2")
+      CALL cp_fm_create(T2, &
+                        matrix_struct=T1%matrix_struct, &
+                        name="T2")
 
-      CALL cp_fm_create_p(Tres, &
-                          matrix_struct=T1%matrix_struct, &
-                          name="Tres")
+      CALL cp_fm_create(Tres, &
+                        matrix_struct=T1%matrix_struct, &
+                        name="Tres")
 
 !    DO i=1,ldim
 !       local_data_im(:,i)=local_data_im(:,i)/square_fac
@@ -555,11 +551,11 @@ CONTAINS
          exp_H(2)%matrix%local_data(:, k) = AIMAG(fin_p%local_data(:, k))
       END DO
 
-      CALL cp_cfm_release(Npq)
-      CALL cp_cfm_release(Dpq)
-      CALL cp_cfm_release(T1)
-      CALL cp_fm_release_p(T2)
-      CALL cp_fm_release_p(Tres)
+      CALL cp_cfm_release_p(Npq)
+      CALL cp_cfm_release_p(Dpq)
+      CALL cp_cfm_release_p(T1)
+      CALL cp_fm_release(T2)
+      CALL cp_fm_release(Tres)
       DEALLOCATE (cmult_p)
       CALL timestop(handle)
    END SUBROUTINE exp_pade_only_imaginary
@@ -575,8 +571,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE exp_pade_real(exp_H, matrix, nsquare, npade)
-      TYPE(cp_fm_type)                                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: exp_H, matrix
       INTEGER, INTENT(in)                                :: nsquare, npade
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'exp_pade_real'
@@ -587,7 +582,9 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mult_p
-      TYPE(cp_fm_type), POINTER                          :: Dpq, fin_p, Npq, T1, T2, Tres
+      TYPE(cp_fm_type)                                   :: Dpq
+      TYPE(cp_fm_type), POINTER                          :: fin_p
+      TYPE(cp_fm_type), TARGET                           :: Npq, T1, T2, Tres
 
       CALL timeset(routineN, handle)
       p = npade
@@ -597,25 +594,25 @@ CONTAINS
       square_fac = 2.0_dp**REAL(nsquare, dp)
       ALLOCATE (mult_p(2))
 
-      CALL cp_fm_create_p(Dpq, &
-                          matrix_struct=matrix%matrix_struct, &
-                          name="Dpq")
+      CALL cp_fm_create(Dpq, &
+                        matrix_struct=matrix%matrix_struct, &
+                        name="Dpq")
 
-      CALL cp_fm_create_p(Npq, &
-                          matrix_struct=Dpq%matrix_struct, &
-                          name="Npq")
+      CALL cp_fm_create(Npq, &
+                        matrix_struct=Dpq%matrix_struct, &
+                        name="Npq")
 
-      CALL cp_fm_create_p(T1, &
-                          matrix_struct=Dpq%matrix_struct, &
-                          name="T1")
+      CALL cp_fm_create(T1, &
+                        matrix_struct=Dpq%matrix_struct, &
+                        name="T1")
 
-      CALL cp_fm_create_p(T2, &
-                          matrix_struct=T1%matrix_struct, &
-                          name="T2")
+      CALL cp_fm_create(T2, &
+                        matrix_struct=T1%matrix_struct, &
+                        name="T2")
 
-      CALL cp_fm_create_p(Tres, &
-                          matrix_struct=T1%matrix_struct, &
-                          name="Tres")
+      CALL cp_fm_create(Tres, &
+                        matrix_struct=T1%matrix_struct, &
+                        name="Tres")
 
       DO i = 1, ldim
          T2%local_data(:, i) = local_data(:, i)/square_fac
@@ -656,8 +653,8 @@ CONTAINS
          DO i = 1, nsquare
             CALL parallel_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, zero, &
                                mult_p(MOD(i + 1, 2) + 1)%matrix)
-            fin_p => mult_p(MOD(i + 1, 2) + 1)%matrix
          END DO
+         fin_p => mult_p(MOD(nsquare + 1, 2) + 1)%matrix
       ELSE
          fin_p => Npq
       END IF
@@ -666,11 +663,11 @@ CONTAINS
          exp_H%local_data(:, k) = fin_p%local_data(:, k)
       END DO
 
-      CALL cp_fm_release_p(Npq)
-      CALL cp_fm_release_p(Dpq)
-      CALL cp_fm_release_p(T1)
-      CALL cp_fm_release_p(T2)
-      CALL cp_fm_release_p(Tres)
+      CALL cp_fm_release(Npq)
+      CALL cp_fm_release(Dpq)
+      CALL cp_fm_release(T1)
+      CALL cp_fm_release(T2)
+      CALL cp_fm_release(Tres)
       DEALLOCATE (mult_p)
       CALL timestop(handle)
 
@@ -693,8 +690,8 @@ CONTAINS
 
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: mos_old, mos_new
       REAL(KIND=dp), INTENT(in)                          :: eps_exp
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: Hre
-      TYPE(cp_fm_type), POINTER                          :: Him
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: Hre
+      TYPE(cp_fm_type), INTENT(IN)                       :: Him
       TYPE(cp_fm_p_type), DIMENSION(2), OPTIONAL         :: mos_next
       INTEGER, INTENT(inout)                             :: narn_old
 
