@@ -993,6 +993,7 @@ CONTAINS
                   rcut = xtb_control%coulomb_sr_cut
                   fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
                   fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
+                  rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
                   qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
                END IF
             ELSE

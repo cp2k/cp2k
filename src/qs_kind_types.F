@@ -1327,15 +1327,17 @@ CONTAINS
 
             bas1c = qs_control%gapw_control%basis_1c
             NULLIFY (basis_1c)
-            CALL allocate_gto_basis_set(basis_1c)
-            CALL create_1c_basis(orb_basis, basis_1c, bas1c)
-            CALL add_basis_set_to_container(qs_kind%basis_sets, basis_1c, "GAPW_1C")
+            CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_1c, basis_type="GAPW_1C")
+            CALL create_1c_basis(orb_basis, soft_basis, basis_1c, bas1c)
+            IF (bas1c == 0) THEN
+               CALL add_basis_set_to_container(qs_kind%basis_sets, basis_1c, "GAPW_1C")
+            END IF
 
             IF (paw_atom) THEN
                CALL allocate_paw_proj_set(qs_kind%paw_proj_set)
                CALL get_qs_kind(qs_kind=qs_kind, paw_proj_set=paw_proj)
-               CALL projectors(paw_proj, basis_1c, rc, qs_control, max_rad_local_type, &
-                               force_env_section)
+               CALL projectors(paw_proj, basis_1c, orb_basis, rc, qs_control, &
+                               max_rad_local_type, force_env_section)
             ELSE
                IF (my_mod_control) qs_control%gapw_control%non_paw_atoms = .TRUE.
             END IF

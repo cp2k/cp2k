@@ -27,8 +27,7 @@ MODULE qs_vxc_atom
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
-   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
-                                              paw_proj_set_type
+   USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -1239,15 +1238,14 @@ CONTAINS
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
 
-      NULLIFY (harmonics, grid_atom, basis_1c, lmax, lmin, npgf, zet, slm, dslm_dxyz, o2nindex, paw_proj)
+      NULLIFY (harmonics, grid_atom, basis_1c, lmax, lmin, npgf, zet, slm, dslm_dxyz, o2nindex)
 
       CALL timeset(routineN, handle)
 
       !We need to put 0.5* grad_g1 dot grad_gw on the grid
       !For this we need grid info, basis info, and projector info
-      CALL get_qs_kind(qs_kind, grid_atom=grid_atom, harmonics=harmonics, paw_proj_set=paw_proj)
+      CALL get_qs_kind(qs_kind, grid_atom=grid_atom, harmonics=harmonics)
       CALL get_qs_kind(qs_kind, basis_set=basis_1c, basis_type="GAPW_1C")
 
       nr = grid_atom%nr
@@ -1256,7 +1254,7 @@ CONTAINS
       slm => harmonics%slm
       dslm_dxyz => harmonics%dslm_dxyz
 
-      CALL get_paw_proj_set(paw_proj_set=paw_proj, o2nindex=o2nindex)
+      CALL get_paw_basis_info(basis_1c, o2nindex=o2nindex)
 
       !zeroing tau, assuming it is already allocated
       tau_h = 0.0_dp
@@ -1422,6 +1420,8 @@ CONTAINS
             END DO !ipgf
          END DO !jset
       END DO !iset
+
+      DEALLOCATE (o2nindex)
 
       CALL timestop(handle)
 

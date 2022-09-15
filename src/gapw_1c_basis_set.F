@@ -12,16 +12,19 @@
 ! **************************************************************************************************
 MODULE gapw_1c_basis_set
 
-   USE basis_set_types,                 ONLY: copy_gto_basis_set,&
+   USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
+                                              copy_gto_basis_set,&
                                               deallocate_gto_basis_set,&
                                               get_gto_basis_set,&
                                               gto_basis_set_type
-   USE input_constants,                 ONLY: gapw_1c_large,&
+   USE input_constants,                 ONLY: gapw_1c_external,&
+                                              gapw_1c_large,&
                                               gapw_1c_medium,&
                                               gapw_1c_orb,&
                                               gapw_1c_small,&
                                               gapw_1c_very_large
-   USE kinds,                           ONLY: default_string_length
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
 #include "base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,22 +44,31 @@ MODULE gapw_1c_basis_set
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief   create the soft basis from a GTO basis
+!> \brief   create the one center basis from the orbital basis
 !> \param orb_basis ...
+!> \param soft_basis ...
 !> \param gapw_1c_basis ...
 !> \param basis_1c_level ...
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE create_1c_basis(orb_basis, gapw_1c_basis, basis_1c_level)
+   SUBROUTINE create_1c_basis(orb_basis, soft_basis, gapw_1c_basis, basis_1c_level)
 
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, gapw_1c_basis
-      INTEGER, INTENT(IN)                                :: basis_1c_level
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, soft_basis, gapw_1c_basis
+      INTEGER, INTENT(INOUT)                             :: basis_1c_level
 
       CHARACTER(LEN=default_string_length)               :: bsname
-      INTEGER                                            :: ilevel
-      LOGICAL                                            :: use_orb_basis
+      INTEGER                                            :: i, ilevel, ipgf, iset, l, maxl, maxlo, &
+                                                            maxls, mp, nseto, nsets
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nph, nps
+      INTEGER, DIMENSION(:), POINTER                     :: lmaxo, lmaxs, lmino, lmins, npgfo, npgfs
+      LOGICAL                                            :: use_external_basis, use_orb_basis
+      REAL(KIND=dp)                                      :: dex, zms
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zmaxs
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: zexh, zexs
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeto, zets
 
       MARK_USED(orb_basis)
+      MARK_USED(soft_basis)
       MARK_USED(gapw_1c_basis)
       MARK_USED(basis_1c_level)
 !     INTEGER :: ico, ipgf, ipgf_s, iset, iset_s, ishell, lshell, lshell_old, m, maxco, maxpgf, &
@@ -70,10 +82,14 @@ CONTAINS
 !     REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
 
       use_orb_basis = .FALSE.
+      use_external_basis = .FALSE.
       SELECT CASE (basis_1c_level)
       CASE (gapw_1c_orb)
          ilevel = 0
          use_orb_basis = .TRUE.
+      CASE (gapw_1c_external)
+         ilevel = 0
+         use_external_basis = .TRUE.
       CASE (gapw_1c_small)
          ilevel = 1
       CASE (gapw_1c_medium)
@@ -91,13 +107,77 @@ CONTAINS
          CALL copy_gto_basis_set(orb_basis, gapw_1c_basis)
          CALL get_gto_basis_set(gto_basis_set=orb_basis, name=bsname)
          gapw_1c_basis%name = TRIM(bsname)//"_1c"
+         basis_1c_level = 0
+      ELSE IF (use_external_basis) THEN
+         IF (.NOT. ASSOCIATED(gapw_1c_basis)) THEN
+            CPWARN("Requested GAPW_1C basis not specified in KIND section")
+            CPABORT("GAPW BASIS")
+         END IF
+         basis_1c_level = 1
       ELSE
-!     NULLIFY (gcc, l, lmax, lmin, n, npgf, nshell, zet)
-!     IF (.NOT. my_gpw_type_forced) THEN
-!        CALL get_gto_basis_set(gto_basis_set=orb_basis, name=bsname, &
-!                               maxpgf=maxpgf, maxshell=maxshell, nset=nset)
-
-!        soft_basis%name = TRIM(bsname)//"_soft"
+         basis_1c_level = 0
+         CALL allocate_gto_basis_set(gapw_1c_basis)
+         ! get information on orbital basis and soft basis
+         CALL get_gto_basis_set(gto_basis_set=orb_basis, maxl=maxlo, nset=nseto, &
+                                lmin=lmino, lmax=lmaxo, npgf=npgfo, zet=zeto)
+         CALL get_gto_basis_set(gto_basis_set=soft_basis, maxl=maxls, nset=nsets, &
+                                lmin=lmins, lmax=lmaxs, npgf=npgfs, zet=zets)
+         ! determine max soft exponent per l-qn
+         maxl = MAX(maxls, maxlo)
+         ALLOCATE (zmaxs(0:maxl), nps(0:maxl), nph(0:maxl))
+         zmaxs = 0.0_dp
+         DO iset = 1, nsets
+            zms = MAXVAL(zets(:, iset))
+            DO l = lmins(iset), lmaxs(iset)
+               zmaxs(l) = MAX(zmaxs(l), zms)
+            END DO
+         END DO
+         ! create pools of exponents (hard,soft) for each l-qn
+         nps = 0
+         DO iset = 1, nsets
+            DO l = lmins(iset), lmaxs(iset)
+               nps(l) = nps(l) + npgfs(iset)
+            END DO
+         END DO
+         mp = MAXVAL(nps)
+         ALLOCATE (zexs(1:mp, 0:maxl))
+         zexs = 0.0_dp
+         nph = 0
+         DO iset = 1, nseto
+            DO l = lmino(iset), lmaxo(iset)
+               nph(l) = nph(l) + npgfo(iset)
+            END DO
+         END DO
+         mp = MAXVAL(nph)
+         ALLOCATE (zexh(1:mp, 0:maxl))
+         zexh = 0.0_dp
+         nps = 0
+         nph = 0
+         DO iset = 1, nseto
+            DO ipgf = 1, npgfo(iset)
+               DO l = lmino(iset), lmaxo(iset)
+                  IF (zeto(ipgf, iset) > zmaxs(l)) THEN
+                     DO i = 1, nph(l)
+                        dex = ABS(zeto(ipgf, iset) - zexh(i, l))/zeto(ipgf, iset)
+                        IF (dex < 1.E-3_dp) EXIT
+                     END DO
+                     IF (dex > 1.E-3_dp) THEN
+                        nph(l) = nph(l) + 1
+                        zexh(nph(l), l) = zeto(ipgf, iset)
+                     END IF
+                  ELSE
+                     DO i = 1, nps(l)
+                        dex = ABS(zeto(ipgf, iset) - zexs(i, l))/zeto(ipgf, iset)
+                        IF (dex < 1.E-3_dp) EXIT
+                     END DO
+                     IF (dex > 1.E-3_dp) THEN
+                        nph(l) = nph(l) + 1
+                        zexs(nph(l), l) = zeto(ipgf, iset)
+                     END IF
+                  END IF
+               END DO
+            END DO
+         END DO
 
 !        CALL reallocate(npgf, 1, nset)
 !        CALL reallocate(nshell, 1, nset)
@@ -309,6 +389,7 @@ CONTAINS
 !        DEALLOCATE (gcc, l, lmax, lmin, n, npgf, nshell, zet, iset_s2h)
 !     END IF
 
+         DEALLOCATE (zmaxs, zexs, zexh, nph, nps)
       END IF
 
    END SUBROUTINE create_1c_basis

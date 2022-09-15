@@ -39,8 +39,8 @@ MODULE cp_control_utils
         do_method_pnnl, do_method_rigpw, do_method_rm1, do_method_xtb, do_pwgrid_ns_fullspace, &
         do_pwgrid_ns_halfspace, do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, &
         do_se_is_kdso, do_se_is_kdso_d, do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, &
-        do_se_lr_ewald_r3, do_se_lr_none, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, &
-        gapw_1c_small, gapw_1c_very_large, gaussian_env, numerical, ramp_env, &
+        do_se_lr_ewald_r3, do_se_lr_none, gapw_1c_external, gapw_1c_large, gapw_1c_medium, &
+        gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, gaussian_env, numerical, ramp_env, &
         real_time_propagation, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
         sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, &
         sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
@@ -1879,6 +1879,9 @@ CONTAINS
             CASE (gapw_1c_orb)
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
                   "QS| GAPW|      One center basis from orbital basis primitives"
+            CASE (gapw_1c_external)
+               WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                  "QS| GAPW|      One center basis read from input"
             CASE (gapw_1c_small)
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
                   "QS| GAPW|      One center basis created with size small"
@@ -1925,6 +1928,9 @@ CONTAINS
             CASE (gapw_1c_orb)
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
                   "QS| GAPW_XC|      One center basis from orbital basis primitives"
+            CASE (gapw_1c_external)
+               WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                  "QS| GAPW_XC|      One center basis read from input"
             CASE (gapw_1c_small)
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
                   "QS| GAPW_XC|      One center basis created with size small"

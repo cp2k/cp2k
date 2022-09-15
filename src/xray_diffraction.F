@@ -39,8 +39,7 @@ MODULE xray_diffraction
                                               nsoset
    USE orbital_transformation_matrices, ONLY: orbtramat
    USE particle_types,                  ONLY: particle_type
-   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
-                                              paw_proj_set_type
+   USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE physcon,                         ONLY: angstrom
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -522,7 +521,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(pw_type)                                      :: rho_elec_gspace
@@ -549,7 +548,7 @@ CONTAINS
       NULLIFY (lmax)
       NULLIFY (lmin)
       NULLIFY (npgf)
-      NULLIFY (orb_basis_set)
+      NULLIFY (basis_1c_set)
       NULLIFY (pab)
       NULLIFY (particle_set)
       NULLIFY (rho, rho_r)
@@ -622,15 +621,15 @@ CONTAINS
                               natom=natom)
 
          CALL get_qs_kind(qs_kind_set(ikind), &
-                          basis_set=orb_basis_set, &
-                          paw_proj_set=paw_proj, &
+                          basis_set=basis_1c_set, &
+                          basis_type="GAPW_1C", &
                           paw_atom=paw_atom)
 
          IF (.NOT. paw_atom) CYCLE ! no PAW atom: nothing to do
 
-         CALL get_paw_proj_set(paw_proj_set=paw_proj, o2nindex=o2nindex, nsatbas=nsatbas)
+         CALL get_paw_basis_info(basis_1c_set, o2nindex=o2nindex, nsatbas=nsatbas)
 
-         CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+         CALL get_gto_basis_set(gto_basis_set=basis_1c_set, &
                                 lmax=lmax, &
                                 lmin=lmin, &
                                 maxco=maxco, &
@@ -738,6 +737,7 @@ CONTAINS
                END DO ! next shell set "jset"
             END DO ! next shell set "iset"
          END DO ! next atom "iatom" of atomic kind "ikind"
+         DEALLOCATE (o2nindex)
       END DO ! next atomic kind "ikind"
 
       rho_total = pw_integrate_function(rhotot_elec_gspace, isign=-1)/volume

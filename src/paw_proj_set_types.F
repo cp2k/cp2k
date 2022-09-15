@@ -143,51 +143,57 @@ CONTAINS
    SUBROUTINE deallocate_paw_proj_set(paw_proj_set)
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
 
-      DEALLOCATE (paw_proj_set%zisomin)
-      DEALLOCATE (paw_proj_set%zprjisomin)
-      DEALLOCATE (paw_proj_set%nprj)
-      DEALLOCATE (paw_proj_set%lx)
-      DEALLOCATE (paw_proj_set%ly)
-      DEALLOCATE (paw_proj_set%lz)
-      DEALLOCATE (paw_proj_set%ll)
-      DEALLOCATE (paw_proj_set%m)
-      DEALLOCATE (paw_proj_set%first_prj)
-      DEALLOCATE (paw_proj_set%last_prj)
-      DEALLOCATE (paw_proj_set%first_prjs)
-      DEALLOCATE (paw_proj_set%zetprj)
-      DEALLOCATE (paw_proj_set%cprj)
-      DEALLOCATE (paw_proj_set%cprj_s)
-      DEALLOCATE (paw_proj_set%csprj)
-      DEALLOCATE (paw_proj_set%local_oce_cphi_h)
-      DEALLOCATE (paw_proj_set%local_oce_cphi_s)
-      DEALLOCATE (paw_proj_set%local_oce_sphi_h)
-      DEALLOCATE (paw_proj_set%local_oce_sphi_s)
-      DEALLOCATE (paw_proj_set%sphi_h)
-      DEALLOCATE (paw_proj_set%sphi_s)
-      DEALLOCATE (paw_proj_set%gccprj)
-      DEALLOCATE (paw_proj_set%isoprj)
-      DEALLOCATE (paw_proj_set%rzetprj)
-      DEALLOCATE (paw_proj_set%o2nindex)
-      DEALLOCATE (paw_proj_set%n2oindex)
+      IF (ASSOCIATED(paw_proj_set)) THEN
 
-      DEALLOCATE (paw_proj_set)
+         IF (ASSOCIATED(paw_proj_set%zisomin)) DEALLOCATE (paw_proj_set%zisomin)
+         IF (ASSOCIATED(paw_proj_set%zprjisomin)) DEALLOCATE (paw_proj_set%zprjisomin)
+         IF (ASSOCIATED(paw_proj_set%nprj)) DEALLOCATE (paw_proj_set%nprj)
+         IF (ASSOCIATED(paw_proj_set%lx)) DEALLOCATE (paw_proj_set%lx)
+         IF (ASSOCIATED(paw_proj_set%ly)) DEALLOCATE (paw_proj_set%ly)
+         IF (ASSOCIATED(paw_proj_set%lz)) DEALLOCATE (paw_proj_set%lz)
+         IF (ASSOCIATED(paw_proj_set%ll)) DEALLOCATE (paw_proj_set%ll)
+         IF (ASSOCIATED(paw_proj_set%m)) DEALLOCATE (paw_proj_set%m)
+         IF (ASSOCIATED(paw_proj_set%first_prj)) DEALLOCATE (paw_proj_set%first_prj)
+         IF (ASSOCIATED(paw_proj_set%last_prj)) DEALLOCATE (paw_proj_set%last_prj)
+         IF (ASSOCIATED(paw_proj_set%first_prjs)) DEALLOCATE (paw_proj_set%first_prjs)
+         IF (ASSOCIATED(paw_proj_set%zetprj)) DEALLOCATE (paw_proj_set%zetprj)
+         IF (ASSOCIATED(paw_proj_set%cprj)) DEALLOCATE (paw_proj_set%cprj)
+         IF (ASSOCIATED(paw_proj_set%cprj_s)) DEALLOCATE (paw_proj_set%cprj_s)
+         IF (ASSOCIATED(paw_proj_set%csprj)) DEALLOCATE (paw_proj_set%csprj)
+         IF (ASSOCIATED(paw_proj_set%local_oce_cphi_h)) DEALLOCATE (paw_proj_set%local_oce_cphi_h)
+         IF (ASSOCIATED(paw_proj_set%local_oce_cphi_s)) DEALLOCATE (paw_proj_set%local_oce_cphi_s)
+         IF (ASSOCIATED(paw_proj_set%local_oce_sphi_h)) DEALLOCATE (paw_proj_set%local_oce_sphi_h)
+         IF (ASSOCIATED(paw_proj_set%local_oce_sphi_s)) DEALLOCATE (paw_proj_set%local_oce_sphi_s)
+         IF (ASSOCIATED(paw_proj_set%sphi_h)) DEALLOCATE (paw_proj_set%sphi_h)
+         IF (ASSOCIATED(paw_proj_set%sphi_s)) DEALLOCATE (paw_proj_set%sphi_s)
+         IF (ASSOCIATED(paw_proj_set%gccprj)) DEALLOCATE (paw_proj_set%gccprj)
+         IF (ASSOCIATED(paw_proj_set%isoprj)) DEALLOCATE (paw_proj_set%isoprj)
+         IF (ASSOCIATED(paw_proj_set%rzetprj)) DEALLOCATE (paw_proj_set%rzetprj)
+         IF (ASSOCIATED(paw_proj_set%o2nindex)) DEALLOCATE (paw_proj_set%o2nindex)
+         IF (ASSOCIATED(paw_proj_set%n2oindex)) DEALLOCATE (paw_proj_set%n2oindex)
+
+         DEALLOCATE (paw_proj_set)
+
+      END IF
+
    END SUBROUTINE deallocate_paw_proj_set
 
 ! **************************************************************************************************
 !> \brief   Initialize the projector-type set data set.
 !> \param paw_proj ...
-!> \param orb_basis ...
+!> \param basis_1c Basis set used for the one-center expansions
+!> \param orb_basis Orbital basis set
 !> \param rc ...
 !> \param qs_control ...
 !> \param max_rad_local_type ...
 !> \param force_env_section ...
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE projectors(paw_proj, orb_basis, rc, qs_control, max_rad_local_type, &
+   SUBROUTINE projectors(paw_proj, basis_1c, orb_basis, rc, qs_control, max_rad_local_type, &
                          force_env_section)
 
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis
       REAL(KIND=dp)                                      :: rc
       TYPE(qs_control_type), INTENT(IN)                  :: qs_control
       REAL(KIND=dp), INTENT(IN)                          :: max_rad_local_type
@@ -205,7 +211,7 @@ CONTAINS
       END IF
       eps_orb = qs_control%eps_pgf_orb
 
-      CALL build_projector(paw_proj, orb_basis, eps_fit, eps_iso, eps_svd, &
+      CALL build_projector(paw_proj, basis_1c, orb_basis, eps_fit, eps_iso, eps_svd, &
                            rc, eps_orb, max_rad_local, force_env_section)
 
    END SUBROUTINE projectors
@@ -213,7 +219,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   initialize the projector-type set data set.
 !> \param paw_proj ...
-!> \param orb_basis ...
+!> \param basis_1c Basis set used for the one-center expansions
+!> \param orb_basis Orbital basis set
 !> \param eps_fit ...
 !> \param eps_iso ...
 !> \param eps_svd ...
@@ -223,11 +230,11 @@ CONTAINS
 !> \param force_env_section ...
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE build_projector(paw_proj, orb_basis, eps_fit, eps_iso, eps_svd, &
+   SUBROUTINE build_projector(paw_proj, basis_1c, orb_basis, eps_fit, eps_iso, eps_svd, &
                               rc, eps_orb, max_rad_local, force_env_section)
 
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis
       REAL(KIND=dp), INTENT(IN)                          :: eps_fit, eps_iso, eps_svd, rc, eps_orb, &
                                                             max_rad_local
       TYPE(section_vals_type), POINTER                   :: force_env_section
@@ -236,8 +243,8 @@ CONTAINS
       INTEGER :: ic, icgf, icgfmax, icgfmin, ico, icomax, icomin, il, info, ip, ipgf, ipp, iprj, &
          iprjfirst, iprjs, is, iset, isgf, isgfmax, isgfmin, ishell, iso, iso_pgf, iso_set, &
          isomin, jp, k, kp, lshell, lwork, lx, ly, lz, maxco, maxl, maxnprj, maxpgf, maxso, mp, &
-         ms, n, ncgauprj, ncgf, nisop, notprj, np, npgfg, ns, nset, nsgauprj, nsgf, nsox, &
-         output_unit
+         ms, n, ncgauprj, ncgf, ncgfo, nisop, notprj, np, npgfg, ns, nset, nsgauprj, nsgf, nsgfo, &
+         nsox, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: IWORK
       INTEGER, DIMENSION(:), POINTER                     :: lmax, lmin, npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_cgf, first_sgf, l, last_cgf, &
@@ -248,7 +255,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: S, Work_dgesdd
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: U, VT
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius, zet, zetp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cphi, gcc, smat, sphi, work
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cphi, gcc, smat, sphi, work, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcca, set_radius2
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -256,19 +263,20 @@ CONTAINS
       logger => cp_get_default_logger()
 
       NULLIFY (first_cgf, first_sgf, last_cgf, last_sgf, gcc, l, set_radius, set_radius2)
-      NULLIFY (cphi, sphi, lmax, lmin, npgf, nshell, zet, zetp, smat, work, gcca)
+      NULLIFY (cphi, sphi, lmax, lmin, npgf, nshell, zet, zetb, zetp, smat, work, gcca)
 
       CPASSERT(ASSOCIATED(paw_proj))
       CPASSERT(ASSOCIATED(orb_basis))
+      CPASSERT(ASSOCIATED(basis_1c))
 
-      CALL get_gto_basis_set(gto_basis_set=orb_basis, name=bsname, &
+      CALL get_gto_basis_set(gto_basis_set=basis_1c, name=bsname, &
                              ncgf=ncgf, nset=nset, nsgf=nsgf, &
                              lmax=lmax, lmin=lmin, npgf=npgf, &
                              nshell=nshell, cphi=cphi, sphi=sphi, &
                              first_cgf=first_cgf, first_sgf=first_sgf, &
                              l=l, last_cgf=last_cgf, last_sgf=last_sgf, &
                              maxco=maxco, maxso=maxso, maxl=maxl, maxpgf=maxpgf, &
-                             gcc=gcca)
+                             zet=zetb, gcc=gcca)
 
       paw_proj%maxl = maxl
       CPASSERT(.NOT. ASSOCIATED(paw_proj%zisomin))
@@ -295,7 +303,7 @@ CONTAINS
       DO iset = 1, nset
          DO is = 1, nshell(iset)
             set_radius(iset) = MAX(set_radius(iset), &
-                                   exp_radius(l(is, iset), orb_basis%zet(npgf(iset), iset), &
+                                   exp_radius(l(is, iset), zetb(npgf(iset), iset), &
                                               eps_orb, gcca(npgf(iset), is, iset), &
                                               rlow=set_radius(iset)))
          END DO ! is
@@ -307,7 +315,7 @@ CONTAINS
          DO lshell = lmin(iset), lmax(iset)
             DO ip = 1, npgf(iset)
                set_radius2(ip, lshell, iset) = &
-                  exp_radius(lshell, orb_basis%zet(ip, iset), eps_orb, 1.0_dp)
+                  exp_radius(lshell, zetb(ip, iset), eps_orb, 1.0_dp)
             END DO
          END DO ! is
       END DO ! iset
@@ -368,7 +376,7 @@ CONTAINS
                DO ip = 1, npgf(iset)
                   IF (set_radius2(ip, lshell, iset) < max_rad_local) THEN
                      npgfg = npgfg + 1
-                     zet(npgfg) = orb_basis%zet(ip, iset)
+                     zet(npgfg) = zetb(ip, iset)
                   ELSE
                      notprj = notprj + 1
                   END IF
@@ -515,7 +523,7 @@ CONTAINS
                      (paw_proj%zetprj(ip, lshell), ip=1, np)
                   DO jp = 1, npgf(iset)
                      WRITE (UNIT=output_unit, FMT="(/,T4,A9,F15.6,/,T4,A9,(t13,4E15.6))") &
-                        "exp gto: ", orb_basis%zet(jp, iset), &
+                        "exp gto: ", zetb(jp, iset), &
                         "coeff.:  ", (paw_proj%gccprj(ip, jp, &
                                                       lshell, iset), ip=1, np)
                   END DO
@@ -579,7 +587,7 @@ CONTAINS
       END DO ! lshell
 
       ms = 0
-      DO iset = 1, orb_basis%nset
+      DO iset = 1, nset
          ns = nsoset(lmax(iset))
          DO lshell = lmin(iset), lmax(iset)
             iprjfirst = paw_proj%first_prjs(lshell)
@@ -601,7 +609,7 @@ CONTAINS
       END DO ! iset
 
       ms = 0
-      DO iset = 1, orb_basis%nset
+      DO iset = 1, nset
          ns = nsoset(lmax(iset))
          DO ipgf = 1, npgf(iset)
             DO iso = nsoset(lmin(iset) - 1) + 1 + ns*(ipgf - 1) + ms, ns*ipgf + ms
@@ -635,18 +643,28 @@ CONTAINS
 
       ! Local coefficients for the one center expansions : oce
       ! the coefficients are calculated for the full and soft expansions
-      ALLOCATE (paw_proj%local_oce_cphi_h(maxco, ncgf))
+      CALL get_gto_basis_set(gto_basis_set=orb_basis, &
+                             ncgf=ncgfo, nsgf=nsgfo)
+!                            ncgf=ncgf, nset=nset, nsgf=nsgf, &
+!                            lmax=lmax, lmin=lmin, npgf=npgf, &
+!                            nshell=nshell, cphi=cphi, sphi=sphi, &
+!                            first_cgf=first_cgf, first_sgf=first_sgf, &
+!                            l=l, last_cgf=last_cgf, last_sgf=last_sgf, &
+!                            maxco=maxco, maxso=maxso, maxl=maxl, maxpgf=maxpgf, &
+!                            zet=zetb, gcc=gcca)
+
+      ALLOCATE (paw_proj%local_oce_cphi_h(maxco, ncgfo))
       paw_proj%local_oce_cphi_h = 0.0_dp
-      ALLOCATE (paw_proj%local_oce_sphi_h(maxco, nsgf))
+      ALLOCATE (paw_proj%local_oce_sphi_h(maxco, nsgfo))
       paw_proj%local_oce_sphi_h = 0.0_dp
-      ALLOCATE (paw_proj%sphi_h(maxco, nsgf))
+      ALLOCATE (paw_proj%sphi_h(maxco, nsgfo))
       paw_proj%sphi_h = 0.0_dp
 
-      ALLOCATE (paw_proj%local_oce_cphi_s(maxco, ncgf))
+      ALLOCATE (paw_proj%local_oce_cphi_s(maxco, ncgfo))
       paw_proj%local_oce_cphi_s = 0.0_dp
-      ALLOCATE (paw_proj%local_oce_sphi_s(maxco, nsgf))
+      ALLOCATE (paw_proj%local_oce_sphi_s(maxco, nsgfo))
       paw_proj%local_oce_sphi_s = 0.0_dp
-      ALLOCATE (paw_proj%sphi_s(maxco, nsgf))
+      ALLOCATE (paw_proj%sphi_s(maxco, nsgfo))
       paw_proj%sphi_s = 0.0_dp
 
       ! Cartesian

@@ -35,8 +35,7 @@ MODULE qs_linres_atom_current
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE particle_types,                  ONLY: particle_type
-   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
-                                              paw_proj_set_type
+   USE paw_basis_types,                 ONLY: get_paw_basis_info
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -143,7 +142,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all
       TYPE(oce_matrix_type), POINTER                     :: oce
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: a_block, b_block, c_block, d_block, &
                                                             jp2_RARnu, jp_RARnu
@@ -256,7 +254,7 @@ CONTAINS
 !$OMP                 , basis_set_a, nsgfa                                      &
 !$OMP                 , basis_set_b, nsgfb                                      &
 !$OMP                 , basis_1c_set, jmax, den_found                          &
-!$OMP                 , hard_radius_c, paw_proj                                 &
+!$OMP                 , hard_radius_c                                           &
 !$OMP                 , nsatbas, nsoctot, nso, paw_atom                         &
 !$OMP                 , iac , alist_ac, kac, n_cont_a, list_a, sgf_soft_only_a  &
 !$OMP                 , ibc , alist_bc, kbc, n_cont_b, list_b, sgf_soft_only_b  &
@@ -343,17 +341,15 @@ CONTAINS
 
          ! Loop over atoms
          DO kkind = 1, nkind
-            NULLIFY (paw_proj)
             CALL get_qs_kind(qs_kind_set(kkind), &
                              basis_set=basis_1c_set, basis_type="GAPW_1C", &
                              hard_radius=hard_radius_c, &
-                             paw_proj_set=paw_proj, &
                              paw_atom=paw_atom)
 
             ! Quick cycle if needed.
             IF (.NOT. paw_atom) CYCLE
 
-            CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nsatbas)
+            CALL get_paw_basis_info(basis_1c_set, nsatbas=nsatbas)
             nsoctot = nsatbas
 
             iac = ikind + nkind*(kkind - 1)
@@ -537,12 +533,11 @@ CONTAINS
                               natom=nat)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           basis_set=basis_1c_set, basis_type="GAPW_1C", &
-                          paw_proj_set=paw_proj, &
                           paw_atom=paw_atom)
 
          IF (.NOT. paw_atom) CYCLE
 
-         CALL get_paw_proj_set(paw_proj_set=paw_proj, nsatbas=nsatbas)
+         CALL get_paw_basis_info(basis_1c_set, nsatbas=nsatbas)
          nsoctot = nsatbas
 
          num_pe = para_env%num_pe
@@ -670,7 +665,6 @@ CONTAINS
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(jrho_atom_type), DIMENSION(:), POINTER        :: jrho1_atom_set
       TYPE(jrho_atom_type), POINTER                      :: jrho1_atom
-      TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
@@ -711,7 +705,6 @@ CONTAINS
                               natom=natom)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           grid_atom=grid_atom, &
-                          paw_proj_set=paw_proj, &
                           paw_atom=paw_atom, &
                           harmonics=harmonics, &
                           hard_radius=hard_radius, &
@@ -726,7 +719,7 @@ CONTAINS
                                 maxl=maxl, npgf=npgf, &
                                 nset=nset, zet=zet, &
                                 maxso=maxso)
-         CALL get_paw_proj_set(paw_proj_set=paw_proj, o2nindex=o2nindex)
+         CALL get_paw_basis_info(basis_1c_set, o2nindex=o2nindex)
          !
          nr = grid_atom%nr
          na = grid_atom%ng_sphere
@@ -1170,6 +1163,7 @@ CONTAINS
          DEALLOCATE (cjc0_h_block, cjc0_s_block, cjc_h_block, cjc_s_block, cjc_ii_h_block, cjc_ii_s_block, &
                      cjc_iii_h_block, cjc_iii_s_block, g1, g2, gg, gg_lm1, dgg_1, gauge_h, gauge_s, &
                      cg_list, cg_n_list, dacg_list, dacg_n_list)
+         DEALLOCATE (o2nindex)
       END DO ! ikind
       !
       !

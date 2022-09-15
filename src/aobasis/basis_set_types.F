@@ -72,18 +72,18 @@ MODULE basis_set_types
       !MK PRIVATE
       CHARACTER(LEN=default_string_length)       :: name
       CHARACTER(LEN=default_string_length)       :: aliases = ""
-      REAL(KIND=dp)                            :: kind_radius
-      REAL(KIND=dp)                            :: short_kind_radius
+      REAL(KIND=dp)                              :: kind_radius
+      REAL(KIND=dp)                              :: short_kind_radius
       INTEGER                                    :: norm_type = -1
       INTEGER                                    :: ncgf, nset, nsgf
       CHARACTER(LEN=12), DIMENSION(:), POINTER   :: cgf_symbol
       CHARACTER(LEN=6), DIMENSION(:), POINTER    :: sgf_symbol
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: norm_cgf, set_radius
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: norm_cgf, set_radius
       INTEGER, DIMENSION(:), POINTER             :: lmax, lmin, lx, ly, lz, m, ncgf_set, &
                                                     npgf, nsgf_set, nshell
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: cphi, pgf_radius, sphi, scon, zet
-      INTEGER, DIMENSION(:, :), POINTER           :: first_cgf, first_sgf, l, &
-                                                     last_cgf, last_sgf, n
+      REAL(KIND=dp), DIMENSION(:, :), POINTER    :: cphi, pgf_radius, sphi, scon, zet
+      INTEGER, DIMENSION(:, :), POINTER          :: first_cgf, first_sgf, l, &
+                                                    last_cgf, last_sgf, n
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: gcc
    END TYPE gto_basis_set_type
 
@@ -100,7 +100,7 @@ MODULE basis_set_types
       INTEGER                                    :: nshell
       CHARACTER(LEN=6), DIMENSION(:), POINTER    :: symbol
       INTEGER, DIMENSION(:), POINTER             :: nq, lq
-      REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
+      REAL(KIND=dp), DIMENSION(:), POINTER       :: zet
    END TYPE sto_basis_set_type
 
 ! **************************************************************************************************
