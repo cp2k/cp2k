@@ -183,6 +183,7 @@ MODULE qs_ks_types
                                                                sab_vdw => Null(), &
                                                                sab_scp => Null(), &
                                                                sab_tbe => Null(), &
+                                                               sab_xtbe => Null(), &
                                                                sab_core => Null(), &
                                                                sab_xb => Null(), &
                                                                sab_xtb_nonbond => Null(), &
@@ -275,6 +276,7 @@ CONTAINS
 !> \param sap_oce ...
 !> \param sab_lrc ...
 !> \param sab_se ...
+!> \param sab_xtbe ...
 !> \param sab_tbe ...
 !> \param sab_core ...
 !> \param sab_xb ...
@@ -328,7 +330,7 @@ CONTAINS
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
                          neighbor_list_id, &
                          sab_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
-                         sab_se, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, &
+                         sab_se, sab_xtbe, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, &
                          task_list, task_list_soft, &
                          kpoints, do_kpoints, &
                          atomic_kind_set, qs_kind_set, cell, cell_ref, use_ref_cell, &
@@ -352,8 +354,8 @@ CONTAINS
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
-         sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, &
-         sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp
+         sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
+         sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_soft
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       LOGICAL, OPTIONAL                                  :: do_kpoints
@@ -438,6 +440,7 @@ CONTAINS
       IF (PRESENT(sab_se)) sab_se => ks_env%sab_se
       IF (PRESENT(sab_lrc)) sab_lrc => ks_env%sab_lrc
       IF (PRESENT(sab_tbe)) sab_tbe => ks_env%sab_tbe
+      IF (PRESENT(sab_xtbe)) sab_xtbe => ks_env%sab_xtbe
       IF (PRESENT(sab_core)) sab_core => ks_env%sab_core
       IF (PRESENT(sab_xb)) sab_xb => ks_env%sab_xb
       IF (PRESENT(sab_xtb_nonbond)) sab_xtb_nonbond => ks_env%sab_xtb_nonbond
@@ -524,6 +527,7 @@ CONTAINS
 !> \param sap_oce ...
 !> \param sab_lrc ...
 !> \param sab_se ...
+!> \param sab_xtbe ...
 !> \param sab_tbe ...
 !> \param sab_core ...
 !> \param sab_xb ...
@@ -554,7 +558,7 @@ CONTAINS
                          neighbor_list_id, &
                          kpoints, &
                          sab_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
-                         sab_se, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, &
+                         sab_se, sab_xtbe, sab_tbe, sab_core, sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, &
                          task_list, task_list_soft, &
                          subsys, dft_control, dbcsr_dist, distribution_2d, pw_env, &
                          para_env, blacs_env)
@@ -574,8 +578,8 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
-         sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_tbe, sab_core, sab_xb, &
-         sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp
+         sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
+         sab_xb, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_soft
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(dft_control_type), OPTIONAL, POINTER          :: dft_control
@@ -639,6 +643,7 @@ CONTAINS
       IF (PRESENT(sab_se)) ks_env%sab_se => sab_se
       IF (PRESENT(sab_lrc)) ks_env%sab_lrc => sab_lrc
       IF (PRESENT(sab_tbe)) ks_env%sab_tbe => sab_tbe
+      IF (PRESENT(sab_xtbe)) ks_env%sab_xtbe => sab_xtbe
       IF (PRESENT(sab_core)) ks_env%sab_core => sab_core
       IF (PRESENT(sab_xb)) ks_env%sab_xb => sab_xb
       IF (PRESENT(sab_xtb_nonbond)) ks_env%sab_xtb_nonbond => sab_xtb_nonbond
@@ -767,6 +772,7 @@ CONTAINS
             CALL release_neighbor_list_sets(ks_env%sab_vdw)
             CALL release_neighbor_list_sets(ks_env%sab_scp)
             CALL release_neighbor_list_sets(ks_env%sab_tbe)
+            CALL release_neighbor_list_sets(ks_env%sab_xtbe)
             CALL release_neighbor_list_sets(ks_env%sab_core)
             CALL release_neighbor_list_sets(ks_env%sab_xb)
             CALL release_neighbor_list_sets(ks_env%sab_xtb_nonbond)
@@ -856,6 +862,7 @@ CONTAINS
             CALL release_neighbor_list_sets(ks_env%sab_vdw)
             CALL release_neighbor_list_sets(ks_env%sab_scp)
             CALL release_neighbor_list_sets(ks_env%sab_tbe)
+            CALL release_neighbor_list_sets(ks_env%sab_xtbe)
             CALL release_neighbor_list_sets(ks_env%sab_core)
             CALL release_neighbor_list_sets(ks_env%sab_xb)
             CALL release_neighbor_list_sets(ks_env%sab_xtb_nonbond)

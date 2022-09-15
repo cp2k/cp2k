@@ -5,13 +5,13 @@
 #      for details see cp2k/tools/do_regtest
 ch2o_t01.inp                              86    1.0E-12               0.108915750509E+01
 ch2o_t02.inp                              86    1.0E-12               0.108915750509E+01
-ch2o_t03.inp                              86    1.0E-12               0.114591982142E+01
+ch2o_t03.inp                              86    1.0E-12               0.114819181828E+01
 ch2o_t04.inp                              86    1.0E-12               0.109829662200E+01
 ch2o_t05.inp                              87    1.0E-12               0.226843652140E+02
-ch2o_t06.inp                              87    1.0E-12               0.230117849452E+02
+ch2o_t06.inp                              87    1.0E-12               0.229761888713E+02
 ch2o_t07.inp                              86    1.0E-12               0.954101834865E+00
 ch2o_t08.inp                              86    1.0E-12               0.963128388956E+00
 ch3br_nonbond_2.inp                        1    1.0E-12             -11.78062819229165  
 ch3br_nonbond.inp                          1    1.0E-12             -11.78062802267188
-ch3br_atprop_nonbond.inp                   1    1.0E-10             -11.78112872152760
+ch3br_atprop_nonbond.inp                   1    1.0E-10             -11.78112909303997
 #EOF

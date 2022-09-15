@@ -22,7 +22,8 @@ MODULE xtb_coulomb
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              xtb_control_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_get_block_p,&
@@ -153,6 +154,7 @@ CONTAINS
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       TYPE(virial_type), POINTER                         :: virial
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b, xtb_kind
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
 
@@ -165,6 +167,8 @@ CONTAINS
                       virial=virial, &
                       atprop=atprop, &
                       dft_control=dft_control)
+
+      xtb_control => dft_control%qs_control%xtb_control
 
       use_virial = .FALSE.
       IF (calculate_forces) THEN
@@ -195,10 +199,14 @@ CONTAINS
       gmcharge = 0._dp
 
       ! short range contribution (gamma)
-      ! loop over all atom pairs with a non-zero overlap (sab_orb)
-      kg = dft_control%qs_control%xtb_control%kg
+      ! loop over all atom pairs (sab_xtbe)
+      kg = xtb_control%kg
       NULLIFY (n_list)
-      CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
+      IF (xtb_control%old_coulomb_damping) THEN
+         CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
+      END IF
       CALL neighbor_list_iterator_create(nl_iterator, n_list)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -255,8 +263,8 @@ CONTAINS
 
       ! 1/R contribution
 
-      IF (dft_control%qs_control%xtb_control%coulomb_lr) THEN
-         do_ewald = dft_control%qs_control%xtb_control%do_ewald
+      IF (xtb_control%coulomb_lr) THEN
+         do_ewald = xtb_control%do_ewald
          IF (do_ewald) THEN
             ! Ewald sum
             NULLIFY (ewald_env, ewald_pw)
@@ -312,7 +320,7 @@ CONTAINS
       CALL mp_sum(gmcharge(:, 1), para_env%group)
       CALL mp_sum(gchrg(:, :, 1), para_env%group)
 
-      IF (dft_control%qs_control%xtb_control%coulomb_lr) THEN
+      IF (xtb_control%coulomb_lr) THEN
          IF (do_ewald) THEN
             ! add self charge interaction and background charge contribution
             gmcharge(:, 1) = gmcharge(:, 1) - 2._dp*alpha*oorootpi*mcharge(:)
@@ -633,7 +641,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (dft_control%qs_control%xtb_control%tb3_interaction) THEN
+      IF (xtb_control%tb3_interaction) THEN
          CALL get_qs_env(qs_env, nkind=nkind)
          ALLOCATE (zeffk(nkind), xgamma(nkind))
          DO ikind = 1, nkind

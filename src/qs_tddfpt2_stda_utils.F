@@ -180,8 +180,9 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, natom=natom)
       dbcsr_dist => sub_env%dbcsr_dist
+      ! Using the overlap list here can have a considerable effect on the number of
+      ! terms calculated. This makes gamma also dependent on EPS_DEFAULT -> Overlap
       n_list => sub_env%sab_orb
-      CALL get_qs_env(qs_env=qs_env, dbcsr_dist=dbcsr_dist, sab_orb=n_list)
 
       IF (PRESENT(ndim)) THEN
          nmat = ndim
