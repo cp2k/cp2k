@@ -31,9 +31,7 @@ def main() -> None:
         f.write(toolchain_full(mpi_mode="openmpi", gcc="install") + regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
-        f.write(toolchain_intel())
-        f.write("\n# TODO: Remove --mpiranks=1, see github.com/cp2k/cp2k/issues/2103\n")
-        f.write(regtest("psmp", testopts="--mpiranks=1"))
+        f.write(toolchain_intel() + regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
@@ -416,15 +414,13 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 
 # ======================================================================================
 def toolchain_intel() -> str:
-    # See https://github.com/cp2k/cp2k/issues/1936
     return rf"""
-FROM intel/oneapi-hpckit:2021.4-devel-ubuntu18.04
+FROM intel/oneapi-hpckit:2022.2-devel-ubuntu20.04
 
-ENV PATH=/opt/intel/oneapi/compiler/2021.4.0/linux/bin/intel64:/opt/intel/oneapi/mpi/2021.4.0/bin:${{PATH}}
-ENV LD_LIBRARY_PATH=/opt/intel/oneapi/mpi/2021.4.0/lib/release:/opt/intel/oneapi/mpi/2021.4.0/lib:/opt/intel/oneapi/mpi/2021.4.0/libfabric/lib:/opt/intel/oneapi/mkl/2021.4.0/lib/intel64:/opt/intel/oneapi/compiler/2021.4.0/linux/compiler/lib/intel64_lin:${{LD_LIBRARY_PATH}}
-ENV MKLROOT=/opt/intel/oneapi/mkl/2021.4.0
-ENV I_MPI_ROOT=/opt/intel/oneapi/mpi/2021.4.0
-ENV FI_PROVIDER_PATH='/opt/intel/oneapi/mpi/2021.4.0/libfabric/lib/prov'
+# Without this cp2k segfaults right after startup.
+# See https://github.com/cp2k/cp2k/issues/1936
+ENV I_MPI_FABRICS='shm'
+
 """ + install_toolchain(
         base_image="ubuntu",
         with_intel="",
