@@ -1,4 +1,4 @@
-RI_RPA_grad_MP2_H2O.inp                                11     4e-08            -16.994626142112192
+RI_RPA_grad_MP2_H2O.inp                                11     5e-08            -16.994626142112192
 RI_RPA_grad_MP2_CH3.inp                                11     7e-08             -7.515645339785070
 RI_RPA_grad_MP2_H2O_HF_PBE.inp                         11     6e-08            -17.057888508919117
 RI_RPA_grad_MP2_H2O_HF_PBE_ADMM.inp                    11     1e-07            -17.066276945129722

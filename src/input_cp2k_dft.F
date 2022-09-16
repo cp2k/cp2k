@@ -806,6 +806,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, &
+                          name="sab_xtbe", &
+                          description="Activates the printing of the xTB sr-Coulomb "// &
+                          "neighbor lists ", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="sab_core", &
                           description="Activates the printing of core interaction "// &
                           "neighbor lists ", &

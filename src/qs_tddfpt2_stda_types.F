@@ -11,8 +11,6 @@ MODULE qs_tddfpt2_stda_types
 
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
-   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                              gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               stda_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -25,8 +23,7 @@ MODULE qs_tddfpt2_stda_types
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -130,9 +127,6 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: tmp_basis_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(section_vals_type), POINTER                   :: tddfpt_print_section
       TYPE(stda_kind_type), POINTER                      :: kind_param
 
@@ -141,10 +135,9 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(stda_kernel%kind_param_set))
 
-      NULLIFY (atomic_kind_set, qs_kind_set) !get element symbol and atomic number
-      CALL get_qs_env(qs_env, dft_control=dft_control, &
-                      atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
-      nkind = SIZE(qs_kind_set)
+      NULLIFY (atomic_kind_set)
+      CALL get_qs_env(qs_env, dft_control=dft_control, atomic_kind_set=atomic_kind_set)
+      nkind = SIZE(atomic_kind_set)
 
       NULLIFY (tddfpt_print_section)
       tddfpt_print_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT%PRINT")
@@ -197,13 +190,10 @@ CONTAINS
          stda_kernel%kind_param_set(ikind)%kind_param%hardness_param = &
             hardness(stda_kernel%kind_param_set(ikind)%kind_param%z)*2.0_dp/evolt
          ! rcut parameter
-         qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
-         CALL get_gto_basis_set(tmp_basis_set, kind_radius=rcut)
          eta = stda_kernel%kind_param_set(ikind)%kind_param%hardness_param
          fxx = 2.0_dp*eta**2*stda_control%coulomb_sr_eps
          fxx = 0.5_dp*(1.0_dp/fxx)**0.33333_dp
-         rcut = MIN(rcut, stda_control%coulomb_sr_cut)
+         rcut = stda_control%coulomb_sr_cut
          stda_kernel%kind_param_set(ikind)%kind_param%rcut = MIN(rcut, fxx)
       END DO
 

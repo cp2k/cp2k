@@ -36,6 +36,7 @@
        METHOD  XTB
        &XTB
          DO_EWALD  T
+         CHECK_ATOMIC_CHARGES F
        &END XTB
      &END QS
      &POISSON

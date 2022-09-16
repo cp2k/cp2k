@@ -992,11 +992,11 @@ CONTAINS
             qs_kind => qs_kind_set(ikind)
             IF (qs_kind%xtb_parameter%defined) THEN
                CALL get_qs_kind(qs_kind, basis_set=tmp_basis_set)
-               CALL get_gto_basis_set(tmp_basis_set, kind_radius=rcut)
                IF (xtb_control%old_coulomb_damping) THEN
+                  CALL get_gto_basis_set(tmp_basis_set, kind_radius=rcut)
                   qs_kind%xtb_parameter%rcut = rcut
                ELSE
-                  rcut = MIN(rcut, xtb_control%coulomb_sr_cut)
+                  rcut = xtb_control%coulomb_sr_cut
                   fxx = 2.0_dp*xtb_control%coulomb_sr_eps*qs_kind%xtb_parameter%eta**2
                   fxx = 0.80_dp*(1.0_dp/fxx)**0.3333_dp
                   qs_kind%xtb_parameter%rcut = MIN(rcut, fxx)
