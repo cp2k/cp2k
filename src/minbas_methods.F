@@ -24,9 +24,9 @@ MODULE minbas_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -93,8 +93,9 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_a, fm_struct_b, fm_struct_c, &
                                                             fm_struct_d, fm_struct_e
-      TYPE(cp_fm_type), POINTER                          :: fm1, fm2, fm3, fm4, fm5, fm6, fm_mos, &
-                                                            fma, fmb, fmwork
+      TYPE(cp_fm_type)                                   :: fm1, fm2, fm3, fm4, fm5, fm6, fma, fmb, &
+                                                            fmwork
+      TYPE(cp_fm_type), POINTER                          :: fm_mos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
@@ -211,10 +212,10 @@ CONTAINS
                                   para_env=para_env, context=blacs_env)
          CALL cp_fm_struct_create(fm_struct_b, nrow_global=nmo, ncol_global=nmao, &
                                   para_env=para_env, context=blacs_env)
-         CALL cp_fm_create_p(fm1, fm_struct_a)
-         CALL cp_fm_create_p(fm2, fm_struct_b)
-         CALL cp_fm_create_p(fma, fm_struct_b)
-         CALL cp_fm_create_p(fmb, fm_struct_b)
+         CALL cp_fm_create(fm1, fm_struct_a)
+         CALL cp_fm_create(fm2, fm_struct_b)
+         CALL cp_fm_create(fma, fm_struct_b)
+         CALL cp_fm_create(fmb, fm_struct_b)
 
          CALL get_qs_env(qs_env, matrix_s_kp=matrix_s)
          smat => matrix_s(1, 1)%matrix
@@ -236,8 +237,8 @@ CONTAINS
             NULLIFY (fm_struct_c)
             CALL cp_fm_struct_create(fm_struct_c, nrow_global=nvirt, ncol_global=nvirt, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create_p(fm3, fm_struct_c)
-            CALL cp_fm_create_p(fm4, fm_struct_c)
+            CALL cp_fm_create(fm3, fm_struct_c)
+            CALL cp_fm_create(fm4, fm_struct_c)
             ! B(vw) = a(vj)* * a(wj)*
             CALL parallel_gemm("N", "T", nvirt, nvirt, nmao, 1.0_dp, fm2, fm2, 0.0_dp, fm3, &
                                a_first_row=homo + 1, b_first_row=homo + 1)
@@ -257,11 +258,11 @@ CONTAINS
             NULLIFY (fm_struct_d)
             CALL cp_fm_struct_create(fm_struct_d, nrow_global=nvirt, ncol_global=nmao, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create_p(fm5, fm_struct_d)
+            CALL cp_fm_create(fm5, fm_struct_d)
             NULLIFY (fm_struct_e)
             CALL cp_fm_struct_create(fm_struct_e, nrow_global=nmao, ncol_global=nmao, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create_p(fm6, fm_struct_e)
+            CALL cp_fm_create(fm6, fm_struct_e)
             ! D(j) = SUM_n (a(nj)*)^2 + SUM_vw R(vw) * a(vj)* * a(wj)*
             CALL parallel_gemm("N", "N", nvirt, nmao, nvirt, 1.0_dp, fm3, fm2, 0.0_dp, fm5, &
                                b_first_row=homo + 1)
@@ -278,7 +279,7 @@ CONTAINS
             CALL cp_fm_to_fm_submat(fm5, fma, nvirt, nmao, 1, 1, homo + 1, 1)
             CALL cp_fm_column_scale(fma, dval)
             ! Orthogonalization
-            CALL cp_fm_create_p(fmwork, fm_struct_e)
+            CALL cp_fm_create(fmwork, fm_struct_e)
             CALL parallel_gemm("T", "N", nmao, nmao, nmo, 1.0_dp, fma, fma, 0.0_dp, fm6)
             IF (my_full_ortho) THEN
                ! full orthogonalization
@@ -300,11 +301,11 @@ CONTAINS
             CALL dbcsr_filter(quambo(ispin)%matrix, my_eps_filter)
             !
             DEALLOCATE (eigval, dval, dvalo, dvalv)
-            CALL cp_fm_release_p(fm3)
-            CALL cp_fm_release_p(fm4)
-            CALL cp_fm_release_p(fm5)
-            CALL cp_fm_release_p(fm6)
-            CALL cp_fm_release_p(fmwork)
+            CALL cp_fm_release(fm3)
+            CALL cp_fm_release(fm4)
+            CALL cp_fm_release(fm5)
+            CALL cp_fm_release(fm6)
+            CALL cp_fm_release(fmwork)
             CALL cp_fm_struct_release(fm_struct_c)
             CALL cp_fm_struct_release(fm_struct_d)
             CALL cp_fm_struct_release(fm_struct_e)
@@ -312,10 +313,10 @@ CONTAINS
          END DO
 
          ! clean up
-         CALL cp_fm_release_p(fm1)
-         CALL cp_fm_release_p(fm2)
-         CALL cp_fm_release_p(fma)
-         CALL cp_fm_release_p(fmb)
+         CALL cp_fm_release(fm1)
+         CALL cp_fm_release(fm2)
+         CALL cp_fm_release(fma)
+         CALL cp_fm_release(fmb)
          CALL cp_fm_struct_release(fm_struct_a)
          CALL cp_fm_struct_release(fm_struct_b)
          CALL dbcsr_release(sortho)

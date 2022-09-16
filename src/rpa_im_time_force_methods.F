@@ -195,7 +195,7 @@ CONTAINS
    SUBROUTINE init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, unit_nr, mp2_env, qs_env)
 
       TYPE(im_time_force_type), INTENT(INOUT)            :: force_data
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type)                                     :: mp2_env

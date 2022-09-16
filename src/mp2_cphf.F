@@ -30,13 +30,9 @@ MODULE mp2_cphf
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm_submat,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -189,7 +185,7 @@ CONTAINS
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
                                                             P_mo, W_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: fm_back, fm_G_mu_nu
+      TYPE(cp_fm_type)                                   :: fm_back, fm_G_mu_nu
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, &
                                                             matrix_p_mp2_admm, matrix_s, P_mu_nu, &
                                                             rho1_ao, rho_ao, rho_ao_aux_fit
@@ -244,11 +240,11 @@ CONTAINS
          CALL dbcsr_set(P_mu_nu(ispin)%matrix, 0.0_dp)
       END DO
 
-      NULLIFY (fm_G_mu_nu, fm_struct_tmp)
+      NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create_p(fm_G_mu_nu, fm_struct_tmp, name="G_mu_nu")
-      CALL cp_fm_create_p(fm_back, fm_struct_tmp, name="fm_back")
+      CALL cp_fm_create(fm_G_mu_nu, fm_struct_tmp, name="G_mu_nu")
+      CALL cp_fm_create(fm_back, fm_struct_tmp, name="fm_back")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(fm_G_mu_nu, 0.0_dp)
       CALL cp_fm_set_all(fm_back, 0.0_dp)
@@ -410,7 +406,7 @@ CONTAINS
                                  L_jb, fm_G_mu_nu, fm_back, P_ia)
 
       ! release fm stuff
-      CALL cp_fm_release_p(fm_G_mu_nu)
+      CALL cp_fm_release(fm_G_mu_nu)
       DO ispin = 1, nspins
          CALL cp_fm_release_p(L_jb(ispin)%matrix)
          CALL cp_fm_release_p(mo_coeff_o(ispin)%matrix)
@@ -498,7 +494,7 @@ CONTAINS
 
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
       END DO
-      CALL cp_fm_release_p(fm_back)
+      CALL cp_fm_release(fm_back)
       DEALLOCATE (P_mo)
 
       CALL p_env_update_rho(p_env, qs_env)
@@ -569,7 +565,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_ao, fm_back
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_ao, fm_back
       INTEGER, INTENT(IN)                                :: transf_type_in
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: fm_mo_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
@@ -705,7 +701,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
@@ -800,7 +796,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
       TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: precond
 
@@ -1059,7 +1055,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(INOUT)    :: P_ia
       TYPE(cp_fm_p_type), DIMENSION(nspins), INTENT(IN)  :: precond
 

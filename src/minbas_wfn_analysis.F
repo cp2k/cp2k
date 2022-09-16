@@ -29,9 +29,9 @@ MODULE minbas_wfn_analysis
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -125,7 +125,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_a, fm_struct_b, fm_struct_c
-      TYPE(cp_fm_type), POINTER                          :: fm1, fm2, fm3, fm4, fm_mos
+      TYPE(cp_fm_type)                                   :: fm1, fm2, fm3, fm4
+      TYPE(cp_fm_type), POINTER                          :: fm_mos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef, pqmat, quambo, sqmat
@@ -219,14 +220,14 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, para_env=para_env, blacs_env=blacs_env)
          CALL cp_fm_struct_create(fm_struct_a, nrow_global=nao, ncol_global=nmao, &
                                   para_env=para_env, context=blacs_env)
-         CALL cp_fm_create_p(fm1, fm_struct_a)
+         CALL cp_fm_create(fm1, fm_struct_a)
          CALL cp_fm_struct_create(fm_struct_b, nrow_global=nmao, ncol_global=nmo, &
                                   para_env=para_env, context=blacs_env)
-         CALL cp_fm_create_p(fm2, fm_struct_b)
-         CALL cp_fm_create_p(fm3, fm_struct_b)
+         CALL cp_fm_create(fm2, fm_struct_b)
+         CALL cp_fm_create(fm3, fm_struct_b)
          CALL cp_fm_struct_create(fm_struct_c, nrow_global=nmo, ncol_global=nmo, &
                                   para_env=para_env, context=blacs_env)
-         CALL cp_fm_create_p(fm4, fm_struct_c)
+         CALL cp_fm_create(fm4, fm_struct_c)
          ALLOCATE (fnorm(nmo, nspin), ecount(natom, 3, nspin), prmao(natom, nspin))
          ecount = 0
          prmao = 0.0_dp
@@ -361,7 +362,7 @@ CONTAINS
             mo_set%eigenvalues = 0.0_dp
             ALLOCATE (mo_set%occupation_numbers(nmao))
             mo_set%occupation_numbers = 1.0_dp
-            CALL cp_fm_create_p(mo_set%mo_coeff, fm_struct_a)
+            CALL cp_fm_create(mo_set%mo_coeff, fm_struct_a)
             CALL copy_dbcsr_to_fm(quambo(ispin)%matrix, mo_set%mo_coeff)
          END DO
 
@@ -380,10 +381,10 @@ CONTAINS
          DEALLOCATE (mbas)
 
          DEALLOCATE (fnorm, ecount, prmao, mcharge)
-         CALL cp_fm_release_p(fm1)
-         CALL cp_fm_release_p(fm2)
-         CALL cp_fm_release_p(fm3)
-         CALL cp_fm_release_p(fm4)
+         CALL cp_fm_release(fm1)
+         CALL cp_fm_release(fm2)
+         CALL cp_fm_release(fm3)
+         CALL cp_fm_release(fm4)
          CALL cp_fm_struct_release(fm_struct_a)
          CALL cp_fm_struct_release(fm_struct_b)
          CALL cp_fm_struct_release(fm_struct_c)
@@ -486,7 +487,7 @@ CONTAINS
    SUBROUTINE post_minbas_cubes(qs_env, print_section, minbas_coeff, ispin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: print_section
-      TYPE(cp_fm_type), POINTER                          :: minbas_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: minbas_coeff
       INTEGER, INTENT(IN)                                :: ispin
 
       CHARACTER(LEN=default_path_length)                 :: filename, title
@@ -509,8 +510,6 @@ CONTAINS
       minbas_section => section_vals_get_subs_vals(print_section, "MINBAS_CUBE")
       CALL section_vals_get(minbas_section, explicit=explicit)
       IF (.NOT. explicit) RETURN
-
-      CPASSERT(ASSOCIATED(minbas_coeff))
 
       logger => cp_get_default_logger()
       stride => section_get_ivals(print_section, "MINBAS_CUBE%STRIDE")

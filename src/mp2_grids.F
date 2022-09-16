@@ -509,7 +509,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: D_ia, iaia_RI, M_ia
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       TYPE(cp_para_env_type), POINTER                    :: para_env_col
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ia_ia_integrals'

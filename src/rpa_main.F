@@ -196,7 +196,7 @@ CONTAINS
          INTENT(INOUT)                                   :: gd_B_virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all, gd_B_occ_bse, gd_B_virt_bse
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1068,7 +1068,7 @@ CONTAINS
          INTENT(INOUT)                                   :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
                                                             fm_mat_S_gw
       TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, fm_mat_S_ij_bse, &

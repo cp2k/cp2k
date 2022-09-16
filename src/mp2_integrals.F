@@ -29,10 +29,10 @@ MODULE mp2_integrals
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -114,7 +114,7 @@ MODULE mp2_integrals
       TYPE(dbcsr_type) :: matrix_ia_jnu, matrix_ia_jb
       INTEGER :: max_row_col_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: local_col_row_info
-      TYPE(cp_fm_type), POINTER :: fm_BIb_jb
+      TYPE(cp_fm_type) :: fm_BIb_jb
       CHARACTER(LEN=default_string_length) :: descr
    END TYPE intermediate_matrix_type
 
@@ -208,7 +208,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       INTEGER, INTENT(IN)                                :: nmo
@@ -1079,12 +1079,11 @@ CONTAINS
       CALL dbcsr_set(intermed_mat%matrix_ia_jb, 0.0_dp)
 
       ! create the analogous of matrix_ia_jb in fm type
-      NULLIFY (intermed_mat%fm_BIb_jb)
       NULLIFY (fm_struct)
       CALL dbcsr_get_info(intermed_mat%matrix_ia_jb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env_sub)
-      CALL cp_fm_create_p(intermed_mat%fm_BIb_jb, fm_struct, name="fm_BIb_jb_"//matrix_name_2)
+      CALL cp_fm_create(intermed_mat%fm_BIb_jb, fm_struct, name="fm_BIb_jb_"//matrix_name_2)
 
       CALL copy_dbcsr_to_fm(intermed_mat%matrix_ia_jb, intermed_mat%fm_BIb_jb)
       CALL cp_fm_struct_release(fm_struct)
@@ -1171,7 +1170,7 @@ CONTAINS
 
       CALL dbcsr_release(intermed_mat%matrix_ia_jnu)
       CALL dbcsr_release(intermed_mat%matrix_ia_jb)
-      CALL cp_fm_release_p(intermed_mat%fm_BIb_jb)
+      CALL cp_fm_release(intermed_mat%fm_BIb_jb)
       DEALLOCATE (intermed_mat%local_col_row_info)
 
    END SUBROUTINE
@@ -1351,7 +1350,7 @@ CONTAINS
                                 local_col_row_info, &
                                 my_B_virtual_end, my_B_virtual_start)
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
-      TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_BIb_jb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       INTEGER, INTENT(IN)                                :: max_row_col_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info

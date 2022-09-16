@@ -20,10 +20,10 @@ MODULE molecular_states
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_element,&
                                               cp_fm_get_info,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -94,7 +94,7 @@ CONTAINS
                                          loc_print_section, particles, tag, marked_states, ispin)
 
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(cp_fm_type), POINTER                          :: mo_localized, mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_localized, mo_coeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(dbcsr_type), POINTER                          :: Hks, matrix_S
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -122,7 +122,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: b, c, d, D_igk, e_vectors, &
+      TYPE(cp_fm_type)                                   :: b, c, d, D_igk, e_vectors, &
                                                             rot_e_vectors, smo, storage
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -189,8 +189,7 @@ CONTAINS
       CALL cp_fm_get_info(mo_localized, &
                           ncol_global=ncol_global, &
                           nrow_global=nrow_global)
-      NULLIFY (smo)
-      CALL cp_fm_create_p(smo, mo_coeff%matrix_struct)
+      CALL cp_fm_create(smo, mo_coeff%matrix_struct)
       CALL cp_dbcsr_sm_fm_multiply(matrix_S, mo_coeff, smo, ncol_global)
 
       !-----------------------------------------------------------------------------
@@ -199,7 +198,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       ALLOCATE (nstates(2))
 
-      CALL cp_fm_create_p(storage, mo_localized%matrix_struct, name='storage')
+      CALL cp_fm_create(storage, mo_localized%matrix_struct, name='storage')
 
       DO imol = 1, SIZE(molecule_set)
          IF (ASSOCIATED(molecule_set(imol)%lmi)) THEN
@@ -227,16 +226,16 @@ CONTAINS
          ind => states(:)
          ALLOCATE (evals(ns))
 
-         NULLIFY (b, c, d, fm_struct_tmp, e_vectors, rot_e_vectors)
+         NULLIFY (fm_struct_tmp)
 
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, &
                                   ncol_global=ns, &
                                   para_env=mo_localized%matrix_struct%para_env, &
                                   context=mo_localized%matrix_struct%context)
 
-         CALL cp_fm_create_p(b, fm_struct_tmp, name="b")
-         CALL cp_fm_create_p(c, fm_struct_tmp, name="c")
-         CALL cp_fm_create_p(rot_e_vectors, fm_struct_tmp, name="rot_e_vectors")
+         CALL cp_fm_create(b, fm_struct_tmp, name="b")
+         CALL cp_fm_create(c, fm_struct_tmp, name="c")
+         CALL cp_fm_create(rot_e_vectors, fm_struct_tmp, name="rot_e_vectors")
 
          CALL cp_fm_struct_release(fm_struct_tmp)
 
@@ -244,8 +243,8 @@ CONTAINS
                                   para_env=mo_localized%matrix_struct%para_env, &
                                   context=mo_localized%matrix_struct%context)
 
-         CALL cp_fm_create_p(d, fm_struct_tmp, name="d")
-         CALL cp_fm_create_p(e_vectors, fm_struct_tmp, name="e_vectors")
+         CALL cp_fm_create(d, fm_struct_tmp, name="d")
+         CALL cp_fm_create(e_vectors, fm_struct_tmp, name="e_vectors")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          DO i = 1, ns
@@ -294,7 +293,7 @@ CONTAINS
                                      ncol_global=ncol_global, &
                                      para_env=mo_localized%matrix_struct%para_env, &
                                      context=mo_localized%matrix_struct%context)
-            CALL cp_fm_create_p(D_igk, fm_struct_tmp)
+            CALL cp_fm_create(D_igk, fm_struct_tmp)
             CALL cp_fm_struct_release(fm_struct_tmp)
             CALL parallel_gemm('T', 'N', ns, ncol_global, nrow_global, 1.0_dp, &
                                rot_e_vectors, smo, 0.0_dp, D_igk)
@@ -306,7 +305,7 @@ CONTAINS
                   END IF
                END DO
             END DO
-            CALL cp_fm_release_p(D_igk)
+            CALL cp_fm_release(D_igk)
          END IF
 
          IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
@@ -343,18 +342,18 @@ CONTAINS
          END IF
 
          DEALLOCATE (evals)
-         CALL cp_fm_release_p(b)
-         CALL cp_fm_release_p(c)
-         CALL cp_fm_release_p(d)
-         CALL cp_fm_release_p(e_vectors)
-         CALL cp_fm_release_p(rot_e_vectors)
+         CALL cp_fm_release(b)
+         CALL cp_fm_release(c)
+         CALL cp_fm_release(d)
+         CALL cp_fm_release(e_vectors)
+         CALL cp_fm_release(rot_e_vectors)
 
          DEALLOCATE (states)
 
       END DO
-      CALL cp_fm_release_p(smo)
+      CALL cp_fm_release(smo)
       CALL cp_fm_to_fm(storage, mo_localized)
-      CALL cp_fm_release_p(storage)
+      CALL cp_fm_release(storage)
       IF (ASSOCIATED(mark_states)) THEN
          DEALLOCATE (mark_states)
       END IF

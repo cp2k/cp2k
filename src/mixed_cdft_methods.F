@@ -29,14 +29,9 @@ MODULE mixed_cdft_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type,&
-                                              cp_fm_write_formatted
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_formatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -1183,7 +1178,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), POINTER    :: w_matrix_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, mo_mo_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: inverse_mat, Tinverse, tmp2
+      TYPE(cp_fm_type)                                   :: inverse_mat, Tinverse, tmp2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix, density_matrix_diff, &
                                                             w_matrix
@@ -1198,8 +1193,8 @@ CONTAINS
 
       NULLIFY (force_env_section, print_section, mixed_cdft_section, &
                mixed_env, mixed_cdft, qs_env, dft_control, fm_struct_mo, &
-               density_matrix_diff, mo_mo_fmstruct, inverse_mat, mo_overlap, &
-               Tinverse, tmp2, w_matrix_mo, mixed_mo_coeff, mixed_matrix_s, &
+               density_matrix_diff, mo_mo_fmstruct, mo_overlap, &
+               w_matrix_mo, mixed_mo_coeff, mixed_matrix_s, &
                density_matrix, energy_qs, w_matrix, mo_eigval)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(force_env))
@@ -1348,13 +1343,13 @@ CONTAINS
          CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, &
                                   context=mixed_cdft%blacs_env, para_env=force_env%para_env)
          ! Allocate work
-         CALL cp_fm_create_p(matrix=tmp2, matrix_struct=fm_struct_mo, &
-                             name="ET_TMP_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+         CALL cp_fm_create(matrix=tmp2, matrix_struct=fm_struct_mo, &
+                           name="ET_TMP_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
          CALL cp_fm_struct_release(fm_struct_mo)
-         CALL cp_fm_create_p(matrix=inverse_mat, matrix_struct=mo_mo_fmstruct, &
-                             name="INVERSE_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
-         CALL cp_fm_create_p(matrix=Tinverse, matrix_struct=mo_mo_fmstruct, &
-                             name="T_INVERSE_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+         CALL cp_fm_create(matrix=inverse_mat, matrix_struct=mo_mo_fmstruct, &
+                           name="INVERSE_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+         CALL cp_fm_create(matrix=Tinverse, matrix_struct=mo_mo_fmstruct, &
+                           name="T_INVERSE_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
          DO istate = 1, npermutations
             CALL cp_fm_create_p(matrix=mo_overlap(istate)%matrix, matrix_struct=mo_mo_fmstruct, &
                                 name="MO_OVERLAP_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
@@ -1512,7 +1507,7 @@ CONTAINS
             CALL mp_sum(b(ispin, :, ipermutation), force_env%para_env%group)
          END DO
          ! Release work
-         CALL cp_fm_release_p(tmp2)
+         CALL cp_fm_release(tmp2)
          DO ivar = 1, nvar
             DO jstate = 1, nforce_eval
                DO istate = 1, nforce_eval
@@ -1524,8 +1519,8 @@ CONTAINS
          DO ipermutation = 1, npermutations
             CALL cp_fm_release_p(mo_overlap(ipermutation)%matrix)
          END DO
-         CALL cp_fm_release_p(Tinverse)
-         CALL cp_fm_release_p(inverse_mat)
+         CALL cp_fm_release(Tinverse)
+         CALL cp_fm_release(inverse_mat)
       END DO
       DEALLOCATE (mo_overlap)
       DEALLOCATE (w_matrix_mo)
@@ -2065,7 +2060,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: inverse_mat, mo_overlap_wfn, mo_tmp
+      TYPE(cp_fm_type)                                   :: inverse_mat, mo_overlap_wfn, mo_tmp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
@@ -2153,14 +2148,14 @@ CONTAINS
          nmo = ncol_mo(ispin)
          CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, &
                                   context=mixed_cdft%blacs_env, para_env=force_env%para_env)
-         CALL cp_fm_create_p(matrix=mo_overlap_wfn, matrix_struct=mo_mo_fmstruct, &
-                             name="MO_OVERLAP_MATRIX_WFN")
-         CALL cp_fm_create_p(matrix=inverse_mat, matrix_struct=mo_mo_fmstruct, &
-                             name="INVERSE_MO_OVERLAP_MATRIX_WFN")
+         CALL cp_fm_create(matrix=mo_overlap_wfn, matrix_struct=mo_mo_fmstruct, &
+                           name="MO_OVERLAP_MATRIX_WFN")
+         CALL cp_fm_create(matrix=inverse_mat, matrix_struct=mo_mo_fmstruct, &
+                           name="INVERSE_MO_OVERLAP_MATRIX_WFN")
          CALL cp_fm_struct_release(mo_mo_fmstruct)
-         CALL cp_fm_create_p(matrix=mo_tmp, &
-                             matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
-                             name="OVERLAP_MO_COEFF_WFN")
+         CALL cp_fm_create(matrix=mo_tmp, &
+                           matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
+                           name="OVERLAP_MO_COEFF_WFN")
          DO ipermutation = 1, npermutations
             CALL map_permutation_to_states(nforce_eval, ipermutation, istate, jstate)
             ! S*C_r
@@ -2179,9 +2174,9 @@ CONTAINS
                                mo_tmp, 0.0_dp, mo_overlap_wfn)
             CALL cp_fm_invert(mo_overlap_wfn, inverse_mat, overlaps(2, ipermutation, ispin), eps_svd=mixed_cdft%eps_svd)
          END DO
-         CALL cp_fm_release_p(mo_overlap_wfn)
-         CALL cp_fm_release_p(inverse_mat)
-         CALL cp_fm_release_p(mo_tmp)
+         CALL cp_fm_release(mo_overlap_wfn)
+         CALL cp_fm_release(inverse_mat)
+         CALL cp_fm_release(mo_tmp)
          CALL deallocate_mo_set(mo_set(ispin)%mo_set)
       END DO
       DEALLOCATE (mo_set)

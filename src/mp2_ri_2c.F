@@ -44,8 +44,8 @@ MODULE mp2_ri_2c
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2p, &
+        cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -163,7 +163,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: my_Lrows, my_Vrows
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_PQ
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
       INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -188,7 +188,7 @@ CONTAINS
                                                             num_small_eigen
       REAL(KIND=dp)                                      :: cond_num, eps_pgf_orb_old
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_kpoints
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L, fm_matrix_S_inv_work, &
+      TYPE(cp_fm_type)                                   :: fm_matrix_L, fm_matrix_S_inv_work, &
                                                             fm_matrix_V
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -205,7 +205,7 @@ CONTAINS
 
       IF (do_im_time .AND. calc_forces) THEN
          !need a copy of the (P|Q) integrals
-         CALL cp_fm_create_p(fm_matrix_PQ, fm_matrix_L%matrix_struct)
+         CALL cp_fm_create(fm_matrix_PQ, fm_matrix_L%matrix_struct)
          CALL cp_fm_to_fm(fm_matrix_L, fm_matrix_PQ)
       END IF
 
@@ -266,8 +266,7 @@ CONTAINS
          ELSE
             IF (calc_forces .AND. (.NOT. do_im_time)) THEN
                ! For the gradients, we make a copy of the inverse root of L
-               NULLIFY (fm_matrix_V)
-               CALL cp_fm_create_p(fm_matrix_V, fm_matrix_L%matrix_struct)
+               CALL cp_fm_create(fm_matrix_V, fm_matrix_L%matrix_struct)
                CALL cp_fm_to_fm(fm_matrix_L, fm_matrix_V)
 
                CALL decomp_mat_L(fm_matrix_V, do_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
@@ -280,8 +279,7 @@ CONTAINS
             CALL decomp_mat_L(fm_matrix_L_RI_metric(1, 1)%matrix, .FALSE., num_small_eigen, cond_num, .TRUE., &
                               gd_array, ngroup, dimen_RI, dimen_RI_red, para_env)
 
-            NULLIFY (fm_matrix_S_inv_work)
-            CALL cp_fm_create_p(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
+            CALL cp_fm_create(fm_matrix_S_inv_work, fm_matrix_L_RI_metric(1, 1)%matrix%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_S_inv_work, 0.0_dp)
 
             CALL parallel_gemm('N', 'T', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_matrix_L_RI_metric(1, 1)%matrix, &
@@ -301,7 +299,7 @@ CONTAINS
             END IF
 
             ! clean the S_inv matrix
-            CALL cp_fm_release_p(fm_matrix_S_inv_work)
+            CALL cp_fm_release(fm_matrix_S_inv_work)
          END IF
 
          IF (.NOT. do_im_time) THEN
@@ -353,9 +351,9 @@ CONTAINS
             CALL grep_Lcols(fm_matrix_V, my_group_L_start, my_group_L_end, my_group_L_size, my_Vrows)
          END IF
       END IF
-      CALL cp_fm_release_p(fm_matrix_L)
+      CALL cp_fm_release(fm_matrix_L)
       IF (calc_forces .AND. .NOT. (do_im_time .OR. compare_potential_types(qs_env%mp2_env%ri_metric, &
-                                                             qs_env%mp2_env%potential_parameter))) CALL cp_fm_release_p(fm_matrix_V)
+                                                               qs_env%mp2_env%potential_parameter))) CALL cp_fm_release(fm_matrix_V)
       CALL cp_para_env_release(para_env_L)
 
       CALL timestop(handle)
@@ -378,7 +376,7 @@ CONTAINS
    SUBROUTINE decomp_mat_L(fm_matrix_L, do_svd, num_small_eigen, cond_num, do_inversion, gd_array, ngroup, &
                            dimen_RI, dimen_RI_red, para_env)
 
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_matrix_L
       LOGICAL, INTENT(IN)                                :: do_svd
       INTEGER, INTENT(INOUT)                             :: num_small_eigen
       REAL(KIND=dp), INTENT(INOUT)                       :: cond_num
@@ -560,7 +558,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(libint_potential_type)                        :: ri_metric
       LOGICAL, INTENT(IN)                                :: do_kpoints
@@ -577,7 +575,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_S_global
+      TYPE(cp_fm_type)                                   :: fm_matrix_S_global
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_RI_aux_transl
@@ -678,9 +676,7 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
                                ncol_global=dimen_RI, para_env=para_env)
 
-      NULLIFY (fm_matrix_S_global)
-
-      CALL cp_fm_create_p(fm_matrix_S_global, fm_struct)
+      CALL cp_fm_create(fm_matrix_S_global, fm_struct)
       CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
 
       IF (do_kpoints) THEN
@@ -745,7 +741,7 @@ CONTAINS
 
       CALL cp_fm_struct_release(fm_struct)
 
-      CALL cp_fm_release_p(fm_matrix_S_global)
+      CALL cp_fm_release(fm_matrix_S_global)
 
       IF (.NOT. put_mat_KS_env) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_s_RI_aux_transl)
@@ -792,7 +788,7 @@ CONTAINS
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub, para_env_L
       REAL(KIND=dp), INTENT(IN)                          :: mp2_memory
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: ngroup, color_sub
       INTEGER, INTENT(OUT)                               :: dimen_RI, my_group_L_size, &
                                                             my_group_L_start, my_group_L_end
@@ -804,7 +800,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_im_time
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_matrix_L_extern
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_integrals'
 
@@ -1053,7 +1049,7 @@ CONTAINS
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE matrix_root_with_svd(matrix, num_small_evals, cond_num, do_inversion, para_env)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(OUT)                               :: num_small_evals
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
@@ -1077,7 +1073,7 @@ CONTAINS
       evals = 0
 
       NULLIFY (evecs)
-      CALL cp_fm_create_p(evecs, matrix%matrix_struct)
+      CALL cp_fm_create(evecs, matrix%matrix_struct)
 
       ! Perform the EVD (=SVD of a positive semidefinite matrix)
       CALL choose_eigv_solver(matrix, evecs, evals)
@@ -1137,7 +1133,7 @@ CONTAINS
       ! Copy the needed eigenvectors
       CALL cp_fm_to_fm(evecs, matrix, needed_evals, num_small_evals + 1)
 
-      CALL cp_fm_release_p(evecs)
+      CALL cp_fm_release(evecs)
 
       CALL timestop(handle)
 
@@ -1150,7 +1146,7 @@ CONTAINS
 !> \param fm_struct_template ...
 ! **************************************************************************************************
    SUBROUTINE reset_size_matrix(matrix, new_size, fm_struct_template)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: new_size
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_template
 
@@ -1165,10 +1161,9 @@ CONTAINS
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, ncol_global=new_size, template_fmstruct=fm_struct_template, force_block=.TRUE.)
 
-      CALL cp_fm_release_p(matrix)
+      CALL cp_fm_release(matrix)
 
-      NULLIFY (matrix)
-      CALL cp_fm_create_p(matrix, fm_struct)
+      CALL cp_fm_create(matrix, fm_struct)
       CALL cp_fm_set_all(matrix, 0.0_dp)
 
       CALL cp_fm_struct_release(fm_struct)
@@ -1188,7 +1183,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_fm_L_from_L_loc_non_blocking(fm_matrix_L, L_local_col, para_env, my_group_L_start, &
                                                 my_group_L_end, dimen_RI)
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: L_local_col
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
@@ -1412,7 +1407,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cholesky_decomp(fm_matrix_L, dimen_RI, do_inversion)
 
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: dimen_RI
       LOGICAL, INTENT(IN)                                :: do_inversion
 
@@ -1611,7 +1606,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE invert_L(fm_matrix_L)
 
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'invert_L'
 
@@ -1651,12 +1646,12 @@ CONTAINS
 !> \param fm_matrix_L_extern ...
 ! **************************************************************************************************
    SUBROUTINE create_matrix_L(fm_matrix_L, blacs_env_L, dimen_RI, para_env_L, name, fm_matrix_L_extern)
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_L
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_L
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(cp_para_env_type), POINTER                    :: para_env_L
       CHARACTER(LEN=*), INTENT(IN)                       :: name
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_matrix_L_extern
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_matrix_L_extern
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_matrix_L'
 
@@ -1666,15 +1661,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! create the full matrix L defined in the L group
-      NULLIFY (fm_matrix_L)
       IF (PRESENT(fm_matrix_L_extern)) THEN
-         CALL cp_fm_create_p(fm_matrix_L, fm_matrix_L_extern%matrix_struct, name=name)
+         CALL cp_fm_create(fm_matrix_L, fm_matrix_L_extern%matrix_struct, name=name)
       ELSE
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_L, nrow_global=dimen_RI, &
                                   ncol_global=dimen_RI, para_env=para_env_L)
 
-         CALL cp_fm_create_p(fm_matrix_L, fm_struct, name=name)
+         CALL cp_fm_create(fm_matrix_L, fm_struct, name=name)
 
          CALL cp_fm_struct_release(fm_struct)
       END IF
@@ -1695,7 +1689,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE grep_Lcols(fm_matrix_L, &
                          my_group_L_start, my_group_L_end, my_group_L_size, my_Lrows)
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &

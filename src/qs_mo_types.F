@@ -396,7 +396,7 @@ CONTAINS
                          eigenvalues, occupation_numbers, mo_coeff, mo_coeff_b, &
                          uniform_occupation, kTS, mu, flexible_electron_count)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type)                                  :: mo_set
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: maxocc
       INTEGER, INTENT(OUT), OPTIONAL                     :: homo, lfomo, nao, nelectron
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: n_el_f

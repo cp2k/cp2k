@@ -29,7 +29,7 @@ MODULE mp2_gpw
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: &
         cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
@@ -166,7 +166,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type)                                   :: fm_matrix_PQ
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_P_global
@@ -553,7 +553,7 @@ CONTAINS
             DEALLOCATE (mat_P_global%matrix)
 
             CALL cp_libint_static_cleanup()
-            IF (calc_forces) CALL cp_fm_release_p(fm_matrix_PQ)
+            IF (calc_forces) CALL cp_fm_release(fm_matrix_PQ)
          END IF
 
          ! Release some memory for AXK
@@ -664,7 +664,7 @@ CONTAINS
                                         gw_corr_lev_occ, gw_corr_lev_virt)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: dimen, homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
