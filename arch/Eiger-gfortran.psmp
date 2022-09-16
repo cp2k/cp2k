@@ -9,17 +9,17 @@
 # 4. To run a calculation: no module has to be loaded
 #
 # \
-  module load cpeGNU/21.08 ; \
+  module load cpeGNU/21.12 ; \
   module load \
       cray-fftw \
-      ELPA/2021.05.002 \
-      libxsmm/1.16.1 \
-      libxc/5.1.5 \
+      ELPA/2021.11.001 \
+      libxsmm/1.17 \
+      libxc/5.1.7 \
       Libint-CP2K/2.6.0 \
-      SIRIUS/7.2.5 \
-      spglib/1.16.0 \
+      SIRIUS/7.3.1 \
+      spglib/1.16.3 \
       libvori/210412 \
-      PLUMED/2.7.1 \
+      PLUMED/2.7.3 \
       ; \
   module list ; \
   module save cp2k_gfortran_psmp ; \
@@ -36,14 +36,19 @@
 # To disable/enable them add them to the make call:
 #   ex.: make -j ARCH=Eiger-gfortran VERSION=psmp USE_ELPA=0
 
+# NOTES:
+# Current versions of SIRIUS, LIBVORI and PLUMED provided by CSCS on Eiger are too old to run
+# with the current development version of CP2K. The user should install these via the toolchain,
+# in case they should need these libraries.
+
 WITH_MKL=0
 
 USE_ELPA=1
 USE_LIBINT=1
-USE_SIRIUS=1
+USE_SIRIUS=0 
 USE_SPGLIB=1
-USE_LIBVORI=1
-USE_PLUMED=1
+USE_LIBVORI=0
+USE_PLUMED=0
 
 CHECKS=0
 
