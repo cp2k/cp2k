@@ -29,7 +29,9 @@ MODULE preconditioner_solvers
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_create_p,&
+                                              cp_fm_release,&
                                               cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -127,7 +129,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky'
 
       INTEGER                                            :: handle, info
-      TYPE(cp_fm_type), POINTER                          :: fm, fm_work
+      TYPE(cp_fm_type)                                   :: fm_work
+      TYPE(cp_fm_type), POINTER                          :: fm
 
       CALL timeset(routineN, handle)
 
@@ -137,9 +140,7 @@ CONTAINS
                                 preconditioner_env%para_env, preconditioner_env%ctxt)
       fm => preconditioner_env%fm
 
-      NULLIFY (fm_work)
-
-      CALL cp_fm_create_p(fm_work, fm%matrix_struct, name="fm_work")
+      CALL cp_fm_create(fm_work, fm%matrix_struct, name="fm_work")
       !
       ! compute the inverse of SPD matrix fm using the Cholesky factorization
       CALL cp_fm_cholesky_decompose(fm, info_out=info)
@@ -159,7 +160,7 @@ CONTAINS
       CALL cp_fm_cholesky_invert(fm)
 
       CALL cp_fm_upper_to_full(fm, fm_work)
-      CALL cp_fm_release_p(fm_work)
+      CALL cp_fm_release(fm_work)
 
       CALL timestop(handle)
 
@@ -319,10 +320,7 @@ CONTAINS
                               matrix_type=dbcsr_type_no_symmetry, &
                               nze=0, data_type=dbcsr_type_real_8)
          END IF
-!       CALL cp_fm_create_p(fm_tmp, matrix_struct=fm_matrix%matrix_struct)
-!       CALL cp_fm_upper_to_full(fm_matrix, fm_tmp)
          CALL copy_fm_to_dbcsr(fm_matrix, dbcsr_matrix)
-!       CALL cp_fm_release_p(fm_tmp)
          CALL cp_fm_release_p(fm_matrix)
       END IF
 
@@ -353,9 +351,7 @@ CONTAINS
       IF (ASSOCIATED(dbcsr_matrix)) THEN
          NULLIFY (fm_struct_tmp)
 
-         IF (ASSOCIATED(fm_matrix)) THEN
-            CALL cp_fm_release_p(fm_matrix)
-         END IF
+         IF (ASSOCIATED(fm_matrix)) CALL cp_fm_release_p(fm_matrix)
 
          CALL dbcsr_get_info(dbcsr_matrix, nfullrows_total=n)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &

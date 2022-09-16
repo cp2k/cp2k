@@ -14,9 +14,9 @@
 ! **************************************************************************************************
 MODULE preconditioner_apply
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
@@ -52,7 +52,7 @@ CONTAINS
    SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_fm'
 
@@ -135,7 +135,7 @@ CONTAINS
    SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_single'
 
@@ -186,23 +186,23 @@ CONTAINS
    SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_direct'
 
       INTEGER                                            :: handle, k, n
-      TYPE(cp_fm_type), POINTER                          :: work
+      TYPE(cp_fm_type)                                   :: work
 
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
-      CALL cp_fm_create_p(work, matrix_in%matrix_struct, name="apply_full_single", &
-                          use_sp=matrix_in%use_sp)
+      CALL cp_fm_create(work, matrix_in%matrix_struct, name="apply_full_single", &
+                        use_sp=matrix_in%use_sp)
       CALL cp_fm_cholesky_restore(matrix_in, k, preconditioner_env%fm, work,&
            &                      "SOLVE", transa="T")
       CALL cp_fm_cholesky_restore(work, k, preconditioner_env%fm, matrix_out,&
            &                      "SOLVE", transa="N")
-      CALL cp_fm_release_p(work)
+      CALL cp_fm_release(work)
 
       CALL timestop(handle)
 
@@ -217,7 +217,7 @@ CONTAINS
    SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_all'
 
@@ -227,13 +227,13 @@ CONTAINS
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
-      TYPE(cp_fm_type), POINTER                          :: matrix_tmp
+      TYPE(cp_fm_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
 
-      CALL cp_fm_create_p(matrix_tmp, matrix_in%matrix_struct, name="apply_full_all")
+      CALL cp_fm_create(matrix_tmp, matrix_in%matrix_struct, name="apply_full_all")
       CALL cp_fm_get_info(matrix_tmp, nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
 
@@ -254,7 +254,7 @@ CONTAINS
       CALL parallel_gemm('N', 'N', n, k, n, 1.0_dp, preconditioner_env%fm, &
                          matrix_tmp, 0.0_dp, matrix_out)
 
-      CALL cp_fm_release_p(matrix_tmp)
+      CALL cp_fm_release(matrix_tmp)
 
       CALL timestop(handle)
 

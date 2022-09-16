@@ -38,14 +38,9 @@ MODULE qs_p_env_methods
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_retain,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_release_p, cp_fm_retain, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                               cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -728,7 +723,7 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: spin
-      TYPE(cp_fm_type), POINTER                          :: v, res
+      TYPE(cp_fm_type), INTENT(IN)                       :: v, res
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l1_spin'
 
@@ -982,7 +977,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (tmp_matrix, maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
+      NULLIFY (maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
                dft_control)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -1006,7 +1001,7 @@ CONTAINS
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &
                                   ncol_global=maxnmo, template_fmstruct=maxmo_maxmo_fmstruct)
-         CALL cp_fm_create_p(tmp_matrix, matrix_struct=tmp_fmstruct)
+         CALL cp_fm_create(tmp_matrix, matrix_struct=tmp_fmstruct)
          CALL cp_fm_struct_release(tmp_fmstruct)
       END IF
 
@@ -1038,7 +1033,7 @@ CONTAINS
       IF (max_cols <= nmo2) THEN
          CALL fm_pool_give_back_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
-         CALL cp_fm_release_p(tmp_matrix)
+         CALL cp_fm_release(tmp_matrix)
       END IF
 
       CALL timestop(handle)
