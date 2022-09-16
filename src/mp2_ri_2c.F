@@ -239,6 +239,7 @@ CONTAINS
             CALL release_group_dist(gd_array)
 
             ALLOCATE (fm_matrix_L_RI_metric(1, 1))
+            ALLOCATE (fm_matrix_L_RI_metric(1, 1)%matrix)
 
             ! Calculate matrix of RI operator (for overlap metric: S), store it in fm_matrix_L_RI_metric
             CALL compute_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
@@ -1061,7 +1062,7 @@ CONTAINS
                                                             nrow, pos_max(1)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
-      TYPE(cp_fm_type), POINTER                          :: evecs
+      TYPE(cp_fm_type)                                   :: evecs
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
 
       CALL timeset(routineN, handle)
@@ -1072,7 +1073,6 @@ CONTAINS
       ALLOCATE (evals(nrow))
       evals = 0
 
-      NULLIFY (evecs)
       CALL cp_fm_create(evecs, matrix%matrix_struct)
 
       ! Perform the EVD (=SVD of a positive semidefinite matrix)

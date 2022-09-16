@@ -471,6 +471,7 @@ CONTAINS
                                    sab_nl=sab_orb)
          CALL set_ks_env(ks_env, matrix_s=matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
+         ALLOCATE (matrix_s_inv(icalc)%matrix)
          CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc)%matrix, &
                                         para_env, blacs_env)
          CALL calculate_ks_matrix(qs_env)

@@ -25,7 +25,8 @@ MODULE rpa_axk
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_release_p,&
                                               cp_fm_set_all,&
@@ -117,9 +118,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
-                                                            fm_mat_R_half, fm_mat_R_half_gemm, &
-                                                            fm_mat_U
+      TYPE(cp_fm_type)                                   :: fm_mat_Gamma_3
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q_tmp, fm_mat_R_half, &
+                                                            fm_mat_R_half_gemm, fm_mat_U
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_inu_P, &
                                                             dbcsr_Gamma_munu_P
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
@@ -182,9 +183,9 @@ CONTAINS
                          matrix_c=fm_mat_R_half)
 
       ! get info of fm_mat_S and initialize Gamma_3
-      NULLIFY (fm_mat_Gamma_3, fm_struct)
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S%matrix_struct, nrow_global=dimen_ia, ncol_global=dimen_RI)
-      CALL cp_fm_create_p(fm_mat_Gamma_3, fm_struct)
+      CALL cp_fm_create(fm_mat_Gamma_3, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(matrix=fm_mat_Gamma_3, alpha=0.0_dp)
       CALL cp_fm_get_info(matrix=fm_mat_S, &
@@ -240,9 +241,6 @@ CONTAINS
       CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
                              homo, virtual, mo_coeff_o, ngroup, my_group_L_start, &
                              my_group_L_end, my_group_L_size)
-
-      ! Release Gamma_3
-      CALL cp_fm_release_p(fm_mat_Gamma_3)
 
       ! Create more dbcsr matrices
 

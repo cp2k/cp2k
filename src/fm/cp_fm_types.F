@@ -109,12 +109,12 @@ MODULE cp_fm_types
 ! **************************************************************************************************
    TYPE cp_fm_type
 !    PRIVATE
-      CHARACTER(LEN=60) :: name
-      INTEGER :: id_nr, ref_count
-      LOGICAL :: use_sp
-      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-      REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data
-      REAL(KIND=sp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data_sp
+      CHARACTER(LEN=60) :: name = ""
+      INTEGER :: id_nr = -1, ref_count = 0
+      LOGICAL :: use_sp = .FALSE.
+      TYPE(cp_fm_struct_type), POINTER :: matrix_struct => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data => NULL()
+      REAL(KIND=sp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data_sp => NULL()
    END TYPE cp_fm_type
 
 ! **************************************************************************************************
@@ -125,7 +125,7 @@ MODULE cp_fm_types
 !> \author fawzi
 ! **************************************************************************************************
    TYPE cp_fm_p_type
-      TYPE(cp_fm_type), POINTER :: matrix
+      TYPE(cp_fm_type), POINTER :: matrix => NULL()
    END TYPE cp_fm_p_type
 
 ! **************************************************************************************************

@@ -20,8 +20,8 @@ MODULE optbas_fenv_manipulation
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_release_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_output_handling,              ONLY: debug_print_level
@@ -229,27 +229,27 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_overlap_inverse(matrix_s, matrix_s_inv, para_env, context)
       TYPE(dbcsr_type), POINTER                          :: matrix_s
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_inv
+      TYPE(cp_fm_type), INTENT(OUT)                      :: matrix_s_inv
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: context
 
       INTEGER                                            :: nao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: work1
+      TYPE(cp_fm_type)                                   :: work1
 
       CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nao, &
                                para_env=para_env, context=context)
 
-      CALL cp_fm_create_p(matrix_s_inv, matrix_struct=fm_struct_tmp)
-      CALL cp_fm_create_p(work1, matrix_struct=fm_struct_tmp)
+      CALL cp_fm_create(matrix_s_inv, matrix_struct=fm_struct_tmp)
+      CALL cp_fm_create(work1, matrix_struct=fm_struct_tmp)
       CALL copy_dbcsr_to_fm(matrix_s, matrix_s_inv)
       CALL cp_fm_upper_to_full(matrix_s_inv, work1)
       CALL cp_fm_cholesky_decompose(matrix_s_inv)
       CALL cp_fm_cholesky_invert(matrix_s_inv)
       CALL cp_fm_upper_to_full(matrix_s_inv, work1)
       CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_fm_release_p(work1)
+      CALL cp_fm_release(work1)
 
    END SUBROUTINE calculate_overlap_inverse
 

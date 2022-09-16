@@ -885,8 +885,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_fm(msource, mtargetr, mtargeti)
 
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: msource
-      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: mtargetr, mtargeti
+      TYPE(cp_cfm_type), INTENT(IN)                      :: msource
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: mtargetr, mtargeti
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_to_fm'
 
@@ -937,7 +937,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_to_cfm(msourcer, msourcei, mtarget)
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: msourcer, msourcei
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: mtarget
+      TYPE(cp_cfm_type), INTENT(IN)                      :: mtarget
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_to_cfm'
 

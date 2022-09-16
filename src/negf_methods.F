@@ -31,8 +31,8 @@ MODULE negf_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release_p, &
-        cp_fm_retain, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, &
+        cp_fm_release, cp_fm_release_p, cp_fm_retain, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -383,7 +383,8 @@ CONTAINS
          nelectrons_qs_cell1, offset_au, rscale, t1, t2, trace
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm, rho_ao_fm, work_fm
+      TYPE(cp_fm_type)                                   :: rho_ao_fm
+      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm, work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env_global
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_qs_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -413,11 +414,11 @@ CONTAINS
          CPASSERT(SIZE(negf_env%contacts(contact_id)%h_00) == nspins)
 
          IF (sub_env%ngroups > 1) THEN
-            NULLIFY (matrix_s_fm, rho_ao_fm, fm_struct)
+            NULLIFY (matrix_s_fm, fm_struct)
 
             CALL cp_fm_get_info(negf_env%contacts(contact_id)%s_00, nrow_global=nao)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env_global)
-            CALL cp_fm_create_p(rho_ao_fm, fm_struct)
+            CALL cp_fm_create(rho_ao_fm, fm_struct)
 
             CALL cp_fm_create_p(matrix_s_fm, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
@@ -433,7 +434,7 @@ CONTAINS
             matrix_s_fm => negf_env%contacts(contact_id)%s_00
             CALL cp_fm_retain(matrix_s_fm)
             CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
-            CALL cp_fm_create_p(rho_ao_fm, fm_struct)
+            CALL cp_fm_create(rho_ao_fm, fm_struct)
          END IF
 
          IF (do_kpoints) THEN
@@ -626,7 +627,7 @@ CONTAINS
          negf_control%contacts(contact_id)%fermi_level = fermi_level_guess
 
          CALL cp_fm_release_p(matrix_s_fm)
-         CALL cp_fm_release_p(rho_ao_fm)
+         CALL cp_fm_release(rho_ao_fm)
       END IF
 
       IF (log_unit > 0) THEN
@@ -934,7 +935,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: rho_ao_delta_fm, rho_ao_new_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: ao_ao_fm_global, matrix_s_fm, work_fm
+      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm, work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_initial_kp, matrix_ks_qs_kp, &
                                                             rho_ao_initial_kp, rho_ao_new_kp, &
@@ -1037,10 +1038,6 @@ CONTAINS
          CALL cp_fm_trace(rho_ao_delta_fm(ispin)%matrix, matrix_s_fm, trace)
          nelectrons = nelectrons + trace
       END DO
-
-      NULLIFY (ao_ao_fm_global)
-      IF (sub_env%ngroups > 1) &
-         CALL cp_fm_create_p(ao_ao_fm_global, fm_struct)
 
       ! mixing storage allocation
       IF (negf_env%mixing_method >= gspace_mixing_nr) THEN
@@ -1259,8 +1256,6 @@ CONTAINS
          END IF
       END DO
 
-      CALL cp_fm_release_p(ao_ao_fm_global)
-
       DO ispin = nspins, 1, -1
          CALL cp_fm_release_p(rho_ao_new_fm(ispin)%matrix)
          CALL cp_fm_release_p(rho_ao_delta_fm(ispin)%matrix)
@@ -1303,7 +1298,7 @@ CONTAINS
    SUBROUTINE negf_surface_green_function_batch(g_surf, omega, h0, s0, h1, s1, sub_env, v_external, conv, transp)
       TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(inout)   :: g_surf
       COMPLEX(kind=dp), DIMENSION(:), INTENT(in)         :: omega
-      TYPE(cp_fm_type), POINTER                          :: h0, s0, h1, s1
+      TYPE(cp_fm_type), INTENT(IN)                       :: h0, s0, h1, s1
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       REAL(kind=dp), INTENT(in)                          :: v_external, conv
       LOGICAL, INTENT(in)                                :: transp
@@ -1410,7 +1405,8 @@ CONTAINS
                                                             gret_gamma_gadv_group
       TYPE(cp_cfm_type), POINTER                         :: matrix_s_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: g_ret_imag, matrix_s
+      TYPE(cp_fm_type)                                   :: g_ret_imag
+      TYPE(cp_fm_type), POINTER                          :: matrix_s
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -1606,15 +1602,13 @@ CONTAINS
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
                                                     h_s=negf_env%contacts(just_contact)%h_00(ispin)%matrix, &
-                                                    s_s=negf_env%contacts(just_contact)%s_00, &
-                                                    v_hartree_s=null())
+                                                    s_s=negf_env%contacts(just_contact)%s_00)
                ELSE IF (ignore_bias) THEN
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
                                                     h_s=negf_env%h_s(ispin)%matrix, &
-                                                    s_s=negf_env%s_s, &
-                                                    v_hartree_s=null())
+                                                    s_s=negf_env%s_s)
                ELSE
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
                                                     omega=omega(ipoint) - v_shift, &
@@ -1778,8 +1772,7 @@ CONTAINS
          END IF
 
          CALL cp_fm_get_info(matrix_s, matrix_struct=fm_struct)
-         NULLIFY (g_ret_imag)
-         CALL cp_fm_create_p(g_ret_imag, fm_struct)
+         CALL cp_fm_create(g_ret_imag, fm_struct)
 
          DO ipoint = 1, npoints
             IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
@@ -1789,7 +1782,7 @@ CONTAINS
             END IF
          END DO
 
-         CALL cp_fm_release_p(g_ret_imag)
+         CALL cp_fm_release(g_ret_imag)
 
          CALL mp_sum(dos, sub_env%mpi_comm_global)
          dos(:) = -1.0_dp/pi*dos(:)
@@ -1918,7 +1911,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_init_rho_equiv_residuals(rho_ao_fm, v_shift, ignore_bias, negf_env, &
                                             negf_control, sub_env, ispin, base_contact, just_contact)
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
@@ -2056,7 +2049,7 @@ CONTAINS
    SUBROUTINE negf_add_rho_equiv_low(rho_ao_fm, stats, v_shift, ignore_bias, negf_env, negf_control, sub_env, &
                                      ispin, base_contact, integr_lbound, integr_ubound, matrix_s_global, &
                                      is_circular, g_surf_cache, just_contact)
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
       TYPE(integration_status_type), INTENT(inout)       :: stats
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
@@ -2065,7 +2058,7 @@ CONTAINS
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin, base_contact
       COMPLEX(kind=dp), INTENT(in)                       :: integr_lbound, integr_ubound
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_global
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_s_global
       LOGICAL, INTENT(in)                                :: is_circular
       TYPE(green_functions_cache_type), INTENT(inout)    :: g_surf_cache
       INTEGER, INTENT(in), OPTIONAL                      :: just_contact
@@ -2081,7 +2074,7 @@ CONTAINS
       TYPE(ccquad_type)                                  :: cc_env
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: zdata, zdata_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: integral_imag
+      TYPE(cp_fm_type)                                   :: integral_imag
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(simpsonrule_type)                             :: sr_env
 
@@ -2118,9 +2111,8 @@ CONTAINS
       END IF
       npoints_total = 0
 
-      NULLIFY (integral_imag)
       CALL cp_fm_get_info(rho_ao_fm, para_env=para_env, matrix_struct=fm_struct)
-      CALL cp_fm_create_p(integral_imag, fm_struct)
+      CALL cp_fm_create(integral_imag, fm_struct)
 
       SELECT CASE (negf_control%integr_method)
       CASE (negfint_method_cc)
@@ -2370,7 +2362,7 @@ CONTAINS
       stats%npoints = stats%npoints + npoints_total
 
       CALL cp_fm_scale_and_add(1.0_dp, rho_ao_fm, -1.0_dp/pi, integral_imag)
-      CALL cp_fm_release_p(integral_imag)
+      CALL cp_fm_release(integral_imag)
 
       CALL timestop(handle)
    END SUBROUTINE negf_add_rho_equiv_low
@@ -2391,14 +2383,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_add_rho_nonequiv(rho_ao_fm, stats, v_shift, negf_env, negf_control, sub_env, &
                                     ispin, base_contact, matrix_s_global, g_surf_cache)
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
       TYPE(integration_status_type), INTENT(inout)       :: stats
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
       TYPE(negf_control_type), POINTER                   :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin, base_contact
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_global
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_s_global
       TYPE(green_functions_cache_type), INTENT(inout)    :: g_surf_cache
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_add_rho_nonequiv'
@@ -2415,7 +2407,7 @@ CONTAINS
                                                             temperature_base, temperature_contact
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: zdata
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: integral_real
+      TYPE(cp_fm_type)                                   :: integral_real
       TYPE(simpsonrule_type)                             :: sr_env
 
       CALL timeset(routineN, handle)
@@ -2531,13 +2523,12 @@ CONTAINS
                CALL simpsonrule_get_next_nodes(sr_env, xnodes, npoints)
             END DO
 
-            NULLIFY (integral_real)
-            CALL cp_fm_create_p(integral_real, fm_struct)
+            CALL cp_fm_create(integral_real, fm_struct)
 
             CALL cp_cfm_to_fm(sr_env%integral, mtargetr=integral_real)
             CALL cp_fm_scale_and_add(1.0_dp, rho_ao_fm, 0.5_dp/pi, integral_real)
 
-            CALL cp_fm_release_p(integral_real)
+            CALL cp_fm_release(integral_real)
 
             DEALLOCATE (xnodes, zdata)
 
@@ -2636,7 +2627,7 @@ CONTAINS
          temperature_contact1, temperature_contact2, v_contact1, v_contact2
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: zdata
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_single
-      TYPE(cp_fm_type), POINTER                          :: weights
+      TYPE(cp_fm_type)                                   :: weights
       TYPE(green_functions_cache_type)                   :: g_surf_cache
       TYPE(simpsonrule_type)                             :: sr_env
 
@@ -2677,9 +2668,9 @@ CONTAINS
       npoints_total = 0
       npoints = min_points
 
-      NULLIFY (fm_struct_single, weights)
+      NULLIFY (fm_struct_single)
       CALL cp_fm_struct_create(fm_struct_single, nrow_global=1, ncol_global=1, context=blacs_env_global)
-      CALL cp_fm_create_p(weights, fm_struct_single)
+      CALL cp_fm_create(weights, fm_struct_single)
       CALL cp_fm_set_all(weights, 1.0_dp)
 
       ALLOCATE (transm_coeff(npoints), xnodes(npoints), zdata(npoints))
@@ -2744,7 +2735,7 @@ CONTAINS
 
       current = 0.5_dp/pi*REAL(transmission(1, 1), kind=dp)*e_charge/seconds
 
-      CALL cp_fm_release_p(weights)
+      CALL cp_fm_release(weights)
       CALL cp_fm_struct_release(fm_struct_single)
 
       CALL simpsonrule_release(sr_env)

@@ -114,7 +114,7 @@ CONTAINS
       COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       INTEGER, INTENT(in)                                :: interval_id, shape_id
-      TYPE(cp_fm_type), POINTER                          :: weights
+      TYPE(cp_fm_type), INTENT(IN)                       :: weights
       REAL(kind=dp), DIMENSION(nnodes), INTENT(in), &
          OPTIONAL                                        :: tnodes_restart
 
@@ -129,7 +129,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(nnodes > 2)
-      CPASSERT(ASSOCIATED(weights))
 
       ! ensure that MOD(nnodes-1, 2) == 0
       nnodes = 2*((nnodes - 1)/2) + 1

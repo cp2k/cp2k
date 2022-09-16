@@ -138,7 +138,7 @@ CONTAINS
    SUBROUTINE do_sancho(g_surf, omega, h0, s0, h1, s1, conv, transp, work)
       TYPE(cp_cfm_type), POINTER                         :: g_surf
       COMPLEX(kind=dp), INTENT(in)                       :: omega
-      TYPE(cp_fm_type), POINTER                          :: h0, s0, h1, s1
+      TYPE(cp_fm_type), INTENT(IN)                       :: h0, s0, h1, s1
       REAL(kind=dp), INTENT(in)                          :: conv
       LOGICAL, INTENT(in)                                :: transp
       TYPE(sancho_work_matrices_type), INTENT(in)        :: work
@@ -237,7 +237,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: self_energy_c
       COMPLEX(kind=dp), INTENT(in)                       :: omega
       TYPE(cp_cfm_type), POINTER                         :: g_surf_c
-      TYPE(cp_fm_type), POINTER                          :: h_sc0, s_sc0
+      TYPE(cp_fm_type), INTENT(IN)                       :: h_sc0, s_sc0
       TYPE(cp_cfm_type), POINTER                         :: zwork1, zwork2
       LOGICAL, INTENT(in)                                :: transp
 
@@ -316,7 +316,8 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: g_ret_s
       COMPLEX(kind=dp), INTENT(in)                       :: omega
       TYPE(cp_cfm_type), POINTER                         :: self_energy_ret_sum
-      TYPE(cp_fm_type), POINTER                          :: h_s, s_s, v_hartree_s
+      TYPE(cp_fm_type), INTENT(IN)                       :: h_s, s_s
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: v_hartree_s
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_retarded_green_function'
 
@@ -329,7 +330,7 @@ CONTAINS
       ! omega * S_S - H_S - V_Hartree
       CALL cp_fm_to_cfm(msourcer=s_s, mtarget=g_ret_s)
       CALL cp_cfm_scale_and_add_fm(omega, g_ret_s, z_mone, h_s)
-      IF (ASSOCIATED(v_hartree_s)) &
+      IF (PRESENT(v_hartree_s)) &
          CALL cp_cfm_scale_and_add_fm(z_one, g_ret_s, z_one, v_hartree_s)
 
       ! g_ret_s = [omega * S_S - H_S - \sum_{contact} self_energy_{contact}^{ret.} ]^-1

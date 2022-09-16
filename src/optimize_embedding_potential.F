@@ -28,8 +28,9 @@ MODULE optimize_embedding_potential
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_release_p, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_write_unformatted
+        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, &
+        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, &
+        cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -788,7 +789,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
       TYPE(section_vals_type), POINTER                   :: section
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: embed_pot_coef
+      TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_coef
       LOGICAL                                            :: open_shell_embed
 
       CHARACTER(LEN=default_path_length)                 :: filename
@@ -799,7 +800,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coef, coef_read
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: my_embed_pot_coef
+      TYPE(cp_fm_type)                                   :: my_embed_pot_coef
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       ! Get the vector dimension
@@ -814,15 +815,11 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, &
                       para_env=para_env)
       NULLIFY (blacs_env)
-      NULLIFY (my_embed_pot_coef, fm_struct)
+      NULLIFY (fm_struct)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
       CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen_var_aux, ncol_global=1)
-      CALL cp_fm_create_p(my_embed_pot_coef, fm_struct, name="my_pot_coef")
-      IF (.NOT. (PRESENT(embed_pot_coef))) THEN
-         NULLIFY (embed_pot_coef)
-         CALL cp_fm_create_p(my_embed_pot_coef, fm_struct, name="pot_coef")
-      END IF
+      CALL cp_fm_create(my_embed_pot_coef, fm_struct, name="my_pot_coef")
 
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(my_embed_pot_coef, 0.0_dp)
@@ -886,8 +883,7 @@ CONTAINS
                             qs_env, .FALSE., open_shell_embed)
 
       ! Release my_embed_pot_coef
-      CALL cp_fm_release_p(my_embed_pot_coef)
-      IF (.NOT. (PRESENT(embed_pot_coef))) CALL cp_fm_release_p(embed_pot_coef)
+      CALL cp_fm_release(my_embed_pot_coef)
 
       ! Release blacs environment
       CALL cp_blacs_env_release(blacs_env)
@@ -1151,7 +1147,7 @@ CONTAINS
       INTEGER                                            :: handle
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: embed_pot_coeff_spin, &
+      TYPE(cp_fm_type)                                   :: embed_pot_coeff_spin, &
                                                             embed_pot_coeff_spinless, &
                                                             regular_term, spin_reg, spinless_reg
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1182,27 +1178,26 @@ CONTAINS
          CALL compute_kinetic_mat(qs_env, opt_embed%kinetic_mat)
       END IF
 
-      NULLIFY (regular_term)
       CALL cp_fm_get_info(matrix=opt_embed%embed_pot_grad, &
                           matrix_struct=fm_struct)
-      CALL cp_fm_create_p(regular_term, fm_struct, name="regular_term")
+      CALL cp_fm_create(regular_term, fm_struct, name="regular_term")
       CALL cp_fm_set_all(regular_term, 0.0_dp)
 
       ! In case of open shell embedding we need two terms of dimen_aux=dimen_var_aux/2 for
       ! the spinless and the spin parts
       IF (opt_embed%open_shell_embed) THEN
          ! Prepare auxiliary full matrices
-         NULLIFY (embed_pot_coeff_spinless, embed_pot_coeff_spin, spinless_reg, spin_reg, fm_struct, blacs_env)
+         NULLIFY (fm_struct, blacs_env)
 
          !CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
          CALL cp_fm_get_info(matrix=opt_embed%embed_pot_coef, context=blacs_env)
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=opt_embed%dimen_aux, ncol_global=1)
-         CALL cp_fm_create_p(embed_pot_coeff_spinless, fm_struct, name="pot_coeff_spinless")
-         CALL cp_fm_create_p(embed_pot_coeff_spin, fm_struct, name="pot_coeff_spin")
-         CALL cp_fm_create_p(spinless_reg, fm_struct, name="spinless_reg")
-         CALL cp_fm_create_p(spin_reg, fm_struct, name="spin_reg")
+         CALL cp_fm_create(embed_pot_coeff_spinless, fm_struct, name="pot_coeff_spinless")
+         CALL cp_fm_create(embed_pot_coeff_spin, fm_struct, name="pot_coeff_spin")
+         CALL cp_fm_create(spinless_reg, fm_struct, name="spinless_reg")
+         CALL cp_fm_create(spin_reg, fm_struct, name="spin_reg")
          CALL cp_fm_set_all(embed_pot_coeff_spinless, 0.0_dp)
          CALL cp_fm_set_all(embed_pot_coeff_spin, 0.0_dp)
          CALL cp_fm_set_all(spinless_reg, 0.0_dp)
@@ -1241,10 +1236,10 @@ CONTAINS
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=opt_embed%dimen_aux + 1, t_firstcol=1)
          ! Release internally used auxiliary structures
-         CALL cp_fm_release_p(embed_pot_coeff_spinless)
-         CALL cp_fm_release_p(embed_pot_coeff_spin)
-         CALL cp_fm_release_p(spin_reg)
-         CALL cp_fm_release_p(spinless_reg)
+         CALL cp_fm_release(embed_pot_coeff_spinless)
+         CALL cp_fm_release(embed_pot_coeff_spin)
+         CALL cp_fm_release(spin_reg)
+         CALL cp_fm_release(spinless_reg)
 
       ELSE ! Simply multiply
          CALL parallel_gemm(transa="N", transb="N", m=opt_embed%dimen_var_aux, n=1, &
@@ -1261,7 +1256,7 @@ CONTAINS
       opt_embed%reg_term = 2.0_dp*opt_embed%lambda*opt_embed%reg_term
 
       ! Deallocate regular term
-      CALL cp_fm_release_p(regular_term)
+      CALL cp_fm_release(regular_term)
 
       CALL timestop(handle)
 
@@ -1283,7 +1278,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
       TYPE(pw_p_type), POINTER                           :: rho_r, rho_spin
-      TYPE(cp_fm_type), POINTER                          :: embed_pot_grad
+      TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_grad
       LOGICAL                                            :: open_shell_embed
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri
 
@@ -1390,7 +1385,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_kinetic_mat(qs_env, kinetic_mat)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: kinetic_mat
+      TYPE(cp_fm_type), INTENT(IN)                       :: kinetic_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_kinetic_mat'
 
@@ -1570,7 +1565,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: diag_grad, diag_step, fm_U, fm_U_scale
+      TYPE(cp_fm_type)                                   :: diag_grad, diag_step, fm_U, fm_U_scale
       TYPE(pw_env_type), POINTER                         :: pw_env
 
       CALL timeset(routineN, handle)
@@ -1633,18 +1628,17 @@ CONTAINS
             ! Second, invert the Hessian
             ALLOCATE (eigenval(opt_embed%dimen_var_aux))
             eigenval = 0.0_dp
-            NULLIFY (fm_U, fm_U_scale, diag_grad, diag_step)
             CALL cp_fm_get_info(matrix=opt_embed%embed_pot_hess, &
                                 matrix_struct=fm_struct)
-            CALL cp_fm_create_p(fm_U, fm_struct, name="fm_U")
-            CALL cp_fm_create_p(fm_U_scale, fm_struct, name="fm_U")
+            CALL cp_fm_create(fm_U, fm_struct, name="fm_U")
+            CALL cp_fm_create(fm_U_scale, fm_struct, name="fm_U")
             CALL cp_fm_set_all(fm_U, 0.0_dp)
             CALL cp_fm_set_all(fm_U_scale, 0.0_dp)
             CALL cp_fm_get_info(matrix=opt_embed%embed_pot_grad, &
                                 matrix_struct=fm_struct)
-            CALL cp_fm_create_p(diag_grad, fm_struct, name="diag_grad")
+            CALL cp_fm_create(diag_grad, fm_struct, name="diag_grad")
             CALL cp_fm_set_all(diag_grad, 0.0_dp)
-            CALL cp_fm_create_p(diag_step, fm_struct, name="diag_step")
+            CALL cp_fm_create(diag_step, fm_struct, name="diag_step")
             CALL cp_fm_set_all(diag_step, 0.0_dp)
 
             ! Store the Hessian as it will be destroyed in diagonalization: use fm_U_scal for it
@@ -1687,7 +1681,7 @@ CONTAINS
             CALL cp_fm_to_fm(fm_U, fm_U_scale)
             CALL cp_fm_column_scale(fm_U_scale, eigenval)
 
-            CALL cp_fm_release_p(fm_U_scale)
+            CALL cp_fm_release(fm_U_scale)
 
             ! Scale the step to fit within the trust radius: it it's less already,
             ! then take the Newton step
@@ -1718,9 +1712,9 @@ CONTAINS
             ! Release some memory
             DEALLOCATE (eigenval)
             ! Release more memory
-            CALL cp_fm_release_p(diag_grad)
-            CALL cp_fm_release_p(diag_step)
-            CALL cp_fm_release_p(fm_U)
+            CALL cp_fm_release(diag_grad)
+            CALL cp_fm_release(diag_step)
+            CALL cp_fm_release(fm_U)
 
          END IF ! grad_descent
 
@@ -1791,7 +1785,7 @@ CONTAINS
 
    SUBROUTINE update_embed_pot(embed_pot_coef, dimen_aux, embed_pot, spin_embed_pot, &
                                qs_env, add_const_pot, open_shell_embed, const_pot)
-      TYPE(cp_fm_type), POINTER                          :: embed_pot_coef
+      TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_coef
       INTEGER                                            :: dimen_aux
       TYPE(pw_p_type), POINTER                           :: embed_pot, spin_embed_pot
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1807,8 +1801,9 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: embed_pot_coef_spin, &
-                                                            embed_pot_coef_spinless, mo_coeff
+      TYPE(cp_fm_type)                                   :: embed_pot_coef_spin, &
+                                                            embed_pot_coef_spinless
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -1853,8 +1848,8 @@ CONTAINS
          CALL cp_fm_get_info(matrix=embed_pot_coef, context=blacs_env)
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=dimen_aux, ncol_global=1)
-         CALL cp_fm_create_p(embed_pot_coef_spinless, fm_struct, name="pot_coeff_spinless")
-         CALL cp_fm_create_p(embed_pot_coef_spin, fm_struct, name="pot_coeff_spin")
+         CALL cp_fm_create(embed_pot_coef_spinless, fm_struct, name="pot_coeff_spinless")
+         CALL cp_fm_create(embed_pot_coef_spin, fm_struct, name="pot_coeff_spin")
          CALL cp_fm_set_all(embed_pot_coef_spinless, 0.0_dp)
          CALL cp_fm_set_all(embed_pot_coef_spin, 0.0_dp)
          CALL cp_fm_struct_release(fm_struct)
@@ -1957,8 +1952,8 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
 
       IF (open_shell_embed) THEN
-         CALL cp_fm_release_p(embed_pot_coef_spin)
-         CALL cp_fm_release_p(embed_pot_coef_spinless)
+         CALL cp_fm_release(embed_pot_coef_spin)
+         CALL cp_fm_release(embed_pot_coef_spinless)
       END IF
 
       CALL timestop(handle)
@@ -1975,13 +1970,13 @@ CONTAINS
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE inv_Hessian_update(grad, prev_grad, step, prev_inv_Hess, inv_Hess)
-      TYPE(cp_fm_type), POINTER                          :: grad, prev_grad, step, prev_inv_Hess, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: grad, prev_grad, step, prev_inv_Hess, &
                                                             inv_Hess
 
       INTEGER                                            :: mat_size
       REAL(KIND=dp)                                      :: factor1, s_dot_y, y_dot_B_inv_y
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mat, fm_struct_vec
-      TYPE(cp_fm_type), POINTER                          :: B_inv_y, B_inv_y_s, s_s, s_y, s_y_B_inv, &
+      TYPE(cp_fm_type)                                   :: B_inv_y, B_inv_y_s, s_s, s_y, s_y_B_inv, &
                                                             y
 
       ! Recover the dimension
@@ -2000,14 +1995,13 @@ CONTAINS
                           matrix_struct=fm_struct_vec)
 
       ! Allocate intermediates
-      NULLIFY (B_inv_y, y, s_s, s_y, B_inv_y_s, s_y_B_inv)
-      CALL cp_fm_create_p(B_inv_y, fm_struct_vec, name="B_inv_y")
-      CALL cp_fm_create_p(y, fm_struct_vec, name="y")
+      CALL cp_fm_create(B_inv_y, fm_struct_vec, name="B_inv_y")
+      CALL cp_fm_create(y, fm_struct_vec, name="y")
 
-      CALL cp_fm_create_p(s_s, fm_struct_mat, name="s_s")
-      CALL cp_fm_create_p(s_y, fm_struct_mat, name="s_y")
-      CALL cp_fm_create_p(B_inv_y_s, fm_struct_mat, name="B_inv_y_s")
-      CALL cp_fm_create_p(s_y_B_inv, fm_struct_mat, name="s_y_B_inv")
+      CALL cp_fm_create(s_s, fm_struct_mat, name="s_s")
+      CALL cp_fm_create(s_y, fm_struct_mat, name="s_y")
+      CALL cp_fm_create(B_inv_y_s, fm_struct_mat, name="B_inv_y_s")
+      CALL cp_fm_create(s_y_B_inv, fm_struct_mat, name="s_y_B_inv")
 
       CALL cp_fm_set_all(B_inv_y, 0.0_dp)
       CALL cp_fm_set_all(s_s, 0.0_dp)
@@ -2065,12 +2059,12 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, inv_Hess, -s_dot_y, B_inv_y_s)
 
       ! Deallocate intermediates
-      CALL cp_fm_release_p(y)
-      CALL cp_fm_release_p(B_inv_y)
-      CALL cp_fm_release_p(s_s)
-      CALL cp_fm_release_p(s_y)
-      CALL cp_fm_release_p(B_inv_y_s)
-      CALL cp_fm_release_p(s_y_B_inv)
+      CALL cp_fm_release(y)
+      CALL cp_fm_release(B_inv_y)
+      CALL cp_fm_release(s_s)
+      CALL cp_fm_release(s_y)
+      CALL cp_fm_release(B_inv_y_s)
+      CALL cp_fm_release(s_y_B_inv)
 
    END SUBROUTINE inv_Hessian_update
 
@@ -2083,14 +2077,14 @@ CONTAINS
 !> \param Hess ...
 ! **************************************************************************************************
    SUBROUTINE Hessian_update(grad, prev_grad, step, prev_Hess, Hess)
-      TYPE(cp_fm_type), POINTER                          :: grad, prev_grad, step, prev_Hess, Hess
+      TYPE(cp_fm_type), INTENT(IN)                       :: grad, prev_grad, step, prev_Hess, Hess
 
       INTEGER                                            :: mat_size
       REAL(KIND=dp)                                      :: s_b_s, y_t_s
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mat, fm_struct_vec, &
                                                             fm_struct_vec_t
-      TYPE(cp_fm_type), POINTER                          :: B_s, B_s_s_B, s_t_B, y, y_y_t
+      TYPE(cp_fm_type)                                   :: B_s, B_s_s_B, s_t_B, y, y_y_t
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       ! Recover the dimension
@@ -2119,13 +2113,12 @@ CONTAINS
                                nrow_global=1, ncol_global=mat_size)
 
       ! Allocate intermediates
-      NULLIFY (y_y_t, B_s, s_t_B, B_s_s_B, y)
-      CALL cp_fm_create_p(B_s, fm_struct_vec, name="B_s")
-      CALL cp_fm_create_p(s_t_B, fm_struct_vec_t, name="s_t_B")
-      CALL cp_fm_create_p(y, fm_struct_vec, name="y")
+      CALL cp_fm_create(B_s, fm_struct_vec, name="B_s")
+      CALL cp_fm_create(s_t_B, fm_struct_vec_t, name="s_t_B")
+      CALL cp_fm_create(y, fm_struct_vec, name="y")
 
-      CALL cp_fm_create_p(y_y_t, fm_struct_mat, name="y_y_t")
-      CALL cp_fm_create_p(B_s_s_B, fm_struct_mat, name="B_s_s_B")
+      CALL cp_fm_create(y_y_t, fm_struct_mat, name="y_y_t")
+      CALL cp_fm_create(B_s_s_B, fm_struct_mat, name="B_s_s_B")
 
       CALL cp_fm_set_all(y_y_t, 0.0_dp)
       CALL cp_fm_set_all(y, 0.0_dp)
@@ -2179,11 +2172,11 @@ CONTAINS
       CALL cp_blacs_env_release(blacs_env)
 
       ! Deallocate intermediates
-      CALL cp_fm_release_p(y_y_t)
-      CALL cp_fm_release_p(B_s_s_B)
-      CALL cp_fm_release_p(B_s)
-      CALL cp_fm_release_p(s_t_B)
-      CALL cp_fm_release_p(y)
+      CALL cp_fm_release(y_y_t)
+      CALL cp_fm_release(B_s_s_B)
+      CALL cp_fm_release(B_s)
+      CALL cp_fm_release(s_t_B)
+      CALL cp_fm_release(y)
 
    END SUBROUTINE Hessian_update
 
@@ -2196,12 +2189,12 @@ CONTAINS
 !> \param Hess ...
 ! **************************************************************************************************
    SUBROUTINE symm_rank_one_update(grad, prev_grad, step, prev_Hess, Hess)
-      TYPE(cp_fm_type), POINTER                          :: grad, prev_grad, step, prev_Hess, Hess
+      TYPE(cp_fm_type), INTENT(IN)                       :: grad, prev_grad, step, prev_Hess, Hess
 
       INTEGER                                            :: mat_size
       REAL(KIND=dp)                                      :: factor
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mat, fm_struct_vec
-      TYPE(cp_fm_type), POINTER                          :: B_x, y, y_B_x_y_B_x
+      TYPE(cp_fm_type)                                   :: B_x, y, y_B_x_y_B_x
 
       ! Recover the dimension
       CALL cp_fm_get_info(matrix=Hess, nrow_global=mat_size)
@@ -2218,10 +2211,9 @@ CONTAINS
                           matrix_struct=fm_struct_vec)
 
       ! Allocate intermediates
-      NULLIFY (y, B_x, y_B_x_y_B_x)
-      CALL cp_fm_create_p(y, fm_struct_vec, name="y")
-      CALL cp_fm_create_p(B_x, fm_struct_vec, name="B_x")
-      CALL cp_fm_create_p(y_B_x_y_B_x, fm_struct_mat, name="y_B_x_y_B_x")
+      CALL cp_fm_create(y, fm_struct_vec, name="y")
+      CALL cp_fm_create(B_x, fm_struct_vec, name="B_x")
+      CALL cp_fm_create(y_B_x_y_B_x, fm_struct_mat, name="y_B_x_y_B_x")
 
       CALL cp_fm_set_all(y, 0.0_dp)
       CALL cp_fm_set_all(B_x, 0.0_dp)
@@ -2251,9 +2243,9 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, Hess, (1.0_dp/factor), y_B_x_y_B_x)
 
       ! Deallocate intermediates
-      CALL cp_fm_release_p(y)
-      CALL cp_fm_release_p(B_x)
-      CALL cp_fm_release_p(y_B_x_y_B_x)
+      CALL cp_fm_release(y)
+      CALL cp_fm_release(B_x)
+      CALL cp_fm_release(y_B_x_y_B_x)
 
    END SUBROUTINE symm_rank_one_update
 
@@ -2271,14 +2263,14 @@ CONTAINS
       REAL(KIND=dp)                                      :: actual_ener_change, ener_ratio, &
                                                             lin_term, pred_ener_change, quad_term
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: H_b
+      TYPE(cp_fm_type)                                   :: H_b
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (H_b, fm_struct)
+      NULLIFY (fm_struct)
       CALL cp_fm_get_info(matrix=opt_embed%embed_pot_grad, &
                           matrix_struct=fm_struct)
-      CALL cp_fm_create_p(H_b, fm_struct, name="H_b")
+      CALL cp_fm_create(H_b, fm_struct, name="H_b")
       CALL cp_fm_set_all(H_b, 0.0_dp)
 
       ! Calculate the quadratic estimate for the energy
@@ -2300,7 +2292,7 @@ CONTAINS
 
       ener_ratio = actual_ener_change/pred_ener_change
 
-      CALL cp_fm_release_p(H_b)
+      CALL cp_fm_release(H_b)
 
       IF (actual_ener_change .GT. 0.0_dp) THEN ! If energy increases
          ! We accept step
@@ -2336,9 +2328,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE level_shift(opt_embed, diag_grad, eigenval, diag_step)
       TYPE(opt_embed_pot_type)                           :: opt_embed
-      TYPE(cp_fm_type), POINTER                          :: diag_grad
+      TYPE(cp_fm_type), INTENT(IN)                       :: diag_grad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
-      TYPE(cp_fm_type), POINTER                          :: diag_step
+      TYPE(cp_fm_type), INTENT(IN)                       :: diag_step
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'level_shift'
       INTEGER, PARAMETER                                 :: max_iter = 25
@@ -2471,9 +2463,11 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION shifted_step(diag_grad, eigenval, shift, trust_rad) RESULT(step_minus_trad)
-      TYPE(cp_fm_type), POINTER                          :: diag_grad
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
-      REAL(KIND=dp)                                      :: shift, trust_rad, step_minus_trad
+      TYPE(cp_fm_type), INTENT(IN)                       :: diag_grad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(IN)                                      :: eigenval
+      REAL(KIND=dp), INTENT(IN)                          :: shift, trust_rad
+      REAL(KIND=dp)                                      :: step_minus_trad
 
       REAL(KIND=dp), PARAMETER                           :: thresh = 0.000001_dp
 
@@ -2512,12 +2506,12 @@ CONTAINS
 !> \retval length ...
 ! **************************************************************************************************
    FUNCTION Barzilai_Borwein(step, prev_step, grad, prev_grad) RESULT(length)
-      TYPE(cp_fm_type), POINTER                          :: step, prev_step, grad, prev_grad
+      TYPE(cp_fm_type), INTENT(IN)                       :: step, prev_step, grad, prev_grad
       REAL(KIND=dp)                                      :: length
 
       REAL(KIND=dp)                                      :: denominator, numerator
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: grad_diff, step_diff
+      TYPE(cp_fm_type)                                   :: grad_diff, step_diff
 
       ! Get full matrix structures
       NULLIFY (fm_struct)
@@ -2526,9 +2520,8 @@ CONTAINS
                           matrix_struct=fm_struct)
 
       ! Allocate intermediates
-      NULLIFY (grad_diff, step_diff)
-      CALL cp_fm_create_p(grad_diff, fm_struct, name="grad_diff")
-      CALL cp_fm_create_p(step_diff, fm_struct, name="step_diff")
+      CALL cp_fm_create(grad_diff, fm_struct, name="grad_diff")
+      CALL cp_fm_create(step_diff, fm_struct, name="step_diff")
 
       ! Calculate intermediates
       CALL cp_fm_to_fm(grad, grad_diff)
@@ -2541,8 +2534,8 @@ CONTAINS
       CALL cp_fm_trace(grad_diff, grad_diff, denominator)
 
       ! Release intermediates
-      CALL cp_fm_release_p(grad_diff)
-      CALL cp_fm_release_p(step_diff)
+      CALL cp_fm_release(grad_diff)
+      CALL cp_fm_release(step_diff)
 
       length = numerator/denominator
 
@@ -3238,7 +3231,7 @@ CONTAINS
                                   embed_pot_spin, open_shell_embed, grid_opt, final_one)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
-      TYPE(cp_fm_type), POINTER                          :: embed_pot_coef
+      TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_coef
       TYPE(pw_p_type), POINTER                           :: embed_pot
       INTEGER                                            :: i_iter
       TYPE(pw_p_type), POINTER                           :: embed_pot_spin

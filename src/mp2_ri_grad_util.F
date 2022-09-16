@@ -23,8 +23,8 @@ MODULE mp2_ri_grad_util
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type,&
@@ -106,7 +106,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BIb_C_2D, Gamma_2D, Gamma_PQ
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ia, fm_struct_RI
-      TYPE(cp_fm_type), POINTER :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_2, fm_Gamma_PQ_temp, &
+      TYPE(cp_fm_type) :: fm_Gamma, fm_Gamma_PQ, fm_Gamma_PQ_2, fm_Gamma_PQ_temp, &
          fm_Gamma_PQ_temp_2, fm_ia_P, fm_Y, operator_half, PQ_half
       TYPE(group_dist_d1_type)                           :: gd_array_new, gd_ia, gd_ia_new, gd_P, &
                                                             gd_P_new
@@ -194,76 +194,69 @@ CONTAINS
 
       ! complete the gamma matrix Gamma_ia^P = sum_Q (Y_ia^Q * (Q|P)^(-1/2))
       IF (compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         NULLIFY (fm_Gamma)
-         CALL cp_fm_create_p(fm_Gamma, fm_struct_ia, name="fm_Gamma")
+         CALL cp_fm_create(fm_Gamma, fm_struct_ia, name="fm_Gamma")
          CALL cp_fm_struct_release(fm_struct_ia)
          ! perform the matrix multiplication
          CALL parallel_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                             matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp, &
                             matrix_c=fm_Gamma)
          ! release the Y matrix
-         CALL cp_fm_release_p(fm_Y)
+         CALL cp_fm_release(fm_Y)
 
          ! complete gamma small (fm_Gamma_PQ)
-         NULLIFY (fm_Gamma_PQ_temp)
          ! create temp matrix
-         CALL cp_fm_create_p(fm_Gamma_PQ_temp, fm_struct_RI, name="fm_Gamma_PQ_temp")
+         CALL cp_fm_create(fm_Gamma_PQ_temp, fm_struct_RI, name="fm_Gamma_PQ_temp")
          CALL parallel_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp, &
                             matrix_a=fm_Gamma, matrix_b=fm_ia_P, beta=0.0_dp, &
                             matrix_c=fm_Gamma_PQ_temp)
-         CALL cp_fm_release_p(fm_ia_P)
+         CALL cp_fm_release(fm_ia_P)
          ! create fm_Gamma_PQ matrix
-         CALL cp_fm_create_p(fm_Gamma_PQ, fm_struct_RI, name="fm_Gamma_PQ")
+         CALL cp_fm_create(fm_Gamma_PQ, fm_struct_RI, name="fm_Gamma_PQ")
          CALL cp_fm_struct_release(fm_struct_RI)
          ! perform matrix multiplication
          CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                             matrix_a=fm_Gamma_PQ_temp, matrix_b=PQ_half, beta=0.0_dp, &
                             matrix_c=fm_Gamma_PQ)
-         CALL cp_fm_release_p(fm_Gamma_PQ_temp)
-         CALL cp_fm_release_p(PQ_half)
+         CALL cp_fm_release(fm_Gamma_PQ_temp)
+         CALL cp_fm_release(PQ_half)
 
       ELSE
-         NULLIFY (fm_Gamma_PQ_temp)
          ! create temp matrix
-         CALL cp_fm_create_p(fm_Gamma_PQ_temp, fm_struct_RI, name="fm_Gamma_PQ_temp")
+         CALL cp_fm_create(fm_Gamma_PQ_temp, fm_struct_RI, name="fm_Gamma_PQ_temp")
          CALL parallel_gemm(transa="T", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_ia, alpha=1.0_dp, &
                             matrix_a=fm_Y, matrix_b=fm_ia_P, beta=0.0_dp, &
                             matrix_c=fm_Gamma_PQ_temp)
-         CALL cp_fm_release_p(fm_ia_P)
+         CALL cp_fm_release(fm_ia_P)
 
-         NULLIFY (fm_Gamma)
-         CALL cp_fm_create_p(fm_Gamma, fm_struct_ia, name="fm_Gamma")
+         CALL cp_fm_create(fm_Gamma, fm_struct_ia, name="fm_Gamma")
          CALL cp_fm_struct_release(fm_struct_ia)
          ! perform the matrix multiplication
          CALL parallel_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                             matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp, &
                             matrix_c=fm_Gamma)
-         CALL cp_fm_release_p(fm_Y)
+         CALL cp_fm_release(fm_Y)
 
-         NULLIFY (fm_Gamma_PQ_temp_2)
-         CALL cp_fm_create_p(fm_Gamma_PQ_temp_2, fm_struct_RI, name="fm_Gamma_PQ_temp_2")
+         CALL cp_fm_create(fm_Gamma_PQ_temp_2, fm_struct_RI, name="fm_Gamma_PQ_temp_2")
          CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                             matrix_a=fm_Gamma_PQ_temp, matrix_b=operator_half, beta=0.0_dp, &
                             matrix_c=fm_Gamma_PQ_temp_2)
 
-         NULLIFY (fm_Gamma_PQ_2)
-         CALL cp_fm_create_p(fm_Gamma_PQ_2, fm_struct_RI, name="fm_Gamma_PQ_2")
+         CALL cp_fm_create(fm_Gamma_PQ_2, fm_struct_RI, name="fm_Gamma_PQ_2")
          CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                             matrix_a=PQ_half, matrix_b=fm_Gamma_PQ_temp_2, beta=0.0_dp, &
                             matrix_c=fm_Gamma_PQ_temp)
          CALL cp_fm_to_fm(fm_Gamma_PQ_temp, fm_Gamma_PQ_2)
          CALL cp_fm_geadd(1.0_dp, "T", fm_Gamma_PQ_temp, 1.0_dp, fm_Gamma_PQ_2)
-         CALL cp_fm_release_p(fm_Gamma_PQ_temp)
-         CALL cp_fm_release_p(PQ_half)
+         CALL cp_fm_release(fm_Gamma_PQ_temp)
+         CALL cp_fm_release(PQ_half)
 
-         NULLIFY (fm_Gamma_PQ)
-         CALL cp_fm_create_p(fm_Gamma_PQ, fm_struct_RI)
+         CALL cp_fm_create(fm_Gamma_PQ, fm_struct_RI)
          CALL cp_fm_struct_release(fm_struct_RI)
          CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-1.0_dp, &
                             matrix_a=operator_half, matrix_b=fm_Gamma_PQ_temp_2, beta=0.0_dp, &
                             matrix_c=fm_Gamma_PQ)
-         CALL cp_fm_release_p(operator_half)
-         CALL cp_fm_release_p(fm_Gamma_PQ_temp_2)
+         CALL cp_fm_release(operator_half)
+         CALL cp_fm_release(fm_Gamma_PQ_temp_2)
       END IF
 
       ! now redistribute the data, in this case we go back
@@ -514,7 +507,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_row, gd_col
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos
       INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
-      TYPE(cp_fm_type), POINTER                          :: fm_mat
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat
       INTEGER, INTENT(IN), OPTIONAL                      :: integ_group_size, color_group
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_release_mat
 
@@ -548,8 +541,7 @@ CONTAINS
       CALL cp_fm_struct_get(fm_struct, para_env=para_env, nrow_global=num_rows, ncol_global=num_cols)
 
       ! create the full matrix, (num_rows x num_cols)
-      NULLIFY (fm_mat)
-      CALL cp_fm_create_p(fm_mat, fm_struct, name="fm_mat")
+      CALL cp_fm_create(fm_mat, fm_struct, name="fm_mat")
       CALL cp_fm_set_all(matrix=fm_mat, alpha=0.0_dp)
 
       ! start filling procedure
@@ -919,7 +911,7 @@ CONTAINS
                                                             my_cols, my_start_col, my_end_col
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos, mepos_2_grid_group
       INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
-      TYPE(cp_fm_type), POINTER                          :: fm_mat
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm2array'
 
@@ -1230,7 +1222,7 @@ CONTAINS
       END DO
       DEALLOCATE (buffer_rec)
       DEALLOCATE (index_row_rec)
-      CALL cp_fm_release_p(fm_mat)
+      CALL cp_fm_release(fm_mat)
       CALL timestop(handle2)
 
       ! 7) Finally wait for all messeges to be sent
@@ -1287,7 +1279,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: part_ia
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_ia
+      TYPE(cp_fm_type)                                   :: fm_ia
       TYPE(index_map), ALLOCATABLE, DIMENSION(:)         :: indeces_rec
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
@@ -1299,11 +1291,10 @@ CONTAINS
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_sub)
 
       ! create the fm_ia buffer matrix
-      NULLIFY (fm_ia)
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=homo, &
                                ncol_global=virtual, para_env=para_env_sub)
-      CALL cp_fm_create_p(fm_ia, fm_struct, name="fm_ia")
+      CALL cp_fm_create(fm_ia, fm_struct, name="fm_ia")
       ! release structure
       CALL cp_fm_struct_release(fm_struct)
       ! release blacs_env
@@ -1582,7 +1573,7 @@ CONTAINS
       DEALLOCATE (mepos_2_grid)
 
       ! release buffer matrix
-      CALL cp_fm_release_p(fm_ia)
+      CALL cp_fm_release(fm_ia)
 
       CALL timestop(handle)
 

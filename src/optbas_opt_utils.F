@@ -19,9 +19,9 @@ MODULE optbas_opt_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_create,&
@@ -81,7 +81,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), POINTER                          :: Q, Snew
-      TYPE(cp_fm_type), POINTER                          :: S_inv_orb
+      TYPE(cp_fm_type), INTENT(IN)                       :: S_inv_orb
       REAL(KIND=dp)                                      :: fval, energy, S_cond_number
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'evaluate_optvals'
@@ -92,7 +92,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: tmp_energy, trace
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit, tmp1, tmp2
+      TYPE(cp_fm_type)                                   :: tmp1, tmp2
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: smat
       TYPE(dbcsr_type)                                   :: Qt
@@ -117,18 +118,18 @@ CONTAINS
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
-         CALL cp_fm_create_p(tmp1, matrix_struct=mo_coeff%matrix_struct)
+         CALL cp_fm_create(tmp1, matrix_struct=mo_coeff%matrix_struct)
          CALL cp_dbcsr_sm_fm_multiply(Qt, mo_coeff_aux_fit, tmp1, nmo)
          CALL cp_fm_trace(tmp1, mo_coeff, trace)
          fval = fval - 2.0_dp*trace + 2.0_dp*nmo
          !
-         CALL cp_fm_create_p(tmp2, matrix_struct=mo_coeff%matrix_struct)
+         CALL cp_fm_create(tmp2, matrix_struct=mo_coeff%matrix_struct)
          CALL parallel_gemm('N', 'N', norb, nmo, norb, 1.0_dp, S_inv_orb, tmp1, 0.0_dp, tmp2)
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, tmp2, tmp1, nmo)
          CALL cp_fm_trace(tmp2, tmp1, tmp_energy)
          energy = energy + tmp_energy*(3.0_dp - REAL(nspins, KIND=dp))
-         CALL cp_fm_release_p(tmp1)
-         CALL cp_fm_release_p(tmp2)
+         CALL cp_fm_release(tmp1)
+         CALL cp_fm_release(tmp2)
       END DO
       CALL dbcsr_release(Qt)
 
@@ -161,8 +162,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, naux, ndep, nmo, norb, &
                                                             nspins
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_s, fm_sinv, mo_coeff, mo_coeff_aux, &
-                                                            tmat, tmp1, tmp2, work
+      TYPE(cp_fm_type)                                   :: fm_s, fm_sinv, tmat, tmp1, tmp2, work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux
 
       CALL timeset(routineN, handle)
 
@@ -173,24 +174,24 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct, nrow_global=naux, ncol_global=naux, &
                                context=mo_coeff%matrix_struct%context, &
                                para_env=mo_coeff%matrix_struct%para_env)
-      CALL cp_fm_create_p(fm_s, fm_struct, name="s_aux")
-      CALL cp_fm_create_p(fm_sinv, fm_struct, name="s_aux_inv")
+      CALL cp_fm_create(fm_s, fm_struct, name="s_aux")
+      CALL cp_fm_create(fm_sinv, fm_struct, name="s_aux_inv")
       CALL copy_dbcsr_to_fm(saux(1)%matrix, fm_s)
       CALL cp_fm_invert(fm_s, fm_sinv)
-      CALL cp_fm_release_p(fm_s)
+      CALL cp_fm_release(fm_s)
       CALL cp_fm_struct_release(fm_struct)
       nspins = SIZE(mos)
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL get_mo_set(mosaux(ispin)%mo_set, mo_coeff=mo_coeff_aux)
          CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
-         CALL cp_fm_create_p(tmp1, matrix_struct=mo_coeff_aux%matrix_struct)
-         CALL cp_fm_create_p(tmp2, matrix_struct=mo_coeff_aux%matrix_struct)
+         CALL cp_fm_create(tmp1, matrix_struct=mo_coeff_aux%matrix_struct)
+         CALL cp_fm_create(tmp2, matrix_struct=mo_coeff_aux%matrix_struct)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nmo, ncol_global=nmo, &
                                   context=mo_coeff%matrix_struct%context, &
                                   para_env=mo_coeff%matrix_struct%para_env)
-         CALL cp_fm_create_p(tmat, fm_struct, name="tmat")
-         CALL cp_fm_create_p(work, fm_struct, name="work")
+         CALL cp_fm_create(tmat, fm_struct, name="tmat")
+         CALL cp_fm_create(work, fm_struct, name="work")
          CALL cp_fm_struct_release(fm_struct)
          !
          CALL cp_dbcsr_sm_fm_multiply(sauxorb(1)%matrix, mo_coeff, tmp1, nmo)
@@ -199,12 +200,12 @@ CONTAINS
          CALL cp_fm_power(tmat, work, -0.5_dp, threshold, ndep)
          CALL parallel_gemm('N', 'N', naux, nmo, nmo, 1.0_dp, tmp2, tmat, 0.0_dp, mo_coeff_aux)
          !
-         CALL cp_fm_release_p(work)
-         CALL cp_fm_release_p(tmat)
-         CALL cp_fm_release_p(tmp1)
-         CALL cp_fm_release_p(tmp2)
+         CALL cp_fm_release(work)
+         CALL cp_fm_release(tmat)
+         CALL cp_fm_release(tmp1)
+         CALL cp_fm_release(tmp2)
       END DO
-      CALL cp_fm_release_p(fm_sinv)
+      CALL cp_fm_release(fm_sinv)
 
       CALL timestop(handle)
 

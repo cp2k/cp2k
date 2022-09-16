@@ -24,8 +24,9 @@ MODULE rpa_grad
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_p_type, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_p_type, &
+        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, &
+        cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -96,8 +97,8 @@ MODULE rpa_grad
 
    TYPE rpa_grad_type
       PRIVATE
-      TYPE(cp_fm_type), POINTER :: fm_Gamma_PQ
-      TYPE(cp_fm_p_type), DIMENSION(:), ALLOCATABLE :: fm_Y
+      TYPE(cp_fm_type) :: fm_Gamma_PQ
+      TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE :: fm_Y
       TYPE(sos_mp2_grad_work_type), ALLOCATABLE, DIMENSION(:) :: sos_mp2_work_occ, sos_mp2_work_virt
       TYPE(rpa_grad_work_type) :: rpa_work
    END TYPE
@@ -162,7 +163,7 @@ CONTAINS
    SUBROUTINE rpa_grad_create(rpa_grad, fm_mat_Q, fm_mat_S, &
                               homo, virtual, mp2_env, Eigenval, unit_nr, do_ri_sos_laplace_mp2)
       TYPE(rpa_grad_type), INTENT(OUT)                   :: rpa_grad
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -176,16 +177,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (rpa_grad%fm_Gamma_PQ)
-      CALL cp_fm_create_p(rpa_grad%fm_Gamma_PQ, matrix_struct=fm_mat_Q%matrix_struct)
+      CALL cp_fm_create(rpa_grad%fm_Gamma_PQ, matrix_struct=fm_mat_Q%matrix_struct)
       CALL cp_fm_set_all(rpa_grad%fm_Gamma_PQ, 0.0_dp)
 
       nspins = SIZE(fm_mat_S)
 
       ALLOCATE (rpa_grad%fm_Y(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rpa_grad%fm_Y(ispin)%matrix)
-         CALL cp_fm_create_p(rpa_grad%fm_Y(ispin)%matrix, fm_mat_S(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create(rpa_grad%fm_Y(ispin), fm_mat_S(ispin)%matrix%matrix_struct)
 
       END DO
 
@@ -262,7 +261,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rpa_work_type_create(rpa_work, fm_mat_Q, fm_mat_S, homo, virtual)
       TYPE(rpa_grad_work_type), INTENT(OUT)              :: rpa_work
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
 
@@ -694,7 +693,7 @@ CONTAINS
 !> \param rpa_grad ...
 ! **************************************************************************************************
    SUBROUTINE rpa_grad_copy_Q(fm_mat_Q, rpa_grad)
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
 
       CALL cp_fm_to_fm(fm_mat_Q, rpa_grad%rpa_work%fm_mat_Q_copy)
@@ -738,7 +737,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: mat_S_3D, mat_work_iaP_3D
-      TYPE(cp_fm_type), POINTER                          :: fm_work_iaP, fm_work_PQ
+      TYPE(cp_fm_type)                                   :: fm_work_iaP, fm_work_PQ
 
       CALL timeset(routineN, handle)
 
@@ -748,15 +747,14 @@ CONTAINS
                           col_indices=col_indices, row_indices=row_indices)
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
-         NULLIFY (fm_work_PQ)
-         CALL cp_fm_create_p(fm_work_PQ, fm_mat_Q(1)%matrix%matrix_struct)
+         CALL cp_fm_create(fm_work_PQ, fm_mat_Q(1)%matrix%matrix_struct)
 
          ! calculate [1+Q(iw')]^-1
          CALL cp_fm_cholesky_invert(fm_mat_Q(1)%matrix)
          ! symmetrize the result, fm_work_PQ is only a work matrix
          CALL cp_fm_upper_to_full(fm_mat_Q(1)%matrix, fm_work_PQ)
 
-         CALL cp_fm_release_p(fm_work_PQ)
+         CALL cp_fm_release(fm_work_PQ)
 
          DO col_local = 1, ncol_local
             col_global = col_indices(col_local)
@@ -806,8 +804,7 @@ CONTAINS
          END IF
 
          CALL timeset(routineN//"_contr_S", handle2)
-         NULLIFY (fm_work_iaP)
-         CALL cp_fm_create_p(fm_work_iaP, rpa_grad%fm_Y(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create(fm_work_iaP, rpa_grad%fm_Y(ispin)%matrix_struct)
 
          CALL cp_fm_get_info(fm_mat_S(ispin)%matrix, ncol_global=dimen_ia)
 
@@ -825,19 +822,19 @@ CONTAINS
 
             CALL calc_fm_mat_S_laplace(fm_work_iaP, homo(ispin), virtual(ispin), Eigenval(:, ispin), omega)
 
-            CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin)%matrix, -weight, fm_work_iaP)
+            CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin), -weight, fm_work_iaP)
 
-            CALL cp_fm_release_p(fm_work_iaP)
+            CALL cp_fm_release(fm_work_iaP)
          ELSE
             ! To save memory, we add it now
-            CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin)%matrix, -weight, fm_work_iaP)
+            CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin), -weight, fm_work_iaP)
 
             ! Redistribute both matrices and deallocate fm_work_iaP
             CALL redistribute_fm_mat_S(rpa_grad%rpa_work%index2send(:, ispin), rpa_grad%rpa_work%index2recv(:, ispin), &
                                        fm_work_iaP, mat_work_iaP_3D, &
                                        rpa_grad%rpa_work%gd_homo(ispin), rpa_grad%rpa_work%gd_virtual(ispin), &
                                        rpa_grad%rpa_work%mepos)
-            CALL cp_fm_release_p(fm_work_iaP)
+            CALL cp_fm_release(fm_work_iaP)
 
             CALL redistribute_fm_mat_S(rpa_grad%rpa_work%index2send(:, ispin), rpa_grad%rpa_work%index2recv(:, ispin), &
                                        fm_mat_S(ispin)%matrix, mat_S_3D, &
@@ -877,7 +874,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_P_sos_mp2(homo, fm_mat_S, fm_work_iaP, sos_mp2_work_occ, sos_mp2_work_virt, omega, weight, virtual, Eigenval)
       INTEGER, INTENT(IN)                                :: homo
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_S, fm_work_iaP
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_work_iaP
       TYPE(sos_mp2_grad_work_type), INTENT(INOUT)        :: sos_mp2_work_occ, sos_mp2_work_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
       INTEGER, INTENT(IN)                                :: virtual
@@ -1193,7 +1190,7 @@ CONTAINS
 !> \param index2recv ...
 ! **************************************************************************************************
    SUBROUTINE calc_Pij_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ij, Eigenval, omega, weight, index2send, index2recv)
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_work_iaP, fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ij
@@ -1371,7 +1368,7 @@ CONTAINS
 !> \param index2recv ...
 ! **************************************************************************************************
    SUBROUTINE calc_Pab_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ab, Eigenval, omega, weight, index2send, index2recv)
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_work_iaP, fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: P_ab
@@ -1548,7 +1545,7 @@ CONTAINS
    SUBROUTINE redistribute_fm_mat_S(index2send, index2recv, fm_mat_S, mat_S_3D, gd_homo, gd_virtual, mepos)
       TYPE(one_dim_int_array), DIMENSION(0:), INTENT(IN) :: index2send
       TYPE(two_dim_int_array), DIMENSION(0:), INTENT(IN) :: index2recv
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: mat_S_3D
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_homo, gd_virtual
@@ -1683,9 +1680,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_G_P_ia, fm_PQ, fm_PQ_2, fm_PQ_half, &
+      TYPE(cp_fm_type)                                   :: fm_G_P_ia, fm_PQ, fm_PQ_2, fm_PQ_half, &
                                                             fm_work_PQ, fm_work_PQ_2, fm_Y, &
-                                                            matrix, operator_half
+                                                            operator_half
       TYPE(group_dist_d1_type)                           :: gd_array_new, gd_ia, gd_P, gd_P_new
 
       CALL timeset(routineN, handle)
@@ -1717,11 +1714,10 @@ CONTAINS
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=dimen_RI, &
                                ncol_global=dimen_RI, para_env=para_env)
-      NULLIFY (fm_PQ, fm_work_PQ, fm_PQ_2)
-      CALL cp_fm_create_p(fm_PQ, fm_struct)
-      CALL cp_fm_create_p(fm_work_PQ, fm_struct)
+      CALL cp_fm_create(fm_PQ, fm_struct)
+      CALL cp_fm_create(fm_work_PQ, fm_struct)
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         CALL cp_fm_create_p(fm_PQ_2, fm_struct)
+         CALL cp_fm_create(fm_PQ_2, fm_struct)
       END IF
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_all(fm_PQ, 0.0_dp)
@@ -1756,7 +1752,6 @@ CONTAINS
       DEALLOCATE (pos_info)
       CALL release_group_dist(gd_P)
 
-      NULLIFY (fm_PQ_half)
       CALL array2fm(mp2_env%ri_grad%PQ_half, fm_PQ%matrix_struct, &
                     my_P_start, my_P_end, &
                     my_group_L_start, my_group_L_end, &
@@ -1765,7 +1760,6 @@ CONTAINS
                     fm_PQ_half)
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
-         NULLIFY (operator_half)
          CALL array2fm(mp2_env%ri_grad%operator_half, fm_PQ%matrix_struct, my_P_start, my_P_end, &
                        my_group_L_start, my_group_L_end, &
                        gd_P_new, gd_array_new, &
@@ -1787,7 +1781,7 @@ CONTAINS
                             matrix_a=fm_PQ_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
                             matrix_c=fm_PQ)
 
-         CALL cp_fm_release_p(fm_work_PQ)
+         CALL cp_fm_release(fm_work_PQ)
       ELSE
          CALL parallel_gemm(transa="N", transb="T", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=1.0_dp, &
                             matrix_a=fm_PQ, matrix_b=operator_half, beta=0.0_dp, &
@@ -1796,17 +1790,16 @@ CONTAINS
          CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=my_scale, &
                             matrix_a=operator_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
                             matrix_c=fm_PQ)
-         CALL cp_fm_release_p(operator_half)
+         CALL cp_fm_release(operator_half)
 
-         NULLIFY (fm_work_PQ_2)
-         CALL cp_fm_create_p(fm_work_PQ_2, fm_PQ%matrix_struct, name="fm_Gamma_PQ_2")
+         CALL cp_fm_create(fm_work_PQ_2, fm_PQ%matrix_struct, name="fm_Gamma_PQ_2")
          CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=dimen_RI, k=dimen_RI, alpha=-my_scale, &
                             matrix_a=fm_PQ_half, matrix_b=fm_work_PQ, beta=0.0_dp, &
                             matrix_c=fm_work_PQ_2)
          CALL cp_fm_to_fm(fm_work_PQ_2, fm_PQ_2)
          CALL cp_fm_geadd(1.0_dp, "T", fm_work_PQ_2, 1.0_dp, fm_PQ_2)
-         CALL cp_fm_release_p(fm_work_PQ_2)
-         CALL cp_fm_release_p(fm_work_PQ)
+         CALL cp_fm_release(fm_work_PQ_2)
+         CALL cp_fm_release(fm_work_PQ)
       END IF
 
       ALLOCATE (mp2_env%ri_grad%Gamma_PQ(my_P_size, my_group_L_size))
@@ -1836,29 +1829,27 @@ CONTAINS
 
       ! Redistribute the Y matrix
       DO ispin = 1, nspins
-         matrix => rpa_grad%fm_Y(ispin)%matrix
          ! Collect all data of columns for the own sub group locally
-         CALL cp_fm_get_info(matrix, ncol_global=dimen_ia)
+         CALL cp_fm_get_info(rpa_grad%fm_Y(ispin), ncol_global=dimen_ia)
 
          CALL get_qs_env(qs_env, blacs_env=blacs_env)
 
-         NULLIFY (fm_struct, fm_Y)
+         NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_PQ_half%matrix_struct, nrow_global=dimen_ia)
-         CALL cp_fm_create_p(fm_Y, fm_struct)
+         CALL cp_fm_create(fm_Y, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
          CALL cp_fm_set_all(fm_Y, 0.0_dp)
 
-         CALL dereplicate_and_sum_fm(matrix, fm_Y)
+         CALL dereplicate_and_sum_fm(rpa_grad%fm_Y(ispin), fm_Y)
 
-         NULLIFY (fm_G_P_ia)
-         CALL cp_fm_create_p(fm_G_P_ia, fm_Y%matrix_struct)
+         CALL cp_fm_create(fm_G_P_ia, fm_Y%matrix_struct)
          CALL cp_fm_set_all(fm_G_P_ia, 0.0_dp)
 
          CALL parallel_gemm(transa="N", transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=my_scale, &
                             matrix_a=fm_Y, matrix_b=fm_PQ_half, beta=0.0_dp, &
                             matrix_c=fm_G_P_ia)
 
-         CALL cp_fm_release_p(fm_Y)
+         CALL cp_fm_release(fm_Y)
 
          CALL create_group_dist(gd_ia, para_env_sub%num_pe, dimen_ia)
          CALL get_group_dist(gd_ia, para_env_sub%mepos, my_ia_start, my_ia_end, my_ia_size)
@@ -1878,7 +1869,7 @@ CONTAINS
 
       END DO
       DEALLOCATE (rpa_grad%fm_Y)
-      CALL cp_fm_release_p(fm_PQ_half)
+      CALL cp_fm_release(fm_PQ_half)
 
       CALL timestop(handle)
 
@@ -2133,7 +2124,7 @@ CONTAINS
 !> \param fm_global global matrix, on output it will contain the sum of the replicated matrices redistributed
 ! **************************************************************************************************
    SUBROUTINE dereplicate_and_sum_fm(fm_sub, fm_global)
-      TYPE(cp_fm_type), POINTER                          :: fm_sub, fm_global
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_sub, fm_global
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dereplicate_and_sum_fm'
 
@@ -2328,7 +2319,7 @@ CONTAINS
       END DO
       DEALLOCATE (index2send_col, index2recv_col, index2send_row, index2recv_row)
 
-      CALL cp_fm_release_p(fm_sub)
+      CALL cp_fm_release(fm_sub)
 
       CALL timestop(handle)
 
