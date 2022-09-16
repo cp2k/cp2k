@@ -357,8 +357,9 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
-      TYPE(cp_fm_type), POINTER                          :: fmdummy, fmlocal, imos, mo_coeff, &
-                                                            rksmat, rmos, rsmat
+      TYPE(cp_fm_type)                                   :: fmdummy
+      TYPE(cp_fm_type), POINTER                          :: fmlocal, imos, mo_coeff, rksmat, rmos, &
+                                                            rsmat
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -368,7 +369,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fmdummy)
       NULLIFY (sab_nl)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
