@@ -33,14 +33,9 @@ MODULE xas_tdp_correction
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_diag,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_release, cp_fm_release_p, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -123,9 +118,9 @@ CONTAINS
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: all_struct, homo_struct, lumo_struct
       TYPE(cp_fm_struct_type), POINTER                   :: hoho_struct, lulu_struct
-      TYPE(cp_fm_type), POINTER                          :: hoho_fock, hoho_work, homo_work, &
-                                                            lulu_fock, lulu_work, lumo_work, &
-                                                            mo_coeff
+      TYPE(cp_fm_type)                                   :: hoho_fock, hoho_work, homo_work, &
+                                                            lulu_fock, lulu_work, lumo_work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, fock_matrix, matrix_ks
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ja_X, oI_Y
@@ -135,8 +130,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_fun_empty, xc_fun_original, xc_section
 
       NULLIFY (xc_fun_empty, xc_fun_original, xc_section, backup_mos, mos, dft_control, dbcsr_work, &
-               fock_matrix, matrix_ks, para_env, hoho_fock, hoho_work, homo_work, lulu_fock, lulu_work, &
-               lumo_work, mo_coeff, blacs_env, nsgf_blk)
+               fock_matrix, matrix_ks, para_env, mo_coeff, blacs_env, nsgf_blk)
 
       CALL cite_reference(Shigeta2001)
       CALL cite_reference(Bussy2021b)
@@ -300,17 +294,17 @@ CONTAINS
          CALL cp_fm_struct_create(lulu_struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=nlumo(ispin), nrow_global=nlumo(ispin))
 
-         CALL cp_fm_create_p(hoho_work, hoho_struct)
-         CALL cp_fm_create_p(lulu_work, lulu_struct)
-         CALL cp_fm_create_p(homo_work, homo_struct(ispin)%struct)
-         CALL cp_fm_create_p(lumo_work, lumo_struct(ispin)%struct)
+         CALL cp_fm_create(hoho_work, hoho_struct)
+         CALL cp_fm_create(lulu_work, lulu_struct)
+         CALL cp_fm_create(homo_work, homo_struct(ispin)%struct)
+         CALL cp_fm_create(lumo_work, lumo_struct(ispin)%struct)
 
          IF (pseudo_canonical) THEN
             !That is where we rotate the MOs to make them pseudo canonical
             !The eigenvalues we get from the diagonalization
 
             !The Fock matrix in the HOMO subspace
-            CALL cp_fm_create_p(hoho_fock, hoho_struct)
+            CALL cp_fm_create(hoho_fock, hoho_struct)
             NULLIFY (homo_evals(ispin)%array)
             ALLOCATE (homo_evals(ispin)%array(nhomo(ispin)))
             CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, homo_coeffs(ispin)%matrix, &
@@ -334,7 +328,7 @@ CONTAINS
                                      n_rows=nsgf_blk(exat), n_cols=ndo_mo)
 
             !do the same for the pseudo-LUMOs
-            CALL cp_fm_create_p(lulu_fock, lulu_struct)
+            CALL cp_fm_create(lulu_fock, lulu_struct)
             NULLIFY (lumo_evals(ispin)%array)
             ALLOCATE (lumo_evals(ispin)%array(nlumo(ispin)))
             CALL cp_dbcsr_sm_fm_multiply(fock_matrix(ispin)%matrix, lumo_coeffs(ispin)%matrix, &
@@ -348,8 +342,8 @@ CONTAINS
                                lulu_work, 0.0_dp, lumo_work)
             CALL cp_fm_to_fm(lumo_work, lumo_coeffs(ispin)%matrix)
 
-            CALL cp_fm_release_p(lulu_fock)
-            CALL cp_fm_release_p(hoho_fock)
+            CALL cp_fm_release(lulu_fock)
+            CALL cp_fm_release(hoho_fock)
 
          ELSE !using the generalized Fock matrix diagonal elements
 
@@ -369,11 +363,11 @@ CONTAINS
             CALL cp_fm_get_diag(lulu_work, lumo_evals(ispin)%array)
 
          END IF
-         CALL cp_fm_release_p(homo_work)
-         CALL cp_fm_release_p(hoho_work)
+         CALL cp_fm_release(homo_work)
+         CALL cp_fm_release(hoho_work)
          CALL cp_fm_struct_release(hoho_struct)
-         CALL cp_fm_release_p(lumo_work)
-         CALL cp_fm_release_p(lulu_work)
+         CALL cp_fm_release(lumo_work)
+         CALL cp_fm_release(lulu_work)
          CALL cp_fm_struct_release(lulu_struct)
 
          !Put back homo and lumo coeffs together, to fit tensor structure
@@ -1759,7 +1753,7 @@ CONTAINS
       TYPE(cp_cfm_type), POINTER                         :: hami_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: ao_domo_struct, domo_domo_struct, &
                                                             doso_doso_struct
-      TYPE(cp_fm_type), POINTER                          :: alpha_gs_coeffs, ao_domo_work, &
+      TYPE(cp_fm_type)                                   :: alpha_gs_coeffs, ao_domo_work, &
                                                             beta_gs_coeffs, domo_domo_work, &
                                                             img_fm, real_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -1767,8 +1761,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: orb_soc_x, orb_soc_y, orb_soc_z
 
       NULLIFY (matrix_ks, para_env, blacs_env, hami_cfm, ao_domo_struct, domo_domo_struct, &
-               doso_doso_struct, alpha_gs_coeffs, ao_domo_work, beta_gs_coeffs, domo_domo_work, &
-               img_fm, real_fm, orb_soc_x, orb_soc_y, orb_soc_z)
+               doso_doso_struct, orb_soc_x, orb_soc_y, orb_soc_z)
 
       CALL timeset(routineN, handle)
 
@@ -1796,12 +1789,12 @@ CONTAINS
       CALL cp_fm_struct_create(doso_doso_struct, context=blacs_env, para_env=para_env, &
                                nrow_global=ndo_so, ncol_global=ndo_so)
 
-      CALL cp_fm_create_p(alpha_gs_coeffs, ao_domo_struct)
-      CALL cp_fm_create_p(beta_gs_coeffs, ao_domo_struct)
-      CALL cp_fm_create_p(ao_domo_work, ao_domo_struct)
-      CALL cp_fm_create_p(domo_domo_work, domo_domo_struct)
-      CALL cp_fm_create_p(real_fm, doso_doso_struct)
-      CALL cp_fm_create_p(img_fm, doso_doso_struct)
+      CALL cp_fm_create(alpha_gs_coeffs, ao_domo_struct)
+      CALL cp_fm_create(beta_gs_coeffs, ao_domo_struct)
+      CALL cp_fm_create(ao_domo_work, ao_domo_struct)
+      CALL cp_fm_create(domo_domo_work, domo_domo_struct)
+      CALL cp_fm_create(real_fm, doso_doso_struct)
+      CALL cp_fm_create(img_fm, doso_doso_struct)
 
       ! Put the gs_coeffs in the correct format.
       IF (xas_tdp_control%do_uks) THEN
@@ -1910,12 +1903,12 @@ CONTAINS
       END DO
 
       ! clean-up
-      CALL cp_fm_release_p(alpha_gs_coeffs)
-      CALL cp_fm_release_p(beta_gs_coeffs)
-      CALL cp_fm_release_p(ao_domo_work)
-      CALL cp_fm_release_p(domo_domo_work)
-      CALL cp_fm_release_p(real_fm)
-      CALL cp_fm_release_p(img_fm)
+      CALL cp_fm_release(alpha_gs_coeffs)
+      CALL cp_fm_release(beta_gs_coeffs)
+      CALL cp_fm_release(ao_domo_work)
+      CALL cp_fm_release(domo_domo_work)
+      CALL cp_fm_release(real_fm)
+      CALL cp_fm_release(img_fm)
 
       CALL cp_cfm_release_p(hami_cfm)
 

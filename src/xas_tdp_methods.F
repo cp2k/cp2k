@@ -39,9 +39,9 @@ MODULE xas_tdp_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, &
-        cp_fm_p_type, cp_fm_read_unformatted, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, &
-        cp_fm_to_fm_submat, cp_fm_type, cp_fm_write_unformatted
+        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, &
+        cp_fm_get_submatrix, cp_fm_p_type, cp_fm_read_unformatted, cp_fm_release, cp_fm_release_p, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -1356,13 +1356,13 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: ks_struct, lmo_struct
-      TYPE(cp_fm_type), POINTER                          :: evecs, ks_fm, lmo_fm, mo_coeff, work
+      TYPE(cp_fm_type)                                   :: evecs, ks_fm, lmo_fm, work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 
-      NULLIFY (mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, lmo_fm, ks_struct, ks_fm)
-      NULLIFY (evecs, work)
+      NULLIFY (mos, mo_coeff, matrix_ks, para_env, blacs_env, lmo_struct, ks_struct)
 
       ! Get what we need from qs_env
       CALL get_qs_env(qs_env, mos=mos, matrix_ks=matrix_ks, para_env=para_env, blacs_env=blacs_env)
@@ -1380,13 +1380,13 @@ CONTAINS
             nlmo = COUNT(xas_tdp_env%mos_of_ex_atoms(:, iat, ispin) == 1)
             CALL cp_fm_struct_create(lmo_struct, nrow_global=nao, ncol_global=nlmo, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create_p(lmo_fm, lmo_struct)
-            CALL cp_fm_create_p(work, lmo_struct)
+            CALL cp_fm_create(lmo_fm, lmo_struct)
+            CALL cp_fm_create(work, lmo_struct)
 
             CALL cp_fm_struct_create(ks_struct, nrow_global=nlmo, ncol_global=nlmo, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create_p(ks_fm, ks_struct)
-            CALL cp_fm_create_p(evecs, ks_struct)
+            CALL cp_fm_create(ks_fm, ks_struct)
+            CALL cp_fm_create(evecs, ks_struct)
 
             ! Loop over the localized MOs associated to this atom
             i = 0
@@ -1424,11 +1424,11 @@ CONTAINS
             END DO
 
             ! Excited atom clean-up
-            CALL cp_fm_release_p(lmo_fm)
-            CALL cp_fm_release_p(work)
+            CALL cp_fm_release(lmo_fm)
+            CALL cp_fm_release(work)
             CALL cp_fm_struct_release(lmo_struct)
-            CALL cp_fm_release_p(ks_fm)
-            CALL cp_fm_release_p(evecs)
+            CALL cp_fm_release(ks_fm)
+            CALL cp_fm_release(evecs)
             CALL cp_fm_struct_release(ks_struct)
          END DO !iat
       END DO !ispin
@@ -1469,7 +1469,8 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: overlap_matrix, tmp_coeff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: eval_mat_struct, gs_struct
-      TYPE(cp_fm_type), POINTER                          :: eval_mat, gs_coeffs, mo_coeff, work_mat
+      TYPE(cp_fm_type)                                   :: eval_mat, work_mat
+      TYPE(cp_fm_type), POINTER                          :: gs_coeffs, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(gto_basis_set_type), POINTER                  :: kind_basis_set, sto_to_gto_basis_set
@@ -1480,8 +1481,8 @@ CONTAINS
 
       NULLIFY (sto_basis_set, sto_to_gto_basis_set, qs_kind_set, kind_basis_set, lq, nq, zeta)
       NULLIFY (overlap_matrix, mos, mo_coeff, mos_of_ex_atoms, tmp_coeff, first_sgf, particle_set)
-      NULLIFY (mo_evals, matrix_ks, para_env, blacs_env, work_mat)
-      NULLIFY (eval_mat_struct, eval_mat, gs_struct, gs_coeffs)
+      NULLIFY (mo_evals, matrix_ks, para_env, blacs_env)
+      NULLIFY (eval_mat_struct, gs_struct, gs_coeffs)
 
       output_unit = cp_logger_get_default_io_unit()
 
@@ -1701,10 +1702,10 @@ CONTAINS
 !           => need epsilon_ij = <psi_i|F|psi_j> = sum_{pq} c_{qi}c_{pj} F_{pq}
 !           Note: only have digonal elements by construction
             ndo_so = nspins*n_states
-            CALL cp_fm_create_p(work_mat, gs_struct)
+            CALL cp_fm_create(work_mat, gs_struct)
             CALL cp_fm_struct_create(eval_mat_struct, nrow_global=ndo_so, ncol_global=ndo_so, &
                                      para_env=para_env, context=blacs_env)
-            CALL cp_fm_create_p(eval_mat, eval_mat_struct)
+            CALL cp_fm_create(eval_mat, eval_mat_struct)
             ALLOCATE (diag(ndo_so))
 
             IF (.NOT. xas_tdp_control%do_roks) THEN
@@ -1742,8 +1743,8 @@ CONTAINS
             END IF
 
 !           Clean-up
-            CALL cp_fm_release_p(work_mat)
-            CALL cp_fm_release_p(eval_mat)
+            CALL cp_fm_release(work_mat)
+            CALL cp_fm_release(eval_mat)
             CALL cp_fm_struct_release(eval_mat_struct)
 
          END IF ! do_localize and/or ROKS
@@ -1795,14 +1796,15 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: opvec, vectors
+      TYPE(cp_fm_type)                                   :: opvec
+      TYPE(cp_fm_type), POINTER                          :: vectors
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section, prog_run_info
 
       NULLIFY (qs_loc_env, zij_fm_set, cell, print_loc_section, op_sm_set, moloc_coeff, vectors)
-      NULLIFY (opvec, tmp_fm_struct, para_env, blacs_env, prog_run_info)
+      NULLIFY (tmp_fm_struct, para_env, blacs_env, prog_run_info)
 
 !  Initialization
       print_loc_section => xas_tdp_control%print_loc_subsection
@@ -1825,7 +1827,7 @@ CONTAINS
 !  Prepare for zij
       vectors => moloc_coeff(1)%matrix
       CALL cp_fm_get_info(vectors, nrow_global=nao)
-      CALL cp_fm_create_p(opvec, vectors%matrix_struct)
+      CALL cp_fm_create(opvec, vectors%matrix_struct)
 
       CALL cp_fm_struct_create(tmp_fm_struct, para_env=para_env, context=blacs_env, &
                                ncol_global=n_centers, nrow_global=n_centers)
@@ -1864,7 +1866,7 @@ CONTAINS
       END DO !ispins
 
 !  Clean-up
-      CALL cp_fm_release_p(opvec)
+      CALL cp_fm_release(opvec)
       CALL cp_fm_struct_release(tmp_fm_struct)
       DO i = 1, dim_op
          DO j = 1, 2
@@ -2039,11 +2041,12 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals, osc_str
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: col_struct, mat_struct
-      TYPE(cp_fm_type), POINTER                          :: col_work, lr_coeffs, mat_work
+      TYPE(cp_fm_type)                                   :: col_work, mat_work
+      TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat
 
-      NULLIFY (dipmat, col_work, mat_work, col_struct, mat_struct, para_env, blacs_env, lr_coeffs)
+      NULLIFY (dipmat, col_struct, mat_struct, para_env, blacs_env, lr_coeffs)
       NULLIFY (lr_evals, osc_str)
 
       CALL timeset(routineN, handle)
@@ -2076,8 +2079,8 @@ CONTAINS
                           context=blacs_env, nrow_global=nao)
       CALL cp_fm_struct_create(mat_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=ndo_so*nosc, ncol_global=ngs)
-      CALL cp_fm_create_p(mat_work, mat_struct)
-      CALL cp_fm_create_p(col_work, col_struct)
+      CALL cp_fm_create(mat_work, mat_struct)
+      CALL cp_fm_create(col_work, col_struct)
 
       ALLOCATE (tot_contr(ndo_mo), dip_block(ndo_so, ngs))
       pref = 2.0_dp; IF (do_sc) pref = 1.0_dp !because of singlet definition u = 1/sqrt(2)(c_a+c_b)
@@ -2120,8 +2123,8 @@ CONTAINS
       END IF
 
       !clean-up
-      CALL cp_fm_release_p(mat_work)
-      CALL cp_fm_release_p(col_work)
+      CALL cp_fm_release(mat_work)
+      CALL cp_fm_release(col_work)
       CALL cp_fm_struct_release(mat_struct)
 
       CALL timestop(handle)
@@ -2153,11 +2156,12 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals, osc_str
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: col_struct, mat_struct
-      TYPE(cp_fm_type), POINTER                          :: col_work, lr_coeffs, mat_work
+      TYPE(cp_fm_type)                                   :: col_work, mat_work
+      TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: quadmat
 
-      NULLIFY (lr_evals, osc_str, mat_work, lr_coeffs, col_work, col_struct, mat_struct, para_env)
+      NULLIFY (lr_evals, osc_str, lr_coeffs, col_struct, mat_struct, para_env)
       NULLIFY (blacs_env)
 
       CALL timeset(routineN, handle)
@@ -2190,8 +2194,8 @@ CONTAINS
                           context=blacs_env, nrow_global=nao)
       CALL cp_fm_struct_create(mat_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=ndo_so*nosc, ncol_global=ngs)
-      CALL cp_fm_create_p(mat_work, mat_struct)
-      CALL cp_fm_create_p(col_work, col_struct)
+      CALL cp_fm_create(mat_work, mat_struct)
+      CALL cp_fm_create(col_work, col_struct)
 
       ALLOCATE (quad_block(ndo_so, ngs), tot_contr(ndo_mo))
       pref = 2.0_dp; IF (do_sc) pref = 1.0_dp !because of singlet definition u = 1/sqrt(2)*...
@@ -2241,8 +2245,8 @@ CONTAINS
       osc_str(:) = pref*1._dp/20._dp*a_fine**2*lr_evals(:)**3*(osc_str(:) - 1._dp/3._dp*trace(:)**2)
 
       !clean-up
-      CALL cp_fm_release_p(mat_work)
-      CALL cp_fm_release_p(col_work)
+      CALL cp_fm_release(mat_work)
+      CALL cp_fm_release(col_work)
       CALL cp_fm_struct_release(mat_struct)
 
       CALL timestop(handle)
@@ -2355,14 +2359,15 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: work_array
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: col_vect_struct
-      TYPE(cp_fm_type), POINTER                          :: gs_coeffs, work_vect
+      TYPE(cp_fm_type)                                   :: work_vect
+      TYPE(cp_fm_type), POINTER                          :: gs_coeffs
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       NULLIFY (mo_indices, qs_kind_set, particle_set, first_sgf, work_array)
-      NULLIFY (matrix_s, para_env, blacs_env, col_vect_struct, work_vect, last_sgf)
+      NULLIFY (matrix_s, para_env, blacs_env, col_vect_struct, last_sgf)
 
 !  Initialization
       at_index = donor_state%at_index
@@ -2386,7 +2391,7 @@ CONTAINS
       CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf, last_sgf=last_sgf)
       nsgf = last_sgf(at_index) - first_sgf(at_index) + 1
 
-      CALL cp_fm_create_p(work_vect, col_vect_struct)
+      CALL cp_fm_create(work_vect, col_vect_struct)
 
 !  Take the product of S*coeffs
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_coeffs, work_vect, ncol=ndo_so)
@@ -2423,7 +2428,7 @@ CONTAINS
 
 !  Clean-up
       DEALLOCATE (first_sgf, last_sgf, work_array)
-      CALL cp_fm_release_p(work_vect)
+      CALL cp_fm_release(work_vect)
 
    END SUBROUTINE perform_mulliken_on_donor_state
 
@@ -2456,7 +2461,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, mo_struct
-      TYPE(cp_fm_type), POINTER                          :: lr_coeffs, mo_coeff, work_fm
+      TYPE(cp_fm_type)                                   :: mo_coeff, work_fm
+      TYPE(cp_fm_type), POINTER                          :: lr_coeffs
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -2466,8 +2472,8 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), POINTER                   :: print_key
 
-      NULLIFY (atomic_kind_set, particle_set, qs_kind_set, mo_set, lr_evals, lr_coeffs, mo_coeff)
-      NULLIFY (mo_struct, para_env, blacs_env, fm_struct, matrix_s, work_fm, print_key, logger)
+      NULLIFY (atomic_kind_set, particle_set, qs_kind_set, mo_set, lr_evals, lr_coeffs)
+      NULLIFY (mo_struct, para_env, blacs_env, fm_struct, matrix_s, print_key, logger)
       NULLIFY (bounds, state_list, list, restart_mos, mos)
 
       !Tests on what to do
@@ -2531,7 +2537,7 @@ CONTAINS
 
       CALL cp_fm_struct_create(mo_struct, context=blacs_env, para_env=para_env, &
                                nrow_global=nao, ncol_global=nmo)
-      CALL cp_fm_create_p(mo_coeff, mo_struct)
+      CALL cp_fm_create(mo_coeff, mo_struct)
 
       !Dump the TDDFT excited state AMEW wavefunction into a file for restart in RTP
       IF (do_wfn_restart) THEN
@@ -2582,12 +2588,12 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &
                                      nrow_global=nao, ncol_global=nao)
             CALL cp_fm_create_p(xas_tdp_env%matrix_shalf, fm_struct)
-            CALL cp_fm_create_p(work_fm, fm_struct)
+            CALL cp_fm_create(work_fm, fm_struct)
 
             CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, xas_tdp_env%matrix_shalf)
             CALL cp_fm_power(xas_tdp_env%matrix_shalf, work_fm, 0.5_dp, EPSILON(0.0_dp), n_dependent)
 
-            CALL cp_fm_release_p(work_fm)
+            CALL cp_fm_release(work_fm)
             CALL cp_fm_struct_release(fm_struct)
          END IF
 
@@ -2701,7 +2707,7 @@ CONTAINS
       END DO
 
       !clean-up
-      CALL cp_fm_release_p(mo_coeff)
+      CALL cp_fm_release(mo_coeff)
       CALL cp_fm_struct_release(mo_struct)
       IF (do_cubes) DEALLOCATE (centers, state_list)
 
@@ -2732,12 +2738,12 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, lumo_struct
-      TYPE(cp_fm_type), POINTER                          :: amatrix, bmatrix, evecs, work_fm
+      TYPE(cp_fm_type)                                   :: amatrix, bmatrix, evecs, work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
 
       NULLIFY (matrix_ks, matrix_s, para_env, blacs_env)
-      NULLIFY (lumo_struct, amatrix, bmatrix, work_fm, fm_struct, evecs)
+      NULLIFY (lumo_struct, fm_struct)
 
       CALL timeset(routineN, handle)
 
@@ -2764,10 +2770,10 @@ CONTAINS
          !Going through fm to diagonalize
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=nao, ncol_global=nao)
-         CALL cp_fm_create_p(amatrix, fm_struct)
-         CALL cp_fm_create_p(bmatrix, fm_struct)
-         CALL cp_fm_create_p(evecs, fm_struct)
-         CALL cp_fm_create_p(work_fm, fm_struct)
+         CALL cp_fm_create(amatrix, fm_struct)
+         CALL cp_fm_create(bmatrix, fm_struct)
+         CALL cp_fm_create(evecs, fm_struct)
+         CALL cp_fm_create(work_fm, fm_struct)
          ALLOCATE (evals(nao))
          ALLOCATE (xas_tdp_env%lumo_evals(ispin)%array(nlumo(ispin)))
 
@@ -2791,10 +2797,10 @@ CONTAINS
          CALL build_ot_spin_prec(evecs, evals, ispin, xas_tdp_env, xas_tdp_control, qs_env)
 
          !clean-up
-         CALL cp_fm_release_p(amatrix)
-         CALL cp_fm_release_p(bmatrix)
-         CALL cp_fm_release_p(evecs)
-         CALL cp_fm_release_p(work_fm)
+         CALL cp_fm_release(amatrix)
+         CALL cp_fm_release(bmatrix)
+         CALL cp_fm_release(evecs)
+         CALL cp_fm_release(work_fm)
          CALL cp_fm_struct_release(fm_struct)
          CALL cp_fm_struct_release(lumo_struct)
          DEALLOCATE (evals)
@@ -2817,7 +2823,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_ot_spin_prec(evecs, evals, ispin, xas_tdp_env, xas_tdp_control, qs_env)
 
-      TYPE(cp_fm_type), POINTER                          :: evecs
+      TYPE(cp_fm_type), INTENT(IN)                       :: evecs
       REAL(dp), DIMENSION(:)                             :: evals
       INTEGER                                            :: ispin
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
@@ -2833,18 +2839,18 @@ CONTAINS
       REAL(dp)                                           :: shift
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: scaling
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_prec, work_fm
+      TYPE(cp_fm_type)                                   :: fm_prec, work_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
-      NULLIFY (work_fm, fm_struct, para_env, matrix_s, fm_prec)
+      NULLIFY (fm_struct, para_env, matrix_s)
 
       CALL timeset(routineN, handle)
 
       do_os = xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks
       CALL get_qs_env(qs_env, para_env=para_env, nelectron_spin=nelec_spin, matrix_s=matrix_s)
       CALL cp_fm_get_info(evecs, nrow_global=nao, matrix_struct=fm_struct)
-      CALL cp_fm_create_p(fm_prec, fm_struct)
+      CALL cp_fm_create(fm_prec, fm_struct)
       ALLOCATE (scaling(nao))
       nocc = nelec_spin(1)/2
       nspins = 1
@@ -2870,7 +2876,7 @@ CONTAINS
       scaling(1:nocc) = 1.0_dp
 
       !Building the precond as an fm
-      CALL cp_fm_create_p(work_fm, fm_struct)
+      CALL cp_fm_create(work_fm, fm_struct)
 
       CALL cp_fm_copy_general(evecs, work_fm, para_env)
       CALL cp_fm_column_scale(work_fm, scaling)
@@ -2883,8 +2889,8 @@ CONTAINS
       CALL copy_fm_to_dbcsr(fm_prec, xas_tdp_env%ot_prec(ispin)%matrix)
       CALL dbcsr_filter(xas_tdp_env%ot_prec(ispin)%matrix, xas_tdp_control%eps_filter)
 
-      CALL cp_fm_release_p(work_fm)
-      CALL cp_fm_release_p(fm_prec)
+      CALL cp_fm_release(work_fm)
+      CALL cp_fm_release(fm_prec)
 
       CALL timestop(handle)
 

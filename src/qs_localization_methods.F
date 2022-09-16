@@ -43,8 +43,8 @@ MODULE qs_localization_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
-        cp_fm_maxabsrownorm, cp_fm_maxabsval, cp_fm_p_type, cp_fm_release_p, cp_fm_set_all, &
+        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
+        cp_fm_maxabsrownorm, cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
         cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr
@@ -94,7 +94,7 @@ CONTAINS
 !> \param sweeps ...
 ! **************************************************************************************************
    SUBROUTINE approx_l1_norm_sd(C, iterations, eps, converged, sweeps)
-      TYPE(cp_fm_type), POINTER                          :: C
+      TYPE(cp_fm_type), INTENT(IN)                       :: C
       INTEGER, INTENT(IN)                                :: iterations
       REAL(KIND=dp), INTENT(IN)                          :: eps
       LOGICAL, INTENT(INOUT)                             :: converged
@@ -109,12 +109,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: expfactor, f2, f2old, gnorm, tnorm
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_k_k
-      TYPE(cp_fm_type), POINTER                          :: CTmp, G, Gp1, Gp2, U
+      TYPE(cp_fm_type)                                   :: CTmp, G, Gp1, Gp2, U
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (CTmp, U, G, Gp1, Gp2, context, para_env, fm_struct_k_k)
+      NULLIFY (context, para_env, fm_struct_k_k)
 
       output_unit = cp_logger_get_default_io_unit()
 
@@ -123,11 +123,11 @@ CONTAINS
                             para_env=para_env, context=context)
       CALL cp_fm_struct_create(fm_struct_k_k, para_env=para_env, context=context, &
                                nrow_global=k, ncol_global=k)
-      CALL cp_fm_create_p(CTmp, C%matrix_struct)
-      CALL cp_fm_create_p(U, fm_struct_k_k)
-      CALL cp_fm_create_p(G, fm_struct_k_k)
-      CALL cp_fm_create_p(Gp1, fm_struct_k_k)
-      CALL cp_fm_create_p(Gp2, fm_struct_k_k)
+      CALL cp_fm_create(CTmp, C%matrix_struct)
+      CALL cp_fm_create(U, fm_struct_k_k)
+      CALL cp_fm_create(G, fm_struct_k_k)
+      CALL cp_fm_create(Gp1, fm_struct_k_k)
+      CALL cp_fm_create(Gp2, fm_struct_k_k)
       !
       ! printing
       IF (output_unit > 0) THEN
@@ -245,11 +245,11 @@ CONTAINS
       !
       ! deallocate
       CALL cp_fm_struct_release(fm_struct_k_k)
-      CALL cp_fm_release_p(CTmp)
-      CALL cp_fm_release_p(U)
-      CALL cp_fm_release_p(G)
-      CALL cp_fm_release_p(Gp1)
-      CALL cp_fm_release_p(Gp2)
+      CALL cp_fm_release(CTmp)
+      CALL cp_fm_release(U)
+      CALL cp_fm_release(G)
+      CALL cp_fm_release(Gp1)
+      CALL cp_fm_release(Gp2)
 
       CALL timestop(handle)
 
@@ -298,7 +298,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
@@ -330,7 +330,7 @@ CONTAINS
                                       out_each)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: sweeps
@@ -344,17 +344,17 @@ CONTAINS
       REAL(KIND=dp)                                      :: ct, st, t1, t2, theta, tolerance
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: c_zij
       TYPE(cp_cfm_type), POINTER                         :: c_rmat
-      TYPE(cp_fm_type), POINTER                          :: rmat
+      TYPE(cp_fm_type)                                   :: rmat
 
       CALL timeset(routineN, handle)
 
       dim2 = SIZE(zij, 2)
-      NULLIFY (rmat, c_rmat, c_zij)
+      NULLIFY (c_rmat, c_zij)
       ALLOCATE (c_zij(dim2))
       NULLIFY (mii, mij, mjj)
       ALLOCATE (mii(dim2), mij(dim2), mjj(dim2))
 
-      CALL cp_fm_create_p(rmat, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(rmat, zij(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(rmat, 0._dp, 1._dp)
 
       CALL cp_cfm_create_p(c_rmat, zij(1, 1)%matrix%matrix_struct)
@@ -418,7 +418,7 @@ CONTAINS
       rmat%local_data = REAL(c_rmat%local_data, dp)
       CALL cp_cfm_release_p(c_rmat)
       CALL rotate_orbitals(rmat, vectors)
-      CALL cp_fm_release_p(rmat)
+      CALL cp_fm_release(rmat)
 
       CALL timestop(handle)
 
@@ -591,14 +591,14 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: zij(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iter
       INTEGER, INTENT(IN)                                :: out_each, nextra
       LOGICAL, INTENT(IN)                                :: do_cg
       INTEGER, INTENT(IN), OPTIONAL                      :: nmo
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, POINTER    :: vectors_2, mos_guess
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: vectors_2, mos_guess
 
       CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_cg_edf_ls', &
          routineP = moduleN//':'//routineN
@@ -627,17 +627,16 @@ CONTAINS
                                                             grad_ctilde, skc, tmp_cfm, tmp_cfm_1, &
                                                             tmp_cfm_2, U, UL, V, VL, zdiag
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: id_nextra, matrix_U, matrix_V, &
+      TYPE(cp_fm_type)                                   :: id_nextra, matrix_U, matrix_V, &
                                                             matrix_V_all, rmat, tmp_fm, vectors_all
 
       CALL timeset(routineN, handle)
 
       dim2 = SIZE(zij, 2)
       NULLIFY (context)
-      NULLIFY (rmat, c_zij, matrix_zii, arr_zii)
-      NULLIFY (U, UL, matrix_U)
+      NULLIFY (c_zij, matrix_zii, arr_zii)
+      NULLIFY (U, UL)
       NULLIFY (tmp_fm_struct)
-      NULLIFY (tmp_fm)
       NULLIFY (tmp_cfm, tmp_cfm_1, tmp_cfm_2)
       NULLIFY (tmp_arr)
 
@@ -663,7 +662,7 @@ CONTAINS
       ALLOCATE (zij_0(dim2))
 
       CALL cp_cfm_create_p(U, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(matrix_U, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_U, zij(1, 1)%matrix%matrix_struct)
 
       CALL cp_cfm_set_all(U, czero, cone)
       CALL cp_fm_set_all(matrix_U, 0.0_dp, 1.0_dp)
@@ -693,10 +692,8 @@ CONTAINS
          norextra = nmo - nstate
          CALL cp_fm_struct_get(zij(1, 1)%matrix%matrix_struct, context=context)
 
-         NULLIFY (c_tilde, V, VL, grad_ctilde, id_nextra, zdiag, tmp_cfm, &
-                  tmp_cfm_1, ctrans_lambda, tmp_cfm_2, skc, Gct_old, &
-                  vectors_all)
-         NULLIFY (matrix_V, matrix_V_all)
+         NULLIFY (c_tilde, V, VL, grad_ctilde, zdiag, tmp_cfm, &
+                  tmp_cfm_1, ctrans_lambda, tmp_cfm_2, skc, Gct_old)
 
          ALLOCATE (tmp_cmat(nstate, nstate))
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, ncol_global=nmo, &
@@ -714,16 +711,16 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, ncol_global=nstate, &
                                   para_env=para_env, context=context)
          CALL cp_cfm_create_p(V, tmp_fm_struct)
-         CALL cp_fm_create_p(matrix_V, tmp_fm_struct)
+         CALL cp_fm_create(matrix_V, tmp_fm_struct)
          CALL cp_cfm_create_p(zdiag, tmp_fm_struct)
-         CALL cp_fm_create_p(rmat, tmp_fm_struct)
+         CALL cp_fm_create(rmat, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          CALL cp_cfm_set_all(V, czero, cone)
          CALL cp_fm_set_all(matrix_V, 0.0_dp, 1.0_dp)
 
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, ncol_global=ndummy, &
                                   para_env=para_env, context=context)
-         CALL cp_fm_create_p(matrix_V_all, tmp_fm_struct)
+         CALL cp_fm_create(matrix_V_all, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          CALL cp_fm_set_all(matrix_V_all, 0._dp, 1._dp)
 
@@ -748,7 +745,7 @@ CONTAINS
 
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nextra, ncol_global=nextra, &
                                   para_env=para_env, context=context)
-         CALL cp_fm_create_p(id_nextra, tmp_fm_struct)
+         CALL cp_fm_create(id_nextra, tmp_fm_struct)
          CALL cp_cfm_create_p(ctrans_lambda, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          CALL cp_cfm_set_all(ctrans_lambda, czero)
@@ -762,7 +759,7 @@ CONTAINS
 
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, ncol_global=nmo, &
                                   para_env=para_env, context=context)
-         CALL cp_fm_create_p(vectors_all, tmp_fm_struct)
+         CALL cp_fm_create(vectors_all, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          ALLOCATE (tmp_mat(nao, nstate))
          CALL cp_fm_get_submatrix(vectors, tmp_mat)
@@ -777,11 +774,11 @@ CONTAINS
          SELECT CASE (icinit)
          CASE (1) ! random coefficients
             !WRITE (*, *) "RANDOM INITIAL GUESS FOR C"
-            CALL cp_fm_create_p(tmp_fm, c_tilde%matrix_struct)
+            CALL cp_fm_create(tmp_fm, c_tilde%matrix_struct)
             CALL cp_fm_init_random(tmp_fm, nextra)
             CALL make_basis_simple(tmp_fm, nextra)
             c_tilde%local_data = tmp_fm%local_data
-            CALL cp_fm_release_p(tmp_fm)
+            CALL cp_fm_release(tmp_fm)
             ALLOCATE (tmp_cmat(northo, nextra))
             CALL cp_cfm_get_submatrix(c_tilde, tmp_cmat)
             CALL cp_cfm_set_submatrix(V, tmp_cmat, nocc + 1, nocc + 1, northo, nextra)
@@ -823,13 +820,13 @@ CONTAINS
 
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=northo, ncol_global=nextra, &
                                      para_env=para_env, context=context)
-            CALL cp_fm_create_p(tmp_fm, tmp_fm_struct)
+            CALL cp_fm_create(tmp_fm, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
             CALL cp_fm_set_submatrix(tmp_fm, tmp_mat_1)
             DEALLOCATE (tmp_mat_1)
             CALL make_basis_simple(tmp_fm, nextra)
             CALL cp_fm_to_cfm(msourcer=tmp_fm, mtarget=c_tilde)
-            CALL cp_fm_release_p(tmp_fm)
+            CALL cp_fm_release(tmp_fm)
             ! initialize U
             IF (do_U_guess_mo) THEN
                ALLOCATE (tmp_cmat(nocc, nstate))
@@ -845,11 +842,11 @@ CONTAINS
                CALL cp_cfm_get_submatrix(UL, tmp_cmat, 1, 1, nextra, nstate)
                CALL cp_cfm_set_submatrix(U, tmp_cmat, nocc + 1, 1, nextra, nstate)
                DEALLOCATE (tmp_cmat)
-               CALL cp_fm_create_p(tmp_fm, U%matrix_struct)
+               CALL cp_fm_create(tmp_fm, U%matrix_struct)
                tmp_fm%local_data = REAL(U%local_data, KIND=dp)
                CALL make_basis_simple(tmp_fm, nstate)
                CALL cp_fm_to_cfm(msourcer=tmp_fm, mtarget=U)
-               CALL cp_fm_release_p(tmp_fm)
+               CALL cp_fm_release(tmp_fm)
                CALL cp_cfm_to_fm(U, matrix_U)
             END IF
             ! reevaluate V
@@ -873,7 +870,7 @@ CONTAINS
             CALL cp_cfm_create_p(zij_0(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
             CALL cp_cfm_to_cfm(c_zij(idim)%matrix, zij_0(idim)%matrix)
          END DO
-         CALL cp_fm_create_p(rmat, zij(1, 1)%matrix%matrix_struct)
+         CALL cp_fm_create(rmat, zij(1, 1)%matrix%matrix_struct)
          CALL cp_fm_set_all(rmat, 0._dp, 1._dp)
       END IF
 
@@ -924,11 +921,11 @@ CONTAINS
             DEALLOCATE (tmp_cmat)
             IF (iter > 1) THEN
                ! orthonormalize c_tilde
-               CALL cp_fm_create_p(tmp_fm, c_tilde%matrix_struct)
+               CALL cp_fm_create(tmp_fm, c_tilde%matrix_struct)
                tmp_fm%local_data = REAL(c_tilde%local_data, KIND=dp)
                CALL make_basis_simple(tmp_fm, nextra)
                CALL cp_fm_to_cfm(msourcer=tmp_fm, mtarget=c_tilde)
-               CALL cp_fm_release_p(tmp_fm)
+               CALL cp_fm_release(tmp_fm)
 
                ALLOCATE (tmp_cmat(nocc, nstate))
                CALL cp_cfm_get_submatrix(U, tmp_cmat, 1, 1, nocc, nstate)
@@ -1040,10 +1037,10 @@ CONTAINS
          ! tolerance
          IF (nextra > 0) THEN
             tolc = 0.0_dp
-            CALL cp_fm_create_p(tmp_fm, grad_ctilde%matrix_struct)
+            CALL cp_fm_create(tmp_fm, grad_ctilde%matrix_struct)
             CALL cp_cfm_to_fm(grad_ctilde, tmp_fm)
             CALL cp_fm_maxabsval(tmp_fm, tolc)
-            CALL cp_fm_release_p(tmp_fm)
+            CALL cp_fm_release(tmp_fm)
             !WRITE(*,*) 'tolc = ', tolc
             tol = tol + tolc
          END IF
@@ -1210,11 +1207,11 @@ CONTAINS
          CALL cp_cfm_release_p(UL)
          CALL cp_cfm_release_p(zdiag)
          CALL cp_cfm_release_p(ctrans_lambda)
-         CALL cp_fm_release_p(id_nextra)
-         CALL cp_fm_release_p(vectors_all)
+         CALL cp_fm_release(id_nextra)
+         CALL cp_fm_release(vectors_all)
          CALL cp_cfm_release_p(V)
-         CALL cp_fm_release_p(matrix_V)
-         CALL cp_fm_release_p(matrix_V_all)
+         CALL cp_fm_release(matrix_V)
+         CALL cp_fm_release(matrix_V_all)
          CALL cp_cfm_release_p(VL)
          DEALLOCATE (arr_zii)
       ELSE
@@ -1232,9 +1229,9 @@ CONTAINS
          CALL cp_cfm_release_p(c_zij(idim)%matrix)
       END DO
       DEALLOCATE (c_zij)
-      CALL cp_fm_release_p(rmat)
+      CALL cp_fm_release(rmat)
       CALL cp_cfm_release_p(U)
-      CALL cp_fm_release_p(matrix_U)
+      CALL cp_fm_release(matrix_U)
       DEALLOCATE (matrix_zii, sum_spread)
 
       CALL timestop(handle)
@@ -1372,24 +1369,23 @@ CONTAINS
       TYPE(cp_cfm_p_type)                                :: zij(:)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       REAL(KIND=dp), INTENT(OUT)                         :: tolerance
-      TYPE(cp_fm_type), INTENT(OUT), OPTIONAL, POINTER   :: grad
+      TYPE(cp_fm_type), INTENT(OUT), OPTIONAL            :: grad
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'check_tolerance'
 
       INTEGER                                            :: handle
-      TYPE(cp_fm_type), POINTER                          :: force
+      TYPE(cp_fm_type)                                   :: force
 
       CALL timeset(routineN, handle)
 
 ! compute gradient at t=0
 
-      NULLIFY (force)
-      CALL cp_fm_create_p(force, zij(1)%matrix%matrix_struct)
+      CALL cp_fm_create(force, zij(1)%matrix%matrix_struct)
       CALL cp_fm_set_all(force, 0._dp)
       CALL grad_at_0(zij, weights, force)
       CALL cp_fm_maxabsval(force, tolerance)
       IF (PRESENT(grad)) CALL cp_fm_to_fm(force, grad)
-      CALL cp_fm_release_p(force)
+      CALL cp_fm_release(force)
 
       CALL timestop(handle)
 
@@ -1400,17 +1396,16 @@ CONTAINS
 !> \param vectors ...
 ! **************************************************************************************************
    SUBROUTINE rotate_orbitals(rmat, vectors)
-      TYPE(cp_fm_type), POINTER                          :: rmat, vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: rmat, vectors
 
       INTEGER                                            :: k, n
-      TYPE(cp_fm_type), POINTER                          :: wf
+      TYPE(cp_fm_type)                                   :: wf
 
-      NULLIFY (wf)
-      CALL cp_fm_create_p(wf, vectors%matrix_struct)
+      CALL cp_fm_create(wf, vectors%matrix_struct)
       CALL cp_fm_get_info(vectors, nrow_global=n, ncol_global=k)
       CALL parallel_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf)
       CALL cp_fm_to_fm(wf, vectors)
-      CALL cp_fm_release_p(wf)
+      CALL cp_fm_release(wf)
    END SUBROUTINE rotate_orbitals
 ! **************************************************************************************************
 !> \brief ...
@@ -1419,19 +1414,18 @@ CONTAINS
 !> \param vectors ...
 ! **************************************************************************************************
    SUBROUTINE rotate_orbitals_edf(rmat, vec_all, vectors)
-      TYPE(cp_fm_type), POINTER                          :: rmat, vec_all, vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: rmat, vec_all, vectors
 
       INTEGER                                            :: k, l, n
-      TYPE(cp_fm_type), POINTER                          :: wf
+      TYPE(cp_fm_type)                                   :: wf
 
-      NULLIFY (wf)
-      CALL cp_fm_create_p(wf, vectors%matrix_struct)
+      CALL cp_fm_create(wf, vectors%matrix_struct)
       CALL cp_fm_get_info(vec_all, nrow_global=n, ncol_global=k)
       CALL cp_fm_get_info(rmat, ncol_global=l)
 
       CALL parallel_gemm("N", "N", n, l, k, 1.0_dp, vec_all, rmat, 0.0_dp, wf)
       CALL cp_fm_to_fm(wf, vectors)
-      CALL cp_fm_release_p(wf)
+      CALL cp_fm_release(wf)
    END SUBROUTINE rotate_orbitals_edf
 ! **************************************************************************************************
 !> \brief ...
@@ -1443,7 +1437,7 @@ CONTAINS
    SUBROUTINE gradsq_at_0(diag, weights, matrix, ndim)
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: diag
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: ndim
 
       COMPLEX(KIND=dp)                                   :: zii, zjj
@@ -1479,7 +1473,7 @@ CONTAINS
    SUBROUTINE grad_at_0(matrix_p, weights, matrix)
       TYPE(cp_cfm_p_type)                                :: matrix_p(:)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
 
       COMPLEX(KIND=dp)                                   :: zii, zij, zjj
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: diag
@@ -1528,7 +1522,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_tolerance_new(weights, zij, tolerance, value)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
+      TYPE(cp_fm_p_type), INTENT(IN)                     :: ZIJ(:, :)
       REAL(KIND=dp)                                      :: tolerance, value
 
       COMPLEX(KIND=dp)                                   :: kii, kij, kjj
@@ -1592,7 +1586,7 @@ CONTAINS
                               eps_localization, iterations, converged)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: max_crazy_angle
       REAL(KIND=dp)                                      :: crazy_scale
@@ -1618,11 +1612,10 @@ CONTAINS
                                                             norm, ra, rb, theta, tolerance, value
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals
       TYPE(cp_cfm_type), POINTER                         :: cmat_A, cmat_R, cmat_t1
-      TYPE(cp_fm_type), POINTER                          :: mat_R, mat_t, mat_theta, mat_U
+      TYPE(cp_fm_type)                                   :: mat_R, mat_t, mat_theta, mat_U
 
       CALL timeset(routineN, handle)
       NULLIFY (row_indices, col_indices)
-      NULLIFY (mat_U, mat_t, mat_R)
       NULLIFY (cmat_A, cmat_R, cmat_t1)
       CALL cp_fm_get_info(zij(1, 1)%matrix, nrow_global=nrow_global, &
                           ncol_global=ncol_global, &
@@ -1641,12 +1634,11 @@ CONTAINS
       CALL cp_cfm_create_p(cmat_R, zij(1, 1)%matrix%matrix_struct)
       CALL cp_cfm_create_p(cmat_t1, zij(1, 1)%matrix%matrix_struct)
 
-      CALL cp_fm_create_p(mat_U, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(mat_t, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(mat_R, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(mat_U, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(mat_t, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(mat_R, zij(1, 1)%matrix%matrix_struct)
 
-      NULLIFY (mat_theta)
-      CALL cp_fm_create_p(mat_theta, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(mat_theta, zij(1, 1)%matrix%matrix_struct)
 
       CALL cp_fm_set_all(mat_R, 0.0_dp, 1.0_dp)
       CALL cp_fm_set_all(mat_t, 0.0_dp)
@@ -1763,13 +1755,13 @@ CONTAINS
       CALL cp_cfm_release_p(cmat_R)
       CALL cp_cfm_release_p(cmat_T1)
 
-      CALL cp_fm_release_p(mat_U)
-      CALL cp_fm_release_p(mat_T)
-      CALL cp_fm_release_p(mat_theta)
+      CALL cp_fm_release(mat_U)
+      CALL cp_fm_release(mat_T)
+      CALL cp_fm_release(mat_theta)
 
       CALL rotate_orbitals(mat_R, vectors)
 
-      CALL cp_fm_release_p(mat_R)
+      CALL cp_fm_release(mat_R)
       DEALLOCATE (evals_exp, evals, diag_z)
       DEALLOCATE (mii, mij, mjj)
 
@@ -1794,7 +1786,7 @@ CONTAINS
    SUBROUTINE direct_mini(weights, zij, vectors, max_iter, eps_localization, iterations)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iterations
@@ -1822,12 +1814,11 @@ CONTAINS
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: c_zij
       TYPE(cp_cfm_type), POINTER                         :: cmat_A, cmat_B, cmat_M, cmat_R, cmat_t1, &
                                                             cmat_t2, cmat_U
-      TYPE(cp_fm_type), POINTER                          :: matrix_A, matrix_G, matrix_G_old, &
+      TYPE(cp_fm_type)                                   :: matrix_A, matrix_G, matrix_G_old, &
                                                             matrix_G_search, matrix_H, matrix_R, &
                                                             matrix_T
 
       NULLIFY (evals, evals_exp, diag_z, fval, fvald, c_zij)
-      NULLIFY (matrix_A, matrix_G, matrix_T, matrix_G_search, matrix_G_old)
       NULLIFY (cmat_A, cmat_U, cmat_R, cmat_t1, cmat_t2, cmat_B, cmat_M)
 
       CALL timeset(routineN, handle)
@@ -1852,13 +1843,13 @@ CONTAINS
                                                zij(2, idim)%matrix%local_data, dp)
       END DO
 
-      CALL cp_fm_create_p(matrix_A, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(matrix_G, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(matrix_T, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(matrix_H, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(matrix_G_search, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(matrix_G_old, zij(1, 1)%matrix%matrix_struct)
-      CALL cp_fm_create_p(matrix_R, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_A, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_G, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_T, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_H, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_G_search, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_G_old, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(matrix_R, zij(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(matrix_R, 0.0_dp, 1.0_dp)
 
       CALL cp_fm_set_all(matrix_A, 0.0_dp)
@@ -2154,14 +2145,14 @@ CONTAINS
       CALL parallel_gemm('N', 'N', n, n, n, 1.0_dp, matrix_R, matrix_H, 0.0_dp, matrix_T)
       CALL cp_fm_to_fm(matrix_T, matrix_R)
       CALL rotate_orbitals(matrix_R, vectors)
-      CALL cp_fm_release_p(matrix_R)
+      CALL cp_fm_release(matrix_R)
 
-      CALL cp_fm_release_p(matrix_A)
-      CALL cp_fm_release_p(matrix_G)
-      CALL cp_fm_release_p(matrix_H)
-      CALL cp_fm_release_p(matrix_T)
-      CALL cp_fm_release_p(matrix_G_search)
-      CALL cp_fm_release_p(matrix_G_old)
+      CALL cp_fm_release(matrix_A)
+      CALL cp_fm_release(matrix_G)
+      CALL cp_fm_release(matrix_H)
+      CALL cp_fm_release(matrix_T)
+      CALL cp_fm_release(matrix_G_search)
+      CALL cp_fm_release(matrix_G_old)
       CALL cp_cfm_release_p(cmat_A)
       CALL cp_cfm_release_p(cmat_U)
       CALL cp_cfm_release_p(cmat_R)
@@ -2205,7 +2196,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
@@ -2221,18 +2212,18 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ns_bound
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rotmat, z_ij_loc_im, z_ij_loc_re
       REAL(KIND=dp)                                      :: xstate
-      TYPE(cp_fm_type), POINTER                          :: rmat
+      TYPE(cp_fm_type)                                   :: rmat
       TYPE(set_c_2d_type), DIMENSION(:), POINTER         :: cz_ij_loc
 
       CALL timeset(routineN, handle)
 
       output_unit = cp_logger_get_default_io_unit()
 
-      NULLIFY (rmat, cz_ij_loc)
+      NULLIFY (cz_ij_loc)
 
       dim2 = SIZE(zij, 2)
 
-      CALL cp_fm_create_p(rmat, zij(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(rmat, zij(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(rmat, 0._dp, 1._dp)
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
@@ -2329,7 +2320,7 @@ CONTAINS
 
       CALL mp_sync(para_env%group)
       CALL rotate_orbitals(rmat, vectors)
-      CALL cp_fm_release_p(rmat)
+      CALL cp_fm_release(rmat)
 
       DEALLOCATE (rotmat)
       DEALLOCATE (ns_bound)
@@ -3000,22 +2991,21 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE zij_matrix(vectors, op_sm_set, zij_fm_set)
 
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'zij_matrix'
 
       INTEGER                                            :: handle, i, j, nao, nmoloc
-      TYPE(cp_fm_type), POINTER                          :: opvec
+      TYPE(cp_fm_type)                                   :: opvec
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (opvec)
       ! get rows and cols of the input
       CALL cp_fm_get_info(vectors, nrow_global=nao, ncol_global=nmoloc)
       ! replicate the input kind of matrix
-      CALL cp_fm_create_p(opvec, vectors%matrix_struct)
+      CALL cp_fm_create(opvec, vectors%matrix_struct)
 
       ! Compute zij here
       DO i = 1, SIZE(zij_fm_set, 2)
@@ -3027,7 +3017,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL cp_fm_release_p(opvec)
+      CALL cp_fm_release(opvec)
       CALL timestop(handle)
 
    END SUBROUTINE zij_matrix
@@ -3038,14 +3028,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scdm_qrfact(vectors)
 
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'scdm_qrfact'
 
       INTEGER                                            :: handle, ncolT, nrowT
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       TYPE(cp_fm_struct_type), POINTER                   :: cstruct
-      TYPE(cp_fm_type), POINTER                          :: CTp, Qf, tmp
+      TYPE(cp_fm_type)                                   :: CTp, Qf, tmp
 
       CALL timeset(routineN, handle)
 
@@ -3056,7 +3046,7 @@ CONTAINS
       CALL cp_fm_struct_create(cstruct, vectors%matrix_struct%para_env, &
                                vectors%matrix_struct%context, nrowT, ncolT, vectors%matrix_struct%ncol_block, &
                                vectors%matrix_struct%nrow_block, first_p_pos=vectors%matrix_struct%first_p_pos)
-      CALL cp_fm_create_p(CTp, cstruct)
+      CALL cp_fm_create(CTp, cstruct)
       CALL cp_fm_struct_release(cstruct)
 
       ALLOCATE (tau(nrowT))
@@ -3070,7 +3060,7 @@ CONTAINS
       CALL cp_fm_struct_create(cstruct, para_env=CTp%matrix_struct%para_env, &
                                context=CTp%matrix_struct%context, nrow_global=CTp%matrix_struct%nrow_global, &
                                ncol_global=CTp%matrix_struct%nrow_global)
-      CALL cp_fm_create_p(Qf, cstruct)
+      CALL cp_fm_create(Qf, cstruct)
       CALL cp_fm_struct_release(cstruct)
       CALL cp_fm_to_fm_submat(CTp, Qf, nrowT, nrowT, 1, 1, 1, 1)
 
@@ -3078,15 +3068,15 @@ CONTAINS
       CALL cp_fm_pdorgqr(Qf, tau, nrowT, 1, 1)
 
       ! Transform original coefficient matrix vectors
-      CALL cp_fm_create_p(tmp, vectors%matrix_struct)
+      CALL cp_fm_create(tmp, vectors%matrix_struct)
       CALL cp_fm_set_all(tmp, 0.0_dp, 1.0_dp)
       CALL cp_fm_to_fm(vectors, tmp)
       CALL parallel_gemm('N', 'N', ncolT, nrowT, nrowT, 1.0_dp, tmp, Qf, 0.0_dp, vectors)
 
       ! Cleanup
-      CALL cp_fm_release_p(CTp)
-      CALL cp_fm_release_p(tmp)
-      CALL cp_fm_release_p(Qf)
+      CALL cp_fm_release(CTp)
+      CALL cp_fm_release(tmp)
+      CALL cp_fm_release(Qf)
       DEALLOCATE (tau)
 
       CALL timestop(handle)

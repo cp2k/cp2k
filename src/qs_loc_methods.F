@@ -37,8 +37,9 @@ MODULE qs_loc_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
-        cp_fm_p_type, cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
+        cp_fm_init_random, cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, &
+        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -174,7 +175,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -183,7 +184,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN), OPTIONAL                      :: nextra, nmo
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, POINTER    :: vectors_2, guess_mos
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: vectors_2, guess_mos
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry'
 
@@ -326,7 +327,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
@@ -337,7 +338,8 @@ CONTAINS
                                                             ncol, nmoloc, output_unit, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
-      TYPE(cp_fm_type), POINTER                          :: opvec, ov_fm
+      TYPE(cp_fm_type)                                   :: opvec
+      TYPE(cp_fm_type), POINTER                          :: ov_fm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -353,7 +355,7 @@ CONTAINS
       CALL cp_fm_get_info(vectors, nrow_global=nao, ncol_global=nmoloc)
 
       ! replicate the input kind of matrix
-      CALL cp_fm_create_p(opvec, vectors%matrix_struct)
+      CALL cp_fm_create(opvec, vectors%matrix_struct)
       CALL cp_fm_set_all(opvec, 0.0_dp)
 
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
@@ -423,7 +425,7 @@ CONTAINS
 
       DEALLOCATE (first_sgf, last_sgf, nsgf)
 
-      CALL cp_fm_release_p(opvec)
+      CALL cp_fm_release(opvec)
       CALL cp_print_key_finished_output(output_unit, logger, print_loc_section, "PROGRAM_RUN_INFO")
 
       CALL timestop(handle)
@@ -651,7 +653,7 @@ CONTAINS
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN), OPTIONAL                      :: myspin
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: ext_mo_coeff
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: ext_mo_coeff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_driver'
 
@@ -672,8 +674,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mos_guess, tmp_fm, tmp_fm_1, &
-                                                            vectors_2
+      TYPE(cp_fm_type)                                   :: mos_guess, tmp_fm, tmp_fm_1, vectors_2
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, op_sm_set
@@ -790,12 +792,11 @@ CONTAINS
 
             IF (localized_wfn_control%do_mixed) THEN
                IF (nextra > 0) THEN
-                  NULLIFY (vectors_2, mos_guess, tmp_fm, tmp_fm_1)
                   norextra = nmo - nmosub
                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
                   CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                            ncol_global=norextra, para_env=para_env, context=mo_coeff%matrix_struct%context)
-                  CALL cp_fm_create_p(vectors_2, tmp_fm_struct)
+                  CALL cp_fm_create(vectors_2, tmp_fm_struct)
                   CALL cp_fm_struct_release(tmp_fm_struct)
                   ALLOCATE (tmp_mat(nao, norextra))
                   CALL cp_fm_get_submatrix(mo_coeff, tmp_mat, 1, nmosub + 1)
@@ -819,12 +820,12 @@ CONTAINS
                      CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                               ncol_global=ndummy, para_env=para_env, &
                                               context=mo_coeff%matrix_struct%context)
-                     CALL cp_fm_create_p(mos_guess, tmp_fm_struct)
+                     CALL cp_fm_create(mos_guess, tmp_fm_struct)
                      CALL cp_fm_set_all(mos_guess, 0.0_dp)
 
                      IF (my_guess_atomic) THEN
-                        CALL cp_fm_create_p(tmp_fm, tmp_fm_struct)
-                        CALL cp_fm_create_p(tmp_fm_1, tmp_fm_struct)
+                        CALL cp_fm_create(tmp_fm, tmp_fm_struct)
+                        CALL cp_fm_create(tmp_fm_1, tmp_fm_struct)
                         CALL cp_fm_set_all(tmp_fm, 0.0_dp)
                         CALL cp_fm_set_all(tmp_fm_1, 0.0_dp)
                         CALL cp_fm_init_random(tmp_fm, ndummy)
@@ -835,8 +836,8 @@ CONTAINS
                            CALL cp_dbcsr_sm_fm_multiply(refmatrix, tmp_fm, tmp_fm_1, ndummy)
                         END IF
                         CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, tmp_fm_1, mos_guess, ndummy)
-                        CALL cp_fm_release_p(tmp_fm)
-                        CALL cp_fm_release_p(tmp_fm_1)
+                        CALL cp_fm_release(tmp_fm)
+                        CALL cp_fm_release(tmp_fm_1)
                         CALL cp_fm_struct_release(tmp_fm_struct)
                      ELSEIF (my_guess_wan) THEN
                         nguess = localized_wfn_control%nguess(ispin)
@@ -851,13 +852,13 @@ CONTAINS
                            CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                                     ncol_global=ngextra, para_env=para_env, &
                                                     context=mo_coeff%matrix_struct%context)
-                           CALL cp_fm_create_p(tmp_fm, tmp_fm_struct)
+                           CALL cp_fm_create(tmp_fm, tmp_fm_struct)
                            CALL cp_fm_init_random(tmp_fm, ngextra)
                            ALLOCATE (tmp_mat(nao, ngextra))
                            CALL cp_fm_get_submatrix(tmp_fm, tmp_mat, 1, 1, nao, ngextra)
                            CALL cp_fm_set_submatrix(mos_guess, tmp_mat, 1, nguess + 1, nao, ngextra)
                            DEALLOCATE (tmp_mat)
-                           CALL cp_fm_release_p(tmp_fm)
+                           CALL cp_fm_release(tmp_fm)
                            CALL cp_fm_struct_release(tmp_fm_struct)
                         ELSE
                            do_ortho = .FALSE.
@@ -883,13 +884,13 @@ CONTAINS
                                              op_fm_set, para_env, cell, weights, ispin, print_loc_section, &
                                              nextra=nextra, nmo=nmo, vectors_2=vectors_2, &
                                              guess_mos=mos_guess)
-                     CALL cp_fm_release_p(mos_guess)
+                     CALL cp_fm_release(mos_guess)
                   ELSE
                      CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set, &
                                              op_fm_set, para_env, cell, weights, ispin, print_loc_section, &
                                              nextra=nextra, nmo=nmo, vectors_2=vectors_2)
                   END IF
-                  CALL cp_fm_release_p(vectors_2)
+                  CALL cp_fm_release(vectors_2)
                ELSE
                   CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set, &
                                           op_fm_set, para_env, cell, weights, ispin, print_loc_section, nextra=0)
@@ -1064,7 +1065,7 @@ CONTAINS
                              print_key, root, ispin, idir, state0, file_position)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: nstates
       INTEGER, DIMENSION(:), POINTER                     :: state_list
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
@@ -1345,7 +1346,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(6)                        :: cov
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_localized, momv, mvector, omvector
+      TYPE(cp_fm_type)                                   :: momv, mvector, omvector
+      TYPE(cp_fm_type), POINTER                          :: mo_localized
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
@@ -1406,9 +1408,9 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=1, &
                                   para_env=mo_localized%matrix_struct%para_env, &
                                   context=mo_localized%matrix_struct%context)
-         CALL cp_fm_create_p(mvector, fm_struct, name="mvector")
-         CALL cp_fm_create_p(omvector, fm_struct, name="omvector")
-         CALL cp_fm_create_p(momv, fm_struct, name="omvector")
+         CALL cp_fm_create(mvector, fm_struct, name="mvector")
+         CALL cp_fm_create(omvector, fm_struct, name="omvector")
+         CALL cp_fm_create(momv, fm_struct, name="omvector")
          CALL cp_fm_struct_release(fm_struct)
 
          !cp_fm_to_fm_columns(msource, mtarget, ncol, source_start,target_start)
@@ -1421,9 +1423,9 @@ CONTAINS
             moment_set(imoment, istate) = SUM(momv%local_data)
          END DO
          !
-         CALL cp_fm_release_p(mvector)
-         CALL cp_fm_release_p(omvector)
-         CALL cp_fm_release_p(momv)
+         CALL cp_fm_release(mvector)
+         CALL cp_fm_release(omvector)
+         CALL cp_fm_release(momv)
 
          DO imoment = 1, nm
             CALL dbcsr_deallocate_matrix(moments(imoment)%matrix)
@@ -1496,7 +1498,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_localized, momv, mvector, omvector
+      TYPE(cp_fm_type)                                   :: momv, mvector, omvector
+      TYPE(cp_fm_type), POINTER                          :: mo_localized
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
@@ -1560,9 +1563,9 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=1, &
                                   para_env=mo_localized%matrix_struct%para_env, &
                                   context=mo_localized%matrix_struct%context)
-         CALL cp_fm_create_p(mvector, fm_struct, name="mvector")
-         CALL cp_fm_create_p(omvector, fm_struct, name="omvector")
-         CALL cp_fm_create_p(momv, fm_struct, name="omvector")
+         CALL cp_fm_create(mvector, fm_struct, name="mvector")
+         CALL cp_fm_create(omvector, fm_struct, name="omvector")
+         CALL cp_fm_create(momv, fm_struct, name="omvector")
          CALL cp_fm_struct_release(fm_struct)
 
          ! cp_fm_to_fm_columns(msource, mtarget, ncol, source_start,target_start)
@@ -1574,9 +1577,9 @@ CONTAINS
             moment_set(imoment, istate) = SUM(momv%local_data)
          END DO
          !
-         CALL cp_fm_release_p(mvector)
-         CALL cp_fm_release_p(omvector)
-         CALL cp_fm_release_p(momv)
+         CALL cp_fm_release(mvector)
+         CALL cp_fm_release(omvector)
+         CALL cp_fm_release(momv)
 
          DO imoment = 1, nm
             CALL dbcsr_deallocate_matrix(moments(imoment)%matrix)

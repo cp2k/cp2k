@@ -37,8 +37,8 @@ MODULE xas_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_element, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release_p, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -1227,7 +1227,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xas_section
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_fm_type), POINTER                          :: all_vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: all_vectors
       INTEGER, INTENT(IN)                                :: iatom
       LOGICAL, INTENT(IN)                                :: append_cube
 
@@ -1332,7 +1332,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_sm
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_fm_type), POINTER                          :: excvec, all_vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: excvec, all_vectors
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_em, sp_ab
       INTEGER, INTENT(IN)                                :: estate, nstate, my_spin
@@ -1340,16 +1340,16 @@ CONTAINS
       INTEGER                                            :: homo, i, i_abs, istate, lfomo, nao, nmo
       REAL(dp)                                           :: dip(3), ene_f, ene_i
       REAL(dp), DIMENSION(:), POINTER                    :: eigenvalues, occupation_numbers
-      TYPE(cp_fm_type), POINTER                          :: fm_work
+      TYPE(cp_fm_type)                                   :: fm_work
 
       CPASSERT(ASSOCIATED(fm_set))
       CPASSERT(ASSOCIATED(mos))
-      NULLIFY (eigenvalues, occupation_numbers, fm_work)
+      NULLIFY (eigenvalues, occupation_numbers)
 
       CALL get_mo_set(mos(my_spin)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers, &
                       nao=nao, nmo=nmo, homo=homo, lfomo=lfomo)
 
-      CALL cp_fm_create_p(fm_work, all_vectors%matrix_struct)
+      CALL cp_fm_create(fm_work, all_vectors%matrix_struct)
       DO i = 1, SIZE(fm_set, 2)
          CPASSERT(ASSOCIATED(fm_set(my_spin, i)%matrix))
          CALL cp_fm_set_all(fm_set(my_spin, i)%matrix, 0.0_dp)
@@ -1358,7 +1358,7 @@ CONTAINS
          CALL parallel_gemm("T", "N", 1, nstate, nao, 1.0_dp, excvec, &
                             fm_work, 0.0_dp, fm_set(my_spin, i)%matrix, b_first_col=1)
       END DO
-      CALL cp_fm_release_p(fm_work)
+      CALL cp_fm_release(fm_work)
 
       sp_em = 0.0_dp
       sp_ab = 0.0_dp

@@ -29,9 +29,9 @@ MODULE qs_loc_utils
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
-        cp_fm_p_type, cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
-        cp_fm_type, cp_fm_write_unformatted
+        cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
+        cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, &
+        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -227,17 +227,15 @@ CONTAINS
    SUBROUTINE jacobi_rotation_pipek(zij_fm_set, vectors, sweeps)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER                                            :: sweeps
 
       INTEGER                                            :: iatom, istate, jstate, natom, nstate
       REAL(KIND=dp)                                      :: aij, bij, ct, mii, mij, mjj, ratio, st, &
                                                             theta, tolerance
-      TYPE(cp_fm_type), POINTER                          :: rmat
+      TYPE(cp_fm_type)                                   :: rmat
 
-      NULLIFY (rmat)
-
-      CALL cp_fm_create_p(rmat, zij_fm_set(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp)
 
       CALL cp_fm_get_info(rmat, nrow_global=nstate)
@@ -286,7 +284,7 @@ CONTAINS
       END DO
 
       CALL rotate_orbitals(rmat, vectors)
-      CALL cp_fm_release_p(rmat)
+      CALL cp_fm_release(rmat)
 
    END SUBROUTINE jacobi_rotation_pipek
 
@@ -305,7 +303,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                      :: istate, jstate
       REAL(dp), INTENT(IN)                     :: st, ct
-      TYPE(cp_fm_type), POINTER                :: rmat
+      TYPE(cp_fm_type), INTENT(IN)             :: rmat
 
       INTEGER                                  :: nstate
 #if defined(__SCALAPACK)
@@ -390,16 +388,16 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(dp)                                           :: grad_ij, zii, zij, zjj
       REAL(dp), DIMENSION(:, :), POINTER                 :: diag
-      TYPE(cp_fm_type), POINTER                          :: force
+      TYPE(cp_fm_type)                                   :: force
 
-      NULLIFY (force, diag, col_indices, row_indices)
+      NULLIFY (diag, col_indices, row_indices)
       natom = SIZE(zij_fm_set, 1)
       CALL cp_fm_get_info(zij_fm_set(1, 1)%matrix, nrow_local=nrow_local, &
                           ncol_local=ncol_local, nrow_global=nrow_global, &
                           row_indices=row_indices, col_indices=col_indices)
       ALLOCATE (diag(nrow_global, natom))
 
-      CALL cp_fm_create_p(force, zij_fm_set(1, 1)%matrix%matrix_struct)
+      CALL cp_fm_create(force, zij_fm_set(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(force, 0._dp)
 
       DO iatom = 1, natom
@@ -425,7 +423,7 @@ CONTAINS
 
       CALL cp_fm_maxabsval(force, tolerance)
 
-      CALL cp_fm_release_p(force)
+      CALL cp_fm_release(force)
 
    END SUBROUTINE check_tolerance_real
 
