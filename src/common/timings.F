@@ -226,7 +226,6 @@ CONTAINS
       TYPE(timer_env_type), POINTER                      :: timer_env
 
 !$OMP MASTER
-!$OMP CRITICAL(time_setstop)
 
       ! Default value, using a negative value when timing is not taken
       cs_entry%walltime_start = -HUGE(1.0_dp)
@@ -277,7 +276,6 @@ CONTAINS
 
       CALL offload_timeset(routineN)
 
-!$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
 
    END SUBROUTINE timeset_handler
@@ -306,7 +304,6 @@ CONTAINS
       routine_id = handle
 
 !$OMP MASTER
-!$OMP CRITICAL(time_setstop)
 
       CALL offload_timestop()
 
@@ -380,7 +377,6 @@ CONTAINS
          CALL m_flush(timer_env%trace_unit)
       END IF
 
-!$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
 
    END SUBROUTINE timestop_handler
