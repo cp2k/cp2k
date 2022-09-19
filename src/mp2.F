@@ -394,7 +394,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
                              cholesky_method=cholesky_method, &
                              do_level_shift=.FALSE., &
                              level_shift=0.0_dp, &
-                             matrix_u_fm=null(), &
                              use_jacobi=.FALSE.)
 
          ELSE IF (cholesky_method == cholesky_off) THEN
@@ -405,7 +404,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
                                   work=fm_matrix_work, &
                                   do_level_shift=.FALSE., &
                                   level_shift=0.0_dp, &
-                                  matrix_u_fm=null(), &
                                   use_jacobi=.FALSE., &
                                   jacobi_threshold=0.0_dp)
 

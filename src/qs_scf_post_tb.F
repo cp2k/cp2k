@@ -28,13 +28,9 @@ MODULE qs_scf_post_tb
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_init_random,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_to_fm_submat,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_init_random, cp_fm_p_type, &
+        cp_fm_release, cp_fm_release_p, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -802,7 +798,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: lumos
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, ao_lumo_struct
-      TYPE(cp_fm_type), POINTER                          :: KS_tmp, mo_coeff, MO_tmp, S_tmp, work
+      TYPE(cp_fm_type)                                   :: KS_tmp, MO_tmp, S_tmp, work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -821,10 +818,10 @@ CONTAINS
 
       CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
                                template_fmstruct=mo_coeff%matrix_struct)
-      CALL cp_fm_create_p(S_tmp, matrix_struct=ao_ao_fmstruct)
-      CALL cp_fm_create_p(KS_tmp, matrix_struct=ao_ao_fmstruct)
-      CALL cp_fm_create_p(MO_tmp, matrix_struct=ao_ao_fmstruct)
-      CALL cp_fm_create_p(work, matrix_struct=ao_ao_fmstruct)
+      CALL cp_fm_create(S_tmp, matrix_struct=ao_ao_fmstruct)
+      CALL cp_fm_create(KS_tmp, matrix_struct=ao_ao_fmstruct)
+      CALL cp_fm_create(MO_tmp, matrix_struct=ao_ao_fmstruct)
+      CALL cp_fm_create(work, matrix_struct=ao_ao_fmstruct)
       ALLOCATE (lumos(SIZE(mos)))
 
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_tmp)
@@ -854,10 +851,10 @@ CONTAINS
          CALL cp_fm_release_p(lumos(ispin)%matrix)
       END DO
       DEALLOCATE (lumos)
-      CALL cp_fm_release_p(S_tmp)
-      CALL cp_fm_release_p(MO_tmp)
-      CALL cp_fm_release_p(KS_tmp)
-      CALL cp_fm_release_p(work)
+      CALL cp_fm_release(S_tmp)
+      CALL cp_fm_release(MO_tmp)
+      CALL cp_fm_release(KS_tmp)
+      CALL cp_fm_release(work)
       CALL cp_fm_struct_release(ao_ao_fmstruct)
 
    END SUBROUTINE wfn_mix_tb

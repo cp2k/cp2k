@@ -17,9 +17,9 @@ MODULE qs_scf_wfn_mix
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type
@@ -80,7 +80,7 @@ CONTAINS
       LOGICAL                                            :: explicit, orig_is_virtual, overwrite_mos
       REAL(KIND=dp)                                      :: orig_scale, orthonormality, result_scale
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_vector
-      TYPE(cp_fm_type), POINTER                          :: matrix_x, matrix_y
+      TYPE(cp_fm_type)                                   :: matrix_x, matrix_y
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_new
       TYPE(section_vals_type), POINTER                   :: update_section, wfn_mix_section
 
@@ -106,8 +106,8 @@ CONTAINS
          NULLIFY (fm_struct_vector)
          CALL cp_fm_struct_create(fm_struct_vector, template_fmstruct=mos(1)%mo_set%mo_coeff%matrix_struct, &
                                   ncol_global=1)
-         CALL cp_fm_create_p(matrix_x, fm_struct_vector, name="x")
-         CALL cp_fm_create_p(matrix_y, fm_struct_vector, name="y")
+         CALL cp_fm_create(matrix_x, fm_struct_vector, name="x")
+         CALL cp_fm_create(matrix_y, fm_struct_vector, name="y")
          CALL cp_fm_struct_release(fm_struct_vector)
 
          update_section => section_vals_get_subs_vals(wfn_mix_section, "UPDATE")
@@ -157,8 +157,8 @@ CONTAINS
 
          END DO
 
-         CALL cp_fm_release_p(matrix_x)
-         CALL cp_fm_release_p(matrix_y)
+         CALL cp_fm_release(matrix_x)
+         CALL cp_fm_release(matrix_y)
 
          IF (scf_env%method == special_diag_method_nr) THEN
             CALL calculate_orthonormality(orthonormality, mos)

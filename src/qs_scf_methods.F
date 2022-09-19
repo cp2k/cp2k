@@ -32,8 +32,10 @@ MODULE qs_scf_methods
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
+                                              cp_fm_release,&
                                               cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -166,13 +168,13 @@ CONTAINS
    SUBROUTINE eigensolver(matrix_ks_fm, mo_set, ortho, work, &
                           cholesky_method, do_level_shift, &
                           level_shift, matrix_u_fm, use_jacobi)
-      TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: ortho, work
+      TYPE(cp_fm_type), INTENT(IN)                       :: ortho, work
       INTEGER, INTENT(inout)                             :: cholesky_method
       LOGICAL, INTENT(in)                                :: do_level_shift
       REAL(KIND=dp), INTENT(in)                          :: level_shift
-      TYPE(cp_fm_type), POINTER                          :: matrix_u_fm
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_u_fm
       LOGICAL, INTENT(in)                                :: use_jacobi
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eigensolver'
@@ -267,7 +269,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eigensolver_dbcsr(matrix_ks, matrix_ks_fm, mo_set, ortho_dbcsr, ksbuf1, ksbuf2)
       TYPE(dbcsr_type), POINTER                          :: matrix_ks
-      TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr, ksbuf1, ksbuf2
 
@@ -275,11 +277,12 @@ CONTAINS
 
       INTEGER                                            :: handle, nao, nmo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
-      TYPE(cp_fm_type), POINTER                          :: all_evecs, mo_coeff, nmo_evecs
+      TYPE(cp_fm_type)                                   :: nmo_evecs
+      TYPE(cp_fm_type), POINTER                          :: all_evecs, mo_coeff
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (mo_coeff, all_evecs, nmo_evecs)
+      NULLIFY (mo_coeff, all_evecs)
       NULLIFY (mo_eigenvalues)
 
       CALL get_mo_set(mo_set=mo_set, &
@@ -299,14 +302,14 @@ CONTAINS
       CALL choose_eigv_solver(matrix_ks_fm, all_evecs, mo_eigenvalues)
 
       ! select first nmo eigenvectors
-      CALL cp_fm_create_p(nmo_evecs, mo_coeff%matrix_struct)
+      CALL cp_fm_create(nmo_evecs, mo_coeff%matrix_struct)
       CALL cp_fm_to_fm(msource=all_evecs, mtarget=nmo_evecs, ncol=nmo)
       CALL cp_fm_release_p(all_evecs)
 
 !    Restore the eigenvector of the general eig. problem
       CALL cp_dbcsr_sm_fm_multiply(ortho_dbcsr, nmo_evecs, mo_coeff, nmo)
 
-      CALL cp_fm_release_p(nmo_evecs)
+      CALL cp_fm_release(nmo_evecs)
       CALL timestop(handle)
 
    END SUBROUTINE eigensolver_dbcsr
@@ -325,12 +328,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE eigensolver_symm(matrix_ks_fm, mo_set, ortho, work, do_level_shift, &
                                level_shift, matrix_u_fm, use_jacobi, jacobi_threshold)
-      TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: ortho, work
+      TYPE(cp_fm_type), INTENT(IN)                       :: ortho, work
       LOGICAL, INTENT(IN)                                :: do_level_shift
       REAL(KIND=dp), INTENT(IN)                          :: level_shift
-      TYPE(cp_fm_type), POINTER                          :: matrix_u_fm
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_u_fm
       LOGICAL, INTENT(IN)                                :: use_jacobi
       REAL(KIND=dp), INTENT(IN)                          :: jacobi_threshold
 
@@ -403,9 +406,9 @@ CONTAINS
    SUBROUTINE eigensolver_simple(matrix_ks, mo_set, work, do_level_shift, &
                                  level_shift, use_jacobi, jacobi_threshold)
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_ks
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: work
+      TYPE(cp_fm_type), INTENT(IN)                       :: work
       LOGICAL, INTENT(IN)                                :: do_level_shift
       REAL(KIND=dp), INTENT(IN)                          :: level_shift
       LOGICAL, INTENT(IN)                                :: use_jacobi
@@ -546,7 +549,7 @@ CONTAINS
       ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
       !             - M. F. Guest and V. R. Saunders, Mol. Phys. 28(3), 819 (1974)
 
-      TYPE(cp_fm_type), POINTER                          :: ksa, ksb
+      TYPE(cp_fm_type), INTENT(IN)                       :: ksa, ksb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occa, occb
       REAL(KIND=dp), DIMENSION(0:2, 0:2, 1:2), &
          INTENT(IN)                                      :: roks_parameter
@@ -565,9 +568,6 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(ksa))
-      CPASSERT(ASSOCIATED(ksb))
 
       CALL cp_fm_get_info(matrix=ksa, &
                           matrix_struct=ksa_struct, &
@@ -623,7 +623,7 @@ CONTAINS
       ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
       !             - M. Filatov and S. Shaik, Chem. Phys. Lett. 288, 689 (1998)
 
-      TYPE(cp_fm_type), POINTER                          :: ksa, ksb
+      TYPE(cp_fm_type), INTENT(IN)                       :: ksa, ksb
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occa, occb
       REAL(KIND=dp), INTENT(IN)                          :: f
       INTEGER, INTENT(IN)                                :: nalpha, nbeta
@@ -643,9 +643,6 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(ksa))
-      CPASSERT(ASSOCIATED(ksb))
 
       CALL cp_fm_get_info(matrix=ksa, &
                           matrix_struct=ksa_struct, &
@@ -780,27 +777,27 @@ CONTAINS
    SUBROUTINE shift_unocc_mos(matrix_ks_fm, mo_coeff, homo, nmo, nao, &
                               level_shift, is_triangular, matrix_u_fm)
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm, mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm, mo_coeff
       INTEGER, INTENT(in)                                :: homo, nmo, nao
       REAL(kind=dp), INTENT(in)                          :: level_shift
       LOGICAL, INTENT(in)                                :: is_triangular
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: matrix_u_fm
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_u_fm
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'shift_unocc_mos'
 
       INTEGER                                            :: handle
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: u_mo, u_mo_scaled
+      TYPE(cp_fm_type)                                   :: u_mo, u_mo_scaled
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (ao_mo_fmstruct, u_mo, u_mo_scaled)
+      NULLIFY (ao_mo_fmstruct)
       CALL cp_fm_struct_create(ao_mo_fmstruct, nrow_global=nao, ncol_global=nmo, &
                                para_env=mo_coeff%matrix_struct%para_env, context=mo_coeff%matrix_struct%context)
 
-      CALL cp_fm_create_p(u_mo, ao_mo_fmstruct)
-      CALL cp_fm_create_p(u_mo_scaled, ao_mo_fmstruct)
+      CALL cp_fm_create(u_mo, ao_mo_fmstruct)
+      CALL cp_fm_create(u_mo_scaled, ao_mo_fmstruct)
 
       CALL cp_fm_struct_release(ao_mo_fmstruct)
 
@@ -834,8 +831,8 @@ CONTAINS
       ! NewKS = U^{-1,T} * KS * U^{-1} + (U * C) * DELTA * (U * C)^T
       CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, u_mo, u_mo_scaled, 1.0_dp, matrix_ks_fm)
 
-      CALL cp_fm_release_p(u_mo_scaled)
-      CALL cp_fm_release_p(u_mo)
+      CALL cp_fm_release(u_mo_scaled)
+      CALL cp_fm_release(u_mo)
 
       CALL timestop(handle)
 

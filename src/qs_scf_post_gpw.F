@@ -34,13 +34,9 @@ MODULE qs_scf_post_gpw
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_init_random,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_init_random, cp_fm_p_type, &
+        cp_fm_release, cp_fm_release_p, cp_fm_to_fm, cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -1005,7 +1001,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: homo, ispin
@@ -1108,7 +1104,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: unoccupied_orbs
+      TYPE(cp_fm_type), INTENT(IN)                       :: unoccupied_orbs
       TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: nlumos, homo, ispin
@@ -1547,7 +1543,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: S_cond_number
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: fm_s, fm_work, mo_coeff
+      TYPE(cp_fm_type)                                   :: fm_s, fm_work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1567,18 +1564,18 @@ CONTAINS
          CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, &
                                   nrow_global=nao, ncol_global=nao, &
                                   template_fmstruct=mo_coeff%matrix_struct)
-         CALL cp_fm_create_p(fm_s, matrix_struct=ao_ao_fmstruct, &
-                             name="fm_s")
-         CALL cp_fm_create_p(fm_work, matrix_struct=ao_ao_fmstruct, &
-                             name="fm_work")
+         CALL cp_fm_create(fm_s, matrix_struct=ao_ao_fmstruct, &
+                           name="fm_s")
+         CALL cp_fm_create(fm_work, matrix_struct=ao_ao_fmstruct, &
+                           name="fm_work")
          CALL cp_fm_struct_release(ao_ao_fmstruct)
          ALLOCATE (eigenvalues(nao))
 
          CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_s)
          CALL choose_eigv_solver(fm_s, fm_work, eigenvalues)
 
-         CALL cp_fm_release_p(fm_s)
-         CALL cp_fm_release_p(fm_work)
+         CALL cp_fm_release(fm_s)
+         CALL cp_fm_release(fm_work)
 
          S_cond_number = MAXVAL(ABS(eigenvalues))/MAX(MINVAL(ABS(eigenvalues)), EPSILON(0.0_dp))
 
