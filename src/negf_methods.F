@@ -1668,7 +1668,7 @@ CONTAINS
                   IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) THEN
                      CALL cp_cfm_finish_copy_general(g_ret_s(ipoint)%matrix, info1(ipoint))
                      IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) &
-                        CALL cp_cfm_cleanup_copy_general(g_ret_s_group(ipoint)%matrix, info1(ipoint))
+                        CALL cp_cfm_cleanup_copy_general(info1(ipoint))
                   END IF
                END DO
 
@@ -1707,8 +1707,7 @@ CONTAINS
                      IF (ASSOCIATED(gamma_contacts(icontact, ipoint)%matrix)) THEN
                         CALL cp_cfm_finish_copy_general(gamma_contacts(icontact, ipoint)%matrix, info2(icontact, ipoint))
                         IF (ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) THEN
-                           CALL cp_cfm_cleanup_copy_general(gamma_contacts_group(icontact, ipoint)%matrix, &
-                                                            info2(icontact, ipoint))
+                           CALL cp_cfm_cleanup_copy_general(info2(icontact, ipoint))
                         END IF
                      END IF
                   END DO
@@ -1750,8 +1749,7 @@ CONTAINS
                      IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
                         CALL cp_cfm_finish_copy_general(gret_gamma_gadv(icontact, ipoint)%matrix, info2(icontact, ipoint))
                         IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
-                           CALL cp_cfm_cleanup_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
-                                                            info2(icontact, ipoint))
+                           CALL cp_cfm_cleanup_copy_general(info2(icontact, ipoint))
                         END IF
                      END IF
                   END DO

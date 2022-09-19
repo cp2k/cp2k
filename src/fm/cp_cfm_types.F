@@ -127,7 +127,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_create_p(matrix, matrix_struct, name)
       TYPE(cp_cfm_type), POINTER                         :: matrix
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
       ALLOCATE (matrix)
@@ -145,7 +145,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_create(matrix, matrix_struct, name)
       TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_struct_type), POINTER, INTENT(IN)       :: matrix_struct
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
 
       INTEGER                                            :: ncol_local, npcol, nprow, nrow_local
@@ -186,7 +186,7 @@ CONTAINS
 !> \param matrix the matrix to retain
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_retain(matrix)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
+      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: matrix
 
       CPASSERT(ASSOCIATED(matrix))
       CPASSERT(matrix%ref_count > 0)
@@ -237,7 +237,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_all(matrix, alpha, beta)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)                   :: matrix
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: beta
 
@@ -337,7 +337,7 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_element(matrix, irow_global, icol_global, alpha)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)                   :: matrix
       INTEGER, INTENT(in)                                :: irow_global, icol_global
       COMPLEX(kind=dp), INTENT(in)                       :: alpha
 
@@ -528,7 +528,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_submatrix(matrix, new_values, start_row, &
                                    start_col, n_rows, n_cols, alpha, beta, transpose)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
       COMPLEX(kind=dp), DIMENSION(:, :), INTENT(in)      :: new_values
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: alpha, beta
@@ -756,7 +756,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_cfm_matrix(source, destination)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: source, destination
+      TYPE(cp_cfm_type), INTENT(IN)                      :: source, destination
 
       INTEGER                                            :: npcol, nprow
 
@@ -797,7 +797,7 @@ CONTAINS
    SUBROUTINE cp_cfm_to_cfm_columns(msource, mtarget, ncol, source_start, &
                                     target_start)
 
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: msource, mtarget
+      TYPE(cp_cfm_type), INTENT(IN)                   :: msource, mtarget
       INTEGER, INTENT(IN)                                :: ncol
       INTEGER, INTENT(IN), OPTIONAL                      :: source_start, target_start
 
@@ -844,7 +844,7 @@ CONTAINS
 !> \param uplo    'U' for upper triangular, 'L' for lower triangular
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_cfm_triangular(msource, mtarget, uplo)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: msource, mtarget
+      TYPE(cp_cfm_type), INTENT(IN)                   :: msource, mtarget
       CHARACTER(len=*), INTENT(IN)                       :: uplo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_cfm_triangular'
@@ -998,8 +998,8 @@ CONTAINS
 !>       allocatable arrays instead of pointers wherever possible.
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_start_copy_general(source, destination, para_env, info)
-      TYPE(cp_cfm_type), POINTER                         :: source, destination
-      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: source, destination
+      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(copy_cfm_info_type), INTENT(out)              :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_start_copy_general'
@@ -1311,7 +1311,7 @@ CONTAINS
 !>       allocatable arrays instead of pointers wherever possible.
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_finish_copy_general(destination, info)
-      TYPE(cp_cfm_type), POINTER                         :: destination
+      TYPE(cp_cfm_type), INTENT(IN)                      :: destination
       TYPE(copy_cfm_info_type), INTENT(inout)            :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_finish_copy_general'
@@ -1322,8 +1322,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: recv_col_indices, recv_row_indices
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(destination))
 
       IF (.NOT. cp2k_is_parallel) THEN
          ! Now unpack the data from the 'send buffer'
@@ -1375,13 +1373,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Complete the copy operation: wait for comms clean up MPI state.
-!> \param source  cfm matrix
 !> \param info    all of the data that will be needed to complete the copy operation
 !> \note a slightly modified version of the subroutine cp_fm_cleanup_copy_general() that uses
 !>       allocatable arrays instead of pointers wherever possible.
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_cleanup_copy_general(source, info)
-      TYPE(cp_cfm_type), POINTER                         :: source
+   SUBROUTINE cp_cfm_cleanup_copy_general(info)
       TYPE(copy_cfm_info_type), INTENT(inout)            :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cleanup_copy_general'
@@ -1390,12 +1386,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(source))
-      MARK_USED(source)
-
-      IF (.NOT. cp2k_is_parallel) THEN
-         ! Don't do anything - no MPI state for the serial case
-      ELSE
+      IF (cp2k_is_parallel) THEN
          ! SRC_2
          ! If this process is also in the destination decomposition, this deallocate
          ! Was already done in cp_fm_finish_copy_general
