@@ -41,8 +41,8 @@ MODULE qs_scf_diagonalization
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        copy_info_type, cp_fm_add_to_element, cp_fm_cleanup_copy_general, cp_fm_create_p, &
-        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release_p, &
+        copy_info_type, cp_fm_add_to_element, cp_fm_cleanup_copy_general, cp_fm_create, &
+        cp_fm_create_p, cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
         cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -357,9 +357,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
-      TYPE(cp_fm_type)                                   :: fmdummy
-      TYPE(cp_fm_type), POINTER                          :: fmlocal, imos, mo_coeff, rksmat, rmos, &
-                                                            rsmat
+      TYPE(cp_fm_type)                                   :: fmdummy, rksmat, rsmat
+      TYPE(cp_fm_type), POINTER                          :: fmlocal, imos, mo_coeff, rmos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -397,8 +396,8 @@ CONTAINS
       CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
 
       IF (use_real_wfn) THEN
-         CALL cp_fm_create_p(rksmat, matrix_struct)
-         CALL cp_fm_create_p(rsmat, matrix_struct)
+         CALL cp_fm_create(rksmat, matrix_struct)
+         CALL cp_fm_create(rsmat, matrix_struct)
       ELSE
          CALL cp_cfm_create_p(cksmat, matrix_struct)
          CALL cp_cfm_create_p(csmat, matrix_struct)
@@ -579,8 +578,8 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(tmpmat)
 
       IF (use_real_wfn) THEN
-         CALL cp_fm_release_p(rksmat)
-         CALL cp_fm_release_p(rsmat)
+         CALL cp_fm_release(rksmat)
+         CALL cp_fm_release(rsmat)
       ELSE
          CALL cp_cfm_release_p(cksmat)
          CALL cp_cfm_release_p(csmat)
@@ -630,7 +629,8 @@ CONTAINS
                                                             sum_band, sum_val, t1, t2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occupations
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: eval_first, occ_first
-      TYPE(cp_fm_type), POINTER                          :: c0, chc, evec, mo_coeff, work
+      TYPE(cp_fm_type)                                   :: work
+      TYPE(cp_fm_type), POINTER                          :: c0, chc, evec, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
@@ -641,7 +641,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
-               mo_occupations, work, dft_control, rho_ao, rho_ao_kp)
+               mo_occupations, dft_control, rho_ao, rho_ao_kp)
 
       logger => cp_get_default_logger()
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DIAG_SUB_SCF", &
@@ -735,10 +735,10 @@ CONTAINS
             evec => subspace_env%c_vec(ispin)%matrix
             c0 => subspace_env%c0(ispin)%matrix
             CALL cp_fm_to_fm(mo_coeff, c0)
-            CALL cp_fm_create_p(work, c0%matrix_struct)
+            CALL cp_fm_create(work, c0%matrix_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, c0, work, nmo)
             CALL parallel_gemm('T', 'N', nmo, nmo, nao, rone, c0, work, rzero, chc)
-            CALL cp_fm_release_p(work)
+            CALL cp_fm_release(work)
             !diagonalize C'HC
             CALL choose_eigv_solver(chc, evec, mo_eigenvalues)
 

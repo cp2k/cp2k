@@ -40,9 +40,11 @@ MODULE qs_moments
                                               cp_fm_struct_double,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
+                                              cp_fm_release,&
                                               cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
@@ -1672,7 +1674,8 @@ CONTAINS
       INTEGER                                            :: i, icol, lcol, nao, newdim, nmo
       LOGICAL                                            :: double_col, double_row
       TYPE(cp_fm_struct_type), POINTER                   :: newstruct, newstruct1
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, work, work1, work2
+      TYPE(cp_fm_type)                                   :: work, work1, work2
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
       DO i = 1, SIZE(op_fm_set, 2) ! spin
          CALL get_mo_set(mo_set=mos(i)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
@@ -1685,9 +1688,9 @@ CONTAINS
                                   double_col, &
                                   double_row)
 
-         CALL cp_fm_create_p(work, matrix_struct=newstruct)
-         CALL cp_fm_create_p(work1, matrix_struct=newstruct)
-         CALL cp_fm_create_p(work2, matrix_struct=newstruct)
+         CALL cp_fm_create(work, matrix_struct=newstruct)
+         CALL cp_fm_create(work1, matrix_struct=newstruct)
+         CALL cp_fm_create(work2, matrix_struct=newstruct)
          CALL cp_fm_get_info(work, ncol_global=newdim)
 
          CALL cp_fm_set_all(work, 0.0_dp, 0.0_dp)
@@ -1704,8 +1707,8 @@ CONTAINS
             work%local_data(:, icol + lcol) = work1%local_data(:, icol + lcol) + work2%local_data(:, icol)
          END DO
 
-         CALL cp_fm_release_p(work1)
-         CALL cp_fm_release_p(work2)
+         CALL cp_fm_release(work1)
+         CALL cp_fm_release(work2)
 
          CALL cp_fm_struct_double(newstruct1, &
                                   op_fm_set(1, i)%matrix%matrix_struct, &
@@ -1713,7 +1716,7 @@ CONTAINS
                                   double_col, &
                                   double_row)
 
-         CALL cp_fm_create_p(work1, matrix_struct=newstruct1)
+         CALL cp_fm_create(work1, matrix_struct=newstruct1)
 
          CALL parallel_gemm("T", "N", nmo, newdim, nao, 1.0_dp, mos_new(2*i - 1)%matrix, &
                             work, 0.0_dp, work1)
@@ -1733,8 +1736,8 @@ CONTAINS
                op_fm_set(2, i)%matrix%local_data(:, icol) - work1%local_data(:, icol)
          END DO
 
-         CALL cp_fm_release_p(work)
-         CALL cp_fm_release_p(work1)
+         CALL cp_fm_release(work)
+         CALL cp_fm_release(work1)
          CALL cp_fm_struct_release(newstruct)
          CALL cp_fm_struct_release(newstruct1)
 
