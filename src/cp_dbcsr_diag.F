@@ -18,8 +18,8 @@ MODULE cp_dbcsr_diag
 
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
-                                              cp_cfm_release_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
                                               cp_cfm_type
    USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
                                               copy_dbcsr_to_cfm,&
@@ -190,18 +190,18 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_dbcsr_heevd'
 
       INTEGER                                            :: handle, nfullrows_total
-      TYPE(cp_cfm_type), POINTER                         :: fm_eigenvectors, fm_matrix
+      TYPE(cp_cfm_type)                                  :: fm_eigenvectors, fm_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_matrix, fm_eigenvectors, fm_struct)
+      NULLIFY (fm_struct)
       CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total)
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullrows_total, para_env=para_env)
-      CALL cp_cfm_create_p(fm_matrix, fm_struct, name="fm_matrix")
-      CALL cp_cfm_create_p(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
+      CALL cp_cfm_create(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_cfm_create(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL copy_dbcsr_to_cfm(matrix, fm_matrix)
@@ -210,8 +210,8 @@ CONTAINS
 
       CALL copy_cfm_to_dbcsr(fm_eigenvectors, eigenvectors)
 
-      CALL cp_cfm_release_p(fm_matrix)
-      CALL cp_cfm_release_p(fm_eigenvectors)
+      CALL cp_cfm_release(fm_matrix)
+      CALL cp_cfm_release(fm_eigenvectors)
 
       CALL timestop(handle)
 

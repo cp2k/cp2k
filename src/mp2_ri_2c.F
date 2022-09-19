@@ -24,8 +24,8 @@ MODULE mp2_ri_2c
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
-                                              cp_cfm_release_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -1469,22 +1469,20 @@ CONTAINS
          czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       INTEGER                                            :: handle, ikp, nkp
-      TYPE(cp_cfm_type), POINTER                         :: cfm_matrix_K_tmp, cfm_matrix_L_tmp, &
+      TYPE(cp_cfm_type)                                  :: cfm_matrix_K_tmp, cfm_matrix_L_tmp, &
                                                             cfm_matrix_S_inv_tmp, &
                                                             cfm_matrix_S_tmp, cfm_matrix_Vtrunc_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cfm_matrix_S_tmp, cfm_matrix_S_inv_tmp, cfm_matrix_L_tmp, cfm_matrix_K_tmp, cfm_matrix_Vtrunc_tmp)
-
       CALL cp_fm_get_info(fm_matrix_L_RI_metric(1, 1)%matrix, matrix_struct=matrix_struct)
 
-      CALL cp_cfm_create_p(cfm_matrix_S_tmp, matrix_struct)
-      CALL cp_cfm_create_p(cfm_matrix_S_inv_tmp, matrix_struct)
-      CALL cp_cfm_create_p(cfm_matrix_L_tmp, matrix_struct)
-      CALL cp_cfm_create_p(cfm_matrix_K_tmp, matrix_struct)
-      CALL cp_cfm_create_p(cfm_matrix_Vtrunc_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_matrix_S_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_matrix_S_inv_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_matrix_L_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_matrix_K_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_matrix_Vtrunc_tmp, matrix_struct)
 
       CALL get_kpoint_info(kpoints, nkp=nkp)
 
@@ -1528,11 +1526,11 @@ CONTAINS
 
       END DO
 
-      CALL cp_cfm_release_p(cfm_matrix_S_tmp)
-      CALL cp_cfm_release_p(cfm_matrix_S_inv_tmp)
-      CALL cp_cfm_release_p(cfm_matrix_L_tmp)
-      CALL cp_cfm_release_p(cfm_matrix_K_tmp)
-      CALL cp_cfm_release_p(cfm_matrix_Vtrunc_tmp)
+      CALL cp_cfm_release(cfm_matrix_S_tmp)
+      CALL cp_cfm_release(cfm_matrix_S_inv_tmp)
+      CALL cp_cfm_release(cfm_matrix_L_tmp)
+      CALL cp_cfm_release(cfm_matrix_K_tmp)
+      CALL cp_cfm_release(cfm_matrix_Vtrunc_tmp)
 
       CALL timestop(handle)
 

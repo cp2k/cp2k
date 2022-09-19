@@ -15,8 +15,8 @@ MODULE rt_propagation_methods
                                               cite_reference
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_triangular_multiply
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
-                                              cp_cfm_release_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: rtp_control_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
@@ -664,7 +664,7 @@ CONTAINS
                                                             imat, k, kdbl, n, naspc, ncol_local, &
                                                             nmat
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_cfm_type), POINTER                         :: cfm_tmp, cfm_tmp1, csc
+      TYPE(cp_cfm_type)                                  :: cfm_tmp, cfm_tmp1, csc
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mo_hist
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
@@ -718,7 +718,7 @@ CONTAINS
          mo_hist => rtp%history%mo_history
          s_hist => rtp%history%s_history
          DO i = 1, SIZE(mos_new)/2
-            NULLIFY (matrix_struct, matrix_struct_new, csc, cfm_tmp, cfm_tmp1)
+            NULLIFY (matrix_struct, matrix_struct_new)
 
             CALL cp_fm_struct_double(matrix_struct, &
                                      mos_new(2*i)%matrix%matrix_struct, &
@@ -728,8 +728,8 @@ CONTAINS
             CALL cp_fm_create(fm_tmp, matrix_struct)
             CALL cp_fm_create(fm_tmp1, matrix_struct)
             CALL cp_fm_create(fm_tmp2, mos_new(2*i)%matrix%matrix_struct)
-            CALL cp_cfm_create_p(cfm_tmp, mos_new(2*i)%matrix%matrix_struct)
-            CALL cp_cfm_create_p(cfm_tmp1, mos_new(2*i)%matrix%matrix_struct)
+            CALL cp_cfm_create(cfm_tmp, mos_new(2*i)%matrix%matrix_struct)
+            CALL cp_cfm_create(cfm_tmp1, mos_new(2*i)%matrix%matrix_struct)
 
             CALL cp_fm_get_info(fm_tmp, &
                                 ncol_global=kdbl)
@@ -743,7 +743,7 @@ CONTAINS
                                      template_fmstruct=mos_new(2*i)%matrix%matrix_struct, &
                                      nrow_global=k, &
                                      ncol_global=k)
-            CALL cp_cfm_create_p(csc, matrix_struct_new)
+            CALL cp_cfm_create(csc, matrix_struct_new)
 
             CALL cp_fm_struct_release(matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct)
@@ -773,12 +773,12 @@ CONTAINS
             END DO
 
 ! deallocate work matrices
-            CALL cp_cfm_release_p(csc)
+            CALL cp_cfm_release(csc)
             CALL cp_fm_release(fm_tmp)
             CALL cp_fm_release(fm_tmp1)
             CALL cp_fm_release(fm_tmp2)
-            CALL cp_cfm_release_p(cfm_tmp)
-            CALL cp_cfm_release_p(cfm_tmp1)
+            CALL cp_cfm_release(cfm_tmp)
+            CALL cp_cfm_release(cfm_tmp1)
          END DO
 
       END IF
