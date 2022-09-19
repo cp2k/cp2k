@@ -23,14 +23,9 @@ MODULE qs_linres_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_submatrix,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_release, cp_fm_release_p, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
@@ -233,7 +228,8 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, mo_coeff_array, p, r, Sc, z
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
+      TYPE(cp_fm_type)                                   :: buf
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_t
       TYPE(dbcsr_type), POINTER                          :: matrix_x
@@ -244,7 +240,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, linres_control, matrix_s, matrix_t, matrix_ks, para_env)
-      NULLIFY (buf, mos, tmp_fm_struct, mo_coeff)
+      NULLIFY (mos, tmp_fm_struct, mo_coeff)
 
       t1 = m_walltime()
 
@@ -303,11 +299,11 @@ CONTAINS
          !
          ! C0_order' * H * C0_order
          mo_coeff => psi0_order(ispin)%matrix
-         CALL cp_fm_create_p(buf, mo_coeff%matrix_struct)
+         CALL cp_fm_create(buf, mo_coeff%matrix_struct)
          CALL cp_fm_get_info(mo_coeff, ncol_global=ncol)
          CALL cp_dbcsr_sm_fm_multiply(matrix_ks(ispin)%matrix, mo_coeff, buf, ncol)
          CALL parallel_gemm('T', 'N', ncol, ncol, nao, -1.0_dp, mo_coeff, buf, 0.0_dp, chc(ispin)%matrix)
-         CALL cp_fm_release_p(buf)
+         CALL cp_fm_release(buf)
          !
          ! S * C0
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
@@ -647,20 +643,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_op_1(v, Av, matrix_ks, matrix_s, chc)
       !
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: v, Av
+      TYPE(cp_fm_type), INTENT(IN)                       :: v, Av
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks, matrix_s
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: chc
+      TYPE(cp_fm_type), INTENT(IN)                       :: chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op_1'
 
       INTEGER                                            :: handle, ncol, nrow
-      TYPE(cp_fm_type), POINTER                          :: buf
+      TYPE(cp_fm_type)                                   :: buf
 
       CALL timeset(routineN, handle)
       !
-      NULLIFY (buf)
-      !
-      CALL cp_fm_create_p(buf, v%matrix_struct)
+      CALL cp_fm_create(buf, v%matrix_struct)
       !
       CALL cp_fm_get_info(v, ncol_global=ncol, nrow_global=nrow)
       ! H * v
@@ -671,7 +665,7 @@ CONTAINS
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, buf, Av, ncol, alpha=1.0_dp, beta=1.0_dp)
       !Results is H*C1 - S*<iHj>*C1
       !
-      CALL cp_fm_release_p(buf)
+      CALL cp_fm_release(buf)
       !
       CALL timestop(handle)
       !
@@ -694,11 +688,11 @@ CONTAINS
       INTEGER                                            :: handle, ispin, mp, mt, mv, np, nspins, &
                                                             nt, nv
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: buf
+      TYPE(cp_fm_type)                                   :: buf
 
       CALL timeset(routineN, handle)
       !
-      NULLIFY (buf, tmp_fm_struct)
+      NULLIFY (tmp_fm_struct)
       !
       nspins = SIZE(v, 1)
       !
@@ -709,7 +703,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
                                   para_env=v(ispin)%matrix%matrix_struct%para_env, &
                                   context=v(ispin)%matrix%matrix_struct%context)
-         CALL cp_fm_create_p(buf, tmp_fm_struct)
+         CALL cp_fm_create(buf, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          !
          CALL cp_fm_get_info(buf, ncol_global=mt, nrow_global=nt)
@@ -723,7 +717,7 @@ CONTAINS
          ! v = v - psi0 * buf'
          CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
-         CALL cp_fm_release_p(buf)
+         CALL cp_fm_release(buf)
       END DO
       !
       CALL timestop(handle)
@@ -746,11 +740,11 @@ CONTAINS
       INTEGER                                            :: handle, ispin, mp, mt, mv, np, nspins, &
                                                             nt, nv
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: buf
+      TYPE(cp_fm_type)                                   :: buf
 
       CALL timeset(routineN, handle)
       !
-      NULLIFY (buf, tmp_fm_struct)
+      NULLIFY (tmp_fm_struct)
       !
       nspins = SIZE(v, 1)
       !
@@ -761,7 +755,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nv, ncol_global=mp, &
                                   para_env=v(ispin)%matrix%matrix_struct%para_env, &
                                   context=v(ispin)%matrix%matrix_struct%context)
-         CALL cp_fm_create_p(buf, tmp_fm_struct)
+         CALL cp_fm_create(buf, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
          !
          CALL cp_fm_get_info(buf, ncol_global=mt, nrow_global=nt)
@@ -775,7 +769,7 @@ CONTAINS
          ! v = v - S_psi0 * buf'
          CALL parallel_gemm('N', 'T', nv, mv, mp, -1.0_dp, S_psi0(ispin)%matrix, buf, 1.0_dp, v(ispin)%matrix)
          !
-         CALL cp_fm_release_p(buf)
+         CALL cp_fm_release(buf)
       END DO
       !
       CALL timestop(handle)

@@ -34,8 +34,10 @@ MODULE qs_linres_current
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_p_type,&
+                                              cp_fm_release,&
                                               cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -2289,8 +2291,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp, rr_p1, rr_p2, &
                                                             rr_rxp
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, psi0, psi_D, psi_p1, psi_p2, &
-                                                            psi_rxp
+      TYPE(cp_fm_type)                                   :: psi0, psi_D, psi_p1, psi_p2, psi_rxp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
@@ -2308,7 +2310,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       !
       NULLIFY (dft_control, mos, para_env, mo_coeff, op_mom_ao, &
-               op_mom_der_ao, center_list, centers_set, psi0, psi_rxp, psi_D, psi_p1, psi_p2, &
+               op_mom_der_ao, center_list, centers_set, &
                op_p_ao, psi1_p, psi1_rxp, psi1_D, p_rxp, r_p1, r_p2, rr_rxp, rr_p1, rr_p2, &
                cell, psi0_order, particle_set, qs_kind_set)
 
@@ -2418,11 +2420,11 @@ CONTAINS
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                ncol_global=max_states, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
-      CALL cp_fm_create_p(psi0, tmp_fm_struct)
-      CALL cp_fm_create_p(psi_D, tmp_fm_struct)
-      CALL cp_fm_create_p(psi_rxp, tmp_fm_struct)
-      CALL cp_fm_create_p(psi_p1, tmp_fm_struct)
-      CALL cp_fm_create_p(psi_p2, tmp_fm_struct)
+      CALL cp_fm_create(psi0, tmp_fm_struct)
+      CALL cp_fm_create(psi_D, tmp_fm_struct)
+      CALL cp_fm_create(psi_rxp, tmp_fm_struct)
+      CALL cp_fm_create(psi_p1, tmp_fm_struct)
+      CALL cp_fm_create(psi_p2, tmp_fm_struct)
       CALL cp_fm_struct_release(tmp_fm_struct)
       !
       ALLOCATE (p_rxp(3), r_p1(3), r_p2(3), rr_rxp(9, 3), rr_p1(9, 3), rr_p2(9, 3))
@@ -2665,11 +2667,11 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(op_mom_der_ao)
       CALL dbcsr_deallocate_matrix_set(op_p_ao)
 
-      CALL cp_fm_release_p(psi0)
-      CALL cp_fm_release_p(psi_rxp)
-      CALL cp_fm_release_p(psi_D)
-      CALL cp_fm_release_p(psi_p1)
-      CALL cp_fm_release_p(psi_p2)
+      CALL cp_fm_release(psi0)
+      CALL cp_fm_release(psi_rxp)
+      CALL cp_fm_release(psi_D)
+      CALL cp_fm_release(psi_p1)
+      CALL cp_fm_release(psi_p2)
       DO idir = 1, 3
          CALL cp_fm_release_p(p_rxp(idir)%matrix)
          CALL cp_fm_release_p(r_p1(idir)%matrix)
@@ -2712,7 +2714,8 @@ CONTAINS
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_p, psi1_rxp
-      TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
+      TYPE(cp_fm_type)                                   :: buf
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
@@ -2731,7 +2734,7 @@ CONTAINS
       !
       NULLIFY (dft_control, mos, para_env, mo_coeff, op_mom_ao, &
                op_mom_der_ao, center_list, centers_set, &
-               op_p_ao, psi1_p, psi1_rxp, buf, cell, psi0_order)
+               op_p_ao, psi1_p, psi1_rxp, cell, psi0_order)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -2841,7 +2844,7 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, maxocc=maxocc)
          !
          ! Create buffer matrix
-         CALL cp_fm_create_p(buf, mo_coeff%matrix_struct)
+         CALL cp_fm_create(buf, mo_coeff%matrix_struct)
          !
          ! Initialize the temporary vector chi
          chi = 0.0_dp
@@ -2997,7 +3000,7 @@ CONTAINS
             END IF
          END DO
          !
-         CALL cp_fm_release_p(buf)
+         CALL cp_fm_release(buf)
       END DO ! ispin
       !
       ! deallocate the sparse matrices

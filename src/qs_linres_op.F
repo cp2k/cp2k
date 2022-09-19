@@ -36,8 +36,8 @@ MODULE qs_linres_op
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release_p, &
-        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -135,7 +135,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, rxp_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_work1, mo_coeff
+      TYPE(cp_fm_type)                                   :: fm_work1
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
@@ -151,7 +152,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_kind_set, cell, dft_control, linres_control, &
-               logger, particle_set, lr_section, fm_work1, &
+               logger, particle_set, lr_section, &
                basisfun_center, centers_set, center_list, p_psi0, &
                rxp_psi0, vecbuf_c0, psi0_order, &
                mo_coeff, op_ao, sab_all)
@@ -371,7 +372,7 @@ CONTAINS
                NULLIFY (fm_Rmd_mos(idir)%matrix)
                CALL cp_fm_create_p(fm_Rmd_mos(idir)%matrix, tmp_fm_struct)
             END DO
-            CALL cp_fm_create_p(fm_work1, tmp_fm_struct)
+            CALL cp_fm_create(fm_work1, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
 
             ! This part should be done better, using the full matrix distribution
@@ -413,7 +414,7 @@ CONTAINS
             DO idir = 1, 3
                CALL cp_fm_release_p(fm_Rmd_mos(idir)%matrix)
             END DO
-            CALL cp_fm_release_p(fm_work1)
+            CALL cp_fm_release(fm_work1)
 
          END DO ! ispin
       END IF
@@ -1207,9 +1208,9 @@ CONTAINS
 !> \author vw
 ! **************************************************************************************************
    SUBROUTINE fm_scale_by_pbc_AC(matrix, ra, rc, cell, ixyz)
-      TYPE(cp_fm_type), POINTER                :: matrix
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix
       REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(in)                             :: ra, rc
+         INTENT(in)                            :: ra, rc
       TYPE(cell_type), POINTER                 :: cell
       INTEGER, INTENT(IN)                      :: ixyz
 

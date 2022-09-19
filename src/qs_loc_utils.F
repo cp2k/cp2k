@@ -30,8 +30,8 @@ MODULE qs_loc_utils
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
-        cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, &
-        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
+        cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
+        cp_fm_to_fm, cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -148,7 +148,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S)
 
-      TYPE(cp_fm_type), POINTER                          :: mo_new, mo_ref
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_new, mo_ref
       TYPE(dbcsr_type), POINTER                          :: matrix_S
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rotate_state_to_ref'
@@ -156,7 +156,7 @@ CONTAINS
       INTEGER                                            :: handle, ncol, ncol_ref, nrow
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: o1, o2, o3, o4, smo
+      TYPE(cp_fm_type)                                   :: o1, o2, o3, o4, smo
 
       CALL timeset(routineN, handle)
 
@@ -164,16 +164,16 @@ CONTAINS
       CALL cp_fm_get_info(mo_ref, ncol_global=ncol_ref)
       CPASSERT(ncol == ncol_ref)
 
-      NULLIFY (fm_struct_tmp, o1, o2, o3, o4, smo)
-      CALL cp_fm_create_p(smo, mo_ref%matrix_struct)
+      NULLIFY (fm_struct_tmp)
+      CALL cp_fm_create(smo, mo_ref%matrix_struct)
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, &
                                ncol_global=ncol, para_env=mo_new%matrix_struct%para_env, &
                                context=mo_new%matrix_struct%context)
-      CALL cp_fm_create_p(o1, fm_struct_tmp)
-      CALL cp_fm_create_p(o2, fm_struct_tmp)
-      CALL cp_fm_create_p(o3, fm_struct_tmp)
-      CALL cp_fm_create_p(o4, fm_struct_tmp)
+      CALL cp_fm_create(o1, fm_struct_tmp)
+      CALL cp_fm_create(o2, fm_struct_tmp)
+      CALL cp_fm_create(o3, fm_struct_tmp)
+      CALL cp_fm_create(o4, fm_struct_tmp)
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! o1 = (mo_new)^T matrix_S mo_ref
@@ -204,11 +204,11 @@ CONTAINS
       ! CALL parallel_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1)
       ! WRITE(*,*) o1%local_data
 
-      CALL cp_fm_release_p(o1)
-      CALL cp_fm_release_p(o2)
-      CALL cp_fm_release_p(o3)
-      CALL cp_fm_release_p(o4)
-      CALL cp_fm_release_p(smo)
+      CALL cp_fm_release(o1)
+      CALL cp_fm_release(o2)
+      CALL cp_fm_release(o3)
+      CALL cp_fm_release(o4)
+      CALL cp_fm_release(smo)
 
       CALL timestop(handle)
 

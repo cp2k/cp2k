@@ -35,13 +35,9 @@ MODULE qs_ks_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -412,7 +408,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_local
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: matrix_hv, matrix_v, mo_coeff
+      TYPE(cp_fm_type)                                   :: matrix_hv, matrix_v
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type)                                 :: orb_density_matrix_p, orb_h_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, rho_ao, tmp_dbcsr
       TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
@@ -574,8 +571,8 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=1, &
                                template_fmstruct=mo_coeff%matrix_struct)
-      CALL cp_fm_create_p(matrix_v, fm_struct_tmp, name="matrix_v")
-      CALL cp_fm_create_p(matrix_hv, fm_struct_tmp, name="matrix_hv")
+      CALL cp_fm_create(matrix_v, fm_struct_tmp, name="matrix_v")
+      CALL cp_fm_create(matrix_hv, fm_struct_tmp, name="matrix_hv")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ALLOCATE (mo_derivs_local(SIZE(mo_array, 1)))
@@ -676,8 +673,8 @@ CONTAINS
 
       CALL dbcsr_deallocate_matrix(orb_density_matrix)
       CALL dbcsr_deallocate_matrix(orb_h)
-      CALL cp_fm_release_p(matrix_v)
-      CALL cp_fm_release_p(matrix_hv)
+      CALL cp_fm_release(matrix_v)
+      CALL cp_fm_release(matrix_hv)
       DO I = 1, SIZE(mo_derivs_local, 1)
          CALL cp_fm_release_p(mo_derivs_local(I)%matrix)
       END DO
