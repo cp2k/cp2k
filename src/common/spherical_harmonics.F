@@ -20,7 +20,9 @@
 !> \par History
 !>      JGH 28-Feb-2002 : Change of sign convention (-1^m)
 !>      JGH  1-Mar-2002 : Clebsch-Gordon Coefficients
-!> \author JGH 6-Oct-2000
+!>      - Clebsch-Gordon coefficients and Wigner 3-j symbols added as generic routines using the
+!>        standard normalization (19.09.2022, MK)
+!> \author JGH 6-Oct-2000, MK
 ! **************************************************************************************************
 MODULE spherical_harmonics
 
@@ -38,6 +40,7 @@ MODULE spherical_harmonics
    PUBLIC :: clebsch_gordon_deallocate, clebsch_gordon_init, &
              clebsch_gordon
    PUBLIC :: legendre, dlegendre
+   PUBLIC :: Clebsch_Gordon_coefficient, Wigner_3j
 
    INTERFACE y_lm
       MODULE PROCEDURE rvy_lm, rry_lm, cvy_lm, ccy_lm
@@ -349,26 +352,30 @@ CONTAINS
    END FUNCTION cgc
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param n ...
-!> \return ...
+!> \brief Calculate factorial even for integer values larger than the tabulated (pre-computed)
+!>         values of up to 30!
+!> \param n Integer number for which the factorial has to be returned
+!> \return Factorial n!
 ! **************************************************************************************************
-   FUNCTION sfac(n) RESULT(fval)
-      INTEGER                                            :: n
-      REAL(KIND=dp)                                      :: fval
+   FUNCTION sfac(n)
+      INTEGER, INTENT(IN)                                :: n
+      REAL(KIND=dp)                                      :: sfac
 
       INTEGER                                            :: i
 
-      IF (n > maxfac) THEN
-         fval = fac(maxfac)
+      IF (n > 170) THEN
+         CPABORT("Factorials greater than 170! cannot be computed with double-precision")
+      ELSE IF (n > maxfac) THEN
+         sfac = fac(maxfac)
          DO i = maxfac + 1, n
-            fval = REAL(i, dp)*fval
+            sfac = REAL(i, KIND=dp)*sfac
          END DO
       ELSE IF (n >= 0) THEN
-         fval = fac(n)
+         sfac = fac(n)
       ELSE
-         fval = 1.0_dp
+         sfac = 1.0_dp
       END IF
+
    END FUNCTION sfac
 
 ! **************************************************************************************************
@@ -1774,5 +1781,117 @@ CONTAINS
       END IF
 
    END FUNCTION dsinn_dsp
+
+! **************************************************************************************************
+!> \brief Compute the Clebsch-Gordon coefficient C = < j1 m1 j2 m2 | J M > = < j1 j2; m1 m2 | J M >
+!> \param j1 Angular momentum quantum number of the first state | j1 m1 >
+!> \param m1 Magnetic quantum number of the first first state | j1 m1 >
+!> \param j2 Angular momentum quantum number of the second state | j2 m2 >
+!> \param m2 Magnetic quantum number of the second state | j2 m2 >
+!> \param J Angular momentum quantum number of the coupled state | J M >
+!> \param M Magnetic quantum number of the coupled state | J M >
+!> \param CG_coeff Clebsch-Gordon coefficient C^{JM}_{j1 m1 j2 m2}
+!> \author Matthias Krack (16.09.2022, based on a program by D. G. Simpson)
+!> \note Generic routine allowing also for fractional arguments. It should return CG coefficients
+!>       consistent with the standard definition and normalization, e.g. of Wolfram Mathematica
+! **************************************************************************************************
+   SUBROUTINE Clebsch_Gordon_coefficient(j1, m1, j2, m2, J, M, CG_coeff)
+
+      REAL(KIND=dp), INTENT(IN)                          :: j1, m1, j2, m2, J, M
+      REAL(KIND=dp), INTENT(OUT)                         :: CG_coeff
+
+      INTEGER                                            :: k, kmax
+      REAL(KIND=dp)                                      :: sumk, t
+
+      IF (is_integer(j1 + j2 + J) .AND. &
+          is_integer(j1 + m1) .AND. &
+          is_integer(j2 + m2) .AND. &
+          is_integer(J + M) .AND. &
+          is_integer(J - j1 - m2) .AND. &
+          is_integer(J - j2 + m1)) THEN
+         IF ((J < ABS(j1 - j2)) .OR. &
+             (J > j1 + j2) .OR. &
+             (ABS(m1) > j1) .OR. &
+             (ABS(m2) > j2) .OR. &
+             (ABS(M) > J)) THEN
+            CG_coeff = 0.0_dp
+         ELSE
+            ! Compute Clebsch-Gordan coefficient
+            sumk = 0.0_dp
+            kmax = NINT(MAX(j1 + j2 - J, j1 - J + m2, j2 - J - m1, j1 - m1, j2 + m2))
+            DO k = 0, kmax
+               IF (j1 + j2 - J - k < 0.0_dp) CYCLE
+               IF (J - j1 - m2 + k < 0.0_dp) CYCLE
+               IF (J - j2 + m1 + k < 0.0_dp) CYCLE
+               IF (j1 - m1 - k < 0.0_dp) CYCLE
+               IF (j2 + m2 - k < 0.0_dp) CYCLE
+               t = sfac(NINT(j1 + j2 - J - k))*sfac(NINT(J - j1 - m2 + k))* &
+                   sfac(NINT(J - j2 + m1 + k))*sfac(NINT(j1 - m1 - k))* &
+                   sfac(NINT(j2 + m2 - k))*sfac(k)
+               IF (MOD(k, 2) == 1) t = -t
+               sumk = sumk + 1.0_dp/t
+            END DO
+            CG_coeff = SQRT((2.0_dp*J + 1)/sfac(NINT(j1 + j2 + J + 1.0_dp)))* &
+                       SQRT(sfac(NINT(j1 + j2 - J))*sfac(NINT(j2 + J - j1))*sfac(NINT(J + j1 - j2)))* &
+                       SQRT(sfac(NINT(j1 + m1))*sfac(NINT(j1 - m1))* &
+                            sfac(NINT(j2 + m2))*sfac(NINT(j2 - m2))* &
+                            sfac(NINT(J + M))*sfac(NINT(J - M)))*sumk
+         END IF
+      ELSE
+         CPABORT("Invalid set of input parameters < j1 m1 j2 m2 | J M > specified")
+      END IF
+
+   END SUBROUTINE Clebsch_Gordon_coefficient
+
+! **************************************************************************************************
+!> \brief Compute the Wigner 3-j symbol
+!>        / j1 j2 j3 \
+!>        \ m1 m2 m3 /
+!>        using the Clebsch-Gordon coefficients
+!> \param j1 Angular momentum quantum number of the first state | j1 m1 >
+!> \param m1 Magnetic quantum number of the first first state | j1 m1 >
+!> \param j2 Angular momentum quantum number of the second state | j2 m2 >
+!> \param m2 Magnetic quantum number of the second state | j2 m2 >
+!> \param j3 Angular momentum quantum number of the third state | j3 m3 >
+!> \param m3 Magnetic quantum number of the third state | j3 m3 >
+!> \param W_3j Wigner 3-j symbol
+!> \author Matthias Krack (16.09.2022, MK)
+! **************************************************************************************************
+   SUBROUTINE Wigner_3j(j1, m1, j2, m2, j3, m3, W_3j)
+
+      REAL(KIND=dp), INTENT(IN)                          :: j1, m1, j2, m2, j3, m3
+      REAL(KIND=dp), INTENT(OUT)                         :: W_3j
+
+      REAL(KIND=dp)                                      :: CG_coeff
+
+      IF ((ABS(m1 + m2 + m3) < EPSILON(1.0_dp)) .AND. &
+          (ABS(j1 - j2) <= j3) .AND. (j3 <= ABS(j1 + j2)) .AND. &
+          is_integer(j1 + j2 + j3)) THEN
+         CALL Clebsch_Gordon_coefficient(j1, m1, j2, m2, j3, -m3, CG_coeff)
+         W_3j = (-1.0_dp)**(j1 - j2 - m3)*CG_coeff/SQRT(2.0_dp*j3 + 1.0_dp)
+      ELSE
+         W_3j = 0.0_dp
+      END IF
+
+   END SUBROUTINE Wigner_3j
+
+! **************************************************************************************************
+!> \brief Check if the input value is an integer number within double-precision accuracy
+!> \param x Input value to be checked
+!> \return True if the input value is integer otherwise false
+!> \author Matthias Krack (16.09.2022, MK)
+! **************************************************************************************************
+   FUNCTION is_integer(x)
+
+      REAL(KIND=dp), INTENT(IN)                          :: x
+      LOGICAL                                            :: is_integer
+
+      IF ((ABS(x) - INT(ABS(x))) > EPSILON(x)) THEN
+         is_integer = .FALSE.
+      ELSE
+         is_integer = .TRUE.
+      END IF
+
+   END FUNCTION is_integer
 
 END MODULE spherical_harmonics
