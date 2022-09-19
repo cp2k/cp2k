@@ -799,7 +799,7 @@ CONTAINS
 !>   * 01.2017 moved from qs_tddfpt2_methods [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_fm_replicate_across_subgroups(fm_src, fm_dest_sub, sub_env)
-      TYPE(cp_fm_type), POINTER                          :: fm_src, fm_dest_sub
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_src, fm_dest_sub
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_fm_replicate_across_subgroups'
@@ -807,7 +807,7 @@ CONTAINS
       INTEGER :: handle, igroup, igroup_local, ncols_global_dest, ncols_global_src, ngroups, &
          nrows_global_dest, nrows_global_src
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
-      TYPE(cp_fm_type), POINTER                          :: fm_null
+      TYPE(cp_fm_type)                                   :: fm_null
       TYPE(cp_para_env_type), POINTER                    :: para_env_global
 
       IF (sub_env%is_split) THEN
@@ -822,7 +822,6 @@ CONTAINS
             CPASSERT(ncols_global_src == ncols_global_dest)
          END IF
 
-         NULLIFY (fm_null)
          igroup_local = sub_env%group_distribution(para_env_global%mepos)
          ngroups = sub_env%ngroups
 
