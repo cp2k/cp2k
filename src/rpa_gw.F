@@ -15,14 +15,9 @@ MODULE rpa_gw
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
-                                              cp_cfm_get_info,&
-                                              cp_cfm_p_type,&
-                                              cp_cfm_release_p,&
-                                              cp_cfm_set_all,&
-                                              cp_cfm_to_fm,&
-                                              cp_cfm_type,&
-                                              cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: &
+        cp_cfm_create, cp_cfm_get_info, cp_cfm_p_type, cp_cfm_release, cp_cfm_release_p, &
+        cp_cfm_set_all, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
@@ -5085,7 +5080,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ikp, nkp_Sigma, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_Sigma_x_minus_vxc_mo_mo
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mo_coeff, ks_mat_ao_ao, &
+      TYPE(cp_cfm_type)                                  :: cfm_mo_coeff, ks_mat_ao_ao, &
                                                             ks_mat_no_xc_ao_ao, vxc_ao_ao, &
                                                             vxc_ao_mo, vxc_mo_mo
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
@@ -5106,13 +5101,12 @@ CONTAINS
 
       matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct
 
-      NULLIFY (ks_mat_ao_ao, ks_mat_no_xc_ao_ao, vxc_ao_ao, vxc_ao_mo, vxc_mo_mo, cfm_mo_coeff)
-      CALL cp_cfm_create_p(ks_mat_ao_ao, matrix_struct)
-      CALL cp_cfm_create_p(ks_mat_no_xc_ao_ao, matrix_struct)
-      CALL cp_cfm_create_p(vxc_ao_ao, matrix_struct)
-      CALL cp_cfm_create_p(vxc_ao_mo, matrix_struct)
-      CALL cp_cfm_create_p(vxc_mo_mo, matrix_struct)
-      CALL cp_cfm_create_p(cfm_mo_coeff, matrix_struct)
+      CALL cp_cfm_create(ks_mat_ao_ao, matrix_struct)
+      CALL cp_cfm_create(ks_mat_no_xc_ao_ao, matrix_struct)
+      CALL cp_cfm_create(vxc_ao_ao, matrix_struct)
+      CALL cp_cfm_create(vxc_ao_mo, matrix_struct)
+      CALL cp_cfm_create(vxc_mo_mo, matrix_struct)
+      CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
       CALL cp_fm_create(fm_Sigma_x_minus_vxc_mo_mo, matrix_struct)
       CALL cp_fm_create(fm_tmp_re, matrix_struct)
       CALL cp_fm_create(fm_tmp_im, matrix_struct)
@@ -5156,12 +5150,12 @@ CONTAINS
 
       END DO
 
-      CALL cp_cfm_release_p(ks_mat_ao_ao)
-      CALL cp_cfm_release_p(ks_mat_no_xc_ao_ao)
-      CALL cp_cfm_release_p(vxc_ao_ao)
-      CALL cp_cfm_release_p(vxc_ao_mo)
-      CALL cp_cfm_release_p(vxc_mo_mo)
-      CALL cp_cfm_release_p(cfm_mo_coeff)
+      CALL cp_cfm_release(ks_mat_ao_ao)
+      CALL cp_cfm_release(ks_mat_no_xc_ao_ao)
+      CALL cp_cfm_release(vxc_ao_ao)
+      CALL cp_cfm_release(vxc_ao_mo)
+      CALL cp_cfm_release(vxc_mo_mo)
+      CALL cp_cfm_release(cfm_mo_coeff)
       CALL cp_fm_release(fm_Sigma_x_minus_vxc_mo_mo)
       CALL cp_fm_release(fm_tmp_re)
       CALL cp_fm_release(fm_tmp_im)
@@ -5194,7 +5188,7 @@ CONTAINS
                                                             periodic(3), size_real_space
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_self_energy
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mo_coeff, cfm_self_energy_ao_ao, &
+      TYPE(cp_cfm_type)                                  :: cfm_mo_coeff, cfm_self_energy_ao_ao, &
                                                             cfm_self_energy_ao_mo, &
                                                             cfm_self_energy_mo_mo
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
@@ -5230,18 +5224,17 @@ CONTAINS
       CALL dbcsr_get_info(mat_self_energy_ao_ao, nfullrows_total=nmo)
       ALLOCATE (diag_self_energy(nmo))
 
-      NULLIFY (cfm_self_energy_ao_ao, cfm_self_energy_ao_mo, cfm_self_energy_mo_mo, cfm_mo_coeff)
       matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%mos(1, 1)%mo_set%mo_coeff%matrix_struct
 
-      CALL cp_cfm_create_p(cfm_self_energy_ao_ao, matrix_struct)
-      CALL cp_cfm_create_p(cfm_self_energy_ao_mo, matrix_struct)
-      CALL cp_cfm_create_p(cfm_self_energy_mo_mo, matrix_struct)
+      CALL cp_cfm_create(cfm_self_energy_ao_ao, matrix_struct)
+      CALL cp_cfm_create(cfm_self_energy_ao_mo, matrix_struct)
+      CALL cp_cfm_create(cfm_self_energy_mo_mo, matrix_struct)
       CALL cp_cfm_set_all(cfm_self_energy_ao_ao, z_zero)
       CALL cp_cfm_set_all(cfm_self_energy_ao_mo, z_zero)
       CALL cp_cfm_set_all(cfm_self_energy_mo_mo, z_zero)
 
       CALL cp_fm_create(fm_self_energy_mo_mo, matrix_struct)
-      CALL cp_cfm_create_p(cfm_mo_coeff, matrix_struct)
+      CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
 
       DO ikp = 1, nkp_Sigma
 
@@ -5269,10 +5262,10 @@ CONTAINS
       CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_kp_re)
       CALL dbcsr_deallocate_matrix_set(mat_self_energy_ao_ao_kp_im)
 
-      CALL cp_cfm_release_p(cfm_self_energy_ao_ao)
-      CALL cp_cfm_release_p(cfm_self_energy_ao_mo)
-      CALL cp_cfm_release_p(cfm_self_energy_mo_mo)
-      CALL cp_cfm_release_p(cfm_mo_coeff)
+      CALL cp_cfm_release(cfm_self_energy_ao_ao)
+      CALL cp_cfm_release(cfm_self_energy_ao_mo)
+      CALL cp_cfm_release(cfm_self_energy_mo_mo)
+      CALL cp_cfm_release(cfm_mo_coeff)
       CALL cp_fm_release(fm_self_energy_mo_mo)
 
       DEALLOCATE (diag_self_energy)
@@ -5290,7 +5283,7 @@ CONTAINS
    SUBROUTINE dbcsr_to_cfm(dbcsr_re, dbcsr_im, cfm_mat)
 
       TYPE(dbcsr_type), POINTER                          :: dbcsr_re, dbcsr_im
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbcsr_to_cfm'
 

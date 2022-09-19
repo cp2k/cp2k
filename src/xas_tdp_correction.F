@@ -19,9 +19,9 @@ MODULE xas_tdp_correction
    USE cp_array_utils,                  ONLY: cp_1d_i_p_type,&
                                               cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_submatrix,&
-                                              cp_cfm_release_p,&
+                                              cp_cfm_release,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
@@ -1750,7 +1750,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: tmp_shifts
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: hami_cfm
+      TYPE(cp_cfm_type)                                  :: hami_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: ao_domo_struct, domo_domo_struct, &
                                                             doso_doso_struct
       TYPE(cp_fm_type)                                   :: alpha_gs_coeffs, ao_domo_work, &
@@ -1760,7 +1760,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), POINTER                          :: orb_soc_x, orb_soc_y, orb_soc_z
 
-      NULLIFY (matrix_ks, para_env, blacs_env, hami_cfm, ao_domo_struct, domo_domo_struct, &
+      NULLIFY (matrix_ks, para_env, blacs_env, ao_domo_struct, domo_domo_struct, &
                doso_doso_struct, orb_soc_x, orb_soc_y, orb_soc_z)
 
       CALL timeset(routineN, handle)
@@ -1870,7 +1870,7 @@ CONTAINS
                               s_firstrow=1, s_firstcol=1, t_firstrow=ndo_mo + 1, t_firstcol=1)
 
       ! Cast everything in complex fm format
-      CALL cp_cfm_create_p(hami_cfm, doso_doso_struct)
+      CALL cp_cfm_create(hami_cfm, doso_doso_struct)
       CALL cp_fm_to_cfm(real_fm, img_fm, hami_cfm)
 
       ! And diagonalize. Since tiny matrix (6x6), diagonalize locally
@@ -1910,7 +1910,7 @@ CONTAINS
       CALL cp_fm_release(real_fm)
       CALL cp_fm_release(img_fm)
 
-      CALL cp_cfm_release_p(hami_cfm)
+      CALL cp_cfm_release(hami_cfm)
 
       CALL cp_fm_struct_release(ao_domo_struct)
       CALL cp_fm_struct_release(domo_domo_struct)

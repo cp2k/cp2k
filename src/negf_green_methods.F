@@ -136,7 +136,7 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE do_sancho(g_surf, omega, h0, s0, h1, s1, conv, transp, work)
-      TYPE(cp_cfm_type), POINTER                         :: g_surf
+      TYPE(cp_cfm_type), INTENT(IN)                      :: g_surf
       COMPLEX(kind=dp), INTENT(in)                       :: omega
       TYPE(cp_fm_type), INTENT(IN)                       :: h0, s0, h1, s1
       REAL(kind=dp), INTENT(in)                          :: conv
@@ -234,11 +234,11 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE negf_contact_self_energy(self_energy_c, omega, g_surf_c, h_sc0, s_sc0, zwork1, zwork2, transp)
-      TYPE(cp_cfm_type), POINTER                         :: self_energy_c
+      TYPE(cp_cfm_type), INTENT(IN)                      :: self_energy_c
       COMPLEX(kind=dp), INTENT(in)                       :: omega
-      TYPE(cp_cfm_type), POINTER                         :: g_surf_c
+      TYPE(cp_cfm_type), INTENT(IN)                      :: g_surf_c
       TYPE(cp_fm_type), INTENT(IN)                       :: h_sc0, s_sc0
-      TYPE(cp_cfm_type), POINTER                         :: zwork1, zwork2
+      TYPE(cp_cfm_type), INTENT(IN)                      :: zwork1, zwork2
       LOGICAL, INTENT(in)                                :: transp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_contact_self_energy'
@@ -279,7 +279,7 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE negf_contact_broadening_matrix(gamma_c, self_energy_c)
-      TYPE(cp_cfm_type), POINTER                         :: gamma_c, self_energy_c
+      TYPE(cp_cfm_type), INTENT(IN)                      :: gamma_c, self_energy_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_contact_broadening_matrix'
 
@@ -313,9 +313,9 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE negf_retarded_green_function(g_ret_s, omega, self_energy_ret_sum, h_s, s_s, v_hartree_s)
-      TYPE(cp_cfm_type), POINTER                         :: g_ret_s
+      TYPE(cp_cfm_type), INTENT(IN)                      :: g_ret_s
       COMPLEX(kind=dp), INTENT(in)                       :: omega
-      TYPE(cp_cfm_type), POINTER                         :: self_energy_ret_sum
+      TYPE(cp_cfm_type), INTENT(IN)                      :: self_energy_ret_sum
       TYPE(cp_fm_type), INTENT(IN)                       :: h_s, s_s
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: v_hartree_s
 

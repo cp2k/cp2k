@@ -13,10 +13,10 @@
 MODULE xas_tdp_utils
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_get_submatrix,&
-                                              cp_cfm_release_p,&
+                                              cp_cfm_release,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
@@ -1514,7 +1514,7 @@ CONTAINS
                                                             gsex_block
       REAL(dp), DIMENSION(:), POINTER                    :: sc_evals, sf_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: evecs_cfm, pert_cfm
+      TYPE(cp_cfm_type)                                  :: evecs_cfm, pert_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: full_struct, gsex_struct, prod_struct, &
                                                             vec_struct, work_struct
       TYPE(cp_fm_type)                                   :: gsex_fm, img_fm, prod_work, real_fm, &
@@ -1532,7 +1532,7 @@ CONTAINS
 
       NULLIFY (gs_coeffs, sc_coeffs, sf_coeffs, matrix_s, orb_soc_x, orb_soc_y, orb_soc_z, mos)
       NULLIFY (full_struct, para_env, blacs_env, mo_coeff, sc_evals, sf_evals, vec_struct, prod_struct)
-      NULLIFY (pert_cfm, evecs_cfm, work_struct, gsex_struct, col_dist, row_dist)
+      NULLIFY (work_struct, gsex_struct, col_dist, row_dist)
       NULLIFY (col_blk_size, row_blk_size, row_dist_new, pgrid, dbcsr_sc, dbcsr_sf, dbcsr_work)
       NULLIFY (dbcsr_tmp, dbcsr_ovlp, dbcsr_prod)
 
@@ -1861,7 +1861,7 @@ CONTAINS
                               s_firstcol=1, t_firstrow=2, t_firstcol=1 + nsc + 1)
 
 !  Setting up the complex Hermitian perturbed matrix
-      CALL cp_cfm_create_p(pert_cfm, full_struct)
+      CALL cp_cfm_create(pert_cfm, full_struct)
       CALL cp_fm_to_cfm(real_fm, img_fm, pert_cfm)
 
       CALL cp_fm_release(real_fm)
@@ -1869,7 +1869,7 @@ CONTAINS
 
 !  Diagonalize the perturbed matrix
       ALLOCATE (tmp_evals(ntot))
-      CALL cp_cfm_create_p(evecs_cfm, full_struct)
+      CALL cp_cfm_create(evecs_cfm, full_struct)
       CALL cp_cfm_heevd(pert_cfm, evecs_cfm, tmp_evals)
 
       !shift the energies such that the GS has zero and store all that in soc_evals (\wo the GS)
@@ -1887,8 +1887,8 @@ CONTAINS
       END IF
 
 ! Clean-up
-      CALL cp_cfm_release_p(pert_cfm)
-      CALL cp_cfm_release_p(evecs_cfm)
+      CALL cp_cfm_release(pert_cfm)
+      CALL cp_cfm_release(evecs_cfm)
       CALL cp_fm_struct_release(full_struct)
       IF (do_roks) CALL cp_fm_release_p(gs_coeffs)
       CALL dbcsr_distribution_release(coeffs_dist)
@@ -1946,7 +1946,7 @@ CONTAINS
                                                             gstp_block
       REAL(dp), DIMENSION(:), POINTER                    :: sg_evals, tp_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: evecs_cfm, hami_cfm
+      TYPE(cp_cfm_type)                                  :: evecs_cfm, hami_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: full_struct, gstp_struct, prod_struct, &
                                                             vec_struct, work_struct
       TYPE(cp_fm_type)                                   :: gstp_fm, img_fm, prod_fm, real_fm, &
@@ -1963,7 +1963,7 @@ CONTAINS
 
       NULLIFY (sg_coeffs, tp_coeffs, gs_coeffs, sg_evals, tp_evals, full_struct)
       NULLIFY (para_env, blacs_env, prod_struct, vec_struct, orb_soc_y, orb_soc_z)
-      NULLIFY (matrix_s, orb_soc_x, hami_cfm, evecs_cfm)
+      NULLIFY (matrix_s, orb_soc_x)
       NULLIFY (work_struct, dbcsr_dist, coeffs_dist, prod_dist, pgrid)
       NULLIFY (col_dist, row_dist, col_blk_size, row_blk_size, row_dist_new, gstp_struct)
       NULLIFY (dbcsr_tp, dbcsr_sg, dbcsr_prod, dbcsr_work, dbcsr_ovlp, dbcsr_tmp)
@@ -2275,7 +2275,7 @@ CONTAINS
       DEALLOCATE (diag, domo_soc_x, domo_soc_y, domo_soc_z)
 
 !  Set-up the complex hermitian perturbation matrix
-      CALL cp_cfm_create_p(hami_cfm, full_struct)
+      CALL cp_cfm_create(hami_cfm, full_struct)
       CALL cp_fm_to_cfm(real_fm, img_fm, hami_cfm)
 
       CALL cp_fm_release(real_fm)
@@ -2283,7 +2283,7 @@ CONTAINS
 
 !  Diagonalize the Hamiltonian
       ALLOCATE (tmp_evals(ntot))
-      CALL cp_cfm_create_p(evecs_cfm, full_struct)
+      CALL cp_cfm_create(evecs_cfm, full_struct)
       CALL cp_cfm_heevd(hami_cfm, evecs_cfm, tmp_evals)
 
       !  Adjust the energies so the GS has zero, and store in the donor_state (without the GS)
@@ -2302,8 +2302,8 @@ CONTAINS
 
 !  Clean-up
       CALL cp_fm_struct_release(full_struct)
-      CALL cp_cfm_release_p(hami_cfm)
-      CALL cp_cfm_release_p(evecs_cfm)
+      CALL cp_cfm_release(hami_cfm)
+      CALL cp_cfm_release(evecs_cfm)
       CALL dbcsr_distribution_release(coeffs_dist)
       CALL dbcsr_distribution_release(prod_dist)
       CALL dbcsr_release(dbcsr_sg)
@@ -2939,7 +2939,7 @@ CONTAINS
    SUBROUTINE compute_soc_dipole_fosc(soc_evecs_cfm, dbcsr_soc_package, donor_state, xas_tdp_env, &
                                       xas_tdp_control, qs_env, gs_coeffs)
 
-      TYPE(cp_cfm_type), POINTER                         :: soc_evecs_cfm
+      TYPE(cp_cfm_type), INTENT(IN)                      :: soc_evecs_cfm
       TYPE(dbcsr_soc_package_type)                       :: dbcsr_soc_package
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
@@ -2954,13 +2954,13 @@ CONTAINS
       LOGICAL                                            :: do_os, do_rcs
       REAL(dp), DIMENSION(:), POINTER                    :: osc_str, soc_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: dip_cfm, work1_cfm, work2_cfm
+      TYPE(cp_cfm_type)                                  :: dip_cfm, work1_cfm, work2_cfm
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: amew_dip
       TYPE(cp_fm_struct_type), POINTER                   :: dip_struct, full_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      NULLIFY (para_env, blacs_env, dip_struct, full_struct, work1_cfm, work2_cfm, osc_str)
-      NULLIFY (soc_evals, amew_dip, dip_cfm)
+      NULLIFY (para_env, blacs_env, dip_struct, full_struct, osc_str)
+      NULLIFY (soc_evals, amew_dip)
 
       CALL timeset(routineN, handle)
 
@@ -2980,9 +2980,9 @@ CONTAINS
       CALL cp_fm_struct_create(dip_struct, context=blacs_env, para_env=para_env, &
                                nrow_global=ntot, ncol_global=1)
       CALL cp_cfm_get_info(soc_evecs_cfm, matrix_struct=full_struct)
-      CALL cp_cfm_create_p(dip_cfm, dip_struct)
-      CALL cp_cfm_create_p(work1_cfm, full_struct)
-      CALL cp_cfm_create_p(work2_cfm, full_struct)
+      CALL cp_cfm_create(dip_cfm, dip_struct)
+      CALL cp_cfm_create(work1_cfm, full_struct)
+      CALL cp_cfm_create(work2_cfm, full_struct)
       ALLOCATE (transdip(ntot, 1))
 
       !get the dipole in the AMEW basis
@@ -3021,9 +3021,9 @@ CONTAINS
 
       !clean-up
       CALL cp_fm_struct_release(dip_struct)
-      CALL cp_cfm_release_p(work1_cfm)
-      CALL cp_cfm_release_p(work2_cfm)
-      CALL cp_cfm_release_p(dip_cfm)
+      CALL cp_cfm_release(work1_cfm)
+      CALL cp_cfm_release(work2_cfm)
+      CALL cp_cfm_release(dip_cfm)
       DO i = 1, 3
          CALL cp_fm_release_p(amew_dip(i)%matrix)
       END DO
@@ -3047,7 +3047,7 @@ CONTAINS
    SUBROUTINE compute_soc_quadrupole_fosc(soc_evecs_cfm, dbcsr_soc_package, donor_state, &
                                           xas_tdp_env, xas_tdp_control, qs_env, gs_coeffs)
 
-      TYPE(cp_cfm_type), POINTER                         :: soc_evecs_cfm
+      TYPE(cp_cfm_type), INTENT(IN)                      :: soc_evecs_cfm
       TYPE(dbcsr_soc_package_type)                       :: dbcsr_soc_package
       TYPE(donor_state_type), POINTER                    :: donor_state
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
@@ -3063,13 +3063,13 @@ CONTAINS
       LOGICAL                                            :: do_os, do_rcs
       REAL(dp), DIMENSION(:), POINTER                    :: osc_str, soc_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: quad_cfm, work1_cfm, work2_cfm
+      TYPE(cp_cfm_type)                                  :: quad_cfm, work1_cfm, work2_cfm
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: amew_quad
       TYPE(cp_fm_struct_type), POINTER                   :: full_struct, quad_struct
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
-      NULLIFY (para_env, blacs_env, quad_struct, full_struct, work1_cfm, work2_cfm, osc_str)
-      NULLIFY (soc_evals, amew_quad, quad_cfm)
+      NULLIFY (para_env, blacs_env, quad_struct, full_struct, osc_str)
+      NULLIFY (soc_evals, amew_quad)
 
       CALL timeset(routineN, handle)
 
@@ -3089,9 +3089,9 @@ CONTAINS
       CALL cp_fm_struct_create(quad_struct, context=blacs_env, para_env=para_env, &
                                nrow_global=ntot, ncol_global=1)
       CALL cp_cfm_get_info(soc_evecs_cfm, matrix_struct=full_struct)
-      CALL cp_cfm_create_p(quad_cfm, quad_struct)
-      CALL cp_cfm_create_p(work1_cfm, full_struct)
-      CALL cp_cfm_create_p(work2_cfm, full_struct)
+      CALL cp_cfm_create(quad_cfm, quad_struct)
+      CALL cp_cfm_create(work1_cfm, full_struct)
+      CALL cp_cfm_create(work2_cfm, full_struct)
       ALLOCATE (transquad(ntot, 1))
       ALLOCATE (trace(nosc))
       trace = (0.0_dp, 0.0_dp)
@@ -3138,9 +3138,9 @@ CONTAINS
 
       !clean-up
       CALL cp_fm_struct_release(quad_struct)
-      CALL cp_cfm_release_p(work1_cfm)
-      CALL cp_cfm_release_p(work2_cfm)
-      CALL cp_cfm_release_p(quad_cfm)
+      CALL cp_cfm_release(work1_cfm)
+      CALL cp_cfm_release(work2_cfm)
+      CALL cp_cfm_release(quad_cfm)
       DO i = 1, 6
          CALL cp_fm_release_p(amew_quad(i)%matrix)
       END DO

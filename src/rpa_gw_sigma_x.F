@@ -16,9 +16,9 @@ MODULE rpa_gw_sigma_x
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
-                                              cp_cfm_release_p,&
+                                              cp_cfm_release,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -797,7 +797,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: imval, reval
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mos, cfm_sigma_x_minus_vxc, &
+      TYPE(cp_cfm_type)                                  :: cfm_mos, cfm_sigma_x_minus_vxc, &
                                                             cfm_sigma_x_minus_vxc_mo_basis, cfm_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: fwork_im, fwork_re
@@ -822,15 +822,13 @@ CONTAINS
       ALLOCATE (vec_Sigma_x_minus_vxc_gw_im(nmo, nspins, nkp))
       vec_Sigma_x_minus_vxc_gw_im = 0.0_dp
 
-      NULLIFY (cfm_mos, cfm_sigma_x_minus_vxc, &
-               cfm_sigma_x_minus_vxc_mo_basis, cfm_tmp)
       CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
       CALL cp_fm_create(fwork_re, matrix_struct)
       CALL cp_fm_create(fwork_im, matrix_struct)
-      CALL cp_cfm_create_p(cfm_mos, matrix_struct)
-      CALL cp_cfm_create_p(cfm_sigma_x_minus_vxc, matrix_struct)
-      CALL cp_cfm_create_p(cfm_sigma_x_minus_vxc_mo_basis, matrix_struct)
-      CALL cp_cfm_create_p(cfm_tmp, matrix_struct)
+      CALL cp_cfm_create(cfm_mos, matrix_struct)
+      CALL cp_cfm_create(cfm_sigma_x_minus_vxc, matrix_struct)
+      CALL cp_cfm_create(cfm_sigma_x_minus_vxc_mo_basis, matrix_struct)
+      CALL cp_cfm_create(cfm_tmp, matrix_struct)
 
       CALL cp_cfm_get_info(matrix=cfm_sigma_x_minus_vxc_mo_basis, &
                            nrow_local=nrow_local, &
@@ -923,10 +921,10 @@ CONTAINS
 
       CALL cp_fm_release(fwork_re)
       CALL cp_fm_release(fwork_im)
-      CALL cp_cfm_release_p(cfm_mos)
-      CALL cp_cfm_release_p(cfm_sigma_x_minus_vxc)
-      CALL cp_cfm_release_p(cfm_sigma_x_minus_vxc_mo_basis)
-      CALL cp_cfm_release_p(cfm_tmp)
+      CALL cp_cfm_release(cfm_mos)
+      CALL cp_cfm_release(cfm_sigma_x_minus_vxc)
+      CALL cp_cfm_release(cfm_sigma_x_minus_vxc_mo_basis)
+      CALL cp_cfm_release(cfm_tmp)
 
       CALL timestop(handle)
 

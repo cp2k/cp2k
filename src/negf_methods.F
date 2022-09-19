@@ -21,7 +21,7 @@ MODULE negf_methods
         copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create_p, &
         cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_p_type, &
         cp_cfm_release_p, cp_cfm_retain, cp_cfm_set_submatrix, cp_cfm_start_copy_general, &
-        cp_cfm_to_fm, cp_cfm_type
+        cp_cfm_to_fm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
@@ -1403,7 +1403,6 @@ CONTAINS
                                                             zwork1_contacts, zwork2_contacts
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: gamma_contacts_group, &
                                                             gret_gamma_gadv_group
-      TYPE(cp_cfm_type), POINTER                         :: matrix_s_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: g_ret_imag
       TYPE(cp_fm_type), POINTER                          :: matrix_s
@@ -1413,8 +1412,6 @@ CONTAINS
       npoints = SIZE(omega)
       ncontacts = SIZE(negf_env%contacts)
       CPASSERT(SIZE(negf_control%contacts) == ncontacts)
-
-      NULLIFY (matrix_s_cfm)
 
       IF (PRESENT(just_contact)) THEN
          CPASSERT(just_contact <= ncontacts)
@@ -1821,8 +1818,6 @@ CONTAINS
          END DO
          DEALLOCATE (g_ret_s_group)
       END IF
-
-      IF (ASSOCIATED(matrix_s_cfm)) CALL cp_cfm_release_p(matrix_s_cfm)
 
       IF (ALLOCATED(gamma_contacts_group)) THEN
          DO ipoint = npoints, 1, -1

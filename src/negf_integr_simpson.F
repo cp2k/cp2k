@@ -562,7 +562,7 @@ CONTAINS
 !>   * 05.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE do_simpson_rule(integral, fa, fb, fc, length)
-      TYPE(cp_cfm_type), POINTER                         :: integral, fa, fb, fc
+      TYPE(cp_cfm_type), INTENT(IN)                      :: integral, fa, fb, fc
       REAL(kind=dp), INTENT(in)                          :: length
 
       CALL cp_cfm_to_cfm(fa, integral)
@@ -586,9 +586,9 @@ CONTAINS
 !>   * 05.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE do_boole_rule(integral, fa, fb, fc, fd, fe, length, work)
-      TYPE(cp_cfm_type), POINTER                         :: integral, fa, fb, fc, fd, fe
+      TYPE(cp_cfm_type), INTENT(IN)                      :: integral, fa, fb, fc, fd, fe
       REAL(kind=dp), INTENT(in)                          :: length
-      TYPE(cp_cfm_type), POINTER                         :: work
+      TYPE(cp_cfm_type), INTENT(IN)                      :: work
 
       REAL(kind=dp)                                      :: rscale
 
