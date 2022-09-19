@@ -28,8 +28,9 @@ MODULE qs_initial_guess
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, cp_fm_p_type, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
+        cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, &
+        cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -161,7 +162,8 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: work1
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, ao_mo_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, moa, mob, ortho, sv, work2
+      TYPE(cp_fm_type)                                   :: sv
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, moa, mob, ortho, work2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -183,10 +185,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section, input, subsys_section
 
       logger => cp_get_default_logger()
-      NULLIFY (atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &
+      NULLIFY (atomic_kind, qs_kind, mo_coeff, orb_basis_set, atomic_kind_set, &
                qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
-               scf_control, dft_control, p_rmpv, ortho, work2, work1, para_env, &
-               s_sparse, scf_control, dft_control, h_core_sparse, matrix_ks, rho, &
+               scf_control, dft_control, p_rmpv, para_env, h_core_sparse, matrix_ks, rho, &
                mos_last_converged)
       NULLIFY (dft_section, input, subsys_section)
       NULLIFY (matrix_s_kp, matrix_h_kp, matrix_ks_kp, rho_ao_kp)
@@ -647,7 +648,7 @@ CONTAINS
                      CALL cp_fm_set_all(mo_coeff, 0.0_dp)
                      CALL cp_fm_init_random(mo_coeff, nmo)
 
-                     CALL cp_fm_create_p(sv, mo_coeff%matrix_struct, "SV")
+                     CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
                      ! multiply times PS
                      IF (has_unit_metric) THEN
                         CALL cp_fm_to_fm(mo_coeff, sv)
@@ -657,7 +658,7 @@ CONTAINS
                      END IF
                      CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
 
-                     CALL cp_fm_release_p(sv)
+                     CALL cp_fm_release(sv)
                      ! and ortho the result
                      IF (has_unit_metric) THEN
                         CALL make_basis_simple(mo_coeff, nmo)
@@ -687,7 +688,7 @@ CONTAINS
                         CALL cp_fm_set_all(mo_coeff, 0.0_dp)
                         CALL cp_fm_init_random(mo_coeff, nmo)
 
-                        CALL cp_fm_create_p(sv, mo_coeff%matrix_struct, "SV")
+                        CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
                         ! multiply times PS
                         IF (has_unit_metric) THEN
                            CALL cp_fm_to_fm(mo_coeff, sv)
@@ -697,7 +698,7 @@ CONTAINS
                         END IF
                         CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
 
-                        CALL cp_fm_release_p(sv)
+                        CALL cp_fm_release(sv)
                         ! and ortho the result
                         IF (has_unit_metric) THEN
                            CALL make_basis_simple(mo_coeff, nmo)
@@ -1020,7 +1021,7 @@ CONTAINS
                                   mo_coeff=mo_coeff, &
                                   nmo=nmo, homo=homo)
                   CALL cp_fm_init_random(mo_coeff, nmo)
-                  CALL cp_fm_create_p(sv, mo_coeff%matrix_struct, "SV")
+                  CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
                   ! multiply times PS
                   IF (has_unit_metric) THEN
                      CALL cp_fm_to_fm(mo_coeff, sv)
@@ -1029,7 +1030,7 @@ CONTAINS
                   END IF
                   ! here we could easily multiply with the diag that we actually have replicated already
                   CALL cp_dbcsr_sm_fm_multiply(p_rmpv(ispin)%matrix, sv, mo_coeff, homo)
-                  CALL cp_fm_release_p(sv)
+                  CALL cp_fm_release(sv)
                   ! and ortho the result
                   IF (has_unit_metric) THEN
                      CALL make_basis_simple(mo_coeff, nmo)

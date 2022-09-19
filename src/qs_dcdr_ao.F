@@ -20,8 +20,8 @@ MODULE qs_dcdr_ao
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_release_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -127,7 +127,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: energy_hartree
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_fm, rho_ao_s1, rho_ao_s1_rho_ao, &
+      TYPE(cp_fm_type)                                   :: rho_ao_fm, rho_ao_s1, rho_ao_s1_rho_ao, &
                                                             s1_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao, rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -167,10 +167,10 @@ CONTAINS
 
       CALL dbcsr_set(dcdr_env%perturbed_dm_correction, 0._dp)
 
-      CALL cp_fm_create_p(rho_ao_fm, dcdr_env%aoao_fm_struct)
-      CALL cp_fm_create_p(rho_ao_s1, dcdr_env%aoao_fm_struct)
-      CALL cp_fm_create_p(rho_ao_s1_rho_ao, dcdr_env%aoao_fm_struct)
-      CALL cp_fm_create_p(s1_ao, dcdr_env%aoao_fm_struct)
+      CALL cp_fm_create(rho_ao_fm, dcdr_env%aoao_fm_struct)
+      CALL cp_fm_create(rho_ao_s1, dcdr_env%aoao_fm_struct)
+      CALL cp_fm_create(rho_ao_s1_rho_ao, dcdr_env%aoao_fm_struct)
+      CALL cp_fm_create(s1_ao, dcdr_env%aoao_fm_struct)
 
       IF (PRESENT(overlap1)) THEN
          CALL copy_dbcsr_to_fm(overlap1%matrix, s1_ao)
@@ -191,10 +191,10 @@ CONTAINS
                          0.0_dp, rho_ao_s1_rho_ao)
 
       CALL copy_fm_to_dbcsr(rho_ao_s1_rho_ao, dcdr_env%perturbed_dm_correction)
-      CALL cp_fm_release_p(rho_ao_fm)
-      CALL cp_fm_release_p(rho_ao_s1)
-      CALL cp_fm_release_p(rho_ao_s1_rho_ao)
-      CALL cp_fm_release_p(s1_ao)
+      CALL cp_fm_release(rho_ao_fm)
+      CALL cp_fm_release(rho_ao_s1)
+      CALL cp_fm_release(rho_ao_s1_rho_ao)
+      CALL cp_fm_release(s1_ao)
 
       ! Done building the density matrix correction
       CALL dbcsr_set(dcdr_env%matrix_apply_op_constant(1)%matrix, 0.0_dp)

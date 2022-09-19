@@ -23,13 +23,9 @@ MODULE qs_dcdr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_diag,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_p_type, cp_fm_release, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -195,7 +191,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, nao, nmo
-      TYPE(cp_fm_type), POINTER                          :: buf
+      TYPE(cp_fm_type)                                   :: buf
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: opdr_sym
 
       CALL timeset(routineN, handle)
@@ -229,14 +225,14 @@ CONTAINS
 
       ! The overlap derivative terms for the Sternheimer equation
       ! buf = mo * (-mo * matrix_ks * mo)
-      CALL cp_fm_create_p(buf, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(buf, dcdr_env%likemos_fm_struct)
       CALL parallel_gemm('N', 'N', nao, nmo, nmo, &
                          -1.0_dp, dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, &
                          0.0_dp, buf)
 
       CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, buf, dcdr_env%op_dR(1)%matrix, &
                                    nmo, alpha=1.0_dp, beta=1.0_dp)
-      CALL cp_fm_release_p(buf)
+      CALL cp_fm_release(buf)
 
       ! SL multiply by -1 for response solver (H-S<H> C + dR_coupled= - (op_dR)
       CALL cp_fm_scale(-1.0_dp, dcdr_env%op_dR(1)%matrix)

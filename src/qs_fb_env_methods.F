@@ -31,8 +31,8 @@ MODULE qs_fb_env_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_release_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -155,8 +155,10 @@ CONTAINS
                                                             occ_filtered
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: filter_fm_struct, fm_struct
-      TYPE(cp_fm_type), POINTER :: fm_matrix_filter, fm_matrix_filtered_ks, fm_matrix_filtered_s, &
-         fm_matrix_ortho, fm_matrix_work, mo_coeff, mo_coeff_filtered
+      TYPE(cp_fm_type)                                   :: fm_matrix_filter, fm_matrix_filtered_ks, &
+                                                            fm_matrix_filtered_s, fm_matrix_ortho, &
+                                                            fm_matrix_work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_filtered
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_filter
       TYPE(dbcsr_type)                                   :: matrix_filtered_ks, matrix_filtered_s, &
@@ -180,9 +182,7 @@ CONTAINS
       NULLIFY (my_mpools)
       NULLIFY (matrix_filter, matrix_filtered_p)
       NULLIFY (fm_struct, filter_fm_struct)
-      NULLIFY (fm_matrix_filter, fm_matrix_filtered_s, &
-               fm_matrix_filtered_ks, fm_matrix_work, &
-               fm_matrix_ortho, mo_coeff_filtered, mo_coeff)
+      NULLIFY (mo_coeff_filtered, mo_coeff)
       ! NULLIFY(sab_orb)
       CALL fb_atomic_halo_list_nullify(atomic_halos)
       CALL fb_trial_fns_nullify(trial_fns)
@@ -384,15 +384,15 @@ CONTAINS
                                ncol_global=filtered_nfullrowsORcols_total)
       ! both fm_matrix_filtered_s and fm_matrix_filtered_ks are reused
       ! for each spin channel
-      CALL cp_fm_create_p(fm_matrix_filtered_s, &
-                          fm_struct, &
-                          name="FM_MATRIX_FILTERED_S")
-      CALL cp_fm_create_p(fm_matrix_filtered_ks, &
-                          fm_struct, &
-                          name="FM_MATRIX_FILTERED_KS")
+      CALL cp_fm_create(fm_matrix_filtered_s, &
+                        fm_struct, &
+                        name="FM_MATRIX_FILTERED_S")
+      CALL cp_fm_create(fm_matrix_filtered_ks, &
+                        fm_struct, &
+                        name="FM_MATRIX_FILTERED_KS")
       ! creaate work matrix
-      CALL cp_fm_create_p(fm_matrix_work, fm_struct, name="FM_MATRIX_WORK")
-      CALL cp_fm_create_p(fm_matrix_ortho, fm_struct, name="FM_MATRIX_ORTHO")
+      CALL cp_fm_create(fm_matrix_work, fm_struct, name="FM_MATRIX_WORK")
+      CALL cp_fm_create(fm_matrix_ortho, fm_struct, name="FM_MATRIX_ORTHO")
       ! all fm matrices are created, so can release fm_struct
       CALL cp_fm_struct_release(fm_struct)
 
@@ -440,10 +440,10 @@ CONTAINS
       ! release temporary matrices
       CALL dbcsr_release(matrix_filtered_s)
       CALL dbcsr_release(matrix_filtered_ks)
-      CALL cp_fm_release_p(fm_matrix_filtered_s)
-      CALL cp_fm_release_p(fm_matrix_filtered_ks)
-      CALL cp_fm_release_p(fm_matrix_work)
-      CALL cp_fm_release_p(fm_matrix_ortho)
+      CALL cp_fm_release(fm_matrix_filtered_s)
+      CALL cp_fm_release(fm_matrix_filtered_ks)
+      CALL cp_fm_release(fm_matrix_work)
+      CALL cp_fm_release(fm_matrix_ortho)
 
       ! ----------------------------------------------------------------------
       ! Construct New Density Matrix
@@ -526,9 +526,9 @@ CONTAINS
                                context=blacs_env, &
                                nrow_global=original_nfullrowsORcols_total, &
                                ncol_global=filtered_nfullrowsORcols_total)
-      CALL cp_fm_create_p(fm_matrix_filter, &
-                          filter_fm_struct, &
-                          name="FM_MATRIX_FILTER")
+      CALL cp_fm_create(fm_matrix_filter, &
+                        filter_fm_struct, &
+                        name="FM_MATRIX_FILTER")
       CALL cp_fm_struct_release(filter_fm_struct)
 
       DO ispin = 1, nspin
@@ -575,7 +575,7 @@ CONTAINS
       END DO ! ispin
 
       ! release temporary matrices
-      CALL cp_fm_release_p(fm_matrix_filter)
+      CALL cp_fm_release(fm_matrix_filter)
 
       ! ----------------------------------------------------------------------
       ! Final Clean Up
@@ -614,9 +614,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_env_eigensolver(fm_KS, fm_S, mo_set, fm_ortho, &
                                  fm_work, eps_eigval, ndep, method)
-      TYPE(cp_fm_type), POINTER                          :: fm_KS, fm_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_KS, fm_S
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: fm_ortho, fm_work
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_ortho, fm_work
       REAL(KIND=dp), INTENT(IN)                          :: eps_eigval
       INTEGER, INTENT(OUT)                               :: ndep
       INTEGER, INTENT(IN)                                :: method
