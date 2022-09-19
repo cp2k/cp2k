@@ -29,7 +29,8 @@ MODULE rpa_main
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_create_p,&
                                               cp_fm_p_type,&
                                               cp_fm_release_p,&
                                               cp_fm_set_all,&
@@ -1072,7 +1073,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
                                                             fm_mat_S_gw
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, fm_mat_S_ij_bse, &
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_R_gw, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
@@ -1133,9 +1134,9 @@ CONTAINS
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_mat_SiVtrSi
-      TYPE(cp_fm_type), POINTER :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-         fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
+         fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
+         fm_scaled_dm_virt_tau
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_P_global_copy, &
                                                             mat_SinvVSinv
@@ -1315,11 +1316,11 @@ CONTAINS
             eps_min_trans = mp2_env%ri_g0w0%eps_min_trans
             max_iter_bse = mp2_env%ri_g0w0%max_iter_bse
 
-            CALL cp_fm_create_p(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix%matrix_struct)
+            CALL cp_fm_create(fm_mat_Q_static_bse_gemm, fm_mat_Q_gemm(1)%matrix%matrix_struct)
             CALL cp_fm_to_fm(fm_mat_Q_gemm(1)%matrix, fm_mat_Q_static_bse_gemm)
             CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
 
-            CALL cp_fm_create_p(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix%matrix_struct)
+            CALL cp_fm_create(fm_mat_Q_static_bse, fm_mat_Q(1)%matrix%matrix_struct)
             CALL cp_fm_to_fm(fm_mat_Q_gemm(1)%matrix, fm_mat_Q_static_bse)
             CALL cp_fm_set_all(fm_mat_Q_static_bse, 0.0_dp)
 

@@ -24,14 +24,9 @@ MODULE rpa_rse
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
-                                              cp_fm_get_diag,&
-                                              cp_fm_get_info,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm_submat,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
@@ -114,7 +109,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_P_mu_nu, fm_X_mo, fm_XC_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: fm_ao, fm_ao_mo
+      TYPE(cp_fm_type)                                   :: fm_ao, fm_ao_mo
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_mu_nu, matrix_s, rho_ao
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
@@ -192,16 +187,14 @@ CONTAINS
       END DO
       CALL cp_fm_struct_release(fm_struct_tmp)
 
-      NULLIFY (fm_ao)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create_p(fm_ao, fm_struct_tmp, name="f_ao")
+      CALL cp_fm_create(fm_ao, fm_struct_tmp, name="f_ao")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(fm_ao, 0.0_dp)
-      NULLIFY (fm_ao_mo)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create_p(fm_ao_mo, fm_struct_tmp, name="f_ao_mo")
+      CALL cp_fm_create(fm_ao_mo, fm_struct_tmp, name="f_ao_mo")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(fm_ao_mo, 0.0_dp)
 
@@ -278,8 +271,8 @@ CONTAINS
 
       ! Release staff
       DEALLOCATE (diag_diff)
-      CALL cp_fm_release_p(fm_ao)
-      CALL cp_fm_release_p(fm_ao_mo)
+      CALL cp_fm_release(fm_ao)
+      CALL cp_fm_release(fm_ao_mo)
       DO ispin = 1, nspins
          CALL cp_fm_release_p(fm_P_mu_nu(ispin)%matrix)
          CALL cp_fm_release_p(fm_X_mo(ispin)%matrix)
@@ -324,9 +317,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: mat_mu_nu
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_P_mu_nu
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_X_ao
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_X_mo
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_X_ao_mo
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao_mo
       LOGICAL, INTENT(IN)                                :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution'
@@ -422,7 +415,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_contribution(qs_env, fm_XC_ao, fm_XC_ao_mo, fm_XC_mo, mo_coeff, dimen)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_XC_ao, fm_XC_ao_mo
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_XC_ao, fm_XC_ao_mo
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_XC_mo, mo_coeff
       INTEGER, INTENT(IN)                                :: dimen
 
@@ -508,7 +501,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_o, eig_semi_can, eig_v
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: fm_F_oo, fm_F_ov, fm_F_vv, fm_O, fm_tmp, &
+      TYPE(cp_fm_type)                                   :: fm_F_oo, fm_F_ov, fm_F_vv, fm_O, fm_tmp, &
                                                             fm_U
 
       CALL timeset(routineN, handle)
@@ -540,11 +533,11 @@ CONTAINS
 
       DO ispin = 1, nspins
          ! Create the occupied-occupied and virtual-virtual blocks, eigenvectors
-         NULLIFY (fm_F_oo, fm_O, fm_struct_tmp)
+         NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=homo(ispin), ncol_global=homo(ispin))
-         CALL cp_fm_create_p(fm_F_oo, fm_struct_tmp, name="F_oo")
-         CALL cp_fm_create_p(fm_O, fm_struct_tmp, name="O")
+         CALL cp_fm_create(fm_F_oo, fm_struct_tmp, name="F_oo")
+         CALL cp_fm_create(fm_O, fm_struct_tmp, name="O")
          CALL cp_fm_set_all(fm_F_oo, 0.0_dp)
          CALL cp_fm_set_all(fm_O, 0.0_dp)
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -554,11 +547,11 @@ CONTAINS
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=1)
          virtual = dimen - homo(ispin)
-         NULLIFY (fm_F_vv, fm_U, fm_struct_tmp)
+         NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=virtual, ncol_global=virtual)
-         CALL cp_fm_create_p(fm_F_vv, fm_struct_tmp, name="F_vv")
-         CALL cp_fm_create_p(fm_U, fm_struct_tmp, name="U")
+         CALL cp_fm_create(fm_F_vv, fm_struct_tmp, name="F_vv")
+         CALL cp_fm_create(fm_U, fm_struct_tmp, name="U")
          CALL cp_fm_set_all(fm_F_vv, 0.0_dp)
          CALL cp_fm_set_all(fm_U, 0.0_dp)
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -583,11 +576,11 @@ CONTAINS
          eig_semi_can(homo(ispin) + 1:dimen) = eig_v(:)
 
          ! Create occupied-virtual block
-         NULLIFY (fm_F_ov, fm_tmp, fm_struct_tmp)
+         NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=homo(ispin), ncol_global=virtual)
-         CALL cp_fm_create_p(fm_F_ov, fm_struct_tmp, name="F_ov")
-         CALL cp_fm_create_p(fm_tmp, fm_struct_tmp, name="tmp")
+         CALL cp_fm_create(fm_F_ov, fm_struct_tmp, name="F_ov")
+         CALL cp_fm_create(fm_tmp, fm_struct_tmp, name="tmp")
          CALL cp_fm_set_all(fm_F_ov, 0.0_dp)
          CALL cp_fm_set_all(fm_tmp, 0.0_dp)
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -630,12 +623,12 @@ CONTAINS
          DEALLOCATE (eig_o)
          DEALLOCATE (eig_v)
 
-         CALL cp_fm_release_p(fm_F_ov)
-         CALL cp_fm_release_p(fm_F_oo)
-         CALL cp_fm_release_p(fm_F_vv)
-         CALL cp_fm_release_p(fm_U)
-         CALL cp_fm_release_p(fm_O)
-         CALL cp_fm_release_p(fm_tmp)
+         CALL cp_fm_release(fm_F_ov)
+         CALL cp_fm_release(fm_F_oo)
+         CALL cp_fm_release(fm_F_vv)
+         CALL cp_fm_release(fm_U)
+         CALL cp_fm_release(fm_O)
+         CALL cp_fm_release(fm_tmp)
 
       END DO
 

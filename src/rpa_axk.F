@@ -25,14 +25,9 @@ MODULE rpa_axk
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release_p,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat_general,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_release, cp_fm_release_p, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
@@ -97,11 +92,11 @@ CONTAINS
                                eig, fm_mat_S, homo, virtual, omega, &
                                mp2_env, mat_munu, unit_nr, e_axk_corr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eig
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: omega
       TYPE(mp2_type)                                     :: mp2_env
@@ -118,9 +113,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_mat_Gamma_3
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q_tmp, fm_mat_R_half, &
-                                                            fm_mat_R_half_gemm, fm_mat_U
+      TYPE(cp_fm_type)                                   :: fm_mat_Gamma_3, fm_mat_Q_tmp, fm_mat_U
+      TYPE(cp_fm_type), POINTER                          :: fm_mat_R_half, fm_mat_R_half_gemm
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_inu_P, &
                                                             dbcsr_Gamma_munu_P
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v
@@ -133,17 +127,14 @@ CONTAINS
       ! create the R_half and U matrices with a different blacs env similar to Q
       ! and a tmp_Q needed for diagonalization
 
-      NULLIFY (fm_mat_U)
-      NULLIFY (fm_mat_Q_tmp)
       NULLIFY (fm_mat_R_half)
-      NULLIFY (fm_mat_Q_tmp)
       NULLIFY (fm_struct)
 
       CALL cp_fm_get_info(matrix=fm_mat_Q, &
                           matrix_struct=fm_struct)
-      CALL cp_fm_create_p(fm_mat_U, fm_struct, name="fm_mat_U")
+      CALL cp_fm_create(fm_mat_U, fm_struct, name="fm_mat_U")
       CALL cp_fm_create_p(fm_mat_R_half, fm_struct, name="fm_mat_R_half")
-      CALL cp_fm_create_p(fm_mat_Q_tmp, fm_struct, name="fm_mat_Q_tmp")
+      CALL cp_fm_create(fm_mat_Q_tmp, fm_struct, name="fm_mat_Q_tmp")
       CALL cp_fm_set_all(matrix=fm_mat_Q_tmp, alpha=0.0_dp)
       CALL cp_fm_set_all(matrix=fm_mat_U, alpha=0.0_dp)
       CALL cp_fm_set_all(matrix=fm_mat_R_half, alpha=0.0_dp)
@@ -217,8 +208,8 @@ CONTAINS
       CALL remove_scaling_factor_rpa(fm_mat_S, virtual, eig, homo, omega)
 
       ! Release full matrix stuff
-      CALL cp_fm_release_p(fm_mat_Q_tmp)
-      CALL cp_fm_release_p(fm_mat_U)
+      CALL cp_fm_release(fm_mat_Q_tmp)
+      CALL cp_fm_release(fm_mat_U)
       CALL cp_fm_release_p(fm_mat_R_half)
       CALL cp_fm_release_p(fm_mat_R_half_gemm)
 

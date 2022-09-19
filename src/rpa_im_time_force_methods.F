@@ -605,10 +605,10 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M, t_3c_O
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
-      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
@@ -1108,10 +1108,10 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M, t_3c_O
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
-      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
