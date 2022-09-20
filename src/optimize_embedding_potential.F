@@ -3231,7 +3231,7 @@ CONTAINS
                                   embed_pot_spin, open_shell_embed, grid_opt, final_one)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
-      TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_coef
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: embed_pot_coef
       TYPE(pw_p_type), POINTER                           :: embed_pot
       INTEGER                                            :: i_iter
       TYPE(pw_p_type), POINTER                           :: embed_pot_spin
