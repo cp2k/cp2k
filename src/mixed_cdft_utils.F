@@ -28,7 +28,7 @@ MODULE mixed_cdft_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general_p,&
                                               cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
@@ -1276,9 +1276,9 @@ CONTAINS
                                 matrix_struct=fm_struct_mo, &
                                 name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
                                 //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
-            CALL cp_fm_copy_general(mo_coeff_tmp(iforce_eval, ispin)%matrix, &
-                                    mixed_mo_coeff(iforce_eval, ispin)%matrix, &
-                                    mixed_cdft%blacs_env%para_env)
+            CALL cp_fm_copy_general_p(mo_coeff_tmp(iforce_eval, ispin)%matrix, &
+                                      mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+                                      mixed_cdft%blacs_env%para_env)
             CALL cp_fm_release_p(mo_coeff_tmp(iforce_eval, ispin)%matrix)
             CALL cp_fm_struct_release(fm_struct_mo)
          END DO
@@ -1290,9 +1290,9 @@ CONTAINS
             CALL cp_fm_create_p(matrix=mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
                                 matrix_struct=fm_struct_wmat, &
                                 name="WEIGHT_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_MATRIX")
-            CALL cp_fm_copy_general(wmat_tmp(iforce_eval, ivar)%matrix, &
-                                    mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
-                                    mixed_cdft%blacs_env%para_env)
+            CALL cp_fm_copy_general_p(wmat_tmp(iforce_eval, ivar)%matrix, &
+                                      mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
+                                      mixed_cdft%blacs_env%para_env)
             CALL cp_fm_release_p(wmat_tmp(iforce_eval, ivar)%matrix)
             ! (fm -> dbcsr)
             CALL copy_fm_to_dbcsr_bc(mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
@@ -1309,9 +1309,9 @@ CONTAINS
                                    matrix_struct=fm_struct_overlap, &
                                    name="DENSITY_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_"// &
                                    TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
-               CALL cp_fm_copy_general(matrix_p_tmp(iforce_eval, ispin)%matrix, &
-                                       mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
-                                       mixed_cdft%blacs_env%para_env)
+               CALL cp_fm_copy_general_p(matrix_p_tmp(iforce_eval, ispin)%matrix, &
+                                         mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
+                                         mixed_cdft%blacs_env%para_env)
                CALL cp_fm_release_p(matrix_p_tmp(iforce_eval, ispin)%matrix)
                CALL copy_fm_to_dbcsr_bc(mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
                                         density_matrix(iforce_eval, ispin)%matrix)
@@ -1331,9 +1331,9 @@ CONTAINS
                           matrix_struct=fm_struct_overlap, &
                           name="OVERLAP_MATRIX")
       CALL cp_fm_struct_release(fm_struct_overlap)
-      CALL cp_fm_copy_general(matrix_s_tmp%matrix, &
-                              mixed_matrix_s_tmp%matrix, &
-                              mixed_cdft%blacs_env%para_env)
+      CALL cp_fm_copy_general_p(matrix_s_tmp%matrix, &
+                                mixed_matrix_s_tmp%matrix, &
+                                mixed_cdft%blacs_env%para_env)
       CALL cp_fm_release_p(matrix_s_tmp%matrix)
       CALL copy_fm_to_dbcsr_bc(mixed_matrix_s_tmp%matrix, mixed_matrix_s)
       CALL cp_fm_release_p(mixed_matrix_s_tmp%matrix)

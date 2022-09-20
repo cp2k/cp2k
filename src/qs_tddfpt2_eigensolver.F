@@ -20,7 +20,7 @@ MODULE qs_tddfpt2_eigensolver
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, &
+        cp_fm_copy_general_p, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, &
         cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, &
         cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_type
@@ -353,8 +353,8 @@ CONTAINS
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
             DO ivect = 1, nvects
                DO ispin = 1, nspins
-                  CALL cp_fm_copy_general(evects(ispin, ivect)%matrix, &
-                                          work_matrices%evects_sub(ispin, ivect)%matrix, para_env)
+                  CALL cp_fm_copy_general_p(evects(ispin, ivect)%matrix, &
+                                            work_matrices%evects_sub(ispin, ivect)%matrix, para_env)
                END DO
             END DO
          END IF
@@ -383,8 +383,8 @@ CONTAINS
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
             DO ivect = 1, nvects
                DO ispin = 1, nspins
-                  CALL cp_fm_copy_general(work_matrices%Aop_evects_sub(ispin, ivect)%matrix, &
-                                          Aop_evects(ispin, ivect)%matrix, para_env)
+                  CALL cp_fm_copy_general_p(work_matrices%Aop_evects_sub(ispin, ivect)%matrix, &
+                                            Aop_evects(ispin, ivect)%matrix, para_env)
                END DO
             END DO
          END IF

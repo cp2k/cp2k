@@ -249,7 +249,7 @@ CONTAINS
                             beta=0.0_dp, matrix_c=dm_beta)
       END IF
 
-      ! If embedding is open shell, but subsystem is not, copy alpha-spin DM intou beta-spin DM
+      ! If embedding is open shell, but subsystem is not, copy alpha-spin DM into beta-spin DM
       IF (open_shell_embed .AND. (.NOT. open_shell)) THEN
          CALL get_qs_env(qs_env=qs_env, para_env=para_env)
          CALL cp_fm_copy_general(dm, dm_beta, para_env)

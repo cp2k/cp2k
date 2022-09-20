@@ -26,7 +26,7 @@ MODULE qs_wannier90
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general_p,&
                                               cp_fm_create,&
                                               cp_fm_create_p,&
                                               cp_fm_get_element,&
@@ -184,8 +184,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmk1, fmk2
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_mmn, matrix_struct_work
-      TYPE(cp_fm_type)                                   :: fm_tmp, fmdummy, mmn_imag, mmn_real
-      TYPE(cp_fm_type), POINTER                          :: fmi, fmr
+      TYPE(cp_fm_type)                                   :: fm_tmp, mmn_imag, mmn_real
+      TYPE(cp_fm_type), POINTER                          :: fmdummy, fmi, fmr
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
@@ -451,6 +451,7 @@ CONTAINS
       CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
       !
       CALL get_kpoint_info(kpoint=kpoint, cell_to_index=cell_to_index)
+      NULLIFY (fmdummy)
       nspins = dft_control%nspins
       DO ispin = 1, nspins
          ! loop over all k-points
@@ -463,12 +464,12 @@ CONTAINS
                CPASSERT(SIZE(kp%mos, 1) == 2)
                fmr => kp%mos(1, ispin)%mo_set%mo_coeff
                fmi => kp%mos(2, ispin)%mo_set%mo_coeff
-               CALL cp_fm_copy_general(fmr, fmk1(1)%matrix, para_env)
-               CALL cp_fm_copy_general(fmi, fmk1(2)%matrix, para_env)
+               CALL cp_fm_copy_general_p(fmr, fmk1(1)%matrix, para_env)
+               CALL cp_fm_copy_general_p(fmi, fmk1(2)%matrix, para_env)
             ELSE
                NULLIFY (fmr, fmi, kp)
-               CALL cp_fm_copy_general(fmdummy, fmk1(1)%matrix, para_env)
-               CALL cp_fm_copy_general(fmdummy, fmk1(2)%matrix, para_env)
+               CALL cp_fm_copy_general_p(fmdummy, fmk1(1)%matrix, para_env)
+               CALL cp_fm_copy_general_p(fmdummy, fmk1(2)%matrix, para_env)
             END IF
             ! loop over all connected neighbors
             DO i = 1, nntot
@@ -481,12 +482,12 @@ CONTAINS
                   CPASSERT(SIZE(kp%mos, 1) == 2)
                   fmr => kp%mos(1, ispin)%mo_set%mo_coeff
                   fmi => kp%mos(2, ispin)%mo_set%mo_coeff
-                  CALL cp_fm_copy_general(fmr, fmk2(1)%matrix, para_env)
-                  CALL cp_fm_copy_general(fmi, fmk2(2)%matrix, para_env)
+                  CALL cp_fm_copy_general_p(fmr, fmk2(1)%matrix, para_env)
+                  CALL cp_fm_copy_general_p(fmi, fmk2(2)%matrix, para_env)
                ELSE
                   NULLIFY (fmr, fmi, kp)
-                  CALL cp_fm_copy_general(fmdummy, fmk2(1)%matrix, para_env)
-                  CALL cp_fm_copy_general(fmdummy, fmk2(2)%matrix, para_env)
+                  CALL cp_fm_copy_general_p(fmdummy, fmk2(1)%matrix, para_env)
+                  CALL cp_fm_copy_general_p(fmdummy, fmk2(2)%matrix, para_env)
                END IF
                !
                ! transfer realspace overlaps to connected k-point

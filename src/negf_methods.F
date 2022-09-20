@@ -31,7 +31,7 @@ MODULE negf_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, &
+        cp_fm_copy_general_p, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, &
         cp_fm_release, cp_fm_release_p, cp_fm_retain, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -429,7 +429,7 @@ CONTAINS
                NULLIFY (work_fm)
             END IF
 
-            CALL cp_fm_copy_general(work_fm, matrix_s_fm, para_env_global)
+            CALL cp_fm_copy_general_p(work_fm, matrix_s_fm, para_env_global)
          ELSE
             matrix_s_fm => negf_env%contacts(contact_id)%s_00
             CALL cp_fm_retain(matrix_s_fm)
@@ -710,7 +710,7 @@ CONTAINS
             NULLIFY (work_fm)
          END IF
 
-         CALL cp_fm_copy_general(work_fm, matrix_s_fm, para_env)
+         CALL cp_fm_copy_general_p(work_fm, matrix_s_fm, para_env)
       ELSE
          matrix_s_fm => negf_env%s_s
          CALL cp_fm_retain(matrix_s_fm)
@@ -979,7 +979,7 @@ CONTAINS
             NULLIFY (work_fm)
          END IF
 
-         CALL cp_fm_copy_general(work_fm, matrix_s_fm, para_env)
+         CALL cp_fm_copy_general_p(work_fm, matrix_s_fm, para_env)
       ELSE
          matrix_s_fm => negf_env%s_s
          CALL cp_fm_retain(matrix_s_fm)

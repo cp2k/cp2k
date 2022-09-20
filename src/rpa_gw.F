@@ -33,7 +33,7 @@ MODULE rpa_gw
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, &
+        cp_fm_copy_general_p, cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, &
         cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -5084,8 +5084,8 @@ CONTAINS
                                                             ks_mat_no_xc_ao_ao, vxc_ao_ao, &
                                                             vxc_ao_mo, vxc_mo_mo
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: fm_Sigma_x_minus_vxc_mo_mo, fm_tmp_im, &
-                                                            fm_tmp_re
+      TYPE(cp_fm_type)                                   :: fm_Sigma_x_minus_vxc_mo_mo
+      TYPE(cp_fm_type), POINTER                          :: fm_tmp_im, fm_tmp_re
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma, kpoints_Sigma_no_xc
 
@@ -5108,8 +5108,8 @@ CONTAINS
       CALL cp_cfm_create(vxc_mo_mo, matrix_struct)
       CALL cp_cfm_create(cfm_mo_coeff, matrix_struct)
       CALL cp_fm_create(fm_Sigma_x_minus_vxc_mo_mo, matrix_struct)
-      CALL cp_fm_create(fm_tmp_re, matrix_struct)
-      CALL cp_fm_create(fm_tmp_im, matrix_struct)
+      CALL cp_fm_create_p(fm_tmp_re, matrix_struct)
+      CALL cp_fm_create_p(fm_tmp_im, matrix_struct)
 
       CALL cp_cfm_get_info(cfm_mo_coeff, nrow_global=nmo)
       ALLOCATE (diag_Sigma_x_minus_vxc_mo_mo(nmo))
@@ -5120,16 +5120,16 @@ CONTAINS
 
       DO ikp = 1, nkp_Sigma
 
-         CALL cp_fm_copy_general(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_set%mo_coeff, fm_tmp_re, para_env)
-         CALL cp_fm_copy_general(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(2, 1)%mo_set%mo_coeff, fm_tmp_im, para_env)
+         CALL cp_fm_copy_general_p(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_set%mo_coeff, fm_tmp_re, para_env)
+         CALL cp_fm_copy_general_p(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(2, 1)%mo_set%mo_coeff, fm_tmp_im, para_env)
 
          CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, cfm_mo_coeff)
 
          CALL cp_fm_to_cfm(kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, &
                            kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, ks_mat_ao_ao)
 
-         CALL cp_fm_copy_general(kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, fm_tmp_re, para_env)
-         CALL cp_fm_copy_general(kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, fm_tmp_im, para_env)
+         CALL cp_fm_copy_general_p(kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, fm_tmp_re, para_env)
+         CALL cp_fm_copy_general_p(kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, fm_tmp_im, para_env)
 
          CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, vxc_ao_ao)
 
@@ -5157,8 +5157,8 @@ CONTAINS
       CALL cp_cfm_release(vxc_mo_mo)
       CALL cp_cfm_release(cfm_mo_coeff)
       CALL cp_fm_release(fm_Sigma_x_minus_vxc_mo_mo)
-      CALL cp_fm_release(fm_tmp_re)
-      CALL cp_fm_release(fm_tmp_im)
+      CALL cp_fm_release_p(fm_tmp_re)
+      CALL cp_fm_release_p(fm_tmp_im)
 
       DEALLOCATE (diag_Sigma_x_minus_vxc_mo_mo)
 
