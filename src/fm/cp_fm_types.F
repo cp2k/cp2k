@@ -72,7 +72,6 @@ MODULE cp_fm_types
              cp_fm_to_fm_submat, & ! copy (parts of) a fm to a fm
              cp_fm_to_fm_triangular, &
              cp_fm_copy_general, &
-             cp_fm_copy_general_p, &
              cp_fm_start_copy_general, &
              cp_fm_finish_copy_general, &
              cp_fm_cleanup_copy_general, &
@@ -1429,24 +1428,6 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE cp_fm_to_fm_submat
-
-! **************************************************************************************************
-!> \brief Version of cp_fm_copy_general to be used if source or destination are not guaranteed to be associated
-!> \param source ...
-!> \param destination ...
-!> \param para_env ...
-! **************************************************************************************************
-   SUBROUTINE cp_fm_copy_general_p(source, destination, para_env)
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: source, destination
-      TYPE(cp_para_env_type), INTENT(IN)                 :: para_env
-
-      TYPE(cp_fm_type)                                   :: my_destination, my_source
-
-      IF (ASSOCIATED(source)) CALL cp_fm_soft_copy(source, my_source)
-      IF (ASSOCIATED(destination)) CALL cp_fm_soft_copy(destination, my_destination)
-
-      CALL cp_fm_copy_general(my_source, my_destination, para_env)
-   END SUBROUTINE cp_fm_copy_general_p
 
 ! **************************************************************************************************
 !> \brief General copy of a fm matrix to another fm matrix.

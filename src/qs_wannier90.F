@@ -26,7 +26,7 @@ MODULE qs_wannier90
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
                                               cp_fm_create_p,&
                                               cp_fm_get_element,&
@@ -464,12 +464,12 @@ CONTAINS
                CPASSERT(SIZE(kp%mos, 1) == 2)
                fmr => kp%mos(1, ispin)%mo_set%mo_coeff
                fmi => kp%mos(2, ispin)%mo_set%mo_coeff
-               CALL cp_fm_copy_general_p(fmr, fmk1(1)%matrix, para_env)
-               CALL cp_fm_copy_general_p(fmi, fmk1(2)%matrix, para_env)
+               CALL cp_fm_copy_general(fmr, fmk1(1)%matrix, para_env)
+               CALL cp_fm_copy_general(fmi, fmk1(2)%matrix, para_env)
             ELSE
                NULLIFY (fmr, fmi, kp)
-               CALL cp_fm_copy_general_p(fmdummy, fmk1(1)%matrix, para_env)
-               CALL cp_fm_copy_general_p(fmdummy, fmk1(2)%matrix, para_env)
+               CALL cp_fm_copy_general(fmdummy, fmk1(1)%matrix, para_env)
+               CALL cp_fm_copy_general(fmdummy, fmk1(2)%matrix, para_env)
             END IF
             ! loop over all connected neighbors
             DO i = 1, nntot
@@ -482,12 +482,12 @@ CONTAINS
                   CPASSERT(SIZE(kp%mos, 1) == 2)
                   fmr => kp%mos(1, ispin)%mo_set%mo_coeff
                   fmi => kp%mos(2, ispin)%mo_set%mo_coeff
-                  CALL cp_fm_copy_general_p(fmr, fmk2(1)%matrix, para_env)
-                  CALL cp_fm_copy_general_p(fmi, fmk2(2)%matrix, para_env)
+                  CALL cp_fm_copy_general(fmr, fmk2(1)%matrix, para_env)
+                  CALL cp_fm_copy_general(fmi, fmk2(2)%matrix, para_env)
                ELSE
                   NULLIFY (fmr, fmi, kp)
-                  CALL cp_fm_copy_general_p(fmdummy, fmk2(1)%matrix, para_env)
-                  CALL cp_fm_copy_general_p(fmdummy, fmk2(2)%matrix, para_env)
+                  CALL cp_fm_copy_general(fmdummy, fmk2(1)%matrix, para_env)
+                  CALL cp_fm_copy_general(fmdummy, fmk2(2)%matrix, para_env)
                END IF
                !
                ! transfer realspace overlaps to connected k-point

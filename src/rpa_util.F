@@ -31,9 +31,9 @@ MODULE rpa_util
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_copy_general_p, cp_fm_create, cp_fm_create_p, cp_fm_get_info, &
-        cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_set_element, &
-        cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
+        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, &
+        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, &
+        cp_fm_to_fm_submat_general, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -504,8 +504,7 @@ CONTAINS
       LOGICAL                                            :: do_kpoints
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_mat_L_transposed
-      TYPE(cp_fm_type), POINTER                          :: fmdummy
+      TYPE(cp_fm_type)                                   :: fm_mat_L_transposed, fmdummy
 
       CALL timeset(routineN, handle)
 
@@ -562,7 +561,6 @@ CONTAINS
       ! For k-points copy matrices of your group
       ! Without kpoints, transpose matrix
       ! without kpoints, the size of fm_mat_L is 1x1. with kpoints, the size is N_kpoints x 2 (2 for real/complex)
-      NULLIFY (fmdummy)
       DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
       DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
          IF (do_kpoints) THEN
@@ -570,7 +568,7 @@ CONTAINS
                CALL cp_fm_copy_general(fm_matrix_L_RI_metric(i_size, j_size)%matrix, fm_mat_L_transposed, para_env)
                CALL cp_fm_to_fm(fm_mat_L_transposed, fm_mat_L(i_size, j_size)%matrix)
             ELSE
-               CALL cp_fm_copy_general_p(fm_matrix_L_RI_metric(i_size, j_size)%matrix, fmdummy, para_env)
+               CALL cp_fm_copy_general(fm_matrix_L_RI_metric(i_size, j_size)%matrix, fmdummy, para_env)
             END IF
          ELSE
             CALL cp_fm_copy_general(fm_matrix_L_RI_metric(i_size, j_size)%matrix, fm_mat_L_transposed, blacs_env%para_env)

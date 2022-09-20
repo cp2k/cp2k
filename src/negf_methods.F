@@ -31,7 +31,7 @@ MODULE negf_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general_p, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, &
+        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, &
         cp_fm_release, cp_fm_release_p, cp_fm_retain, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -383,8 +383,8 @@ CONTAINS
          nelectrons_qs_cell1, offset_au, rscale, t1, t2, trace
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: rho_ao_fm
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm, work_fm
+      TYPE(cp_fm_type)                                   :: fm_dummy, rho_ao_fm
+      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env_global
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_qs_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -424,12 +424,10 @@ CONTAINS
             CALL cp_fm_struct_release(fm_struct)
 
             IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
-               work_fm => negf_env%contacts(contact_id)%s_00
+               CALL cp_fm_copy_general(negf_env%contacts(contact_id)%s_00, matrix_s_fm, para_env_global)
             ELSE
-               NULLIFY (work_fm)
+               CALL cp_fm_copy_general(fm_dummy, matrix_s_fm, para_env_global)
             END IF
-
-            CALL cp_fm_copy_general_p(work_fm, matrix_s_fm, para_env_global)
          ELSE
             matrix_s_fm => negf_env%contacts(contact_id)%s_00
             CALL cp_fm_retain(matrix_s_fm)
@@ -669,7 +667,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: rho_ao_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm, work_fm
+      TYPE(cp_fm_type)                                   :: fm_dummy
+      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_qs_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -705,12 +704,10 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct)
 
          IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
-            work_fm => negf_env%s_s
+            CALL cp_fm_copy_general(negf_env%s_s, matrix_s_fm, para_env)
          ELSE
-            NULLIFY (work_fm)
+            CALL cp_fm_copy_general(fm_dummy, matrix_s_fm, para_env)
          END IF
-
-         CALL cp_fm_copy_general_p(work_fm, matrix_s_fm, para_env)
       ELSE
          matrix_s_fm => negf_env%s_s
          CALL cp_fm_retain(matrix_s_fm)
@@ -935,7 +932,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: rho_ao_delta_fm, rho_ao_new_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm, work_fm
+      TYPE(cp_fm_type)                                   :: fm_dummy
+      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_initial_kp, matrix_ks_qs_kp, &
                                                             rho_ao_initial_kp, rho_ao_new_kp, &
@@ -974,12 +972,10 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct)
 
          IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
-            work_fm => negf_env%s_s
+            CALL cp_fm_copy_general(negf_env%s_s, matrix_s_fm, para_env)
          ELSE
-            NULLIFY (work_fm)
+            CALL cp_fm_copy_general(fm_dummy, matrix_s_fm, para_env)
          END IF
-
-         CALL cp_fm_copy_general_p(work_fm, matrix_s_fm, para_env)
       ELSE
          matrix_s_fm => negf_env%s_s
          CALL cp_fm_retain(matrix_s_fm)
