@@ -32,7 +32,7 @@ MODULE negf_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_retain, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -420,7 +420,8 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env_global)
             CALL cp_fm_create(rho_ao_fm, fm_struct)
 
-            CALL cp_fm_create_p(matrix_s_fm, fm_struct)
+            ALLOCATE (matrix_s_fm)
+            CALL cp_fm_create(matrix_s_fm, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
 
             IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
@@ -430,7 +431,6 @@ CONTAINS
             END IF
          ELSE
             matrix_s_fm => negf_env%contacts(contact_id)%s_00
-            CALL cp_fm_retain(matrix_s_fm)
             CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
             CALL cp_fm_create(rho_ao_fm, fm_struct)
          END IF
@@ -624,7 +624,10 @@ CONTAINS
 
          negf_control%contacts(contact_id)%fermi_level = fermi_level_guess
 
-         CALL cp_fm_release_p(matrix_s_fm)
+         IF (sub_env%ngroups > 1) THEN
+            CALL cp_fm_release(matrix_s_fm)
+            DEALLOCATE (matrix_s_fm)
+         END IF
          CALL cp_fm_release(rho_ao_fm)
       END IF
 
@@ -710,8 +713,6 @@ CONTAINS
          END IF
       ELSE
          matrix_s_fm => negf_env%s_s
-         CALL cp_fm_retain(matrix_s_fm)
-         CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
       END IF
 
       CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
@@ -892,7 +893,7 @@ CONTAINS
       END DO
       DEALLOCATE (rho_ao_fm)
 
-      IF (ASSOCIATED(matrix_s_fm)) &
+      IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) &
          CALL cp_fm_release_p(matrix_s_fm)
 
       CALL timestop(handle)
@@ -978,8 +979,6 @@ CONTAINS
          END IF
       ELSE
          matrix_s_fm => negf_env%s_s
-         CALL cp_fm_retain(matrix_s_fm)
-         CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
       END IF
 
       CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
@@ -1270,7 +1269,7 @@ CONTAINS
       END DO
       DEALLOCATE (matrix_ks_initial_kp, rho_ao_new_kp, rho_ao_initial_kp)
 
-      IF (ASSOCIATED(matrix_s_fm)) &
+      IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) &
          CALL cp_fm_release_p(matrix_s_fm)
 
       CALL timestop(handle)

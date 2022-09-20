@@ -13,8 +13,7 @@
 ! **************************************************************************************************
 MODULE cp_fm_vect
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release_p,&
-                                              cp_fm_retain
+                                              cp_fm_release_p
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -23,7 +22,7 @@ MODULE cp_fm_vect
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_vect'
 
-   PUBLIC :: cp_fm_vect_dealloc, cp_fm_vect_copy
+   PUBLIC :: cp_fm_vect_dealloc
 !***
 CONTAINS
 
@@ -46,27 +45,5 @@ CONTAINS
          DEALLOCATE (matrixes)
       END IF
    END SUBROUTINE cp_fm_vect_dealloc
-
-! **************************************************************************************************
-!> \brief Does a shallow copy of an array of full matrices (i.e. just retains
-!>      the matrices)
-!> \param matrixes the matrixes to copy
-!> \param copy ...
-!> \par History
-!>      09.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE cp_fm_vect_copy(matrixes, copy)
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(in)       :: matrixes
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: copy
-
-      INTEGER                                            :: i
-
-      ALLOCATE (copy(SIZE(matrixes)))
-      DO i = 1, SIZE(matrixes)
-         copy(i)%matrix => matrixes(i)%matrix
-         CALL cp_fm_retain(matrixes(i)%matrix)
-      END DO
-   END SUBROUTINE cp_fm_vect_copy
 
 END MODULE cp_fm_vect

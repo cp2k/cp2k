@@ -29,7 +29,6 @@ MODULE qs_tddfpt2_subgroups
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release_p,&
-                                              cp_fm_retain,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release,&
@@ -270,13 +269,11 @@ CONTAINS
          sub_env%blacs_env => blacs_env_global
 
          DO ispin = 1, nspins
-            CALL cp_fm_retain(mos_occ(ispin)%matrix)
             sub_env%mos_occ(ispin)%matrix => mos_occ(ispin)%matrix
          END DO
 
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env, admm_env=admm_env)
-            CALL cp_fm_retain(admm_env%A)
             sub_env%admm_A => admm_env%A
          END IF
       END IF
@@ -469,12 +466,14 @@ CONTAINS
 
       sub_env%is_mgrid = .FALSE.
 
-      IF (ASSOCIATED(sub_env%admm_A)) &
+      IF (sub_env%is_split .AND. ASSOCIATED(sub_env%admm_A)) &
          CALL cp_fm_release_p(sub_env%admm_A)
 
-      DO i = SIZE(sub_env%mos_occ), 1, -1
-         CALL cp_fm_release_p(sub_env%mos_occ(i)%matrix)
-      END DO
+      IF (sub_env%is_split) THEN
+         DO i = SIZE(sub_env%mos_occ), 1, -1
+            CALL cp_fm_release_p(sub_env%mos_occ(i)%matrix)
+         END DO
+      END IF
       DEALLOCATE (sub_env%mos_occ)
 
       CALL cp_blacs_env_release(sub_env%blacs_env)

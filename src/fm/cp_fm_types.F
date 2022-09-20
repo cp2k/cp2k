@@ -53,7 +53,6 @@ MODULE cp_fm_types
    PUBLIC :: cp_fm_add_to_element, &
              cp_fm_create_p, &
              cp_fm_create, &
-             cp_fm_retain, &
              cp_fm_release_p, &
              cp_fm_release, &
              cp_fm_get_info, &
@@ -236,22 +235,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_create
-
-! **************************************************************************************************
-!> \brief retains a full matrix
-!> \param matrix the matrix to retain
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE cp_fm_retain(matrix)
-      TYPE(cp_fm_type), POINTER                          :: matrix
-
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(matrix%ref_count > 0)
-      matrix%ref_count = matrix%ref_count + 1
-
-   END SUBROUTINE cp_fm_retain
 
 ! **************************************************************************************************
 !> \brief ...
