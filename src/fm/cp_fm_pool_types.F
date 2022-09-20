@@ -197,7 +197,6 @@ CONTAINS
       END IF
 
       CPASSERT(ASSOCIATED(element))
-      CPASSERT(element%ref_count == 1)
    END SUBROUTINE fm_pool_create_fm
 
 ! **************************************************************************************************
@@ -222,7 +221,6 @@ CONTAINS
       IF (pool%el_struct%id_nr /= element%matrix_struct%id_nr) &
          CPABORT("pool cannot reuse matrixes with another structure")
 
-      CPASSERT(element%ref_count == 1)
       CALL cp_sll_fm_insert_el(pool%cache, el=element)
       NULLIFY (element)
    END SUBROUTINE fm_pool_give_back_fm

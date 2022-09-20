@@ -109,7 +109,7 @@ MODULE cp_fm_types
    TYPE cp_fm_type
 !    PRIVATE
       CHARACTER(LEN=60) :: name = ""
-      INTEGER :: id_nr = -1, ref_count = 0
+      INTEGER :: id_nr = -1
       LOGICAL :: use_sp = .FALSE.
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data => NULL()
@@ -198,7 +198,6 @@ CONTAINS
       CALL cp_fm_struct_retain(matrix%matrix_struct)
       last_fm_id_nr = last_fm_id_nr + 1
       matrix%id_nr = last_fm_id_nr
-      matrix%ref_count = 1
 
       matrix%use_sp = .FALSE.
       IF (PRESENT(use_sp)) matrix%use_sp = use_sp
@@ -245,9 +244,7 @@ CONTAINS
 
       IF (ASSOCIATED(matrix)) THEN
          CALL cp_fm_release(matrix)
-         IF (matrix%ref_count < 1) THEN
-            DEALLOCATE (matrix)
-         END IF
+         DEALLOCATE (matrix)
       END IF
       NULLIFY (matrix)
 
@@ -269,18 +266,16 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(matrix%ref_count > 0)
-      matrix%ref_count = matrix%ref_count - 1
-      IF (matrix%ref_count < 1) THEN
-         IF (ASSOCIATED(matrix%local_data)) THEN
-            DEALLOCATE (matrix%local_data)
-         END IF
-         IF (ASSOCIATED(matrix%local_data_sp)) THEN
-            DEALLOCATE (matrix%local_data_sp)
-         END IF
-         matrix%name = ""
-         CALL cp_fm_struct_release(matrix%matrix_struct)
+      IF (ASSOCIATED(matrix%local_data)) THEN
+         DEALLOCATE (matrix%local_data)
+         NULLIFY (matrix%local_data)
       END IF
+      IF (ASSOCIATED(matrix%local_data_sp)) THEN
+         DEALLOCATE (matrix%local_data_sp)
+         NULLIFY (matrix%local_data_sp)
+      END IF
+      matrix%name = ""
+      CALL cp_fm_struct_release(matrix%matrix_struct)
 
       CALL timestop(handle)
 
@@ -304,7 +299,6 @@ CONTAINS
 
       destination%id_nr = source%id_nr
       ! Here, we perform a soft copy, so just set it to one to make called routines happy
-      destination%ref_count = 1
       destination%use_sp = source%use_sp
       destination%local_data => source%local_data
       destination%local_data_sp => source%local_data_sp

@@ -95,7 +95,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       group = para_env%group
-      IF (blacs_matrix%ref_count < 1) RETURN
+      IF (.NOT. ASSOCIATED(blacs_matrix%matrix_struct)) RETURN
       CALL cp_fm_get_info(blacs_matrix, name=matrix_name, nrow_global=nrow_global, &
                           ncol_global=ncol_global)
 
