@@ -1927,7 +1927,7 @@ CONTAINS
                                          d_firstcol, &
                                          global_context)
 
-      TYPE(cp_fm_type), POINTER, INTENT(IN)    :: source, destination
+      TYPE(cp_fm_type), INTENT(IN)             :: source, destination
       INTEGER, INTENT(IN)                      :: nrows, ncols, &
                                                   s_firstrow, s_firstcol, &
                                                   d_firstrow, d_firstcol, &
@@ -1939,8 +1939,8 @@ CONTAINS
       INTEGER                                  :: handle
 #if defined(__SCALAPACK)
       INTEGER, DIMENSION(9)                    :: desca, descb
-      REAL(KIND=dp), DIMENSION(1, 1), TARGET    :: dummy
-      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: smat, dmat
+      REAL(KIND=dp), DIMENSION(1, 1), TARGET   :: dummy
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: smat, dmat
 #endif
 
       CALL timeset(routineN, handle)
@@ -1960,7 +1960,7 @@ CONTAINS
 #ifdef __SCALAPACK
          NULLIFY (smat, dmat)
          ! check whether source is available on this process
-         IF (ASSOCIATED(source)) THEN
+         IF (ASSOCIATED(source%matrix_struct)) THEN
             desca = source%matrix_struct%descriptor
             IF (source%use_sp) CPABORT("only DP kind implemented")
             IF (nrows .GT. source%matrix_struct%nrow_global) &
@@ -1973,7 +1973,7 @@ CONTAINS
             smat => dummy
          END IF
          ! check destination is available on this process
-         IF (ASSOCIATED(destination)) THEN
+         IF (ASSOCIATED(destination%matrix_struct)) THEN
             descb = destination%matrix_struct%descriptor
             IF (destination%use_sp) CPABORT("only DP kind implemented")
             IF (nrows .GT. destination%matrix_struct%nrow_global) &
