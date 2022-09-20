@@ -512,8 +512,8 @@ CONTAINS
 
       ELSE
          ! Just nullify pointers to the original matrices
-         NULLIFY (matrix_new)
-         NULLIFY (eigenvectors_new)
+         DEALLOCATE (matrix_new, eigenvectors_new)
+         NULLIFY (matrix_new, eigenvectors_new)
 
       END IF
 
