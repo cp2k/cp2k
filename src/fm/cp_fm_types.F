@@ -78,8 +78,7 @@ MODULE cp_fm_types
              cp_fm_setup, & ! allows to set flags for fms
              cp_fm_get_mm_type, &
              cp_fm_write_info, &
-             cp_fm_to_fm_submat_general, & ! copy matrix across different contexts
-             cp_fm_soft_copy
+             cp_fm_to_fm_submat_general ! copy matrix across different contexts
 
    PUBLIC :: cp_fm_indxg2p, &
              cp_fm_indxg2l, &
@@ -245,34 +244,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_release
-
-! **************************************************************************************************
-!> \brief This routine performs a soft copy. The destination matrix is NOT meant to be released
-!>        with cp_fm_release ; otherwise, the POINTERs within the source matrix become undefined.
-!> \param source ...
-!> \param destination ...
-! **************************************************************************************************
-   SUBROUTINE cp_fm_soft_copy(source, destination)
-      TYPE(cp_fm_type), INTENT(IN)                       :: source
-      TYPE(cp_fm_type), INTENT(OUT)                      :: destination
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_soft_copy'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      destination%id_nr = source%id_nr
-      ! Here, we perform a soft copy, so just set it to one to make called routines happy
-      destination%use_sp = source%use_sp
-      destination%local_data => source%local_data
-      destination%local_data_sp => source%local_data_sp
-      destination%matrix_struct => source%matrix_struct
-      destination%name = source%name
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief fills a matrix with random numbers
