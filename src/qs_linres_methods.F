@@ -23,9 +23,14 @@ MODULE qs_linres_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
@@ -152,7 +157,8 @@ CONTAINS
       ALLOCATE (mos_localized(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_create_p(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
+         ALLOCATE (mos_localized(ispin)%matrix)
+         CALL cp_fm_create(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin)%matrix)
       END DO
 
@@ -275,23 +281,25 @@ CONTAINS
       END DO
       !
       DO ispin = 1, nspins
-         NULLIFY (r(ispin)%matrix, p(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
-         CALL cp_fm_create_p(r(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create_p(p(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create_p(z(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create_p(Ap(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         ALLOCATE (r(ispin)%matrix, p(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
+         CALL cp_fm_create(r(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create(p(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create(z(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create(Ap(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
       END DO
       !
       ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
       ALLOCATE (chc(nspins), Sc(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
-         CALL cp_fm_create_p(Sc(ispin)%matrix, mo_coeff%matrix_struct)
+         ALLOCATE (Sc(ispin)%matrix)
+         CALL cp_fm_create(Sc(ispin)%matrix, mo_coeff%matrix_struct)
          NULLIFY (tmp_fm_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, &
                                   context=mo_coeff%matrix_struct%context)
-         CALL cp_fm_create_p(chc(ispin)%matrix, tmp_fm_struct)
+         ALLOCATE (chc(ispin)%matrix)
+         CALL cp_fm_create(chc(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
       !
@@ -535,13 +543,16 @@ CONTAINS
       !
       ! clean up
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(r(ispin)%matrix)
-         CALL cp_fm_release_p(p(ispin)%matrix)
-         CALL cp_fm_release_p(z(ispin)%matrix)
-         CALL cp_fm_release_p(Ap(ispin)%matrix)
+         CALL cp_fm_release(r(ispin)%matrix)
+         CALL cp_fm_release(p(ispin)%matrix)
+         CALL cp_fm_release(z(ispin)%matrix)
+         CALL cp_fm_release(Ap(ispin)%matrix)
          !
-         CALL cp_fm_release_p(Sc(ispin)%matrix)
-         CALL cp_fm_release_p(chc(ispin)%matrix)
+         CALL cp_fm_release(Sc(ispin)%matrix)
+         CALL cp_fm_release(chc(ispin)%matrix)
+         DEALLOCATE (r(ispin)%matrix, p(ispin)%matrix, &
+                     z(ispin)%matrix, Ap(ispin)%matrix, &
+                     Sc(ispin)%matrix, chc(ispin)%matrix)
       END DO
       DEALLOCATE (tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !

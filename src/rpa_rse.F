@@ -24,9 +24,14 @@ MODULE rpa_rse
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_diag,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_copy,&
                                               dbcsr_create,&
@@ -168,8 +173,8 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
       DO ispin = 1, nspins
-         NULLIFY (fm_P_mu_nu(ispin)%matrix)
-         CALL cp_fm_create_p(fm_P_mu_nu(ispin)%matrix, fm_struct_tmp, name="P_mu_nu")
+         ALLOCATE (fm_P_mu_nu(ispin)%matrix)
+         CALL cp_fm_create(fm_P_mu_nu(ispin)%matrix, fm_struct_tmp, name="P_mu_nu")
          CALL cp_fm_set_all(fm_P_mu_nu(ispin)%matrix, 0.0_dp)
       END DO
       CALL cp_fm_struct_release(fm_struct_tmp)
@@ -179,9 +184,9 @@ CONTAINS
                                nrow_global=dimen, ncol_global=dimen)
       ALLOCATE (fm_X_mo(nspins), fm_XC_mo(nspins))
       DO ispin = 1, nspins
-         NULLIFY (fm_X_mo(ispin)%matrix, fm_XC_mo(ispin)%matrix)
-         CALL cp_fm_create_p(fm_X_mo(ispin)%matrix, fm_struct_tmp, name="f_X_mo")
-         CALL cp_fm_create_p(fm_XC_mo(ispin)%matrix, fm_struct_tmp, name="f_XC_mo")
+         ALLOCATE (fm_X_mo(ispin)%matrix, fm_XC_mo(ispin)%matrix)
+         CALL cp_fm_create(fm_X_mo(ispin)%matrix, fm_struct_tmp, name="f_X_mo")
+         CALL cp_fm_create(fm_XC_mo(ispin)%matrix, fm_struct_tmp, name="f_XC_mo")
          CALL cp_fm_set_all(fm_X_mo(ispin)%matrix, 0.0_dp)
          CALL cp_fm_set_all(fm_XC_mo(ispin)%matrix, 0.0_dp)
       END DO
@@ -274,9 +279,10 @@ CONTAINS
       CALL cp_fm_release(fm_ao)
       CALL cp_fm_release(fm_ao_mo)
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(fm_P_mu_nu(ispin)%matrix)
-         CALL cp_fm_release_p(fm_X_mo(ispin)%matrix)
-         CALL cp_fm_release_p(fm_XC_mo(ispin)%matrix)
+         CALL cp_fm_release(fm_P_mu_nu(ispin)%matrix)
+         CALL cp_fm_release(fm_X_mo(ispin)%matrix)
+         CALL cp_fm_release(fm_XC_mo(ispin)%matrix)
+         DEALLOCATE (fm_P_mu_nu(ispin)%matrix, fm_X_mo(ispin)%matrix, fm_XC_mo(ispin)%matrix)
          CALL dbcsr_release(mat_mu_nu(ispin)%matrix)
          DEALLOCATE (mat_mu_nu(ispin)%matrix)
       END DO

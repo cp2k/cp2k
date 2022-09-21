@@ -23,8 +23,8 @@ MODULE mp2_ri_grad
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, &
-        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -1194,7 +1194,8 @@ CONTAINS
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create_p(mp2_env%ri_grad%P_mo(kspin)%matrix, fm_struct_tmp, name="P_MP2_MO")
+      ALLOCATE (mp2_env%ri_grad%P_mo(kspin)%matrix)
+      CALL cp_fm_create(mp2_env%ri_grad%P_mo(kspin)%matrix, fm_struct_tmp, name="P_MP2_MO")
       CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(kspin)%matrix, 0.0_dp)
 
       ! start with the (easy) occ-occ block and locally held P_ab elements
@@ -1340,7 +1341,8 @@ CONTAINS
          END DO
       END IF
 
-      CALL cp_fm_create_p(mp2_env%ri_grad%W_mo(kspin)%matrix, fm_struct_tmp, name="W_MP2_MO")
+      ALLOCATE (mp2_env%ri_grad%W_mo(kspin)%matrix)
+      CALL cp_fm_create(mp2_env%ri_grad%W_mo(kspin)%matrix, fm_struct_tmp, name="W_MP2_MO")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! all block
@@ -1385,7 +1387,8 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=homo, ncol_global=virtual)
-      CALL cp_fm_create_p(mp2_env%ri_grad%L_jb(kspin)%matrix, fm_struct_tmp, name="fm_L_jb")
+      ALLOCATE (mp2_env%ri_grad%L_jb(kspin)%matrix)
+      CALL cp_fm_create(mp2_env%ri_grad%L_jb(kspin)%matrix, fm_struct_tmp, name="fm_L_jb")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! first Virtual

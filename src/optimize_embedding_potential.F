@@ -28,9 +28,8 @@ MODULE optimize_embedding_potential
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, &
-        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, &
-        cp_fm_type, cp_fm_write_unformatted
+        cp_fm_copy_general, cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
@@ -358,13 +357,15 @@ CONTAINS
          NULLIFY (opt_embed%prev_embed_pot_grad, opt_embed%prev_embed_pot_coef, opt_embed%prev_step)
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=opt_embed%dimen_var_aux, ncol_global=1)
-         CALL cp_fm_create_p(opt_embed%embed_pot_grad, fm_struct, name="pot_grad")
-         CALL cp_fm_create_p(opt_embed%embed_pot_coef, fm_struct, name="pot_coef")
-         CALL cp_fm_create_p(opt_embed%prev_embed_pot_grad, fm_struct, name="prev_pot_grad")
-         CALL cp_fm_create_p(opt_embed%prev_embed_pot_coef, fm_struct, name="prev_pot_coef")
-         CALL cp_fm_create_p(opt_embed%step, fm_struct, name="step")
-
-         CALL cp_fm_create_p(opt_embed%prev_step, fm_struct, name="prev_step")
+         ALLOCATE (opt_embed%embed_pot_grad, opt_embed%embed_pot_coef, &
+                   opt_embed%prev_embed_pot_grad, opt_embed%prev_embed_pot_coef, &
+                   opt_embed%step, opt_embed%prev_step)
+         CALL cp_fm_create(opt_embed%embed_pot_grad, fm_struct, name="pot_grad")
+         CALL cp_fm_create(opt_embed%embed_pot_coef, fm_struct, name="pot_coef")
+         CALL cp_fm_create(opt_embed%prev_embed_pot_grad, fm_struct, name="prev_pot_grad")
+         CALL cp_fm_create(opt_embed%prev_embed_pot_coef, fm_struct, name="prev_pot_coef")
+         CALL cp_fm_create(opt_embed%step, fm_struct, name="step")
+         CALL cp_fm_create(opt_embed%prev_step, fm_struct, name="prev_step")
 
          CALL cp_fm_struct_release(fm_struct)
          CALL cp_fm_set_all(opt_embed%embed_pot_grad, 0.0_dp)
@@ -379,15 +380,17 @@ CONTAINS
          NULLIFY (opt_embed%embed_pot_hess, opt_embed%prev_embed_pot_hess, fm_struct)
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=opt_embed%dimen_var_aux, ncol_global=opt_embed%dimen_var_aux)
-         CALL cp_fm_create_p(opt_embed%embed_pot_hess, fm_struct, name="pot_Hess")
-         CALL cp_fm_create_p(opt_embed%prev_embed_pot_hess, fm_struct, name="prev_pot_Hess")
+         ALLOCATE (opt_embed%embed_pot_hess, opt_embed%prev_embed_pot_hess)
+         CALL cp_fm_create(opt_embed%embed_pot_hess, fm_struct, name="pot_Hess")
+         CALL cp_fm_create(opt_embed%prev_embed_pot_hess, fm_struct, name="prev_pot_Hess")
          CALL cp_fm_struct_release(fm_struct)
 
          ! Special structure for the kinetic energy matrix
          NULLIFY (fm_struct, opt_embed%kinetic_mat)
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=opt_embed%dimen_aux, ncol_global=opt_embed%dimen_aux)
-         CALL cp_fm_create_p(opt_embed%kinetic_mat, fm_struct, name="kinetic_mat")
+         ALLOCATE (opt_embed%kinetic_mat)
+         CALL cp_fm_create(opt_embed%kinetic_mat, fm_struct, name="kinetic_mat")
          CALL cp_fm_struct_release(fm_struct)
          CALL cp_fm_set_all(opt_embed%kinetic_mat, 0.0_dp)
 
@@ -919,17 +922,19 @@ CONTAINS
       INTEGER                                            :: i_dens, i_spin, ikind
 
       IF (.NOT. opt_embed%grid_opt) THEN
-         CALL cp_fm_release_p(opt_embed%embed_pot_grad)
-         CALL cp_fm_release_p(opt_embed%embed_pot_coef)
-         CALL cp_fm_release_p(opt_embed%step)
-
-         CALL cp_fm_release_p(opt_embed%prev_step)
-
-         CALL cp_fm_release_p(opt_embed%embed_pot_hess)
-         CALL cp_fm_release_p(opt_embed%prev_embed_pot_grad)
-         CALL cp_fm_release_p(opt_embed%prev_embed_pot_coef)
-         CALL cp_fm_release_p(opt_embed%prev_embed_pot_hess)
-         CALL cp_fm_release_p(opt_embed%kinetic_mat)
+         CALL cp_fm_release(opt_embed%embed_pot_grad)
+         CALL cp_fm_release(opt_embed%embed_pot_coef)
+         CALL cp_fm_release(opt_embed%step)
+         CALL cp_fm_release(opt_embed%prev_step)
+         CALL cp_fm_release(opt_embed%embed_pot_hess)
+         CALL cp_fm_release(opt_embed%prev_embed_pot_grad)
+         CALL cp_fm_release(opt_embed%prev_embed_pot_coef)
+         CALL cp_fm_release(opt_embed%prev_embed_pot_hess)
+         CALL cp_fm_release(opt_embed%kinetic_mat)
+         DEALLOCATE (opt_embed%embed_pot_grad, opt_embed%embed_pot_coef, &
+                     opt_embed%step, opt_embed%prev_step, opt_embed%embed_pot_hess, &
+                     opt_embed%prev_embed_pot_grad, opt_embed%prev_embed_pot_coef, &
+                     opt_embed%prev_embed_pot_hess, opt_embed%kinetic_mat)
          DEALLOCATE (opt_embed%w_func)
          DEALLOCATE (opt_embed%max_diff)
          DEALLOCATE (opt_embed%int_diff)

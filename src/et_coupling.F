@@ -20,11 +20,9 @@ MODULE et_coupling
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
@@ -128,10 +126,10 @@ CONTAINS
                            matrix_struct=mo_mo_fmstruct, &
                            name="ET_SMO"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
          DO j = 1, 2
-            NULLIFY (rest_MO(j)%matrix)
-            CALL cp_fm_create_p(matrix=rest_MO(j)%matrix, &
-                                matrix_struct=mo_mo_fmstruct, &
-                                name="ET_rest_MO"//TRIM(ADJUSTL(cp_to_string(j)))//"MATRIX")
+            ALLOCATE (rest_MO(j)%matrix)
+            CALL cp_fm_create(matrix=rest_MO(j)%matrix, &
+                              matrix_struct=mo_mo_fmstruct, &
+                              name="ET_rest_MO"//TRIM(ADJUSTL(cp_to_string(j)))//"MATRIX")
          END DO
 
 !   calculate MO-overlap
@@ -191,8 +189,12 @@ CONTAINS
          CALL mp_sum(b(i), para_env%group)
 
          CALL cp_fm_release(tmp2)
-         CALL cp_fm_release_p(rest_MO(1)%matrix)
-         CALL cp_fm_release_p(rest_MO(2)%matrix)
+         DO j = 1, 2
+         IF (ASSOCIATED(rest_MO(j)%matrix)) THEN
+            CALL cp_fm_release(rest_MO(j)%matrix)
+            DEALLOCATE (rest_MO(j)%matrix)
+         END IF
+         END DO
          CALL cp_fm_release(SMO)
          CALL cp_fm_release(Tinverse)
          CALL cp_fm_release(inverse_mat)

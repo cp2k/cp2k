@@ -30,9 +30,13 @@ MODULE mp2_cphf
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -254,7 +258,8 @@ CONTAINS
          NULLIFY (mo_coeff_o(ispin)%matrix, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=dimen, ncol_global=homo(ispin))
-         CALL cp_fm_create_p(mo_coeff_o(ispin)%matrix, fm_struct_tmp, name="mo_coeff_o")
+         ALLOCATE (mo_coeff_o(ispin)%matrix)
+         CALL cp_fm_create(mo_coeff_o(ispin)%matrix, fm_struct_tmp, name="mo_coeff_o")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(mo_coeff_o(ispin)%matrix, 0.0_dp)
          CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin)%matrix, mtarget=mo_coeff_o(ispin)%matrix, &
@@ -265,7 +270,8 @@ CONTAINS
          NULLIFY (mo_coeff_v(ispin)%matrix, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=dimen, ncol_global=virtual(ispin))
-         CALL cp_fm_create_p(mo_coeff_v(ispin)%matrix, fm_struct_tmp, name="mo_coeff_v")
+         ALLOCATE (mo_coeff_v(ispin)%matrix)
+         CALL cp_fm_create(mo_coeff_v(ispin)%matrix, fm_struct_tmp, name="mo_coeff_v")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(mo_coeff_v(ispin)%matrix, 0.0_dp)
          CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin)%matrix, mtarget=mo_coeff_v(ispin)%matrix, &
@@ -396,7 +402,8 @@ CONTAINS
          NULLIFY (P_ia(ispin)%matrix, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=homo(ispin), ncol_global=virtual(ispin))
-         CALL cp_fm_create_p(P_ia(ispin)%matrix, fm_struct_tmp, name="P_ia")
+         ALLOCATE (P_ia(ispin)%matrix)
+         CALL cp_fm_create(P_ia(ispin)%matrix, fm_struct_tmp, name="P_ia")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(P_ia(ispin)%matrix, 0.0_dp)
       END DO
@@ -408,9 +415,10 @@ CONTAINS
       ! release fm stuff
       CALL cp_fm_release(fm_G_mu_nu)
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(L_jb(ispin)%matrix)
-         CALL cp_fm_release_p(mo_coeff_o(ispin)%matrix)
-         CALL cp_fm_release_p(mo_coeff_v(ispin)%matrix)
+         CALL cp_fm_release(L_jb(ispin)%matrix)
+         CALL cp_fm_release(mo_coeff_o(ispin)%matrix)
+         CALL cp_fm_release(mo_coeff_v(ispin)%matrix)
+         DEALLOCATE (L_jb(ispin)%matrix, mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix)
       END DO
       DEALLOCATE (L_jb, mo_coeff_o, mo_coeff_v)
 
@@ -420,7 +428,8 @@ CONTAINS
                                  nrow=homo(ispin), ncol=virtual(ispin), &
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=homo(ispin) + 1)
-         CALL cp_fm_release_p(P_ia(ispin)%matrix)
+         CALL cp_fm_release(P_ia(ispin)%matrix)
+         DEALLOCATE (P_ia(ispin)%matrix)
          ! transpose P_MO matrix (easy way to symmetrize)
          CALL cp_fm_set_all(fm_back, 0.0_dp)
          ! P_mo now is ready
@@ -476,7 +485,8 @@ CONTAINS
       DO ispin = 1, nspins
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
                             mo_coeff(ispin)%matrix, W_mo(ispin)%matrix, 0.0_dp, fm_back)
-         CALL cp_fm_release_p(W_mo(ispin)%matrix)
+         CALL cp_fm_release(W_mo(ispin)%matrix)
+         DEALLOCATE (W_mo(ispin)%matrix)
          CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 0.5_dp, .TRUE.)
          CALL cp_dbcsr_plus_fm_fm_t(p_env%w1(1)%matrix, mo_coeff(ispin)%matrix, fm_back, dimen, 0.5_dp, .TRUE.)
       END DO
@@ -489,7 +499,8 @@ CONTAINS
 
          CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
                             mo_coeff(ispin)%matrix, P_mo(ispin)%matrix, 0.0_dp, fm_back)
-         CALL cp_fm_release_p(P_mo(ispin)%matrix)
+         CALL cp_fm_release(P_mo(ispin)%matrix)
+         DEALLOCATE (P_mo(ispin)%matrix)
          CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff(ispin)%matrix, dimen, 1.0_dp, .TRUE.)
 
          CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1(ispin)%matrix)
@@ -723,8 +734,8 @@ CONTAINS
       ALLOCATE (precond(nspins))
       DO ispin = 1, nspins
          ! create preconditioner (for now only orbital energy differences)
-         NULLIFY (precond(ispin)%matrix)
-         CALL cp_fm_create_p(precond(ispin)%matrix, P_ia(ispin)%matrix%matrix_struct, name="precond")
+         ALLOCATE (precond(ispin)%matrix)
+         CALL cp_fm_create(precond(ispin)%matrix, P_ia(ispin)%matrix%matrix_struct, name="precond")
          CALL cp_fm_set_all(precond(ispin)%matrix, 1.0_dp)
          CALL cp_fm_get_info(matrix=precond(ispin)%matrix, &
                              nrow_local=nrow_local, &
@@ -758,7 +769,8 @@ CONTAINS
       END SELECT
 
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(precond(ispin)%matrix)
+         CALL cp_fm_release(precond(ispin)%matrix)
+         DEALLOCATE (precond(ispin)%matrix)
       END DO
       DEALLOCATE (precond)
 
@@ -832,15 +844,15 @@ CONTAINS
          DO ispin = 1, nspins
             fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
 
-            NULLIFY (b_i(ispin)%matrix)
-            CALL cp_fm_create_p(b_i(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="b_i")
+            ALLOCATE (b_i(ispin)%matrix)
+            CALL cp_fm_create(b_i(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="b_i")
             CALL cp_fm_set_all(b_i(ispin)%matrix, 0.0_dp)
             b_i(ispin)%matrix%local_data(:, :) = precond(ispin)%matrix%local_data(:, :)*L_jb(ispin)%matrix%local_data(:, :)
 
             ! create the residual vector (r), we check convergence on the norm of
             ! this vector r=(Ax-b)
-            NULLIFY (residual(ispin)%matrix)
-            CALL cp_fm_create_p(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
+            ALLOCATE (residual(ispin)%matrix)
+            CALL cp_fm_create(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
             CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
          END DO
 
@@ -872,8 +884,8 @@ CONTAINS
 
             ! create and update x_i (orthogonalization with previous vectors)
             DO ispin = 1, nspins
-               NULLIFY (xn(ispin, iiter)%matrix)
-               CALL cp_fm_create_p(xn(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="xi")
+               ALLOCATE (xn(ispin, iiter)%matrix)
+               CALL cp_fm_create(xn(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="xi")
                CALL cp_fm_set_all(xn(ispin, iiter)%matrix, 0.0_dp)
             END DO
 
@@ -897,8 +909,8 @@ CONTAINS
 
             ! create Ax(iiter) that will store the matrix vector product for this cycle
             DO ispin = 1, nspins
-               NULLIFY (Ax(ispin, iiter)%matrix)
-               CALL cp_fm_create_p(Ax(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="Ai")
+               ALLOCATE (Ax(ispin, iiter)%matrix)
+               CALL cp_fm_create(Ax(ispin, iiter)%matrix, fm_struct_tmp(ispin)%struct, name="Ai")
                CALL cp_fm_set_all(Ax(ispin, iiter)%matrix, 0.0_dp)
             END DO
 
@@ -1004,12 +1016,14 @@ CONTAINS
          DEALLOCATE (xi_Axi)
 
          DO ispin = 1, nspins
-            CALL cp_fm_release_p(b_i(ispin)%matrix)
-            CALL cp_fm_release_p(residual(ispin)%matrix)
+            CALL cp_fm_release(b_i(ispin)%matrix)
+            CALL cp_fm_release(residual(ispin)%matrix)
+            DEALLOCATE (b_i(ispin)%matrix, residual(ispin)%matrix)
 
             DO iiter = 1, cycle_counter
-               CALL cp_fm_release_p(Ax(ispin, iiter)%matrix)
-               CALL cp_fm_release_p(xn(ispin, iiter)%matrix)
+               CALL cp_fm_release(Ax(ispin, iiter)%matrix)
+               CALL cp_fm_release(xn(ispin, iiter)%matrix)
+               DEALLOCATE (Ax(ispin, iiter)%matrix, xn(ispin, iiter)%matrix)
             END DO
          END DO
          DEALLOCATE (b_i, residual, Ax, xn, fm_struct_tmp)
@@ -1113,20 +1127,20 @@ CONTAINS
       DO ispin = 1, nspins
          fm_struct_tmp(ispin)%struct => P_ia(ispin)%matrix%matrix_struct
 
-         NULLIFY (residual(ispin)%matrix)
-         CALL cp_fm_create_p(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
+         ALLOCATE (residual(ispin)%matrix)
+         CALL cp_fm_create(residual(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="residual")
          CALL cp_fm_set_all(residual(ispin)%matrix, 0.0_dp)
 
-         NULLIFY (diff_search_vector(ispin)%matrix)
-         CALL cp_fm_create_p(diff_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="difference search vector")
+         ALLOCATE (diff_search_vector(ispin)%matrix)
+         CALL cp_fm_create(diff_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="difference search vector")
          CALL cp_fm_set_all(diff_search_vector(ispin)%matrix, 0.0_dp)
 
-         NULLIFY (search_vector(ispin)%matrix)
-         CALL cp_fm_create_p(search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="search vector")
+         ALLOCATE (search_vector(ispin)%matrix)
+         CALL cp_fm_create(search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="search vector")
          CALL cp_fm_set_all(search_vector(ispin)%matrix, 0.0_dp)
 
-         NULLIFY (A_dot_search_vector(ispin)%matrix)
-         CALL cp_fm_create_p(A_dot_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="A times search vector")
+         ALLOCATE (A_dot_search_vector(ispin)%matrix)
+         CALL cp_fm_create(A_dot_search_vector(ispin)%matrix, fm_struct_tmp(ispin)%struct, name="A times search vector")
          CALL cp_fm_set_all(A_dot_search_vector(ispin)%matrix, 0.0_dp)
       END DO
 
@@ -1293,10 +1307,12 @@ CONTAINS
       END IF
 
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(residual(ispin)%matrix)
-         CALL cp_fm_release_p(diff_search_vector(ispin)%matrix)
-         CALL cp_fm_release_p(search_vector(ispin)%matrix)
-         CALL cp_fm_release_p(A_dot_search_vector(ispin)%matrix)
+         CALL cp_fm_release(residual(ispin)%matrix)
+         CALL cp_fm_release(diff_search_vector(ispin)%matrix)
+         CALL cp_fm_release(search_vector(ispin)%matrix)
+         CALL cp_fm_release(A_dot_search_vector(ispin)%matrix)
+         DEALLOCATE (residual(ispin)%matrix, diff_search_vector(ispin)%matrix, &
+                     search_vector(ispin)%matrix, A_dot_search_vector(ispin)%matrix)
       END DO
       DEALLOCATE (residual, diff_search_vector, search_vector, A_dot_search_vector, fm_struct_tmp)
 

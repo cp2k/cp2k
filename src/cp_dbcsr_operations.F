@@ -39,11 +39,11 @@ MODULE cp_dbcsr_operations
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
-   USE cp_fm_types, ONLY: cp_fm_create_p, &
+   USE cp_fm_types, ONLY: cp_fm_create, &
                           cp_fm_get_info, &
-                          cp_fm_release_p, &
+                          cp_fm_release, &
                           cp_fm_to_fm, &
-                          cp_fm_type, cp_fm_create, cp_fm_release
+                          cp_fm_type
    USE cp_para_types, ONLY: cp_para_env_type
    USE distribution_2d_types, ONLY: distribution_2d_get, &
                                     distribution_2d_type

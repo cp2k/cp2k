@@ -24,7 +24,7 @@ MODULE qs_diis
                                               cp_fm_symm,&
                                               cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_maxabsval,&
                                               cp_fm_p_type,&
@@ -154,14 +154,14 @@ CONTAINS
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
-               NULLIFY (diis_buffer%error(ibuffer, ispin)%matrix)
-               CALL cp_fm_create_p(diis_buffer%error(ibuffer, ispin)%matrix, &
-                                   name="qs_diis_b"// &
-                                   TRIM(ADJUSTL(cp_to_string(diis_buffer%id_nr)))// &
-                                   "%error("// &
-                                   TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
-                                   TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
-                                   matrix_struct=matrix_struct)
+               ALLOCATE (diis_buffer%error(ibuffer, ispin)%matrix)
+               CALL cp_fm_create(diis_buffer%error(ibuffer, ispin)%matrix, &
+                                 name="qs_diis_b"// &
+                                 TRIM(ADJUSTL(cp_to_string(diis_buffer%id_nr)))// &
+                                 "%error("// &
+                                 TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
+                                 TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
+                                 matrix_struct=matrix_struct)
             END DO
          END DO
       END IF
@@ -171,14 +171,14 @@ CONTAINS
 
          DO ispin = 1, nspin
             DO ibuffer = 1, nbuffer
-               NULLIFY (diis_buffer%parameter(ibuffer, ispin)%matrix)
-               CALL cp_fm_create_p(diis_buffer%parameter(ibuffer, ispin)%matrix, &
-                                   name="qs_diis_b"// &
-                                   TRIM(ADJUSTL(cp_to_string(diis_buffer%id_nr)))// &
-                                   "%parameter("// &
-                                   TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
-                                   TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
-                                   matrix_struct=matrix_struct)
+               ALLOCATE (diis_buffer%parameter(ibuffer, ispin)%matrix)
+               CALL cp_fm_create(diis_buffer%parameter(ibuffer, ispin)%matrix, &
+                                 name="qs_diis_b"// &
+                                 TRIM(ADJUSTL(cp_to_string(diis_buffer%id_nr)))// &
+                                 "%parameter("// &
+                                 TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
+                                 TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
+                                 matrix_struct=matrix_struct)
             END DO
          END DO
       END IF

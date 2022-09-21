@@ -24,8 +24,8 @@ MODULE qs_dcdr_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -859,11 +859,13 @@ CONTAINS
       NULLIFY (dcdr_env%chc(1)%matrix)
       NULLIFY (dcdr_env%op_dR(1)%matrix)
 
-      CALL cp_fm_create_p(dcdr_env%dCR(1)%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create_p(dcdr_env%dCR_prime(1)%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create_p(dcdr_env%mo_coeff(1)%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create_p(dcdr_env%chc(1)%matrix, dcdr_env%momo_fm_struct)
-      CALL cp_fm_create_p(dcdr_env%op_dR(1)%matrix, dcdr_env%likemos_fm_struct)
+      ALLOCATE (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
+                dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
+      CALL cp_fm_create(dcdr_env%dCR(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(dcdr_env%dCR_prime(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(dcdr_env%mo_coeff(1)%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(dcdr_env%chc(1)%matrix, dcdr_env%momo_fm_struct)
+      CALL cp_fm_create(dcdr_env%op_dR(1)%matrix, dcdr_env%likemos_fm_struct)
 
       CALL cp_fm_to_fm(mo_coeff, dcdr_env%mo_coeff(1)%matrix)
 
@@ -1047,11 +1049,15 @@ CONTAINS
       END IF
 
       ! Full matrices
-      CALL cp_fm_release_p(dcdr_env%dCR(1)%matrix)
-      CALL cp_fm_release_p(dcdr_env%dCR_prime(1)%matrix)
-      CALL cp_fm_release_p(dcdr_env%mo_coeff(1)%matrix)
-      CALL cp_fm_release_p(dcdr_env%chc(1)%matrix)
-      CALL cp_fm_release_p(dcdr_env%op_dR(1)%matrix)
+      CALL cp_fm_release(dcdr_env%dCR(1)%matrix)
+      CALL cp_fm_release(dcdr_env%dCR_prime(1)%matrix)
+      CALL cp_fm_release(dcdr_env%mo_coeff(1)%matrix)
+      CALL cp_fm_release(dcdr_env%chc(1)%matrix)
+      CALL cp_fm_release(dcdr_env%op_dR(1)%matrix)
+      DEALLOCATE (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
+                  dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
+      NULLIFY (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
+               dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
 
       DEALLOCATE (dcdr_env%op_dR)
       DEALLOCATE (dcdr_env%dCR)

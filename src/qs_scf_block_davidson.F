@@ -35,9 +35,14 @@ MODULE qs_scf_block_davidson
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_release, cp_fm_release_p, &
-        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_vectorsnorm
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_diag,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type,&
+                                              cp_fm_vectorsnorm
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_multiply, dbcsr_norm, dbcsr_norm_column, dbcsr_release_p, dbcsr_scale_by_vector, &
@@ -144,7 +149,6 @@ CONTAINS
          CALL cp_fm_release(m_tmp)
 
          ! Check for converged eigenvectors
-!      CALL cp_fm_create_p(c_z,mo_coeff%matrix_struct,name="tmp")
          c_z => bdav_env%matrix_z
          c_pz => bdav_env%matrix_pz
          CALL cp_fm_to_fm(m_sc, c_z)
@@ -272,8 +276,9 @@ CONTAINS
             CALL cp_fm_create(m_hc, fm_struct_tmp, name="m_hc")
             CALL cp_fm_create(m_sc, fm_struct_tmp, name="m_sc")
             !allocate c_z
-            CALL cp_fm_create_p(c_z, fm_struct_tmp, name="c_z")
-            CALL cp_fm_create_p(c_pz, fm_struct_tmp, name="c_pz")
+            ALLOCATE (c_z, c_pz)
+            CALL cp_fm_create(c_z, fm_struct_tmp, name="c_z")
+            CALL cp_fm_create(c_pz, fm_struct_tmp, name="c_pz")
             CALL cp_fm_set_all(c_z, 0.0_dp)
 
             ! sum contributions to c_out
@@ -416,8 +421,9 @@ CONTAINS
          CALL cp_fm_release(v_block)
 
          IF (nmo_converged > 0) THEN
-            CALL cp_fm_release_p(c_z)
-            CALL cp_fm_release_p(c_pz)
+            CALL cp_fm_release(c_z)
+            CALL cp_fm_release(c_pz)
+            DEALLOCATE (c_z, c_pz)
             jj = 1
             DO j = 1, nset_not_conv
                i_first = inotconv_set(j, 1)
@@ -700,7 +706,8 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo_not_converged, &
                                      context=mo_coeff%matrix_struct%context, &
                                      para_env=mo_coeff%matrix_struct%para_env)
-            CALL cp_fm_create_p(mo_notconv_fm, fm_struct_tmp, name="mo_notconv_fm")
+            ALLOCATE (mo_notconv_fm)
+            CALL cp_fm_create(mo_notconv_fm, fm_struct_tmp, name="mo_notconv_fm")
             CALL cp_fm_struct_release(fm_struct_tmp)
 
             ! extract mo_notconv from mo_coeff full matrix
@@ -887,7 +894,8 @@ CONTAINS
 
             CALL dbcsr_release_p(mo_notconv)
             CALL dbcsr_release_p(c_out)
-            CALL cp_fm_release_p(mo_notconv_fm)
+            CALL cp_fm_release(mo_notconv_fm)
+            DEALLOCATE (mo_notconv_fm)
          ELSE
             CALL cp_fm_to_fm(matrix_nm_fm, mo_coeff)
             eigenvalues(1:nmo) = evals(1:nmo)

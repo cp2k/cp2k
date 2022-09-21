@@ -33,9 +33,14 @@ MODULE xas_tdp_correction
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_diag,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -172,7 +177,8 @@ CONTAINS
          CALL cp_fm_struct_create(lumo_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=nlumo(ispin), nrow_global=nao)
 
-         CALL cp_fm_create_p(lumo_coeffs(ispin)%matrix, lumo_struct(ispin)%struct)
+         ALLOCATE (lumo_coeffs(ispin)%matrix)
+         CALL cp_fm_create(lumo_coeffs(ispin)%matrix, lumo_struct(ispin)%struct)
          CALL cp_fm_to_fm(xas_tdp_env%lumo_evecs(ispin)%matrix, lumo_coeffs(ispin)%matrix)
       END DO
 
@@ -188,7 +194,8 @@ CONTAINS
 
          CALL cp_fm_struct_create(homo_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=locat + nonloc, nrow_global=nao)
-         CALL cp_fm_create_p(homo_coeffs(ispin)%matrix, homo_struct(ispin)%struct)
+         ALLOCATE (homo_coeffs(ispin)%matrix)
+         CALL cp_fm_create(homo_coeffs(ispin)%matrix, homo_struct(ispin)%struct)
 
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_to_fm_submat(mo_coeff, homo_coeffs(ispin)%matrix, nrow=nao, ncol=nonloc, s_firstrow=1, &
@@ -373,7 +380,8 @@ CONTAINS
          !Put back homo and lumo coeffs together, to fit tensor structure
          CALL cp_fm_struct_create(all_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=nhomo(ispin) + nlumo(ispin), nrow_global=nao)
-         CALL cp_fm_create_p(all_coeffs(ispin)%matrix, all_struct(ispin)%struct)
+         ALLOCATE (all_coeffs(ispin)%matrix)
+         CALL cp_fm_create(all_coeffs(ispin)%matrix, all_struct(ispin)%struct)
          CALL cp_fm_to_fm(homo_coeffs(ispin)%matrix, all_coeffs(ispin)%matrix, ncol=nhomo(ispin), &
                           source_start=1, target_start=1)
          CALL cp_fm_to_fm(lumo_coeffs(ispin)%matrix, all_coeffs(ispin)%matrix, ncol=nlumo(ispin), &
@@ -387,9 +395,10 @@ CONTAINS
 
       !intermediate clean-up
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(all_coeffs(ispin)%matrix)
-         CALL cp_fm_release_p(homo_coeffs(ispin)%matrix)
-         CALL cp_fm_release_p(lumo_coeffs(ispin)%matrix)
+         CALL cp_fm_release(all_coeffs(ispin)%matrix)
+         CALL cp_fm_release(homo_coeffs(ispin)%matrix)
+         CALL cp_fm_release(lumo_coeffs(ispin)%matrix)
+         DEALLOCATE (all_coeffs(ispin)%matrix, homo_coeffs(ispin)%matrix, lumo_coeffs(ispin)%matrix)
          CALL cp_fm_struct_release(all_struct(ispin)%struct)
          CALL cp_fm_struct_release(lumo_struct(ispin)%struct)
          CALL cp_fm_struct_release(homo_struct(ispin)%struct)

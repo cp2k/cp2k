@@ -12,7 +12,7 @@ MODULE qs_ks_apply_restraints
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -215,7 +215,8 @@ CONTAINS
          ALLOCATE (fm_mo_derivs(SIZE(mo_derivs, 1))) !fm->dbcsr
          DO i = 1, SIZE(mo_derivs, 1) !fm->dbcsr
             CALL get_mo_set(mo_set=mo_array(i)%mo_set, mo_coeff=mo_coeff) !fm->dbcsr
-            CALL cp_fm_create_p(fm_mo_derivs(i)%matrix, mo_coeff%matrix_struct) !fm->dbcsr
+            ALLOCATE (fm_mo_derivs(i)%matrix)
+            CALL cp_fm_create(fm_mo_derivs(i)%matrix, mo_coeff%matrix_struct) !fm->dbcsr
             CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix, fm_mo_derivs(i)%matrix) !fm->dbcsr
          END DO !fm->dbcsr
 

@@ -37,9 +37,8 @@ MODULE xas_tdp_utils
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, &
-        cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_element, cp_fm_to_fm_submat, &
-        cp_fm_type
+        cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_element, cp_fm_to_fm_submat, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
@@ -673,7 +672,8 @@ CONTAINS
 !  the columns are the c_Ialpha and second block with columns as c_Ibeta
       CALL cp_fm_struct_create(ex_struct, nrow_global=nao, ncol_global=ndo_mo*nspins*nevals, &
                                para_env=para_env, context=blacs_env)
-      CALL cp_fm_create_p(lr_coeffs, ex_struct)
+      ALLOCATE (lr_coeffs)
+      CALL cp_fm_create(lr_coeffs, ex_struct)
 
       DO i = 1, nevals
          DO ispin = 1, nspins
@@ -1564,7 +1564,8 @@ CONTAINS
       IF (do_roks) THEN
          CALL cp_fm_struct_create(vec_struct, context=blacs_env, para_env=para_env, &
                                   nrow_global=nao, ncol_global=ndo_so)
-         CALL cp_fm_create_p(gs_coeffs, vec_struct)
+         ALLOCATE (gs_coeffs)
+         CALL cp_fm_create(gs_coeffs, vec_struct)
 
          ! only alpha donor MOs are stored, need to copy them intoboth the alpha and the beta slot
          CALL cp_fm_to_fm_submat(msource=donor_state%gs_coeffs, mtarget=gs_coeffs, nrow=nao, &
@@ -1890,7 +1891,10 @@ CONTAINS
       CALL cp_cfm_release(pert_cfm)
       CALL cp_cfm_release(evecs_cfm)
       CALL cp_fm_struct_release(full_struct)
-      IF (do_roks) CALL cp_fm_release_p(gs_coeffs)
+      IF (do_roks) THEN
+         CALL cp_fm_release(gs_coeffs)
+         DEALLOCATE (gs_coeffs)
+      END IF
       CALL dbcsr_distribution_release(coeffs_dist)
       CALL dbcsr_distribution_release(prod_dist)
       CALL dbcsr_release(dbcsr_sc)
@@ -2393,7 +2397,8 @@ CONTAINS
                                nrow_global=ntot, ncol_global=ntot)
       ALLOCATE (amew_op(dim_op))
       DO i = 1, dim_op
-         CALL cp_fm_create_p(amew_op(i)%matrix, full_struct)
+         ALLOCATE (amew_op(i)%matrix)
+         CALL cp_fm_create(amew_op(i)%matrix, full_struct)
       END DO
 
 !  Before looping, need to evaluate sum_j,sigma <phi^0_j,sgima|op|phi^0_j,sigma>, for each dimension
@@ -2624,7 +2629,8 @@ CONTAINS
                                nrow_global=ntot, ncol_global=ntot)
       ALLOCATE (amew_op(dim_op))
       DO i = 1, dim_op
-         CALL cp_fm_create_p(amew_op(i)%matrix, full_struct)
+         ALLOCATE (amew_op(i)%matrix)
+         CALL cp_fm_create(amew_op(i)%matrix, full_struct)
       END DO !i
 
 !  Deal with the GS-GS contribution <0|0> = 2*sum_j <phi_j|op|phi_j>
@@ -3025,7 +3031,8 @@ CONTAINS
       CALL cp_cfm_release(work2_cfm)
       CALL cp_cfm_release(dip_cfm)
       DO i = 1, 3
-         CALL cp_fm_release_p(amew_dip(i)%matrix)
+         CALL cp_fm_release(amew_dip(i)%matrix)
+         DEALLOCATE (amew_dip(i)%matrix)
       END DO
       DEALLOCATE (amew_dip, transdip)
 
@@ -3142,7 +3149,8 @@ CONTAINS
       CALL cp_cfm_release(work2_cfm)
       CALL cp_cfm_release(quad_cfm)
       DO i = 1, 6
-         CALL cp_fm_release_p(amew_quad(i)%matrix)
+         CALL cp_fm_release(amew_quad(i)%matrix)
+         DEALLOCATE (amew_quad(i)%matrix)
       END DO
       DEALLOCATE (amew_quad, transquad, trace)
 

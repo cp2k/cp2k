@@ -11,7 +11,7 @@ MODULE optimize_basis
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -228,7 +228,8 @@ CONTAINS
       DO icalc = SIZE(opt_bas%comp_group(mp_id)%member_list), 1, -1
          CALL f_env_get_from_id(f_env_id(icalc), f_env)
          CALL destroy_force_env(f_env_id(icalc), stat)
-         CALL cp_fm_release_p(matrix_s_inv(icalc)%matrix)
+         CALL cp_fm_release(matrix_s_inv(icalc)%matrix)
+         DEALLOCATE (matrix_s_inv(icalc)%matrix)
       END DO
       DEALLOCATE (f_env_id); DEALLOCATE (tot_time); DEALLOCATE (matrix_S_inv)
       CALL cp_para_env_release(para_env)

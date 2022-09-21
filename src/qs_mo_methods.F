@@ -594,18 +594,11 @@ CONTAINS
                                             sym=dbcsr_type_no_symmetry)
 
 !!!!!!!!!!!!!!XXXXXXXXXXXXXXXXXXX!!!!!!!!!!!!!
-         !CALL cp_fm_create_p(h_block,fm_struct_tmp, name="h block")
          IF (compute_evecs) THEN
             CALL dbcsr_init_p(e_vectors)
             CALL cp_dbcsr_m_by_n_from_template(e_vectors, template=orbitals, m=ncol_global, n=ncol_global, &
                                                sym=dbcsr_type_no_symmetry)
-!           CALL dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
-!                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default)
-            !CALL cp_fm_create_p(e_vectors,fm_struct_tmp, name="e vectors")
          END IF
-!        CALL dbcsr_distribution_release (dist)
-!        CALL array_release (row_blk_size);CALL array_release (col_blk_size)
-         !CALL cp_fm_struct_release(fm_struct_tmp)
 
          ! h subblock and diag
          CALL dbcsr_multiply('N', 'N', 1.0_dp, ks_matrix, orbitals, &
@@ -668,11 +661,8 @@ CONTAINS
 
          CALL dbcsr_release_p(weighted_vectors)
          CALL dbcsr_release_p(h_block)
-         !CALL cp_fm_release_p(weighted_vectors)
-         !CALL cp_fm_release_p(h_block)
          IF (compute_evecs) THEN
             CALL dbcsr_release_p(e_vectors)
-            !CALL cp_fm_release_p(e_vectors)
          END IF
 
          DEALLOCATE (evals)

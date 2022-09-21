@@ -37,9 +37,8 @@ MODULE qs_loc_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
-        cp_fm_init_random, cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, &
-        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_init_random, &
+        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -781,8 +780,8 @@ CONTAINS
             ALLOCATE (op_fm_set(2, dim_op))
             DO i = 1, dim_op
                DO j = 1, SIZE(op_fm_set, 1)
-                  NULLIFY (op_fm_set(j, i)%matrix)
-                  CALL cp_fm_create_p(op_fm_set(j, i)%matrix, tmp_fm_struct)
+                  ALLOCATE (op_fm_set(j, i)%matrix)
+                  CALL cp_fm_create(op_fm_set(j, i)%matrix, tmp_fm_struct)
                   CALL cp_fm_get_info(op_fm_set(j, i)%matrix, nrow_global=nmosub)
                   CPASSERT(nmo >= nmosub)
                   CALL cp_fm_set_all(op_fm_set(j, i)%matrix, 0.0_dp)
@@ -904,7 +903,8 @@ CONTAINS
             IF (ASSOCIATED(op_fm_set)) THEN
                DO i = 1, dim_op
                   DO j = 1, SIZE(op_fm_set, 1)
-                     CALL cp_fm_release_p(op_fm_set(j, i)%matrix)
+                     CALL cp_fm_release(op_fm_set(j, i)%matrix)
+                     DEALLOCATE (op_fm_set(j, i)%matrix)
                   END DO
                END DO
                DEALLOCATE (op_fm_set)

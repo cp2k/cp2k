@@ -24,9 +24,8 @@ MODULE rpa_grad
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, &
-        cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_p_type, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -87,7 +86,7 @@ MODULE rpa_grad
    END TYPE
 
    TYPE rpa_grad_work_type
-      TYPE(cp_fm_type), POINTER :: fm_mat_Q_copy
+      TYPE(cp_fm_type) :: fm_mat_Q_copy
       TYPE(one_dim_int_array), DIMENSION(:, :), ALLOCATABLE :: index2send
       TYPE(two_dim_int_array), DIMENSION(:, :), ALLOCATABLE :: index2recv
       TYPE(group_dist_d1_type), DIMENSION(:), ALLOCATABLE :: gd_homo, gd_virtual
@@ -276,8 +275,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (rpa_work%fm_mat_Q_copy)
-      CALL cp_fm_create_p(rpa_work%fm_mat_Q_copy, matrix_struct=fm_mat_Q%matrix_struct)
+      CALL cp_fm_create(rpa_work%fm_mat_Q_copy, matrix_struct=fm_mat_Q%matrix_struct)
 
       CALL get_blacs_info(fm_mat_S(1)%matrix%matrix_struct%context, &
                           number_of_process_columns=num_pe_col, my_process_column=my_pcol)
@@ -2001,7 +1999,7 @@ CONTAINS
       my_scale = mp2_env%ri_rpa%scale_rpa/(2.0_dp*pi)
       IF (mp2_env%ri_rpa%minimax_quad) my_scale = my_scale/2.0_dp
 
-      CALL cp_fm_release_p(rpa_work%fm_mat_Q_copy)
+      CALL cp_fm_release(rpa_work%fm_mat_Q_copy)
 
       DO ispin = 1, nspins
       DO proc = 0, SIZE(rpa_work%index2send, 1) - 1

@@ -36,11 +36,9 @@ MODULE preconditioner_makes
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_get_diag,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
-                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
@@ -229,7 +227,9 @@ CONTAINS
       NULLIFY (fm_struct_tmp, evals)
 
       IF (ASSOCIATED(fm)) THEN
-         CALL cp_fm_release_p(fm)
+         CALL cp_fm_release(fm)
+         DEALLOCATE (fm)
+         NULLIFY (fm)
       END IF
       CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
@@ -237,7 +237,8 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create_p(fm, fm_struct_tmp, name="preconditioner")
+      ALLOCATE (fm)
+      CALL cp_fm_create(fm, fm_struct_tmp, name="preconditioner")
       CALL cp_fm_create(fm_h, fm_struct_tmp, name="fm_h")
       CALL cp_fm_create(fm_s, fm_struct_tmp, name="fm_s")
       CALL cp_fm_struct_release(fm_struct_tmp)
@@ -318,7 +319,9 @@ CONTAINS
       NULLIFY (fm_struct_tmp, evals)
 
       IF (ASSOCIATED(fm)) THEN
-         CALL cp_fm_release_p(fm)
+         CALL cp_fm_release(fm)
+         DEALLOCATE (fm)
+         NULLIFY (fm)
       END IF
       CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
@@ -326,7 +329,8 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create_p(fm, fm_struct_tmp, name="preconditioner")
+      ALLOCATE (fm)
+      CALL cp_fm_create(fm, fm_struct_tmp, name="preconditioner")
       CALL cp_fm_create(fm_h, fm_struct_tmp, name="fm_h")
       CALL cp_fm_create(fm_s, fm_struct_tmp, name="fm_s")
       CALL cp_fm_struct_release(fm_struct_tmp)
@@ -391,12 +395,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release_p(preconditioner_env%fm)
+      IF (ASSOCIATED(preconditioner_env%fm)) THEN
+         CALL cp_fm_release(preconditioner_env%fm)
+         DEALLOCATE (preconditioner_env%fm)
+         NULLIFY (preconditioner_env%fm)
+      END IF
       CALL cp_fm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create_p(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
+      ALLOCATE (preconditioner_env%fm)
+      CALL cp_fm_create(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
       CALL cp_fm_create(ortho, fm_struct_tmp, name="ortho")
       CALL cp_fm_create(matrix_tmp, fm_struct_tmp, name="matrix_tmp")
       CALL cp_fm_struct_release(fm_struct_tmp)
@@ -560,12 +569,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release_p(preconditioner_env%fm)
+      IF (ASSOCIATED(preconditioner_env%fm)) THEN
+         CALL cp_fm_release(preconditioner_env%fm)
+         DEALLOCATE (preconditioner_env%fm)
+         NULLIFY (preconditioner_env%fm)
+      END IF
       CALL cp_fm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
-      CALL cp_fm_create_p(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
+      ALLOCATE (preconditioner_env%fm)
+      CALL cp_fm_create(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
       CALL cp_fm_create(matrix_tmp, fm_struct_tmp, name="matrix_tmp")
       CALL cp_fm_struct_release(fm_struct_tmp)
       ALLOCATE (preconditioner_env%full_evals(n))

@@ -36,8 +36,8 @@ MODULE qs_linres_op
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -369,8 +369,8 @@ CONTAINS
                                      ncol_global=nmo, para_env=para_env, &
                                      context=mo_coeff%matrix_struct%context)
             DO idir = 1, 3
-               NULLIFY (fm_Rmd_mos(idir)%matrix)
-               CALL cp_fm_create_p(fm_Rmd_mos(idir)%matrix, tmp_fm_struct)
+               ALLOCATE (fm_Rmd_mos(idir)%matrix)
+               CALL cp_fm_create(fm_Rmd_mos(idir)%matrix, tmp_fm_struct)
             END DO
             CALL cp_fm_create(fm_work1, tmp_fm_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
@@ -412,7 +412,8 @@ CONTAINS
             END DO ! idir
 
             DO idir = 1, 3
-               CALL cp_fm_release_p(fm_Rmd_mos(idir)%matrix)
+               CALL cp_fm_release(fm_Rmd_mos(idir)%matrix)
+               DEALLOCATE (fm_Rmd_mos(idir)%matrix)
             END DO
             CALL cp_fm_release(fm_work1)
 
@@ -744,16 +745,17 @@ CONTAINS
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                      ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
             DO i = 1, SIZE(op_fm_set, 1)
-               CALL cp_fm_create_p(opvec(i, ispin)%matrix, mo_coeff%matrix_struct)
-               NULLIFY (op_fm_set(i, ispin)%matrix)
-               CALL cp_fm_create_p(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
+               ALLOCATE (opvec(i, ispin)%matrix, op_fm_set(i, ispin)%matrix)
+               CALL cp_fm_create(opvec(i, ispin)%matrix, mo_coeff%matrix_struct)
+               CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
             END DO
             CALL cp_cfm_create_p(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
             DO i = 1, 3
+               ALLOCATE (inv_work(2, i, ispin)%matrix, inv_work(1, i, ispin)%matrix)
                CALL cp_cfm_create_p(inv_mat(i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
-               CALL cp_fm_create_p(inv_work(2, i, ispin)%matrix, op_fm_set(2, ispin)%matrix%matrix_struct)
-               CALL cp_fm_create_p(inv_work(1, i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+               CALL cp_fm_create(inv_work(2, i, ispin)%matrix, op_fm_set(2, ispin)%matrix%matrix_struct)
+               CALL cp_fm_create(inv_work(1, i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
             END DO
          END DO
 
@@ -813,13 +815,16 @@ CONTAINS
             CALL cp_cfm_release_p(eigrmat(ispin)%matrix)
             DO i = 1, 3
                CALL cp_cfm_release_p(inv_mat(i, ispin)%matrix)
-               CALL cp_fm_release_p(inv_work(1, i, ispin)%matrix)
-               CALL cp_fm_release_p(inv_work(2, i, ispin)%matrix)
+               CALL cp_fm_release(inv_work(1, i, ispin)%matrix)
+               CALL cp_fm_release(inv_work(2, i, ispin)%matrix)
+               DEALLOCATE (inv_work(1, i, ispin)%matrix, inv_work(2, i, ispin)%matrix)
             END DO
-            CALL cp_fm_release_p(opvec(1, ispin)%matrix)
-            CALL cp_fm_release_p(opvec(2, ispin)%matrix)
-            CALL cp_fm_release_p(op_fm_set(2, ispin)%matrix)
-            CALL cp_fm_release_p(op_fm_set(1, ispin)%matrix)
+            CALL cp_fm_release(opvec(1, ispin)%matrix)
+            CALL cp_fm_release(opvec(2, ispin)%matrix)
+            CALL cp_fm_release(op_fm_set(2, ispin)%matrix)
+            CALL cp_fm_release(op_fm_set(1, ispin)%matrix)
+            DEALLOCATE (opvec(1, ispin)%matrix, opvec(2, ispin)%matrix, &
+                        op_fm_set(2, ispin)%matrix, op_fm_set(1, ispin)%matrix)
          END DO
 
          CALL dbcsr_deallocate_matrix(cosmat)

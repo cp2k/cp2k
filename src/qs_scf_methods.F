@@ -33,10 +33,8 @@ MODULE qs_scf_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
-                                              cp_fm_release_p,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -277,12 +275,12 @@ CONTAINS
 
       INTEGER                                            :: handle, nao, nmo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
-      TYPE(cp_fm_type)                                   :: nmo_evecs
-      TYPE(cp_fm_type), POINTER                          :: all_evecs, mo_coeff
+      TYPE(cp_fm_type)                                   :: all_evecs, nmo_evecs
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (mo_coeff, all_evecs)
+      NULLIFY (mo_coeff)
       NULLIFY (mo_eigenvalues)
 
       CALL get_mo_set(mo_set=mo_set, &
@@ -298,13 +296,13 @@ CONTAINS
 
 !    Solve the eigenvalue problem
       CALL copy_dbcsr_to_fm(ksbuf2, matrix_ks_fm)
-      CALL cp_fm_create_p(all_evecs, matrix_ks_fm%matrix_struct)
+      CALL cp_fm_create(all_evecs, matrix_ks_fm%matrix_struct)
       CALL choose_eigv_solver(matrix_ks_fm, all_evecs, mo_eigenvalues)
 
       ! select first nmo eigenvectors
       CALL cp_fm_create(nmo_evecs, mo_coeff%matrix_struct)
       CALL cp_fm_to_fm(msource=all_evecs, mtarget=nmo_evecs, ncol=nmo)
-      CALL cp_fm_release_p(all_evecs)
+      CALL cp_fm_release(all_evecs)
 
 !    Restore the eigenvector of the general eig. problem
       CALL cp_dbcsr_sm_fm_multiply(ortho_dbcsr, nmo_evecs, mo_coeff, nmo)

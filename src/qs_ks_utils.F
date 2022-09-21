@@ -35,9 +35,13 @@ MODULE qs_ks_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -578,7 +582,8 @@ CONTAINS
       ALLOCATE (mo_derivs_local(SIZE(mo_array, 1)))
       DO I = 1, SIZE(mo_array, 1)
          CALL get_mo_set(mo_set=mo_array(i)%mo_set, mo_coeff=mo_coeff)
-         CALL cp_fm_create_p(mo_derivs_local(I)%matrix, mo_coeff%matrix_struct)
+         ALLOCATE (mo_derivs_local(I)%matrix)
+         CALL cp_fm_create(mo_derivs_local(I)%matrix, mo_coeff%matrix_struct)
       END DO
 
       ALLOCATE (rho_r(2))
@@ -676,7 +681,8 @@ CONTAINS
       CALL cp_fm_release(matrix_v)
       CALL cp_fm_release(matrix_hv)
       DO I = 1, SIZE(mo_derivs_local, 1)
-         CALL cp_fm_release_p(mo_derivs_local(I)%matrix)
+         CALL cp_fm_release(mo_derivs_local(I)%matrix)
+         DEALLOCATE (mo_derivs_local(I)%matrix)
       END DO
       DEALLOCATE (mo_derivs_local)
       DEALLOCATE (rho_r)

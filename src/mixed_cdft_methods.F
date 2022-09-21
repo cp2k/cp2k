@@ -29,9 +29,14 @@ MODULE mixed_cdft_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_write_formatted
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_write_formatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -1351,19 +1356,21 @@ CONTAINS
          CALL cp_fm_create(matrix=Tinverse, matrix_struct=mo_mo_fmstruct, &
                            name="T_INVERSE_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
          DO istate = 1, npermutations
-            CALL cp_fm_create_p(matrix=mo_overlap(istate)%matrix, matrix_struct=mo_mo_fmstruct, &
-                                name="MO_OVERLAP_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
-                                TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+            ALLOCATE (mo_overlap(istate)%matrix)
+            CALL cp_fm_create(matrix=mo_overlap(istate)%matrix, matrix_struct=mo_mo_fmstruct, &
+                              name="MO_OVERLAP_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
+                              TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
          END DO
          DO ivar = 1, nvar
             DO istate = 1, nforce_eval
                DO jstate = 1, nforce_eval
                   NULLIFY (w_matrix_mo(istate, jstate, ivar)%matrix)
                   IF (istate == jstate) CYCLE
-                  CALL cp_fm_create_p(matrix=w_matrix_mo(istate, jstate, ivar)%matrix, matrix_struct=mo_mo_fmstruct, &
-                                      name="W_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
-                                      TRIM(ADJUSTL(cp_to_string(jstate)))//"_"// &
-                                      TRIM(ADJUSTL(cp_to_string(ivar)))//"_MATRIX")
+                  ALLOCATE (w_matrix_mo(istate, jstate, ivar)%matrix)
+                  CALL cp_fm_create(matrix=w_matrix_mo(istate, jstate, ivar)%matrix, matrix_struct=mo_mo_fmstruct, &
+                                    name="W_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
+                                    TRIM(ADJUSTL(cp_to_string(jstate)))//"_"// &
+                                    TRIM(ADJUSTL(cp_to_string(ivar)))//"_MATRIX")
                END DO
             END DO
          END DO
@@ -1372,11 +1379,11 @@ CONTAINS
          IF (.NOT. uniform_occupation) THEN
             DO iforce_eval = 1, nforce_eval
                CALL cp_fm_to_fm(mixed_mo_coeff(iforce_eval, ispin)%matrix, tmp2, nmo, 1, 1)
-               CALL cp_fm_release_p(mixed_mo_coeff(iforce_eval, ispin)%matrix)
-               CALL cp_fm_create_p(mixed_mo_coeff(iforce_eval, ispin)%matrix, &
-                                   matrix_struct=tmp2%matrix_struct, &
-                                   name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
-                                   //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+               CALL cp_fm_release(mixed_mo_coeff(iforce_eval, ispin)%matrix)
+               CALL cp_fm_create(mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+                                 matrix_struct=tmp2%matrix_struct, &
+                                 name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
+                                 //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
                CALL cp_fm_to_fm(tmp2, mixed_mo_coeff(iforce_eval, ispin)%matrix)
                IF (should_scale) &
                   CALL cp_fm_column_scale(mixed_mo_coeff(iforce_eval, ispin)%matrix, &
@@ -1512,12 +1519,14 @@ CONTAINS
             DO jstate = 1, nforce_eval
                DO istate = 1, nforce_eval
                   IF (istate == jstate) CYCLE
-                  CALL cp_fm_release_p(w_matrix_mo(istate, jstate, ivar)%matrix)
+                  CALL cp_fm_release(w_matrix_mo(istate, jstate, ivar)%matrix)
+                  DEALLOCATE (w_matrix_mo(istate, jstate, ivar)%matrix)
                END DO
             END DO
          END DO
          DO ipermutation = 1, npermutations
-            CALL cp_fm_release_p(mo_overlap(ipermutation)%matrix)
+            CALL cp_fm_release(mo_overlap(ipermutation)%matrix)
+            DEALLOCATE (mo_overlap(ipermutation)%matrix)
          END DO
          CALL cp_fm_release(Tinverse)
          CALL cp_fm_release(inverse_mat)
@@ -2097,9 +2106,10 @@ CONTAINS
                               n_el_f=REAL(maxocc*nmo, dp), maxocc=maxocc, &
                               flexible_electron_count=0.0_dp)
          CALL set_mo_set(mo_set(ispin)%mo_set, uniform_occupation=.TRUE., homo=nmo)
-         CALL cp_fm_create_p(matrix=mo_set(ispin)%mo_set%mo_coeff, &
-                             matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
-                             name="GS_MO_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
+         ALLOCATE (mo_set(ispin)%mo_set%mo_coeff)
+         CALL cp_fm_create(matrix=mo_set(ispin)%mo_set%mo_coeff, &
+                           matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
+                           name="GS_MO_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
          ALLOCATE (mo_set(ispin)%mo_set%eigenvalues(nmo))
          ALLOCATE (mo_set(ispin)%mo_set%occupation_numbers(nmo))
       END DO

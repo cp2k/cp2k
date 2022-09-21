@@ -51,9 +51,7 @@ MODULE cp_fm_types
              cp_fm_p_type, copy_info_type
 
    PUBLIC :: cp_fm_add_to_element, &
-             cp_fm_create_p, &
              cp_fm_create, &
-             cp_fm_release_p, &
              cp_fm_release, &
              cp_fm_get_info, &
              cp_fm_set_element, &
@@ -145,24 +143,6 @@ MODULE cp_fm_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param matrix_struct ...
-!> \param name ...
-!> \param use_sp ...
-! **************************************************************************************************
-   SUBROUTINE cp_fm_create_p(matrix, matrix_struct, name, use_sp)
-      TYPE(cp_fm_type), POINTER                          :: matrix
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
-      LOGICAL, INTENT(in), OPTIONAL                      :: use_sp
-
-      ALLOCATE (matrix)
-      CALL cp_fm_create(matrix, matrix_struct, name, use_sp)
-
-   END SUBROUTINE cp_fm_create_p
-
-! **************************************************************************************************
 !> \brief creates a new full matrix with the given structure
 !> \param matrix the matrix to be created
 !> \param matrix_struct the structure of matrix
@@ -236,21 +216,6 @@ CONTAINS
    END SUBROUTINE cp_fm_create
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-! **************************************************************************************************
-   SUBROUTINE cp_fm_release_p(matrix)
-      TYPE(cp_fm_type), POINTER                          :: matrix
-
-      IF (ASSOCIATED(matrix)) THEN
-         CALL cp_fm_release(matrix)
-         DEALLOCATE (matrix)
-      END IF
-      NULLIFY (matrix)
-
-   END SUBROUTINE cp_fm_release_p
-
-! **************************************************************************************************
 !> \brief releases a full matrix
 !> \param matrix the matrix to release
 !> \par History
@@ -283,7 +248,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief This routine performs a soft copy. The destination matrix is NOT meant to be released
-!>        with cp_fm_release or cp_fm_release_p; otherwise, the POINTERs within the source matrix become undefined.
+!>        with cp_fm_release ; otherwise, the POINTERs within the source matrix become undefined.
 !> \param source ...
 !> \param destination ...
 ! **************************************************************************************************

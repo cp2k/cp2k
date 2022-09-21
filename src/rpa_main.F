@@ -30,9 +30,8 @@ MODULE rpa_main
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -634,27 +633,34 @@ CONTAINS
 
       IF (.NOT. do_im_time) THEN
          DO ispin = 1, SIZE(fm_mat_Q_gemm)
-            CALL cp_fm_release_p(fm_mat_Q_gemm(ispin)%matrix)
-            CALL cp_fm_release_p(fm_mat_S(ispin)%matrix)
+            CALL cp_fm_release(fm_mat_Q_gemm(ispin)%matrix)
+            CALL cp_fm_release(fm_mat_S(ispin)%matrix)
+            DEALLOCATE (fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_Q_gemm, fm_mat_S)
       END IF
       DO ispin = 1, SIZE(fm_mat_Q)
-         IF (ASSOCIATED(fm_mat_Q(ispin)%matrix)) CALL cp_fm_release_p(fm_mat_Q(ispin)%matrix)
+         IF (ASSOCIATED(fm_mat_Q(ispin)%matrix)) THEN
+            CALL cp_fm_release(fm_mat_Q(ispin)%matrix)
+            DEALLOCATE (fm_mat_Q(ispin)%matrix)
+         END IF
       END DO
       DEALLOCATE (fm_mat_Q)
 
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
          DO ispin = 1, SIZE(fm_mat_S_gw)
-            CALL cp_fm_release_p(fm_mat_S_gw(ispin)%matrix)
+            CALL cp_fm_release(fm_mat_S_gw(ispin)%matrix)
+            DEALLOCATE (fm_mat_S_gw(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_S_gw)
-         CALL cp_fm_release_p(fm_mat_R_gw(1)%matrix)
+         CALL cp_fm_release(fm_mat_R_gw(1)%matrix)
+         DEALLOCATE (fm_mat_R_gw(1)%matrix)
       END IF
 
       IF (do_bse) THEN
-         CALL cp_fm_release_p(fm_mat_S_ij_bse(1)%matrix)
-         CALL cp_fm_release_p(fm_mat_S_ab_bse(1)%matrix)
+         CALL cp_fm_release(fm_mat_S_ij_bse(1)%matrix)
+         CALL cp_fm_release(fm_mat_S_ab_bse(1)%matrix)
+         DEALLOCATE (fm_mat_S_ij_bse(1)%matrix, fm_mat_S_ab_bse(1)%matrix)
       END IF
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
@@ -954,8 +960,8 @@ CONTAINS
                                   ncol_global=dimen_RI, para_env=para_env_RPA, &
                                   nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
          DO ispin = 1, SIZE(fm_mat_Q_gemm)
-            NULLIFY (fm_mat_Q_gemm(ispin)%matrix)
-            CALL cp_fm_create_p(fm_mat_Q_gemm(ispin)%matrix, fm_struct, name="fm_mat_Q_gemm")
+            ALLOCATE (fm_mat_Q_gemm(ispin)%matrix)
+            CALL cp_fm_create(fm_mat_Q_gemm(ispin)%matrix, fm_struct, name="fm_mat_Q_gemm")
          END DO
          CALL cp_fm_struct_release(fm_struct)
       END IF
@@ -971,8 +977,8 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
                                   ncol_global=dimen_RI, para_env=para_env_RPA)
          DO ispin = 1, SIZE(fm_mat_Q)
-            NULLIFY (fm_mat_Q(ispin)%matrix)
-            CALL cp_fm_create_p(fm_mat_Q(ispin)%matrix, fm_struct, name="fm_mat_Q")
+            ALLOCATE (fm_mat_Q(ispin)%matrix)
+            CALL cp_fm_create(fm_mat_Q(ispin)%matrix, fm_struct, name="fm_mat_Q")
          END DO
 
          CALL cp_fm_struct_release(fm_struct)

@@ -32,7 +32,6 @@ MODULE qs_pdos
                                               cp_fm_get_submatrix,&
                                               cp_fm_init_random,&
                                               cp_fm_release,&
-                                              cp_fm_soft_copy,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -153,7 +152,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: xas_mittle
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: external_matrix_shalf
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: external_matrix_shalf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos'
 
@@ -184,9 +183,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type)                                   :: matrix_shalf, matrix_shalfc, &
-                                                            matrix_work, mo_virt
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type)                                   :: matrix_shalfc, matrix_work, mo_virt
+      TYPE(cp_fm_type), POINTER                          :: matrix_shalf, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
@@ -260,8 +258,10 @@ CONTAINS
 
       ! Create S^1/2 : from sparse to full matrix, if no external available
       IF (calc_matsh) THEN
+         NULLIFY (matrix_shalf)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                   nrow_global=nrow_global, ncol_global=nrow_global)
+         ALLOCATE (matrix_shalf)
          CALL cp_fm_create(matrix_shalf, fm_struct_tmp, name="matrix_shalf")
          CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_work")
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -269,7 +269,7 @@ CONTAINS
          CALL cp_fm_power(matrix_shalf, matrix_work, 0.5_dp, EPSILON(0.0_dp), n_dependent)
          CALL cp_fm_release(matrix_work)
       ELSE
-         CALL cp_fm_soft_copy(external_matrix_shalf, matrix_shalf)
+         matrix_shalf => external_matrix_shalf
       END IF
 
       ! Multiply S^(1/2) time the mOS coefficients to get orthonormalized MOS
@@ -291,7 +291,10 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
       END IF
 
-      IF (calc_matsh) CALL cp_fm_release(matrix_shalf)
+      IF (calc_matsh) THEN
+         CALL cp_fm_release(matrix_shalf)
+         DEALLOCATE (matrix_shalf)
+      END IF
       ! Array to store the PDOS per kind and angular momentum
       do_ldos = .FALSE.
       ldos_section => section_vals_get_subs_vals(dft_section, "PRINT%PDOS%LDOS")

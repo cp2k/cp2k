@@ -44,8 +44,8 @@ MODULE mp2_ri_2c
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_indxg2p, &
-        cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_indxg2p, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -308,7 +308,8 @@ CONTAINS
             CALL cp_fm_to_fm(fm_matrix_L_RI_metric(1, 1)%matrix, fm_matrix_L)
             DO j_size = 1, SIZE(fm_matrix_L_RI_metric, 1)
             DO i_size = 1, SIZE(fm_matrix_L_RI_metric, 2)
-               CALL cp_fm_release_p(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
+               CALL cp_fm_release(fm_matrix_L_RI_metric(i_size, j_size)%matrix)
+               DEALLOCATE (fm_matrix_L_RI_metric(i_size, j_size)%matrix)
             END DO
             END DO
             DEALLOCATE (fm_matrix_L_RI_metric)
@@ -321,7 +322,8 @@ CONTAINS
 
          DO i_size = 1, SIZE(fm_matrix_L_kpoints, 1)
          DO i_real_imag = 1, SIZE(fm_matrix_L_kpoints, 2)
-            CALL cp_fm_release_p(fm_matrix_L_kpoints(i_size, i_real_imag)%matrix)
+            CALL cp_fm_release(fm_matrix_L_kpoints(i_size, i_real_imag)%matrix)
+            DEALLOCATE (fm_matrix_L_kpoints(i_size, i_real_imag)%matrix)
          END DO
          END DO
 
@@ -456,8 +458,9 @@ CONTAINS
       ALLOCATE (fm_matrix_L_kpoints(nkp, 2))
       DO ikp = 1, nkp
          DO i_real_imag = 1, 2
-            CALL cp_fm_create_p(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, &
-                                fm_matrix_L_RI_metric(1, i_real_imag)%matrix%matrix_struct)
+            ALLOCATE (fm_matrix_L_kpoints(ikp, i_real_imag)%matrix)
+            CALL cp_fm_create(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, &
+                              fm_matrix_L_RI_metric(1, i_real_imag)%matrix%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_L_kpoints(ikp, i_real_imag)%matrix, 0.0_dp)
          END DO
       END DO
@@ -668,7 +671,8 @@ CONTAINS
       ALLOCATE (fm_matrix_L_RI_metric(nkp, n_real_imag))
       DO i_size = 1, nkp
          DO i_real_imag = 1, n_real_imag
-            CALL cp_fm_create_p(fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix, fm_matrix_L%matrix_struct)
+            ALLOCATE (fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix)
+            CALL cp_fm_create(fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix, fm_matrix_L%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_L_RI_metric(i_size, i_real_imag)%matrix, 0.0_dp)
          END DO
       END DO
@@ -817,7 +821,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: L_external_col, L_local_col
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_L
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L_diag
+      TYPE(cp_fm_type)                                   :: fm_matrix_L_diag
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(group_dist_d1_type)                           :: gd_sub_array
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
@@ -1029,7 +1033,7 @@ CONTAINS
 
          cond_num = MAXVAL(ABS(egen_L))/MINVAL(ABS(egen_L))
 
-         CALL cp_fm_release_p(fm_matrix_L_diag)
+         CALL cp_fm_release(fm_matrix_L_diag)
 
          DEALLOCATE (egen_L)
       END IF

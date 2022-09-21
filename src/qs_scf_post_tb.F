@@ -28,9 +28,13 @@ MODULE qs_scf_post_tb
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_init_random, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_init_random,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -593,7 +597,8 @@ CONTAINS
                   IF (nlumo_stm > 0) THEN
                      DO ispin = 1, dft_control%nspins
                         DEALLOCATE (unoccupied_evals_stm(ispin)%array)
-                        CALL cp_fm_release_p(unoccupied_orbs_stm(ispin)%matrix)
+                        CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
+                        DEALLOCATE (unoccupied_orbs_stm(ispin)%matrix)
                      END DO
                      DEALLOCATE (unoccupied_evals_stm)
                      DEALLOCATE (unoccupied_orbs_stm)
@@ -832,7 +837,8 @@ CONTAINS
          CALL cp_fm_struct_create(fmstruct=ao_lumo_struct, nrow_global=nao, ncol_global=nao - nmo, &
                                   template_fmstruct=mo_coeff%matrix_struct)
 
-         CALL cp_fm_create_p(lumos(ispin)%matrix, matrix_struct=ao_lumo_struct)
+         ALLOCATE (lumos(ispin)%matrix)
+         CALL cp_fm_create(lumos(ispin)%matrix, matrix_struct=ao_lumo_struct)
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, KS_tmp)
          CALL cp_fm_cholesky_reduce(KS_tmp, S_tmp)
          CALL choose_eigv_solver(KS_tmp, work, mo_eigenvalues)
@@ -848,7 +854,8 @@ CONTAINS
                    lumos, scf_env, matrix_s, iounit)
 
       DO ispin = 1, SIZE(mos)
-         CALL cp_fm_release_p(lumos(ispin)%matrix)
+         CALL cp_fm_release(lumos(ispin)%matrix)
+         DEALLOCATE (lumos(ispin)%matrix)
       END DO
       DEALLOCATE (lumos)
       CALL cp_fm_release(S_tmp)
@@ -916,7 +923,8 @@ CONTAINS
          ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=n, ncol_global=nlumos)
-         CALL cp_fm_create_p(unoccupied_orbs(ispin)%matrix, fm_struct_tmp, name="lumos")
+         ALLOCATE (unoccupied_orbs(ispin)%matrix)
+         CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp, name="lumos")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix, nlumos)
 

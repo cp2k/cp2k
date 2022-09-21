@@ -30,10 +30,10 @@ MODULE mp2
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -137,8 +137,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_ks, fm_matrix_s, &
-                                                            fm_matrix_work, mo_coeff
+      TYPE(cp_fm_type)                                   :: fm_matrix_ks, fm_matrix_s, fm_matrix_work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
@@ -315,19 +315,16 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
       ! diagonalize the KS matrix in order to have the full set of MO's
       ! get S and KS matrices in fm_type (create also a working array)
-      NULLIFY (fm_matrix_s)
-      NULLIFY (fm_matrix_ks)
-      NULLIFY (fm_matrix_work)
       NULLIFY (fm_struct)
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create_p(fm_matrix_s, fm_struct, name="fm_matrix_s")
+      CALL cp_fm_create(fm_matrix_s, fm_struct, name="fm_matrix_s")
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, fm_matrix_s)
 
-      CALL cp_fm_create_p(fm_matrix_ks, fm_struct, name="fm_matrix_ks")
+      CALL cp_fm_create(fm_matrix_ks, fm_struct, name="fm_matrix_ks")
 
-      CALL cp_fm_create_p(fm_matrix_work, fm_struct, name="fm_matrix_work")
+      CALL cp_fm_create(fm_matrix_work, fm_struct, name="fm_matrix_work")
       CALL cp_fm_set_all(matrix=fm_matrix_work, alpha=0.0_dp)
 
       CALL cp_fm_struct_release(fm_struct)
@@ -411,9 +408,9 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
       END DO
 
-      CALL cp_fm_release_p(fm_matrix_s)
-      CALL cp_fm_release_p(fm_matrix_ks)
-      CALL cp_fm_release_p(fm_matrix_work)
+      CALL cp_fm_release(fm_matrix_s)
+      CALL cp_fm_release(fm_matrix_ks)
+      CALL cp_fm_release(fm_matrix_work)
       CALL mpools_release(mpools=my_mpools)
 
       hfx_sections => section_vals_get_subs_vals(input, "DFT%XC%HF")

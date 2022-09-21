@@ -22,9 +22,9 @@ MODULE negf_integr_cc
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE fft_tools,                       ONLY: fft_fw1d
    USE kahan_sum,                       ONLY: accurate_sum
@@ -140,8 +140,9 @@ CONTAINS
       cc_env%error = HUGE(0.0_dp)
 
       NULLIFY (cc_env%integral, cc_env%error_fm, cc_env%weights)
+      ALLOCATE (cc_env%weights)
       CALL cp_fm_get_info(weights, local_data=w_data, nrow_local=nrows, ncol_local=ncols, matrix_struct=fm_struct)
-      CALL cp_fm_create_p(cc_env%weights, fm_struct)
+      CALL cp_fm_create(cc_env%weights, fm_struct)
       CALL cp_fm_get_info(cc_env%weights, local_data=w_data_my)
 
       ! use the explicit loop to avoid temporary arrays
@@ -205,11 +206,17 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(cc_env%error_fm)) &
-         CALL cp_fm_release_p(cc_env%error_fm)
+      IF (ASSOCIATED(cc_env%error_fm)) THEN
+         CALL cp_fm_release(cc_env%error_fm)
+         DEALLOCATE (cc_env%error_fm)
+         NULLIFY (cc_env%error_fm)
+      END IF
 
-      IF (ASSOCIATED(cc_env%weights)) &
-         CALL cp_fm_release_p(cc_env%weights)
+      IF (ASSOCIATED(cc_env%weights)) THEN
+         CALL cp_fm_release(cc_env%weights)
+         DEALLOCATE (cc_env%weights)
+         NULLIFY (cc_env%weights)
+      END IF
 
       IF (ASSOCIATED(cc_env%integral)) &
          CALL cp_cfm_release_p(cc_env%integral)
@@ -447,7 +454,9 @@ CONTAINS
          CPASSERT(equiv)
 
          CALL cp_cfm_create_p(cc_env%integral, fm_struct)
-         CALL cp_fm_create_p(cc_env%error_fm, fm_struct)
+         NULLIFY (cc_env%error_fm)
+         ALLOCATE (cc_env%error_fm)
+         CALL cp_fm_create(cc_env%error_fm, fm_struct)
       END IF
 
       IF (debug_this_module) THEN

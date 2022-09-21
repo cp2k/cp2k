@@ -31,14 +31,13 @@ MODULE bfgs_optimizer
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
-   USE cp_fm_types, ONLY: cp_fm_create_p, &
-                          cp_fm_get_info, &
-                          cp_fm_read_unformatted, &
-                          cp_fm_release_p, &
-                          cp_fm_set_all, &
-                          cp_fm_to_fm, &
-                          cp_fm_type, &
-                          cp_fm_write_unformatted, cp_fm_create, cp_fm_release
+   USE cp_fm_types, ONLY: &
+      cp_fm_get_info, &
+      cp_fm_read_unformatted, &
+      cp_fm_set_all, &
+      cp_fm_to_fm, &
+      cp_fm_type, &
+      cp_fm_write_unformatted, cp_fm_create, cp_fm_release
    USE parallel_gemm_api, ONLY: parallel_gemm
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_type, &

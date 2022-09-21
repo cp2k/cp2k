@@ -33,9 +33,14 @@ MODULE qs_tddfpt2_properties
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type, cp_fm_vectorsnorm
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_vectorsnorm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -204,17 +209,17 @@ CONTAINS
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
 
          DO ideriv = 1, nderivs
-            NULLIFY (dipole_op_mos_occ(ideriv, ispin)%matrix)
-            CALL cp_fm_create_p(dipole_op_mos_occ(ideriv, ispin)%matrix, fm_struct)
+            ALLOCATE (dipole_op_mos_occ(ideriv, ispin)%matrix)
+            CALL cp_fm_create(dipole_op_mos_occ(ideriv, ispin)%matrix, fm_struct)
          END DO
       END DO
 
       ! +++ allocate work matrices
       ALLOCATE (S_mos_virt(nspins))
       DO ispin = 1, nspins
-         NULLIFY (S_mos_virt(ispin)%matrix)
+         ALLOCATE (S_mos_virt(ispin)%matrix)
          CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
-         CALL cp_fm_create_p(S_mos_virt(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(S_mos_virt(ispin)%matrix, fm_struct)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, &
                                       gs_mos(ispin)%mos_virt, &
                                       S_mos_virt(ispin)%matrix, &
@@ -271,22 +276,22 @@ CONTAINS
             CALL cp_cfm_create_p(gamma_inv_00(ispin)%matrix, fm_struct)
 
             DO i_cos_sin = 1, 2
-               NULLIFY (gamma_real_imag(i_cos_sin, ispin)%matrix)
-               CALL cp_fm_create_p(gamma_real_imag(i_cos_sin, ispin)%matrix, fm_struct)
+               ALLOCATE (gamma_real_imag(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_create(gamma_real_imag(i_cos_sin, ispin)%matrix, fm_struct)
             END DO
             CALL cp_fm_struct_release(fm_struct)
 
             ! G_real C_0, G_imag C_0
             CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct)
             DO i_cos_sin = 1, 2
-               NULLIFY (opvec(i_cos_sin, ispin)%matrix)
-               CALL cp_fm_create_p(opvec(i_cos_sin, ispin)%matrix, fm_struct)
+               ALLOCATE (opvec(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_create(opvec(i_cos_sin, ispin)%matrix, fm_struct)
             END DO
 
             ! dBerry * C_0
             DO ideriv = 1, nderivs
-               NULLIFY (dBerry_mos_occ(ideriv, ispin)%matrix)
-               CALL cp_fm_create_p(dBerry_mos_occ(ideriv, ispin)%matrix, fm_struct)
+               ALLOCATE (dBerry_mos_occ(ideriv, ispin)%matrix)
+               CALL cp_fm_create(dBerry_mos_occ(ideriv, ispin)%matrix, fm_struct)
                CALL cp_fm_set_all(dBerry_mos_occ(ideriv, ispin)%matrix, 0.0_dp)
             END DO
          END DO
@@ -347,11 +352,13 @@ CONTAINS
          ! --- release berry-phase-related work matrices
          DO ispin = nspins, 1, -1
             DO i_cos_sin = SIZE(opvec, 1), 1, -1
-               CALL cp_fm_release_p(opvec(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_release(opvec(i_cos_sin, ispin)%matrix)
+               DEALLOCATE (opvec(i_cos_sin, ispin)%matrix)
             END DO
 
             DO i_cos_sin = SIZE(gamma_real_imag, 1), 1, -1
-               CALL cp_fm_release_p(gamma_real_imag(i_cos_sin, ispin)%matrix)
+               CALL cp_fm_release(gamma_real_imag(i_cos_sin, ispin)%matrix)
+               DEALLOCATE (gamma_real_imag(i_cos_sin, ispin)%matrix)
             END DO
 
             CALL cp_cfm_release_p(gamma_inv_00(ispin)%matrix)
@@ -390,7 +397,8 @@ CONTAINS
 
          DO ispin = nspins, 1, -1
             DO ideriv = SIZE(dBerry_mos_occ, 1), 1, -1
-               CALL cp_fm_release_p(dBerry_mos_occ(ideriv, ispin)%matrix)
+               CALL cp_fm_release(dBerry_mos_occ(ideriv, ispin)%matrix)
+               DEALLOCATE (dBerry_mos_occ(ideriv, ispin)%matrix)
             END DO
          END DO
          DEALLOCATE (dBerry_mos_occ)
@@ -524,7 +532,8 @@ CONTAINS
 
       ! --- release work matrices
       DO ispin = nspins, 1, -1
-         CALL cp_fm_release_p(S_mos_virt(ispin)%matrix)
+         CALL cp_fm_release(S_mos_virt(ispin)%matrix)
+         DEALLOCATE (S_mos_virt(ispin)%matrix)
       END DO
       DEALLOCATE (S_mos_virt)
 
@@ -729,9 +738,9 @@ CONTAINS
 
          ALLOCATE (S_mos_virt(nspins), weights_fm(nspins))
          DO ispin = 1, nspins
-            NULLIFY (S_mos_virt(ispin)%matrix)
+            ALLOCATE (S_mos_virt(ispin)%matrix)
             CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
-            CALL cp_fm_create_p(S_mos_virt(ispin)%matrix, fm_struct)
+            CALL cp_fm_create(S_mos_virt(ispin)%matrix, fm_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s, &
                                          gs_mos(ispin)%mos_virt, &
                                          S_mos_virt(ispin)%matrix, &
@@ -740,7 +749,8 @@ CONTAINS
             NULLIFY (fm_struct, weights_fm(ispin)%matrix)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), &
                                      context=blacs_env)
-            CALL cp_fm_create_p(weights_fm(ispin)%matrix, fm_struct)
+            ALLOCATE (weights_fm(ispin)%matrix)
+            CALL cp_fm_create(weights_fm(ispin)%matrix, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
          END DO
 
@@ -899,8 +909,9 @@ CONTAINS
       END IF
 
       DO ispin = nspins, 1, -1
-         CALL cp_fm_release_p(weights_fm(ispin)%matrix)
-         CALL cp_fm_release_p(S_mos_virt(ispin)%matrix)
+         CALL cp_fm_release(weights_fm(ispin)%matrix)
+         CALL cp_fm_release(S_mos_virt(ispin)%matrix)
+         DEALLOCATE (weights_fm(ispin)%matrix, S_mos_virt(ispin)%matrix)
       END DO
       DEALLOCATE (S_mos_virt, weights_fm)
 
@@ -1020,7 +1031,8 @@ CONTAINS
                CALL cp_fm_struct_create(fmstruct=fm_mo_struct, template_fmstruct=fm_struct, &
                                         nrow_global=nmo, ncol_global=nmo)
                CALL cp_fm_create(tmat, fm_mo_struct)
-               CALL cp_fm_create_p(teig(ispin)%matrix, fm_mo_struct)
+               ALLOCATE (teig(ispin)%matrix)
+               CALL cp_fm_create(teig(ispin)%matrix, fm_mo_struct)
                CALL cp_dbcsr_sm_fm_multiply(matrix_s, ev, Sev, ncol=nmo, alpha=1.0_dp, beta=0.0_dp)
                CALL parallel_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, ev, Sev, 0.0_dp, tmat)
 
@@ -1153,7 +1165,8 @@ CONTAINS
             !
             DEALLOCATE (eigenvalues)
             DO ispin = 1, nspins
-               CALL cp_fm_release_p(teig(ispin)%matrix)
+               CALL cp_fm_release(teig(ispin)%matrix)
+               DEALLOCATE (teig(ispin)%matrix)
             END DO
             DEALLOCATE (teig)
             !

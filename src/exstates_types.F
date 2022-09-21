@@ -14,7 +14,7 @@
 MODULE exstates_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release_p
+                                              cp_fm_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
@@ -76,13 +76,15 @@ CONTAINS
 
          IF (ASSOCIATED(ex_env%evect)) THEN
             DO is = 1, SIZE(ex_env%evect)
-               CALL cp_fm_release_p(ex_env%evect(is)%matrix)
+               CALL cp_fm_release(ex_env%evect(is)%matrix)
+               DEALLOCATE (ex_env%evect(is)%matrix)
             END DO
             DEALLOCATE (ex_env%evect)
          END IF
          IF (ASSOCIATED(ex_env%cpmos)) THEN
             DO is = 1, SIZE(ex_env%cpmos)
-               CALL cp_fm_release_p(ex_env%cpmos(is)%matrix)
+               CALL cp_fm_release(ex_env%cpmos(is)%matrix)
+               DEALLOCATE (ex_env%cpmos(is)%matrix)
             END DO
             DEALLOCATE (ex_env%cpmos)
          END IF

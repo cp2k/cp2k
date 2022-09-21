@@ -15,7 +15,7 @@ MODULE preconditioner_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_retain,&
                                               cp_blacs_env_type
-   USE cp_fm_types,                     ONLY: cp_fm_release_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_retain
@@ -131,7 +131,9 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(preconditioner_env%fm)) THEN
-         CALL cp_fm_release_p(preconditioner_env%fm)
+         CALL cp_fm_release(preconditioner_env%fm)
+         DEALLOCATE (preconditioner_env%fm)
+         NULLIFY (preconditioner_env%fm)
       END IF
       IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
          CALL dbcsr_release_p(preconditioner_env%dbcsr_matrix)

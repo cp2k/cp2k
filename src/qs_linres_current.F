@@ -35,10 +35,8 @@ MODULE qs_linres_current
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -269,8 +267,9 @@ CONTAINS
       ! allocate temporary arrays
       ALLOCATE (psi1(nspins), p_psi1(nspins))
       DO ispin = 1, nspins
-         CALL cp_fm_create_p(psi1(ispin)%matrix, psi0_order(ispin)%matrix%matrix_struct)
-         CALL cp_fm_create_p(p_psi1(ispin)%matrix, psi0_order(ispin)%matrix%matrix_struct)
+         ALLOCATE (psi1(ispin)%matrix, p_psi1(ispin)%matrix)
+         CALL cp_fm_create(psi1(ispin)%matrix, psi0_order(ispin)%matrix%matrix_struct)
+         CALL cp_fm_create(p_psi1(ispin)%matrix, psi0_order(ispin)%matrix%matrix_struct)
          CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
          CALL cp_fm_set_all(p_psi1(ispin)%matrix, 0.0_dp)
       END DO
@@ -525,8 +524,9 @@ CONTAINS
       !
       ! Dellocate grids for the calculation of jrho and the shift
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(psi1(ispin)%matrix)
-         CALL cp_fm_release_p(p_psi1(ispin)%matrix)
+         CALL cp_fm_release(psi1(ispin)%matrix)
+         CALL cp_fm_release(p_psi1(ispin)%matrix)
+         DEALLOCATE (psi1(ispin)%matrix, p_psi1(ispin)%matrix)
       END DO
       DEALLOCATE (psi1, p_psi1)
 
@@ -2432,13 +2432,15 @@ CONTAINS
                                ncol_global=max_states, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
       DO idir = 1, 3
-         CALL cp_fm_create_p(p_rxp(idir)%matrix, tmp_fm_struct)
-         CALL cp_fm_create_p(r_p1(idir)%matrix, tmp_fm_struct)
-         CALL cp_fm_create_p(r_p2(idir)%matrix, tmp_fm_struct)
+         ALLOCATE (p_rxp(idir)%matrix, r_p1(idir)%matrix, r_p2(idir)%matrix)
+         CALL cp_fm_create(p_rxp(idir)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(r_p1(idir)%matrix, tmp_fm_struct)
+         CALL cp_fm_create(r_p2(idir)%matrix, tmp_fm_struct)
          DO idir2 = 1, 9
-            CALL cp_fm_create_p(rr_rxp(idir2, idir)%matrix, tmp_fm_struct)
-            CALL cp_fm_create_p(rr_p1(idir2, idir)%matrix, tmp_fm_struct)
-            CALL cp_fm_create_p(rr_p2(idir2, idir)%matrix, tmp_fm_struct)
+            ALLOCATE (rr_rxp(idir2, idir)%matrix, rr_p1(idir2, idir)%matrix, rr_p2(idir2, idir)%matrix)
+            CALL cp_fm_create(rr_rxp(idir2, idir)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(rr_p1(idir2, idir)%matrix, tmp_fm_struct)
+            CALL cp_fm_create(rr_p2(idir2, idir)%matrix, tmp_fm_struct)
          END DO
       END DO
       CALL cp_fm_struct_release(tmp_fm_struct)
@@ -2673,13 +2675,15 @@ CONTAINS
       CALL cp_fm_release(psi_p1)
       CALL cp_fm_release(psi_p2)
       DO idir = 1, 3
-         CALL cp_fm_release_p(p_rxp(idir)%matrix)
-         CALL cp_fm_release_p(r_p1(idir)%matrix)
-         CALL cp_fm_release_p(r_p2(idir)%matrix)
+         CALL cp_fm_release(p_rxp(idir)%matrix)
+         CALL cp_fm_release(r_p1(idir)%matrix)
+         CALL cp_fm_release(r_p2(idir)%matrix)
+         DEALLOCATE (p_rxp(idir)%matrix, r_p1(idir)%matrix, r_p2(idir)%matrix)
          DO idir2 = 1, 9
-            CALL cp_fm_release_p(rr_rxp(idir2, idir)%matrix)
-            CALL cp_fm_release_p(rr_p1(idir2, idir)%matrix)
-            CALL cp_fm_release_p(rr_p2(idir2, idir)%matrix)
+            CALL cp_fm_release(rr_rxp(idir2, idir)%matrix)
+            CALL cp_fm_release(rr_p1(idir2, idir)%matrix)
+            CALL cp_fm_release(rr_p2(idir2, idir)%matrix)
+            DEALLOCATE (rr_rxp(idir2, idir)%matrix, rr_p1(idir2, idir)%matrix, rr_p2(idir2, idir)%matrix)
          END DO
       END DO
       DEALLOCATE (p_rxp, r_p1, r_p2, rr_rxp, rr_p1, rr_p2)

@@ -37,8 +37,8 @@ MODULE xas_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_submatrix, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_element, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
@@ -698,14 +698,16 @@ CONTAINS
       NULLIFY (tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                ncol_global=1, para_env=para_env, context=mo_coeff%matrix_struct%context)
-      CALL cp_fm_create_p(xas_env%excvec_coeff, tmp_fm_struct)
+      ALLOCATE (xas_env%excvec_coeff)
+      CALL cp_fm_create(xas_env%excvec_coeff, tmp_fm_struct)
       CALL cp_fm_struct_release(tmp_fm_struct)
 
       NULLIFY (tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=1, &
                                ncol_global=nexc_search, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
-      CALL cp_fm_create_p(xas_env%excvec_overlap, tmp_fm_struct)
+      ALLOCATE (xas_env%excvec_overlap)
+      CALL cp_fm_create(xas_env%excvec_overlap, tmp_fm_struct)
       CALL cp_fm_struct_release(tmp_fm_struct)
 
       nspins = SIZE(mos, 1)
@@ -814,8 +816,8 @@ CONTAINS
       ALLOCATE (xas_env%dip_fm_set(2, 3))
       DO i = 1, 3
          DO j = 1, 2
-            NULLIFY (xas_env%dip_fm_set(j, i)%matrix)
-            CALL cp_fm_create_p(xas_env%dip_fm_set(j, i)%matrix, tmp_fm_struct)
+            ALLOCATE (xas_env%dip_fm_set(j, i)%matrix)
+            CALL cp_fm_create(xas_env%dip_fm_set(j, i)%matrix, tmp_fm_struct)
          END DO
       END DO
       CALL cp_fm_struct_release(tmp_fm_struct)
@@ -827,8 +829,8 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nvirtual2, &
                                   para_env=para_env, context=mo_coeff%matrix_struct%context)
-         NULLIFY (xas_env%unoccupied_orbs)
-         CALL cp_fm_create_p(xas_env%unoccupied_orbs, tmp_fm_struct)
+         ALLOCATE (xas_env%unoccupied_orbs)
+         CALL cp_fm_create(xas_env%unoccupied_orbs, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END IF
 
@@ -836,8 +838,8 @@ CONTAINS
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                ncol_global=nvirtual, &
                                para_env=para_env, context=mo_coeff%matrix_struct%context)
-      NULLIFY (xas_env%all_vectors)
-      CALL cp_fm_create_p(xas_env%all_vectors, tmp_fm_struct)
+      ALLOCATE (xas_env%all_vectors)
+      CALL cp_fm_create(xas_env%all_vectors, tmp_fm_struct)
       CALL cp_fm_struct_release(tmp_fm_struct)
 
       ! Array to store all the energies needed  for the spectrum

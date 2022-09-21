@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE cp_fm_vect
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release_p
+                                              cp_fm_release
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -40,7 +40,9 @@ CONTAINS
 
       IF (ASSOCIATED(matrixes)) THEN
          DO i = 1, SIZE(matrixes)
-            CALL cp_fm_release_p(matrixes(i)%matrix)
+            CALL cp_fm_release(matrixes(i)%matrix)
+            DEALLOCATE (matrixes(i)%matrix)
+            NULLIFY (matrixes(i)%matrix)
          END DO
          DEALLOCATE (matrixes)
       END IF

@@ -29,10 +29,10 @@ MODULE mixed_cdft_utils
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create_p,&
+                                              cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -1192,13 +1192,15 @@ CONTAINS
          DO ispin = 1, nspins
             CALL cp_fm_get_info(dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix, &
                                 ncol_global=ncol_mo(ispin), nrow_global=nrow_mo(ispin))
-            CALL cp_fm_create_p(matrix=mo_coeff_tmp(iforce_eval, ispin)%matrix, &
-                                matrix_struct=dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix%matrix_struct, &
-                                name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
-                                //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+            ALLOCATE (mo_coeff_tmp(iforce_eval, ispin)%matrix)
+            CALL cp_fm_create(matrix=mo_coeff_tmp(iforce_eval, ispin)%matrix, &
+                              matrix_struct=dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix%matrix_struct, &
+                              name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
+                              //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
             CALL cp_fm_to_fm(dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix, &
                              mo_coeff_tmp(iforce_eval, ispin)%matrix)
-            CALL cp_fm_release_p(dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix)
+            CALL cp_fm_release(dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix)
+            DEALLOCATE (dft_control%qs_control%cdft_control%mo_coeff(ispin)%matrix)
          END DO
          DEALLOCATE (dft_control%qs_control%cdft_control%mo_coeff)
          ! Matrix representation(s) of the weight function(s) (dbcsr -> fm)
@@ -1206,7 +1208,8 @@ CONTAINS
                                   para_env=force_env%sub_force_env(iforce_eval)%force_env%para_env, &
                                   square_blocks=.TRUE.)
          DO ivar = 1, nvar
-            CALL cp_fm_create_p(wmat_tmp(iforce_eval, ivar)%matrix, fm_struct_tmp, name="w_matrix")
+            ALLOCATE (wmat_tmp(iforce_eval, ivar)%matrix)
+            CALL cp_fm_create(wmat_tmp(iforce_eval, ivar)%matrix, fm_struct_tmp, name="w_matrix")
             CALL dbcsr_desymmetrize(dft_control%qs_control%cdft_control%wmat(ivar)%matrix, desymm_tmp)
             CALL copy_dbcsr_to_fm(desymm_tmp, wmat_tmp(iforce_eval, ivar)%matrix)
             CALL dbcsr_release(desymm_tmp)
@@ -1219,7 +1222,8 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_overlap, &
                                      ncol_global=ncol_overlap, context=blacs_env, &
                                      para_env=force_env%sub_force_env(iforce_eval)%force_env%para_env)
-            CALL cp_fm_create_p(matrix_s_tmp%matrix, fm_struct_tmp, name="s_matrix")
+            ALLOCATE (matrix_s_tmp%matrix)
+            CALL cp_fm_create(matrix_s_tmp%matrix, fm_struct_tmp, name="s_matrix")
             CALL cp_fm_struct_release(fm_struct_tmp)
             CALL dbcsr_desymmetrize(dft_control%qs_control%cdft_control%matrix_s%matrix, desymm_tmp)
             CALL copy_dbcsr_to_fm(desymm_tmp, matrix_s_tmp%matrix)
@@ -1233,7 +1237,8 @@ CONTAINS
                CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_overlap, &
                                         ncol_global=ncol_overlap, context=blacs_env, &
                                         para_env=force_env%sub_force_env(iforce_eval)%force_env%para_env)
-               CALL cp_fm_create_p(matrix_p_tmp(iforce_eval, ispin)%matrix, fm_struct_tmp, name="dm_matrix")
+               ALLOCATE (matrix_p_tmp(iforce_eval, ispin)%matrix)
+               CALL cp_fm_create(matrix_p_tmp(iforce_eval, ispin)%matrix, fm_struct_tmp, name="dm_matrix")
                CALL cp_fm_struct_release(fm_struct_tmp)
                CALL dbcsr_desymmetrize(dft_control%qs_control%cdft_control%matrix_p(ispin)%matrix, desymm_tmp)
                CALL copy_dbcsr_to_fm(desymm_tmp, matrix_p_tmp(iforce_eval, ispin)%matrix)
@@ -1273,11 +1278,11 @@ CONTAINS
             NULLIFY (fm_struct_mo)
             CALL cp_fm_struct_create(fm_struct_mo, nrow_global=nrow_mo(ispin), ncol_global=ncol_mo(ispin), &
                                      context=mixed_cdft%blacs_env, para_env=force_env%para_env)
-            NULLIFY (mixed_mo_coeff(iforce_eval, ispin)%matrix)
-            CALL cp_fm_create_p(matrix=mixed_mo_coeff(iforce_eval, ispin)%matrix, &
-                                matrix_struct=fm_struct_mo, &
-                                name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
-                                //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+            ALLOCATE (mixed_mo_coeff(iforce_eval, ispin)%matrix)
+            CALL cp_fm_create(matrix=mixed_mo_coeff(iforce_eval, ispin)%matrix, &
+                              matrix_struct=fm_struct_mo, &
+                              name="MO_COEFF_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_" &
+                              //TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
             IF (ASSOCIATED(mo_coeff_tmp(iforce_eval, ispin)%matrix)) THEN
                CALL cp_fm_copy_general(mo_coeff_tmp(iforce_eval, ispin)%matrix, &
                                        mixed_mo_coeff(iforce_eval, ispin)%matrix, &
@@ -1287,17 +1292,18 @@ CONTAINS
                                        mixed_mo_coeff(iforce_eval, ispin)%matrix, &
                                        mixed_cdft%blacs_env%para_env)
             END IF
-            CALL cp_fm_release_p(mo_coeff_tmp(iforce_eval, ispin)%matrix)
+            CALL cp_fm_release(mo_coeff_tmp(iforce_eval, ispin)%matrix)
+            DEALLOCATE (mo_coeff_tmp(iforce_eval, ispin)%matrix)
             CALL cp_fm_struct_release(fm_struct_mo)
          END DO
          ! Weight
          DO ivar = 1, nvar
-            NULLIFY (mixed_wmat_tmp(iforce_eval, ivar)%matrix)
+            ALLOCATE (mixed_wmat_tmp(iforce_eval, ivar)%matrix)
             NULLIFY (w_matrix(iforce_eval, ivar)%matrix)
             CALL dbcsr_init_p(w_matrix(iforce_eval, ivar)%matrix)
-            CALL cp_fm_create_p(matrix=mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
-                                matrix_struct=fm_struct_wmat, &
-                                name="WEIGHT_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_MATRIX")
+            CALL cp_fm_create(matrix=mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
+                              matrix_struct=fm_struct_wmat, &
+                              name="WEIGHT_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_MATRIX")
             IF (ASSOCIATED(wmat_tmp(iforce_eval, ivar)%matrix)) THEN
                CALL cp_fm_copy_general(wmat_tmp(iforce_eval, ivar)%matrix, &
                                        mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
@@ -1307,22 +1313,24 @@ CONTAINS
                                        mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
                                        mixed_cdft%blacs_env%para_env)
             END IF
-            CALL cp_fm_release_p(wmat_tmp(iforce_eval, ivar)%matrix)
+            CALL cp_fm_release(wmat_tmp(iforce_eval, ivar)%matrix)
+            DEALLOCATE (wmat_tmp(iforce_eval, ivar)%matrix)
             ! (fm -> dbcsr)
             CALL copy_fm_to_dbcsr_bc(mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
                                      w_matrix(iforce_eval, ivar)%matrix)
-            CALL cp_fm_release_p(mixed_wmat_tmp(iforce_eval, ivar)%matrix)
+            CALL cp_fm_release(mixed_wmat_tmp(iforce_eval, ivar)%matrix)
+            DEALLOCATE (mixed_wmat_tmp(iforce_eval, ivar)%matrix)
          END DO
          ! Density matrix (fm -> dbcsr)
          IF (mixed_cdft%calculate_metric) THEN
             DO ispin = 1, nspins
-               NULLIFY (mixed_matrix_p_tmp(iforce_eval, ispin)%matrix)
+               ALLOCATE (mixed_matrix_p_tmp(iforce_eval, ispin)%matrix)
                NULLIFY (density_matrix(iforce_eval, ispin)%matrix)
                CALL dbcsr_init_p(density_matrix(iforce_eval, ispin)%matrix)
-               CALL cp_fm_create_p(matrix=mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
-                                   matrix_struct=fm_struct_overlap, &
-                                   name="DENSITY_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_"// &
-                                   TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
+               CALL cp_fm_create(matrix=mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
+                                 matrix_struct=fm_struct_overlap, &
+                                 name="DENSITY_"//TRIM(ADJUSTL(cp_to_string(iforce_eval)))//"_"// &
+                                 TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
                IF (ASSOCIATED(matrix_p_tmp(iforce_eval, ispin)%matrix)) THEN
                   CALL cp_fm_copy_general(matrix_p_tmp(iforce_eval, ispin)%matrix, &
                                           mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
@@ -1332,10 +1340,12 @@ CONTAINS
                                           mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
                                           mixed_cdft%blacs_env%para_env)
                END IF
-               CALL cp_fm_release_p(matrix_p_tmp(iforce_eval, ispin)%matrix)
+               CALL cp_fm_release(matrix_p_tmp(iforce_eval, ispin)%matrix)
+               DEALLOCATE (matrix_p_tmp(iforce_eval, ispin)%matrix)
                CALL copy_fm_to_dbcsr_bc(mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
                                         density_matrix(iforce_eval, ispin)%matrix)
-               CALL cp_fm_release_p(mixed_matrix_p_tmp(iforce_eval, ispin)%matrix)
+               CALL cp_fm_release(mixed_matrix_p_tmp(iforce_eval, ispin)%matrix)
+               DEALLOCATE (mixed_matrix_p_tmp(iforce_eval, ispin)%matrix)
             END DO
          END IF
       END DO
@@ -1346,10 +1356,10 @@ CONTAINS
          DEALLOCATE (mixed_matrix_p_tmp)
       END IF
       ! Overlap (fm -> dbcsr)
-      NULLIFY (mixed_matrix_s_tmp%matrix)
-      CALL cp_fm_create_p(matrix=mixed_matrix_s_tmp%matrix, &
-                          matrix_struct=fm_struct_overlap, &
-                          name="OVERLAP_MATRIX")
+      ALLOCATE (mixed_matrix_s_tmp%matrix)
+      CALL cp_fm_create(matrix=mixed_matrix_s_tmp%matrix, &
+                        matrix_struct=fm_struct_overlap, &
+                        name="OVERLAP_MATRIX")
       CALL cp_fm_struct_release(fm_struct_overlap)
       IF (ASSOCIATED(matrix_s_tmp%matrix)) THEN
          CALL cp_fm_copy_general(matrix_s_tmp%matrix, &
@@ -1360,9 +1370,11 @@ CONTAINS
                                  mixed_matrix_s_tmp%matrix, &
                                  mixed_cdft%blacs_env%para_env)
       END IF
-      CALL cp_fm_release_p(matrix_s_tmp%matrix)
+      CALL cp_fm_release(matrix_s_tmp%matrix)
+      DEALLOCATE (matrix_s_tmp%matrix)
       CALL copy_fm_to_dbcsr_bc(mixed_matrix_s_tmp%matrix, mixed_matrix_s)
-      CALL cp_fm_release_p(mixed_matrix_s_tmp%matrix)
+      CALL cp_fm_release(mixed_matrix_s_tmp%matrix)
+      DEALLOCATE (mixed_matrix_s_tmp%matrix)
       ! Occupation numbers
       IF (.NOT. uniform_occupation) THEN
          DO iforce_eval = 1, nforce_eval

@@ -25,8 +25,8 @@ MODULE cp_fm_elpa
    USE cp_fm_struct, ONLY: cp_fm_struct_get
    USE cp_fm_types, ONLY: cp_fm_type, &
                           cp_fm_to_fm, &
-                          cp_fm_release_p, &
-                          cp_fm_create_p, &
+                          cp_fm_release, &
+                          cp_fm_create, &
                           cp_fm_write_info
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
@@ -340,7 +340,7 @@ CONTAINS
       LOGICAL                                  :: use_qr, check_eigenvalues
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eval, eval_noqr
       TYPE(cp_blacs_env_type), POINTER         :: context
-      TYPE(cp_fm_type), POINTER                :: matrix_noqr, eigenvectors_noqr
+      TYPE(cp_fm_type)                         :: matrix_noqr, eigenvectors_noqr
       TYPE(cp_logger_type), POINTER            :: logger
       REAL(KIND=dp), PARAMETER                 :: th = 1.0E-14_dp
       INTEGER, DIMENSION(:), POINTER           :: ncol_locals
@@ -399,9 +399,9 @@ CONTAINS
       IF (check_eigenvalues) THEN
          ! Allocate and initialize needed temporaries to compute eigenvalues without ELPA QR
          ALLOCATE (eval_noqr(n))
-         CALL cp_fm_create_p(matrix=matrix_noqr, matrix_struct=matrix%matrix_struct)
+         CALL cp_fm_create(matrix=matrix_noqr, matrix_struct=matrix%matrix_struct)
          CALL cp_fm_to_fm(matrix, matrix_noqr)
-         CALL cp_fm_create_p(matrix=eigenvectors_noqr, matrix_struct=eigenvectors%matrix_struct)
+         CALL cp_fm_create(matrix=eigenvectors_noqr, matrix_struct=eigenvectors%matrix_struct)
          CALL cp_fm_upper_to_full(matrix_noqr, eigenvectors_noqr)
       END IF
 
@@ -549,8 +549,8 @@ CONTAINS
             CPABORT("Eigenvalues calculated with QR decomp. in ELPA are wrong. Disable ELPA_QR_UNSAFE.")
 
          DEALLOCATE (eval_noqr)
-         CALL cp_fm_release_p(matrix_noqr)
-         CALL cp_fm_release_p(eigenvectors_noqr)
+         CALL cp_fm_release(matrix_noqr)
+         CALL cp_fm_release(eigenvectors_noqr)
       END IF
 
       CALL elpa_deallocate(elpa_obj, success)

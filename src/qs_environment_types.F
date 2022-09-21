@@ -29,7 +29,7 @@ MODULE qs_environment_types
                                               cp_ddapc_retain,&
                                               cp_ddapc_type
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release_p
+                                              cp_fm_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE cp_result_types,                 ONLY: cp_result_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
@@ -1378,7 +1378,8 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
                DO I = 1, SIZE(qs_env%mo_loc_history)
-                  CALL cp_fm_release_p(qs_env%mo_loc_history(I)%matrix)
+                  CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
+                  DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
                END DO
                DEALLOCATE (qs_env%mo_loc_history)
             END IF
@@ -1573,7 +1574,8 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
                DO I = 1, SIZE(qs_env%mo_loc_history)
-                  CALL cp_fm_release_p(qs_env%mo_loc_history(I)%matrix)
+                  CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
+                  DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
                END DO
                DEALLOCATE (qs_env%mo_loc_history)
             END IF

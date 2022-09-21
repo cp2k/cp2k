@@ -30,9 +30,14 @@ MODULE negf_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+                                              cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -703,7 +708,8 @@ CONTAINS
          CALL cp_fm_get_info(negf_env%s_s, nrow_global=nao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
 
-         CALL cp_fm_create_p(matrix_s_fm, fm_struct)
+         ALLOCATE (matrix_s_fm)
+         CALL cp_fm_create(matrix_s_fm, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
          IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
@@ -728,8 +734,8 @@ CONTAINS
       nelectrons_ref = 0.0_dp
       ALLOCATE (rho_ao_fm(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rho_ao_fm(ispin)%matrix)
-         CALL cp_fm_create_p(rho_ao_fm(ispin)%matrix, fm_struct)
+         ALLOCATE (rho_ao_fm(ispin)%matrix)
+         CALL cp_fm_create(rho_ao_fm(ispin)%matrix, fm_struct)
 
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_qs_kp(ispin, 1)%matrix, &
                                                fm=rho_ao_fm(ispin)%matrix, &
@@ -889,12 +895,15 @@ CONTAINS
       DEALLOCATE (g_surf_circular, g_surf_linear)
 
       DO ispin = nspins, 1, -1
-         CALL cp_fm_release_p(rho_ao_fm(ispin)%matrix)
+         CALL cp_fm_release(rho_ao_fm(ispin)%matrix)
+         DEALLOCATE (rho_ao_fm(ispin)%matrix)
       END DO
       DEALLOCATE (rho_ao_fm)
 
-      IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) &
-         CALL cp_fm_release_p(matrix_s_fm)
+      IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) THEN
+         CALL cp_fm_release(matrix_s_fm)
+         DEALLOCATE (matrix_s_fm)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE shift_potential
@@ -969,7 +978,8 @@ CONTAINS
          CALL cp_fm_get_info(negf_env%s_s, nrow_global=nao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
 
-         CALL cp_fm_create_p(matrix_s_fm, fm_struct)
+         ALLOCATE (matrix_s_fm)
+         CALL cp_fm_create(matrix_s_fm, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
          IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
@@ -1019,9 +1029,9 @@ CONTAINS
       nelectrons = 0.0_dp
       ALLOCATE (rho_ao_delta_fm(nspins), rho_ao_new_fm(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rho_ao_delta_fm(ispin)%matrix, rho_ao_new_fm(ispin)%matrix)
-         CALL cp_fm_create_p(rho_ao_delta_fm(ispin)%matrix, fm_struct)
-         CALL cp_fm_create_p(rho_ao_new_fm(ispin)%matrix, fm_struct)
+         ALLOCATE (rho_ao_delta_fm(ispin)%matrix, rho_ao_new_fm(ispin)%matrix)
+         CALL cp_fm_create(rho_ao_delta_fm(ispin)%matrix, fm_struct)
+         CALL cp_fm_create(rho_ao_new_fm(ispin)%matrix, fm_struct)
 
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_qs_kp(ispin, 1)%matrix, &
                                                fm=rho_ao_delta_fm(ispin)%matrix, &
@@ -1252,8 +1262,9 @@ CONTAINS
       END DO
 
       DO ispin = nspins, 1, -1
-         CALL cp_fm_release_p(rho_ao_new_fm(ispin)%matrix)
-         CALL cp_fm_release_p(rho_ao_delta_fm(ispin)%matrix)
+         CALL cp_fm_release(rho_ao_new_fm(ispin)%matrix)
+         CALL cp_fm_release(rho_ao_delta_fm(ispin)%matrix)
+         DEALLOCATE (rho_ao_new_fm(ispin)%matrix, rho_ao_delta_fm(ispin)%matrix)
       END DO
       DEALLOCATE (rho_ao_delta_fm, rho_ao_new_fm)
 
@@ -1269,8 +1280,10 @@ CONTAINS
       END DO
       DEALLOCATE (matrix_ks_initial_kp, rho_ao_new_kp, rho_ao_initial_kp)
 
-      IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) &
-         CALL cp_fm_release_p(matrix_s_fm)
+      IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) THEN
+         CALL cp_fm_release(matrix_s_fm)
+         DEALLOCATE (matrix_s_fm)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE converge_density

@@ -15,9 +15,9 @@ MODULE qs_tddfpt_types
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p
+                                              cp_fm_release
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -98,7 +98,8 @@ CONTAINS
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, para_env, blacs_env, &
                                   p_env%n_ao(spin), p_env%n_ao(spin))
-         CALL cp_fm_create_p(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")
+         ALLOCATE (t_env%invS(spin)%matrix)
+         CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")
          CALL cp_fm_struct_release(fm_struct)
       END DO
 
@@ -122,8 +123,10 @@ CONTAINS
       END DO
 
       DO spin = 1, SIZE(t_env%invS)
-         IF (ASSOCIATED(t_env%invS(spin)%matrix)) &
-            CALL cp_fm_release_p(t_env%invS(spin)%matrix)
+         IF (ASSOCIATED(t_env%invS(spin)%matrix)) THEN
+            CALL cp_fm_release(t_env%invS(spin)%matrix)
+            DEALLOCATE (t_env%invS(spin)%matrix)
+         END IF
       END DO
       DEALLOCATE (t_env%invS, t_env%evecs, t_env%evals)
 

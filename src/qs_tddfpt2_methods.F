@@ -20,10 +20,10 @@ MODULE qs_tddfpt2_methods
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -495,15 +495,16 @@ CONTAINS
          ! excitation vector
          IF (ASSOCIATED(ex_env%evect)) THEN
             DO ispin = 1, SIZE(ex_env%evect)
-               CALL cp_fm_release_p(ex_env%evect(ispin)%matrix)
+               CALL cp_fm_release(ex_env%evect(ispin)%matrix)
+               DEALLOCATE (ex_env%evect(ispin)%matrix)
             END DO
             DEALLOCATE (ex_env%evect)
          END IF
          ALLOCATE (ex_env%evect(nspins))
          DO ispin = 1, nspins
             CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
-            NULLIFY (ex_env%evect(ispin)%matrix)
-            CALL cp_fm_create_p(ex_env%evect(ispin)%matrix, matrix_struct)
+            ALLOCATE (ex_env%evect(ispin)%matrix)
+            CALL cp_fm_create(ex_env%evect(ispin)%matrix, matrix_struct)
             CALL cp_fm_to_fm(evects(ispin, my_state)%matrix, ex_env%evect(ispin)%matrix)
          END DO
 
@@ -520,15 +521,16 @@ CONTAINS
             ! rhs of linres equation
             IF (ASSOCIATED(ex_env%cpmos)) THEN
                DO ispin = 1, SIZE(ex_env%cpmos)
-                  CALL cp_fm_release_p(ex_env%cpmos(ispin)%matrix)
+                  CALL cp_fm_release(ex_env%cpmos(ispin)%matrix)
+                  DEALLOCATE (ex_env%cpmos(ispin)%matrix)
                END DO
                DEALLOCATE (ex_env%cpmos)
             END IF
             ALLOCATE (ex_env%cpmos(nspins))
             DO ispin = 1, nspins
                CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct)
-               NULLIFY (ex_env%cpmos(ispin)%matrix)
-               CALL cp_fm_create_p(ex_env%cpmos(ispin)%matrix, matrix_struct)
+               ALLOCATE (ex_env%cpmos(ispin)%matrix)
+               CALL cp_fm_create(ex_env%cpmos(ispin)%matrix, matrix_struct)
                CALL cp_fm_set_all(ex_env%cpmos(ispin)%matrix, 0.0_dp)
             END DO
             CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
@@ -630,8 +632,9 @@ CONTAINS
       ! clean up
       DO istate = 1, SIZE(evects, 2)
          DO ispin = 1, nspins
-            CALL cp_fm_release_p(evects(ispin, istate)%matrix)
-            CALL cp_fm_release_p(S_evects(ispin, istate)%matrix)
+            CALL cp_fm_release(evects(ispin, istate)%matrix)
+            CALL cp_fm_release(S_evects(ispin, istate)%matrix)
+            DEALLOCATE (evects(ispin, istate)%matrix, S_evects(ispin, istate)%matrix)
          END DO
       END DO
       DEALLOCATE (evects, S_evects, evals)
@@ -656,7 +659,8 @@ CONTAINS
       IF (ALLOCATED(dipole_op_mos_occ)) THEN
          DO ispin = nspins, 1, -1
             DO istate = SIZE(dipole_op_mos_occ, 1), 1, -1
-               CALL cp_fm_release_p(dipole_op_mos_occ(istate, ispin)%matrix)
+               CALL cp_fm_release(dipole_op_mos_occ(istate, ispin)%matrix)
+               DEALLOCATE (dipole_op_mos_occ(istate, ispin)%matrix)
             END DO
          END DO
          DEALLOCATE (dipole_op_mos_occ)

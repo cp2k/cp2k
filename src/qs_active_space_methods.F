@@ -31,8 +31,8 @@ MODULE qs_active_space_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_element, cp_fm_get_info, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
+        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
+        cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -518,7 +518,8 @@ CONTAINS
          ALLOCATE (mos_localized(nspins))
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-            CALL cp_fm_create_p(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
+            ALLOCATE (mos_localized(ispin)%matrix)
+            CALL cp_fm_create(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
             CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin)%matrix)
          END DO
          ! occupied states
@@ -807,7 +808,8 @@ CONTAINS
       ! Kohn-Sham / Fock operator
       IF (ASSOCIATED(active_space_env%ks_sub)) THEN
          DO is = 1, SIZE(active_space_env%ks_sub)
-            CALL cp_fm_release_p(active_space_env%ks_sub(is)%matrix)
+            CALL cp_fm_release(active_space_env%ks_sub(is)%matrix)
+            DEALLOCATE (active_space_env%ks_sub(is)%matrix)
          END DO
          DEALLOCATE (active_space_env%ks_sub)
       END IF
@@ -825,7 +827,8 @@ CONTAINS
       ! Vxc matrix
       IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
          DO is = 1, SIZE(active_space_env%vxc_sub)
-            CALL cp_fm_release_p(active_space_env%vxc_sub(is)%matrix)
+            CALL cp_fm_release(active_space_env%vxc_sub(is)%matrix)
+            DEALLOCATE (active_space_env%vxc_sub(is)%matrix)
          END DO
          DEALLOCATE (active_space_env%vxc_sub)
       END IF
@@ -843,7 +846,8 @@ CONTAINS
       ! Core Hamiltonian
       IF (ASSOCIATED(active_space_env%h_sub)) THEN
          DO is = 1, SIZE(active_space_env%h_sub)
-            CALL cp_fm_release_p(active_space_env%h_sub(is)%matrix)
+            CALL cp_fm_release(active_space_env%h_sub(is)%matrix)
+            DEALLOCATE (active_space_env%h_sub(is)%matrix)
          END DO
          DEALLOCATE (active_space_env%h_sub)
       END IF
@@ -1707,15 +1711,17 @@ CONTAINS
          !
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO is = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release_p(active_space_env%fock_sub(is)%matrix)
+               CALL cp_fm_release(active_space_env%fock_sub(is)%matrix)
+               DEALLOCATE (active_space_env%fock_sub(is)%matrix)
             END DO
             DEALLOCATE (active_space_env%fock_sub)
          END IF
          ALLOCATE (active_space_env%fock_sub(nspins))
          DO is = 1, nspins
             matrix => active_space_env%ks_sub(is)%matrix
-            CALL cp_fm_create_p(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
-                                name="Active Fock operator")
+            ALLOCATE (active_space_env%fock_sub(is)%matrix)
+            CALL cp_fm_create(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
+                              name="Active Fock operator")
          END DO
          matrix => active_space_env%fock_sub(1)%matrix
          DO i1 = 1, norb
@@ -1759,15 +1765,17 @@ CONTAINS
          !
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO is = 1, SIZE(active_space_env%fock_sub)
-               CALL cp_fm_release_p(active_space_env%fock_sub(is)%matrix)
+               CALL cp_fm_release(active_space_env%fock_sub(is)%matrix)
+               DEALLOCATE (active_space_env%fock_sub(is)%matrix)
             END DO
             DEALLOCATE (active_space_env%fock_sub)
          END IF
          ALLOCATE (active_space_env%fock_sub(nspins))
          DO is = 1, nspins
             matrix => active_space_env%ks_sub(is)%matrix
-            CALL cp_fm_create_p(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
-                                name="Active Fock operator")
+            ALLOCATE (active_space_env%fock_sub(is)%matrix)
+            CALL cp_fm_create(active_space_env%fock_sub(is)%matrix, matrix%matrix_struct, &
+                              name="Active Fock operator")
          END DO
 
          matrix => active_space_env%fock_sub(1)%matrix

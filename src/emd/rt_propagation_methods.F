@@ -30,7 +30,6 @@ MODULE rt_propagation_methods
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
@@ -164,9 +163,10 @@ CONTAINS
          CALL get_rtp(rtp=rtp, mos_new=mos_new)
          ALLOCATE (delta_mos(SIZE(mos_new)))
          DO i = 1, SIZE(mos_new)
-            CALL cp_fm_create_p(delta_mos(i)%matrix, &
-                                matrix_struct=mos_new(i)%matrix%matrix_struct, &
-                                name="delta_mos"//TRIM(ADJUSTL(cp_to_string(i))))
+            ALLOCATE (delta_mos(i)%matrix)
+            CALL cp_fm_create(delta_mos(i)%matrix, &
+                              matrix_struct=mos_new(i)%matrix%matrix_struct, &
+                              name="delta_mos"//TRIM(ADJUSTL(cp_to_string(i))))
             CALL cp_fm_to_fm(mos_new(i)%matrix, delta_mos(i)%matrix)
          END DO
       END IF

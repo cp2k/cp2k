@@ -26,9 +26,13 @@ MODULE matrix_exp
    USE cp_fm_struct,                    ONLY: cp_fm_struct_double,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE kinds,                           ONLY: dp
@@ -713,7 +717,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: D, mat1, mat2, mat3, N
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: H_approx, H_approx_save
       REAL(KIND=dp)                                      :: conv_norm, prefac, scaleD, scaleN
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: V_mats
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: V_mats
       TYPE(cp_fm_struct_type), POINTER                   :: mo_struct, newstruct
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -739,8 +743,9 @@ CONTAINS
       H_approx_save = rzero
 
       DO i = 1, narnoldi + 1
-         CALL cp_fm_create_p(V_mats(i)%matrix, matrix_struct=newstruct, &
-                             name="V_mat"//cp_to_string(i))
+         ALLOCATE (V_mats(i)%matrix)
+         CALL cp_fm_create(V_mats(i)%matrix, matrix_struct=newstruct, &
+                           name="V_mat"//cp_to_string(i))
       END DO
       CALL cp_fm_get_info(V_mats(1)%matrix, ncol_global=newdim)
 
@@ -962,7 +967,8 @@ CONTAINS
       !deallocate all work matrices
 
       DO i = 1, SIZE(V_mats)
-         CALL cp_fm_release_p(V_mats(i)%matrix)
+         CALL cp_fm_release(V_mats(i)%matrix)
+         DEALLOCATE (V_mats(i)%matrix)
       END DO
       CALL cp_fm_struct_release(newstruct)
       CALL mp_comm_free(col_group)

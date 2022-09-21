@@ -12,7 +12,7 @@
 MODULE et_coupling_types
 
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release_p
+                                              cp_fm_release
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
@@ -112,7 +112,9 @@ CONTAINS
 
       IF (ASSOCIATED(et_coupling%et_mo_coeff)) THEN
          DO i = 1, SIZE(et_coupling%et_mo_coeff)
-            CALL cp_fm_release_p(et_coupling%et_mo_coeff(i)%matrix)
+            CALL cp_fm_release(et_coupling%et_mo_coeff(i)%matrix)
+            DEALLOCATE (et_coupling%et_mo_coeff(i)%matrix)
+            NULLIFY (et_coupling%et_mo_coeff(i)%matrix)
          END DO
          DEALLOCATE (et_coupling%et_mo_coeff)
       END IF

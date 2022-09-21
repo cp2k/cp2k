@@ -41,11 +41,9 @@ MODULE qs_moments
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -1333,12 +1331,13 @@ CONTAINS
          NULLIFY (tmp_fm_struct, mo_coeff)
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          nmotot = nmotot + nmo
-         CALL cp_fm_create_p(opvec(ispin)%matrix, mo_coeff%matrix_struct)
+         ALLOCATE (opvec(ispin)%matrix)
+         CALL cp_fm_create(opvec(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
          DO i = 1, SIZE(op_fm_set, 1)
-            NULLIFY (op_fm_set(i, ispin)%matrix)
-            CALL cp_fm_create_p(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
+            ALLOCATE (op_fm_set(i, ispin)%matrix)
+            CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
          END DO
          CALL cp_cfm_create_p(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
@@ -1612,10 +1611,12 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(sinmat)
 
       DO ispin = 1, dft_control%nspins
-         CALL cp_fm_release_p(opvec(ispin)%matrix)
+         CALL cp_fm_release(opvec(ispin)%matrix)
+         DEALLOCATE (opvec(ispin)%matrix)
          CALL cp_cfm_release_p(eigrmat(ispin)%matrix)
          DO i = 1, SIZE(op_fm_set, 1)
-            CALL cp_fm_release_p(op_fm_set(i, ispin)%matrix)
+            CALL cp_fm_release(op_fm_set(i, ispin)%matrix)
+            DEALLOCATE (op_fm_set(i, ispin)%matrix)
          END DO
       END DO
       DEALLOCATE (op_fm_set)

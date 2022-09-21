@@ -35,10 +35,10 @@ MODULE rpa_im_time_force_methods
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_update_local_counts
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
@@ -2173,8 +2173,8 @@ CONTAINS
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-         NULLIFY (cpmos(ispin)%matrix)
-         CALL cp_fm_create_p(cpmos(ispin)%matrix, fm_struct)
+         ALLOCATE (cpmos(ispin)%matrix)
+         CALL cp_fm_create(cpmos(ispin)%matrix, fm_struct)
          CALL cp_fm_set_all(cpmos(ispin)%matrix, 0.0_dp)
       END DO
 
@@ -2243,7 +2243,10 @@ CONTAINS
       CALL linres_control_release(linres_control)
 
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(cpmos(ispin)%matrix)
+         IF (ASSOCIATED(cpmos(ispin)%matrix)) THEN
+            CALL cp_fm_release(cpmos(ispin)%matrix)
+            DEALLOCATE (cpmos(ispin)%matrix)
+         END IF
       END DO
       DEALLOCATE (cpmos)
       CALL p_env_release(p_env)

@@ -16,7 +16,7 @@
 MODULE qs_wf_history_types
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                              cp_fm_release_p
+                                              cp_fm_release
    USE dbcsr_api,                       ONLY: dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_type
@@ -136,7 +136,8 @@ CONTAINS
          IF (snapshot%ref_count == 0) THEN
             IF (ASSOCIATED(snapshot%wf)) THEN
                DO i = 1, SIZE(snapshot%wf)
-                  CALL cp_fm_release_p(snapshot%wf(i)%matrix)
+                  CALL cp_fm_release(snapshot%wf(i)%matrix)
+                  DEALLOCATE (snapshot%wf(i)%matrix)
                END DO
                DEALLOCATE (snapshot%wf)
             END IF

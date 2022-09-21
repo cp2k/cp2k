@@ -15,9 +15,9 @@ MODULE optimize_dmfet_potential
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create_p,&
+                                              cp_fm_create,&
                                               cp_fm_maxabsval,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -132,14 +132,15 @@ CONTAINS
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
       NULLIFY (opt_dmfet%dmfet_pot, opt_dmfet%dm_1, opt_dmfet%dm_2, opt_dmfet%dm_total, opt_dmfet%dm_diff)
+      DEALLOCATE (opt_dmfet%dmfet_pot, opt_dmfet%dm_subsys, opt_dmfet%dm_total, opt_dmfet%dm_diff)
       NULLIFY (fm_struct)
 
       CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=nao, ncol_global=nao)
-      CALL cp_fm_create_p(opt_dmfet%dmfet_pot, fm_struct, name="dmfet_pot")
-      CALL cp_fm_create_p(opt_dmfet%dm_subsys, fm_struct, name="dm_subsys")
-      CALL cp_fm_create_p(opt_dmfet%dm_total, fm_struct, name="dm_total")
-      CALL cp_fm_create_p(opt_dmfet%dm_diff, fm_struct, name="dm_diff")
+      CALL cp_fm_create(opt_dmfet%dmfet_pot, fm_struct, name="dmfet_pot")
+      CALL cp_fm_create(opt_dmfet%dm_subsys, fm_struct, name="dm_subsys")
+      CALL cp_fm_create(opt_dmfet%dm_total, fm_struct, name="dm_total")
+      CALL cp_fm_create(opt_dmfet%dm_diff, fm_struct, name="dm_diff")
 
       CALL cp_fm_set_all(opt_dmfet%dmfet_pot, 0.0_dp)
       CALL cp_fm_set_all(opt_dmfet%dm_subsys, 0.0_dp)
@@ -148,10 +149,14 @@ CONTAINS
 
       ! Beta spin counterparts
       IF (opt_dmfet%open_shell_embed) THEN
-         CALL cp_fm_create_p(opt_dmfet%dmfet_pot_beta, fm_struct, name="dmfet_pot_beta")
-         CALL cp_fm_create_p(opt_dmfet%dm_subsys_beta, fm_struct, name="dm_subsys_beta")
-         CALL cp_fm_create_p(opt_dmfet%dm_total_beta, fm_struct, name="dm_total_beta")
-         CALL cp_fm_create_p(opt_dmfet%dm_diff_beta, fm_struct, name="dm_diff_beta")
+         NULLIFY (opt_dmfet%dmfet_pot_beta, opt_dmfet%dm_subsys_beta, &
+                  opt_dmfet%dm_total_beta, opt_dmfet%dm_diff_beta)
+         ALLOCATE (opt_dmfet%dmfet_pot_beta, opt_dmfet%dm_subsys_beta, &
+                   opt_dmfet%dm_total_beta, opt_dmfet%dm_diff_beta)
+         CALL cp_fm_create(opt_dmfet%dmfet_pot_beta, fm_struct, name="dmfet_pot_beta")
+         CALL cp_fm_create(opt_dmfet%dm_subsys_beta, fm_struct, name="dm_subsys_beta")
+         CALL cp_fm_create(opt_dmfet%dm_total_beta, fm_struct, name="dm_total_beta")
+         CALL cp_fm_create(opt_dmfet%dm_diff_beta, fm_struct, name="dm_diff_beta")
 
          CALL cp_fm_set_all(opt_dmfet%dmfet_pot_beta, 0.0_dp)
          CALL cp_fm_set_all(opt_dmfet%dm_subsys_beta, 0.0_dp)
@@ -182,16 +187,48 @@ CONTAINS
    SUBROUTINE release_dmfet_opt(opt_dmfet)
       TYPE(opt_dmfet_pot_type)                           :: opt_dmfet
 
-      CALL cp_fm_release_p(opt_dmfet%dmfet_pot)
-      CALL cp_fm_release_p(opt_dmfet%dm_subsys)
-      CALL cp_fm_release_p(opt_dmfet%dm_total)
-      CALL cp_fm_release_p(opt_dmfet%dm_diff)
+      IF (ASSOCIATED(opt_dmfet%dmfet_pot)) THEN
+         CALL cp_fm_release(opt_dmfet%dmfet_pot)
+         DEALLOCATE (opt_dmfet%dmfet_pot)
+         NULLIFY (opt_dmfet%dmfet_pot)
+      END IF
+      IF (ASSOCIATED(opt_dmfet%dm_subsys)) THEN
+         CALL cp_fm_release(opt_dmfet%dm_subsys)
+         DEALLOCATE (opt_dmfet%dm_subsys)
+         NULLIFY (opt_dmfet%dm_subsys)
+      END IF
+      IF (ASSOCIATED(opt_dmfet%dm_total)) THEN
+         CALL cp_fm_release(opt_dmfet%dm_total)
+         DEALLOCATE (opt_dmfet%dm_total)
+         NULLIFY (opt_dmfet%dm_total)
+      END IF
+      IF (ASSOCIATED(opt_dmfet%dm_diff)) THEN
+         CALL cp_fm_release(opt_dmfet%dm_diff)
+         DEALLOCATE (opt_dmfet%dm_diff)
+         NULLIFY (opt_dmfet%dm_diff)
+      END IF
 
       IF (opt_dmfet%open_shell_embed) THEN
-         CALL cp_fm_release_p(opt_dmfet%dmfet_pot_beta)
-         CALL cp_fm_release_p(opt_dmfet%dm_subsys_beta)
-         CALL cp_fm_release_p(opt_dmfet%dm_total_beta)
-         CALL cp_fm_release_p(opt_dmfet%dm_diff_beta)
+         IF (ASSOCIATED(opt_dmfet%dmfet_pot_beta)) THEN
+            CALL cp_fm_release(opt_dmfet%dmfet_pot_beta)
+            DEALLOCATE (opt_dmfet%dmfet_pot_beta)
+            NULLIFY (opt_dmfet%dmfet_pot_beta)
+         END IF
+         IF (ASSOCIATED(opt_dmfet%dm_subsys_beta)) THEN
+            CALL cp_fm_release(opt_dmfet%dm_subsys_beta)
+            DEALLOCATE (opt_dmfet%dm_subsys_beta)
+            NULLIFY (opt_dmfet%dm_subsys_beta)
+         END IF
+         IF (ASSOCIATED(opt_dmfet%dm_total_beta)) THEN
+            CALL cp_fm_release(opt_dmfet%dm_total_beta)
+            DEALLOCATE (opt_dmfet%dm_total_beta)
+            NULLIFY (opt_dmfet%dm_total_beta)
+         END IF
+         IF (ASSOCIATED(opt_dmfet%dm_diff_beta)) THEN
+            CALL cp_fm_release(opt_dmfet%dm_diff_beta)
+            DEALLOCATE (opt_dmfet%dm_diff_beta)
+            NULLIFY (opt_dmfet%dm_diff_beta)
+         END IF
       END IF
 
       DEALLOCATE (opt_dmfet%w_func)

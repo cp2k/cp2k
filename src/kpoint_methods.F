@@ -27,9 +27,9 @@ MODULE kpoint_methods
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_create_p, &
-        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_release_p, &
-        cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
+        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
+        cp_fm_get_info, cp_fm_p_type, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, &
+        cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_para_env,                     ONLY: cp_cart_create,&
                                               cp_para_env_create,&
@@ -513,7 +513,8 @@ CONTAINS
                IF (ASSOCIATED(kp%pmat)) THEN
                   DO is = 1, SIZE(kp%pmat, 2)
                      DO ic = 1, SIZE(kp%pmat, 1)
-                        CALL cp_fm_release_p(kp%pmat(ic, is)%matrix)
+                        CALL cp_fm_release(kp%pmat(ic, is)%matrix)
+                        DEALLOCATE (kp%pmat(ic, is)%matrix)
                      END DO
                   END DO
                   DEALLOCATE (kp%pmat)
@@ -521,14 +522,16 @@ CONTAINS
                ALLOCATE (kp%pmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
-                     CALL cp_fm_create_p(kp%pmat(ic, is)%matrix, matrix_struct)
+                     ALLOCATE (kp%pmat(ic, is)%matrix)
+                     CALL cp_fm_create(kp%pmat(ic, is)%matrix, matrix_struct)
                   END DO
                END DO
                ! energy weighted density matrix
                IF (ASSOCIATED(kp%wmat)) THEN
                   DO is = 1, SIZE(kp%wmat, 2)
                      DO ic = 1, SIZE(kp%wmat, 1)
-                        CALL cp_fm_release_p(kp%wmat(ic, is)%matrix)
+                        CALL cp_fm_release(kp%wmat(ic, is)%matrix)
+                        DEALLOCATE (kp%wmat(ic, is)%matrix)
                      END DO
                   END DO
                   DEALLOCATE (kp%wmat)
@@ -536,7 +539,8 @@ CONTAINS
                ALLOCATE (kp%wmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
-                     CALL cp_fm_create_p(kp%wmat(ic, is)%matrix, matrix_struct)
+                     ALLOCATE (kp%wmat(ic, is)%matrix)
+                     CALL cp_fm_create(kp%wmat(ic, is)%matrix, matrix_struct)
                   END DO
                END DO
             END DO
@@ -1041,7 +1045,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: tempmat
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fmwork
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform'
 

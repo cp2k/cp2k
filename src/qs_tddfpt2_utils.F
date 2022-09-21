@@ -25,9 +25,14 @@ MODULE qs_tddfpt2_utils
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -194,7 +199,10 @@ CONTAINS
 
       IF (ASSOCIATED(mos_virt)) THEN
          DO ispin = 1, SIZE(mos_virt)
-            IF (ASSOCIATED(mos_virt(ispin)%matrix)) CALL cp_fm_release_p(mos_virt(ispin)%matrix)
+            IF (ASSOCIATED(mos_virt(ispin)%matrix)) THEN
+               CALL cp_fm_release(mos_virt(ispin)%matrix)
+               DEALLOCATE (mos_virt(ispin)%matrix)
+            END IF
          END DO
          DEALLOCATE (mos_virt)
       END IF
@@ -285,8 +293,9 @@ CONTAINS
       CALL cp_fm_struct_create(ao_mo_virt_fm_struct, nrow_global=nao, ncol_global=nmo_virt, context=blacs_env)
 
       NULLIFY (gs_mos%mos_occ, gs_mos%mos_virt, gs_mos%evals_occ_matrix)
-      CALL cp_fm_create_p(gs_mos%mos_occ, ao_mo_occ_fm_struct)
-      CALL cp_fm_create_p(gs_mos%mos_virt, ao_mo_virt_fm_struct)
+      ALLOCATE (gs_mos%mos_occ, gs_mos%mos_virt)
+      CALL cp_fm_create(gs_mos%mos_occ, ao_mo_occ_fm_struct)
+      CALL cp_fm_create(gs_mos%mos_virt, ao_mo_virt_fm_struct)
 
       ALLOCATE (gs_mos%evals_occ(nmo_occ))
       ALLOCATE (gs_mos%evals_virt(nmo_virt))
@@ -474,14 +483,20 @@ CONTAINS
       IF (ALLOCATED(gs_mos%evals_occ)) &
          DEALLOCATE (gs_mos%evals_occ)
 
-      IF (ASSOCIATED(gs_mos%evals_occ_matrix)) &
-         CALL cp_fm_release_p(gs_mos%evals_occ_matrix)
+      IF (ASSOCIATED(gs_mos%evals_occ_matrix)) THEN
+         CALL cp_fm_release(gs_mos%evals_occ_matrix)
+         DEALLOCATE (gs_mos%evals_occ_matrix)
+      END IF
 
-      IF (ASSOCIATED(gs_mos%mos_virt)) &
-         CALL cp_fm_release_p(gs_mos%mos_virt)
+      IF (ASSOCIATED(gs_mos%mos_virt)) THEN
+         CALL cp_fm_release(gs_mos%mos_virt)
+         DEALLOCATE (gs_mos%mos_virt)
+      END IF
 
-      IF (ASSOCIATED(gs_mos%mos_occ)) &
-         CALL cp_fm_release_p(gs_mos%mos_occ)
+      IF (ASSOCIATED(gs_mos%mos_occ)) THEN
+         CALL cp_fm_release(gs_mos%mos_occ)
+         DEALLOCATE (gs_mos%mos_occ)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt_release_ground_state_mos
@@ -603,7 +618,8 @@ CONTAINS
             nmo_occ = SIZE(gs_mos(ispin)%evals_occ)
             CALL cp_fm_struct_create(mo_occ_mo_occ_fm_struct, nrow_global=nmo_occ, ncol_global=nmo_occ, &
                                      context=blacs_env)
-            CALL cp_fm_create_p(gs_mos(ispin)%evals_occ_matrix, mo_occ_mo_occ_fm_struct)
+            ALLOCATE (gs_mos(ispin)%evals_occ_matrix)
+            CALL cp_fm_create(gs_mos(ispin)%evals_occ_matrix, mo_occ_mo_occ_fm_struct)
             CALL cp_fm_struct_release(mo_occ_mo_occ_fm_struct)
             ! work_fm is a temporary [nao x nmo_occ] matrix
             CALL cp_fm_struct_create(ao_mo_occ_fm_struct, nrow_global=nao, ncol_global=nmo_occ, &
@@ -943,7 +959,8 @@ CONTAINS
 
             DO jspin = 1, nspins
                ! .NOT. ASSOCIATED(evects(jspin, istate)%matrix))
-               CALL cp_fm_create_p(evects(jspin, istate)%matrix, fm_struct_evects(jspin)%struct)
+               ALLOCATE (evects(jspin, istate)%matrix)
+               CALL cp_fm_create(evects(jspin, istate)%matrix, fm_struct_evects(jspin)%struct)
                CALL cp_fm_set_all(evects(jspin, istate)%matrix, 0.0_dp)
 
                IF (jspin == ispin) &

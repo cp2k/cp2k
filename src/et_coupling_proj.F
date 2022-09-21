@@ -30,9 +30,14 @@ MODULE et_coupling_proj
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, &
-        cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, cp_fm_vectorssum
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat,&
+                                              cp_fm_type,&
+                                              cp_fm_vectorssum
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -158,10 +163,16 @@ CONTAINS
 
          IF (ASSOCIATED(ec%fermi)) &
             DEALLOCATE (ec%fermi)
-         IF (ASSOCIATED(ec%m_transf)) &
-            CALL cp_fm_release_p(matrix=ec%m_transf)
-         IF (ASSOCIATED(ec%m_transf_inv)) &
-            CALL cp_fm_release_p(matrix=ec%m_transf_inv)
+         IF (ASSOCIATED(ec%m_transf)) THEN
+            CALL cp_fm_release(matrix=ec%m_transf)
+            DEALLOCATE (ec%m_transf)
+            NULLIFY (ec%m_transf)
+         END IF
+         IF (ASSOCIATED(ec%m_transf_inv)) THEN
+            CALL cp_fm_release(matrix=ec%m_transf_inv)
+            DEALLOCATE (ec%m_transf_inv)
+            NULLIFY (ec%m_transf_inv)
+         END IF
 
          IF (ASSOCIATED(ec%block)) THEN
 
@@ -178,8 +189,10 @@ CONTAINS
                IF (ASSOCIATED(ec%block(i)%hab)) THEN
                   DO j = 1, SIZE(ec%block(i)%hab, 1)
                      DO k = 1, SIZE(ec%block(i)%hab, 2)
-                        IF (ASSOCIATED(ec%block(i)%hab(j, k)%matrix)) &
-                           CALL cp_fm_release_p(matrix=ec%block(i)%hab(j, k)%matrix)
+                        IF (ASSOCIATED(ec%block(i)%hab(j, k)%matrix)) THEN
+                           CALL cp_fm_release(matrix=ec%block(i)%hab(j, k)%matrix)
+                           DEALLOCATE (ec%block(i)%hab(j, k)%matrix)
+                        END IF
                      END DO
                   END DO
                   DEALLOCATE (ec%block(i)%hab)
@@ -630,17 +643,19 @@ CONTAINS
       ! KS Hamiltonian
       CALL get_qs_env(qs_env, matrix_ks=mat_h)
       ! Transformation matrix
-      CALL cp_fm_create_p(matrix=ec%m_transf, matrix_struct=fm_s, &
-                          name='S^(-1/2) TRANSFORMATION MATRIX')
-      CALL cp_fm_create_p(matrix=ec%m_transf_inv, matrix_struct=fm_s, &
-                          name='S^(+1/2) TRANSFORMATION MATRIX')
+      ALLOCATE (ec%m_transf, ec%m_transf_inv)
+      CALL cp_fm_create(matrix=ec%m_transf, matrix_struct=fm_s, &
+                        name='S^(-1/2) TRANSFORMATION MATRIX')
+      CALL cp_fm_create(matrix=ec%m_transf_inv, matrix_struct=fm_s, &
+                        name='S^(+1/2) TRANSFORMATION MATRIX')
       CALL get_s_half_inv_matrix(qs_env, ec%m_transf, ec%m_transf_inv, mat_w)
 
       DO i = 1, n_spins
 
          ! Full-matrix format
-         CALL cp_fm_create_p(matrix=mat_t(i)%matrix, matrix_struct=fm_s, &
-                             name='KS HAMILTONIAN IN SEPARATED ORTHOGONALIZED BASIS SET')
+         ALLOCATE (mat_t(i)%matrix)
+         CALL cp_fm_create(matrix=mat_t(i)%matrix, matrix_struct=fm_s, &
+                           name='KS HAMILTONIAN IN SEPARATED ORTHOGONALIZED BASIS SET')
          CALL copy_dbcsr_to_fm(mat_h(i)%matrix, mat_t(i)%matrix)
 
          ! Transform KS Hamiltonian to the orthogonalized AO basis set
@@ -716,8 +731,9 @@ CONTAINS
             ! Memory allocation
             CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                      nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(i)%n_ao)
-            CALL cp_fm_create_p(matrix=dat(i)%matrix, matrix_struct=fm_s, &
-                                name='H_KS DIAGONAL BLOCK')
+            ALLOCATE (dat(i)%matrix)
+            CALL cp_fm_create(matrix=dat(i)%matrix, matrix_struct=fm_s, &
+                              name='H_KS DIAGONAL BLOCK')
 
             ALLOCATE (vec_e(ec%block(i)%n_ao))
             CPASSERT(ASSOCIATED(vec_e))
@@ -755,8 +771,9 @@ CONTAINS
                   ! Memory allocation
                   CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                            nrow_global=ec%block(i)%n_ao, ncol_global=ec%block(j)%n_ao)
-                  CALL cp_fm_create_p(matrix=ec%block(i)%hab(spin, j)%matrix, matrix_struct=fm_s, &
-                                      name='H_KS OFF-DIAGONAL BLOCK')
+                  ALLOCATE (ec%block(i)%hab(spin, j)%matrix)
+                  CALL cp_fm_create(matrix=ec%block(i)%hab(spin, j)%matrix, matrix_struct=fm_s, &
+                                    name='H_KS OFF-DIAGONAL BLOCK')
 
                   ! Copy block data
                   CALL cp_fm_to_fm_submat(mat_h(spin)%matrix, &
@@ -785,8 +802,10 @@ CONTAINS
          ! Clean memory
          IF (ASSOCIATED(dat)) THEN
             DO i = 1, SIZE(dat)
-               IF (ASSOCIATED(dat(i)%matrix)) &
-                  CALL cp_fm_release_p(matrix=dat(i)%matrix)
+               IF (ASSOCIATED(dat(i)%matrix)) THEN
+                  CALL cp_fm_release(matrix=dat(i)%matrix)
+                  DEALLOCATE (dat(i)%matrix)
+               END IF
             END DO
          END IF
       END DO
@@ -933,9 +952,10 @@ CONTAINS
          CPASSERT(ASSOCIATED(mat_w))
          DO j = 1, n_spins
             n_mo = ec%block(blk)%n_ao
-            CALL cp_fm_create_p(matrix=mat_w(j)%matrix, &
-                                matrix_struct=ec%block(blk)%mo(j)%mo_set%mo_coeff%matrix_struct, &
-                                name='BLOCK MOs IN ORTHONORMAL BASIS SET')
+            ALLOCATE (mat_w(j)%matrix)
+            CALL cp_fm_create(matrix=mat_w(j)%matrix, &
+                              matrix_struct=ec%block(blk)%mo(j)%mo_set%mo_coeff%matrix_struct, &
+                              name='BLOCK MOs IN ORTHONORMAL BASIS SET')
             CALL parallel_gemm("N", "N", n_ao, n_mo, n_ao, 1.0_dp, ec%m_transf_inv, &
                                ec%block(blk)%mo(j)%mo_set%mo_coeff, 0.0_dp, mat_w(j)%matrix)
          END DO
@@ -990,7 +1010,8 @@ CONTAINS
 
          ! Clean memory
          DO j = 1, n_spins
-            CALL cp_fm_release_p(matrix=mat_w(j)%matrix)
+            CALL cp_fm_release(matrix=mat_w(j)%matrix)
+            DEALLOCATE (mat_w(j)%matrix)
          END DO
          DEALLOCATE (mat_w)
 
@@ -1521,7 +1542,8 @@ CONTAINS
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       CALL cp_fm_struct_create(fmstruct=fm_s, para_env=para_env, context=blacs_env, &
                                nrow_global=n_ao, ncol_global=n_mo)
-      CALL cp_fm_create_p(matrix=mo%mo_coeff, matrix_struct=fm_s, name='BLOCK STATES')
+      ALLOCATE (mo%mo_coeff)
+      CALL cp_fm_create(matrix=mo%mo_coeff, matrix_struct=fm_s, name='BLOCK STATES')
 
       ! Transform MO coefficients to original non-orthogonal basis set
       CALL set_mo_coefficients(qs_env, ec, id, mo, mat_u, n_ao, n_mo)
@@ -1960,8 +1982,10 @@ CONTAINS
       CALL cp_fm_release(matrix=mat_w)
       IF (ASSOCIATED(mat_h)) THEN
          DO i = 1, SIZE(mat_h)
-            IF (ASSOCIATED(mat_h(i)%matrix)) &
-               CALL cp_fm_release_p(matrix=mat_h(i)%matrix)
+            IF (ASSOCIATED(mat_h(i)%matrix)) THEN
+               CALL cp_fm_release(matrix=mat_h(i)%matrix)
+               DEALLOCATE (mat_h(i)%matrix)
+            END IF
          END DO
          DEALLOCATE (mat_h)
       END IF

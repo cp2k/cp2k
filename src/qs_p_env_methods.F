@@ -38,9 +38,13 @@ MODULE qs_p_env_methods
                                               cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
@@ -520,7 +524,8 @@ CONTAINS
          NULLIFY (psi0(spin)%matrix)
          CALL get_mo_set(mos(spin)%mo_set, &
                          mo_coeff=mo_coeff)
-         CALL cp_fm_create_p(psi0(spin)%matrix, mo_coeff%matrix_struct)
+         ALLOCATE (psi0(spin)%matrix)
+         CALL cp_fm_create(psi0(spin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_to_fm(mo_coeff, psi0(spin)%matrix)
       END DO
 
@@ -717,14 +722,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l1_spin'
 
       INTEGER                                            :: handle, ncol
-      TYPE(cp_fm_type), POINTER                          :: tmp
+      TYPE(cp_fm_type)                                   :: tmp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: k_p
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
-      NULLIFY (tmp, matrix_ks, matrix_s, dft_control)
+      NULLIFY (matrix_ks, matrix_s, dft_control)
 
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
@@ -735,7 +740,7 @@ CONTAINS
       CPASSERT(0 < spin)
       CPASSERT(spin <= dft_control%nspins)
 
-      CALL cp_fm_create_p(tmp, v%matrix_struct)
+      CALL cp_fm_create(tmp, v%matrix_struct)
 
       k_p => matrix_ks(spin)%matrix
       CALL cp_fm_get_info(v, ncol_global=ncol)
@@ -753,7 +758,7 @@ CONTAINS
       CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tmp, &
                                    res, p_env%n_mo(spin), alpha=1.0_dp, beta=1.0_dp)
 
-      CALL cp_fm_release_p(tmp)
+      CALL cp_fm_release(tmp)
       CALL timestop(handle)
 
    END SUBROUTINE p_op_l1_spin
@@ -898,7 +903,8 @@ CONTAINS
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &
                                   ncol_global=maxnmo, template_fmstruct=maxmo_maxmo_fmstruct)
-         CALL cp_fm_create_p(tmp_matrix, matrix_struct=tmp_fmstruct)
+         ALLOCATE (tmp_matrix)
+         CALL cp_fm_create(tmp_matrix, matrix_struct=tmp_fmstruct)
          CALL cp_fm_struct_release(tmp_fmstruct)
       END IF
 
@@ -930,7 +936,8 @@ CONTAINS
       IF (max_cols <= nmo2) THEN
          CALL fm_pool_give_back_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
-         CALL cp_fm_release_p(tmp_matrix)
+         CALL cp_fm_release(tmp_matrix)
+         DEALLOCATE (tmp_matrix)
       END IF
 
       CALL timestop(handle)

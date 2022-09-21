@@ -35,9 +35,8 @@ MODULE hfx_admm_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_p_type,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -155,7 +154,6 @@ CONTAINS
       REAL(dp)                                           :: maxocc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_aux_fit
       TYPE(cp_fm_struct_type), POINTER                   :: aux_fit_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_aux_fit
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -170,8 +168,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (admm_env, hfx_sections, mos, mos_aux_fit, para_env, &
                mo_coeff_aux_fit, xc_section, rho, ks_env, dft_control, input, &
-               qs_kind_set, mo_coeff_b, aux_fit_fm_struct, blacs_env, &
-               mo_derivs_aux_fit)
+               qs_kind_set, mo_coeff_b, aux_fit_fm_struct, blacs_env)
 
       CALL get_qs_env(qs_env, &
                       mos=mos, &
@@ -253,12 +250,12 @@ CONTAINS
          END DO
 
          IF (qs_env%requires_mo_derivs) THEN
-            ALLOCATE (mo_derivs_aux_fit(dft_control%nspins))
+            ALLOCATE (admm_env%mo_derivs_aux_fit(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
-               CALL cp_fm_create_p(mo_derivs_aux_fit(ispin)%matrix, mo_coeff_aux_fit%matrix_struct)
+               CALL get_mo_set(admm_env%mos_aux_fit(ispin)%mo_set, mo_coeff=mo_coeff_aux_fit)
+               ALLOCATE (admm_env%mo_derivs_aux_fit(ispin)%matrix)
+               CALL cp_fm_create(admm_env%mo_derivs_aux_fit(ispin)%matrix, mo_coeff_aux_fit%matrix_struct)
             END DO
-            admm_env%mo_derivs_aux_fit => mo_derivs_aux_fit
          END IF
 
       ELSE IF (s_mstruct_changed) THEN

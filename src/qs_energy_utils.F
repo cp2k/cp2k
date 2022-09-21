@@ -20,9 +20,9 @@ MODULE qs_energy_utils
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -93,7 +93,7 @@ CONTAINS
 
       INTEGER                                            :: handle, is, ispin, nao, nspin
       LOGICAL                                            :: do_kpoints, has_unit_metric
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
+      TYPE(cp_fm_p_type), DIMENSION(2)                   :: fmwork
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_w, &
@@ -129,10 +129,9 @@ CONTAINS
             CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
                                      template_fmstruct=mo_coeff%matrix_struct)
 
-            ALLOCATE (fmwork(2))
             DO is = 1, SIZE(fmwork)
-               NULLIFY (fmwork(is)%matrix)
-               CALL cp_fm_create_p(fmwork(is)%matrix, matrix_struct=ao_ao_fmstruct)
+               ALLOCATE (fmwork(is)%matrix)
+               CALL cp_fm_create(fmwork(is)%matrix, matrix_struct=ao_ao_fmstruct)
             END DO
             CALL cp_fm_struct_release(ao_ao_fmstruct)
 
@@ -143,9 +142,9 @@ CONTAINS
                                           matrix_s_kp(1, 1)%matrix, sab_nl, fmwork)
 
             DO is = 1, SIZE(fmwork)
-               CALL cp_fm_release_p(fmwork(is)%matrix)
+               CALL cp_fm_release(fmwork(is)%matrix)
+               DEALLOCATE (fmwork(is)%matrix)
             END DO
-            DEALLOCATE (fmwork)
 
          ELSE
 

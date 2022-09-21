@@ -28,11 +28,9 @@ MODULE qs_wannier90
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_get_element,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -429,9 +427,9 @@ CONTAINS
       ALLOCATE (fmk1(2), fmk2(2))
       CALL cp_fm_create(fm_tmp, matrix_struct_work)
       DO i = 1, 2
-         NULLIFY (fmk1(i)%matrix, fmk2(i)%matrix)
-         CALL cp_fm_create_p(fmk1(i)%matrix, matrix_struct_work)
-         CALL cp_fm_create_p(fmk2(i)%matrix, matrix_struct_work)
+         ALLOCATE (fmk1(i)%matrix, fmk2(i)%matrix)
+         CALL cp_fm_create(fmk1(i)%matrix, matrix_struct_work)
+         CALL cp_fm_create(fmk2(i)%matrix, matrix_struct_work)
       END DO
       ! work matrices for Mmn(k,b) integrals
       NULLIFY (matrix_struct_mmn)
@@ -541,8 +539,9 @@ CONTAINS
       DEALLOCATE (berry_matrix)
       CALL cp_fm_struct_release(matrix_struct_work)
       DO i = 1, 2
-         CALL cp_fm_release_p(fmk1(i)%matrix)
-         CALL cp_fm_release_p(fmk2(i)%matrix)
+         CALL cp_fm_release(fmk1(i)%matrix)
+         CALL cp_fm_release(fmk2(i)%matrix)
+         DEALLOCATE (fmk1(i)%matrix, fmk2(i)%matrix)
       END DO
       CALL cp_fm_release(fm_tmp)
       CALL cp_fm_struct_release(matrix_struct_mmn)

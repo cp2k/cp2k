@@ -31,9 +31,13 @@ MODULE qs_tddfpt2_fhxc_forces
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_release_p, cp_fm_to_fm, cp_fm_type, cp_fm_vectorssum
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type,&
+                                              cp_fm_vectorssum
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -1039,7 +1043,8 @@ CONTAINS
          NULLIFY (fmstruct)
          ct => work%ctransformed(ispin)%matrix
          CALL cp_fm_get_info(ct, matrix_struct=fmstruct)
-         CALL cp_fm_create_p(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
+         ALLOCATE (xtransformed(ispin)%matrix)
+         CALL cp_fm_create(matrix=xtransformed(ispin)%matrix, matrix_struct=fmstruct, name="XTRANSFORMED")
       END DO
       CALL get_lowdin_x(work%shalf, X, xtransformed)
 
@@ -1411,7 +1416,8 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(matrix=xtransformed(ispin)%matrix)
+         CALL cp_fm_release(matrix=xtransformed(ispin)%matrix)
+         DEALLOCATE (xtransformed(ispin)%matrix)
       END DO
       DEALLOCATE (xtransformed)
       DEALLOCATE (tcharge, gtcharge)

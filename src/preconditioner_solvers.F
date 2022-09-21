@@ -30,9 +30,7 @@ MODULE preconditioner_solvers
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_release,&
-                                              cp_fm_release_p,&
                                               cp_fm_set_all,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -321,7 +319,9 @@ CONTAINS
                               nze=0, data_type=dbcsr_type_real_8)
          END IF
          CALL copy_fm_to_dbcsr(fm_matrix, dbcsr_matrix)
-         CALL cp_fm_release_p(fm_matrix)
+         CALL cp_fm_release(fm_matrix)
+         DEALLOCATE (fm_matrix)
+         NULLIFY (fm_matrix)
       END IF
 
       CALL timestop(handle)
@@ -351,12 +351,16 @@ CONTAINS
       IF (ASSOCIATED(dbcsr_matrix)) THEN
          NULLIFY (fm_struct_tmp)
 
-         IF (ASSOCIATED(fm_matrix)) CALL cp_fm_release_p(fm_matrix)
+         IF (ASSOCIATED(fm_matrix)) THEN
+            CALL cp_fm_release(fm_matrix)
+            DEALLOCATE (fm_matrix)
+         END IF
 
          CALL dbcsr_get_info(dbcsr_matrix, nfullrows_total=n)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                   context=context, para_env=para_env)
-         CALL cp_fm_create_p(fm_matrix, fm_struct_tmp)
+         ALLOCATE (fm_matrix)
+         CALL cp_fm_create(fm_matrix, fm_struct_tmp)
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          CALL copy_dbcsr_to_fm(dbcsr_matrix, fm_matrix)

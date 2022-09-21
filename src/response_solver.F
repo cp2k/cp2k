@@ -32,9 +32,13 @@ MODULE response_solver
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_init_random, cp_fm_p_type, &
-        cp_fm_release, cp_fm_release_p, cp_fm_set_all, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_init_random,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -349,8 +353,8 @@ CONTAINS
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-            NULLIFY (cpmos(ispin)%matrix)
-            CALL cp_fm_create_p(cpmos(ispin)%matrix, fm_struct)
+            ALLOCATE (cpmos(ispin)%matrix)
+            CALL cp_fm_create(cpmos(ispin)%matrix, fm_struct)
             CALL cp_fm_set_all(cpmos(ispin)%matrix, 0.0_dp)
          END DO
 
@@ -383,7 +387,10 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspins
-            CALL cp_fm_release_p(cpmos(ispin)%matrix)
+            IF (ASSOCIATED(cpmos(ispin)%matrix)) THEN
+               CALL cp_fm_release(cpmos(ispin)%matrix)
+               DEALLOCATE (cpmos(ispin)%matrix)
+            END IF
          END DO
          DEALLOCATE (cpmos)
 
@@ -558,8 +565,8 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
          psi0(ispin)%matrix => mo_coeff
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-         NULLIFY (psi1(ispin)%matrix)
-         CALL cp_fm_create_p(psi1(ispin)%matrix, fm_struct)
+         ALLOCATE (psi1(ispin)%matrix)
+         CALL cp_fm_create(psi1(ispin)%matrix, fm_struct)
          CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
       END DO
 
@@ -601,8 +608,9 @@ CONTAINS
                                   p_env%w1(ispin)%matrix)
       END DO
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(cpmos(ispin)%matrix)
-         CALL cp_fm_release_p(psi1(ispin)%matrix)
+         CALL cp_fm_release(cpmos(ispin)%matrix)
+         CALL cp_fm_release(psi1(ispin)%matrix)
+         DEALLOCATE (cpmos(ispin)%matrix, psi1(ispin)%matrix)
       END DO
       DEALLOCATE (psi0, psi1)
 
@@ -690,8 +698,8 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
          psi0(ispin)%matrix => mo_coeff
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-         NULLIFY (psi1(ispin)%matrix)
-         CALL cp_fm_create_p(psi1(ispin)%matrix, fm_struct)
+         ALLOCATE (psi1(ispin)%matrix)
+         CALL cp_fm_create(psi1(ispin)%matrix, fm_struct)
          CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
       END DO
 
@@ -760,7 +768,8 @@ CONTAINS
          p1_mat => psi1
       ELSE
          DO ispin = 1, nspins
-            CALL cp_fm_release_p(psi1(ispin)%matrix)
+            CALL cp_fm_release(psi1(ispin)%matrix)
+            DEALLOCATE (psi1(ispin)%matrix)
          END DO
          DEALLOCATE (psi1)
       END IF

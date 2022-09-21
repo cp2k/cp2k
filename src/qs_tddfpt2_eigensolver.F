@@ -20,9 +20,8 @@ MODULE qs_tddfpt2_eigensolver
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_create_p, cp_fm_get_info, cp_fm_get_submatrix, &
-        cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_release_p, cp_fm_set_all, &
-        cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
+        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_maxabsval, &
+        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_type
    USE cp_output_handling,              ONLY: cp_iterate
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -596,13 +595,13 @@ CONTAINS
             !
             CALL cp_fm_get_info(matrix=ritz_vects(ispin, 1)%matrix, matrix_struct=ao_mo_struct, &
                                 ncol_global=nactive(ispin))
-            NULLIFY (awork(ispin)%matrix)
-            CALL cp_fm_create_p(awork(ispin)%matrix, ao_mo_struct)
+            ALLOCATE (awork(ispin)%matrix)
+            CALL cp_fm_create(awork(ispin)%matrix, ao_mo_struct)
             !
             CALL cp_fm_struct_create(virt_mo_struct, nrow_global=nmo_virt(ispin), &
                                      ncol_global=nactive(ispin), template_fmstruct=ao_mo_struct)
-            NULLIFY (vomat(ispin)%matrix)
-            CALL cp_fm_create_p(vomat(ispin)%matrix, virt_mo_struct)
+            ALLOCATE (vomat(ispin)%matrix)
+            CALL cp_fm_create(vomat(ispin)%matrix, virt_mo_struct)
             CALL cp_fm_struct_release(virt_mo_struct)
          END DO
 
@@ -644,8 +643,9 @@ CONTAINS
          END DO
          !
          DO ispin = 1, nspins
-            CALL cp_fm_release_p(awork(ispin)%matrix)
-            CALL cp_fm_release_p(vomat(ispin)%matrix)
+            CALL cp_fm_release(awork(ispin)%matrix)
+            CALL cp_fm_release(vomat(ispin)%matrix)
+            DEALLOCATE (awork(ispin)%matrix, vomat(ispin)%matrix)
          END DO
          DEALLOCATE (awork, vomat)
       END IF

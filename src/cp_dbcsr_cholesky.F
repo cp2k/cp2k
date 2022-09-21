@@ -23,9 +23,7 @@ MODULE cp_dbcsr_cholesky
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_create_p,&
                                               cp_fm_release,&
-                                              cp_fm_release_p,&
                                               cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_get_info,&
@@ -72,19 +70,19 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
       REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
       TYPE(cp_fm_struct_type), POINTER         :: fm_struct
-      TYPE(cp_fm_type), POINTER                :: fm_matrix
+      TYPE(cp_fm_type)                :: fm_matrix
 #if defined(__SCALAPACK)
       INTEGER, DIMENSION(9)                    :: desca
 #endif
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_matrix, fm_struct)
+      NULLIFY (fm_struct)
       CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullcols_total, para_env=para_env)
-      CALL cp_fm_create_p(fm_matrix, fm_struct, name="fm_matrix")
+      CALL cp_fm_create(fm_matrix, fm_struct, name="fm_matrix")
       CALL cp_fm_struct_release(fm_struct)
 
       CALL copy_dbcsr_to_fm(matrix, fm_matrix)
@@ -123,7 +121,7 @@ CONTAINS
 
       CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
-      CALL cp_fm_release_p(fm_matrix)
+      CALL cp_fm_release(fm_matrix)
 
       CALL timestop(handle)
 

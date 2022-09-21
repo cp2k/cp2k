@@ -35,10 +35,10 @@ MODULE admm_methods
                                               cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
    USE cp_fm_diag,                      ONLY: cp_fm_syevd
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release_p,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_set_element,&
                                               cp_fm_to_fm,&
@@ -1815,8 +1815,8 @@ CONTAINS
       ALLOCATE (mo_derivs_fm(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff)
-         NULLIFY (mo_derivs_fm(ispin)%matrix)
-         CALL cp_fm_create_p(mo_derivs_fm(ispin)%matrix, mo_coeff%matrix_struct)
+         ALLOCATE (mo_derivs_fm(ispin)%matrix)
+         CALL cp_fm_create(mo_derivs_fm(ispin)%matrix, mo_coeff%matrix_struct)
       END DO
 
       DO ispin = 1, nspins
@@ -1830,7 +1830,8 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL cp_fm_release_p(mo_derivs_fm(ispin)%matrix)
+         CALL cp_fm_release(mo_derivs_fm(ispin)%matrix)
+         DEALLOCATE (mo_derivs_fm(ispin)%matrix)
       END DO
       DEALLOCATE (mo_derivs_fm)
 

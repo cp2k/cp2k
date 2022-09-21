@@ -18,7 +18,7 @@ MODULE qs_mom_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create_p,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_maxabsval,&
                                               cp_fm_to_fm,&
@@ -408,7 +408,8 @@ CONTAINS
                NULLIFY (ao_mo_fmstruct, scf_env%mom_ref_mo_coeff(ispin)%matrix)
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, occupation_numbers=occ_nums)
                CALL cp_fm_get_info(mo_coeff, matrix_struct=ao_mo_fmstruct)
-               CALL cp_fm_create_p(scf_env%mom_ref_mo_coeff(ispin)%matrix, ao_mo_fmstruct)
+               ALLOCATE (scf_env%mom_ref_mo_coeff(ispin)%matrix)
+               CALL cp_fm_create(scf_env%mom_ref_mo_coeff(ispin)%matrix, ao_mo_fmstruct)
 
                ! Initial Maximum Overlap Method: keep initial molecular orbitals
                IF (scf_control%diagonalization%mom_type == momtype_imom) THEN
@@ -426,7 +427,8 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo, mo_coeff=mo_coeff)
                CALL cp_fm_get_info(mo_coeff, context=blacs_env)
                CALL cp_fm_struct_create(mo_mo_fmstruct, nrow_global=nmo, ncol_global=nmo, context=blacs_env)
-               CALL cp_fm_create_p(scf_env%mom_overlap(ispin)%matrix, mo_mo_fmstruct)
+               ALLOCATE (scf_env%mom_overlap(ispin)%matrix)
+               CALL cp_fm_create(scf_env%mom_overlap(ispin)%matrix, mo_mo_fmstruct)
                CALL cp_fm_struct_release(mo_mo_fmstruct)
             END DO
          END IF
@@ -438,7 +440,8 @@ CONTAINS
                NULLIFY (ao_mo_fmstruct, scf_env%mom_s_mo_coeff(ispin)%matrix)
                CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
                CALL cp_fm_get_info(mo_coeff, matrix_struct=ao_mo_fmstruct)
-               CALL cp_fm_create_p(scf_env%mom_s_mo_coeff(ispin)%matrix, ao_mo_fmstruct)
+               ALLOCATE (scf_env%mom_s_mo_coeff(ispin)%matrix)
+               CALL cp_fm_create(scf_env%mom_s_mo_coeff(ispin)%matrix, ao_mo_fmstruct)
             END DO
          END IF
 
