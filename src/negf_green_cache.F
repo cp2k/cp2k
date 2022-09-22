@@ -10,7 +10,7 @@
 ! **************************************************************************************************
 MODULE negf_green_cache
    USE cp_cfm_types,                    ONLY: cp_cfm_p_type,&
-                                              cp_cfm_release_p
+                                              cp_cfm_release
    USE kinds,                           ONLY: dp
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -146,8 +146,10 @@ CONTAINS
          ncontacts = SIZE(cache%g_surf_contacts, 1)
          DO ipoint = SIZE(cache%g_surf_contacts, 2), 1, -1
             DO icontact = ncontacts, 1, -1
-               IF (ASSOCIATED(cache%g_surf_contacts(icontact, ipoint)%matrix)) &
-                  CALL cp_cfm_release_p(cache%g_surf_contacts(icontact, ipoint)%matrix)
+               IF (ASSOCIATED(cache%g_surf_contacts(icontact, ipoint)%matrix)) THEN
+                  CALL cp_cfm_release(cache%g_surf_contacts(icontact, ipoint)%matrix)
+                  DEALLOCATE (cache%g_surf_contacts(icontact, ipoint)%matrix)
+               END IF
             END DO
          END DO
 

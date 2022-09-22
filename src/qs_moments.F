@@ -27,10 +27,10 @@ MODULE qs_moments
                                               pbc
    USE commutator_rpnl,                 ONLY: build_com_mom_nl
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release_p
+                                              cp_cfm_release
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
@@ -1339,7 +1339,8 @@ CONTAINS
             ALLOCATE (op_fm_set(i, ispin)%matrix)
             CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
          END DO
-         CALL cp_cfm_create_p(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+         ALLOCATE (eigrmat(ispin)%matrix)
+         CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
 
@@ -1613,7 +1614,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL cp_fm_release(opvec(ispin)%matrix)
          DEALLOCATE (opvec(ispin)%matrix)
-         CALL cp_cfm_release_p(eigrmat(ispin)%matrix)
+         CALL cp_cfm_release(eigrmat(ispin)%matrix)
+         DEALLOCATE (eigrmat(ispin)%matrix)
          DO i = 1, SIZE(op_fm_set, 1)
             CALL cp_fm_release(op_fm_set(i, ispin)%matrix)
             DEALLOCATE (op_fm_set(i, ispin)%matrix)

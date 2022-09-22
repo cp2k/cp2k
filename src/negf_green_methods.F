@@ -16,9 +16,9 @@ MODULE negf_green_methods
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm,&
                                               cp_cfm_transpose
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
-                                              cp_cfm_release_p,&
+                                              cp_cfm_release,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
@@ -84,14 +84,15 @@ CONTAINS
       CPASSERT(nrows == ncols)
 
       NULLIFY (work%a, work%a0, work%a_inv, work%b, work%c, work%d, work%e, work%scratch)
-      CALL cp_cfm_create_p(work%a, fm_struct)
-      CALL cp_cfm_create_p(work%a0, fm_struct)
-      CALL cp_cfm_create_p(work%a_inv, fm_struct)
-      CALL cp_cfm_create_p(work%b, fm_struct)
-      CALL cp_cfm_create_p(work%c, fm_struct)
-      CALL cp_cfm_create_p(work%d, fm_struct)
-      CALL cp_cfm_create_p(work%e, fm_struct)
-      CALL cp_cfm_create_p(work%scratch, fm_struct)
+      ALLOCATE (work%a, work%a0, work%a_inv, work%b, work%c, work%d, work%e, work%scratch)
+      CALL cp_cfm_create(work%a, fm_struct)
+      CALL cp_cfm_create(work%a0, fm_struct)
+      CALL cp_cfm_create(work%a_inv, fm_struct)
+      CALL cp_cfm_create(work%b, fm_struct)
+      CALL cp_cfm_create(work%c, fm_struct)
+      CALL cp_cfm_create(work%d, fm_struct)
+      CALL cp_cfm_create(work%e, fm_struct)
+      CALL cp_cfm_create(work%scratch, fm_struct)
 
       CALL timestop(handle)
    END SUBROUTINE sancho_work_matrices_create
@@ -110,14 +111,46 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(work%a)) CALL cp_cfm_release_p(work%a)
-      IF (ASSOCIATED(work%a0)) CALL cp_cfm_release_p(work%a0)
-      IF (ASSOCIATED(work%a_inv)) CALL cp_cfm_release_p(work%a_inv)
-      IF (ASSOCIATED(work%b)) CALL cp_cfm_release_p(work%b)
-      IF (ASSOCIATED(work%c)) CALL cp_cfm_release_p(work%c)
-      IF (ASSOCIATED(work%d)) CALL cp_cfm_release_p(work%d)
-      IF (ASSOCIATED(work%e)) CALL cp_cfm_release_p(work%e)
-      IF (ASSOCIATED(work%scratch)) CALL cp_cfm_release_p(work%scratch)
+      IF (ASSOCIATED(work%a)) THEN
+         CALL cp_cfm_release(work%a)
+         DEALLOCATE (work%a)
+         NULLIFY (work%a)
+      END IF
+      IF (ASSOCIATED(work%a0)) THEN
+         CALL cp_cfm_release(work%a0)
+         DEALLOCATE (work%a0)
+         NULLIFY (work%a0)
+      END IF
+      IF (ASSOCIATED(work%a_inv)) THEN
+         CALL cp_cfm_release(work%a_inv)
+         DEALLOCATE (work%a_inv)
+         NULLIFY (work%a_inv)
+      END IF
+      IF (ASSOCIATED(work%b)) THEN
+         CALL cp_cfm_release(work%b)
+         DEALLOCATE (work%b)
+         NULLIFY (work%b)
+      END IF
+      IF (ASSOCIATED(work%c)) THEN
+         CALL cp_cfm_release(work%c)
+         DEALLOCATE (work%c)
+         NULLIFY (work%c)
+      END IF
+      IF (ASSOCIATED(work%d)) THEN
+         CALL cp_cfm_release(work%d)
+         DEALLOCATE (work%d)
+         NULLIFY (work%d)
+      END IF
+      IF (ASSOCIATED(work%e)) THEN
+         CALL cp_cfm_release(work%e)
+         DEALLOCATE (work%e)
+         NULLIFY (work%e)
+      END IF
+      IF (ASSOCIATED(work%scratch)) THEN
+         CALL cp_cfm_release(work%scratch)
+         DEALLOCATE (work%scratch)
+         NULLIFY (work%scratch)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE sancho_work_matrices_release

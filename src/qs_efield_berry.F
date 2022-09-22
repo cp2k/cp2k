@@ -24,9 +24,9 @@ MODULE qs_efield_berry
                                               pbc
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm,&
                                               cp_cfm_solve
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release_p,&
+                                              cp_cfm_release,&
                                               cp_cfm_set_all
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -330,8 +330,9 @@ CONTAINS
             CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
             CALL cp_fm_create(inv_work(i, ispin)%matrix, op_fm_set(i, ispin)%matrix%matrix_struct)
          END DO
-         CALL cp_cfm_create_p(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
-         CALL cp_cfm_create_p(inv_mat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+         ALLOCATE (eigrmat(ispin)%matrix, inv_mat(ispin)%matrix)
+         CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+         CALL cp_cfm_create(inv_mat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
       ! temp matrices for force calculation
@@ -632,8 +633,9 @@ CONTAINS
       END IF
 
       DO ispin = 1, dft_control%nspins
-         CALL cp_cfm_release_p(eigrmat(ispin)%matrix)
-         CALL cp_cfm_release_p(inv_mat(ispin)%matrix)
+         CALL cp_cfm_release(eigrmat(ispin)%matrix)
+         CALL cp_cfm_release(inv_mat(ispin)%matrix)
+         DEALLOCATE (eigrmat(ispin)%matrix, inv_mat(ispin)%matrix)
          CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix)
          CALL cp_fm_release(mo_coeff_tmp(ispin)%matrix)
          DEALLOCATE (mo_derivs_tmp(ispin)%matrix, mo_coeff_tmp(ispin)%matrix)
@@ -819,8 +821,9 @@ CONTAINS
             CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
             CALL cp_fm_create(inv_work(i, ispin)%matrix, op_fm_set(i, ispin)%matrix%matrix_struct)
          END DO
-         CALL cp_cfm_create_p(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
-         CALL cp_cfm_create_p(inv_mat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+         ALLOCATE (eigrmat(ispin)%matrix, inv_mat(ispin)%matrix)
+         CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+         CALL cp_cfm_create(inv_mat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
       ! temp matrices for force calculation
@@ -1131,8 +1134,9 @@ CONTAINS
       END IF
 
       DO ispin = 1, dft_control%nspins
-         CALL cp_cfm_release_p(eigrmat(ispin)%matrix)
-         CALL cp_cfm_release_p(inv_mat(ispin)%matrix)
+         CALL cp_cfm_release(eigrmat(ispin)%matrix)
+         CALL cp_cfm_release(inv_mat(ispin)%matrix)
+         DEALLOCATE (eigrmat(ispin)%matrix, inv_mat(ispin)%matrix)
          CALL cp_fm_release(mo_coeff_tmp(ispin)%matrix)
          DEALLOCATE (mo_coeff_tmp(ispin)%matrix)
          DO i = 1, 3

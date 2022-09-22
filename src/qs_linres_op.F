@@ -21,10 +21,10 @@ MODULE qs_linres_op
    USE cp_array_utils,                  ONLY: cp_2d_i_p_type,&
                                               cp_2d_r_p_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_solve
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release_p,&
+                                              cp_cfm_release,&
                                               cp_cfm_set_all
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -749,11 +749,13 @@ CONTAINS
                CALL cp_fm_create(opvec(i, ispin)%matrix, mo_coeff%matrix_struct)
                CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
             END DO
-            CALL cp_cfm_create_p(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+            ALLOCATE (eigrmat(ispin)%matrix)
+            CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
             DO i = 1, 3
                ALLOCATE (inv_work(2, i, ispin)%matrix, inv_work(1, i, ispin)%matrix)
-               CALL cp_cfm_create_p(inv_mat(i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
+               ALLOCATE (inv_mat(i, ispin)%matrix)
+               CALL cp_cfm_create(inv_mat(i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
                CALL cp_fm_create(inv_work(2, i, ispin)%matrix, op_fm_set(2, ispin)%matrix%matrix_struct)
                CALL cp_fm_create(inv_work(1, i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
             END DO
@@ -812,9 +814,11 @@ CONTAINS
          !SL we omit here the multiplication with hmat (this scaling back done at the end of the response calc)
 
          DO ispin = 1, dft_control%nspins
-            CALL cp_cfm_release_p(eigrmat(ispin)%matrix)
+            CALL cp_cfm_release(eigrmat(ispin)%matrix)
+            DEALLOCATE (eigrmat(ispin)%matrix)
             DO i = 1, 3
-               CALL cp_cfm_release_p(inv_mat(i, ispin)%matrix)
+               CALL cp_cfm_release(inv_mat(i, ispin)%matrix)
+               DEALLOCATE (inv_mat(i, ispin)%matrix)
                CALL cp_fm_release(inv_work(1, i, ispin)%matrix)
                CALL cp_fm_release(inv_work(2, i, ispin)%matrix)
                DEALLOCATE (inv_work(1, i, ispin)%matrix, inv_work(2, i, ispin)%matrix)

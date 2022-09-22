@@ -15,9 +15,14 @@ MODULE rpa_gw
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
-   USE cp_cfm_types,                    ONLY: &
-        cp_cfm_create, cp_cfm_get_info, cp_cfm_p_type, cp_cfm_release, cp_cfm_release_p, &
-        cp_cfm_set_all, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_p_type,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
@@ -695,7 +700,8 @@ CONTAINS
          DO jquad = 1, SIZE(cfm_mat_W_kp_tau, 2)
             DO ikp = 1, SIZE(cfm_mat_W_kp_tau, 1)
                IF (.NOT. (ANY(ikp_local(:) == ikp))) CYCLE
-               CALL cp_cfm_release_p(cfm_mat_W_kp_tau(ikp, jquad)%matrix)
+               CALL cp_cfm_release(cfm_mat_W_kp_tau(ikp, jquad)%matrix)
+               DEALLOCATE (cfm_mat_W_kp_tau(ikp, jquad)%matrix)
             END DO
          END DO
          DEALLOCATE (cfm_mat_W_kp_tau)

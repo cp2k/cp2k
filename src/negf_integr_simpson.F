@@ -11,10 +11,10 @@
 MODULE negf_integr_simpson
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
                                               cp_cfm_scale_and_add
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release_p,&
+                                              cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
@@ -195,22 +195,56 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ALLOCATED(sr_env%subintervals)) THEN
          DO interval = SIZE(sr_env%subintervals), 1, -1
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fa)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fa)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fb)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fb)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fc)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fc)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fd)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fd)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fe)) CALL cp_cfm_release_p(sr_env%subintervals(interval)%fe)
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fa)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fa)
+               DEALLOCATE (sr_env%subintervals(interval)%fa)
+            END IF
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fb)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fb)
+               DEALLOCATE (sr_env%subintervals(interval)%fb)
+            END IF
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fc)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fc)
+               DEALLOCATE (sr_env%subintervals(interval)%fc)
+            END IF
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fd)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fd)
+               DEALLOCATE (sr_env%subintervals(interval)%fd)
+            END IF
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fe)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fe)
+               DEALLOCATE (sr_env%subintervals(interval)%fe)
+            END IF
          END DO
 
          DEALLOCATE (sr_env%subintervals)
       END IF
 
-      IF (ASSOCIATED(sr_env%integral)) CALL cp_cfm_release_p(sr_env%integral)
-      IF (ASSOCIATED(sr_env%integral_conv)) CALL cp_cfm_release_p(sr_env%integral_conv)
-      IF (ASSOCIATED(sr_env%integral_abc)) CALL cp_cfm_release_p(sr_env%integral_abc)
-      IF (ASSOCIATED(sr_env%integral_cde)) CALL cp_cfm_release_p(sr_env%integral_cde)
-      IF (ASSOCIATED(sr_env%integral_ace)) CALL cp_cfm_release_p(sr_env%integral_ace)
-
+      IF (ASSOCIATED(sr_env%integral)) THEN
+         CALL cp_cfm_release(sr_env%integral)
+         DEALLOCATE (sr_env%integral)
+         NULLIFY (sr_env%integral)
+      END IF
+      IF (ASSOCIATED(sr_env%integral_conv)) THEN
+         CALL cp_cfm_release(sr_env%integral_conv)
+         DEALLOCATE (sr_env%integral_conv)
+         NULLIFY (sr_env%integral_conv)
+      END IF
+      IF (ASSOCIATED(sr_env%integral_abc)) THEN
+         CALL cp_cfm_release(sr_env%integral_abc)
+         DEALLOCATE (sr_env%integral_abc)
+         NULLIFY (sr_env%integral_abc)
+      END IF
+      IF (ASSOCIATED(sr_env%integral_cde)) THEN
+         CALL cp_cfm_release(sr_env%integral_cde)
+         DEALLOCATE (sr_env%integral_cde)
+         NULLIFY (sr_env%integral_cde)
+      END IF
+      IF (ASSOCIATED(sr_env%integral_ace)) THEN
+         CALL cp_cfm_release(sr_env%integral_ace)
+         DEALLOCATE (sr_env%integral_ace)
+         NULLIFY (sr_env%integral_ace)
+      END IF
       IF (ASSOCIATED(sr_env%error_fm)) THEN
          CALL cp_fm_release(sr_env%error_fm)
          DEALLOCATE (sr_env%error_fm)
@@ -411,11 +445,13 @@ CONTAINS
       ELSE
          ! first time -- allocate matrices and create a new set of intervals
          CALL cp_cfm_get_info(zdata_next(1)%matrix, matrix_struct=fm_struct)
-         CALL cp_cfm_create_p(sr_env%integral, fm_struct)
-         CALL cp_cfm_create_p(sr_env%integral_conv, fm_struct)
-         CALL cp_cfm_create_p(sr_env%integral_abc, fm_struct)
-         CALL cp_cfm_create_p(sr_env%integral_cde, fm_struct)
-         CALL cp_cfm_create_p(sr_env%integral_ace, fm_struct)
+         ALLOCATE (sr_env%integral, sr_env%integral_conv, &
+                   sr_env%integral_abc, sr_env%integral_cde, sr_env%integral_ace)
+         CALL cp_cfm_create(sr_env%integral, fm_struct)
+         CALL cp_cfm_create(sr_env%integral_conv, fm_struct)
+         CALL cp_cfm_create(sr_env%integral_abc, fm_struct)
+         CALL cp_cfm_create(sr_env%integral_cde, fm_struct)
+         CALL cp_cfm_create(sr_env%integral_ace, fm_struct)
 
          CALL cp_cfm_set_all(sr_env%integral_conv, z_zero)
 
@@ -519,14 +555,17 @@ CONTAINS
             END DO
             IF (.NOT. interval_exists) THEN
                ! interval does not exist anymore, so it is safe to release the matrix
-               CALL cp_cfm_release_p(subintervals(interval)%fa)
+               CALL cp_cfm_release(subintervals(interval)%fa)
+               DEALLOCATE (subintervals(interval)%fa)
             ELSE IF (interval_converged) THEN
                ! the interval still exists and will be released with fe
             END IF
-            CALL cp_cfm_release_p(subintervals(interval)%fb)
-            CALL cp_cfm_release_p(subintervals(interval)%fc)
-            CALL cp_cfm_release_p(subintervals(interval)%fd)
-            CALL cp_cfm_release_p(subintervals(interval)%fe)
+            CALL cp_cfm_release(subintervals(interval)%fb)
+            CALL cp_cfm_release(subintervals(interval)%fc)
+            CALL cp_cfm_release(subintervals(interval)%fd)
+            CALL cp_cfm_release(subintervals(interval)%fe)
+            DEALLOCATE (subintervals(interval)%fb, subintervals(interval)%fc, &
+                        subintervals(interval)%fd, subintervals(interval)%fe)
          END DO
       ELSE
          ! sort subinterval according to their convergence, and drop convergent ones
@@ -566,13 +605,15 @@ CONTAINS
                END DO
                IF (.NOT. interval_exists) THEN
                   ! interval does not exist anymore, so it is safe to release the matrix
-                  CALL cp_cfm_release_p(subintervals(interval)%fa)
+                  CALL cp_cfm_release(subintervals(interval)%fa)
+                  DEALLOCATE (subintervals(interval)%fa)
                ELSE IF (interval_converged) THEN
                   ! the interval still exists and will be released with fe
                END IF
-               CALL cp_cfm_release_p(subintervals(interval)%fb)
-               CALL cp_cfm_release_p(subintervals(interval)%fc)
-               CALL cp_cfm_release_p(subintervals(interval)%fd)
+               CALL cp_cfm_release(subintervals(interval)%fb)
+               CALL cp_cfm_release(subintervals(interval)%fc)
+               CALL cp_cfm_release(subintervals(interval)%fd)
+               DEALLOCATE (subintervals(interval)%fb, subintervals(interval)%fc, subintervals(interval)%fd)
 
                ! Right border: Check for the existence and the convergence of the interval
                ! If the right interval does not exist or has converged, release the matrix
@@ -586,7 +627,10 @@ CONTAINS
                      EXIT
                   END IF
                END DO
-               IF (.NOT. interval_exists .OR. interval_converged) CALL cp_cfm_release_p(subintervals(interval)%fe)
+               IF (.NOT. interval_exists .OR. interval_converged) THEN
+                  CALL cp_cfm_release(subintervals(interval)%fe)
+                  DEALLOCATE (subintervals(interval)%fe)
+               END IF
             END IF
          END DO
 

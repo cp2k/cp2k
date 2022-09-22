@@ -40,13 +40,11 @@ MODULE cp_cfm_types
 
    PUBLIC :: cp_cfm_type, cp_cfm_p_type, copy_cfm_info_type
    PUBLIC :: cp_cfm_cleanup_copy_general, &
-             cp_cfm_create_p, &
              cp_cfm_create, &
              cp_cfm_finish_copy_general, &
              cp_cfm_get_element, &
              cp_cfm_get_info, &
              cp_cfm_get_submatrix, &
-             cp_cfm_release_p, &
              cp_cfm_release, &
              cp_cfm_set_all, &
              cp_cfm_set_element, &
@@ -124,24 +122,6 @@ CONTAINS
 !> \note
 !>      preferred allocation routine
 ! **************************************************************************************************
-   SUBROUTINE cp_cfm_create_p(matrix, matrix_struct, name)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
-      TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: matrix_struct
-      CHARACTER(len=*), INTENT(in), OPTIONAL             :: name
-
-      ALLOCATE (matrix)
-      CALL cp_cfm_create(matrix, matrix_struct, name)
-
-   END SUBROUTINE cp_cfm_create_p
-
-! **************************************************************************************************
-!> \brief Creates a new full matrix with the given structure.
-!> \param matrix        matrix to be created
-!> \param matrix_struct structure of the matrix
-!> \param name          name of the matrix
-!> \note
-!>      preferred allocation routine
-! **************************************************************************************************
    SUBROUTINE cp_cfm_create(matrix, matrix_struct, name)
       TYPE(cp_cfm_type), INTENT(OUT)                     :: matrix
       TYPE(cp_fm_struct_type), POINTER, INTENT(IN)       :: matrix_struct
@@ -178,21 +158,6 @@ CONTAINS
          matrix%name = 'full matrix'//cp_to_string(matrix%id_nr)
       END IF
    END SUBROUTINE cp_cfm_create
-
-! **************************************************************************************************
-!> \brief Releases a full matrix.
-!> \param matrix the matrix to release
-! **************************************************************************************************
-   SUBROUTINE cp_cfm_release_p(matrix)
-      TYPE(cp_cfm_type), POINTER                         :: matrix
-
-      IF (ASSOCIATED(matrix)) THEN
-         CALL cp_cfm_release(matrix)
-         DEALLOCATE (matrix)
-      END IF
-      NULLIFY (matrix)
-
-   END SUBROUTINE cp_cfm_release_p
 
 ! **************************************************************************************************
 !> \brief Releases a full matrix.

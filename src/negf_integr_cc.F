@@ -14,10 +14,10 @@
 MODULE negf_integr_cc
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
                                               cp_cfm_scale_and_add
-   USE cp_cfm_types,                    ONLY: cp_cfm_create_p,&
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
-                                              cp_cfm_release_p,&
+                                              cp_cfm_release,&
                                               cp_cfm_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
    USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
@@ -218,13 +218,18 @@ CONTAINS
          NULLIFY (cc_env%weights)
       END IF
 
-      IF (ASSOCIATED(cc_env%integral)) &
-         CALL cp_cfm_release_p(cc_env%integral)
+      IF (ASSOCIATED(cc_env%integral)) THEN
+         CALL cp_cfm_release(cc_env%integral)
+         DEALLOCATE (cc_env%integral)
+         NULLIFY (cc_env%integral)
+      END IF
 
       IF (ALLOCATED(cc_env%zdata_cache)) THEN
          DO ipoint = SIZE(cc_env%zdata_cache), 1, -1
-            IF (ASSOCIATED(cc_env%zdata_cache(ipoint)%matrix)) &
-               CALL cp_cfm_release_p(cc_env%zdata_cache(ipoint)%matrix)
+            IF (ASSOCIATED(cc_env%zdata_cache(ipoint)%matrix)) THEN
+               CALL cp_cfm_release(cc_env%zdata_cache(ipoint)%matrix)
+               DEALLOCATE (cc_env%zdata_cache(ipoint)%matrix)
+            END IF
          END DO
 
          DEALLOCATE (cc_env%zdata_cache)
@@ -453,7 +458,8 @@ CONTAINS
          equiv = cp_fm_struct_equivalent(fm_struct, cc_env%weights%matrix_struct)
          CPASSERT(equiv)
 
-         CALL cp_cfm_create_p(cc_env%integral, fm_struct)
+         ALLOCATE (cc_env%integral)
+         CALL cp_cfm_create(cc_env%integral, fm_struct)
          NULLIFY (cc_env%error_fm)
          ALLOCATE (cc_env%error_fm)
          CALL cp_fm_create(cc_env%error_fm, fm_struct)

@@ -26,9 +26,14 @@ MODULE rpa_gw_kpoints_util
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon,&
                                               cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: &
-        cp_cfm_create, cp_cfm_create_p, cp_cfm_get_info, cp_cfm_p_type, cp_cfm_release, &
-        cp_cfm_set_all, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_p_type,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set
@@ -702,7 +707,8 @@ CONTAINS
             DO jkp = 1, nkp
                NULLIFY (cfm_mat_W_kp_tau(jkp, iquad)%matrix)
                IF (.NOT. (ANY(ikp_local(:) == jkp))) CYCLE
-               CALL cp_cfm_create_p(cfm_mat_W_kp_tau(jkp, iquad)%matrix, cfm_mat_Q%matrix_struct)
+               ALLOCATE (cfm_mat_W_kp_tau(jkp, iquad)%matrix)
+               CALL cp_cfm_create(cfm_mat_W_kp_tau(jkp, iquad)%matrix, cfm_mat_Q%matrix_struct)
                CALL cp_cfm_set_all(matrix=cfm_mat_W_kp_tau(jkp, iquad)%matrix, alpha=z_zero)
             END DO
          END DO
