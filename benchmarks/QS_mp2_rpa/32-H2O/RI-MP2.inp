@@ -25,17 +25,7 @@
     INPUT_FILE_NAME  H2O-32-HF-TZ.inp
     OUTPUT_FILE_NAME H2O-32-HF-TZ.inp.log
   &END JOB
-  # calculate RI-MP2 correlation energy (three times)
-  &JOB
-    DIRECTORY .
-    INPUT_FILE_NAME  H2O-32-RI-MP2-TZ.inp
-    OUTPUT_FILE_NAME result.log
-  &END JOB
-  &JOB
-    DIRECTORY .
-    INPUT_FILE_NAME  H2O-32-RI-MP2-TZ.inp
-    OUTPUT_FILE_NAME result.log
-  &END JOB
+  # calculate RI-MP2 correlation energy
   &JOB
     DIRECTORY .
     INPUT_FILE_NAME  H2O-32-RI-MP2-TZ.inp
