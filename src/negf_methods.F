@@ -1478,7 +1478,6 @@ CONTAINS
          ELSE
             DO ipoint = 1, npoints
                g_ret_s_group(ipoint)%matrix => g_ret_s(ipoint)%matrix
-               CALL cp_cfm_retain(g_ret_s_group(ipoint)%matrix)
             END DO
          END IF
       END IF
@@ -1822,7 +1821,8 @@ CONTAINS
       ! -- deallocate temporary matrices
       IF (ALLOCATED(g_ret_s_group)) THEN
          DO ipoint = npoints, 1, -1
-            IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) CALL cp_cfm_release_p(g_ret_s_group(ipoint)%matrix)
+            IF ((sub_env%ngroups > 1 .OR. .NOT. PRESENT(g_ret_s)) .AND. ASSOCIATED(g_ret_s_group(ipoint)%matrix)) &
+               CALL cp_cfm_release_p(g_ret_s_group(ipoint)%matrix)
          END DO
          DEALLOCATE (g_ret_s_group)
       END IF
