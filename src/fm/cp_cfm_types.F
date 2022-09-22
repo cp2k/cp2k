@@ -48,7 +48,6 @@ MODULE cp_cfm_types
              cp_cfm_get_submatrix, &
              cp_cfm_release_p, &
              cp_cfm_release, &
-             cp_cfm_retain, &
              cp_cfm_set_all, &
              cp_cfm_set_element, &
              cp_cfm_set_submatrix, &
@@ -74,7 +73,7 @@ MODULE cp_cfm_types
 ! **************************************************************************************************
    TYPE cp_cfm_type
       CHARACTER(len=60) :: name
-      INTEGER :: id_nr, ref_count
+      INTEGER :: id_nr
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: local_data
    END TYPE cp_cfm_type
@@ -161,7 +160,6 @@ CONTAINS
       CALL cp_fm_struct_retain(matrix%matrix_struct)
       last_cfm_id_nr = last_cfm_id_nr + 1
       matrix%id_nr = last_cfm_id_nr
-      matrix%ref_count = 1
 
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
@@ -182,18 +180,6 @@ CONTAINS
    END SUBROUTINE cp_cfm_create
 
 ! **************************************************************************************************
-!> \brief Retains a full matrix.
-!> \param matrix the matrix to retain
-! **************************************************************************************************
-   SUBROUTINE cp_cfm_retain(matrix)
-      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: matrix
-
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(matrix%ref_count > 0)
-      matrix%ref_count = matrix%ref_count + 1
-   END SUBROUTINE cp_cfm_retain
-
-! **************************************************************************************************
 !> \brief Releases a full matrix.
 !> \param matrix the matrix to release
 ! **************************************************************************************************
@@ -202,7 +188,7 @@ CONTAINS
 
       IF (ASSOCIATED(matrix)) THEN
          CALL cp_cfm_release(matrix)
-         IF (matrix%ref_count < 1) DEALLOCATE (matrix)
+         DEALLOCATE (matrix)
       END IF
       NULLIFY (matrix)
 
@@ -215,15 +201,11 @@ CONTAINS
    SUBROUTINE cp_cfm_release(matrix)
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
 
-      CPASSERT(matrix%ref_count > 0)
-      matrix%ref_count = matrix%ref_count - 1
-      IF (matrix%ref_count < 1) THEN
-         IF (ASSOCIATED(matrix%local_data)) THEN
-            DEALLOCATE (matrix%local_data)
-         END IF
-         matrix%name = ""
-         CALL cp_fm_struct_release(matrix%matrix_struct)
+      IF (ASSOCIATED(matrix%local_data)) THEN
+         DEALLOCATE (matrix%local_data)
       END IF
+      matrix%name = ""
+      CALL cp_fm_struct_release(matrix%matrix_struct)
    END SUBROUTINE cp_cfm_release
 
 ! **************************************************************************************************
