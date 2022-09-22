@@ -1059,10 +1059,10 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: matrix_p_tmp, mixed_matrix_p_tmp, &
                                                             mixed_mo_coeff, mixed_wmat_tmp, &
                                                             mo_coeff_tmp, wmat_tmp
-      TYPE(cp_fm_p_type), POINTER                        :: matrix_s_tmp, mixed_matrix_s_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, fm_struct_overlap, &
                                                             fm_struct_tmp, fm_struct_wmat
-      TYPE(cp_fm_type)                                   :: fm_dummy
+      TYPE(cp_fm_type)                                   :: fm_dummy, matrix_s_tmp, &
+                                                            mixed_matrix_s_tmp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix, w_matrix
       TYPE(dbcsr_type)                                   :: desymm_tmp
       TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
@@ -1074,7 +1074,7 @@ CONTAINS
 
       NULLIFY (mixed_env, mixed_cdft, qs_env, dft_control, fm_struct_mo, &
                fm_struct_wmat, fm_struct_overlap, fm_struct_tmp, &
-               mixed_matrix_s_tmp, matrix_s_tmp, mixed_wmat_tmp, &
+               mixed_wmat_tmp, &
                wmat_tmp, mixed_mo_coeff, matrix_p_tmp, mixed_matrix_p_tmp, &
                mixed_matrix_s, density_matrix, blacs_env, w_matrix, force_env_qs)
       CPASSERT(ASSOCIATED(force_env))
@@ -1151,8 +1151,7 @@ CONTAINS
          density_matrix => mixed_cdft%matrix%density_matrix
       END IF
       ALLOCATE (mo_coeff_tmp(nforce_eval, nspins), wmat_tmp(nforce_eval, nvar))
-      ALLOCATE (matrix_s_tmp, nrow_mo(nspins), ncol_mo(nspins))
-      NULLIFY (matrix_s_tmp%matrix)
+      ALLOCATE (nrow_mo(nspins), ncol_mo(nspins))
       IF (mixed_cdft%calculate_metric) ALLOCATE (matrix_p_tmp(nforce_eval, nspins))
       IF (.NOT. uniform_occupation) THEN
          ALLOCATE (mixed_cdft%occupations(nforce_eval, nspins))
@@ -1222,11 +1221,10 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_overlap, &
                                      ncol_global=ncol_overlap, context=blacs_env, &
                                      para_env=force_env%sub_force_env(iforce_eval)%force_env%para_env)
-            ALLOCATE (matrix_s_tmp%matrix)
-            CALL cp_fm_create(matrix_s_tmp%matrix, fm_struct_tmp, name="s_matrix")
+            CALL cp_fm_create(matrix_s_tmp, fm_struct_tmp, name="s_matrix")
             CALL cp_fm_struct_release(fm_struct_tmp)
             CALL dbcsr_desymmetrize(dft_control%qs_control%cdft_control%matrix_s%matrix, desymm_tmp)
-            CALL copy_dbcsr_to_fm(desymm_tmp, matrix_s_tmp%matrix)
+            CALL copy_dbcsr_to_fm(desymm_tmp, matrix_s_tmp)
             CALL dbcsr_release(desymm_tmp)
          END IF
          CALL dbcsr_release_p(dft_control%qs_control%cdft_control%matrix_s%matrix)
@@ -1269,7 +1267,7 @@ CONTAINS
       ! Redistribute arrays with copy_general (this is not optimal for dbcsr matrices but...)
       ! We use this method for the serial case (mixed_cdft%run_type == mixed_cdft_serial) as well to move the arrays to the
       ! correct blacs_env, which is impossible using a simple copy of the arrays
-      ALLOCATE (mixed_wmat_tmp(nforce_eval, nvar), mixed_matrix_s_tmp)
+      ALLOCATE (mixed_wmat_tmp(nforce_eval, nvar))
       IF (mixed_cdft%calculate_metric) &
          ALLOCATE (mixed_matrix_p_tmp(nforce_eval, nspins))
       DO iforce_eval = 1, nforce_eval
@@ -1292,8 +1290,11 @@ CONTAINS
                                        mixed_mo_coeff(iforce_eval, ispin)%matrix, &
                                        mixed_cdft%blacs_env%para_env)
             END IF
-            CALL cp_fm_release(mo_coeff_tmp(iforce_eval, ispin)%matrix)
-            DEALLOCATE (mo_coeff_tmp(iforce_eval, ispin)%matrix)
+            IF (ASSOCIATED(mo_coeff_tmp(iforce_eval, ispin)%matrix)) THEN
+               CALL cp_fm_release(mo_coeff_tmp(iforce_eval, ispin)%matrix)
+               DEALLOCATE (mo_coeff_tmp(iforce_eval, ispin)%matrix)
+               NULLIFY (mo_coeff_tmp(iforce_eval, ispin)%matrix)
+            END IF
             CALL cp_fm_struct_release(fm_struct_mo)
          END DO
          ! Weight
@@ -1313,8 +1314,11 @@ CONTAINS
                                        mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
                                        mixed_cdft%blacs_env%para_env)
             END IF
-            CALL cp_fm_release(wmat_tmp(iforce_eval, ivar)%matrix)
-            DEALLOCATE (wmat_tmp(iforce_eval, ivar)%matrix)
+            IF (ASSOCIATED(wmat_tmp(iforce_eval, ivar)%matrix)) THEN
+               CALL cp_fm_release(wmat_tmp(iforce_eval, ivar)%matrix)
+               DEALLOCATE (wmat_tmp(iforce_eval, ivar)%matrix)
+               NULLIFY (wmat_tmp(iforce_eval, ivar)%matrix)
+            END IF
             ! (fm -> dbcsr)
             CALL copy_fm_to_dbcsr_bc(mixed_wmat_tmp(iforce_eval, ivar)%matrix, &
                                      w_matrix(iforce_eval, ivar)%matrix)
@@ -1340,8 +1344,11 @@ CONTAINS
                                           mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
                                           mixed_cdft%blacs_env%para_env)
                END IF
-               CALL cp_fm_release(matrix_p_tmp(iforce_eval, ispin)%matrix)
-               DEALLOCATE (matrix_p_tmp(iforce_eval, ispin)%matrix)
+               IF (ASSOCIATED(matrix_p_tmp(iforce_eval, ispin)%matrix)) THEN
+                  CALL cp_fm_release(matrix_p_tmp(iforce_eval, ispin)%matrix)
+                  DEALLOCATE (matrix_p_tmp(iforce_eval, ispin)%matrix)
+                  NULLIFY (matrix_p_tmp(iforce_eval, ispin)%matrix)
+               END IF
                CALL copy_fm_to_dbcsr_bc(mixed_matrix_p_tmp(iforce_eval, ispin)%matrix, &
                                         density_matrix(iforce_eval, ispin)%matrix)
                CALL cp_fm_release(mixed_matrix_p_tmp(iforce_eval, ispin)%matrix)
@@ -1356,25 +1363,16 @@ CONTAINS
          DEALLOCATE (mixed_matrix_p_tmp)
       END IF
       ! Overlap (fm -> dbcsr)
-      ALLOCATE (mixed_matrix_s_tmp%matrix)
-      CALL cp_fm_create(matrix=mixed_matrix_s_tmp%matrix, &
+      CALL cp_fm_create(matrix=mixed_matrix_s_tmp, &
                         matrix_struct=fm_struct_overlap, &
                         name="OVERLAP_MATRIX")
       CALL cp_fm_struct_release(fm_struct_overlap)
-      IF (ASSOCIATED(matrix_s_tmp%matrix)) THEN
-         CALL cp_fm_copy_general(matrix_s_tmp%matrix, &
-                                 mixed_matrix_s_tmp%matrix, &
-                                 mixed_cdft%blacs_env%para_env)
-      ELSE
-         CALL cp_fm_copy_general(fm_dummy, &
-                                 mixed_matrix_s_tmp%matrix, &
-                                 mixed_cdft%blacs_env%para_env)
-      END IF
-      CALL cp_fm_release(matrix_s_tmp%matrix)
-      DEALLOCATE (matrix_s_tmp%matrix)
-      CALL copy_fm_to_dbcsr_bc(mixed_matrix_s_tmp%matrix, mixed_matrix_s)
-      CALL cp_fm_release(mixed_matrix_s_tmp%matrix)
-      DEALLOCATE (mixed_matrix_s_tmp%matrix)
+      CALL cp_fm_copy_general(matrix_s_tmp, &
+                              mixed_matrix_s_tmp, &
+                              mixed_cdft%blacs_env%para_env)
+      CALL cp_fm_release(matrix_s_tmp)
+      CALL copy_fm_to_dbcsr_bc(mixed_matrix_s_tmp, mixed_matrix_s)
+      CALL cp_fm_release(mixed_matrix_s_tmp)
       ! Occupation numbers
       IF (.NOT. uniform_occupation) THEN
          DO iforce_eval = 1, nforce_eval
@@ -1390,7 +1388,6 @@ CONTAINS
          END DO
          DEALLOCATE (occno_tmp)
       END IF
-      DEALLOCATE (matrix_s_tmp, mixed_matrix_s_tmp)
       DEALLOCATE (ncol_mo, nrow_mo)
 
    END SUBROUTINE mixed_cdft_redistribute_arrays
