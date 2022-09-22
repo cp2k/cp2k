@@ -31,6 +31,12 @@ include(cp2k_utils)
 
 cp2k_set_default_paths(LIBSCI)
 
+# we might need to change the logic a little here since the cp2k_find_library function expect to have CP2K_package_PREFIX set.
+
+set(CP2K_LIBSCI_MP_PREFIX "${CP2K_LIBSCI_PREFIX}")
+set(CP2K_LIBSCI_MPI_PREFIX "${CP2K_LIBSCI_PREFIX}")
+set(CP2K_LIBSCI_MPI_MP_PREFIX "${CP2K_LIBSCI_PREFIX}")
+
 set(_sci_lib "sci_gnu")
 
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Intel")
@@ -48,39 +54,62 @@ if(TARGET OpenMP::OpenMP_CXX)
   set(_sci_mpi_lib ${_sci_mpi_lib}_mp ${_sci_mpi_lib})
 endif()
 
-cp2k_find_libraries(LIBSCI ${_sci_lib})
-cp2k_find_libraries(LIBSCI_MPI ${_sci_mpi_lib})
+cp2k_find_libraries("LIBSCI" "${_sci_lib}")
+cp2k_find_libraries("LIBSCI_MP" "${_sci_lib}_mp")
+cp2k_find_libraries("LIBSCI_MPI" "${_sci_lib}_mpi")
+cp2k_find_libraries("LIBSCI_MPI_MP" "${_sci_lib}_mpi_mp")
 cp2k_include_dirs(LIBSCI "cblas.h")
 
 # check if found
 find_package_handle_standard_args(SCI REQUIRED_VARS CP2K_LIBSCI_INCLUDE_DIRS
-                                                    CP2K_LIBSCI_LIBRARIES)
+                                                    CP2K_LIBSCI_LINK_LIBRARIES)
 
 # add target to link against
 if(CP2K_LIBSCI_FOUND)
   if(NOT TARGET CP2K_SCI::sci)
     add_library(CP2K_SCI::sci INTERFACE IMPORTED)
-    add_library(CP2K_SCI::blas ALIAS CP2K_SCI::sci)
+    add_library(CP2K_SCI::sci_mpi INTERFACE IMPORTED)
+    add_library(CP2K_SCI::sci_mp INTERFACE IMPORTED)
+    add_library(CP2K_SCI::sci_mpi_mp INTERFACE IMPORTED)
+    add_library(CP2K_SCI::blas INTERFACE_IMPORTED)
   endif()
   set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_LINK_LIBRARIES
     ${CP2K_LIBSCI_LINK_LIBRARIES})
-  set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-    ${CP2K_LIBSCI_INCLUDE_DIRS})
+  if (CP2K_LIBSCI_INCLUDE_DIRS)
+    set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+      ${CP2K_LIBSCI_INCLUDE_DIRS})
+  endif()
+  set_property(TARGET CP2K_SCI::sci_mp PROPERTY INTERFACE_LINK_LIBRARIES
+    ${CP2K_LIBSCI_MP_LINK_LIBRARIES})
 
   if(CP2K_LIBSCI_MPI_FOUND)
     if(NOT TARGET CP2K_SCI::sci_mpi)
       add_library(CP2K_SCI::sci_mpi INTERFACE IMPORTED)
       add_library(CP2K_SCI::scalapack_link INTERFACE IMPORTED)
+      set_property(TARGET CP2K_SCI::sci_mpi PROPERTY INTERFACE_LINK_LIBRARIES
+        ${CP2K_LIBSCI_MPI_LINK_LIBRARIES} CP2K_SCI::sci)
+      set_property(TARGET CP2K_SCI::sci_mpi_mp PROPERTY INTERFACE_LINK_LIBRARIES
+        ${CP2K_LIBSCI_MPI_MP_LINK_LIBRARIES} CP2K_SCI::sci_mp)
+      set_property(TARGET CP2K_SCI::scalapack_link
+        PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CP2K_LIBSCI_INCLUDE_DIRS})
     endif()
-    set_property(TARGET CP2K_SCI::sci_mpi PROPERTY INTERFACE_LINK_LIBRARIES
-      ${CP2K__LIBSCI_MPI_LIBRARIES} CP2K_SCI::sci)
-    set_property(
-      TARGET CP2K_SCI::scalapack_link PROPERTY INTERFACE_LINK_LIBRARIES
-      ${CP2K_LIBSCI_MPI_LIBRARIES} CP2K_SCI::sci)
+  endif()
+
+  if (CP2K_BLAS_THREADING MATCHES "sequential")
+    set_properties(TARGET CP2K_SCI::blas INTERFACE_LINK_LIBRARIES CP2K_SCI::sci)
     set_property(TARGET CP2K_SCI::scalapack_link
-      PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CP2K_LIBSCI_INCLUDE_DIRS})
+      PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi CP2K_SCI::sci)
+  else()
+    set_properties(TARGET CP2K_SCI::blas INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mp)
+    set_property(TARGET CP2K_SCI::scalapack_link
+      PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi_mp CP2K_SCI::sci_mp)
   endif()
 endif()
 
 # prevent clutter in cache
-mark_as_advanced(CP2K_LIBSCI_FOUND CP2K_LIBSCI_LINK_LIBRARIES CP2K_LIBSCI_INCLUDE_DIRS)
+mark_as_advanced(CP2K_LIBSCI_FOUND
+  CP2K_LIBSCI_LINK_LIBRARIES
+  CP2K_LIBSCI_MP_LINK_LIBRARIES
+  CP2K_LIBSCI_MPI_LINK_LIBRARIES
+  CP2K_LIBSCI_MPI_MP_LINK_LIBRARIES
+  CP2K_LIBSCI_INCLUDE_DIRS)
