@@ -15,7 +15,6 @@ MODULE negf_integr_simpson
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
                                               cp_cfm_release_p,&
-                                              cp_cfm_retain,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
@@ -328,10 +327,11 @@ CONTAINS
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: zscale
       COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: error_zdata
-      INTEGER                                            :: handle, interval, ipoint, nintervals, &
-                                                            nintervals_exist, npoints
+      INTEGER                                            :: handle, interval, ipoint, jpoint, &
+                                                            nintervals, nintervals_exist, npoints
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
-      REAL(kind=dp)                                      :: rscale
+      LOGICAL                                            :: interval_converged, interval_exists
+      REAL(kind=dp)                                      :: my_bound, rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: errors
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: error_rdata
@@ -388,7 +388,6 @@ CONTAINS
             subintervals(2*interval - 1)%fc => sr_env%subintervals(interval)%fb
             subintervals(2*interval - 1)%fd => zdata_next(4*interval - 2)%matrix
             subintervals(2*interval - 1)%fe => sr_env%subintervals(interval)%fc
-            CALL cp_cfm_retain(subintervals(2*interval - 1)%fe)
 
             subintervals(2*interval)%lb = subintervals(2*interval - 1)%ub
             subintervals(2*interval)%ub = sr_env%subintervals(interval)%ub
@@ -435,7 +434,6 @@ CONTAINS
             subintervals(interval)%fc => zdata_next(4*interval - 1)%matrix
             subintervals(interval)%fd => zdata_next(4*interval)%matrix
             subintervals(interval)%fe => zdata_next(4*interval + 1)%matrix
-            IF (interval < nintervals) CALL cp_cfm_retain(subintervals(interval)%fe)
          END DO
       END IF
 
@@ -509,8 +507,22 @@ CONTAINS
          ! sr_env%error_conv = sr_env%error
          ! CALL cp_cfm_to_cfm(sr_env%integral, sr_env%integral_conv)
 
+         ! Only deallocate the fa component explicitly if there is no interval to the left from it
          DO interval = nintervals_exist, 1, -1
-            CALL cp_cfm_release_p(subintervals(interval)%fa)
+            interval_exists = .FALSE.
+            my_bound = subintervals(interval)%lb
+            DO jpoint = 1, nintervals_exist
+               IF (subintervals(jpoint)%ub == my_bound) THEN
+                  interval_exists = .TRUE.
+                  EXIT
+               END IF
+            END DO
+            IF (.NOT. interval_exists) THEN
+               ! interval does not exist anymore, so it is safe to release the matrix
+               CALL cp_cfm_release_p(subintervals(interval)%fa)
+            ELSE IF (interval_converged) THEN
+               ! the interval still exists and will be released with fe
+            END IF
             CALL cp_cfm_release_p(subintervals(interval)%fb)
             CALL cp_cfm_release_p(subintervals(interval)%fc)
             CALL cp_cfm_release_p(subintervals(interval)%fd)
@@ -542,11 +554,39 @@ CONTAINS
 
                sr_env%subintervals(nintervals) = subintervals(interval)
             ELSE
-               CALL cp_cfm_release_p(subintervals(interval)%fa)
+               ! Release matrices of converged intervals. Special cases: left and right boundary
+               ! Check whether the neighboring interval still exists and if it does, check for its convergence
+               interval_exists = .FALSE.
+               my_bound = subintervals(interval)%lb
+               DO jpoint = 1, nintervals_exist
+                  IF (subintervals(jpoint)%ub == my_bound) THEN
+                     interval_exists = .TRUE.
+                     EXIT
+                  END IF
+               END DO
+               IF (.NOT. interval_exists) THEN
+                  ! interval does not exist anymore, so it is safe to release the matrix
+                  CALL cp_cfm_release_p(subintervals(interval)%fa)
+               ELSE IF (interval_converged) THEN
+                  ! the interval still exists and will be released with fe
+               END IF
                CALL cp_cfm_release_p(subintervals(interval)%fb)
                CALL cp_cfm_release_p(subintervals(interval)%fc)
                CALL cp_cfm_release_p(subintervals(interval)%fd)
-               CALL cp_cfm_release_p(subintervals(interval)%fe)
+
+               ! Right border: Check for the existence and the convergence of the interval
+               ! If the right interval does not exist or has converged, release the matrix
+               interval_exists = .FALSE.
+               interval_converged = .FALSE.
+               my_bound = subintervals(interval)%ub
+               DO jpoint = 1, nintervals_exist
+                  IF (subintervals(jpoint)%lb == my_bound) THEN
+                     interval_exists = .TRUE.
+                     IF (subintervals(jpoint)%error <= subintervals(jpoint)%conv) interval_converged = .TRUE.
+                     EXIT
+                  END IF
+               END DO
+               IF (.NOT. interval_exists .OR. interval_converged) CALL cp_cfm_release_p(subintervals(interval)%fe)
             END IF
          END DO
 
