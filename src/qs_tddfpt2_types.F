@@ -750,10 +750,14 @@ CONTAINS
       IF (ALLOCATED(work_matrices%evects_sub)) THEN
          DO istate = SIZE(work_matrices%evects_sub, 2), 1, -1
             DO ispin = SIZE(work_matrices%evects_sub, 1), 1, -1
-               CALL cp_fm_release(work_matrices%Aop_evects_sub(ispin, istate)%matrix)
-               CALL cp_fm_release(work_matrices%evects_sub(ispin, istate)%matrix)
-               DEALLOCATE (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
-               DEALLOCATE (work_matrices%evects_sub(ispin, istate)%matrix)
+               IF (ASSOCIATED(work_matrices%Aop_evects_sub(ispin, istate)%matrix)) THEN
+                  CALL cp_fm_release(work_matrices%Aop_evects_sub(ispin, istate)%matrix)
+                  DEALLOCATE (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
+               END IF
+               IF (ASSOCIATED(work_matrices%evects_sub(ispin, istate)%matrix)) THEN
+                  CALL cp_fm_release(work_matrices%evects_sub(ispin, istate)%matrix)
+                  DEALLOCATE (work_matrices%evects_sub(ispin, istate)%matrix)
+               END IF
             END DO
          END DO
          DEALLOCATE (work_matrices%Aop_evects_sub, work_matrices%evects_sub)
