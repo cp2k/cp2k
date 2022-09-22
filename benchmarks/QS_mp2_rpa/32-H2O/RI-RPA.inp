@@ -18,17 +18,7 @@
     INPUT_FILE_NAME  H2O-32-PBE-TZ.inp
     OUTPUT_FILE_NAME H2O-32-PBE-TZ.inp.log
   &END JOB
-  # calculate RI-RPA correlation energy (three times)
-  &JOB
-    DIRECTORY .
-    INPUT_FILE_NAME  H2O-32-RI-dRPA-TZ.inp
-    OUTPUT_FILE_NAME result.log
-  &END JOB
-  &JOB
-    DIRECTORY .
-    INPUT_FILE_NAME  H2O-32-RI-dRPA-TZ.inp
-    OUTPUT_FILE_NAME result.log
-  &END JOB
+  # calculate RI-RPA correlation energy
   &JOB
     DIRECTORY .
     INPUT_FILE_NAME  H2O-32-RI-dRPA-TZ.inp
