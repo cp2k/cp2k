@@ -1498,7 +1498,6 @@ CONTAINS
             DO ipoint = 1, npoints
                DO icontact = 1, ncontacts
                   gamma_contacts_group(icontact, ipoint)%matrix => gamma_contacts(icontact, ipoint)%matrix
-                  CALL cp_cfm_retain(gamma_contacts_group(icontact, ipoint)%matrix)
                END DO
             END DO
          END IF
@@ -1830,7 +1829,8 @@ CONTAINS
       IF (ALLOCATED(gamma_contacts_group)) THEN
          DO ipoint = npoints, 1, -1
             DO icontact = ncontacts, 1, -1
-               IF (ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) &
+               IF ((sub_env%ngroups > 1 .OR. .NOT. PRESENT(gamma_contacts)) .AND. &
+                   ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) &
                   CALL cp_cfm_release_p(gamma_contacts_group(icontact, ipoint)%matrix)
             END DO
          END DO
