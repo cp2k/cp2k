@@ -435,10 +435,8 @@ CONTAINS
             subintervals(interval)%fc => zdata_next(4*interval - 1)%matrix
             subintervals(interval)%fd => zdata_next(4*interval)%matrix
             subintervals(interval)%fe => zdata_next(4*interval + 1)%matrix
-            CALL cp_cfm_retain(subintervals(interval)%fe)
+            IF (interval < nintervals) CALL cp_cfm_retain(subintervals(interval)%fe)
          END DO
-
-         CALL cp_cfm_release_p(zdata_next(4*nintervals + 1)%matrix)
       END IF
 
       ! we kept the originals matrices for internal use, so nullify the pointers
