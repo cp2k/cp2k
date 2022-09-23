@@ -1793,7 +1793,8 @@ CONTAINS
 !> \param CG_coeff Clebsch-Gordon coefficient C^{JM}_{j1 m1 j2 m2}
 !> \author Matthias Krack (16.09.2022, based on a program by D. G. Simpson)
 !> \note Generic routine allowing also for fractional arguments. It should return CG coefficients
-!>       consistent with the standard definition and normalization, e.g. of Wolfram Mathematica
+!>       consistent with the standard definition and normalization, e.g. of Wolfram Mathematica.
+!>       The input parameters have to be integer or half-integer.
 ! **************************************************************************************************
    SUBROUTINE Clebsch_Gordon_coefficient(j1, m1, j2, m2, J, M, CG_coeff)
 
@@ -1802,6 +1803,32 @@ CONTAINS
 
       INTEGER                                            :: k, kmax
       REAL(KIND=dp)                                      :: sumk, t
+
+      ! Check validity of the input parameters
+      IF (j1 < 0.0_dp) &
+         CPABORT("The angular momentum quantum number j1 has to be nonnegative")
+      IF (.NOT. (is_integer(j1) .OR. is_integer(2.0_dp*j1))) &
+         CPABORT("The angular momentum quantum number j1 has to be integer or half-integer")
+      IF (j2 < 0.0_dp) &
+         CPABORT("The angular momentum quantum number j2 has to be nonnegative")
+      IF (.NOT. (is_integer(j2) .OR. is_integer(2.0_dp*j2))) &
+         CPABORT("The angular momentum quantum number j2 has to be integer or half-integer")
+      IF (J < 0.0_dp) &
+         CPABORT("The angular momentum quantum number J has to be nonnegative")
+      IF (.NOT. (is_integer(J) .OR. is_integer(2.0_dp*J))) &
+         CPABORT("The angular momentum quantum number J has to be integer or half-integer")
+      IF ((ABS(m1) - j1) > EPSILON(m1)) &
+         CPABORT("The angular momentum quantum number m1 has to satisfy -j1 <= m1 <= j1")
+      IF (.NOT. (is_integer(m1) .OR. is_integer(2.0_dp*m1))) &
+         CPABORT("The angular momentum quantum number m1 has to be integer or half-integer")
+      IF ((ABS(m2) - j2) > EPSILON(m2)) &
+         CPABORT("The angular momentum quantum number m2 has to satisfy -j2 <= m1 <= j2")
+      IF (.NOT. (is_integer(m2) .OR. is_integer(2.0_dp*m2))) &
+         CPABORT("The angular momentum quantum number m2 has to be integer or half-integer")
+      IF ((ABS(M) - J) > EPSILON(M)) &
+         CPABORT("The angular momentum quantum number M has to satisfy -J <= M <= J")
+      IF (.NOT. (is_integer(M) .OR. is_integer(2.0_dp*M))) &
+         CPABORT("The angular momentum quantum number M has to be integer or half-integer")
 
       IF (is_integer(j1 + j2 + J) .AND. &
           is_integer(j1 + m1) .AND. &
@@ -1864,11 +1891,15 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: CG_coeff
 
-      IF ((ABS(m1 + m2 + m3) < EPSILON(1.0_dp)) .AND. &
+      IF ((ABS(m1 + m2 + m3) < EPSILON(m1)) .AND. &
           (ABS(j1 - j2) <= j3) .AND. (j3 <= ABS(j1 + j2)) .AND. &
           is_integer(j1 + j2 + j3)) THEN
-         CALL Clebsch_Gordon_coefficient(j1, m1, j2, m2, j3, -m3, CG_coeff)
-         W_3j = (-1.0_dp)**(j1 - j2 - m3)*CG_coeff/SQRT(2.0_dp*j3 + 1.0_dp)
+         IF (is_integer(j1 - j2 - m3)) THEN
+            CALL Clebsch_Gordon_coefficient(j1, m1, j2, m2, j3, -m3, CG_coeff)
+            W_3j = (-1.0_dp)**INT(j1 - j2 - m3)*CG_coeff/SQRT(2.0_dp*j3 + 1.0_dp)
+         ELSE
+            CPABORT("j1 - j2 - m3 results in an invalid non-integer exponent")
+         END IF
       ELSE
          W_3j = 0.0_dp
       END IF
@@ -1886,7 +1917,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: x
       LOGICAL                                            :: is_integer
 
-      IF ((ABS(x) - INT(ABS(x))) > EPSILON(x)) THEN
+      IF ((ABS(x) - AINT(ABS(x), KIND=dp)) > EPSILON(x)) THEN
          is_integer = .FALSE.
       ELSE
          is_integer = .TRUE.
