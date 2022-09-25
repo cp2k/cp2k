@@ -284,8 +284,8 @@ CONTAINS
    SUBROUTINE cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, &
                                        caller_is_elpa, redist_info)
 
-      TYPE(cp_fm_type), INTENT(IN)     :: matrix, eigenvectors
-      TYPE(cp_fm_type), POINTER                :: matrix_new, eigenvectors_new
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(OUT)            :: matrix_new, eigenvectors_new
       LOGICAL, OPTIONAL, INTENT(IN)            :: caller_is_elpa
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_start'
@@ -316,8 +316,6 @@ CONTAINS
 
 #if defined(__SCALAPACK)
 
-      NULLIFY (matrix_new)
-      NULLIFY (eigenvectors_new)
       logger => cp_get_default_logger()
       io_unit = cp_logger_get_default_io_unit(logger)
 
@@ -401,13 +399,12 @@ CONTAINS
             CALL cp_blacs_env_create(blacs_env=work_redistribute%blacs_env_new, para_env=work_redistribute%para_env_new)
 
             ! create new matrix
-            NULLIFY (fm_struct_new, matrix_new, eigenvectors_new)
+            NULLIFY (fm_struct_new)
             CALL cp_fm_struct_create(fmstruct=fm_struct_new, &
                                      para_env=work_redistribute%para_env_new, &
                                      context=work_redistribute%blacs_env_new, &
                                      nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order, &
                                      ncol_block=ncol_block)
-            ALLOCATE (matrix_new, eigenvectors_new)
             CALL cp_fm_create(matrix_new, matrix_struct=fm_struct_new, name="yevd_new_mat")
             CALL cp_fm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="yevd_new_vec")
             CALL cp_fm_struct_release(fm_struct_new)
@@ -429,9 +426,8 @@ CONTAINS
          END IF
       ELSE
          ! No need to redistribute, just return pointers to the original arrays
-         ALLOCATE (matrix_new, eigenvectors_new)
-         CALL cp_fm_soft_copy(matrix, matrix_new)
-         CALL cp_fm_soft_copy(eigenvectors, eigenvectors_new)
+         matrix_new = matrix
+         eigenvectors_new = eigenvectors
       END IF
 
       IF (PRESENT(redist_info)) &
@@ -465,9 +461,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_redistribute_end(matrix, eigenvectors, eig, matrix_new, eigenvectors_new)
 
-      TYPE(cp_fm_type), INTENT(IN)          :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: eig
-      TYPE(cp_fm_type), POINTER                :: matrix_new, eigenvectors_new
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_new, eigenvectors_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_end'
 
@@ -511,8 +507,6 @@ CONTAINS
          CALL mp_bcast(eig, 0, para_env%group)
       END IF
 
-      DEALLOCATE (matrix_new, eigenvectors_new)
-
 #else
 
       MARK_USED(matrix)
@@ -526,33 +520,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_redistribute_end
-
-! **************************************************************************************************
-!> \brief This routine performs a soft copy. The destination matrix is NOT meant to be released
-!>        with cp_fm_release ; otherwise, the POINTERs within the source matrix become undefined.
-!> \param source ...
-!> \param destination ...
-! **************************************************************************************************
-   SUBROUTINE cp_fm_soft_copy(source, destination)
-      TYPE(cp_fm_type), INTENT(IN)                       :: source
-      TYPE(cp_fm_type), INTENT(OUT)                      :: destination
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_soft_copy'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      destination%id_nr = source%id_nr
-      ! Here, we perform a soft copy, so just set it to one to make called routines happy
-      destination%use_sp = source%use_sp
-      destination%local_data => source%local_data
-      destination%local_data_sp => source%local_data_sp
-      destination%matrix_struct => source%matrix_struct
-      destination%name = source%name
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
 
 END MODULE cp_fm_diag_utils

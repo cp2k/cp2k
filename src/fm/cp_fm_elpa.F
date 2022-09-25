@@ -282,7 +282,7 @@ CONTAINS
 
 #if defined(__ELPA)
       INTEGER                                  :: handle
-      TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
+      TYPE(cp_fm_type)                         :: eigenvectors_new, matrix_new
       TYPE(cp_fm_redistribute_info)            :: rdinfo
 
       CALL timeset(routineN, handle)
@@ -296,7 +296,7 @@ CONTAINS
                                     caller_is_elpa=.TRUE., redist_info=rdinfo)
 
       ! Call ELPA on CPUs that hold the new matrix
-      IF (ASSOCIATED(matrix_new)) &
+      IF (ASSOCIATED(matrix_new%matrix_struct)) &
          CALL cp_fm_diag_elpa_base(matrix_new, eigenvectors_new, eigenvalues, rdinfo)
 
       ! Redistribute results and clean up

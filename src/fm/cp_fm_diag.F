@@ -356,7 +356,7 @@ CONTAINS
       INTEGER                                  :: handle, myinfo, n, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
 #if defined(__SCALAPACK)
-      TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
+      TYPE(cp_fm_type)                         :: eigenvectors_new, matrix_new
 #else
       CHARACTER(LEN=2*default_string_length)   :: message
       INTEGER                                  :: liwork, lwork, nl
@@ -380,7 +380,7 @@ CONTAINS
       CALL cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new)
 
       ! Call scalapack on CPUs that hold the new matrix
-      IF (ASSOCIATED(matrix_new)) THEN
+      IF (ASSOCIATED(matrix_new%matrix_struct)) THEN
          IF (PRESENT(info)) THEN
             CALL cp_fm_syevd_base(matrix_new, eigenvectors_new, eig, myinfo)
          ELSE
