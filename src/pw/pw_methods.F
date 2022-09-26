@@ -103,7 +103,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: zr
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       IF (pw%in_use == REALDATA1D) THEN
          ns = SIZE(pw%cr)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
@@ -157,8 +156,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       out_unit = cp_logger_get_default_io_unit()
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
       IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
 
          IF (pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical) THEN
@@ -335,7 +332,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
@@ -392,7 +388,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, omega_2
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       CPASSERT(omega >= 0)
 
       flop = 0.0_dp
@@ -448,7 +443,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, omega_2, tmp
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       CPASSERT(omega >= 0)
 
       flop = 0.0_dp
@@ -511,7 +505,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, omega_2
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       CPASSERT(omega >= 0)
 
       flop = 0.0_dp
@@ -567,7 +560,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, tmp
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       CPASSERT(rcutoff >= 0)
 
       flop = 0.0_dp
@@ -626,7 +618,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       CPASSERT(ALL(n >= 0))
 
       m = SUM(n)
@@ -713,7 +704,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       flop = 0.0_dp
 
@@ -762,7 +752,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, gg, o3
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       flop = 0.0_dp
       o3 = 1._dp/3._dp
@@ -823,7 +812,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2_gg'
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       flop = 0.0_dp
       o3 = 1._dp/3._dp
@@ -885,7 +873,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: arg, f, flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       flop = 0.0_dp
 
@@ -937,9 +924,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       !sample peak memory
       CALL m_memory()
-
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
 
       IF (pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE) THEN
 
@@ -1005,9 +989,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       out_unit = cp_logger_get_default_io_unit()
-
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
 
       my_alpha = 1.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
@@ -1221,10 +1202,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(pw_out%ref_count > 0)
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
-
       my_alpha = 1.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
 
@@ -1321,7 +1298,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cpy
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
@@ -1389,7 +1365,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cpy
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
@@ -1470,7 +1445,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cpy
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
@@ -1576,7 +1550,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cpy
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
@@ -1713,8 +1686,6 @@ CONTAINS
       CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
                                                CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
 
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
       NULLIFY (c_in)
       NULLIFY (c_out)
 
@@ -2379,7 +2350,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: arg, flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(sf%ref_count > 0)
       flop = 0.0_dp
 
       IF (sf%in_space == RECIPROCALSPACE .AND. &
@@ -2484,7 +2454,6 @@ CONTAINS
       LOGICAL                                            :: is_match
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       IF (pw%in_use == REALDATA3D) THEN
          is_match = .TRUE.
          is_match = is_match .AND. (LBOUND(values, 1) .GE. LBOUND(pw%cr3d, 1))

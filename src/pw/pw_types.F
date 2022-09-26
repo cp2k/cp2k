@@ -61,7 +61,6 @@ MODULE pw_types
       INTEGER :: in_use = NODATA ! Which data is used [r1d/c1d/r3d/c3d]
       INTEGER :: in_space = NOSPACE ! Real/Reciprocal space
       INTEGER :: id_nr = -1 ! unique identifier
-      INTEGER :: ref_count = 0 ! reference count
 
       TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
    END TYPE pw_type
@@ -89,31 +88,24 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: pw
 
       IF (ASSOCIATED(pw)) THEN
-         CPASSERT(pw%ref_count > 0)
-         pw%ref_count = pw%ref_count - 1
-         IF (pw%ref_count == 0) THEN
-            pw%ref_count = 1
-
-            SELECT CASE (pw%in_use)
-            CASE (REALDATA1D)
-               DEALLOCATE (pw%cr)
-            CASE (COMPLEXDATA1D)
-               DEALLOCATE (pw%cc)
-            CASE (REALDATA3D)
-               IF (ASSOCIATED(pw%cr3d)) THEN
-                  !FM optimizations of pools might have removed the 3d field to cache it
-                  DEALLOCATE (pw%cr3d)
-               END IF
-            CASE (COMPLEXDATA3D)
-               DEALLOCATE (pw%cc3d)
-            CASE (NODATA)
-            CASE default
-               CPABORT("unknown data type "//cp_to_string(pw%in_use))
-            END SELECT
-            CALL pw_grid_release(pw%pw_grid)
-            pw%ref_count = 0
-            DEALLOCATE (pw)
-         END IF
+         SELECT CASE (pw%in_use)
+         CASE (REALDATA1D)
+            DEALLOCATE (pw%cr)
+         CASE (COMPLEXDATA1D)
+            DEALLOCATE (pw%cc)
+         CASE (REALDATA3D)
+            IF (ASSOCIATED(pw%cr3d)) THEN
+               !FM optimizations of pools might have removed the 3d field to cache it
+               DEALLOCATE (pw%cr3d)
+            END IF
+         CASE (COMPLEXDATA3D)
+            DEALLOCATE (pw%cc3d)
+         CASE (NODATA)
+         CASE default
+            CPABORT("unknown data type "//cp_to_string(pw%in_use))
+         END SELECT
+         CALL pw_grid_release(pw%pw_grid)
+         DEALLOCATE (pw)
       END IF
       NULLIFY (pw)
    END SUBROUTINE pw_release
@@ -166,7 +158,6 @@ CONTAINS
 
       last_pw_id_nr = last_pw_id_nr + 1
       pw%id_nr = last_pw_id_nr
-      pw%ref_count = 1
       NULLIFY (pw%pw_grid)
       pw%in_use = use_data
       pw%pw_grid => pw_grid
