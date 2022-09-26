@@ -98,7 +98,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, ivect, nactive, nao, &
                                                             nspins, nvects
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: evortho
+      TYPE(cp_fm_type)                                   :: evortho
 
       CALL timeset(routineN, handle)
 
@@ -109,7 +109,6 @@ CONTAINS
          DO ispin = 1, nspins
             CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct, &
                                 nrow_global=nao, ncol_global=nactive)
-            NULLIFY (evortho)
             CALL cp_fm_create(evortho, matrix_struct)
             DO ivect = 1, nvects
                ! evortho: C0 * C0^T * S * C1 == (S * C0 * C0^T)^T * C1
@@ -151,7 +150,7 @@ CONTAINS
                                                             nocc, nspins, nvects
       REAL(kind=dp)                                      :: maxabs_val
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: aortho
+      TYPE(cp_fm_type)                                   :: aortho
 
       CALL timeset(routineN, handle)
 
@@ -166,7 +165,6 @@ CONTAINS
                              nrow_global=nao, ncol_global=nactive)
          CALL cp_fm_struct_create(matrix_struct_tmp, nrow_global=nocc, &
                                   ncol_global=nactive, template_fmstruct=matrix_struct)
-         NULLIFY (aortho)
          CALL cp_fm_create(aortho, matrix_struct_tmp)
          CALL cp_fm_struct_release(matrix_struct_tmp)
          DO ivect = 1, nvects
@@ -319,6 +317,7 @@ CONTAINS
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
       LOGICAL                                            :: do_admm, do_hfx, do_lri_response, &
                                                             is_rks_triplets
+      TYPE(cp_fm_type)                                   :: fm_dummy
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(full_kernel_env_type), POINTER                :: kernel_env_admm_aux
 
@@ -354,8 +353,19 @@ CONTAINS
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
             DO ivect = 1, nvects
                DO ispin = 1, nspins
-                  CALL cp_fm_copy_general(evects(ispin, ivect)%matrix, &
-                                          work_matrices%evects_sub(ispin, ivect)%matrix, para_env)
+                  ASSOCIATE (evect => evects(ispin, ivect), work_matrix => work_matrices%evects_sub(ispin, ivect))
+                  IF (ASSOCIATED(evect%matrix)) THEN
+                  IF (ASSOCIATED(work_matrix%matrix)) THEN
+                     CALL cp_fm_copy_general(evect%matrix, work_matrix%matrix, para_env)
+                  ELSE
+                     CALL cp_fm_copy_general(evect%matrix, fm_dummy, para_env)
+                  END IF
+                  ELSE IF (ASSOCIATED(work_matrix%matrix)) THEN
+                  CALL cp_fm_copy_general(fm_dummy, work_matrix%matrix, para_env)
+                  ELSE
+                  CALL cp_fm_copy_general(fm_dummy, fm_dummy, para_env)
+                  END IF
+                  END ASSOCIATE
                END DO
             END DO
          END IF
@@ -384,8 +394,20 @@ CONTAINS
          IF (ALLOCATED(work_matrices%evects_sub)) THEN
             DO ivect = 1, nvects
                DO ispin = 1, nspins
-                  CALL cp_fm_copy_general(work_matrices%Aop_evects_sub(ispin, ivect)%matrix, &
-                                          Aop_evects(ispin, ivect)%matrix, para_env)
+                  ASSOCIATE (Aop_evect => Aop_evects(ispin, ivect), &
+                             work_matrix => work_matrices%Aop_evects_sub(ispin, ivect))
+                  IF (ASSOCIATED(Aop_evect%matrix)) THEN
+                  IF (ASSOCIATED(work_matrix%matrix)) THEN
+                     CALL cp_fm_copy_general(work_matrix%matrix, Aop_evect%matrix, para_env)
+                  ELSE
+                     CALL cp_fm_copy_general(fm_dummy, Aop_evect%matrix, para_env)
+                  END IF
+                  ELSE IF (ASSOCIATED(work_matrix%matrix)) THEN
+                  CALL cp_fm_copy_general(work_matrix%matrix, fm_dummy, para_env)
+                  ELSE
+                  CALL cp_fm_copy_general(fm_dummy, fm_dummy, para_env)
+                  END IF
+                  END ASSOCIATE
                END DO
             END DO
          END IF
@@ -450,7 +472,7 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: at12, at21, at22, evects_Atilde
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: Atilde_fm, evects_Atilde_fm
+      TYPE(cp_fm_type)                                   :: Atilde_fm, evects_Atilde_fm
 
       CALL timeset(routineN, handle)
 
@@ -573,12 +595,12 @@ CONTAINS
             !
             CALL cp_fm_get_info(matrix=ritz_vects(ispin, 1)%matrix, matrix_struct=ao_mo_struct, &
                                 ncol_global=nactive(ispin))
-            NULLIFY (awork(ispin)%matrix)
+            ALLOCATE (awork(ispin)%matrix)
             CALL cp_fm_create(awork(ispin)%matrix, ao_mo_struct)
             !
             CALL cp_fm_struct_create(virt_mo_struct, nrow_global=nmo_virt(ispin), &
                                      ncol_global=nactive(ispin), template_fmstruct=ao_mo_struct)
-            NULLIFY (vomat(ispin)%matrix)
+            ALLOCATE (vomat(ispin)%matrix)
             CALL cp_fm_create(vomat(ispin)%matrix, virt_mo_struct)
             CALL cp_fm_struct_release(virt_mo_struct)
          END DO
@@ -623,6 +645,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL cp_fm_release(awork(ispin)%matrix)
             CALL cp_fm_release(vomat(ispin)%matrix)
+            DEALLOCATE (awork(ispin)%matrix, vomat(ispin)%matrix)
          END DO
          DEALLOCATE (awork, vomat)
       END IF

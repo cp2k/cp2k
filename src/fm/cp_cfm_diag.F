@@ -50,7 +50,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_heevd(matrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_cfm_type), POINTER               :: matrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(IN)            :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd'
@@ -72,9 +72,6 @@ CONTAINS
 #endif
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(ASSOCIATED(eigenvectors))
 
       n = matrix%matrix_struct%nrow_global
       m => matrix%local_data
@@ -152,9 +149,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
 
-      TYPE(cp_cfm_type), POINTER                         :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      TYPE(cp_cfm_type), POINTER                         :: work
+      TYPE(cp_cfm_type), INTENT(IN)                      :: work
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig'
 
@@ -198,9 +195,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
 
-      TYPE(cp_cfm_type), POINTER                         :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      TYPE(cp_cfm_type), POINTER                         :: work
+      TYPE(cp_cfm_type), INTENT(IN)                      :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig_canon'

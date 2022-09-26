@@ -85,7 +85,7 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE make_basis_sm(vmatrix, ncol, matrix_s)
-      TYPE(cp_fm_type), POINTER                          :: vmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
@@ -94,7 +94,7 @@ CONTAINS
 
       INTEGER                                            :: handle, n, ncol_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: overlap_vv, svmatrix
+      TYPE(cp_fm_type)                                   :: overlap_vv, svmatrix
 
       IF (ncol .EQ. 0) RETURN
 
@@ -134,16 +134,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_sv_fm(vmatrix, ncol, svmatrix)
 
-      TYPE(cp_fm_type), POINTER                          :: vmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
-      TYPE(cp_fm_type), POINTER                          :: svmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: svmatrix
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'make_basis_sv_fm'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, n, ncol_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: overlap_vv
+      TYPE(cp_fm_type)                                   :: overlap_vv
 
       IF (ncol .EQ. 0) RETURN
 
@@ -191,7 +191,7 @@ CONTAINS
 
       INTEGER                                            :: handle, n, ncol_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: fm_svmatrix, fm_vmatrix, overlap_vv
+      TYPE(cp_fm_type)                                   :: fm_svmatrix, fm_vmatrix, overlap_vv
 
       IF (ncol .EQ. 0) RETURN
 
@@ -246,16 +246,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_cholesky(vmatrix, ncol, ortho)
 
-      TYPE(cp_fm_type), POINTER                          :: vmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
-      TYPE(cp_fm_type), POINTER                          :: ortho
+      TYPE(cp_fm_type), INTENT(IN)                       :: ortho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_cholesky'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
       INTEGER                                            :: handle, n, ncol_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: overlap_vv
+      TYPE(cp_fm_type)                                   :: overlap_vv
 
       IF (ncol .EQ. 0) RETURN
 
@@ -297,7 +297,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_lowdin(vmatrix, ncol, matrix_s)
 
-      TYPE(cp_fm_type), POINTER                          :: vmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
@@ -307,7 +307,7 @@ CONTAINS
       INTEGER                                            :: handle, n, ncol_global, ndep
       REAL(dp)                                           :: threshold
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: csc, sc, work
+      TYPE(cp_fm_type)                                   :: csc, sc, work
 
       IF (ncol .EQ. 0) RETURN
 
@@ -351,7 +351,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_simple(vmatrix, ncol)
 
-      TYPE(cp_fm_type), POINTER                          :: vmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'make_basis_simple'
@@ -359,7 +359,7 @@ CONTAINS
 
       INTEGER                                            :: handle, n, ncol_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: overlap_vv
+      TYPE(cp_fm_type)                                   :: overlap_vv
 
       IF (ncol .EQ. 0) RETURN
 
@@ -406,13 +406,13 @@ CONTAINS
    SUBROUTINE subspace_eigenvalues_ks_fm(orbitals, ks_matrix, evals_arg, ionode, scr, &
                                          do_rotation, co_rotate, co_rotate_dbcsr)
 
-      TYPE(cp_fm_type), POINTER                          :: orbitals
+      TYPE(cp_fm_type), INTENT(IN)                       :: orbitals
       TYPE(dbcsr_type), POINTER                          :: ks_matrix
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: evals_arg
       LOGICAL, INTENT(IN), OPTIONAL                      :: ionode
       INTEGER, INTENT(IN), OPTIONAL                      :: scr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rotation
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: co_rotate
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: co_rotate
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: co_rotate_dbcsr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm'
@@ -421,7 +421,7 @@ CONTAINS
       LOGICAL                                            :: compute_evecs, do_rotation_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: e_vectors, h_block, weighted_vectors, &
+      TYPE(cp_fm_type)                                   :: e_vectors, h_block, weighted_vectors, &
                                                             weighted_vectors2
 
       CALL timeset(routineN, handle)
@@ -429,7 +429,7 @@ CONTAINS
       do_rotation_local = .TRUE.
       IF (PRESENT(do_rotation)) do_rotation_local = do_rotation
 
-      NULLIFY (weighted_vectors, weighted_vectors2, h_block, e_vectors, fm_struct_tmp)
+      NULLIFY (fm_struct_tmp)
       CALL cp_fm_get_info(matrix=orbitals, &
                           ncol_global=ncol_global, &
                           nrow_global=nrow_global)
@@ -476,11 +476,9 @@ CONTAINS
                                orbitals, e_vectors, 0.0_dp, weighted_vectors)
             CALL cp_fm_to_fm(weighted_vectors, orbitals)
             IF (PRESENT(co_rotate)) THEN
-               IF (ASSOCIATED(co_rotate)) THEN
-                  CALL parallel_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
-                                     co_rotate, e_vectors, 0.0_dp, weighted_vectors)
-                  CALL cp_fm_to_fm(weighted_vectors, co_rotate)
-               END IF
+               CALL parallel_gemm('N', 'N', nrow_global, ncol_global, ncol_global, 1.0_dp, &
+                                  co_rotate, e_vectors, 0.0_dp, weighted_vectors)
+               CALL cp_fm_to_fm(weighted_vectors, co_rotate)
             END IF
             IF (PRESENT(co_rotate_dbcsr)) THEN
                IF (ASSOCIATED(co_rotate_dbcsr)) THEN
@@ -596,18 +594,11 @@ CONTAINS
                                             sym=dbcsr_type_no_symmetry)
 
 !!!!!!!!!!!!!!XXXXXXXXXXXXXXXXXXX!!!!!!!!!!!!!
-         !CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
          IF (compute_evecs) THEN
             CALL dbcsr_init_p(e_vectors)
             CALL cp_dbcsr_m_by_n_from_template(e_vectors, template=orbitals, m=ncol_global, n=ncol_global, &
                                                sym=dbcsr_type_no_symmetry)
-!           CALL dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
-!                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default)
-            !CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors")
          END IF
-!        CALL dbcsr_distribution_release (dist)
-!        CALL array_release (row_blk_size);CALL array_release (col_blk_size)
-         !CALL cp_fm_struct_release(fm_struct_tmp)
 
          ! h subblock and diag
          CALL dbcsr_multiply('N', 'N', 1.0_dp, ks_matrix, orbitals, &
@@ -670,11 +661,8 @@ CONTAINS
 
          CALL dbcsr_release_p(weighted_vectors)
          CALL dbcsr_release_p(h_block)
-         !CALL cp_fm_release(weighted_vectors)
-         !CALL cp_fm_release(h_block)
          IF (compute_evecs) THEN
             CALL dbcsr_release_p(e_vectors)
-            !CALL cp_fm_release(e_vectors)
          END IF
 
          DEALLOCATE (evals)
@@ -705,9 +693,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: alpha, max_alpha
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: overlap, svec
+      TYPE(cp_fm_type)                                   :: overlap, svec
 
-      NULLIFY (tmp_fm_struct, svec, overlap)
+      NULLIFY (tmp_fm_struct)
 
       CALL timeset(routineN, handle)
 
@@ -781,9 +769,9 @@ CONTAINS
       INTEGER                                            :: handle, ispin, k, n, nspin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: evecs, overlap
+      TYPE(cp_fm_type)                                   :: evecs, overlap
 
-      NULLIFY (tmp_fm_struct, overlap)
+      NULLIFY (tmp_fm_struct)
 
       CALL timeset(routineN, handle)
 

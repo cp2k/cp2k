@@ -94,7 +94,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: fm_s_half, fm_work1, fm_work2
+      TYPE(cp_fm_type)                                   :: fm_s_half, fm_work1, fm_work2
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_p, matrixkp_s
@@ -109,9 +109,6 @@ CONTAINS
       NULLIFY (atomic_kind_set)
       NULLIFY (qs_kind_set)
       NULLIFY (fmstruct)
-      NULLIFY (fm_s_half)
-      NULLIFY (fm_work1)
-      NULLIFY (fm_work2)
       NULLIFY (matrix_p)
       NULLIFY (matrixkp_p)
       NULLIFY (matrixkp_s)

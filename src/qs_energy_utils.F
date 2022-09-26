@@ -93,7 +93,7 @@ CONTAINS
 
       INTEGER                                            :: handle, is, ispin, nao, nspin
       LOGICAL                                            :: do_kpoints, has_unit_metric
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
+      TYPE(cp_fm_p_type), DIMENSION(2)                   :: fmwork
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_w, &
@@ -129,9 +129,8 @@ CONTAINS
             CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
                                      template_fmstruct=mo_coeff%matrix_struct)
 
-            ALLOCATE (fmwork(2))
             DO is = 1, SIZE(fmwork)
-               NULLIFY (fmwork(is)%matrix)
+               ALLOCATE (fmwork(is)%matrix)
                CALL cp_fm_create(fmwork(is)%matrix, matrix_struct=ao_ao_fmstruct)
             END DO
             CALL cp_fm_struct_release(ao_ao_fmstruct)
@@ -144,8 +143,8 @@ CONTAINS
 
             DO is = 1, SIZE(fmwork)
                CALL cp_fm_release(fmwork(is)%matrix)
+               DEALLOCATE (fmwork(is)%matrix)
             END DO
-            DEALLOCATE (fmwork)
 
          ELSE
 

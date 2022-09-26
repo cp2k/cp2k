@@ -797,10 +797,10 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: imval, reval
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mos, cfm_sigma_x_minus_vxc, &
+      TYPE(cp_cfm_type)                                  :: cfm_mos, cfm_sigma_x_minus_vxc, &
                                                             cfm_sigma_x_minus_vxc_mo_basis, cfm_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: fwork_im, fwork_re
+      TYPE(cp_fm_type)                                   :: fwork_im, fwork_re
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_im, mo_set_re
 
@@ -822,8 +822,6 @@ CONTAINS
       ALLOCATE (vec_Sigma_x_minus_vxc_gw_im(nmo, nspins, nkp))
       vec_Sigma_x_minus_vxc_gw_im = 0.0_dp
 
-      NULLIFY (fwork_re, fwork_im, cfm_mos, cfm_sigma_x_minus_vxc, &
-               cfm_sigma_x_minus_vxc_mo_basis, cfm_tmp)
       CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
       CALL cp_fm_create(fwork_re, matrix_struct)
       CALL cp_fm_create(fwork_im, matrix_struct)

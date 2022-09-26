@@ -124,6 +124,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(mo_loc_history)) THEN
          ALLOCATE (mo_loc_history(SIZE(mo_loc)))
          DO i = 1, SIZE(mo_loc_history)
+            ALLOCATE (mo_loc_history(i)%matrix)
             CALL cp_fm_create(mo_loc_history(i)%matrix, mo_loc(i)%matrix%matrix_struct)
          END DO
       END IF
@@ -148,7 +149,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S)
 
-      TYPE(cp_fm_type), POINTER                          :: mo_new, mo_ref
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_new, mo_ref
       TYPE(dbcsr_type), POINTER                          :: matrix_S
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rotate_state_to_ref'
@@ -156,7 +157,7 @@ CONTAINS
       INTEGER                                            :: handle, ncol, ncol_ref, nrow
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: o1, o2, o3, o4, smo
+      TYPE(cp_fm_type)                                   :: o1, o2, o3, o4, smo
 
       CALL timeset(routineN, handle)
 
@@ -164,7 +165,7 @@ CONTAINS
       CALL cp_fm_get_info(mo_ref, ncol_global=ncol_ref)
       CPASSERT(ncol == ncol_ref)
 
-      NULLIFY (fm_struct_tmp, o1, o2, o3, o4, smo)
+      NULLIFY (fm_struct_tmp)
       CALL cp_fm_create(smo, mo_ref%matrix_struct)
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, &
@@ -227,15 +228,13 @@ CONTAINS
    SUBROUTINE jacobi_rotation_pipek(zij_fm_set, vectors, sweeps)
 
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER                                            :: sweeps
 
       INTEGER                                            :: iatom, istate, jstate, natom, nstate
       REAL(KIND=dp)                                      :: aij, bij, ct, mii, mij, mjj, ratio, st, &
                                                             theta, tolerance
-      TYPE(cp_fm_type), POINTER                          :: rmat
-
-      NULLIFY (rmat)
+      TYPE(cp_fm_type)                                   :: rmat
 
       CALL cp_fm_create(rmat, zij_fm_set(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(rmat, 0.0_dp, 1.0_dp)
@@ -305,7 +304,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                      :: istate, jstate
       REAL(dp), INTENT(IN)                     :: st, ct
-      TYPE(cp_fm_type), POINTER                :: rmat
+      TYPE(cp_fm_type), INTENT(IN)             :: rmat
 
       INTEGER                                  :: nstate
 #if defined(__SCALAPACK)
@@ -390,9 +389,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(dp)                                           :: grad_ij, zii, zij, zjj
       REAL(dp), DIMENSION(:, :), POINTER                 :: diag
-      TYPE(cp_fm_type), POINTER                          :: force
+      TYPE(cp_fm_type)                                   :: force
 
-      NULLIFY (force, diag, col_indices, row_indices)
+      NULLIFY (diag, col_indices, row_indices)
       natom = SIZE(zij_fm_set, 1)
       CALL cp_fm_get_info(zij_fm_set(1, 1)%matrix, nrow_local=nrow_local, &
                           ncol_local=ncol_local, nrow_global=nrow_global, &
@@ -495,6 +494,7 @@ CONTAINS
             nmosub = localized_wfn_control%nloc_states(ispin)
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                      ncol_global=nmosub, para_env=para_env, context=mo_coeff%matrix_struct%context)
+            ALLOCATE (moloc_coeff(ispin)%matrix)
             CALL cp_fm_create(moloc_coeff(ispin)%matrix, tmp_fm_struct)
 
             CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
@@ -612,7 +612,7 @@ CONTAINS
             DO ispin = 1, SIZE(qs_loc_env%op_fm_set, 2)
                CALL get_mo_set(mos(ispin)%mo_set, nmo=nmo)
                DO iatom = 1, natoms
-                  NULLIFY (qs_loc_env%op_fm_set(iatom, ispin)%matrix)
+                  ALLOCATE (qs_loc_env%op_fm_set(iatom, ispin)%matrix)
 
                   CALL cp_fm_create(qs_loc_env%op_fm_set(iatom, ispin)%matrix, tmp_fm_struct)
 

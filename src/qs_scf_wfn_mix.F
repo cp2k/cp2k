@@ -80,7 +80,7 @@ CONTAINS
       LOGICAL                                            :: explicit, orig_is_virtual, overwrite_mos
       REAL(KIND=dp)                                      :: orig_scale, orthonormality, result_scale
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_vector
-      TYPE(cp_fm_type), POINTER                          :: matrix_x, matrix_y
+      TYPE(cp_fm_type)                                   :: matrix_x, matrix_y
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos_new
       TYPE(section_vals_type), POINTER                   :: update_section, wfn_mix_section
 

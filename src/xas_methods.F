@@ -698,6 +698,7 @@ CONTAINS
       NULLIFY (tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                ncol_global=1, para_env=para_env, context=mo_coeff%matrix_struct%context)
+      ALLOCATE (xas_env%excvec_coeff)
       CALL cp_fm_create(xas_env%excvec_coeff, tmp_fm_struct)
       CALL cp_fm_struct_release(tmp_fm_struct)
 
@@ -705,6 +706,7 @@ CONTAINS
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=1, &
                                ncol_global=nexc_search, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
+      ALLOCATE (xas_env%excvec_overlap)
       CALL cp_fm_create(xas_env%excvec_overlap, tmp_fm_struct)
       CALL cp_fm_struct_release(tmp_fm_struct)
 
@@ -814,7 +816,7 @@ CONTAINS
       ALLOCATE (xas_env%dip_fm_set(2, 3))
       DO i = 1, 3
          DO j = 1, 2
-            NULLIFY (xas_env%dip_fm_set(j, i)%matrix)
+            ALLOCATE (xas_env%dip_fm_set(j, i)%matrix)
             CALL cp_fm_create(xas_env%dip_fm_set(j, i)%matrix, tmp_fm_struct)
          END DO
       END DO
@@ -827,7 +829,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nvirtual2, &
                                   para_env=para_env, context=mo_coeff%matrix_struct%context)
-         NULLIFY (xas_env%unoccupied_orbs)
+         ALLOCATE (xas_env%unoccupied_orbs)
          CALL cp_fm_create(xas_env%unoccupied_orbs, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END IF
@@ -836,7 +838,7 @@ CONTAINS
       CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                ncol_global=nvirtual, &
                                para_env=para_env, context=mo_coeff%matrix_struct%context)
-      NULLIFY (xas_env%all_vectors)
+      ALLOCATE (xas_env%all_vectors)
       CALL cp_fm_create(xas_env%all_vectors, tmp_fm_struct)
       CALL cp_fm_struct_release(tmp_fm_struct)
 
@@ -1227,7 +1229,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xas_section
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_fm_type), POINTER                          :: all_vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: all_vectors
       INTEGER, INTENT(IN)                                :: iatom
       LOGICAL, INTENT(IN)                                :: append_cube
 
@@ -1332,7 +1334,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: op_sm
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
-      TYPE(cp_fm_type), POINTER                          :: excvec, all_vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: excvec, all_vectors
       REAL(dp), DIMENSION(:), POINTER                    :: all_evals
       REAL(dp), DIMENSION(:, :), POINTER                 :: sp_em, sp_ab
       INTEGER, INTENT(IN)                                :: estate, nstate, my_spin
@@ -1340,11 +1342,11 @@ CONTAINS
       INTEGER                                            :: homo, i, i_abs, istate, lfomo, nao, nmo
       REAL(dp)                                           :: dip(3), ene_f, ene_i
       REAL(dp), DIMENSION(:), POINTER                    :: eigenvalues, occupation_numbers
-      TYPE(cp_fm_type), POINTER                          :: fm_work
+      TYPE(cp_fm_type)                                   :: fm_work
 
       CPASSERT(ASSOCIATED(fm_set))
       CPASSERT(ASSOCIATED(mos))
-      NULLIFY (eigenvalues, occupation_numbers, fm_work)
+      NULLIFY (eigenvalues, occupation_numbers)
 
       CALL get_mo_set(mos(my_spin)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers, &
                       nao=nao, nmo=nmo, homo=homo, lfomo=lfomo)

@@ -37,7 +37,7 @@ CONTAINS
 !> \param dajquad ...
 ! **************************************************************************************************
    SUBROUTINE calc_fm_mat_S_laplace(fm_mat_S, homo, virtual, Eigenval, dajquad)
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: dajquad

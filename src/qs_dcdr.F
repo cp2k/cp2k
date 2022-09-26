@@ -195,7 +195,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: handle, nao, nmo
-      TYPE(cp_fm_type), POINTER                          :: buf
+      TYPE(cp_fm_type)                                   :: buf
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: opdr_sym
 
       CALL timeset(routineN, handle)
@@ -290,6 +290,7 @@ CONTAINS
       NULLIFY (psi1(1)%matrix, h1_psi0(1)%matrix)
 
       psi0_order(1)%matrix => dcdr_env%mo_coeff(1)%matrix
+      ALLOCATE (psi1(1)%matrix, h1_psi0(1)%matrix)
       CALL cp_fm_create(psi1(1)%matrix, dcdr_env%likemos_fm_struct)
       CALL cp_fm_create(h1_psi0(1)%matrix, dcdr_env%likemos_fm_struct)
 
@@ -329,6 +330,7 @@ CONTAINS
       ! clean up
       CALL cp_fm_release(psi1(1)%matrix)
       CALL cp_fm_release(h1_psi0(1)%matrix)
+      DEALLOCATE (psi1(1)%matrix, h1_psi0(1)%matrix)
       DEALLOCATE (psi1, h1_psi0, psi0_order)
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
                                         "PRINT%PROGRAM_RUN_INFO")
@@ -354,7 +356,7 @@ CONTAINS
       REAL(dp)                                           :: apt_basis_derivative, &
                                                             apt_coeff_derivative, charge, f_spin
       REAL(dp), DIMENSION(:, :, :), POINTER              :: apt_el, apt_nuc
-      TYPE(cp_fm_p_type), POINTER                        :: overlap1_MO, tmp_fm_like_mos
+      TYPE(cp_fm_type)                                   :: overlap1_MO, tmp_fm_like_mos
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -377,37 +379,35 @@ CONTAINS
 
       f_spin = 2._dp
 
-      ALLOCATE (tmp_fm_like_mos)
-      ALLOCATE (overlap1_MO)
-      CALL cp_fm_create(tmp_fm_like_mos%matrix, dcdr_env%likemos_fm_struct)
-      CALL cp_fm_create(overlap1_MO%matrix, dcdr_env%momo_fm_struct)
+      CALL cp_fm_create(tmp_fm_like_mos, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(overlap1_MO, dcdr_env%momo_fm_struct)
 
       ! Compute S^(1,R)_(ij)
-      CALL cp_fm_set_all(tmp_fm_like_mos%matrix, 0.0_dp)
+      CALL cp_fm_set_all(tmp_fm_like_mos, 0.0_dp)
       CALL cp_fm_scale_and_add(0._dp, dcdr_env%dCR_prime(1)%matrix, 1._dp, dcdr_env%dCR(1)%matrix)
       CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, mo_coeff, &
-                                   tmp_fm_like_mos%matrix, ncol=nmo)
+                                   tmp_fm_like_mos, ncol=nmo)
       CALL parallel_gemm("T", "N", nmo, nmo, nao, &
-                         1.0_dp, mo_coeff, tmp_fm_like_mos%matrix, &
-                         0.0_dp, overlap1_MO%matrix)
+                         1.0_dp, mo_coeff, tmp_fm_like_mos, &
+                         0.0_dp, overlap1_MO)
 
       !   C^1 <- -dCR - 0.5 * mo_coeff @ S1_ij
       !    We get the negative of the coefficients out of the linres solver
       !    And apply the constant correction due to the overlap derivative.
       CALL parallel_gemm("N", "N", nao, nmo, nmo, &
-                         -0.5_dp, mo_coeff, overlap1_MO%matrix, &
+                         -0.5_dp, mo_coeff, overlap1_MO, &
                          -1.0_dp, dcdr_env%dCR_prime(1)%matrix)
 
       DO alpha = 1, 3
          ! FIRST CONTRIBUTION: dCR * moments * mo
-         CALL cp_fm_set_all(tmp_fm_like_mos%matrix, 0._dp)
+         CALL cp_fm_set_all(tmp_fm_like_mos, 0._dp)
          CALL dbcsr_desymmetrize(dcdr_env%matrix_s1(1)%matrix, dcdr_env%matrix_nosym_temp(1)%matrix)
          CALL dbcsr_desymmetrize(dcdr_env%moments(alpha)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix)
          CALL dbcsr_add(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%matrix_nosym_temp(2)%matrix, &
                         -dcdr_env%ref_point(alpha), 1._dp)
          CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_nosym_temp(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
-                                      tmp_fm_like_mos%matrix, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos%matrix, apt_coeff_derivative)
+                                      tmp_fm_like_mos, ncol=nmo)
+         CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_coeff_derivative)
 
          apt_coeff_derivative = (-2._dp)*f_spin*apt_coeff_derivative
          apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) &
@@ -419,10 +419,10 @@ CONTAINS
          ! difdip contains derivatives with respect to atom dcdr_env%lambda
          ! difdip(alpha, beta): < a | r_alpha | db/dR_beta >
          ! Multiply by the MO coefficients
-         CALL cp_fm_set_all(tmp_fm_like_mos%matrix, 0.0_dp)
+         CALL cp_fm_set_all(tmp_fm_like_mos, 0.0_dp)
          CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_difdip(alpha, dcdr_env%beta)%matrix, mo_coeff, &
-                                      tmp_fm_like_mos%matrix, ncol=nmo)
-         CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos%matrix, apt_basis_derivative)
+                                      tmp_fm_like_mos, ncol=nmo)
+         CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_basis_derivative)
 
          ! The negative sign is due to dipole_deriv_ao computing the derivatives with respect to nuclear coordinates.
          apt_basis_derivative = -f_spin*apt_basis_derivative
@@ -440,10 +440,8 @@ CONTAINS
       END IF
 
       ! And deallocate all the things!
-      CALL cp_fm_release(tmp_fm_like_mos%matrix)
-      CALL cp_fm_release(overlap1_MO%matrix)
-      DEALLOCATE (tmp_fm_like_mos)
-      DEALLOCATE (overlap1_MO)
+      CALL cp_fm_release(tmp_fm_like_mos)
+      CALL cp_fm_release(overlap1_MO)
 
       CALL timestop(handle)
    END SUBROUTINE apt_dR
@@ -478,7 +476,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: tmp_fm_like_mos, tmp_fm_momo
-      TYPE(cp_fm_p_type), POINTER                        :: tmp_fm
+      TYPE(cp_fm_type)                                   :: tmp_fm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -538,23 +536,24 @@ CONTAINS
       mo_coeff => dcdr_env%mo_coeff(1)%matrix
       f_spin = 2._dp
 
-      ALLOCATE (tmp_fm, tmp_fm_momo(3), tmp_fm_like_mos(3))
+      ALLOCATE (tmp_fm_momo(3), tmp_fm_like_mos(3))
       ALLOCATE (diagonal_elements(nmo))
 
       ! Allocate temporary matrices
-      CALL cp_fm_create(tmp_fm%matrix, dcdr_env%likemos_fm_struct)
+      CALL cp_fm_create(tmp_fm, dcdr_env%likemos_fm_struct)
       DO i = 1, 3
+         ALLOCATE (tmp_fm_momo(i)%matrix, tmp_fm_like_mos(i)%matrix)
          CALL cp_fm_create(tmp_fm_momo(i)%matrix, dcdr_env%momo_fm_struct)
          CALL cp_fm_create(tmp_fm_like_mos(i)%matrix, dcdr_env%likemos_fm_struct)
       END DO
 
       ! Build the full coefficient derivatives.
-      CALL cp_fm_set_all(tmp_fm%matrix, 0.0_dp)
+      CALL cp_fm_set_all(tmp_fm, 0.0_dp)
       CALL cp_fm_scale_and_add(0._dp, dcdr_env%dCR_prime(1)%matrix, 1._dp, dcdr_env%dCR(1)%matrix)
       CALL cp_dbcsr_sm_fm_multiply(dcdr_env%matrix_s1(dcdr_env%beta + 1)%matrix, mo_coeff, &
-                                   tmp_fm%matrix, ncol=nmo)
+                                   tmp_fm, ncol=nmo)
       CALL parallel_gemm("T", "N", nmo, nmo, nao, &
-                         1.0_dp, mo_coeff, tmp_fm%matrix, &
+                         1.0_dp, mo_coeff, tmp_fm, &
                          0.0_dp, tmp_fm_momo(1)%matrix)
 
       !   C^1 <- -dCR - 0.5 * mo_coeff @ S1_ij
@@ -569,7 +568,7 @@ CONTAINS
             CALL build_local_moment_matrix(qs_env, dcdr_env%moments, 1, &
                                            ref_point=centers_set(1)%array(1:3, icenter))
             CALL multiply_localization(ao_matrix=dcdr_env%moments(alpha)%matrix, &
-                                       mo_coeff=dcdr_env%dCR_prime(1)%matrix, work=tmp_fm%matrix, nmo=nmo, &
+                                       mo_coeff=dcdr_env%dCR_prime(1)%matrix, work=tmp_fm, nmo=nmo, &
                                        icenter=icenter, &
                                        res=tmp_fm_like_mos(alpha)%matrix)
             CALL dbcsr_set(dcdr_env%moments(alpha)%matrix, 0.0_dp)
@@ -611,7 +610,7 @@ CONTAINS
             CALL dipole_deriv_ao(qs_env, dcdr_env%matrix_difdip, dcdr_env%delta_basis_function, &
                                  1, centers_set(1)%array(1:3, icenter))
             CALL multiply_localization(ao_matrix=dcdr_env%matrix_difdip(alpha, dcdr_env%beta)%matrix, &
-                                       mo_coeff=mo_coeff, work=tmp_fm%matrix, nmo=nmo, &
+                                       mo_coeff=mo_coeff, work=tmp_fm, nmo=nmo, &
                                        icenter=icenter, &
                                        res=tmp_fm_like_mos(alpha)%matrix)
          END DO ! icenter
@@ -654,12 +653,13 @@ CONTAINS
       END IF
 
       ! And deallocate all the things!
-      CALL cp_fm_release(tmp_fm%matrix)
+      CALL cp_fm_release(tmp_fm)
       DO i = 1, 3
          CALL cp_fm_release(tmp_fm_like_mos(i)%matrix)
          CALL cp_fm_release(tmp_fm_momo(i)%matrix)
+         DEALLOCATE (tmp_fm_like_mos(i)%matrix, tmp_fm_momo(i)%matrix)
       END DO
-      DEALLOCATE (tmp_fm, tmp_fm_like_mos, tmp_fm_momo)
+      DEALLOCATE (tmp_fm_like_mos, tmp_fm_momo)
       DEALLOCATE (diagonal_elements)
 
       CALL timestop(handle)

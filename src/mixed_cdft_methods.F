@@ -1183,7 +1183,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), POINTER    :: w_matrix_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_mo, mo_mo_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: inverse_mat, Tinverse, tmp2
+      TYPE(cp_fm_type)                                   :: inverse_mat, Tinverse, tmp2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_matrix, density_matrix_diff, &
                                                             w_matrix
@@ -1198,8 +1198,8 @@ CONTAINS
 
       NULLIFY (force_env_section, print_section, mixed_cdft_section, &
                mixed_env, mixed_cdft, qs_env, dft_control, fm_struct_mo, &
-               density_matrix_diff, mo_mo_fmstruct, inverse_mat, mo_overlap, &
-               Tinverse, tmp2, w_matrix_mo, mixed_mo_coeff, mixed_matrix_s, &
+               density_matrix_diff, mo_mo_fmstruct, mo_overlap, &
+               w_matrix_mo, mixed_mo_coeff, mixed_matrix_s, &
                density_matrix, energy_qs, w_matrix, mo_eigval)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(force_env))
@@ -1356,6 +1356,7 @@ CONTAINS
          CALL cp_fm_create(matrix=Tinverse, matrix_struct=mo_mo_fmstruct, &
                            name="T_INVERSE_"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
          DO istate = 1, npermutations
+            ALLOCATE (mo_overlap(istate)%matrix)
             CALL cp_fm_create(matrix=mo_overlap(istate)%matrix, matrix_struct=mo_mo_fmstruct, &
                               name="MO_OVERLAP_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
                               TRIM(ADJUSTL(cp_to_string(ispin)))//"_MATRIX")
@@ -1365,6 +1366,7 @@ CONTAINS
                DO jstate = 1, nforce_eval
                   NULLIFY (w_matrix_mo(istate, jstate, ivar)%matrix)
                   IF (istate == jstate) CYCLE
+                  ALLOCATE (w_matrix_mo(istate, jstate, ivar)%matrix)
                   CALL cp_fm_create(matrix=w_matrix_mo(istate, jstate, ivar)%matrix, matrix_struct=mo_mo_fmstruct, &
                                     name="W_"//TRIM(ADJUSTL(cp_to_string(istate)))//"_"// &
                                     TRIM(ADJUSTL(cp_to_string(jstate)))//"_"// &
@@ -1518,11 +1520,13 @@ CONTAINS
                DO istate = 1, nforce_eval
                   IF (istate == jstate) CYCLE
                   CALL cp_fm_release(w_matrix_mo(istate, jstate, ivar)%matrix)
+                  DEALLOCATE (w_matrix_mo(istate, jstate, ivar)%matrix)
                END DO
             END DO
          END DO
          DO ipermutation = 1, npermutations
             CALL cp_fm_release(mo_overlap(ipermutation)%matrix)
+            DEALLOCATE (mo_overlap(ipermutation)%matrix)
          END DO
          CALL cp_fm_release(Tinverse)
          CALL cp_fm_release(inverse_mat)
@@ -2065,7 +2069,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mixed_mo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: inverse_mat, mo_overlap_wfn, mo_tmp
+      TYPE(cp_fm_type)                                   :: inverse_mat, mo_overlap_wfn, mo_tmp
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_subsys_type), POINTER                      :: subsys_mix
       TYPE(dbcsr_type), POINTER                          :: mixed_matrix_s
@@ -2102,6 +2106,7 @@ CONTAINS
                               n_el_f=REAL(maxocc*nmo, dp), maxocc=maxocc, &
                               flexible_electron_count=0.0_dp)
          CALL set_mo_set(mo_set(ispin)%mo_set, uniform_occupation=.TRUE., homo=nmo)
+         ALLOCATE (mo_set(ispin)%mo_set%mo_coeff)
          CALL cp_fm_create(matrix=mo_set(ispin)%mo_set%mo_coeff, &
                            matrix_struct=mixed_mo_coeff(1, ispin)%matrix%matrix_struct, &
                            name="GS_MO_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")

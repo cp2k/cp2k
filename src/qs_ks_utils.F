@@ -412,7 +412,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs_local
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: matrix_hv, matrix_v, mo_coeff
+      TYPE(cp_fm_type)                                   :: matrix_hv, matrix_v
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type)                                 :: orb_density_matrix_p, orb_h_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs, rho_ao, tmp_dbcsr
       TYPE(dbcsr_type), POINTER                          :: orb_density_matrix, orb_h
@@ -581,6 +582,7 @@ CONTAINS
       ALLOCATE (mo_derivs_local(SIZE(mo_array, 1)))
       DO I = 1, SIZE(mo_array, 1)
          CALL get_mo_set(mo_set=mo_array(i)%mo_set, mo_coeff=mo_coeff)
+         ALLOCATE (mo_derivs_local(I)%matrix)
          CALL cp_fm_create(mo_derivs_local(I)%matrix, mo_coeff%matrix_struct)
       END DO
 
@@ -680,6 +682,7 @@ CONTAINS
       CALL cp_fm_release(matrix_hv)
       DO I = 1, SIZE(mo_derivs_local, 1)
          CALL cp_fm_release(mo_derivs_local(I)%matrix)
+         DEALLOCATE (mo_derivs_local(I)%matrix)
       END DO
       DEALLOCATE (mo_derivs_local)
       DEALLOCATE (rho_r)

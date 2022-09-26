@@ -149,6 +149,7 @@ CONTAINS
          IF (ASSOCIATED(ec_env%cpmos)) THEN
             DO iab = 1, SIZE(ec_env%cpmos)
                CALL cp_fm_release(ec_env%cpmos(iab)%matrix)
+               DEALLOCATE (ec_env%cpmos(iab)%matrix)
             END DO
             DEALLOCATE (ec_env%cpmos)
             NULLIFY (ec_env%cpmos)

@@ -133,6 +133,8 @@ CONTAINS
       DO
          IF (.NOT. cp_sll_fm_next(iterator, el_att=el_att)) EXIT
          CALL cp_fm_release(el_att)
+         DEALLOCATE (el_att)
+         NULLIFY (el_att)
       END DO
       CALL cp_sll_fm_dealloc(pool%cache)
    END SUBROUTINE fm_pool_flush_cache
@@ -186,6 +188,7 @@ CONTAINS
 
       ELSE
          NULLIFY (element)
+         ALLOCATE (element)
          CALL cp_fm_create(element, matrix_struct=pool%el_struct)
       END IF
 
@@ -197,7 +200,6 @@ CONTAINS
       END IF
 
       CPASSERT(ASSOCIATED(element))
-      CPASSERT(element%ref_count == 1)
    END SUBROUTINE fm_pool_create_fm
 
 ! **************************************************************************************************
@@ -222,7 +224,6 @@ CONTAINS
       IF (pool%el_struct%id_nr /= element%matrix_struct%id_nr) &
          CPABORT("pool cannot reuse matrixes with another structure")
 
-      CPASSERT(element%ref_count == 1)
       CALL cp_sll_fm_insert_el(pool%cache, el=element)
       NULLIFY (element)
    END SUBROUTINE fm_pool_give_back_fm

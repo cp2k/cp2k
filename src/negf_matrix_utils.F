@@ -93,7 +93,7 @@ CONTAINS
 !>   * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE negf_copy_fm_submat_to_dbcsr(fm, matrix, atomlist_row, atomlist_col, subsys)
-      TYPE(cp_fm_type), POINTER                          :: fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm
       TYPE(dbcsr_type), POINTER                          :: matrix
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_row, atomlist_col
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -111,7 +111,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(fm))
       CPASSERT(ASSOCIATED(matrix))
       CPASSERT(ASSOCIATED(subsys))
 
@@ -182,7 +181,7 @@ CONTAINS
    SUBROUTINE negf_copy_sym_dbcsr_to_fm_submat(matrix, fm, atomlist_row, atomlist_col, subsys, &
                                                mpi_comm_global, do_upper_diag, do_lower)
       TYPE(dbcsr_type), POINTER                          :: matrix
-      TYPE(cp_fm_type), POINTER                          :: fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_row, atomlist_col
       TYPE(qs_subsys_type), POINTER                      :: subsys
       INTEGER, INTENT(in)                                :: mpi_comm_global
@@ -203,7 +202,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(matrix))
-      CPASSERT(ASSOCIATED(fm))
       CPASSERT(ASSOCIATED(subsys))
 
       CALL qs_subsys_get(subsys, particle_set=particle_set, qs_kind_set=qs_kind_set)
@@ -297,7 +295,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_copy_contact_matrix(fm_cell0, fm_cell1, direction_axis, matrix_kp, index_to_cell, &
                                        atom_list0, atom_list1, subsys, mpi_comm_global, is_same_cell, matrix_ref)
-      TYPE(cp_fm_type), POINTER                          :: fm_cell0, fm_cell1
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_cell0, fm_cell1
       INTEGER, INTENT(in)                                :: direction_axis
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_kp
       INTEGER, DIMENSION(:, :), INTENT(in)               :: index_to_cell
@@ -321,8 +319,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(fm_cell0))
-      CPASSERT(ASSOCIATED(fm_cell1))
       CPASSERT(ASSOCIATED(subsys))
 
       nimages = SIZE(index_to_cell, 2)

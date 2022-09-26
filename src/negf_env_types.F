@@ -460,7 +460,7 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=sub_env%blacs_env)
 
       ! ++ create matrices: s_00, s_01
-      NULLIFY (contact_env%s_00, contact_env%s_01)
+      ALLOCATE (contact_env%s_00, contact_env%s_01)
       CALL cp_fm_create(contact_env%s_00, fm_struct)
       CALL cp_fm_create(contact_env%s_01, fm_struct)
 
@@ -468,10 +468,10 @@ CONTAINS
       ALLOCATE (contact_env%h_00(nspins), contact_env%h_01(nspins))
       ALLOCATE (contact_env%rho_00(nspins), contact_env%rho_01(nspins))
       DO ispin = 1, nspins
-         NULLIFY (contact_env%h_00(ispin)%matrix)
-         NULLIFY (contact_env%h_01(ispin)%matrix)
-         NULLIFY (contact_env%rho_00(ispin)%matrix)
-         NULLIFY (contact_env%rho_01(ispin)%matrix)
+         ALLOCATE (contact_env%h_00(ispin)%matrix)
+         ALLOCATE (contact_env%h_01(ispin)%matrix)
+         ALLOCATE (contact_env%rho_00(ispin)%matrix)
+         ALLOCATE (contact_env%rho_01(ispin)%matrix)
 
          CALL cp_fm_create(contact_env%h_00(ispin)%matrix, fm_struct)
          CALL cp_fm_create(contact_env%h_01(ispin)%matrix, fm_struct)
@@ -644,16 +644,16 @@ CONTAINS
       ALLOCATE (contact_env%h_00(nspins), contact_env%h_01(nspins))
       ALLOCATE (contact_env%rho_00(nspins), contact_env%rho_01(nspins))
       DO ispin = 1, nspins
-         NULLIFY (contact_env%h_00(ispin)%matrix)
-         NULLIFY (contact_env%h_01(ispin)%matrix)
+         ALLOCATE (contact_env%h_00(ispin)%matrix)
+         ALLOCATE (contact_env%h_01(ispin)%matrix)
          CALL cp_fm_create(contact_env%h_00(ispin)%matrix, fm_struct)
          CALL cp_fm_create(contact_env%h_01(ispin)%matrix, fm_struct)
-         NULLIFY (contact_env%rho_00(ispin)%matrix)
-         NULLIFY (contact_env%rho_01(ispin)%matrix)
+         ALLOCATE (contact_env%rho_00(ispin)%matrix)
+         ALLOCATE (contact_env%rho_01(ispin)%matrix)
          CALL cp_fm_create(contact_env%rho_00(ispin)%matrix, fm_struct)
          CALL cp_fm_create(contact_env%rho_01(ispin)%matrix, fm_struct)
       END DO
-      NULLIFY (contact_env%s_00, contact_env%s_01)
+      ALLOCATE (contact_env%s_00, contact_env%s_01)
       CALL cp_fm_create(contact_env%s_00, fm_struct)
       CALL cp_fm_create(contact_env%s_01, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
@@ -761,11 +761,13 @@ CONTAINS
          ALLOCATE (negf_env%h_s(nspins))
 
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao_s, ncol_global=nao_s, context=sub_env%blacs_env)
+         ALLOCATE (negf_env%s_s)
          CALL cp_fm_create(negf_env%s_s, fm_struct)
          DO ispin = 1, nspins
-            NULLIFY (negf_env%h_s(ispin)%matrix)
+            ALLOCATE (negf_env%h_s(ispin)%matrix)
             CALL cp_fm_create(negf_env%h_s(ispin)%matrix, fm_struct)
          END DO
+         ALLOCATE (negf_env%v_hartree_s)
          CALL cp_fm_create(negf_env%v_hartree_s, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
@@ -775,11 +777,11 @@ CONTAINS
             nao_c = number_of_atomic_orbitals(subsys, negf_env%contacts(icontact)%atomlist_cell0)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao_s, ncol_global=nao_c, context=sub_env%blacs_env)
 
-            NULLIFY (negf_env%s_sc(icontact)%matrix)
+            ALLOCATE (negf_env%s_sc(icontact)%matrix)
             CALL cp_fm_create(negf_env%s_sc(icontact)%matrix, fm_struct)
 
             DO ispin = 1, nspins
-               NULLIFY (negf_env%h_sc(ispin, icontact)%matrix)
+               ALLOCATE (negf_env%h_sc(ispin, icontact)%matrix)
                CALL cp_fm_create(negf_env%h_sc(ispin, icontact)%matrix, fm_struct)
             END DO
 
@@ -1244,8 +1246,10 @@ CONTAINS
       ! h_s
       IF (ALLOCATED(negf_env%h_s)) THEN
          DO ispin = SIZE(negf_env%h_s), 1, -1
-            IF (ASSOCIATED(negf_env%h_s(ispin)%matrix)) &
+            IF (ASSOCIATED(negf_env%h_s(ispin)%matrix)) THEN
                CALL cp_fm_release(negf_env%h_s(ispin)%matrix)
+               DEALLOCATE (negf_env%h_s(ispin)%matrix)
+            END IF
          END DO
          DEALLOCATE (negf_env%h_s)
       END IF
@@ -1255,29 +1259,39 @@ CONTAINS
          nspins = SIZE(negf_env%h_sc, 1)
          DO icontact = SIZE(negf_env%h_sc, 2), 1, -1
             DO ispin = nspins, 1, -1
-               IF (ASSOCIATED(negf_env%h_sc(ispin, icontact)%matrix)) &
+               IF (ASSOCIATED(negf_env%h_sc(ispin, icontact)%matrix)) THEN
                   CALL cp_fm_release(negf_env%h_sc(ispin, icontact)%matrix)
+                  DEALLOCATE (negf_env%h_sc(ispin, icontact)%matrix)
+               END IF
             END DO
          END DO
          DEALLOCATE (negf_env%h_sc)
       END IF
 
       ! s_s
-      IF (ASSOCIATED(negf_env%s_s)) &
+      IF (ASSOCIATED(negf_env%s_s)) THEN
          CALL cp_fm_release(negf_env%s_s)
+         DEALLOCATE (negf_env%s_s)
+         NULLIFY (negf_env%s_s)
+      END IF
 
       ! s_sc
       IF (ALLOCATED(negf_env%s_sc)) THEN
          DO icontact = SIZE(negf_env%s_sc), 1, -1
-            IF (ASSOCIATED(negf_env%s_sc(icontact)%matrix)) &
+            IF (ASSOCIATED(negf_env%s_sc(icontact)%matrix)) THEN
                CALL cp_fm_release(negf_env%s_sc(icontact)%matrix)
+               DEALLOCATE (negf_env%s_sc(icontact)%matrix)
+            END IF
          END DO
          DEALLOCATE (negf_env%s_sc)
       END IF
 
       ! v_hartree_s
-      IF (ASSOCIATED(negf_env%v_hartree_s)) &
+      IF (ASSOCIATED(negf_env%v_hartree_s)) THEN
          CALL cp_fm_release(negf_env%v_hartree_s)
+         DEALLOCATE (negf_env%v_hartree_s)
+         NULLIFY (negf_env%v_hartree_s)
+      END IF
 
       ! density mixing
       CALL mixing_storage_release(negf_env%mixing_storage)
@@ -1301,8 +1315,10 @@ CONTAINS
       ! h_00
       IF (ALLOCATED(contact_env%h_00)) THEN
          DO ispin = SIZE(contact_env%h_00), 1, -1
-            IF (ASSOCIATED(contact_env%h_00(ispin)%matrix)) &
+            IF (ASSOCIATED(contact_env%h_00(ispin)%matrix)) THEN
                CALL cp_fm_release(contact_env%h_00(ispin)%matrix)
+               DEALLOCATE (contact_env%h_00(ispin)%matrix)
+            END IF
          END DO
          DEALLOCATE (contact_env%h_00)
       END IF
@@ -1310,8 +1326,10 @@ CONTAINS
       ! h_01
       IF (ALLOCATED(contact_env%h_01)) THEN
          DO ispin = SIZE(contact_env%h_01), 1, -1
-            IF (ASSOCIATED(contact_env%h_01(ispin)%matrix)) &
+            IF (ASSOCIATED(contact_env%h_01(ispin)%matrix)) THEN
                CALL cp_fm_release(contact_env%h_01(ispin)%matrix)
+               DEALLOCATE (contact_env%h_01(ispin)%matrix)
+            END IF
          END DO
          DEALLOCATE (contact_env%h_01)
       END IF
@@ -1319,8 +1337,10 @@ CONTAINS
       ! rho_00
       IF (ALLOCATED(contact_env%rho_00)) THEN
          DO ispin = SIZE(contact_env%rho_00), 1, -1
-            IF (ASSOCIATED(contact_env%rho_00(ispin)%matrix)) &
+            IF (ASSOCIATED(contact_env%rho_00(ispin)%matrix)) THEN
                CALL cp_fm_release(contact_env%rho_00(ispin)%matrix)
+               DEALLOCATE (contact_env%rho_00(ispin)%matrix)
+            END IF
          END DO
          DEALLOCATE (contact_env%rho_00)
       END IF
@@ -1328,19 +1348,27 @@ CONTAINS
       ! rho_01
       IF (ALLOCATED(contact_env%rho_01)) THEN
          DO ispin = SIZE(contact_env%rho_01), 1, -1
-            IF (ASSOCIATED(contact_env%rho_01(ispin)%matrix)) &
+            IF (ASSOCIATED(contact_env%rho_01(ispin)%matrix)) THEN
                CALL cp_fm_release(contact_env%rho_01(ispin)%matrix)
+               DEALLOCATE (contact_env%rho_01(ispin)%matrix)
+            END IF
          END DO
          DEALLOCATE (contact_env%rho_01)
       END IF
 
       ! s_00
-      IF (ASSOCIATED(contact_env%s_00)) &
+      IF (ASSOCIATED(contact_env%s_00)) THEN
          CALL cp_fm_release(contact_env%s_00)
+         DEALLOCATE (contact_env%s_00)
+         NULLIFY (contact_env%s_00)
+      END IF
 
       ! s_01
-      IF (ASSOCIATED(contact_env%s_01)) &
+      IF (ASSOCIATED(contact_env%s_01)) THEN
          CALL cp_fm_release(contact_env%s_01)
+         DEALLOCATE (contact_env%s_01)
+         NULLIFY (contact_env%s_01)
+      END IF
 
       IF (ALLOCATED(contact_env%atomlist_cell0)) DEALLOCATE (contact_env%atomlist_cell0)
       IF (ALLOCATED(contact_env%atomlist_cell1)) DEALLOCATE (contact_env%atomlist_cell1)

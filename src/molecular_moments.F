@@ -99,7 +99,7 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_localized, momv, mvector, omvector
+      TYPE(cp_fm_type)                                   :: momv, mvector, omvector
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
@@ -167,19 +167,20 @@ CONTAINS
                END IF
                CALL mp_bcast(states, iproc, para_env%group)
                ! assemble local states for this molecule
-               mo_localized => mo_local(ispin)%matrix
-               CALL cp_fm_get_info(mo_localized, ncol_global=ncol_global, nrow_global=nrow_global)
-               CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=ns, &
-                                        para_env=mo_localized%matrix_struct%para_env, &
-                                        context=mo_localized%matrix_struct%context)
-               CALL cp_fm_create(mvector, fm_struct, name="mvector")
-               CALL cp_fm_create(omvector, fm_struct, name="omvector")
-               CALL cp_fm_create(momv, fm_struct, name="omvector")
-               CALL cp_fm_struct_release(fm_struct)
-               !
-               DO i = 1, ns
-                  CALL cp_fm_to_fm(mo_localized, mvector, 1, states(i), i)
-               END DO
+               ASSOCIATE (mo_localized => mo_local(ispin)%matrix)
+                  CALL cp_fm_get_info(mo_localized, ncol_global=ncol_global, nrow_global=nrow_global)
+                  CALL cp_fm_struct_create(fm_struct, nrow_global=nrow_global, ncol_global=ns, &
+                                           para_env=mo_localized%matrix_struct%para_env, &
+                                           context=mo_localized%matrix_struct%context)
+                  CALL cp_fm_create(mvector, fm_struct, name="mvector")
+                  CALL cp_fm_create(omvector, fm_struct, name="omvector")
+                  CALL cp_fm_create(momv, fm_struct, name="omvector")
+                  CALL cp_fm_struct_release(fm_struct)
+                  !
+                  DO i = 1, ns
+                     CALL cp_fm_to_fm(mo_localized, mvector, 1, states(i), i)
+                  END DO
+               END ASSOCIATE
                DO i = 1, nm
                   CALL cp_dbcsr_sm_fm_multiply(moments(i)%matrix, mvector, omvector, ns)
                   CALL cp_fm_schur_product(mvector, omvector, momv)

@@ -137,8 +137,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_ks, fm_matrix_s, &
-                                                            fm_matrix_work, mo_coeff
+      TYPE(cp_fm_type)                                   :: fm_matrix_ks, fm_matrix_s, fm_matrix_work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
@@ -315,9 +315,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
 
       ! diagonalize the KS matrix in order to have the full set of MO's
       ! get S and KS matrices in fm_type (create also a working array)
-      NULLIFY (fm_matrix_s)
-      NULLIFY (fm_matrix_ks)
-      NULLIFY (fm_matrix_work)
       NULLIFY (fm_struct)
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
@@ -394,7 +391,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
                              cholesky_method=cholesky_method, &
                              do_level_shift=.FALSE., &
                              level_shift=0.0_dp, &
-                             matrix_u_fm=null(), &
                              use_jacobi=.FALSE.)
 
          ELSE IF (cholesky_method == cholesky_off) THEN
@@ -405,7 +401,6 @@ IF (.NOT. (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_met
                                   work=fm_matrix_work, &
                                   do_level_shift=.FALSE., &
                                   level_shift=0.0_dp, &
-                                  matrix_u_fm=null(), &
                                   use_jacobi=.FALSE., &
                                   jacobi_threshold=0.0_dp)
 

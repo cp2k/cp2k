@@ -116,7 +116,7 @@ CONTAINS
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: gapw, gapw_xc
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_type), POINTER                          :: work_aux_orb, work_orb_orb
+      TYPE(cp_fm_type)                                   :: work_aux_orb, work_orb_orb
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_xc_munu_sub, rho_ia_ao, &
                                                             rho_ia_ao_aux_fit

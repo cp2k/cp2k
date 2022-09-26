@@ -166,6 +166,7 @@ CONTAINS
          IF (ASSOCIATED(active_space_env%p_active)) THEN
             DO isp = 1, SIZE(active_space_env%p_active)
                CALL cp_fm_release(active_space_env%p_active(isp)%matrix)
+               DEALLOCATE (active_space_env%p_active(isp)%matrix)
             END DO
             DEALLOCATE (active_space_env%p_active)
          END IF
@@ -173,6 +174,7 @@ CONTAINS
          IF (ASSOCIATED(active_space_env%ks_sub)) THEN
             DO isp = 1, SIZE(active_space_env%ks_sub)
                CALL cp_fm_release(active_space_env%ks_sub(isp)%matrix)
+               DEALLOCATE (active_space_env%ks_sub(isp)%matrix)
             END DO
             DEALLOCATE (active_space_env%ks_sub)
          END IF
@@ -180,6 +182,7 @@ CONTAINS
          IF (ASSOCIATED(active_space_env%vxc_sub)) THEN
             DO isp = 1, SIZE(active_space_env%vxc_sub)
                CALL cp_fm_release(active_space_env%vxc_sub(isp)%matrix)
+               DEALLOCATE (active_space_env%vxc_sub(isp)%matrix)
             END DO
             DEALLOCATE (active_space_env%vxc_sub)
          END IF
@@ -187,6 +190,7 @@ CONTAINS
          IF (ASSOCIATED(active_space_env%h_sub)) THEN
             DO isp = 1, SIZE(active_space_env%h_sub)
                CALL cp_fm_release(active_space_env%h_sub(isp)%matrix)
+               DEALLOCATE (active_space_env%h_sub(isp)%matrix)
             END DO
             DEALLOCATE (active_space_env%h_sub)
          END IF
@@ -194,6 +198,7 @@ CONTAINS
          IF (ASSOCIATED(active_space_env%fock_sub)) THEN
             DO isp = 1, SIZE(active_space_env%fock_sub)
                CALL cp_fm_release(active_space_env%fock_sub(isp)%matrix)
+               DEALLOCATE (active_space_env%fock_sub(isp)%matrix)
             END DO
             DEALLOCATE (active_space_env%fock_sub)
          END IF

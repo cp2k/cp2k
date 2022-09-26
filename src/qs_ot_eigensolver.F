@@ -72,8 +72,8 @@ CONTAINS
                              iter_max, size_ortho_space, silent, ot_settings)
 
       TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: matrix_orthogonal_space_fm
-      TYPE(cp_fm_type), POINTER                          :: matrix_c_fm
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_orthogonal_space_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c_fm
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
       REAL(KIND=dp)                                      :: eps_gradient
       INTEGER, INTENT(IN)                                :: iter_max

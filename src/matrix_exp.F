@@ -72,7 +72,7 @@ CONTAINS
 
    SUBROUTINE taylor_only_imaginary(exp_H, im_matrix, nsquare, ntaylor)
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: im_matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: im_matrix
       INTEGER, INTENT(in)                                :: nsquare, ntaylor
 
       CHARACTER(len=*), PARAMETER :: routineN = 'taylor_only_imaginary'
@@ -82,7 +82,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: square_fac, Tfac, tmp
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data_im
-      TYPE(cp_fm_type), POINTER                          :: T1, T2, Tres_im, Tres_re
+      TYPE(cp_fm_type)                                   :: T1, T2, Tres_im, Tres_re
 
       CALL timeset(routineN, handle)
 
@@ -168,7 +168,7 @@ CONTAINS
 
    SUBROUTINE taylor_full_complex(exp_H, re_part, im_part, nsquare, ntaylor)
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: re_part, im_part
+      TYPE(cp_fm_type), INTENT(IN)                       :: re_part, im_part
       INTEGER, INTENT(in)                                :: nsquare, ntaylor
 
       CHARACTER(len=*), PARAMETER :: routineN = 'taylor_full_complex'
@@ -178,7 +178,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: square_fac, tmp
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data_im, local_data_re
-      TYPE(cp_cfm_type), POINTER                         :: T1, T2, T3, Tres
+      TYPE(cp_cfm_type)                                  :: T1, T2, T3, Tres
 
       CALL timeset(routineN, handle)
       CALL cp_fm_get_info(re_part, local_data=local_data_re)
@@ -345,7 +345,7 @@ CONTAINS
 
    SUBROUTINE exp_pade_full_complex(exp_H, re_part, im_part, nsquare, npade)
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: re_part, im_part
+      TYPE(cp_fm_type), INTENT(IN)                       :: re_part, im_part
       INTEGER, INTENT(in)                                :: nsquare, npade
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_full_complex'
@@ -356,7 +356,9 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data_im, local_data_re
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: mult_p
-      TYPE(cp_cfm_type), POINTER                         :: Dpq, fin_p, Npq, T1, T2, Tres
+      TYPE(cp_cfm_type)                                  :: Dpq, T1
+      TYPE(cp_cfm_type), POINTER                         :: fin_p
+      TYPE(cp_cfm_type), TARGET                          :: Npq, T2, Tres
 
       p = npade
       q = npade
@@ -452,7 +454,7 @@ CONTAINS
 
    SUBROUTINE exp_pade_only_imaginary(exp_H, im_part, nsquare, npade)
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: im_part
+      TYPE(cp_fm_type), INTENT(IN)                       :: im_part
       INTEGER, INTENT(in)                                :: nsquare, npade
 
       CHARACTER(len=*), PARAMETER :: routineN = 'exp_pade_only_imaginary'
@@ -464,8 +466,10 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data_im
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: cmult_p
-      TYPE(cp_cfm_type), POINTER                         :: Dpq, fin_p, Npq, T1
-      TYPE(cp_fm_type), POINTER                          :: T2, Tres
+      TYPE(cp_cfm_type)                                  :: Dpq
+      TYPE(cp_cfm_type), POINTER                         :: fin_p
+      TYPE(cp_cfm_type), TARGET                          :: Npq, T1
+      TYPE(cp_fm_type)                                   :: T2, Tres
 
       CALL timeset(routineN, handle)
       p = npade
@@ -575,8 +579,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE exp_pade_real(exp_H, matrix, nsquare, npade)
-      TYPE(cp_fm_type)                                   :: exp_H
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: exp_H, matrix
       INTEGER, INTENT(in)                                :: nsquare, npade
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'exp_pade_real'
@@ -587,7 +590,9 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mult_p
-      TYPE(cp_fm_type), POINTER                          :: Dpq, fin_p, Npq, T1, T2, Tres
+      TYPE(cp_fm_type)                                   :: Dpq
+      TYPE(cp_fm_type), POINTER                          :: fin_p
+      TYPE(cp_fm_type), TARGET                           :: Npq, T1, T2, Tres
 
       CALL timeset(routineN, handle)
       p = npade
@@ -656,8 +661,8 @@ CONTAINS
          DO i = 1, nsquare
             CALL parallel_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(i, 2) + 1)%matrix, mult_p(MOD(i, 2) + 1)%matrix, zero, &
                                mult_p(MOD(i + 1, 2) + 1)%matrix)
-            fin_p => mult_p(MOD(i + 1, 2) + 1)%matrix
          END DO
+         fin_p => mult_p(MOD(nsquare + 1, 2) + 1)%matrix
       ELSE
          fin_p => Npq
       END IF
@@ -693,8 +698,8 @@ CONTAINS
 
       TYPE(cp_fm_p_type), DIMENSION(2)                   :: mos_old, mos_new
       REAL(KIND=dp), INTENT(in)                          :: eps_exp
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: Hre
-      TYPE(cp_fm_type), POINTER                          :: Him
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: Hre
+      TYPE(cp_fm_type), INTENT(IN)                       :: Him
       TYPE(cp_fm_p_type), DIMENSION(2), OPTIONAL         :: mos_next
       INTEGER, INTENT(inout)                             :: narn_old
 
@@ -712,7 +717,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: D, mat1, mat2, mat3, N
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: H_approx, H_approx_save
       REAL(KIND=dp)                                      :: conv_norm, prefac, scaleD, scaleN
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: V_mats
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: V_mats
       TYPE(cp_fm_struct_type), POINTER                   :: mo_struct, newstruct
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
@@ -738,6 +743,7 @@ CONTAINS
       H_approx_save = rzero
 
       DO i = 1, narnoldi + 1
+         ALLOCATE (V_mats(i)%matrix)
          CALL cp_fm_create(V_mats(i)%matrix, matrix_struct=newstruct, &
                            name="V_mat"//cp_to_string(i))
       END DO
@@ -962,6 +968,7 @@ CONTAINS
 
       DO i = 1, SIZE(V_mats)
          CALL cp_fm_release(V_mats(i)%matrix)
+         DEALLOCATE (V_mats(i)%matrix)
       END DO
       CALL cp_fm_struct_release(newstruct)
       CALL mp_comm_free(col_group)

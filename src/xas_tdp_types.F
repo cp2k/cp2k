@@ -846,6 +846,7 @@ CONTAINS
          IF (ASSOCIATED(xas_tdp_env%lumo_evecs)) THEN
             DO i = 1, SIZE(xas_tdp_env%lumo_evecs)
                CALL cp_fm_release(xas_tdp_env%lumo_evecs(i)%matrix)
+               DEALLOCATE (xas_tdp_env%lumo_evecs(i)%matrix)
             END DO
             DEALLOCATE (xas_tdp_env%lumo_evecs)
          END IF
@@ -864,6 +865,8 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_env%matrix_shalf)) THEN
             CALL cp_fm_release(xas_tdp_env%matrix_shalf)
+            DEALLOCATE (xas_tdp_env%matrix_shalf)
+            NULLIFY (xas_tdp_env%matrix_shalf)
          END IF
          IF (ASSOCIATED(xas_tdp_env%fock_matrix)) THEN
             DO i = 1, SIZE(xas_tdp_env%fock_matrix)
@@ -874,6 +877,8 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_env%lumo_coeffs)) THEN
             CALL cp_fm_release(xas_tdp_env%lumo_coeffs)
+            DEALLOCATE (xas_tdp_env%lumo_coeffs)
+            NULLIFY (xas_tdp_env%lumo_coeffs)
          END IF
          DEALLOCATE (xas_tdp_env)
       END IF
@@ -972,22 +977,27 @@ CONTAINS
 
             IF (ASSOCIATED(donor_state_set(i)%sc_coeffs)) THEN
                CALL cp_fm_release(donor_state_set(i)%sc_coeffs)
+               DEALLOCATE (donor_state_set(i)%sc_coeffs)
             END IF
 
             IF (ASSOCIATED(donor_state_set(i)%sf_coeffs)) THEN
                CALL cp_fm_release(donor_state_set(i)%sf_coeffs)
+               DEALLOCATE (donor_state_set(i)%sf_coeffs)
             END IF
 
             IF (ASSOCIATED(donor_state_set(i)%sg_coeffs)) THEN
                CALL cp_fm_release(donor_state_set(i)%sg_coeffs)
+               DEALLOCATE (donor_state_set(i)%sg_coeffs)
             END IF
 
             IF (ASSOCIATED(donor_state_set(i)%tp_coeffs)) THEN
                CALL cp_fm_release(donor_state_set(i)%tp_coeffs)
+               DEALLOCATE (donor_state_set(i)%tp_coeffs)
             END IF
 
             IF (ASSOCIATED(donor_state_set(i)%gs_coeffs)) THEN
                CALL cp_fm_release(donor_state_set(i)%gs_coeffs)
+               DEALLOCATE (donor_state_set(i)%gs_coeffs)
             END IF
 
             IF (ASSOCIATED(donor_state_set(i)%contract_coeffs)) THEN
@@ -1111,23 +1121,35 @@ CONTAINS
       IF (ASSOCIATED(donor_state%soc_osc_str)) DEALLOCATE (donor_state%soc_osc_str)
       IF (ASSOCIATED(donor_state%quad_osc_str)) DEALLOCATE (donor_state%quad_osc_str)
       IF (ASSOCIATED(donor_state%soc_quad_osc_str)) DEALLOCATE (donor_state%soc_quad_osc_str)
-      IF (ASSOCIATED(donor_state%gs_coeffs)) CALL cp_fm_release(donor_state%gs_coeffs)
+      IF (ASSOCIATED(donor_state%gs_coeffs)) THEN
+         CALL cp_fm_release(donor_state%gs_coeffs)
+         DEALLOCATE (donor_state%gs_coeffs)
+         NULLIFY (donor_state%gs_coeffs)
+      END IF
       IF (ASSOCIATED(donor_state%blk_size)) DEALLOCATE (donor_state%blk_size)
 
       IF (ASSOCIATED(donor_state%sc_coeffs)) THEN
          CALL cp_fm_release(donor_state%sc_coeffs)
+         DEALLOCATE (donor_state%sc_coeffs)
+         NULLIFY (donor_state%sc_coeffs)
       END IF
 
       IF (ASSOCIATED(donor_state%sf_coeffs)) THEN
          CALL cp_fm_release(donor_state%sf_coeffs)
+         DEALLOCATE (donor_state%sf_coeffs)
+         NULLIFY (donor_state%sf_coeffs)
       END IF
 
       IF (ASSOCIATED(donor_state%sg_coeffs)) THEN
          CALL cp_fm_release(donor_state%sg_coeffs)
+         DEALLOCATE (donor_state%sg_coeffs)
+         NULLIFY (donor_state%sg_coeffs)
       END IF
 
       IF (ASSOCIATED(donor_state%tp_coeffs)) THEN
          CALL cp_fm_release(donor_state%tp_coeffs)
+         DEALLOCATE (donor_state%tp_coeffs)
+         NULLIFY (donor_state%tp_coeffs)
       END IF
 
       IF (ASSOCIATED(donor_state%sc_matrix_tdp)) THEN

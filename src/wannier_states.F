@@ -69,7 +69,7 @@ CONTAINS
    SUBROUTINE construct_wannier_states(mo_localized, &
                                        Hks, qs_env, loc_print_section, WannierCentres, ns, states)
 
-      TYPE(cp_fm_type), INTENT(in), POINTER              :: mo_localized
+      TYPE(cp_fm_type), INTENT(in)                       :: mo_localized
       TYPE(dbcsr_type), POINTER                          :: Hks
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: loc_print_section
@@ -85,7 +85,7 @@ CONTAINS
                                                             unit_mat
       REAL(KIND=dp)                                      :: unit_conv
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: b, c, d
+      TYPE(cp_fm_type)                                   :: b, c, d
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -108,7 +108,7 @@ CONTAINS
       nstates(1) = ns
       nstates(2) = para_env%mepos
       iproc = nstates(2)
-      NULLIFY (b, c, d, fm_struct_tmp, print_key)
+      NULLIFY (fm_struct_tmp, print_key)
 
       print_key => section_vals_get_subs_vals(loc_print_section, "WANNIER_CENTERS")
       CALL section_vals_val_get(print_key, "UNIT", c_val=unit_str)

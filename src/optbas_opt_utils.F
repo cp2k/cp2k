@@ -81,7 +81,7 @@ CONTAINS
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), POINTER                          :: Q, Snew
-      TYPE(cp_fm_type), POINTER                          :: S_inv_orb
+      TYPE(cp_fm_type), INTENT(IN)                       :: S_inv_orb
       REAL(KIND=dp)                                      :: fval, energy, S_cond_number
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'evaluate_optvals'
@@ -92,7 +92,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: tmp_energy, trace
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit, tmp1, tmp2
+      TYPE(cp_fm_type)                                   :: tmp1, tmp2
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: smat
       TYPE(dbcsr_type)                                   :: Qt
@@ -161,8 +162,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, naux, ndep, nmo, norb, &
                                                             nspins
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_s, fm_sinv, mo_coeff, mo_coeff_aux, &
-                                                            tmat, tmp1, tmp2, work
+      TYPE(cp_fm_type)                                   :: fm_s, fm_sinv, tmat, tmp1, tmp2, work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux
 
       CALL timeset(routineN, handle)
 

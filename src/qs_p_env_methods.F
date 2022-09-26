@@ -42,12 +42,10 @@ MODULE qs_p_env_methods
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_retain,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
-                                              cp_fm_vect_dealloc
+   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -125,7 +123,6 @@ CONTAINS
 !> \param qs_env the qs_environment for the system
 !> \param p1_option ...
 !> \param p1_admm_option ...
-!> \param psi0d ...
 !> \param orthogonal_orbitals if the orbitals are orthogonal
 !> \param linres_control ...
 !> \par History
@@ -133,14 +130,12 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE p_env_create(p_env, qs_env, p1_option, p1_admm_option, &
-                           psi0d, orthogonal_orbitals, linres_control)
+                           orthogonal_orbitals, linres_control)
 
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: p1_option, p1_admm_option
-      TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: psi0d
       LOGICAL, INTENT(in), OPTIONAL                      :: orthogonal_orbitals
       TYPE(linres_control_type), OPTIONAL, POINTER       :: linres_control
 
@@ -222,14 +217,9 @@ CONTAINS
       p_env%n_mo = 0
       p_env%n_ao = 0
       DO spin = 1, n_spins
-         IF (PRESENT(psi0d)) THEN
-            CALL cp_fm_get_info(psi0d(spin)%matrix, &
-                                ncol_global=n_mo, nrow_global=n_ao)
-         ELSE
-            CALL get_mo_set(qs_env%mos(spin)%mo_set, mo_coeff=qs_env_c)
-            CALL cp_fm_get_info(qs_env_c, &
-                                ncol_global=n_mo, nrow_global=n_ao)
-         END IF
+         CALL get_mo_set(qs_env%mos(spin)%mo_set, mo_coeff=qs_env_c)
+         CALL cp_fm_get_info(qs_env_c, &
+                             ncol_global=n_mo, nrow_global=n_ao)
          p_env%n_mo(spin) = n_mo
          p_env%n_ao(spin) = n_ao
       END DO
@@ -251,11 +241,7 @@ CONTAINS
                                       name="p_env%Smo_inv")
       END IF
 
-      IF (PRESENT(psi0d)) THEN
-         IF (ASSOCIATED(psi0d)) THEN
-            CALL cp_fm_vect_copy(psi0d, p_env%psi0d)
-         END IF
-      ELSE IF (.NOT. p_env%orthogonal_orbitals) THEN
+      IF (.NOT. p_env%orthogonal_orbitals) THEN
          CALL fm_pools_create_fm_vect(ao_mo_fm_pools, &
                                       elements=p_env%psi0d, &
                                       name="p_env%psi0d")
@@ -500,6 +486,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: maxocc
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
@@ -536,8 +523,10 @@ CONTAINS
       DO spin = 1, n_spins
          NULLIFY (psi0(spin)%matrix)
          CALL get_mo_set(mos(spin)%mo_set, &
-                         mo_coeff=psi0(spin)%matrix)
-         CALL cp_fm_retain(psi0(spin)%matrix)
+                         mo_coeff=mo_coeff)
+         ALLOCATE (psi0(spin)%matrix)
+         CALL cp_fm_create(psi0(spin)%matrix, mo_coeff%matrix_struct)
+         CALL cp_fm_to_fm(mo_coeff, psi0(spin)%matrix)
       END DO
 
       lr_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES")
@@ -728,19 +717,19 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: spin
-      TYPE(cp_fm_type), POINTER                          :: v, res
+      TYPE(cp_fm_type), INTENT(IN)                       :: v, res
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l1_spin'
 
       INTEGER                                            :: handle, ncol
-      TYPE(cp_fm_type), POINTER                          :: tmp
+      TYPE(cp_fm_type)                                   :: tmp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_type), POINTER                          :: k_p
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
-      NULLIFY (tmp, matrix_ks, matrix_s, dft_control)
+      NULLIFY (matrix_ks, matrix_s, dft_control)
 
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
@@ -914,6 +903,7 @@ CONTAINS
       ELSE
          CALL cp_fm_struct_create(tmp_fmstruct, nrow_global=max_cols, &
                                   ncol_global=maxnmo, template_fmstruct=maxmo_maxmo_fmstruct)
+         ALLOCATE (tmp_matrix)
          CALL cp_fm_create(tmp_matrix, matrix_struct=tmp_fmstruct)
          CALL cp_fm_struct_release(tmp_fmstruct)
       END IF
@@ -947,6 +937,7 @@ CONTAINS
          CALL fm_pool_give_back_fm(maxmo_maxmo_fm_pool, tmp_matrix)
       ELSE
          CALL cp_fm_release(tmp_matrix)
+         DEALLOCATE (tmp_matrix)
       END IF
 
       CALL timestop(handle)
@@ -982,7 +973,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (tmp_matrix, maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
+      NULLIFY (maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct, tmp_fmstruct, &
                dft_control)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)

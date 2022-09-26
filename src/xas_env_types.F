@@ -371,6 +371,7 @@ CONTAINS
                DO i = 1, SIZE(xas_env%dip_fm_set, 2)
                   DO j = 1, SIZE(xas_env%dip_fm_set, 1)
                      CALL cp_fm_release(xas_env%dip_fm_set(j, i)%matrix)
+                     DEALLOCATE (xas_env%dip_fm_set(j, i)%matrix)
                   END DO
                END DO
                DEALLOCATE (xas_env%dip_fm_set)
@@ -378,16 +379,24 @@ CONTAINS
 
             IF (ASSOCIATED(xas_env%excvec_coeff)) THEN
                CALL cp_fm_release(xas_env%excvec_coeff)
+               DEALLOCATE (xas_env%excvec_coeff)
+               NULLIFY (xas_env%excvec_coeff)
             END IF
             IF (ASSOCIATED(xas_env%excvec_overlap)) THEN
                CALL cp_fm_release(xas_env%excvec_overlap)
+               DEALLOCATE (xas_env%excvec_overlap)
+               NULLIFY (xas_env%excvec_overlap)
             END IF
             IF (ASSOCIATED(xas_env%unoccupied_orbs)) THEN
                CALL cp_fm_release(xas_env%unoccupied_orbs)
+               DEALLOCATE (xas_env%unoccupied_orbs)
+               NULLIFY (xas_env%unoccupied_orbs)
             END IF
             NULLIFY (xas_env%ao_mo_fm_pools)
             IF (ASSOCIATED(xas_env%all_vectors) .AND. xas_env%nvirtual .GT. 0) THEN
                CALL cp_fm_release(xas_env%all_vectors)
+               DEALLOCATE (xas_env%all_vectors)
+               NULLIFY (xas_env%all_vectors)
             ELSE
                NULLIFY (xas_env%all_vectors)
             END IF

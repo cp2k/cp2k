@@ -99,9 +99,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: kvec
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type), POINTER                         :: oo_c, oo_v, oo_vt
+      TYPE(cp_cfm_type)                                  :: oo_c, oo_v, oo_vt
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: eigenvectors, mat_ks, mat_tmp, momentum, &
+      TYPE(cp_fm_type)                                   :: eigenvectors, mat_ks, mat_tmp, momentum, &
                                                             oo_1, oo_2, S_chol, S_inv_fm, tmpS, &
                                                             virtuals
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_rv, matrix_s
@@ -138,7 +138,6 @@ CONTAINS
       CALL cp_fm_get_info(S_inv_fm, nrow_global=nrow_global)
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_chol)
       CALL cp_fm_cholesky_decompose(S_chol)
-      NULLIFY (mat_ks, eigenvectors, mat_tmp)
       CALL cp_fm_create(mat_ks, matrix_struct=S_inv_fm%matrix_struct, name="mat_ks")
       CALL cp_fm_create(eigenvectors, matrix_struct=S_inv_fm%matrix_struct, name="eigenvectors")
 
@@ -326,9 +325,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: kvec
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type), POINTER                         :: oo_c, oo_v, oo_vt
+      TYPE(cp_cfm_type)                                  :: oo_c, oo_v, oo_vt
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: mat_S, oo_1, oo_2, S_inv_fm, tmp
+      TYPE(cp_fm_type)                                   :: mat_S, oo_1, oo_2, S_inv_fm, tmp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: cosmat, S_inv, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control

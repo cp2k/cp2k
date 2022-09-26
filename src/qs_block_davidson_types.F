@@ -104,7 +104,7 @@ CONTAINS
    SUBROUTINE block_davidson_allocate(bdav_env, mo_coeff, nao, nmo)
 
       TYPE(davidson_type)                                :: bdav_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: nao, nmo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'block_davidson_allocate'
@@ -116,18 +116,12 @@ CONTAINS
       NULLIFY (fm_struct_tmp)
 
       nmox2 = 2*nmo
-!    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmox2, ncol_global=nmox2,&
-!                             para_env=mo_coeff%matrix_struct%para_env, &
-!                             context=mo_coeff%matrix_struct%context)
-!    CALL cp_fm_create(bdav_env%H_block_mat,fm_struct_tmp,name="H_dav")
-!    CALL cp_fm_create(bdav_env%S_block_mat,fm_struct_tmp,name="S_dav")
-!    CALL cp_fm_create(bdav_env%H_block_vec,fm_struct_tmp,name="C_dav")
-!    CALL cp_fm_create(bdav_env%W_block_mat,fm_struct_tmp,name="W_dav")
-!    CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo, &
                                para_env=mo_coeff%matrix_struct%para_env, &
                                context=mo_coeff%matrix_struct%context)
+      NULLIFY (bdav_env%matrix_z, bdav_env%matrix_pz)
+      ALLOCATE (bdav_env%matrix_z, bdav_env%matrix_pz)
       CALL cp_fm_create(bdav_env%matrix_z, fm_struct_tmp, name="Z_mat")
       CALL cp_fm_create(bdav_env%matrix_pz, fm_struct_tmp, name="Z_mat")
       CALL cp_fm_struct_release(fm_struct_tmp)
@@ -153,10 +147,8 @@ CONTAINS
 
             CALL cp_fm_release(bdav_env(ispin)%matrix_z)
             CALL cp_fm_release(bdav_env(ispin)%matrix_pz)
-!        CALL cp_fm_release(bdav_env(ispin)%H_block_mat)
-!        CALL cp_fm_release(bdav_env(ispin)%S_block_mat)
-!        CALL cp_fm_release(bdav_env(ispin)%W_block_mat)
-!        CALL cp_fm_release(bdav_env(ispin)%H_block_vec)
+            DEALLOCATE (bdav_env(ispin)%matrix_z, bdav_env(ispin)%matrix_pz)
+            NULLIFY (bdav_env(ispin)%matrix_z, bdav_env(ispin)%matrix_pz)
 
          END DO
 
@@ -182,11 +174,9 @@ CONTAINS
             IF (ASSOCIATED(bdav_env(ispin)%matrix_z)) THEN
                CALL cp_fm_release(bdav_env(ispin)%matrix_z)
                CALL cp_fm_release(bdav_env(ispin)%matrix_pz)
+               DEALLOCATE (bdav_env(ispin)%matrix_z, bdav_env(ispin)%matrix_pz)
+               NULLIFY (bdav_env(ispin)%matrix_z, bdav_env(ispin)%matrix_pz)
             END IF
-!        CALL cp_fm_release(bdav_env(ispin)%H_block_mat)
-!        CALL cp_fm_release(bdav_env(ispin)%S_block_mat)
-!        CALL cp_fm_release(bdav_env(ispin)%W_block_mat)
-!        CALL cp_fm_release(bdav_env(ispin)%H_block_vec)
 
          END DO
          DEALLOCATE (bdav_env)

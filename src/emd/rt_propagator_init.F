@@ -194,7 +194,7 @@ CONTAINS
       LOGICAL                                            :: emd
       REAL(dp)                                           :: max_eval, min_eval, norm2, scale, t
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: eigval_H
-      TYPE(cp_fm_type), POINTER                          :: eigvec_H, H_fm, S_half, S_inv_fm, &
+      TYPE(cp_fm_type)                                   :: eigvec_H, H_fm, S_half, S_inv_fm, &
                                                             S_minus_half, tmp, tmp_mat_H
       TYPE(dbcsr_type), POINTER                          :: S_inv
 
@@ -371,7 +371,7 @@ CONTAINS
    SUBROUTINE backtransform_matrix(Eval, eigenvec, matrix)
 
       REAL(dp), DIMENSION(:), INTENT(in)                 :: Eval
-      TYPE(cp_fm_type), POINTER                          :: eigenvec, matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: eigenvec, matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
@@ -379,7 +379,7 @@ CONTAINS
       INTEGER                                            :: handle, i, j, l, ncol_local, ndim, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_fm_type), POINTER                          :: tmp
+      TYPE(cp_fm_type)                                   :: tmp
 
       CALL timeset(routineN, handle)
       CALL cp_fm_create(tmp, &

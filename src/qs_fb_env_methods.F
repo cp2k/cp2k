@@ -155,8 +155,10 @@ CONTAINS
                                                             occ_filtered
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: filter_fm_struct, fm_struct
-      TYPE(cp_fm_type), POINTER :: fm_matrix_filter, fm_matrix_filtered_ks, fm_matrix_filtered_s, &
-         fm_matrix_ortho, fm_matrix_work, mo_coeff, mo_coeff_filtered
+      TYPE(cp_fm_type)                                   :: fm_matrix_filter, fm_matrix_filtered_ks, &
+                                                            fm_matrix_filtered_s, fm_matrix_ortho, &
+                                                            fm_matrix_work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_filtered
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_filter
       TYPE(dbcsr_type)                                   :: matrix_filtered_ks, matrix_filtered_s, &
@@ -180,9 +182,7 @@ CONTAINS
       NULLIFY (my_mpools)
       NULLIFY (matrix_filter, matrix_filtered_p)
       NULLIFY (fm_struct, filter_fm_struct)
-      NULLIFY (fm_matrix_filter, fm_matrix_filtered_s, &
-               fm_matrix_filtered_ks, fm_matrix_work, &
-               fm_matrix_ortho, mo_coeff_filtered, mo_coeff)
+      NULLIFY (mo_coeff_filtered, mo_coeff)
       ! NULLIFY(sab_orb)
       CALL fb_atomic_halo_list_nullify(atomic_halos)
       CALL fb_trial_fns_nullify(trial_fns)
@@ -614,9 +614,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_env_eigensolver(fm_KS, fm_S, mo_set, fm_ortho, &
                                  fm_work, eps_eigval, ndep, method)
-      TYPE(cp_fm_type), POINTER                          :: fm_KS, fm_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_KS, fm_S
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: fm_ortho, fm_work
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_ortho, fm_work
       REAL(KIND=dp), INTENT(IN)                          :: eps_eigval
       INTEGER, INTENT(OUT)                               :: ndep
       INTEGER, INTENT(IN)                                :: method

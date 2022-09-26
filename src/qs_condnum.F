@@ -76,7 +76,7 @@ CONTAINS
                                                             threshold
       REAL(KIND=dp), DIMENSION(2)                        :: eigvals
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: fmsmat, fmwork
+      TYPE(cp_fm_type)                                   :: fmsmat, fmwork
       TYPE(dbcsr_type)                                   :: tempmat
       TYPE(dbcsr_type), POINTER                          :: smat
 

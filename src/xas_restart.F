@@ -473,10 +473,10 @@ CONTAINS
       REAL(dp)                                           :: a_max, b_max, ip_energy, occ_estate
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vecbuffer, vecbuffer2
-      TYPE(cp_fm_type), POINTER                          :: excvec_coeff, excvec_overlap, fm_work, &
-                                                            mo_coeff
+      TYPE(cp_fm_type)                                   :: fm_work
+      TYPE(cp_fm_type), POINTER                          :: excvec_coeff, excvec_overlap, mo_coeff
 
-      NULLIFY (excvec_coeff, excvec_overlap, fm_work, mo_coeff)
+      NULLIFY (excvec_coeff, excvec_overlap, mo_coeff)
       ! Some elements from the xas_env
       CALL get_xas_env(xas_env=xas_env, excvec_coeff=excvec_coeff, &
                        excvec_overlap=excvec_overlap, nexc_search=nexc_search, &

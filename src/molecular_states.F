@@ -94,7 +94,7 @@ CONTAINS
                                          loc_print_section, particles, tag, marked_states, ispin)
 
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(cp_fm_type), POINTER                          :: mo_localized, mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_localized, mo_coeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(dbcsr_type), POINTER                          :: Hks, matrix_S
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -122,7 +122,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: b, c, d, D_igk, e_vectors, &
+      TYPE(cp_fm_type)                                   :: b, c, d, D_igk, e_vectors, &
                                                             rot_e_vectors, smo, storage
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -189,7 +189,6 @@ CONTAINS
       CALL cp_fm_get_info(mo_localized, &
                           ncol_global=ncol_global, &
                           nrow_global=nrow_global)
-      NULLIFY (smo)
       CALL cp_fm_create(smo, mo_coeff%matrix_struct)
       CALL cp_dbcsr_sm_fm_multiply(matrix_S, mo_coeff, smo, ncol_global)
 
@@ -227,7 +226,7 @@ CONTAINS
          ind => states(:)
          ALLOCATE (evals(ns))
 
-         NULLIFY (b, c, d, fm_struct_tmp, e_vectors, rot_e_vectors)
+         NULLIFY (fm_struct_tmp)
 
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, &
                                   ncol_global=ns, &

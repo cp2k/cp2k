@@ -1054,7 +1054,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: buffer
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: eigenvectors, matrix, work
+      TYPE(cp_fm_type)                                   :: eigenvectors, matrix, work
       TYPE(rng_stream_type), ALLOCATABLE                 :: rng_stream
 
       group = para_env%group
@@ -1117,19 +1117,16 @@ CONTAINS
                                   ncol_global=n)
 
          ! create all needed matrices, and buffers for the eigenvalues
-         NULLIFY (matrix)
          CALL cp_fm_create(matrix=matrix, &
                            matrix_struct=fmstruct, &
                            name="MATRIX")
          CALL cp_fm_set_all(matrix, 0.0_dp)
 
-         NULLIFY (eigenvectors)
          CALL cp_fm_create(matrix=eigenvectors, &
                            matrix_struct=fmstruct, &
                            name="EIGENVECTORS")
          CALL cp_fm_set_all(eigenvectors, 0.0_dp)
 
-         NULLIFY (work)
          CALL cp_fm_create(matrix=work, &
                            matrix_struct=fmstruct, &
                            name="WORK")
@@ -1279,7 +1276,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER         :: blacs_env
       TYPE(cp_fm_struct_type), POINTER         :: fmstruct_a, fmstruct_b, &
                                                   fmstruct_c
-      TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b, matrix_c
+      TYPE(cp_fm_type)               :: matrix_a, matrix_b, matrix_c
 #if defined(__SCALAPACK)
       INTEGER                                  :: pilaenv
 #endif
@@ -1372,11 +1369,8 @@ CONTAINS
          IF (iw > 0) WRITE (iw, '(T2,A,I9,A,I9,A,I5,A,I5)') 'matrix C ', nrow_global, " by ", ncol_global, &
             ' using blocks of ', nrow_block_actual, ' by ', ncol_block_actual
 
-         NULLIFY (matrix_a)
          CALL cp_fm_create(matrix=matrix_a, matrix_struct=fmstruct_a, name="MATRIX A")
-         NULLIFY (matrix_b)
          CALL cp_fm_create(matrix=matrix_b, matrix_struct=fmstruct_b, name="MATRIX B")
-         NULLIFY (matrix_c)
          CALL cp_fm_create(matrix=matrix_c, matrix_struct=fmstruct_c, name="MATRIX C")
 
          CALL RANDOM_NUMBER(matrix_a%local_data)

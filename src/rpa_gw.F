@@ -168,7 +168,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: fm_mat_W
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
       TYPE(dbt_type)                                     :: t_3c_overl_int_ao_mo
       TYPE(hfx_compression_type), ALLOCATABLE, &
@@ -236,7 +236,7 @@ CONTAINS
 
       DO jquad = 1, num_integ_points
 
-         NULLIFY (fm_mat_W(jquad)%matrix)
+         ALLOCATE (fm_mat_W(jquad)%matrix)
          CALL cp_fm_create(fm_mat_W(jquad)%matrix, fm_mat_Q%matrix_struct)
          CALL cp_fm_to_fm(fm_mat_Q, fm_mat_W(jquad)%matrix)
          CALL cp_fm_set_all(fm_mat_W(jquad)%matrix, 0.0_dp)
@@ -449,7 +449,7 @@ CONTAINS
          ! create temporary matrix to store B*([1+Q(iw')]^-1-1), has the same size as B
          ALLOCATE (fm_mat_S_gw_work(nspins))
          DO ispin = 1, nspins
-            NULLIFY (fm_mat_S_gw_work(ispin)%matrix)
+            ALLOCATE (fm_mat_S_gw_work(ispin)%matrix)
             CALL cp_fm_create(fm_mat_S_gw_work(ispin)%matrix, fm_mat_S_gw(ispin)%matrix%matrix_struct)
             CALL cp_fm_set_all(matrix=fm_mat_S_gw_work(ispin)%matrix, alpha=0.0_dp)
          END DO
@@ -494,7 +494,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vec_Sigma_x_gw
       INTEGER, INTENT(IN)                                :: nmo
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_gw
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_gw
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: num_integ_group, color_rpa_group, homo, &
                                                             gw_corr_lev_occ
@@ -604,6 +604,7 @@ CONTAINS
       IF (my_do_gw) THEN
          DO ispin = 1, nspins
             CALL cp_fm_release(fm_mat_S_gw_work(ispin)%matrix)
+            DEALLOCATE (fm_mat_S_gw_work(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_S_gw_work)
          DEALLOCATE (vec_Sigma_x_minus_vxc_gw)
@@ -688,6 +689,7 @@ CONTAINS
 
          DO jquad = 1, SIZE(fm_mat_W, 1)
             CALL cp_fm_release(fm_mat_W(jquad)%matrix)
+            DEALLOCATE (fm_mat_W(jquad)%matrix)
          END DO
 
          DEALLOCATE (fm_mat_W)
@@ -699,6 +701,7 @@ CONTAINS
             DO ikp = 1, SIZE(cfm_mat_W_kp_tau, 1)
                IF (.NOT. (ANY(ikp_local(:) == ikp))) CYCLE
                CALL cp_cfm_release(cfm_mat_W_kp_tau(ikp, jquad)%matrix)
+               DEALLOCATE (cfm_mat_W_kp_tau(ikp, jquad)%matrix)
             END DO
          END DO
          DEALLOCATE (cfm_mat_W_kp_tau)
@@ -793,10 +796,10 @@ CONTAINS
          INTENT(INOUT)                                   :: vec_W_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: wj
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_static_bse, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_static_bse, &
                                                             fm_mat_R_gw
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S_gw, fm_mat_S_gw_work
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
                                                             matrix_berry_re_mo_mo
@@ -925,7 +928,7 @@ CONTAINS
    SUBROUTINE compute_W_cubic_GW(fm_mat_W, fm_mat_Q, fm_mat_work, dimen_RI, fm_mat_L, num_integ_points, &
                                  tj, tau_tj, weights_cos_tf_w_to_t, jquad, omega)
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_work
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       INTEGER, INTENT(IN)                                :: num_integ_points
@@ -1033,7 +1036,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: delta_corr, vec_omega_fit_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vec_W_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wj
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_GW_self_energy_deep'
 
@@ -1227,10 +1230,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau, mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_RPA
@@ -1557,7 +1560,7 @@ CONTAINS
       DO j = 1, SIZE(array, 2)
       DO k = 1, SIZE(array, 3)
 
-         ! chekc for NaN
+         ! check for NaN
          IF (array(i, j, k) .NE. array(i, j, k)) array(i, j, k) = real_value
 
       END DO
@@ -1607,7 +1610,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, nmo, gw_corr_lev_occ, &
                                                             gw_corr_lev_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
@@ -1835,7 +1838,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_re_mo_mo, &
                                                             matrix_berry_im_mo_mo
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: do_mo_coeff_Gamma_only
       INTEGER, INTENT(IN)                                :: homo, nmo, gw_corr_lev_virt
@@ -1854,8 +1857,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_P, evals_P_sqrt_inv
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_aux_aux
-      TYPE(cp_fm_type), POINTER :: fm_mat_eigv_P, fm_mat_P, fm_mat_P_sqrt_inv, &
-         fm_mat_s_aux_aux_inv, fm_mat_scaled_eigv_P, fm_mat_work_aux_aux
+      TYPE(cp_fm_type) :: fm_mat_eigv_P, fm_mat_P, fm_mat_P_sqrt_inv, fm_mat_s_aux_aux_inv, &
+         fm_mat_scaled_eigv_P, fm_mat_work_aux_aux
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_aux_aux, &
                                                             matrix_s_aux_orb
       TYPE(dbcsr_type), POINTER :: cosmat, cosmat_desymm, mat_mo_coeff_aux, mat_mo_coeff_aux_2, &
@@ -2040,22 +2043,11 @@ CONTAINS
                            template=matrix_s(1)%matrix, &
                            matrix_type=dbcsr_type_no_symmetry)
 
-         NULLIFY (fm_mat_s_aux_aux_inv)
          CALL cp_fm_create(fm_mat_s_aux_aux_inv, fm_struct_aux_aux, name="inverse overlap mat")
-
-         NULLIFY (fm_mat_work_aux_aux)
          CALL cp_fm_create(fm_mat_work_aux_aux, fm_struct_aux_aux, name="work mat")
-
-         NULLIFY (fm_mat_P)
          CALL cp_fm_create(fm_mat_P, fm_mo_coeff%matrix_struct)
-
-         NULLIFY (fm_mat_eigv_P)
          CALL cp_fm_create(fm_mat_eigv_P, fm_mo_coeff%matrix_struct)
-
-         NULLIFY (fm_mat_scaled_eigv_P)
          CALL cp_fm_create(fm_mat_scaled_eigv_P, fm_mo_coeff%matrix_struct)
-
-         NULLIFY (fm_mat_P_sqrt_inv)
          CALL cp_fm_create(fm_mat_P_sqrt_inv, fm_mo_coeff%matrix_struct)
 
          NULLIFY (evals_P)
@@ -4295,7 +4287,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
-      TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
@@ -4326,7 +4318,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT) :: first_cycle_periodic_correction
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: num_fit_points
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff
       LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vec_Sigma_x_gw
       INTEGER, INTENT(IN)                                :: unit_nr, ispin
@@ -4751,7 +4743,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: num_fit_points
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff
       LOGICAL, INTENT(IN)                                :: do_ri_Sigma_x
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vec_Sigma_x_gw
       INTEGER, INTENT(IN)                                :: unit_nr, ispin
@@ -5096,12 +5088,12 @@ CONTAINS
 
       INTEGER                                            :: handle, ikp, nkp_Sigma, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_Sigma_x_minus_vxc_mo_mo
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mo_coeff, ks_mat_ao_ao, &
+      TYPE(cp_cfm_type)                                  :: cfm_mo_coeff, ks_mat_ao_ao, &
                                                             ks_mat_no_xc_ao_ao, vxc_ao_ao, &
                                                             vxc_ao_mo, vxc_mo_mo
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_Sigma_x_minus_vxc_mo_mo, fm_tmp_im, &
-                                                            fm_tmp_re
+      TYPE(cp_fm_type)                                   :: fm_dummy, fm_Sigma_x_minus_vxc_mo_mo, &
+                                                            fm_tmp_im, fm_tmp_re
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(kpoint_type), POINTER                         :: kpoints_Sigma, kpoints_Sigma_no_xc
 
@@ -5117,8 +5109,6 @@ CONTAINS
 
       matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct
 
-      NULLIFY (ks_mat_ao_ao, ks_mat_no_xc_ao_ao, vxc_ao_ao, vxc_ao_mo, vxc_mo_mo, cfm_mo_coeff, fm_Sigma_x_minus_vxc_mo_mo, &
-               fm_tmp_re, fm_tmp_im)
       CALL cp_cfm_create(ks_mat_ao_ao, matrix_struct)
       CALL cp_cfm_create(ks_mat_no_xc_ao_ao, matrix_struct)
       CALL cp_cfm_create(vxc_ao_ao, matrix_struct)
@@ -5138,16 +5128,35 @@ CONTAINS
 
       DO ikp = 1, nkp_Sigma
 
-         CALL cp_fm_copy_general(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, 1)%mo_set%mo_coeff, fm_tmp_re, para_env)
-         CALL cp_fm_copy_general(kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(2, 1)%mo_set%mo_coeff, fm_tmp_im, para_env)
+         ASSOCIATE (mos => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos)
+         IF (ASSOCIATED(mos(1, 1)%mo_set%mo_coeff)) THEN
+            CALL cp_fm_copy_general(mos(1, 1)%mo_set%mo_coeff, fm_tmp_re, para_env)
+         ELSE
+            CALL cp_fm_copy_general(fm_dummy, fm_tmp_re, para_env)
+         END IF
+         IF (ASSOCIATED(mos(2, 1)%mo_set%mo_coeff)) THEN
+            CALL cp_fm_copy_general(mos(2, 1)%mo_set%mo_coeff, fm_tmp_im, para_env)
+         ELSE
+            CALL cp_fm_copy_general(fm_dummy, fm_tmp_im, para_env)
+         END IF
+         END ASSOCIATE
 
          CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, cfm_mo_coeff)
 
          CALL cp_fm_to_cfm(kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, &
                            kpoints_Sigma%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, ks_mat_ao_ao)
-
-         CALL cp_fm_copy_general(kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat(1, 1)%matrix, fm_tmp_re, para_env)
-         CALL cp_fm_copy_general(kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat(2, 1)%matrix, fm_tmp_im, para_env)
+         ASSOCIATE (wmat => kpoints_Sigma_no_xc%kp_env(ikp)%kpoint_env%wmat)
+         IF (ASSOCIATED(wmat(1, 1)%matrix)) THEN
+            CALL cp_fm_copy_general(wmat(1, 1)%matrix, fm_tmp_re, para_env)
+         ELSE
+            CALL cp_fm_copy_general(fm_dummy, fm_tmp_re, para_env)
+         END IF
+         IF (ASSOCIATED(wmat(2, 1)%matrix)) THEN
+            CALL cp_fm_copy_general(wmat(2, 1)%matrix, fm_tmp_im, para_env)
+         ELSE
+            CALL cp_fm_copy_general(fm_dummy, fm_tmp_im, para_env)
+         END IF
+         END ASSOCIATE
 
          CALL cp_fm_to_cfm(fm_tmp_re, fm_tmp_im, vxc_ao_ao)
 
@@ -5206,11 +5215,11 @@ CONTAINS
                                                             periodic(3), size_real_space
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_self_energy
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mo_coeff, cfm_self_energy_ao_ao, &
+      TYPE(cp_cfm_type)                                  :: cfm_mo_coeff, cfm_self_energy_ao_ao, &
                                                             cfm_self_energy_ao_mo, &
                                                             cfm_self_energy_mo_mo
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_self_energy_mo_mo
+      TYPE(cp_fm_type)                                   :: fm_self_energy_mo_mo
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: mat_self_energy_ao_ao_kp_im, &
          mat_self_energy_ao_ao_kp_re, mat_self_energy_ao_ao_real_space
@@ -5242,7 +5251,6 @@ CONTAINS
       CALL dbcsr_get_info(mat_self_energy_ao_ao, nfullrows_total=nmo)
       ALLOCATE (diag_self_energy(nmo))
 
-      NULLIFY (cfm_self_energy_ao_ao, cfm_self_energy_ao_mo, cfm_self_energy_mo_mo, cfm_mo_coeff)
       matrix_struct => kpoints_Sigma%kp_env(1)%kpoint_env%mos(1, 1)%mo_set%mo_coeff%matrix_struct
 
       CALL cp_cfm_create(cfm_self_energy_ao_ao, matrix_struct)
@@ -5302,16 +5310,15 @@ CONTAINS
    SUBROUTINE dbcsr_to_cfm(dbcsr_re, dbcsr_im, cfm_mat)
 
       TYPE(dbcsr_type), POINTER                          :: dbcsr_re, dbcsr_im
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbcsr_to_cfm'
 
       INTEGER                                            :: handle
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_im, fm_mat_re
+      TYPE(cp_fm_type)                                   :: fm_mat_im, fm_mat_re
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_mat_re, fm_mat_im)
       CALL cp_fm_create(fm_mat_re, cfm_mat%matrix_struct)
       CALL cp_fm_create(fm_mat_im, cfm_mat%matrix_struct)
       CALL cp_fm_set_all(fm_mat_re, 0.0_dp)
@@ -5618,7 +5625,7 @@ CONTAINS
                                            eps_filter, e_fermi, tau, para_env)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_greens_fct_occ, mat_greens_fct_virt
-      TYPE(cp_fm_type), POINTER :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo

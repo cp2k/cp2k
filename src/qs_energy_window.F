@@ -101,9 +101,8 @@ CONTAINS
                                                             window_eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, window_fm_struct
-      TYPE(cp_fm_type), POINTER :: eigenvectors, eigenvectors_nonorth, matrix_ks_fm, &
-         P_eigenvectors, P_window_fm, rho_ao_ortho_fm, S_minus_half_fm, tmp_fm, &
-         window_eigenvectors, window_fm
+      TYPE(cp_fm_type) :: eigenvectors, eigenvectors_nonorth, matrix_ks_fm, P_eigenvectors, &
+         P_window_fm, rho_ao_ortho_fm, S_minus_half_fm, tmp_fm, window_eigenvectors, window_fm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
       TYPE(dbcsr_type)                                   :: matrix_ks_nosym, S_half, S_minus_half, &

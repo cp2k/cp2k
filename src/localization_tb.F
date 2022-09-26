@@ -172,6 +172,7 @@ CONTAINS
                                eigenvalues=mo_eigenvalues)
                occupied_orbs(ispin)%matrix => mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
+               ALLOCATE (homo_localized(ispin)%matrix)
                CALL cp_fm_create(homo_localized(ispin)%matrix, occupied_orbs(ispin)%matrix%matrix_struct)
                CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin)%matrix)
             END DO

@@ -484,7 +484,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, t0, t1, t2
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
-      TYPE(cp_fm_type), POINTER                          :: csc, fm_tmp, mo_coeff
+      TYPE(cp_fm_type)                                   :: csc, fm_tmp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, rho_frozen_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
@@ -764,7 +765,7 @@ CONTAINS
          ! C_2 comes from using PS_2 as a projector acting on C_1
          CALL qs_rho_get(rho, rho_ao=rho_ao)
          DO ispin = 1, SIZE(mos)
-            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new, csc)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k, &
                                 matrix_struct=matrix_struct)
@@ -812,7 +813,7 @@ CONTAINS
 
          my_orthogonal_wf = .TRUE.
          DO ispin = 1, SIZE(mos)
-            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new, csc, fm_tmp)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, nrow_global=n, ncol_global=k, &
                                 matrix_struct=matrix_struct)
@@ -876,7 +877,7 @@ CONTAINS
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
          DO ispin = 1, SIZE(mos)
-            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new, csc, fm_tmp)
+            NULLIFY (mo_coeff, matrix_struct, matrix_struct_new)
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
             CALL cp_fm_get_info(mo_coeff, &
                                 nrow_global=n, &
@@ -1022,7 +1023,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reorthogonalize_vectors(qs_env, v_matrix, n_col)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: v_matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: v_matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n_col
 
       CHARACTER(len=*), PARAMETER :: routineN = 'reorthogonalize_vectors'
@@ -1042,7 +1043,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(ASSOCIATED(v_matrix))
 
       CALL cp_fm_get_info(v_matrix, ncol_global=my_n_col)
       IF (PRESENT(n_col)) my_n_col = n_col

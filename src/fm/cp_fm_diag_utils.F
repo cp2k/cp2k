@@ -284,8 +284,8 @@ CONTAINS
    SUBROUTINE cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, &
                                        caller_is_elpa, redist_info)
 
-      TYPE(cp_fm_type), INTENT(IN), TARGET     :: matrix, eigenvectors
-      TYPE(cp_fm_type), POINTER                :: matrix_new, eigenvectors_new
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(OUT)            :: matrix_new, eigenvectors_new
       LOGICAL, OPTIONAL, INTENT(IN)            :: caller_is_elpa
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_start'
@@ -316,8 +316,6 @@ CONTAINS
 
 #if defined(__SCALAPACK)
 
-      NULLIFY (matrix_new)
-      NULLIFY (eigenvectors_new)
       logger => cp_get_default_logger()
       io_unit = cp_logger_get_default_io_unit(logger)
 
@@ -428,8 +426,8 @@ CONTAINS
          END IF
       ELSE
          ! No need to redistribute, just return pointers to the original arrays
-         matrix_new => matrix
-         eigenvectors_new => eigenvectors
+         matrix_new = matrix
+         eigenvectors_new = eigenvectors
       END IF
 
       IF (PRESENT(redist_info)) &
@@ -463,9 +461,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_redistribute_end(matrix, eigenvectors, eig, matrix_new, eigenvectors_new)
 
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: eig
-      TYPE(cp_fm_type), POINTER                :: matrix_new, eigenvectors_new
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_new, eigenvectors_new
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_redistribute_end'
 
@@ -507,12 +505,6 @@ CONTAINS
 
          ! finally, also the eigenvalues need to end up on the non-group member tasks
          CALL mp_bcast(eig, 0, para_env%group)
-
-      ELSE
-         ! Just nullify pointers to the original matrices
-         NULLIFY (matrix_new)
-         NULLIFY (eigenvectors_new)
-
       END IF
 
 #else

@@ -889,12 +889,22 @@ CONTAINS
       IF (ASSOCIATED(scf_env%scf_work1)) THEN
          DO ispin = 1, SIZE(scf_env%scf_work1)
             CALL cp_fm_release(scf_env%scf_work1(ispin)%matrix)
+            DEALLOCATE (scf_env%scf_work1(ispin)%matrix)
          END DO
          DEALLOCATE (scf_env%scf_work1)
       END IF
-      IF (ASSOCIATED(scf_env%scf_work2)) CALL cp_fm_release(scf_env%scf_work2)
-      IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho)
-      IF (ASSOCIATED(scf_env%ortho_m1)) CALL cp_fm_release(scf_env%ortho_m1)
+      IF (ASSOCIATED(scf_env%scf_work2)) THEN
+         CALL cp_fm_release(scf_env%scf_work2)
+         DEALLOCATE (scf_env%scf_work2)
+      END IF
+      IF (ASSOCIATED(scf_env%ortho)) THEN
+         CALL cp_fm_release(scf_env%ortho)
+         DEALLOCATE (scf_env%ortho)
+      END IF
+      IF (ASSOCIATED(scf_env%ortho_m1)) THEN
+         CALL cp_fm_release(scf_env%ortho_m1)
+         DEALLOCATE (scf_env%ortho_m1)
+      END IF
 
       IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
          CALL dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
@@ -1102,7 +1112,7 @@ CONTAINS
          NULLIFY (cdft_control%mo_coeff)
          ALLOCATE (cdft_control%mo_coeff(dft_control%nspins))
          DO ispin = 1, dft_control%nspins
-            NULLIFY (cdft_control%mo_coeff(ispin)%matrix)
+            ALLOCATE (cdft_control%mo_coeff(ispin)%matrix)
             CALL cp_fm_create(matrix=cdft_control%mo_coeff(ispin)%matrix, &
                               matrix_struct=qs_env%mos(ispin)%mo_set%mo_coeff%matrix_struct, &
                               name="MO_COEFF_A"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")

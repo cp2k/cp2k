@@ -203,6 +203,9 @@ CONTAINS
                NULLIFY (rtp%mos%old(2*(i - 1) + j)%matrix)
                NULLIFY (rtp%mos%new(2*(i - 1) + j)%matrix)
                NULLIFY (rtp%mos%next(2*(i - 1) + j)%matrix)
+               ALLOCATE (rtp%mos%old(2*(i - 1) + j)%matrix)
+               ALLOCATE (rtp%mos%new(2*(i - 1) + j)%matrix)
+               ALLOCATE (rtp%mos%next(2*(i - 1) + j)%matrix)
                CALL cp_fm_create(rtp%mos%old(2*(i - 1) + j)%matrix, &
                                  matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
                                  name="mos_old"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
@@ -214,6 +217,7 @@ CONTAINS
                                  name="mos_next"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
                IF (dft_control%do_admm) THEN
                   NULLIFY (rtp%mos%admm(2*(i - 1) + j)%matrix)
+                  ALLOCATE (rtp%mos%admm(2*(i - 1) + j)%matrix)
                   CALL cp_fm_create(rtp%mos%admm(2*(i - 1) + j)%matrix, &
                                     matrix_struct=mos_aux(i)%mo_set%mo_coeff%matrix_struct, &
                                     name="mos_admm"//TRIM(ADJUSTL(cp_to_string(2*(i - 1) + j))))
@@ -456,6 +460,7 @@ CONTAINS
             DO i = 1, nmat
                DO j = 1, aspc_order
                   NULLIFY (history%mo_history(i, j)%matrix)
+                  ALLOCATE (history%mo_history(i, j)%matrix)
                   CALL cp_fm_create(history%mo_history(i, j)%matrix, &
                                     matrix_struct=rtp%mos%new(i)%matrix%matrix_struct, &
                                     name="mo_hist"//TRIM(ADJUSTL(cp_to_string(i))))
@@ -487,6 +492,7 @@ CONTAINS
          DO i = 1, SIZE(rtp%history%mo_history, 1)
             DO j = 1, SIZE(rtp%history%mo_history, 2)
                CALL cp_fm_release(rtp%history%mo_history(i, j)%matrix)
+               DEALLOCATE (rtp%history%mo_history(i, j)%matrix)
             END DO
          END DO
          DEALLOCATE (rtp%history%mo_history)

@@ -85,20 +85,16 @@ CONTAINS
          POINTER                                         :: local_data
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: c_alpha, c_beta, catscb, sca, scb
+      TYPE(cp_fm_type)                                   :: catscb, sca, scb
+      TYPE(cp_fm_type), POINTER                          :: c_alpha, c_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (catscb)
-      NULLIFY (c_alpha)
-      NULLIFY (c_beta)
       NULLIFY (context)
       NULLIFY (fm_struct_tmp)
       NULLIFY (local_data)
       NULLIFY (para_env)
-      NULLIFY (sca)
-      NULLIFY (scb)
 
       SELECT CASE (SIZE(mos))
       CASE (1)

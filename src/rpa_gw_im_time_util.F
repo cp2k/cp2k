@@ -117,7 +117,7 @@ CONTAINS
       TYPE(dbt_type)                                     :: t_3c_overl_int_gw_RI, &
                                                             t_3c_overl_int_gw_AO
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(IN)                                :: gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                                             nmo
@@ -147,7 +147,7 @@ CONTAINS
       REAL(dp)                                           :: compression_factor, memory_3c, occ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norm
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_mo_coeff_gw
+      TYPE(cp_fm_type)                                   :: fm_mat_mo_coeff_gw
       TYPE(dbcsr_distribution_type)                      :: dist, dist_templ
       TYPE(dbcsr_type)                                   :: mat_mo_coeff_gw_reflected_norm, &
                                                             mat_norm, mat_norm_diag, mat_work
@@ -176,7 +176,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
-      NULLIFY (fm_mat_mo_coeff_gw)
       CALL cp_fm_create(fm_mat_mo_coeff_gw, mo_coeff%matrix_struct)
       CALL cp_fm_to_fm(mo_coeff, fm_mat_mo_coeff_gw)
 

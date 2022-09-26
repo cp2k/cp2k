@@ -95,10 +95,10 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: ritz_coeff, vnorm
       REAL(dp), DIMENSION(:), POINTER                    :: eig_not_conv, eigenvalues, evals
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: c_conv, c_notconv, c_out, c_pz, c_z, &
-                                                            h_block, h_fm, m_hc, m_sc, m_tmp, &
-                                                            mo_coeff, mt_tmp, s_block, s_fm, &
-                                                            v_block, w_block
+      TYPE(cp_fm_type)                                   :: c_conv, c_notconv, c_out, h_block, h_fm, &
+                                                            m_hc, m_sc, m_tmp, mt_tmp, s_block, &
+                                                            s_fm, v_block, w_block
+      TYPE(cp_fm_type), POINTER                          :: c_pz, c_z, mo_coeff
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
 
       CALL timeset(routineN, handle)
@@ -115,8 +115,7 @@ CONTAINS
          max_iter = 1
       END IF
 
-      NULLIFY (c_conv, c_notconv, c_out, c_z, c_pz, m_hc, m_sc, m_tmp, mt_tmp)
-      NULLIFY (h_block, h_fm, s_block, s_fm, v_block, w_block)
+      NULLIFY (c_z, c_pz)
       NULLIFY (evals, eig_not_conv)
       t1 = m_walltime()
       IF (output_unit > 0) THEN
@@ -150,7 +149,6 @@ CONTAINS
          CALL cp_fm_release(m_tmp)
 
          ! Check for converged eigenvectors
-!      CALL cp_fm_create(c_z,mo_coeff%matrix_struct,name="tmp")
          c_z => bdav_env%matrix_z
          c_pz => bdav_env%matrix_pz
          CALL cp_fm_to_fm(m_sc, c_z)
@@ -278,6 +276,7 @@ CONTAINS
             CALL cp_fm_create(m_hc, fm_struct_tmp, name="m_hc")
             CALL cp_fm_create(m_sc, fm_struct_tmp, name="m_sc")
             !allocate c_z
+            ALLOCATE (c_z, c_pz)
             CALL cp_fm_create(c_z, fm_struct_tmp, name="c_z")
             CALL cp_fm_create(c_pz, fm_struct_tmp, name="c_pz")
             CALL cp_fm_set_all(c_z, 0.0_dp)
@@ -424,6 +423,7 @@ CONTAINS
          IF (nmo_converged > 0) THEN
             CALL cp_fm_release(c_z)
             CALL cp_fm_release(c_pz)
+            DEALLOCATE (c_z, c_pz)
             jj = 1
             DO j = 1, nset_not_conv
                i_first = inotconv_set(j, 1)
@@ -491,8 +491,10 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: eig_not_conv, evals, ritz_coeff, vnorm
       REAL(dp), DIMENSION(:), POINTER                    :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER :: h_block, matrix_mm_fm, matrix_mmt_fm, matrix_nm_fm, &
-         matrix_z_fm, mo_coeff, mo_conv_fm, mo_notconv_fm, s_block, v_block, w_block
+      TYPE(cp_fm_type)                                   :: h_block, matrix_mm_fm, matrix_mmt_fm, &
+                                                            matrix_nm_fm, matrix_z_fm, mo_conv_fm, &
+                                                            s_block, v_block, w_block
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_notconv_fm
       TYPE(dbcsr_type), POINTER                          :: c_out, matrix_hc, matrix_mm, matrix_pz, &
                                                             matrix_sc, matrix_z, mo_coeff_b, &
                                                             mo_conv, mo_notconv, smo_conv
@@ -503,9 +505,7 @@ CONTAINS
       IF (PRESENT(preconditioner)) do_apply_preconditioner = .TRUE.
 
       NULLIFY (mo_coeff, mo_coeff_b, matrix_hc, matrix_sc, matrix_z, matrix_pz, matrix_mm)
-      NULLIFY (mo_conv_fm, mo_notconv_fm, mo_conv, mo_notconv, smo_conv, c_out)
-      NULLIFY (matrix_mm_fm, matrix_mmt_fm, mo_coeff, matrix_nm_fm, matrix_z_fm)
-      NULLIFY (h_block, s_block, v_block, w_block)
+      NULLIFY (mo_notconv_fm, mo_conv, mo_notconv, smo_conv, c_out)
       NULLIFY (fm_struct_tmp)
       CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, &
                       eigenvalues=eigenvalues, homo=homo, nao=nao, nmo=nmo)
@@ -706,6 +706,7 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo_not_converged, &
                                      context=mo_coeff%matrix_struct%context, &
                                      para_env=mo_coeff%matrix_struct%para_env)
+            ALLOCATE (mo_notconv_fm)
             CALL cp_fm_create(mo_notconv_fm, fm_struct_tmp, name="mo_notconv_fm")
             CALL cp_fm_struct_release(fm_struct_tmp)
 
@@ -894,6 +895,7 @@ CONTAINS
             CALL dbcsr_release_p(mo_notconv)
             CALL dbcsr_release_p(c_out)
             CALL cp_fm_release(mo_notconv_fm)
+            DEALLOCATE (mo_notconv_fm)
          ELSE
             CALL cp_fm_to_fm(matrix_nm_fm, mo_coeff)
             eigenvalues(1:nmo) = evals(1:nmo)
@@ -934,7 +936,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reduce_extended_space(s_block, h_block, v_block, w_block, evals, ndim)
 
-      TYPE(cp_fm_type), POINTER                          :: s_block, h_block, v_block, w_block
+      TYPE(cp_fm_type), INTENT(IN)                       :: s_block, h_block, v_block, w_block
       REAL(dp), DIMENSION(:)                             :: evals
       INTEGER                                            :: ndim
 

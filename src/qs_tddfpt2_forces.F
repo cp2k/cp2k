@@ -414,7 +414,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_resvec1(evect, mos_occ, matrix_s, matrix_pe)
 
-      TYPE(cp_fm_type), POINTER                          :: evect, mos_occ
+      TYPE(cp_fm_type), INTENT(IN)                       :: evect, mos_occ
       TYPE(dbcsr_type), POINTER                          :: matrix_s, matrix_pe
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec1', routineP = moduleN//':'//routineN
@@ -422,7 +422,7 @@ CONTAINS
       INTEGER                                            :: handle, iounit, nao, norb
       REAL(KIND=dp)                                      :: tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstruct2
-      TYPE(cp_fm_type), POINTER                          :: cxmat, xxmat
+      TYPE(cp_fm_type)                                   :: cxmat, xxmat
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -972,7 +972,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, nao, norb, nspins
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: cvec, omos, rvecs, scmat, umat
+      TYPE(cp_fm_type)                                   :: cvec, umat
+      TYPE(cp_fm_type), POINTER                          :: omos, rvecs, scmat
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
 

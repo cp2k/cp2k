@@ -353,12 +353,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
-      TYPE(cp_cfm_type), POINTER                         :: cksmat, cmos, csmat, cwork
+      TYPE(cp_cfm_type)                                  :: cksmat, cmos, csmat, cwork
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
-      TYPE(cp_fm_type), POINTER                          :: fmdummy, fmlocal, imos, mo_coeff, &
-                                                            rksmat, rmos, rsmat
+      TYPE(cp_fm_type)                                   :: fmdummy, rksmat, rsmat
+      TYPE(cp_fm_type), POINTER                          :: fmlocal, imos, mo_coeff, rmos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -368,7 +368,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fmdummy)
       NULLIFY (sab_nl)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
@@ -548,13 +547,13 @@ CONTAINS
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
                IF (use_real_wfn) THEN
-                  CALL cp_fm_cleanup_copy_general(fmwork(1)%matrix, info(indx, 1))
-                  CALL cp_fm_cleanup_copy_general(fmwork(3)%matrix, info(indx, 2))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 1))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 2))
                ELSE
-                  CALL cp_fm_cleanup_copy_general(fmwork(1)%matrix, info(indx, 1))
-                  CALL cp_fm_cleanup_copy_general(fmwork(2)%matrix, info(indx, 2))
-                  CALL cp_fm_cleanup_copy_general(fmwork(3)%matrix, info(indx, 3))
-                  CALL cp_fm_cleanup_copy_general(fmwork(4)%matrix, info(indx, 4))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 1))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 2))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 3))
+                  CALL cp_fm_cleanup_copy_general(info(indx, 4))
                END IF
             END DO
          END DO
@@ -630,7 +629,8 @@ CONTAINS
                                                             sum_band, sum_val, t1, t2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occupations
       TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: eval_first, occ_first
-      TYPE(cp_fm_type), POINTER                          :: c0, chc, evec, mo_coeff, work
+      TYPE(cp_fm_type)                                   :: work
+      TYPE(cp_fm_type), POINTER                          :: c0, chc, evec, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
@@ -641,7 +641,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
-               mo_occupations, work, dft_control, rho_ao, rho_ao_kp)
+               mo_occupations, dft_control, rho_ao, rho_ao_kp)
 
       logger => cp_get_default_logger()
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DIAG_SUB_SCF", &
@@ -859,11 +859,13 @@ CONTAINS
 
       DO ispin = 1, nspin
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         ALLOCATE (subspace_env%c0(ispin)%matrix)
          CALL cp_fm_create(subspace_env%c0(ispin)%matrix, mo_coeff%matrix_struct)
          NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo, &
                                   para_env=mo_coeff%matrix_struct%para_env, &
                                   context=mo_coeff%matrix_struct%context)
+         ALLOCATE (subspace_env%chc_mat(ispin)%matrix, subspace_env%c_vec(ispin)%matrix)
          CALL cp_fm_create(subspace_env%chc_mat(ispin)%matrix, fm_struct_tmp, "chc")
          CALL cp_fm_create(subspace_env%c_vec(ispin)%matrix, fm_struct_tmp, "vec")
          CALL cp_fm_struct_release(fm_struct_tmp)

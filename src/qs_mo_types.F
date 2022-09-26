@@ -167,6 +167,7 @@ CONTAINS
       nmo = mo_set_new%nmo
 
       NULLIFY (mo_set_new%mo_coeff)
+      ALLOCATE (mo_set_new%mo_coeff)
       CALL cp_fm_create(mo_set_new%mo_coeff, mo_set_old%mo_coeff%matrix_struct)
       CALL cp_fm_to_fm(mo_set_old%mo_coeff, mo_set_new%mo_coeff)
 
@@ -249,7 +250,7 @@ CONTAINS
 
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(cp_fm_pool_type), OPTIONAL, POINTER           :: fm_pool
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: fm_ref
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_ref
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct
       CHARACTER(LEN=*), INTENT(in)                       :: name
 
@@ -261,13 +262,15 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(mo_set%mo_coeff))
 
       CPASSERT(PRESENT(fm_pool) .NEQV. (PRESENT(fm_ref) .NEQV. PRESENT(fm_struct)))
+      NULLIFY (mo_set%mo_coeff)
       IF (PRESENT(fm_pool)) THEN
          CPASSERT(ASSOCIATED(fm_pool))
          CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
       ELSE IF (PRESENT(fm_ref)) THEN
-         CPASSERT(ASSOCIATED(fm_ref))
+         ALLOCATE (mo_set%mo_coeff)
          CALL cp_fm_create(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
       ELSE IF (PRESENT(fm_struct)) THEN
+         ALLOCATE (mo_set%mo_coeff)
          CPASSERT(ASSOCIATED(fm_struct))
          CALL cp_fm_create(mo_set%mo_coeff, fm_struct, name=name)
       END IF
@@ -364,7 +367,11 @@ CONTAINS
          IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
             DEALLOCATE (mo_set%occupation_numbers)
          END IF
-         CALL cp_fm_release(mo_set%mo_coeff)
+         IF (ASSOCIATED(mo_set%mo_coeff)) THEN
+            CALL cp_fm_release(mo_set%mo_coeff)
+            DEALLOCATE (mo_set%mo_coeff)
+            NULLIFY (mo_set%mo_coeff)
+         END IF
          IF (ASSOCIATED(mo_set%mo_coeff_b)) CALL dbcsr_release_p(mo_set%mo_coeff_b)
          DEALLOCATE (mo_set)
       END IF
@@ -397,7 +404,7 @@ CONTAINS
                          eigenvalues, occupation_numbers, mo_coeff, mo_coeff_b, &
                          uniform_occupation, kTS, mu, flexible_electron_count)
 
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type)                                  :: mo_set
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: maxocc
       INTEGER, INTENT(OUT), OPTIONAL                     :: homo, lfomo, nao, nelectron
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: n_el_f

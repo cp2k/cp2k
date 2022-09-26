@@ -168,7 +168,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE choose_eigv_solver(matrix, eigenvectors, eigenvalues, info)
 
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL                     :: info
 
@@ -209,7 +209,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_diag(matrix, eigenvectors, nvec)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)                    :: matrix, eigenvectors
       INTEGER, INTENT(IN)                                :: nvec
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_diag'
@@ -347,7 +347,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_syevd(matrix, eigenvectors, eigenvalues, info)
 
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET  :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)  :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL           :: info
 
@@ -356,7 +356,7 @@ CONTAINS
       INTEGER                                  :: handle, myinfo, n, nmo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
 #if defined(__SCALAPACK)
-      TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
+      TYPE(cp_fm_type)                         :: eigenvectors_new, matrix_new
 #else
       CHARACTER(LEN=2*default_string_length)   :: message
       INTEGER                                  :: liwork, lwork, nl
@@ -380,7 +380,7 @@ CONTAINS
       CALL cp_fm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new)
 
       ! Call scalapack on CPUs that hold the new matrix
-      IF (ASSOCIATED(matrix_new)) THEN
+      IF (ASSOCIATED(matrix_new%matrix_struct)) THEN
          IF (PRESENT(info)) THEN
             CALL cp_fm_syevd_base(matrix_new, eigenvectors_new, eig, myinfo)
          ELSE
@@ -467,7 +467,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_syevd_base(matrix, eigenvectors, eigenvalues, info)
 
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL           :: info
 
@@ -593,8 +593,8 @@ CONTAINS
 
       ! Diagonalise the symmetric n by n matrix using the LAPACK library.
 
-      TYPE(cp_fm_type), INTENT(INOUT)              :: matrix
-      TYPE(cp_fm_type), OPTIONAL, INTENT(INOUT)    :: eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)              :: matrix
+      TYPE(cp_fm_type), OPTIONAL, INTENT(IN)    :: eigenvectors
       REAL(KIND=dp), OPTIONAL, INTENT(IN)          :: work_syevx
       INTEGER, INTENT(IN), OPTIONAL                :: neig
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: eigenvalues
@@ -837,7 +837,7 @@ CONTAINS
       ! - Creation (29.03.1999, Matthias Krack)
       ! - Parallelised using BLACS and ScaLAPACK (06.06.2001,MK)
 
-      TYPE(cp_fm_type), INTENT(INOUT)            :: matrix, work
+      TYPE(cp_fm_type), INTENT(IN)            :: matrix, work
       REAL(KIND=dp), INTENT(IN)                  :: exponent, threshold
       INTEGER, INTENT(OUT)                       :: n_dependent
       LOGICAL, INTENT(IN), OPTIONAL              :: verbose
@@ -1018,7 +1018,7 @@ CONTAINS
       ! - Creation (07.10.2002, Martin Fengler)
       ! - Cosmetics (05.04.06, MK)
 
-      TYPE(cp_fm_type), INTENT(INOUT)           :: eigenvectors, matrix
+      TYPE(cp_fm_type), INTENT(IN)           :: eigenvectors, matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)   :: eigval
       INTEGER, INTENT(IN)                       :: start_sec_block
       REAL(KIND=dp), INTENT(IN)                 :: thresh
@@ -1209,9 +1209,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
 
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: work
+      TYPE(cp_fm_type), INTENT(IN)                       :: work
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig'
 
@@ -1251,9 +1251,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
 
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET            :: work
+      TYPE(cp_fm_type), INTENT(IN)                       :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig_canon'

@@ -196,7 +196,7 @@ CONTAINS
          INTENT(INOUT)                                   :: gd_B_virtual
       TYPE(group_dist_d1_type), INTENT(INOUT)            :: gd_B_all, gd_B_occ_bse, gd_B_virt_bse
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -635,25 +635,32 @@ CONTAINS
          DO ispin = 1, SIZE(fm_mat_Q_gemm)
             CALL cp_fm_release(fm_mat_Q_gemm(ispin)%matrix)
             CALL cp_fm_release(fm_mat_S(ispin)%matrix)
+            DEALLOCATE (fm_mat_Q_gemm(ispin)%matrix, fm_mat_S(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_Q_gemm, fm_mat_S)
       END IF
       DO ispin = 1, SIZE(fm_mat_Q)
-         IF (ASSOCIATED(fm_mat_Q(ispin)%matrix)) CALL cp_fm_release(fm_mat_Q(ispin)%matrix)
+         IF (ASSOCIATED(fm_mat_Q(ispin)%matrix)) THEN
+            CALL cp_fm_release(fm_mat_Q(ispin)%matrix)
+            DEALLOCATE (fm_mat_Q(ispin)%matrix)
+         END IF
       END DO
       DEALLOCATE (fm_mat_Q)
 
       IF (my_do_gw .AND. .NOT. do_im_time) THEN
          DO ispin = 1, SIZE(fm_mat_S_gw)
             CALL cp_fm_release(fm_mat_S_gw(ispin)%matrix)
+            DEALLOCATE (fm_mat_S_gw(ispin)%matrix)
          END DO
          DEALLOCATE (fm_mat_S_gw)
          CALL cp_fm_release(fm_mat_R_gw(1)%matrix)
+         DEALLOCATE (fm_mat_R_gw(1)%matrix)
       END IF
 
       IF (do_bse) THEN
          CALL cp_fm_release(fm_mat_S_ij_bse(1)%matrix)
          CALL cp_fm_release(fm_mat_S_ab_bse(1)%matrix)
+         DEALLOCATE (fm_mat_S_ij_bse(1)%matrix, fm_mat_S_ab_bse(1)%matrix)
       END IF
 
       IF (mp2_env%ri_rpa%do_ri_axk) THEN
@@ -922,6 +929,7 @@ CONTAINS
             group_grid_2_mepos(mepos_in_RPA_group, para_env_sub%mepos) = para_env_RPA%mepos
             CALL mp_sum(group_grid_2_mepos, para_env_RPA%group)
 
+            ALLOCATE (fm_mat_S(ispin)%matrix)
             CALL array2fm(BIb_C_2D(ispin)%array, fm_struct, my_group_L_start, my_group_L_end, &
                           my_ia_start(ispin), my_ia_end(ispin), gd_L, gd_ia, &
                           group_grid_2_mepos, ngroup, para_env_sub%num_pe, fm_mat_S(ispin)%matrix, &
@@ -952,7 +960,7 @@ CONTAINS
                                   ncol_global=dimen_RI, para_env=para_env_RPA, &
                                   nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
          DO ispin = 1, SIZE(fm_mat_Q_gemm)
-            NULLIFY (fm_mat_Q_gemm(ispin)%matrix)
+            ALLOCATE (fm_mat_Q_gemm(ispin)%matrix)
             CALL cp_fm_create(fm_mat_Q_gemm(ispin)%matrix, fm_struct, name="fm_mat_Q_gemm")
          END DO
          CALL cp_fm_struct_release(fm_struct)
@@ -969,7 +977,7 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_Q, nrow_global=dimen_RI, &
                                   ncol_global=dimen_RI, para_env=para_env_RPA)
          DO ispin = 1, SIZE(fm_mat_Q)
-            NULLIFY (fm_mat_Q(ispin)%matrix)
+            ALLOCATE (fm_mat_Q(ispin)%matrix)
             CALL cp_fm_create(fm_mat_Q(ispin)%matrix, fm_struct, name="fm_mat_Q")
          END DO
 
@@ -1068,10 +1076,10 @@ CONTAINS
          INTENT(INOUT)                                   :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
                                                             fm_mat_S_gw
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_R_gw, fm_mat_S_ij_bse, &
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_R_gw, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt
@@ -1128,13 +1136,13 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
          B_bar_ijQ_bse_local, B_iaQ_bse_local, Eigenval_last, Eigenval_scf, vec_Sigma_x_gw
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: cfm_mat_W_kp_tau
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_cfm_type)                                  :: cfm_mat_Q
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L, fm_mat_SiVtrSi
-      TYPE(cp_fm_type), POINTER :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, &
-         fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-         fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type) :: fm_mat_Q_static_bse, fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, &
+         fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
+         fm_scaled_dm_virt_tau
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_P_global_copy, &
                                                             mat_SinvVSinv

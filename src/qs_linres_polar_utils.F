@@ -157,6 +157,8 @@ CONTAINS
          DO ispin = 1, nspins
             DO idir = 1, 3
                CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
+               DEALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix)
+               NULLIFY (polar_env%dBerry_psi0(idir, ispin)%matrix)
             END DO
          END DO
       END IF
@@ -167,6 +169,8 @@ CONTAINS
          DO ispin = 1, nspins
             DO idir = 1, 3
                CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
+               DEALLOCATE (polar_env%psi1_dBerry(idir, ispin)%matrix)
+               NULLIFY (polar_env%psi1_dBerry(idir, ispin)%matrix)
             END DO
          END DO
       END IF
@@ -178,6 +182,8 @@ CONTAINS
                                   ncol_global=m, &
                                   context=mo_coeff%matrix_struct%context)
          DO idir = 1, 3
+            ALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix, &
+                      polar_env%psi1_dBerry(idir, ispin)%matrix)
             CALL cp_fm_create(polar_env%dBerry_psi0(idir, ispin)%matrix, tmp_fm_struct)
             CALL cp_fm_create(polar_env%psi1_dBerry(idir, ispin)%matrix, tmp_fm_struct)
          END DO
@@ -440,6 +446,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nmo, &
                                   context=mo_coeff%matrix_struct%context)
+         ALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
          CALL cp_fm_create(psi1(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_create(h1_psi0(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
@@ -502,6 +509,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL cp_fm_release(psi1(ispin)%matrix)
          CALL cp_fm_release(h1_psi0(ispin)%matrix)
+         DEALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
       END DO
       DEALLOCATE (psi1, h1_psi0, psi0_order)
 

@@ -98,6 +98,7 @@ CONTAINS
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, para_env, blacs_env, &
                                   p_env%n_ao(spin), p_env%n_ao(spin))
+         ALLOCATE (t_env%invS(spin)%matrix)
          CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")
          CALL cp_fm_struct_release(fm_struct)
       END DO
@@ -122,8 +123,10 @@ CONTAINS
       END DO
 
       DO spin = 1, SIZE(t_env%invS)
-         IF (ASSOCIATED(t_env%invS(spin)%matrix)) &
+         IF (ASSOCIATED(t_env%invS(spin)%matrix)) THEN
             CALL cp_fm_release(t_env%invS(spin)%matrix)
+            DEALLOCATE (t_env%invS(spin)%matrix)
+         END IF
       END DO
       DEALLOCATE (t_env%invS, t_env%evecs, t_env%evals)
 

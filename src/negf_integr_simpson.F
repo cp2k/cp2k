@@ -15,7 +15,6 @@ MODULE negf_integr_simpson
                                               cp_cfm_get_info,&
                                               cp_cfm_p_type,&
                                               cp_cfm_release,&
-                                              cp_cfm_retain,&
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
@@ -126,7 +125,7 @@ CONTAINS
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       INTEGER, INTENT(in)                                :: shape_id
       REAL(kind=dp), INTENT(in)                          :: conv
-      TYPE(cp_fm_type), POINTER                          :: weights
+      TYPE(cp_fm_type), INTENT(IN)                       :: weights
       REAL(kind=dp), DIMENSION(nnodes), INTENT(in), &
          OPTIONAL                                        :: tnodes_restart
 
@@ -140,7 +139,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(nnodes > 4)
-      CPASSERT(ASSOCIATED(weights))
 
       ! ensure that MOD(nnodes-1, 4) == 0
       nnodes = 4*((nnodes - 1)/4) + 1
@@ -154,6 +152,7 @@ CONTAINS
 
       NULLIFY (sr_env%error_fm, sr_env%weights)
       CALL cp_fm_get_info(weights, local_data=w_data, nrow_local=nrows, ncol_local=ncols, matrix_struct=fm_struct)
+      ALLOCATE (sr_env%error_fm, sr_env%weights)
       CALL cp_fm_create(sr_env%error_fm, fm_struct)
       CALL cp_fm_create(sr_env%weights, fm_struct)
       CALL cp_fm_get_info(sr_env%weights, local_data=w_data_my)
@@ -196,24 +195,66 @@ CONTAINS
       CALL timeset(routineN, handle)
       IF (ALLOCATED(sr_env%subintervals)) THEN
          DO interval = SIZE(sr_env%subintervals), 1, -1
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fa)) CALL cp_cfm_release(sr_env%subintervals(interval)%fa)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fb)) CALL cp_cfm_release(sr_env%subintervals(interval)%fb)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fc)) CALL cp_cfm_release(sr_env%subintervals(interval)%fc)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fd)) CALL cp_cfm_release(sr_env%subintervals(interval)%fd)
-            IF (ASSOCIATED(sr_env%subintervals(interval)%fe)) CALL cp_cfm_release(sr_env%subintervals(interval)%fe)
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fa)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fa)
+               DEALLOCATE (sr_env%subintervals(interval)%fa)
+            END IF
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fb)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fb)
+               DEALLOCATE (sr_env%subintervals(interval)%fb)
+            END IF
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fc)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fc)
+               DEALLOCATE (sr_env%subintervals(interval)%fc)
+            END IF
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fd)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fd)
+               DEALLOCATE (sr_env%subintervals(interval)%fd)
+            END IF
+            IF (ASSOCIATED(sr_env%subintervals(interval)%fe)) THEN
+               CALL cp_cfm_release(sr_env%subintervals(interval)%fe)
+               DEALLOCATE (sr_env%subintervals(interval)%fe)
+            END IF
          END DO
 
          DEALLOCATE (sr_env%subintervals)
       END IF
 
-      IF (ASSOCIATED(sr_env%integral)) CALL cp_cfm_release(sr_env%integral)
-      IF (ASSOCIATED(sr_env%integral_conv)) CALL cp_cfm_release(sr_env%integral_conv)
-      IF (ASSOCIATED(sr_env%integral_abc)) CALL cp_cfm_release(sr_env%integral_abc)
-      IF (ASSOCIATED(sr_env%integral_cde)) CALL cp_cfm_release(sr_env%integral_cde)
-      IF (ASSOCIATED(sr_env%integral_ace)) CALL cp_cfm_release(sr_env%integral_ace)
-
-      IF (ASSOCIATED(sr_env%error_fm)) CALL cp_fm_release(sr_env%error_fm)
-      IF (ASSOCIATED(sr_env%weights)) CALL cp_fm_release(sr_env%weights)
+      IF (ASSOCIATED(sr_env%integral)) THEN
+         CALL cp_cfm_release(sr_env%integral)
+         DEALLOCATE (sr_env%integral)
+         NULLIFY (sr_env%integral)
+      END IF
+      IF (ASSOCIATED(sr_env%integral_conv)) THEN
+         CALL cp_cfm_release(sr_env%integral_conv)
+         DEALLOCATE (sr_env%integral_conv)
+         NULLIFY (sr_env%integral_conv)
+      END IF
+      IF (ASSOCIATED(sr_env%integral_abc)) THEN
+         CALL cp_cfm_release(sr_env%integral_abc)
+         DEALLOCATE (sr_env%integral_abc)
+         NULLIFY (sr_env%integral_abc)
+      END IF
+      IF (ASSOCIATED(sr_env%integral_cde)) THEN
+         CALL cp_cfm_release(sr_env%integral_cde)
+         DEALLOCATE (sr_env%integral_cde)
+         NULLIFY (sr_env%integral_cde)
+      END IF
+      IF (ASSOCIATED(sr_env%integral_ace)) THEN
+         CALL cp_cfm_release(sr_env%integral_ace)
+         DEALLOCATE (sr_env%integral_ace)
+         NULLIFY (sr_env%integral_ace)
+      END IF
+      IF (ASSOCIATED(sr_env%error_fm)) THEN
+         CALL cp_fm_release(sr_env%error_fm)
+         DEALLOCATE (sr_env%error_fm)
+         NULLIFY (sr_env%error_fm)
+      END IF
+      IF (ASSOCIATED(sr_env%weights)) THEN
+         CALL cp_fm_release(sr_env%weights)
+         DEALLOCATE (sr_env%weights)
+         NULLIFY (sr_env%weights)
+      END IF
 
       IF (ALLOCATED(sr_env%tnodes)) DEALLOCATE (sr_env%tnodes)
 
@@ -320,10 +361,11 @@ CONTAINS
       COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: zscale
       COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: error_zdata
-      INTEGER                                            :: handle, interval, ipoint, nintervals, &
-                                                            nintervals_exist, npoints
+      INTEGER                                            :: handle, interval, ipoint, jpoint, &
+                                                            nintervals, nintervals_exist, npoints
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
-      REAL(kind=dp)                                      :: rscale
+      LOGICAL                                            :: interval_converged, interval_exists
+      REAL(kind=dp)                                      :: my_bound, rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: errors
       REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: error_rdata
@@ -380,7 +422,6 @@ CONTAINS
             subintervals(2*interval - 1)%fc => sr_env%subintervals(interval)%fb
             subintervals(2*interval - 1)%fd => zdata_next(4*interval - 2)%matrix
             subintervals(2*interval - 1)%fe => sr_env%subintervals(interval)%fc
-            CALL cp_cfm_retain(subintervals(2*interval - 1)%fe)
 
             subintervals(2*interval)%lb = subintervals(2*interval - 1)%ub
             subintervals(2*interval)%ub = sr_env%subintervals(interval)%ub
@@ -404,6 +445,8 @@ CONTAINS
       ELSE
          ! first time -- allocate matrices and create a new set of intervals
          CALL cp_cfm_get_info(zdata_next(1)%matrix, matrix_struct=fm_struct)
+         ALLOCATE (sr_env%integral, sr_env%integral_conv, &
+                   sr_env%integral_abc, sr_env%integral_cde, sr_env%integral_ace)
          CALL cp_cfm_create(sr_env%integral, fm_struct)
          CALL cp_cfm_create(sr_env%integral_conv, fm_struct)
          CALL cp_cfm_create(sr_env%integral_abc, fm_struct)
@@ -427,10 +470,7 @@ CONTAINS
             subintervals(interval)%fc => zdata_next(4*interval - 1)%matrix
             subintervals(interval)%fd => zdata_next(4*interval)%matrix
             subintervals(interval)%fe => zdata_next(4*interval + 1)%matrix
-            CALL cp_cfm_retain(subintervals(interval)%fe)
          END DO
-
-         CALL cp_cfm_release(zdata_next(4*nintervals + 1)%matrix)
       END IF
 
       ! we kept the originals matrices for internal use, so nullify the pointers
@@ -503,12 +543,29 @@ CONTAINS
          ! sr_env%error_conv = sr_env%error
          ! CALL cp_cfm_to_cfm(sr_env%integral, sr_env%integral_conv)
 
+         ! Only deallocate the fa component explicitly if there is no interval to the left from it
          DO interval = nintervals_exist, 1, -1
-            CALL cp_cfm_release(subintervals(interval)%fa)
+            interval_exists = .FALSE.
+            my_bound = subintervals(interval)%lb
+            DO jpoint = 1, nintervals_exist
+               IF (subintervals(jpoint)%ub == my_bound) THEN
+                  interval_exists = .TRUE.
+                  EXIT
+               END IF
+            END DO
+            IF (.NOT. interval_exists) THEN
+               ! interval does not exist anymore, so it is safe to release the matrix
+               CALL cp_cfm_release(subintervals(interval)%fa)
+               DEALLOCATE (subintervals(interval)%fa)
+            ELSE IF (interval_converged) THEN
+               ! the interval still exists and will be released with fe
+            END IF
             CALL cp_cfm_release(subintervals(interval)%fb)
             CALL cp_cfm_release(subintervals(interval)%fc)
             CALL cp_cfm_release(subintervals(interval)%fd)
             CALL cp_cfm_release(subintervals(interval)%fe)
+            DEALLOCATE (subintervals(interval)%fb, subintervals(interval)%fc, &
+                        subintervals(interval)%fd, subintervals(interval)%fe)
          END DO
       ELSE
          ! sort subinterval according to their convergence, and drop convergent ones
@@ -536,11 +593,44 @@ CONTAINS
 
                sr_env%subintervals(nintervals) = subintervals(interval)
             ELSE
-               CALL cp_cfm_release(subintervals(interval)%fa)
+               ! Release matrices of converged intervals. Special cases: left and right boundary
+               ! Check whether the neighboring interval still exists and if it does, check for its convergence
+               interval_exists = .FALSE.
+               my_bound = subintervals(interval)%lb
+               DO jpoint = 1, nintervals_exist
+                  IF (subintervals(jpoint)%ub == my_bound) THEN
+                     interval_exists = .TRUE.
+                     EXIT
+                  END IF
+               END DO
+               IF (.NOT. interval_exists) THEN
+                  ! interval does not exist anymore, so it is safe to release the matrix
+                  CALL cp_cfm_release(subintervals(interval)%fa)
+                  DEALLOCATE (subintervals(interval)%fa)
+               ELSE IF (interval_converged) THEN
+                  ! the interval still exists and will be released with fe
+               END IF
                CALL cp_cfm_release(subintervals(interval)%fb)
                CALL cp_cfm_release(subintervals(interval)%fc)
                CALL cp_cfm_release(subintervals(interval)%fd)
-               CALL cp_cfm_release(subintervals(interval)%fe)
+               DEALLOCATE (subintervals(interval)%fb, subintervals(interval)%fc, subintervals(interval)%fd)
+
+               ! Right border: Check for the existence and the convergence of the interval
+               ! If the right interval does not exist or has converged, release the matrix
+               interval_exists = .FALSE.
+               interval_converged = .FALSE.
+               my_bound = subintervals(interval)%ub
+               DO jpoint = 1, nintervals_exist
+                  IF (subintervals(jpoint)%lb == my_bound) THEN
+                     interval_exists = .TRUE.
+                     IF (subintervals(jpoint)%error <= subintervals(jpoint)%conv) interval_converged = .TRUE.
+                     EXIT
+                  END IF
+               END DO
+               IF (.NOT. interval_exists .OR. interval_converged) THEN
+                  CALL cp_cfm_release(subintervals(interval)%fe)
+                  DEALLOCATE (subintervals(interval)%fe)
+               END IF
             END IF
          END DO
 
@@ -563,7 +653,7 @@ CONTAINS
 !>   * 05.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE do_simpson_rule(integral, fa, fb, fc, length)
-      TYPE(cp_cfm_type), POINTER                         :: integral, fa, fb, fc
+      TYPE(cp_cfm_type), INTENT(IN)                      :: integral, fa, fb, fc
       REAL(kind=dp), INTENT(in)                          :: length
 
       CALL cp_cfm_to_cfm(fa, integral)
@@ -587,9 +677,9 @@ CONTAINS
 !>   * 05.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE do_boole_rule(integral, fa, fb, fc, fd, fe, length, work)
-      TYPE(cp_cfm_type), POINTER                         :: integral, fa, fb, fc, fd, fe
+      TYPE(cp_cfm_type), INTENT(IN)                      :: integral, fa, fb, fc, fd, fe
       REAL(kind=dp), INTENT(in)                          :: length
-      TYPE(cp_cfm_type), POINTER                         :: work
+      TYPE(cp_cfm_type), INTENT(IN)                      :: work
 
       REAL(kind=dp)                                      :: rscale
 

@@ -163,6 +163,7 @@ CONTAINS
          CALL get_rtp(rtp=rtp, mos_new=mos_new)
          ALLOCATE (delta_mos(SIZE(mos_new)))
          DO i = 1, SIZE(mos_new)
+            ALLOCATE (delta_mos(i)%matrix)
             CALL cp_fm_create(delta_mos(i)%matrix, &
                               matrix_struct=mos_new(i)%matrix%matrix_struct, &
                               name="delta_mos"//TRIM(ADJUSTL(cp_to_string(i))))
@@ -663,11 +664,11 @@ CONTAINS
                                                             imat, k, kdbl, n, naspc, ncol_local, &
                                                             nmat
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_cfm_type), POINTER                         :: cfm_tmp, cfm_tmp1, csc
+      TYPE(cp_cfm_type)                                  :: cfm_tmp, cfm_tmp1, csc
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: mo_hist
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, matrix_struct_new
-      TYPE(cp_fm_type), POINTER                          :: fm_tmp, fm_tmp1, fm_tmp2
+      TYPE(cp_fm_type)                                   :: fm_tmp, fm_tmp1, fm_tmp2
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new, s_hist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_hist
 
@@ -717,7 +718,7 @@ CONTAINS
          mo_hist => rtp%history%mo_history
          s_hist => rtp%history%s_history
          DO i = 1, SIZE(mos_new)/2
-            NULLIFY (matrix_struct, matrix_struct_new, csc, fm_tmp, fm_tmp1, fm_tmp2, cfm_tmp, cfm_tmp1)
+            NULLIFY (matrix_struct, matrix_struct_new)
 
             CALL cp_fm_struct_double(matrix_struct, &
                                      mos_new(2*i)%matrix%matrix_struct, &
@@ -773,7 +774,6 @@ CONTAINS
 
 ! deallocate work matrices
             CALL cp_cfm_release(csc)
-            CALL cp_fm_release(fm_tmp)
             CALL cp_fm_release(fm_tmp)
             CALL cp_fm_release(fm_tmp1)
             CALL cp_fm_release(fm_tmp2)

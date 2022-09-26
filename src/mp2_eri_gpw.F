@@ -395,7 +395,7 @@ CONTAINS
 
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r
       INTEGER, INTENT(IN)                                :: LLL
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set

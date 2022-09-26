@@ -102,9 +102,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE multiply_localization(ao_matrix, mo_coeff, work, nmo, icenter, res)
       TYPE(dbcsr_type), INTENT(IN), POINTER              :: ao_matrix
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: mo_coeff, work
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, work
       INTEGER, INTENT(IN)                                :: nmo, icenter
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: res
+      TYPE(cp_fm_type), INTENT(IN)                       :: res
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'multiply_localization', &
          routineP = moduleN//':'//routineN
@@ -687,7 +687,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
-      TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
+      TYPE(cp_fm_type)                                   :: buf
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
@@ -858,6 +859,8 @@ CONTAINS
       NULLIFY (dcdr_env%chc(1)%matrix)
       NULLIFY (dcdr_env%op_dR(1)%matrix)
 
+      ALLOCATE (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
+                dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
       CALL cp_fm_create(dcdr_env%dCR(1)%matrix, dcdr_env%likemos_fm_struct)
       CALL cp_fm_create(dcdr_env%dCR_prime(1)%matrix, dcdr_env%likemos_fm_struct)
       CALL cp_fm_create(dcdr_env%mo_coeff(1)%matrix, dcdr_env%likemos_fm_struct)
@@ -1051,6 +1054,10 @@ CONTAINS
       CALL cp_fm_release(dcdr_env%mo_coeff(1)%matrix)
       CALL cp_fm_release(dcdr_env%chc(1)%matrix)
       CALL cp_fm_release(dcdr_env%op_dR(1)%matrix)
+      DEALLOCATE (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
+                  dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
+      NULLIFY (dcdr_env%dCR(1)%matrix, dcdr_env%dCR_prime(1)%matrix, &
+               dcdr_env%mo_coeff(1)%matrix, dcdr_env%chc(1)%matrix, dcdr_env%op_dR(1)%matrix)
 
       DEALLOCATE (dcdr_env%op_dR)
       DEALLOCATE (dcdr_env%dCR)

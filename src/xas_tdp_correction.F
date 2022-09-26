@@ -123,9 +123,9 @@ CONTAINS
       TYPE(cp_fm_struct_p_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: all_struct, homo_struct, lumo_struct
       TYPE(cp_fm_struct_type), POINTER                   :: hoho_struct, lulu_struct
-      TYPE(cp_fm_type), POINTER                          :: hoho_fock, hoho_work, homo_work, &
-                                                            lulu_fock, lulu_work, lumo_work, &
-                                                            mo_coeff
+      TYPE(cp_fm_type)                                   :: hoho_fock, hoho_work, homo_work, &
+                                                            lulu_fock, lulu_work, lumo_work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_work, fock_matrix, matrix_ks
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ja_X, oI_Y
@@ -135,8 +135,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_fun_empty, xc_fun_original, xc_section
 
       NULLIFY (xc_fun_empty, xc_fun_original, xc_section, backup_mos, mos, dft_control, dbcsr_work, &
-               fock_matrix, matrix_ks, para_env, hoho_fock, hoho_work, homo_work, lulu_fock, lulu_work, &
-               lumo_work, mo_coeff, blacs_env, nsgf_blk)
+               fock_matrix, matrix_ks, para_env, mo_coeff, blacs_env, nsgf_blk)
 
       CALL cite_reference(Shigeta2001)
       CALL cite_reference(Bussy2021b)
@@ -178,6 +177,7 @@ CONTAINS
          CALL cp_fm_struct_create(lumo_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=nlumo(ispin), nrow_global=nao)
 
+         ALLOCATE (lumo_coeffs(ispin)%matrix)
          CALL cp_fm_create(lumo_coeffs(ispin)%matrix, lumo_struct(ispin)%struct)
          CALL cp_fm_to_fm(xas_tdp_env%lumo_evecs(ispin)%matrix, lumo_coeffs(ispin)%matrix)
       END DO
@@ -194,6 +194,7 @@ CONTAINS
 
          CALL cp_fm_struct_create(homo_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=locat + nonloc, nrow_global=nao)
+         ALLOCATE (homo_coeffs(ispin)%matrix)
          CALL cp_fm_create(homo_coeffs(ispin)%matrix, homo_struct(ispin)%struct)
 
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff)
@@ -379,6 +380,7 @@ CONTAINS
          !Put back homo and lumo coeffs together, to fit tensor structure
          CALL cp_fm_struct_create(all_struct(ispin)%struct, para_env=para_env, context=blacs_env, &
                                   ncol_global=nhomo(ispin) + nlumo(ispin), nrow_global=nao)
+         ALLOCATE (all_coeffs(ispin)%matrix)
          CALL cp_fm_create(all_coeffs(ispin)%matrix, all_struct(ispin)%struct)
          CALL cp_fm_to_fm(homo_coeffs(ispin)%matrix, all_coeffs(ispin)%matrix, ncol=nhomo(ispin), &
                           source_start=1, target_start=1)
@@ -396,6 +398,7 @@ CONTAINS
          CALL cp_fm_release(all_coeffs(ispin)%matrix)
          CALL cp_fm_release(homo_coeffs(ispin)%matrix)
          CALL cp_fm_release(lumo_coeffs(ispin)%matrix)
+         DEALLOCATE (all_coeffs(ispin)%matrix, homo_coeffs(ispin)%matrix, lumo_coeffs(ispin)%matrix)
          CALL cp_fm_struct_release(all_struct(ispin)%struct)
          CALL cp_fm_struct_release(lumo_struct(ispin)%struct)
          CALL cp_fm_struct_release(homo_struct(ispin)%struct)
@@ -1756,19 +1759,18 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: evals
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: tmp_shifts
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: hami_cfm
+      TYPE(cp_cfm_type)                                  :: hami_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: ao_domo_struct, domo_domo_struct, &
                                                             doso_doso_struct
-      TYPE(cp_fm_type), POINTER                          :: alpha_gs_coeffs, ao_domo_work, &
+      TYPE(cp_fm_type)                                   :: alpha_gs_coeffs, ao_domo_work, &
                                                             beta_gs_coeffs, domo_domo_work, &
                                                             img_fm, real_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_type), POINTER                          :: orb_soc_x, orb_soc_y, orb_soc_z
 
-      NULLIFY (matrix_ks, para_env, blacs_env, hami_cfm, ao_domo_struct, domo_domo_struct, &
-               doso_doso_struct, alpha_gs_coeffs, ao_domo_work, beta_gs_coeffs, domo_domo_work, &
-               img_fm, real_fm, orb_soc_x, orb_soc_y, orb_soc_z)
+      NULLIFY (matrix_ks, para_env, blacs_env, ao_domo_struct, domo_domo_struct, &
+               doso_doso_struct, orb_soc_x, orb_soc_y, orb_soc_z)
 
       CALL timeset(routineN, handle)
 

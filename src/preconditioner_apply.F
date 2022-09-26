@@ -52,7 +52,7 @@ CONTAINS
    SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_fm'
 
@@ -135,7 +135,7 @@ CONTAINS
    SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_single'
 
@@ -186,12 +186,12 @@ CONTAINS
    SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_direct'
 
       INTEGER                                            :: handle, k, n
-      TYPE(cp_fm_type), POINTER                          :: work
+      TYPE(cp_fm_type)                                   :: work
 
       CALL timeset(routineN, handle)
 
@@ -217,7 +217,7 @@ CONTAINS
    SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_all'
 
@@ -227,7 +227,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: dum
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
-      TYPE(cp_fm_type), POINTER                          :: matrix_tmp
+      TYPE(cp_fm_type)                                   :: matrix_tmp
 
       CALL timeset(routineN, handle)
 

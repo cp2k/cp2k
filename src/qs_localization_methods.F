@@ -94,7 +94,7 @@ CONTAINS
 !> \param sweeps ...
 ! **************************************************************************************************
    SUBROUTINE approx_l1_norm_sd(C, iterations, eps, converged, sweeps)
-      TYPE(cp_fm_type), POINTER                          :: C
+      TYPE(cp_fm_type), INTENT(IN)                       :: C
       INTEGER, INTENT(IN)                                :: iterations
       REAL(KIND=dp), INTENT(IN)                          :: eps
       LOGICAL, INTENT(INOUT)                             :: converged
@@ -109,12 +109,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: expfactor, f2, f2old, gnorm, tnorm
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_k_k
-      TYPE(cp_fm_type), POINTER                          :: CTmp, G, Gp1, Gp2, U
+      TYPE(cp_fm_type)                                   :: CTmp, G, Gp1, Gp2, U
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (CTmp, U, G, Gp1, Gp2, context, para_env, fm_struct_k_k)
+      NULLIFY (context, para_env, fm_struct_k_k)
 
       output_unit = cp_logger_get_default_io_unit()
 
@@ -173,7 +173,7 @@ CONTAINS
          !
          !-------------------------------------------------------------------
          !
-         CALL cp_fm_frobenius_norm(G, gnorm)
+         gnorm = cp_fm_frobenius_norm(G)
          !write(*,*) 'qs_localize: norm(G)=',gnorm
          !
          ! rescale for steepest descent
@@ -185,7 +185,7 @@ CONTAINS
          ! first order
          expfactor = 1.0_dp
          CALL cp_fm_scale_and_add(1.0_dp, U, expfactor, G)
-         CALL cp_fm_frobenius_norm(G, tnorm)
+         tnorm = cp_fm_frobenius_norm(G)
          !write(*,*) 'Taylor expansion i=',1,' norm(X^i)/i!=',tnorm
          IF (tnorm .GT. 1.0E-10_dp) THEN
             ! other orders
@@ -197,7 +197,7 @@ CONTAINS
                ! add to the taylor expansion so far
                expfactor = expfactor/REAL(i, KIND=dp)
                CALL cp_fm_scale_and_add(1.0_dp, U, expfactor, Gp1)
-               CALL cp_fm_frobenius_norm(Gp1, tnorm)
+               tnorm = cp_fm_frobenius_norm(Gp1)
                !write(*,*) 'Taylor expansion i=',i,' norm(X^i)/i!=',tnorm*expfactor
                IF (tnorm*expfactor .LT. 1.0E-10_dp) EXIT
             END DO
@@ -298,7 +298,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
@@ -330,7 +330,7 @@ CONTAINS
                                       out_each)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: sweeps
@@ -343,13 +343,13 @@ CONTAINS
                                                             nstate, unit_nr
       REAL(KIND=dp)                                      :: ct, st, t1, t2, theta, tolerance
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: c_zij
-      TYPE(cp_cfm_type), POINTER                         :: c_rmat
-      TYPE(cp_fm_type), POINTER                          :: rmat
+      TYPE(cp_cfm_type)                                  :: c_rmat
+      TYPE(cp_fm_type)                                   :: rmat
 
       CALL timeset(routineN, handle)
 
       dim2 = SIZE(zij, 2)
-      NULLIFY (rmat, c_rmat, c_zij)
+      NULLIFY (c_zij)
       ALLOCATE (c_zij(dim2))
       NULLIFY (mii, mij, mjj)
       ALLOCATE (mii(dim2), mij(dim2), mjj(dim2))
@@ -360,7 +360,7 @@ CONTAINS
       CALL cp_cfm_create(c_rmat, zij(1, 1)%matrix%matrix_struct)
       CALL cp_cfm_set_all(c_rmat, (0._dp, 0._dp), (1._dp, 0._dp))
       DO idim = 1, dim2
-         NULLIFY (c_zij(idim)%matrix)
+         ALLOCATE (c_zij(idim)%matrix)
          CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
          c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%matrix%local_data, &
                                                zij(2, idim)%matrix%local_data, dp)
@@ -412,6 +412,7 @@ CONTAINS
          zij(1, idim)%matrix%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
          zij(2, idim)%matrix%local_data = AIMAG(c_zij(idim)%matrix%local_data)
          CALL cp_cfm_release(c_zij(idim)%matrix)
+         DEALLOCATE (c_zij(idim)%matrix)
       END DO
       DEALLOCATE (c_zij)
       DEALLOCATE (mii, mij, mjj)
@@ -441,7 +442,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_cfm_p_type), INTENT(IN), POINTER           :: c_zij(:)
       INTEGER, INTENT(IN)                                :: max_iter
-      TYPE(cp_cfm_type), INTENT(INOUT), POINTER          :: c_rmat
+      TYPE(cp_cfm_type), INTENT(IN)                      :: c_rmat
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_localization
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: tol_out
       INTEGER, INTENT(OUT), OPTIONAL                     :: jsweeps
@@ -460,12 +461,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, avg_spread_ii, ct, spread_ii, st, &
                                                             sum_spread_ii, t1, t2, theta, tolerance
       TYPE(cp_cfm_p_type), POINTER                       :: c_zij_local(:)
-      TYPE(cp_cfm_type), POINTER                         :: c_rmat_local
+      TYPE(cp_cfm_type)                                  :: c_rmat_local
 
       CALL timeset(routineN, handle)
 
       dim2 = SIZE(c_zij)
-      NULLIFY (c_zij_local, c_rmat_local)
+      NULLIFY (c_zij_local)
       NULLIFY (mii, mij, mjj)
       ALLOCATE (mii(dim2), mij(dim2), mjj(dim2))
 
@@ -473,7 +474,7 @@ CONTAINS
       CALL cp_cfm_create(c_rmat_local, c_rmat%matrix_struct)
       CALL cp_cfm_set_all(c_rmat_local, (0.0_dp, 0.0_dp), (1.0_dp, 0.0_dp))
       DO idim = 1, dim2
-         NULLIFY (c_zij_local(idim)%matrix)
+         ALLOCATE (c_zij_local(idim)%matrix)
          CALL cp_cfm_create(c_zij_local(idim)%matrix, c_zij(idim)%matrix%matrix_struct)
          c_zij_local(idim)%matrix%local_data = c_zij(idim)%matrix%local_data
       END DO
@@ -562,6 +563,7 @@ CONTAINS
       DEALLOCATE (mii, mij, mjj)
       DO idim = 1, dim2
          CALL cp_cfm_release(c_zij_local(idim)%matrix)
+         DEALLOCATE (c_zij_local(idim)%matrix)
       END DO
       DEALLOCATE (c_zij_local)
       CALL cp_cfm_release(c_rmat_local)
@@ -591,14 +593,14 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: zij(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iter
       INTEGER, INTENT(IN)                                :: out_each, nextra
       LOGICAL, INTENT(IN)                                :: do_cg
       INTEGER, INTENT(IN), OPTIONAL                      :: nmo
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, POINTER    :: vectors_2, mos_guess
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: vectors_2, mos_guess
 
       CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_cg_edf_ls', &
          routineP = moduleN//':'//routineN
@@ -623,22 +625,19 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tmp_arr
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: c_zij, zij_0
-      TYPE(cp_cfm_type), POINTER                         :: c_tilde, ctrans_lambda, Gct_old, &
+      TYPE(cp_cfm_type)                                  :: c_tilde, ctrans_lambda, Gct_old, &
                                                             grad_ctilde, skc, tmp_cfm, tmp_cfm_1, &
                                                             tmp_cfm_2, U, UL, V, VL, zdiag
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: id_nextra, matrix_U, matrix_V, &
+      TYPE(cp_fm_type)                                   :: id_nextra, matrix_U, matrix_V, &
                                                             matrix_V_all, rmat, tmp_fm, vectors_all
 
       CALL timeset(routineN, handle)
 
       dim2 = SIZE(zij, 2)
       NULLIFY (context)
-      NULLIFY (rmat, c_zij, matrix_zii, arr_zii)
-      NULLIFY (U, UL, matrix_U)
+      NULLIFY (c_zij, matrix_zii, arr_zii)
       NULLIFY (tmp_fm_struct)
-      NULLIFY (tmp_fm)
-      NULLIFY (tmp_cfm, tmp_cfm_1, tmp_cfm_2)
       NULLIFY (tmp_arr)
 
       ALLOCATE (c_zij(dim2))
@@ -653,7 +652,7 @@ CONTAINS
       alpha = 0.0_dp
       DO idim = 1, dim2
          alpha = alpha + weights(idim)
-         NULLIFY (c_zij(idim)%matrix)
+         ALLOCATE (c_zij(idim)%matrix)
          CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
          c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%matrix%local_data, &
                                                zij(2, idim)%matrix%local_data, dp)
@@ -693,16 +692,11 @@ CONTAINS
          norextra = nmo - nstate
          CALL cp_fm_struct_get(zij(1, 1)%matrix%matrix_struct, context=context)
 
-         NULLIFY (c_tilde, V, VL, grad_ctilde, id_nextra, zdiag, tmp_cfm, &
-                  tmp_cfm_1, ctrans_lambda, tmp_cfm_2, skc, Gct_old, &
-                  vectors_all)
-         NULLIFY (matrix_V, matrix_V_all)
-
          ALLOCATE (tmp_cmat(nstate, nstate))
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, ncol_global=nmo, &
                                   para_env=para_env, context=context)
          DO idim = 1, dim2
-            NULLIFY (zij_0(idim)%matrix)
+            ALLOCATE (zij_0(idim)%matrix)
             CALL cp_cfm_create(zij_0(idim)%matrix, tmp_fm_struct)
             CALL cp_cfm_set_all(zij_0(idim)%matrix, czero, cone)
             CALL cp_cfm_get_submatrix(c_zij(idim)%matrix, tmp_cmat)
@@ -869,7 +863,7 @@ CONTAINS
          END SELECT
       ELSE
          DO idim = 1, dim2
-            NULLIFY (zij_0(idim)%matrix)
+            ALLOCATE (zij_0(idim)%matrix)
             CALL cp_cfm_create(zij_0(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
             CALL cp_cfm_to_cfm(c_zij(idim)%matrix, zij_0(idim)%matrix)
          END DO
@@ -1223,6 +1217,7 @@ CONTAINS
       END IF
       DO idim = 1, dim2
          CALL cp_cfm_release(zij_0(idim)%matrix)
+         DEALLOCATE (zij_0(idim)%matrix)
       END DO
       DEALLOCATE (zij_0)
 
@@ -1230,6 +1225,7 @@ CONTAINS
          zij(1, idim)%matrix%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
          zij(2, idim)%matrix%local_data = AIMAG(c_zij(idim)%matrix%local_data)
          CALL cp_cfm_release(c_zij(idim)%matrix)
+         DEALLOCATE (c_zij(idim)%matrix)
       END DO
       DEALLOCATE (c_zij)
       CALL cp_fm_release(rmat)
@@ -1291,7 +1287,7 @@ CONTAINS
    SUBROUTINE rotate_rmat(istate, jstate, st, ct, rmat)
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: istate, jstate
-      TYPE(cp_cfm_type), POINTER :: rmat
+      TYPE(cp_cfm_type), INTENT(IN) :: rmat
       REAL(KIND=dp), INTENT(IN) :: ct, st
 ! Locals
       INTEGER :: nstate
@@ -1372,18 +1368,17 @@ CONTAINS
       TYPE(cp_cfm_p_type)                                :: zij(:)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       REAL(KIND=dp), INTENT(OUT)                         :: tolerance
-      TYPE(cp_fm_type), INTENT(OUT), OPTIONAL, POINTER   :: grad
+      TYPE(cp_fm_type), INTENT(OUT), OPTIONAL            :: grad
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'check_tolerance'
 
       INTEGER                                            :: handle
-      TYPE(cp_fm_type), POINTER                          :: force
+      TYPE(cp_fm_type)                                   :: force
 
       CALL timeset(routineN, handle)
 
 ! compute gradient at t=0
 
-      NULLIFY (force)
       CALL cp_fm_create(force, zij(1)%matrix%matrix_struct)
       CALL cp_fm_set_all(force, 0._dp)
       CALL grad_at_0(zij, weights, force)
@@ -1400,12 +1395,11 @@ CONTAINS
 !> \param vectors ...
 ! **************************************************************************************************
    SUBROUTINE rotate_orbitals(rmat, vectors)
-      TYPE(cp_fm_type), POINTER                          :: rmat, vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: rmat, vectors
 
       INTEGER                                            :: k, n
-      TYPE(cp_fm_type), POINTER                          :: wf
+      TYPE(cp_fm_type)                                   :: wf
 
-      NULLIFY (wf)
       CALL cp_fm_create(wf, vectors%matrix_struct)
       CALL cp_fm_get_info(vectors, nrow_global=n, ncol_global=k)
       CALL parallel_gemm("N", "N", n, k, k, 1.0_dp, vectors, rmat, 0.0_dp, wf)
@@ -1419,12 +1413,11 @@ CONTAINS
 !> \param vectors ...
 ! **************************************************************************************************
    SUBROUTINE rotate_orbitals_edf(rmat, vec_all, vectors)
-      TYPE(cp_fm_type), POINTER                          :: rmat, vec_all, vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: rmat, vec_all, vectors
 
       INTEGER                                            :: k, l, n
-      TYPE(cp_fm_type), POINTER                          :: wf
+      TYPE(cp_fm_type)                                   :: wf
 
-      NULLIFY (wf)
       CALL cp_fm_create(wf, vectors%matrix_struct)
       CALL cp_fm_get_info(vec_all, nrow_global=n, ncol_global=k)
       CALL cp_fm_get_info(rmat, ncol_global=l)
@@ -1443,7 +1436,7 @@ CONTAINS
    SUBROUTINE gradsq_at_0(diag, weights, matrix, ndim)
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: diag
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(IN)                                :: ndim
 
       COMPLEX(KIND=dp)                                   :: zii, zjj
@@ -1479,7 +1472,7 @@ CONTAINS
    SUBROUTINE grad_at_0(matrix_p, weights, matrix)
       TYPE(cp_cfm_p_type)                                :: matrix_p(:)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), POINTER                          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
 
       COMPLEX(KIND=dp)                                   :: zii, zij, zjj
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: diag
@@ -1528,7 +1521,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_tolerance_new(weights, zij, tolerance, value)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
+      TYPE(cp_fm_p_type), INTENT(IN)                     :: ZIJ(:, :)
       REAL(KIND=dp)                                      :: tolerance, value
 
       COMPLEX(KIND=dp)                                   :: kii, kij, kjj
@@ -1592,7 +1585,7 @@ CONTAINS
                               eps_localization, iterations, converged)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: max_crazy_angle
       REAL(KIND=dp)                                      :: crazy_scale
@@ -1617,13 +1610,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_exp, limit_crazy_angle, maxeval, &
                                                             norm, ra, rb, theta, tolerance, value
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals
-      TYPE(cp_cfm_type), POINTER                         :: cmat_A, cmat_R, cmat_t1
-      TYPE(cp_fm_type), POINTER                          :: mat_R, mat_t, mat_theta, mat_U
+      TYPE(cp_cfm_type)                                  :: cmat_A, cmat_R, cmat_t1
+      TYPE(cp_fm_type)                                   :: mat_R, mat_t, mat_theta, mat_U
 
       CALL timeset(routineN, handle)
       NULLIFY (row_indices, col_indices)
-      NULLIFY (mat_U, mat_t, mat_R)
-      NULLIFY (cmat_A, cmat_R, cmat_t1)
       CALL cp_fm_get_info(zij(1, 1)%matrix, nrow_global=nrow_global, &
                           ncol_global=ncol_global, &
                           row_indices=row_indices, col_indices=col_indices, &
@@ -1645,7 +1636,6 @@ CONTAINS
       CALL cp_fm_create(mat_t, zij(1, 1)%matrix%matrix_struct)
       CALL cp_fm_create(mat_R, zij(1, 1)%matrix%matrix_struct)
 
-      NULLIFY (mat_theta)
       CALL cp_fm_create(mat_theta, zij(1, 1)%matrix%matrix_struct)
 
       CALL cp_fm_set_all(mat_R, 0.0_dp, 1.0_dp)
@@ -1794,7 +1784,7 @@ CONTAINS
    SUBROUTINE direct_mini(weights, zij, vectors, max_iter, eps_localization, iterations)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iterations
@@ -1820,15 +1810,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(150)                      :: energy, grad, pos
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals, fval, fvald
       TYPE(cp_cfm_p_type), DIMENSION(:), POINTER         :: c_zij
-      TYPE(cp_cfm_type), POINTER                         :: cmat_A, cmat_B, cmat_M, cmat_R, cmat_t1, &
+      TYPE(cp_cfm_type)                                  :: cmat_A, cmat_B, cmat_M, cmat_R, cmat_t1, &
                                                             cmat_t2, cmat_U
-      TYPE(cp_fm_type), POINTER                          :: matrix_A, matrix_G, matrix_G_old, &
+      TYPE(cp_fm_type)                                   :: matrix_A, matrix_G, matrix_G_old, &
                                                             matrix_G_search, matrix_H, matrix_R, &
                                                             matrix_T
 
       NULLIFY (evals, evals_exp, diag_z, fval, fvald, c_zij)
-      NULLIFY (matrix_A, matrix_G, matrix_T, matrix_G_search, matrix_G_old)
-      NULLIFY (cmat_A, cmat_U, cmat_R, cmat_t1, cmat_t2, cmat_B, cmat_M)
 
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit()
@@ -1846,7 +1834,7 @@ CONTAINS
 
       ! create the three complex matrices Z
       DO idim = 1, ndim
-         NULLIFY (c_zij(idim)%matrix)
+         ALLOCATE (c_zij(idim)%matrix)
          CALL cp_cfm_create(c_zij(idim)%matrix, zij(1, 1)%matrix%matrix_struct)
          c_zij(idim)%matrix%local_data = CMPLX(zij(1, idim)%matrix%local_data, &
                                                zij(2, idim)%matrix%local_data, dp)
@@ -2176,6 +2164,7 @@ CONTAINS
          zij(1, idim)%matrix%local_data = REAL(c_zij(idim)%matrix%local_data, dp)
          zij(2, idim)%matrix%local_data = AIMAG(c_zij(idim)%matrix%local_data)
          CALL cp_cfm_release(c_zij(idim)%matrix)
+         DEALLOCATE (c_zij(idim)%matrix)
       END DO
       DEALLOCATE (c_zij)
       DEALLOCATE (diag_z)
@@ -2205,7 +2194,7 @@ CONTAINS
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_fm_p_type), INTENT(INOUT)                  :: ZIJ(:, :)
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
@@ -2221,14 +2210,14 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ns_bound
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rotmat, z_ij_loc_im, z_ij_loc_re
       REAL(KIND=dp)                                      :: xstate
-      TYPE(cp_fm_type), POINTER                          :: rmat
+      TYPE(cp_fm_type)                                   :: rmat
       TYPE(set_c_2d_type), DIMENSION(:), POINTER         :: cz_ij_loc
 
       CALL timeset(routineN, handle)
 
       output_unit = cp_logger_get_default_io_unit()
 
-      NULLIFY (rmat, cz_ij_loc)
+      NULLIFY (cz_ij_loc)
 
       dim2 = SIZE(zij, 2)
 
@@ -2354,7 +2343,7 @@ CONTAINS
       TYPE(cp_cfm_p_type), INTENT(IN), POINTER           :: czij(:)
       TYPE(cp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
-      TYPE(cp_cfm_type), INTENT(INOUT), POINTER          :: rmat
+      TYPE(cp_cfm_type), INTENT(IN)                      :: rmat
       REAL(dp), INTENT(OUT), OPTIONAL                    :: tol_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'jacobi_rot_para_1'
@@ -2372,7 +2361,6 @@ CONTAINS
 
       dim2 = SIZE(czij)
 
-      !CALL cp_cfm_create(rmat, czij(1)%matrix%matrix_struct)
       CALL cp_cfm_set_all(rmat, CMPLX(0._dp, 0._dp, dp), CMPLX(1._dp, 0._dp, dp))
 
       CALL cp_cfm_get_info(rmat, nrow_global=nstate)
@@ -3000,18 +2988,17 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE zij_matrix(vectors, op_sm_set, zij_fm_set)
 
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'zij_matrix'
 
       INTEGER                                            :: handle, i, j, nao, nmoloc
-      TYPE(cp_fm_type), POINTER                          :: opvec
+      TYPE(cp_fm_type)                                   :: opvec
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (opvec)
       ! get rows and cols of the input
       CALL cp_fm_get_info(vectors, nrow_global=nao, ncol_global=nmoloc)
       ! replicate the input kind of matrix
@@ -3038,14 +3025,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scdm_qrfact(vectors)
 
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'scdm_qrfact'
 
       INTEGER                                            :: handle, ncolT, nrowT
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tau
       TYPE(cp_fm_struct_type), POINTER                   :: cstruct
-      TYPE(cp_fm_type), POINTER                          :: CTp, Qf, tmp
+      TYPE(cp_fm_type)                                   :: CTp, Qf, tmp
 
       CALL timeset(routineN, handle)
 

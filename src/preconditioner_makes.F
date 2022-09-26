@@ -81,7 +81,7 @@ CONTAINS
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(dbcsr_type), POINTER                          :: matrix_h
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s, matrix_t
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       REAL(KIND=dp)                                      :: energy_homo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_ot
       REAL(KIND=dp)                                      :: energy_gap
@@ -220,14 +220,16 @@ CONTAINS
       INTEGER                                            :: handle, i, n
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: fm_h, fm_s
+      TYPE(cp_fm_type)                                   :: fm_h, fm_s
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_h, fm_s, fm_struct_tmp, evals)
+      NULLIFY (fm_struct_tmp, evals)
 
       IF (ASSOCIATED(fm)) THEN
          CALL cp_fm_release(fm)
+         DEALLOCATE (fm)
+         NULLIFY (fm)
       END IF
       CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
@@ -235,6 +237,7 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
+      ALLOCATE (fm)
       CALL cp_fm_create(fm, fm_struct_tmp, name="preconditioner")
       CALL cp_fm_create(fm_h, fm_struct_tmp, name="fm_h")
       CALL cp_fm_create(fm_s, fm_struct_tmp, name="fm_s")
@@ -310,13 +313,15 @@ CONTAINS
       INTEGER                                            :: handle, i, n
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: fm_h, fm_s
+      TYPE(cp_fm_type)                                   :: fm_h, fm_s
 
       CALL timeset(routineN, handle)
-      NULLIFY (fm_h, fm_s, fm_struct_tmp, evals)
+      NULLIFY (fm_struct_tmp, evals)
 
       IF (ASSOCIATED(fm)) THEN
          CALL cp_fm_release(fm)
+         DEALLOCATE (fm)
+         NULLIFY (fm)
       END IF
       CALL dbcsr_get_info(matrix_h, nfullrows_total=n)
       ALLOCATE (evals(n))
@@ -324,6 +329,7 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
+      ALLOCATE (fm)
       CALL cp_fm_create(fm, fm_struct_tmp, name="preconditioner")
       CALL cp_fm_create(fm_h, fm_struct_tmp, name="fm_h")
       CALL cp_fm_create(fm_s, fm_struct_tmp, name="fm_s")
@@ -369,7 +375,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_evals, energy_gap)
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_c0
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c0
       TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       REAL(KIND=dp), DIMENSION(:), POINTER               :: c0_evals
       REAL(KIND=dp)                                      :: energy_gap
@@ -382,19 +388,24 @@ CONTAINS
       REAL(KIND=dp)                                      :: error_estimate, lambda
       REAL(KIND=dp), DIMENSION(:), POINTER               :: diag, norms, shifted_evals
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: matrix_hc0, matrix_left, matrix_pre, &
-                                                            matrix_s1, matrix_s2, matrix_sc0, &
-                                                            matrix_shc0, matrix_tmp, ortho
+      TYPE(cp_fm_type)                                   :: matrix_hc0, matrix_left, matrix_s1, &
+                                                            matrix_s2, matrix_sc0, matrix_shc0, &
+                                                            matrix_tmp, ortho
+      TYPE(cp_fm_type), POINTER                          :: matrix_pre
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm)
+      IF (ASSOCIATED(preconditioner_env%fm)) THEN
+         CALL cp_fm_release(preconditioner_env%fm)
+         DEALLOCATE (preconditioner_env%fm)
+         NULLIFY (preconditioner_env%fm)
+      END IF
       CALL cp_fm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
+      ALLOCATE (preconditioner_env%fm)
       CALL cp_fm_create(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
-      matrix_pre => preconditioner_env%fm
       CALL cp_fm_create(ortho, fm_struct_tmp, name="ortho")
       CALL cp_fm_create(matrix_tmp, fm_struct_tmp, name="matrix_tmp")
       CALL cp_fm_struct_release(fm_struct_tmp)
@@ -453,6 +464,7 @@ CONTAINS
       ! aggressively
       preconditioner_env%energy_gap = MAX(energy_gap, error_estimate*fudge_factor)
       CALL copy_dbcsr_to_fm(matrix_h, matrix_tmp)
+      matrix_pre => preconditioner_env%fm
       CALL cp_fm_upper_to_full(matrix_tmp, matrix_pre)
       ! tmp = H ( 1 - PS )
       CALL parallel_gemm('N', 'T', n, n, k, -1.0_dp, matrix_hc0, matrix_sc0, 1.0_dp, matrix_tmp)
@@ -538,7 +550,7 @@ CONTAINS
    SUBROUTINE make_full_all_ortho(preconditioner_env, matrix_c0, matrix_h, c0_evals, energy_gap)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_c0
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c0
       TYPE(dbcsr_type), POINTER                          :: matrix_h
       REAL(KIND=dp), DIMENSION(:), POINTER               :: c0_evals
       REAL(KIND=dp)                                      :: energy_gap
@@ -551,19 +563,23 @@ CONTAINS
       REAL(KIND=dp)                                      :: error_estimate, lambda
       REAL(KIND=dp), DIMENSION(:), POINTER               :: diag, norms, shifted_evals
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: matrix_hc0, matrix_left, matrix_pre, &
-                                                            matrix_s1, matrix_s2, matrix_sc0, &
-                                                            matrix_tmp
+      TYPE(cp_fm_type)                                   :: matrix_hc0, matrix_left, matrix_s1, &
+                                                            matrix_s2, matrix_sc0, matrix_tmp
+      TYPE(cp_fm_type), POINTER                          :: matrix_pre
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm)
+      IF (ASSOCIATED(preconditioner_env%fm)) THEN
+         CALL cp_fm_release(preconditioner_env%fm)
+         DEALLOCATE (preconditioner_env%fm)
+         NULLIFY (preconditioner_env%fm)
+      END IF
       CALL cp_fm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n, ncol_global=n, &
                                context=preconditioner_env%ctxt, &
                                para_env=preconditioner_env%para_env)
+      ALLOCATE (preconditioner_env%fm)
       CALL cp_fm_create(preconditioner_env%fm, fm_struct_tmp, name="preconditioner_env%fm")
-      matrix_pre => preconditioner_env%fm
       CALL cp_fm_create(matrix_tmp, fm_struct_tmp, name="matrix_tmp")
       CALL cp_fm_struct_release(fm_struct_tmp)
       ALLOCATE (preconditioner_env%full_evals(n))
@@ -599,6 +615,7 @@ CONTAINS
       ! aggressively
       preconditioner_env%energy_gap = MAX(energy_gap, error_estimate*fudge_factor)
 
+      matrix_pre => preconditioner_env%fm
       CALL copy_dbcsr_to_fm(matrix_h, matrix_tmp)
       CALL cp_fm_upper_to_full(matrix_tmp, matrix_pre)
       ! tmp = H ( 1 - PS )
@@ -677,7 +694,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, energy_gap, matrix_s)
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_c0
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c0
       TYPE(dbcsr_type), POINTER                          :: matrix_h
       REAL(KIND=dp)                                      :: energy_gap
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_s

@@ -229,6 +229,7 @@ CONTAINS
          CALL f_env_get_from_id(f_env_id(icalc), f_env)
          CALL destroy_force_env(f_env_id(icalc), stat)
          CALL cp_fm_release(matrix_s_inv(icalc)%matrix)
+         DEALLOCATE (matrix_s_inv(icalc)%matrix)
       END DO
       DEALLOCATE (f_env_id); DEALLOCATE (tot_time); DEALLOCATE (matrix_S_inv)
       CALL cp_para_env_release(para_env)
@@ -471,6 +472,7 @@ CONTAINS
                                    sab_nl=sab_orb)
          CALL set_ks_env(ks_env, matrix_s=matrix_s)
          CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
+         ALLOCATE (matrix_s_inv(icalc)%matrix)
          CALL calculate_overlap_inverse(matrix_s(1)%matrix, matrix_s_inv(icalc)%matrix, &
                                         para_env, blacs_env)
          CALL calculate_ks_matrix(qs_env)

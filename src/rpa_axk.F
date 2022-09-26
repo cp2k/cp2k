@@ -96,11 +96,11 @@ CONTAINS
                                eig, fm_mat_S, homo, virtual, omega, &
                                mp2_env, mat_munu, unit_nr, e_axk_corr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_ia
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_RPA
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eig
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: omega
       TYPE(mp2_type)                                     :: mp2_env
@@ -117,7 +117,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: eps_filter, trace_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
+      TYPE(cp_fm_type)                                   :: fm_mat_Gamma_3, fm_mat_Q_tmp, &
                                                             fm_mat_R_half, fm_mat_R_half_gemm, &
                                                             fm_mat_U
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3, dbcsr_Gamma_inu_P, &
@@ -132,10 +132,6 @@ CONTAINS
       ! create the R_half and U matrices with a different blacs env similar to Q
       ! and a tmp_Q needed for diagonalization
 
-      NULLIFY (fm_mat_U)
-      NULLIFY (fm_mat_Q_tmp)
-      NULLIFY (fm_mat_R_half)
-      NULLIFY (fm_mat_Q_tmp)
       NULLIFY (fm_struct)
 
       CALL cp_fm_get_info(matrix=fm_mat_Q, &
@@ -182,7 +178,7 @@ CONTAINS
                          matrix_c=fm_mat_R_half)
 
       ! get info of fm_mat_S and initialize Gamma_3
-      NULLIFY (fm_mat_Gamma_3, fm_struct)
+      NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_mat_S%matrix_struct, nrow_global=dimen_ia, ncol_global=dimen_RI)
       CALL cp_fm_create(fm_mat_Gamma_3, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
@@ -200,7 +196,6 @@ CONTAINS
                              homo, omega, 0.0_dp)
 
       ! Redistribute fm_mat_R_half for "rectangular" multiplication: ia*P P*P
-      NULLIFY (fm_mat_R_half_gemm)
       CALL cp_fm_create(fm_mat_R_half_gemm, fm_mat_Q_gemm%matrix_struct)
       CALL cp_fm_set_all(matrix=fm_mat_R_half_gemm, alpha=0.0_dp)
 
@@ -240,9 +235,6 @@ CONTAINS
       CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
                              homo, virtual, mo_coeff_o, ngroup, my_group_L_start, &
                              my_group_L_end, my_group_L_size)
-
-      ! Release Gamma_3
-      CALL cp_fm_release(fm_mat_Gamma_3)
 
       ! Create more dbcsr matrices
 

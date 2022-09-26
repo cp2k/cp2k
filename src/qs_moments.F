@@ -1331,13 +1331,15 @@ CONTAINS
          NULLIFY (tmp_fm_struct, mo_coeff)
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          nmotot = nmotot + nmo
+         ALLOCATE (opvec(ispin)%matrix)
          CALL cp_fm_create(opvec(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
          DO i = 1, SIZE(op_fm_set, 1)
-            NULLIFY (op_fm_set(i, ispin)%matrix)
+            ALLOCATE (op_fm_set(i, ispin)%matrix)
             CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
          END DO
+         ALLOCATE (eigrmat(ispin)%matrix)
          CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
@@ -1611,9 +1613,12 @@ CONTAINS
 
       DO ispin = 1, dft_control%nspins
          CALL cp_fm_release(opvec(ispin)%matrix)
+         DEALLOCATE (opvec(ispin)%matrix)
          CALL cp_cfm_release(eigrmat(ispin)%matrix)
+         DEALLOCATE (eigrmat(ispin)%matrix)
          DO i = 1, SIZE(op_fm_set, 1)
             CALL cp_fm_release(op_fm_set(i, ispin)%matrix)
+            DEALLOCATE (op_fm_set(i, ispin)%matrix)
          END DO
       END DO
       DEALLOCATE (op_fm_set)
@@ -1672,7 +1677,8 @@ CONTAINS
       INTEGER                                            :: i, icol, lcol, nao, newdim, nmo
       LOGICAL                                            :: double_col, double_row
       TYPE(cp_fm_struct_type), POINTER                   :: newstruct, newstruct1
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, work, work1, work2
+      TYPE(cp_fm_type)                                   :: work, work1, work2
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
 
       DO i = 1, SIZE(op_fm_set, 2) ! spin
          CALL get_mo_set(mo_set=mos(i)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)

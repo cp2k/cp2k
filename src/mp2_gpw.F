@@ -166,7 +166,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric, &
                                                             fm_matrix_Sinv_Vtrunc_Sinv
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type)                                   :: fm_matrix_PQ
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_P_global
@@ -664,7 +664,7 @@ CONTAINS
                                         gw_corr_lev_occ, gw_corr_lev_virt)
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: dimen, homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &

@@ -137,6 +137,7 @@ CONTAINS
             IF (ASSOCIATED(snapshot%wf)) THEN
                DO i = 1, SIZE(snapshot%wf)
                   CALL cp_fm_release(snapshot%wf(i)%matrix)
+                  DEALLOCATE (snapshot%wf(i)%matrix)
                END DO
                DEALLOCATE (snapshot%wf)
             END IF

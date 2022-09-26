@@ -447,7 +447,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: de
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: fmksmat, fmsmat, fmvec, fmwork
+      TYPE(cp_fm_type)                                   :: fmksmat, fmsmat, fmvec, fmwork
       TYPE(dbcsr_type)                                   :: tempmat
 
       ! FM matrices

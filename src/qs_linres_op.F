@@ -135,7 +135,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: p_psi0, rxp_psi0
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_work1, mo_coeff
+      TYPE(cp_fm_type)                                   :: fm_work1
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
@@ -151,7 +152,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (qs_kind_set, cell, dft_control, linres_control, &
-               logger, particle_set, lr_section, fm_work1, &
+               logger, particle_set, lr_section, &
                basisfun_center, centers_set, center_list, p_psi0, &
                rxp_psi0, vecbuf_c0, psi0_order, &
                mo_coeff, op_ao, sab_all)
@@ -368,7 +369,7 @@ CONTAINS
                                      ncol_global=nmo, para_env=para_env, &
                                      context=mo_coeff%matrix_struct%context)
             DO idir = 1, 3
-               NULLIFY (fm_Rmd_mos(idir)%matrix)
+               ALLOCATE (fm_Rmd_mos(idir)%matrix)
                CALL cp_fm_create(fm_Rmd_mos(idir)%matrix, tmp_fm_struct)
             END DO
             CALL cp_fm_create(fm_work1, tmp_fm_struct)
@@ -412,6 +413,7 @@ CONTAINS
 
             DO idir = 1, 3
                CALL cp_fm_release(fm_Rmd_mos(idir)%matrix)
+               DEALLOCATE (fm_Rmd_mos(idir)%matrix)
             END DO
             CALL cp_fm_release(fm_work1)
 
@@ -743,13 +745,16 @@ CONTAINS
             CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                      ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
             DO i = 1, SIZE(op_fm_set, 1)
+               ALLOCATE (opvec(i, ispin)%matrix, op_fm_set(i, ispin)%matrix)
                CALL cp_fm_create(opvec(i, ispin)%matrix, mo_coeff%matrix_struct)
-               NULLIFY (op_fm_set(i, ispin)%matrix)
                CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
             END DO
+            ALLOCATE (eigrmat(ispin)%matrix)
             CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
             CALL cp_fm_struct_release(tmp_fm_struct)
             DO i = 1, 3
+               ALLOCATE (inv_work(2, i, ispin)%matrix, inv_work(1, i, ispin)%matrix)
+               ALLOCATE (inv_mat(i, ispin)%matrix)
                CALL cp_cfm_create(inv_mat(i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
                CALL cp_fm_create(inv_work(2, i, ispin)%matrix, op_fm_set(2, ispin)%matrix%matrix_struct)
                CALL cp_fm_create(inv_work(1, i, ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
@@ -810,15 +815,20 @@ CONTAINS
 
          DO ispin = 1, dft_control%nspins
             CALL cp_cfm_release(eigrmat(ispin)%matrix)
+            DEALLOCATE (eigrmat(ispin)%matrix)
             DO i = 1, 3
                CALL cp_cfm_release(inv_mat(i, ispin)%matrix)
+               DEALLOCATE (inv_mat(i, ispin)%matrix)
                CALL cp_fm_release(inv_work(1, i, ispin)%matrix)
                CALL cp_fm_release(inv_work(2, i, ispin)%matrix)
+               DEALLOCATE (inv_work(1, i, ispin)%matrix, inv_work(2, i, ispin)%matrix)
             END DO
             CALL cp_fm_release(opvec(1, ispin)%matrix)
             CALL cp_fm_release(opvec(2, ispin)%matrix)
             CALL cp_fm_release(op_fm_set(2, ispin)%matrix)
             CALL cp_fm_release(op_fm_set(1, ispin)%matrix)
+            DEALLOCATE (opvec(1, ispin)%matrix, opvec(2, ispin)%matrix, &
+                        op_fm_set(2, ispin)%matrix, op_fm_set(1, ispin)%matrix)
          END DO
 
          CALL dbcsr_deallocate_matrix(cosmat)
@@ -1207,9 +1217,9 @@ CONTAINS
 !> \author vw
 ! **************************************************************************************************
    SUBROUTINE fm_scale_by_pbc_AC(matrix, ra, rc, cell, ixyz)
-      TYPE(cp_fm_type), POINTER                :: matrix
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix
       REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(in)                             :: ra, rc
+         INTENT(in)                            :: ra, rc
       TYPE(cell_type), POINTER                 :: cell
       INTEGER, INTENT(IN)                      :: ixyz
 

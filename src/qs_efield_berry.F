@@ -320,15 +320,17 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
+         ALLOCATE (mo_derivs_tmp(ispin)%matrix, mo_coeff_tmp(ispin)%matrix)
          CALL cp_fm_create(mo_derivs_tmp(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_create(mo_coeff_tmp(ispin)%matrix, mo_coeff%matrix_struct)
          CALL copy_dbcsr_to_fm(mo_derivs(ispin)%matrix, mo_derivs_tmp(ispin)%matrix)
          DO i = 1, SIZE(op_fm_set, 1)
+            ALLOCATE (opvec(i, ispin)%matrix, op_fm_set(i, ispin)%matrix, inv_work(i, ispin)%matrix)
             CALL cp_fm_create(opvec(i, ispin)%matrix, mo_coeff%matrix_struct)
-            NULLIFY (op_fm_set(i, ispin)%matrix)
             CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
             CALL cp_fm_create(inv_work(i, ispin)%matrix, op_fm_set(i, ispin)%matrix%matrix_struct)
          END DO
+         ALLOCATE (eigrmat(ispin)%matrix, inv_mat(ispin)%matrix)
          CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_cfm_create(inv_mat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
@@ -633,12 +635,15 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL cp_cfm_release(eigrmat(ispin)%matrix)
          CALL cp_cfm_release(inv_mat(ispin)%matrix)
+         DEALLOCATE (eigrmat(ispin)%matrix, inv_mat(ispin)%matrix)
          CALL cp_fm_release(mo_derivs_tmp(ispin)%matrix)
          CALL cp_fm_release(mo_coeff_tmp(ispin)%matrix)
+         DEALLOCATE (mo_derivs_tmp(ispin)%matrix, mo_coeff_tmp(ispin)%matrix)
          DO i = 1, SIZE(op_fm_set, 1)
             CALL cp_fm_release(opvec(i, ispin)%matrix)
             CALL cp_fm_release(op_fm_set(i, ispin)%matrix)
             CALL cp_fm_release(inv_work(i, ispin)%matrix)
+            DEALLOCATE (opvec(i, ispin)%matrix, op_fm_set(i, ispin)%matrix, inv_work(i, ispin)%matrix)
          END DO
       END DO
       DEALLOCATE (inv_mat, inv_work, op_fm_set, opvec, eigrmat)
@@ -803,17 +808,20 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, context=mo_coeff%matrix_struct%context)
+         ALLOCATE (mo_coeff_tmp(ispin)%matrix)
          CALL cp_fm_create(mo_coeff_tmp(ispin)%matrix, mo_coeff%matrix_struct)
          DO i = 1, 3
+            ALLOCATE (mo_derivs_tmp(i, ispin)%matrix)
             CALL cp_fm_create(mo_derivs_tmp(i, ispin)%matrix, mo_coeff%matrix_struct)
             CALL cp_fm_set_all(matrix=mo_derivs_tmp(i, ispin)%matrix, alpha=0.0_dp)
          END DO
          DO i = 1, SIZE(op_fm_set, 1)
+            ALLOCATE (opvec(i, ispin)%matrix, op_fm_set(i, ispin)%matrix, inv_work(i, ispin)%matrix)
             CALL cp_fm_create(opvec(i, ispin)%matrix, mo_coeff%matrix_struct)
-            NULLIFY (op_fm_set(i, ispin)%matrix)
             CALL cp_fm_create(op_fm_set(i, ispin)%matrix, tmp_fm_struct)
             CALL cp_fm_create(inv_work(i, ispin)%matrix, op_fm_set(i, ispin)%matrix%matrix_struct)
          END DO
+         ALLOCATE (eigrmat(ispin)%matrix, inv_mat(ispin)%matrix)
          CALL cp_cfm_create(eigrmat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_cfm_create(inv_mat(ispin)%matrix, op_fm_set(1, ispin)%matrix%matrix_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
@@ -1128,14 +1136,18 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL cp_cfm_release(eigrmat(ispin)%matrix)
          CALL cp_cfm_release(inv_mat(ispin)%matrix)
+         DEALLOCATE (eigrmat(ispin)%matrix, inv_mat(ispin)%matrix)
          CALL cp_fm_release(mo_coeff_tmp(ispin)%matrix)
+         DEALLOCATE (mo_coeff_tmp(ispin)%matrix)
          DO i = 1, 3
             CALL cp_fm_release(mo_derivs_tmp(i, ispin)%matrix)
+            DEALLOCATE (mo_derivs_tmp(i, ispin)%matrix)
          END DO
          DO i = 1, SIZE(op_fm_set, 1)
             CALL cp_fm_release(opvec(i, ispin)%matrix)
             CALL cp_fm_release(op_fm_set(i, ispin)%matrix)
             CALL cp_fm_release(inv_work(i, ispin)%matrix)
+            DEALLOCATE (opvec(i, ispin)%matrix, op_fm_set(i, ispin)%matrix, inv_work(i, ispin)%matrix)
          END DO
       END DO
       DEALLOCATE (inv_mat, inv_work, op_fm_set, opvec, eigrmat)

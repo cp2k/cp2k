@@ -179,6 +179,7 @@ CONTAINS
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
                                   ncol_global=nmo, &
                                   context=mo_coeff%matrix_struct%context)
+         ALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
          CALL cp_fm_create(psi1(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_create(h1_psi0(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
@@ -221,7 +222,7 @@ CONTAINS
             ! copy the response
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_efg(ispin, ijdir)%matrix)
-               CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
+               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
                chk = chk + fro
             END DO
             !
@@ -279,7 +280,7 @@ CONTAINS
             ! copy the response
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_pso(ispin, idir)%matrix)
-               CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
+               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
                chk = chk + fro
             END DO
             !
@@ -335,7 +336,7 @@ CONTAINS
          ! copy the response
          DO ispin = 1, nspins
             CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_fc(ispin)%matrix)
-            CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
+            fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
             chk = chk + fro
          END DO
          !
@@ -393,7 +394,7 @@ CONTAINS
             ! copy the response
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(psi1(ispin)%matrix, psi1_dso(ispin, idir)%matrix)
-               CALL cp_fm_frobenius_norm(psi1(ispin)%matrix, fro)
+               fro = cp_fm_frobenius_norm(psi1(ispin)%matrix)
                chk = chk + fro
             END DO
             !
@@ -431,6 +432,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL cp_fm_release(psi1(ispin)%matrix)
          CALL cp_fm_release(h1_psi0(ispin)%matrix)
+         DEALLOCATE (psi1(ispin)%matrix, h1_psi0(ispin)%matrix)
       END DO
       DEALLOCATE (psi1, h1_psi0, psi0_order)
       !
@@ -918,19 +920,19 @@ CONTAINS
                                   ncol_global=m, &
                                   context=mo_coeff%matrix_struct%context)
          DO idir = 1, 6
-            NULLIFY (issc_env%psi1_efg(ispin, idir)%matrix, issc_env%efg_psi0(ispin, idir)%matrix)
+            ALLOCATE (issc_env%psi1_efg(ispin, idir)%matrix, issc_env%efg_psi0(ispin, idir)%matrix)
             CALL cp_fm_create(issc_env%psi1_efg(ispin, idir)%matrix, tmp_fm_struct)
             CALL cp_fm_create(issc_env%efg_psi0(ispin, idir)%matrix, tmp_fm_struct)
          END DO
          DO idir = 1, 3
-            NULLIFY (issc_env%psi1_pso(ispin, idir)%matrix, issc_env%pso_psi0(ispin, idir)%matrix, &
-                     issc_env%dso_psi0(ispin, idir)%matrix)
+            ALLOCATE (issc_env%psi1_pso(ispin, idir)%matrix, issc_env%pso_psi0(ispin, idir)%matrix, &
+                      issc_env%psi1_dso(ispin, idir)%matrix, issc_env%dso_psi0(ispin, idir)%matrix)
             CALL cp_fm_create(issc_env%psi1_pso(ispin, idir)%matrix, tmp_fm_struct)
             CALL cp_fm_create(issc_env%pso_psi0(ispin, idir)%matrix, tmp_fm_struct)
             CALL cp_fm_create(issc_env%psi1_dso(ispin, idir)%matrix, tmp_fm_struct)
             CALL cp_fm_create(issc_env%dso_psi0(ispin, idir)%matrix, tmp_fm_struct)
          END DO
-         NULLIFY (issc_env%psi1_fc(ispin)%matrix, issc_env%fc_psi0(ispin)%matrix)
+         ALLOCATE (issc_env%psi1_fc(ispin)%matrix, issc_env%fc_psi0(ispin)%matrix)
          CALL cp_fm_create(issc_env%psi1_fc(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_create(issc_env%fc_psi0(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
@@ -1061,6 +1063,7 @@ CONTAINS
             DO idir = 1, SIZE(issc_env%efg_psi0, 2)
                DO ispin = 1, SIZE(issc_env%efg_psi0, 1)
                   CALL cp_fm_release(issc_env%efg_psi0(ispin, idir)%matrix)
+                  DEALLOCATE (issc_env%efg_psi0(ispin, idir)%matrix)
                END DO
             END DO
             DEALLOCATE (issc_env%efg_psi0)
@@ -1071,6 +1074,7 @@ CONTAINS
             DO idir = 1, SIZE(issc_env%pso_psi0, 2)
                DO ispin = 1, SIZE(issc_env%pso_psi0, 1)
                   CALL cp_fm_release(issc_env%pso_psi0(ispin, idir)%matrix)
+                  DEALLOCATE (issc_env%pso_psi0(ispin, idir)%matrix)
                END DO
             END DO
             DEALLOCATE (issc_env%pso_psi0)
@@ -1081,6 +1085,7 @@ CONTAINS
             DO idir = 1, SIZE(issc_env%dso_psi0, 2)
                DO ispin = 1, SIZE(issc_env%dso_psi0, 1)
                   CALL cp_fm_release(issc_env%dso_psi0(ispin, idir)%matrix)
+                  DEALLOCATE (issc_env%dso_psi0(ispin, idir)%matrix)
                END DO
             END DO
             DEALLOCATE (issc_env%dso_psi0)
@@ -1090,6 +1095,7 @@ CONTAINS
          IF (ASSOCIATED(issc_env%fc_psi0)) THEN
             DO ispin = 1, SIZE(issc_env%fc_psi0, 1)
                CALL cp_fm_release(issc_env%fc_psi0(ispin)%matrix)
+               DEALLOCATE (issc_env%fc_psi0(ispin)%matrix)
             END DO
             DEALLOCATE (issc_env%fc_psi0)
          END IF
@@ -1099,6 +1105,7 @@ CONTAINS
             DO idir = 1, SIZE(issc_env%psi1_efg, 2)
                DO ispin = 1, SIZE(issc_env%psi1_efg, 1)
                   CALL cp_fm_release(issc_env%psi1_efg(ispin, idir)%matrix)
+                  DEALLOCATE (issc_env%psi1_efg(ispin, idir)%matrix)
                END DO
             END DO
             DEALLOCATE (issc_env%psi1_efg)
@@ -1109,6 +1116,7 @@ CONTAINS
             DO idir = 1, SIZE(issc_env%psi1_pso, 2)
                DO ispin = 1, SIZE(issc_env%psi1_pso, 1)
                   CALL cp_fm_release(issc_env%psi1_pso(ispin, idir)%matrix)
+                  DEALLOCATE (issc_env%psi1_pso(ispin, idir)%matrix)
                END DO
             END DO
             DEALLOCATE (issc_env%psi1_pso)
@@ -1119,6 +1127,7 @@ CONTAINS
             DO idir = 1, SIZE(issc_env%psi1_dso, 2)
                DO ispin = 1, SIZE(issc_env%psi1_dso, 1)
                   CALL cp_fm_release(issc_env%psi1_dso(ispin, idir)%matrix)
+                  DEALLOCATE (issc_env%psi1_dso(ispin, idir)%matrix)
                END DO
             END DO
             DEALLOCATE (issc_env%psi1_dso)
@@ -1128,6 +1137,7 @@ CONTAINS
          IF (ASSOCIATED(issc_env%psi1_fc)) THEN
             DO ispin = 1, SIZE(issc_env%psi1_fc, 1)
                CALL cp_fm_release(issc_env%psi1_fc(ispin)%matrix)
+               DEALLOCATE (issc_env%psi1_fc(ispin)%matrix)
             END DO
             DEALLOCATE (issc_env%psi1_fc)
          END IF

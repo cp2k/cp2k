@@ -374,7 +374,7 @@ CONTAINS
                                                      B_iaQ_bse_local, dimen_RI, homo, virtual, dimen_ia, &
                                                      gd_array, color_sub, para_env)
 
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                                             fm_mat_S, fm_mat_Q_static_bse, &
                                                             fm_mat_Q_static_bse_gemm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
@@ -390,7 +390,7 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_S_bar_ia_bse, &
+      TYPE(cp_fm_type)                                   :: fm_mat_S_bar_ia_bse, &
                                                             fm_mat_S_bar_ij_bse, fm_mat_work
 
       CALL timeset(routineN, handle)
@@ -478,7 +478,7 @@ CONTAINS
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: B_local
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub, small_size, big_size, dimen_RI
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env

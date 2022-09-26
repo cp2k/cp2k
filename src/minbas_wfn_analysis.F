@@ -125,7 +125,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_a, fm_struct_b, fm_struct_c
-      TYPE(cp_fm_type), POINTER                          :: fm1, fm2, fm3, fm4, fm_mos
+      TYPE(cp_fm_type)                                   :: fm1, fm2, fm3, fm4
+      TYPE(cp_fm_type), POINTER                          :: fm_mos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef, pqmat, quambo, sqmat
@@ -486,7 +487,7 @@ CONTAINS
    SUBROUTINE post_minbas_cubes(qs_env, print_section, minbas_coeff, ispin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: print_section
-      TYPE(cp_fm_type), POINTER                          :: minbas_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: minbas_coeff
       INTEGER, INTENT(IN)                                :: ispin
 
       CHARACTER(LEN=default_path_length)                 :: filename, title
@@ -509,8 +510,6 @@ CONTAINS
       minbas_section => section_vals_get_subs_vals(print_section, "MINBAS_CUBE")
       CALL section_vals_get(minbas_section, explicit=explicit)
       IF (.NOT. explicit) RETURN
-
-      CPASSERT(ASSOCIATED(minbas_coeff))
 
       logger => cp_get_default_logger()
       stride => section_get_ivals(print_section, "MINBAS_CUBE%STRIDE")

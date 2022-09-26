@@ -291,7 +291,7 @@ CONTAINS
       ALLOCATE (work_matrices%S_C0_C0T(nspins))
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       DO ispin = 1, nspins
-         NULLIFY (work_matrices%S_C0_C0T(ispin)%matrix)
+         ALLOCATE (work_matrices%S_C0_C0T(ispin)%matrix)
          CALL cp_fm_create(work_matrices%S_C0_C0T(ispin)%matrix, fm_struct)
       END DO
       CALL cp_fm_struct_release(fm_struct)
@@ -328,6 +328,8 @@ CONTAINS
 
          DO istate = ngroups - igroup, nstates, ngroups
             DO ispin = 1, nspins
+               ALLOCATE (work_matrices%evects_sub(ispin, istate)%matrix, &
+                         work_matrices%Aop_evects_sub(ispin, istate)%matrix)
                CALL cp_fm_create(work_matrices%evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
                CALL cp_fm_create(work_matrices%Aop_evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
             END DO
@@ -339,17 +341,19 @@ CONTAINS
       END IF
 
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=sub_env%blacs_env)
-      NULLIFY (work_matrices%rho_ao_orb_fm_sub)
+      ALLOCATE (work_matrices%rho_ao_orb_fm_sub)
       CALL cp_fm_create(work_matrices%rho_ao_orb_fm_sub, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
 
       NULLIFY (work_matrices%rho_ao_aux_fit_fm_sub, work_matrices%wfm_aux_orb_sub)
       IF (do_admm) THEN
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao_aux, ncol_global=nao_aux, context=sub_env%blacs_env)
+         ALLOCATE (work_matrices%rho_ao_aux_fit_fm_sub)
          CALL cp_fm_create(work_matrices%rho_ao_aux_fit_fm_sub, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao_aux, ncol_global=nao, context=sub_env%blacs_env)
+         ALLOCATE (work_matrices%wfm_aux_orb_sub)
          CALL cp_fm_create(work_matrices%wfm_aux_orb_sub, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
       END IF
@@ -472,6 +476,7 @@ CONTAINS
          END IF
 
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+         ALLOCATE (work_matrices%hfx_fm_ao_ao)
          CALL cp_fm_create(work_matrices%hfx_fm_ao_ao, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
@@ -562,7 +567,7 @@ CONTAINS
       ALLOCATE (work_matrices%S_C0_C0T(nspins))
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
       DO ispin = 1, nspins
-         NULLIFY (work_matrices%S_C0_C0T(ispin)%matrix)
+         ALLOCATE (work_matrices%S_C0_C0T(ispin)%matrix)
          CALL cp_fm_create(work_matrices%S_C0_C0T(ispin)%matrix, fm_struct)
       END DO
       CALL cp_fm_struct_release(fm_struct)
@@ -599,6 +604,7 @@ CONTAINS
 
          DO istate = ngroups - igroup, nstates, ngroups
             DO ispin = 1, nspins
+               ALLOCATE (work_matrices%evects_sub(ispin, istate)%matrix, work_matrices%Aop_evects_sub(ispin, istate)%matrix)
                CALL cp_fm_create(work_matrices%evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
                CALL cp_fm_create(work_matrices%Aop_evects_sub(ispin, istate)%matrix, fm_struct_evects(ispin)%struct)
             END DO
@@ -608,7 +614,7 @@ CONTAINS
       ! sTDA specific work arrays
       ALLOCATE (work_matrices%ctransformed(nspins))
       DO ispin = 1, nspins
-         NULLIFY (work_matrices%ctransformed(ispin)%matrix)
+         ALLOCATE (work_matrices%ctransformed(ispin)%matrix)
          CALL cp_fm_create(work_matrices%ctransformed(ispin)%matrix, fm_struct_evects(ispin)%struct)
       END DO
       NULLIFY (work_matrices%shalf)
@@ -618,6 +624,7 @@ CONTAINS
       ALLOCATE (work_matrices%S_eigenvalues(nao))
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
+      ALLOCATE (work_matrices%S_eigenvectors, work_matrices%slambda)
       CALL cp_fm_create(work_matrices%S_eigenvectors, fm_struct)
       CALL cp_fm_create(work_matrices%slambda, fm_struct)
       CALL cp_fm_struct_release(fm_struct)
@@ -695,8 +702,10 @@ CONTAINS
          DEALLOCATE (work_matrices%hfx_rho_ao_asymm)
       END IF
 
-      IF (ASSOCIATED(work_matrices%hfx_fm_ao_ao)) &
+      IF (ASSOCIATED(work_matrices%hfx_fm_ao_ao)) THEN
          CALL cp_fm_release(work_matrices%hfx_fm_ao_ao)
+         DEALLOCATE (work_matrices%hfx_fm_ao_ao)
+      END IF
 
       ! real-space and reciprocal-space grids
       IF (ASSOCIATED(sub_env%pw_env)) THEN
@@ -722,17 +731,33 @@ CONTAINS
          DEALLOCATE (work_matrices%A_ia_munu_sub)
       END IF
 
-      IF (ASSOCIATED(work_matrices%wfm_aux_orb_sub)) &
+      IF (ASSOCIATED(work_matrices%wfm_aux_orb_sub)) THEN
          CALL cp_fm_release(work_matrices%wfm_aux_orb_sub)
-      IF (ASSOCIATED(work_matrices%rho_ao_aux_fit_fm_sub)) &
+         DEALLOCATE (work_matrices%wfm_aux_orb_sub)
+         NULLIFY (work_matrices%wfm_aux_orb_sub)
+      END IF
+      IF (ASSOCIATED(work_matrices%rho_ao_aux_fit_fm_sub)) THEN
          CALL cp_fm_release(work_matrices%rho_ao_aux_fit_fm_sub)
-      CALL cp_fm_release(work_matrices%rho_ao_orb_fm_sub)
+         DEALLOCATE (work_matrices%rho_ao_aux_fit_fm_sub)
+         NULLIFY (work_matrices%rho_ao_aux_fit_fm_sub)
+      END IF
+      IF (ASSOCIATED(work_matrices%rho_ao_orb_fm_sub)) THEN
+         CALL cp_fm_release(work_matrices%rho_ao_orb_fm_sub)
+         DEALLOCATE (work_matrices%rho_ao_orb_fm_sub)
+         NULLIFY (work_matrices%rho_ao_orb_fm_sub)
+      END IF
 
       IF (ALLOCATED(work_matrices%evects_sub)) THEN
          DO istate = SIZE(work_matrices%evects_sub, 2), 1, -1
             DO ispin = SIZE(work_matrices%evects_sub, 1), 1, -1
-               CALL cp_fm_release(work_matrices%Aop_evects_sub(ispin, istate)%matrix)
-               CALL cp_fm_release(work_matrices%evects_sub(ispin, istate)%matrix)
+               IF (ASSOCIATED(work_matrices%Aop_evects_sub(ispin, istate)%matrix)) THEN
+                  CALL cp_fm_release(work_matrices%Aop_evects_sub(ispin, istate)%matrix)
+                  DEALLOCATE (work_matrices%Aop_evects_sub(ispin, istate)%matrix)
+               END IF
+               IF (ASSOCIATED(work_matrices%evects_sub(ispin, istate)%matrix)) THEN
+                  CALL cp_fm_release(work_matrices%evects_sub(ispin, istate)%matrix)
+                  DEALLOCATE (work_matrices%evects_sub(ispin, istate)%matrix)
+               END IF
             END DO
          END DO
          DEALLOCATE (work_matrices%Aop_evects_sub, work_matrices%evects_sub)
@@ -740,7 +765,9 @@ CONTAINS
 
       DO ispin = SIZE(work_matrices%fm_pool_ao_mo_occ), 1, -1
          CALL cp_fm_release(work_matrices%S_C0(ispin)%matrix)
+         DEALLOCATE (work_matrices%S_C0(ispin)%matrix)
          CALL cp_fm_release(work_matrices%S_C0_C0T(ispin)%matrix)
+         DEALLOCATE (work_matrices%S_C0_C0T(ispin)%matrix)
       END DO
       DEALLOCATE (work_matrices%S_C0, work_matrices%S_C0_C0T)
 
@@ -760,10 +787,14 @@ CONTAINS
       END IF
       CALL dbcsr_release_p(work_matrices%shalf)
       !
-      IF (ASSOCIATED(work_matrices%S_eigenvectors)) &
+      IF (ASSOCIATED(work_matrices%S_eigenvectors)) THEN
          CALL cp_fm_release(work_matrices%S_eigenvectors)
-      IF (ASSOCIATED(work_matrices%slambda)) &
+         DEALLOCATE (work_matrices%S_eigenvectors)
+      END IF
+      IF (ASSOCIATED(work_matrices%slambda)) THEN
          CALL cp_fm_release(work_matrices%slambda)
+         DEALLOCATE (work_matrices%slambda)
+      END IF
       IF (ASSOCIATED(work_matrices%S_eigenvalues)) &
          DEALLOCATE (work_matrices%S_eigenvalues)
       ! Ewald

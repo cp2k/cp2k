@@ -459,7 +459,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_L
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
+      TYPE(cp_fm_type)                                   :: fm_matrix_L
       TYPE(cp_libint_t)                                  :: private_lib
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_pgf_list), ALLOCATABLE, DIMENSION(:)      :: pgf_list_ij, pgf_list_kl
@@ -673,7 +673,6 @@ CONTAINS
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
-      NULLIFY (fm_matrix_L)
       NULLIFY (fm_struct_L)
       CALL cp_fm_struct_create(fm_struct_L, context=blacs_env, nrow_global=RI_dimen, &
                                ncol_global=RI_dimen, para_env=para_env)

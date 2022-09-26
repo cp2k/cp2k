@@ -98,7 +98,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, ivect, nactive, nao, &
                                                             nspins, nvects
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: hevec
+      TYPE(cp_fm_type)                                   :: hevec
 
       CALL timeset(routineN, handle)
 
@@ -108,7 +108,6 @@ CONTAINS
       DO ispin = 1, nspins
          CALL cp_fm_get_info(matrix=evects(ispin, 1)%matrix, matrix_struct=matrix_struct, &
                              nrow_global=nao, ncol_global=nactive)
-         NULLIFY (hevec)
          CALL cp_fm_create(hevec, matrix_struct)
 
          DO ivect = 1, nvects
@@ -459,7 +458,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao_asymm
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          TARGET                                          :: work_hmat_asymm
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: wfm_rho_orb
+      TYPE(cp_fm_type), INTENT(IN)                       :: wfm_rho_orb
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_apply_hfx'
 

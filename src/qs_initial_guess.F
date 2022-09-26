@@ -161,7 +161,8 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: work1
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, ao_mo_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, moa, mob, ortho, sv, work2
+      TYPE(cp_fm_type)                                   :: sv
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff, moa, mob, ortho, work2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -183,10 +184,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section, input, subsys_section
 
       logger => cp_get_default_logger()
-      NULLIFY (atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set, &
+      NULLIFY (atomic_kind, qs_kind, mo_coeff, orb_basis_set, atomic_kind_set, &
                qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
-               scf_control, dft_control, p_rmpv, ortho, work2, work1, para_env, &
-               s_sparse, scf_control, dft_control, h_core_sparse, matrix_ks, rho, &
+               scf_control, dft_control, p_rmpv, para_env, h_core_sparse, matrix_ks, rho, &
                mos_last_converged)
       NULLIFY (dft_section, input, subsys_section)
       NULLIFY (matrix_s_kp, matrix_h_kp, matrix_ks_kp, rho_ao_kp)
@@ -555,6 +555,7 @@ CONTAINS
                                      template_fmstruct=ao_mo_struct)
             ALLOCATE (work1(1))
             NULLIFY (work1(1)%matrix)
+            ALLOCATE (work1(1)%matrix, work2, ortho)
             CALL cp_fm_create(work1(1)%matrix, ao_ao_struct)
             CALL cp_fm_create(work2, ao_ao_struct)
             CALL cp_fm_create(ortho, ao_ao_struct)
@@ -607,6 +608,7 @@ CONTAINS
             CALL cp_fm_release(ortho)
             CALL cp_fm_release(work2)
             CALL cp_fm_release(work1(1)%matrix)
+            DEALLOCATE (ortho, work2, work1(1)%matrix)
             DEALLOCATE (work1)
             NULLIFY (work1, work2, ortho)
          END IF

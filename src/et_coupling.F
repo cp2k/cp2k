@@ -77,7 +77,7 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: rest_MO
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: mo_mo_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: mo_mo_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: inverse_mat, SMO, Tinverse, tmp2
+      TYPE(cp_fm_type)                                   :: inverse_mat, SMO, Tinverse, tmp2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -85,7 +85,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(section_vals_type), POINTER                   :: et_coupling_section
 
-      NULLIFY (tmp2, SMO, rest_MO, mo_mo_fmstruct, rest_MO, energy, matrix_s, dft_control, para_env)
+      NULLIFY (rest_MO, mo_mo_fmstruct, rest_MO, energy, matrix_s, dft_control, para_env)
 
       CALL timeset(routineN, handle)
 
@@ -126,7 +126,7 @@ CONTAINS
                            matrix_struct=mo_mo_fmstruct, &
                            name="ET_SMO"//TRIM(ADJUSTL(cp_to_string(1)))//"MATRIX")
          DO j = 1, 2
-            NULLIFY (rest_MO(j)%matrix)
+            ALLOCATE (rest_MO(j)%matrix)
             CALL cp_fm_create(matrix=rest_MO(j)%matrix, &
                               matrix_struct=mo_mo_fmstruct, &
                               name="ET_rest_MO"//TRIM(ADJUSTL(cp_to_string(j)))//"MATRIX")
@@ -189,8 +189,12 @@ CONTAINS
          CALL mp_sum(b(i), para_env%group)
 
          CALL cp_fm_release(tmp2)
-         CALL cp_fm_release(rest_MO(1)%matrix)
-         CALL cp_fm_release(rest_MO(2)%matrix)
+         DO j = 1, 2
+         IF (ASSOCIATED(rest_MO(j)%matrix)) THEN
+            CALL cp_fm_release(rest_MO(j)%matrix)
+            DEALLOCATE (rest_MO(j)%matrix)
+         END IF
+         END DO
          CALL cp_fm_release(SMO)
          CALL cp_fm_release(Tinverse)
          CALL cp_fm_release(inverse_mat)

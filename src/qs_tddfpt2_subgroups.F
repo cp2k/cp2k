@@ -29,7 +29,6 @@ MODULE qs_tddfpt2_subgroups
                                               cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_retain,&
                                               cp_fm_type
    USE cp_para_env,                     ONLY: cp_para_env_create,&
                                               cp_para_env_release,&
@@ -245,7 +244,7 @@ CONTAINS
          NULLIFY (fm_struct)
 
          DO ispin = 1, nspins
-            NULLIFY (sub_env%mos_occ(ispin)%matrix)
+            ALLOCATE (sub_env%mos_occ(ispin)%matrix)
             CALL cp_fm_get_info(mos_occ(ispin)%matrix, nrow_global=nao, ncol_global=nmo_occ)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_occ, context=sub_env%blacs_env)
             CALL cp_fm_create(sub_env%mos_occ(ispin)%matrix, fm_struct)
@@ -258,6 +257,7 @@ CONTAINS
             CALL get_qs_env(qs_env, admm_env=admm_env)
             CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux, ncol_global=nao)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao_aux, ncol_global=nao, context=sub_env%blacs_env)
+            ALLOCATE (sub_env%admm_A)
             CALL cp_fm_create(sub_env%admm_A, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
             CALL tddfpt_fm_replicate_across_subgroups(fm_src=admm_env%A, fm_dest_sub=sub_env%admm_A, sub_env=sub_env)
@@ -270,13 +270,11 @@ CONTAINS
          sub_env%blacs_env => blacs_env_global
 
          DO ispin = 1, nspins
-            CALL cp_fm_retain(mos_occ(ispin)%matrix)
             sub_env%mos_occ(ispin)%matrix => mos_occ(ispin)%matrix
          END DO
 
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env, admm_env=admm_env)
-            CALL cp_fm_retain(admm_env%A)
             sub_env%admm_A => admm_env%A
          END IF
       END IF
@@ -469,12 +467,18 @@ CONTAINS
 
       sub_env%is_mgrid = .FALSE.
 
-      IF (ASSOCIATED(sub_env%admm_A)) &
+      IF (sub_env%is_split .AND. ASSOCIATED(sub_env%admm_A)) THEN
          CALL cp_fm_release(sub_env%admm_A)
+         DEALLOCATE (sub_env%admm_A)
+         NULLIFY (sub_env%admm_A)
+      END IF
 
-      DO i = SIZE(sub_env%mos_occ), 1, -1
-         CALL cp_fm_release(sub_env%mos_occ(i)%matrix)
-      END DO
+      IF (sub_env%is_split) THEN
+         DO i = SIZE(sub_env%mos_occ), 1, -1
+            CALL cp_fm_release(sub_env%mos_occ(i)%matrix)
+            DEALLOCATE (sub_env%mos_occ(i)%matrix)
+         END DO
+      END IF
       DEALLOCATE (sub_env%mos_occ)
 
       CALL cp_blacs_env_release(sub_env%blacs_env)
@@ -799,7 +803,7 @@ CONTAINS
 !>   * 01.2017 moved from qs_tddfpt2_methods [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_fm_replicate_across_subgroups(fm_src, fm_dest_sub, sub_env)
-      TYPE(cp_fm_type), POINTER                          :: fm_src, fm_dest_sub
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_src, fm_dest_sub
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_fm_replicate_across_subgroups'
@@ -807,7 +811,7 @@ CONTAINS
       INTEGER :: handle, igroup, igroup_local, ncols_global_dest, ncols_global_src, ngroups, &
          nrows_global_dest, nrows_global_src
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
-      TYPE(cp_fm_type), POINTER                          :: fm_null
+      TYPE(cp_fm_type)                                   :: fm_null
       TYPE(cp_para_env_type), POINTER                    :: para_env_global
 
       IF (sub_env%is_split) THEN
@@ -822,7 +826,6 @@ CONTAINS
             CPASSERT(ncols_global_src == ncols_global_dest)
          END IF
 
-         NULLIFY (fm_null)
          igroup_local = sub_env%group_distribution(para_env_global%mepos)
          ngroups = sub_env%ngroups
 

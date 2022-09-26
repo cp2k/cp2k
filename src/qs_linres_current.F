@@ -267,6 +267,7 @@ CONTAINS
       ! allocate temporary arrays
       ALLOCATE (psi1(nspins), p_psi1(nspins))
       DO ispin = 1, nspins
+         ALLOCATE (psi1(ispin)%matrix, p_psi1(ispin)%matrix)
          CALL cp_fm_create(psi1(ispin)%matrix, psi0_order(ispin)%matrix%matrix_struct)
          CALL cp_fm_create(p_psi1(ispin)%matrix, psi0_order(ispin)%matrix%matrix_struct)
          CALL cp_fm_set_all(psi1(ispin)%matrix, 0.0_dp)
@@ -525,6 +526,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL cp_fm_release(psi1(ispin)%matrix)
          CALL cp_fm_release(p_psi1(ispin)%matrix)
+         DEALLOCATE (psi1(ispin)%matrix, p_psi1(ispin)%matrix)
       END DO
       DEALLOCATE (psi1, p_psi1)
 
@@ -2289,8 +2291,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_D, psi1_p, psi1_rxp, rr_p1, rr_p2, &
                                                             rr_rxp
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, psi0, psi_D, psi_p1, psi_p2, &
-                                                            psi_rxp
+      TYPE(cp_fm_type)                                   :: psi0, psi_D, psi_p1, psi_p2, psi_rxp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
@@ -2308,7 +2310,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       !
       NULLIFY (dft_control, mos, para_env, mo_coeff, op_mom_ao, &
-               op_mom_der_ao, center_list, centers_set, psi0, psi_rxp, psi_D, psi_p1, psi_p2, &
+               op_mom_der_ao, center_list, centers_set, &
                op_p_ao, psi1_p, psi1_rxp, psi1_D, p_rxp, r_p1, r_p2, rr_rxp, rr_p1, rr_p2, &
                cell, psi0_order, particle_set, qs_kind_set)
 
@@ -2430,10 +2432,12 @@ CONTAINS
                                ncol_global=max_states, para_env=para_env, &
                                context=mo_coeff%matrix_struct%context)
       DO idir = 1, 3
+         ALLOCATE (p_rxp(idir)%matrix, r_p1(idir)%matrix, r_p2(idir)%matrix)
          CALL cp_fm_create(p_rxp(idir)%matrix, tmp_fm_struct)
          CALL cp_fm_create(r_p1(idir)%matrix, tmp_fm_struct)
          CALL cp_fm_create(r_p2(idir)%matrix, tmp_fm_struct)
          DO idir2 = 1, 9
+            ALLOCATE (rr_rxp(idir2, idir)%matrix, rr_p1(idir2, idir)%matrix, rr_p2(idir2, idir)%matrix)
             CALL cp_fm_create(rr_rxp(idir2, idir)%matrix, tmp_fm_struct)
             CALL cp_fm_create(rr_p1(idir2, idir)%matrix, tmp_fm_struct)
             CALL cp_fm_create(rr_p2(idir2, idir)%matrix, tmp_fm_struct)
@@ -2674,10 +2678,12 @@ CONTAINS
          CALL cp_fm_release(p_rxp(idir)%matrix)
          CALL cp_fm_release(r_p1(idir)%matrix)
          CALL cp_fm_release(r_p2(idir)%matrix)
+         DEALLOCATE (p_rxp(idir)%matrix, r_p1(idir)%matrix, r_p2(idir)%matrix)
          DO idir2 = 1, 9
             CALL cp_fm_release(rr_rxp(idir2, idir)%matrix)
             CALL cp_fm_release(rr_p1(idir2, idir)%matrix)
             CALL cp_fm_release(rr_p2(idir2, idir)%matrix)
+            DEALLOCATE (rr_rxp(idir2, idir)%matrix, rr_p1(idir2, idir)%matrix, rr_p2(idir2, idir)%matrix)
          END DO
       END DO
       DEALLOCATE (p_rxp, r_p1, r_p2, rr_rxp, rr_p1, rr_p2)
@@ -2712,7 +2718,8 @@ CONTAINS
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: centers_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: psi0_order
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: psi1_p, psi1_rxp
-      TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
+      TYPE(cp_fm_type)                                   :: buf
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
@@ -2731,7 +2738,7 @@ CONTAINS
       !
       NULLIFY (dft_control, mos, para_env, mo_coeff, op_mom_ao, &
                op_mom_der_ao, center_list, centers_set, &
-               op_p_ao, psi1_p, psi1_rxp, buf, cell, psi0_order)
+               op_p_ao, psi1_p, psi1_rxp, cell, psi0_order)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)

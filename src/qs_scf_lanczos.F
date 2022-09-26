@@ -92,12 +92,14 @@ CONTAINS
          max_nmo = 0
          DO ispin = 1, nspin
             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+            ALLOCATE (krylov_space%mo_conv(ispin)%matrix, krylov_space%mo_refine(ispin)%matrix)
             CALL cp_fm_create(krylov_space%mo_conv(ispin)%matrix, mo_coeff%matrix_struct)
             CALL cp_fm_create(krylov_space%mo_refine(ispin)%matrix, mo_coeff%matrix_struct)
             NULLIFY (fm_struct_tmp)
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo, &
                                      para_env=mo_coeff%matrix_struct%para_env, &
                                      context=mo_coeff%matrix_struct%context)
+            ALLOCATE (krylov_space%chc_mat(ispin)%matrix, krylov_space%c_vec(ispin)%matrix)
             CALL cp_fm_create(krylov_space%chc_mat(ispin)%matrix, fm_struct_tmp, "chc")
             CALL cp_fm_create(krylov_space%c_vec(ispin)%matrix, fm_struct_tmp, "vec")
             CALL cp_fm_struct_release(fm_struct_tmp)
@@ -114,9 +116,11 @@ CONTAINS
                                   para_env=mo_coeff%matrix_struct%para_env, &
                                   context=mo_coeff%matrix_struct%context)
          DO ik = 1, nk
+            ALLOCATE (krylov_space%v_mat(ik)%matrix)
             CALL cp_fm_create(krylov_space%v_mat(ik)%matrix, matrix_struct=fm_struct_tmp, &
                               name="v_mat_"//TRIM(ADJUSTL(cp_to_string(ik))))
          END DO
+         ALLOCATE (krylov_space%tmp_mat)
          CALL cp_fm_create(krylov_space%tmp_mat, matrix_struct=fm_struct_tmp, &
                            name="tmp_mat")
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -127,10 +131,13 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nblock, ncol_global=nblock, &
                                   para_env=mo_coeff%matrix_struct%para_env, &
                                   context=mo_coeff%matrix_struct%context)
+         ALLOCATE (krylov_space%block1_mat)
          CALL cp_fm_create(krylov_space%block1_mat, matrix_struct=fm_struct_tmp, &
                            name="a_mat_"//TRIM(ADJUSTL(cp_to_string(ik))))
+         ALLOCATE (krylov_space%block2_mat)
          CALL cp_fm_create(krylov_space%block2_mat, matrix_struct=fm_struct_tmp, &
                            name="b_mat_"//TRIM(ADJUSTL(cp_to_string(ik))))
+         ALLOCATE (krylov_space%block3_mat)
          CALL cp_fm_create(krylov_space%block3_mat, matrix_struct=fm_struct_tmp, &
                            name="b2_mat_"//TRIM(ADJUSTL(cp_to_string(ik))))
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -140,8 +147,10 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ndim, ncol_global=ndim, &
                                   para_env=mo_coeff%matrix_struct%para_env, &
                                   context=mo_coeff%matrix_struct%context)
+         ALLOCATE (krylov_space%block4_mat)
          CALL cp_fm_create(krylov_space%block4_mat, matrix_struct=fm_struct_tmp, &
                            name="t_mat")
+         ALLOCATE (krylov_space%block5_mat)
          CALL cp_fm_create(krylov_space%block5_mat, matrix_struct=fm_struct_tmp, &
                            name="t_vec")
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -175,7 +184,7 @@ CONTAINS
                                  eps_iter, ispin, check_moconv_only)
 
       TYPE(krylov_space_type), POINTER                   :: krylov_space
-      TYPE(cp_fm_type), POINTER                          :: ks, c0, c1
+      TYPE(cp_fm_type), INTENT(IN)                       :: ks, c0, c1
       REAL(dp), DIMENSION(:), POINTER                    :: eval
       INTEGER, INTENT(IN)                                :: nao
       REAL(dp), INTENT(IN)                               :: eps_iter
@@ -195,15 +204,16 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: c_res, t_eval
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: v_mat
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: a_mat, b2_mat, b_mat, c2_tmp, c3_tmp, &
-                                                            c_tmp, chc, evec, hc, t_mat, t_vec
+      TYPE(cp_fm_type)                                   :: c2_tmp, c3_tmp, c_tmp, hc
+      TYPE(cp_fm_type), POINTER                          :: a_mat, b2_mat, b_mat, chc, evec, t_mat, &
+                                                            t_vec
 
       CALL timeset(routineN, handle)
 
       NULLIFY (fm_struct_tmp)
       NULLIFY (chc, evec)
       NULLIFY (c_res, t_eval)
-      NULLIFY (hc, t_mat, t_vec, c2_tmp)
+      NULLIFY (t_mat, t_vec)
       NULLIFY (a_mat, b_mat, b2_mat, v_mat)
 
       nmo = SIZE(eval, 1)
@@ -215,7 +225,7 @@ CONTAINS
       c_res => krylov_space%c_eval
       t_eval => krylov_space%t_eval
 
-      NULLIFY (fm_struct_tmp, c_tmp)
+      NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo, &
                                para_env=c0%matrix_struct%para_env, &
                                context=c0%matrix_struct%context)
@@ -311,6 +321,7 @@ CONTAINS
             ! Create local matrix of right size
             IF (nmob /= nblock) THEN
                NULLIFY (a_mat, b_mat, b2_mat, t_mat, t_vec, v_mat)
+               ALLOCATE (a_mat, b_mat, b2_mat, t_mat, t_vec)
                NULLIFY (fm_struct_tmp)
                CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmob, ncol_global=nmob, &
                                         para_env=chc%matrix_struct%para_env, &
@@ -337,6 +348,7 @@ CONTAINS
                                         context=c0%matrix_struct%context)
                ALLOCATE (v_mat(krylov_space%nkrylov))
                DO ik = 1, krylov_space%nkrylov
+                  ALLOCATE (v_mat(ik)%matrix)
                   CALL cp_fm_create(v_mat(ik)%matrix, matrix_struct=fm_struct_tmp, &
                                     name="v_mat")
                END DO
@@ -463,8 +475,10 @@ CONTAINS
                CALL cp_fm_release(b2_mat)
                CALL cp_fm_release(t_mat)
                CALL cp_fm_release(t_vec)
+               DEALLOCATE (a_mat, b_mat, b2_mat, t_mat, t_vec)
                DO ik = 1, krylov_space%nkrylov
                   CALL cp_fm_release(v_mat(ik)%matrix)
+                  DEALLOCATE (v_mat(ik)%matrix)
                END DO
                DEALLOCATE (v_mat)
 
@@ -511,7 +525,7 @@ CONTAINS
                                     eps_iter, ispin, check_moconv_only)
 
       TYPE(krylov_space_type), POINTER                   :: krylov_space
-      TYPE(cp_fm_type), POINTER                          :: ks, c0, c1
+      TYPE(cp_fm_type), INTENT(IN)                       :: ks, c0, c1
       REAL(dp), DIMENSION(:), POINTER                    :: eval
       INTEGER, INTENT(IN)                                :: nao
       REAL(dp), INTENT(IN)                               :: eps_iter
@@ -535,17 +549,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a_loc, b_loc
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: v_mat
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: b_mat, c2_tmp, c_tmp, chc, evec, hc, &
-                                                            v_tmp
+      TYPE(cp_fm_type)                                   :: b_mat, c2_tmp, c_tmp, hc, v_tmp
+      TYPE(cp_fm_type), POINTER                          :: chc, evec
 
       CALL timeset(routineN, handle)
 
       NULLIFY (fm_struct_tmp)
       NULLIFY (chc, evec)
       NULLIFY (c_res, t_eval)
-      NULLIFY (hc, c_tmp, c2_tmp)
-      NULLIFY (v_tmp)
-      NULLIFY (b_mat, v_mat)
+      NULLIFY (v_mat)
       NULLIFY (b_loc, a_loc)
 
       nmo = SIZE(eval, 1)
@@ -557,7 +569,7 @@ CONTAINS
       c_res => krylov_space%c_eval
       t_eval => krylov_space%t_eval
 
-      NULLIFY (fm_struct_tmp, c_tmp)
+      NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo, &
                                para_env=c0%matrix_struct%para_env, &
                                context=c0%matrix_struct%context)
@@ -668,6 +680,7 @@ CONTAINS
                                      context=c0%matrix_struct%context, &
                                      force_block=.TRUE.)
             DO ik = 1, krylov_space%nkrylov
+               ALLOCATE (v_mat(ik)%matrix)
                CALL cp_fm_create(v_mat(ik)%matrix, matrix_struct=fm_struct_tmp, &
                                  name="v_mat")
             END DO
@@ -867,6 +880,7 @@ CONTAINS
             DEALLOCATE (b_block)
             DO ik = 1, krylov_space%nkrylov
                CALL cp_fm_release(v_mat(ik)%matrix)
+               DEALLOCATE (v_mat(ik)%matrix)
             END DO
             DEALLOCATE (v_mat)
 

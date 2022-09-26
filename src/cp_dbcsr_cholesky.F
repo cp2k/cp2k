@@ -70,14 +70,14 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
       REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
       TYPE(cp_fm_struct_type), POINTER         :: fm_struct
-      TYPE(cp_fm_type), POINTER                :: fm_matrix
+      TYPE(cp_fm_type)                :: fm_matrix
 #if defined(__SCALAPACK)
       INTEGER, DIMENSION(9)                    :: desca
 #endif
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_matrix, fm_struct)
+      NULLIFY (fm_struct)
       CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
@@ -151,7 +151,7 @@ CONTAINS
       REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
       INTEGER                                   :: info, handle
       INTEGER                                   :: my_n, nfullrows_total, nfullcols_total
-      TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrix_tmp
+      TYPE(cp_fm_type)                 :: fm_matrix, fm_matrix_tmp
       TYPE(cp_fm_struct_type), POINTER          :: fm_struct
 #if defined(__SCALAPACK)
       INTEGER, DIMENSION(9)                     :: desca
@@ -159,7 +159,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_matrix, fm_struct)
+      NULLIFY (fm_struct)
       CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
 
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
@@ -248,7 +248,7 @@ CONTAINS
                                                    nfullcols_total
       TYPE(cp_blacs_env_type), POINTER          :: context
       CHARACTER                                 :: chol_pos, chol_transa
-      TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrixb, fm_matrixout
+      TYPE(cp_fm_type)                 :: fm_matrix, fm_matrixb, fm_matrixout
       TYPE(cp_fm_struct_type), POINTER          :: fm_struct
 #if defined(__SCALAPACK)
       INTEGER                                   :: i
@@ -257,7 +257,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_matrix, fm_matrixb, fm_matrixout, fm_struct)
+      NULLIFY (fm_struct)
 
       CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &

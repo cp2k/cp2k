@@ -100,7 +100,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE DKH_full_transformation(qs_env, matrix_s, matrix_v, matrix_t, matrix_pVp, n, dkh_order)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: matrix_s, matrix_v, matrix_t, matrix_pVp
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_s, matrix_v, matrix_t, matrix_pVp
       INTEGER, INTENT(IN)                                :: n, dkh_order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'DKH_full_transformation'
@@ -109,8 +109,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aa, e, ev0t, rr, tt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_full
-      TYPE(cp_fm_type), POINTER :: matrix_aux, matrix_aux2, matrix_eig, matrix_ev1, matrix_ev2, &
-         matrix_ev3, matrix_ev4, matrix_pe1p, matrix_rev, matrix_se, matrix_sinv
+      TYPE(cp_fm_type) :: matrix_aux, matrix_aux2, matrix_eig, matrix_ev1, matrix_ev2, matrix_ev3, &
+         matrix_ev4, matrix_pe1p, matrix_rev, matrix_se, matrix_sinv
 
       CALL timeset(routineN, handle)
       NULLIFY (blacs_env)
@@ -134,18 +134,6 @@ CONTAINS
       ALLOCATE (rr(n))
       ALLOCATE (tt(n))
       ALLOCATE (ev0t(n))
-
-      NULLIFY (matrix_eig)
-      NULLIFY (matrix_aux)
-      NULLIFY (matrix_aux2)
-      NULLIFY (matrix_rev)
-      NULLIFY (matrix_se)
-      NULLIFY (matrix_ev1)
-      NULLIFY (matrix_ev2)
-      NULLIFY (matrix_ev3)
-      NULLIFY (matrix_ev4)
-      NULLIFY (matrix_sinv)
-      NULLIFY (matrix_pe1p)
 
       CALL cp_fm_create(matrix_eig, matrix_full)
       CALL cp_fm_create(matrix_aux, matrix_full)
@@ -372,9 +360,9 @@ CONTAINS
 !> \param matrix_aux2 ...
 ! **************************************************************************************************
    SUBROUTINE even1(matrix_ev1, matrix_v, matrix_pvp, aa, rr, matrix_aux, matrix_aux2)
-      TYPE(cp_fm_type), POINTER                          :: matrix_ev1, matrix_v, matrix_pVp
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev1, matrix_v, matrix_pVp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr
-      TYPE(cp_fm_type), POINTER                          :: matrix_aux, matrix_aux2
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux, matrix_aux2
 
       CALL cp_fm_to_fm(matrix_v, matrix_aux)
       CALL cp_fm_column_scale(matrix_aux, aa)
@@ -407,7 +395,7 @@ CONTAINS
    SUBROUTINE peven1p(n, matrix_pe1p, matrix_v, matrix_pvp, matrix_aux, matrix_aux2, aa, rr, tt)
 
       INTEGER, INTENT(IN)                                :: n
-      TYPE(cp_fm_type), POINTER                          :: matrix_pe1p, matrix_v, matrix_pvp, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_pe1p, matrix_v, matrix_pvp, &
                                                             matrix_aux, matrix_aux2
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt
 
@@ -416,7 +404,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(n)                        :: vec_ar, vec_arrt
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: vec_full
-      TYPE(cp_fm_type), POINTER                          :: vec_a
+      TYPE(cp_fm_type)                                   :: vec_a
 
       DO i = 1, n
          vec_ar(i) = aa(i)*rr(i)
@@ -429,7 +417,6 @@ CONTAINS
                                nrow_global=n, &
                                ncol_global=1)
 
-      NULLIFY (vec_a)
       CALL cp_fm_create(vec_a, vec_full)
 
       CALL cp_fm_get_info(matrix_v, nrow_local=nrow_local, &
@@ -488,13 +475,13 @@ CONTAINS
       !***********************************************************************
 
       INTEGER, INTENT(IN)                                :: n
-      TYPE(cp_fm_type), POINTER                          :: matrix_ev2, matrix_v, matrix_pVp
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev2, matrix_v, matrix_pVp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt, e
-      TYPE(cp_fm_type), POINTER                          :: matrix_aux
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
 
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_full
-      TYPE(cp_fm_type), POINTER                          :: matrix_apVpa, matrix_apVVpa, &
+      TYPE(cp_fm_type)                                   :: matrix_apVpa, matrix_apVVpa, &
                                                             matrix_aux2, matrix_ava, matrix_avva
 
 !     result  intermediate result of even2-calculation
@@ -507,12 +494,6 @@ CONTAINS
                                context=context, &
                                nrow_global=n, &
                                ncol_global=n)
-
-      NULLIFY (matrix_aux2)
-      NULLIFY (matrix_ava)
-      NULLIFY (matrix_avva)
-      NULLIFY (matrix_apVpa)
-      NULLIFY (matrix_apVVpa)
 
       CALL cp_fm_create(matrix_aux2, matrix_full)
       CALL cp_fm_create(matrix_ava, matrix_full)
@@ -636,14 +617,14 @@ CONTAINS
       !***********************************************************************
 
       INTEGER, INTENT(IN)                                :: n
-      TYPE(cp_fm_type), POINTER                          :: matrix_ev3, matrix_ev1, matrix_pe1p, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev3, matrix_ev1, matrix_pe1p, &
                                                             matrix_v, matrix_pVp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt, e
-      TYPE(cp_fm_type), POINTER                          :: matrix_aux
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
 
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_full
-      TYPE(cp_fm_type), POINTER                          :: matrix_apVVpa, matrix_aux2, matrix_avva, &
+      TYPE(cp_fm_type)                                   :: matrix_apVVpa, matrix_aux2, matrix_avva, &
                                                             matrix_w1e1w1, matrix_w1w1
 
 !-----------------------------------------------------------------------
@@ -655,12 +636,6 @@ CONTAINS
                                context=context, &
                                nrow_global=n, &
                                ncol_global=n)
-
-      NULLIFY (matrix_aux2)
-      NULLIFY (matrix_w1w1)
-      NULLIFY (matrix_w1e1w1)
-      NULLIFY (matrix_avva)
-      NULLIFY (matrix_apVVpa)
 
       CALL cp_fm_create(matrix_aux2, matrix_full)
       CALL cp_fm_create(matrix_w1w1, matrix_full)
@@ -1016,9 +991,9 @@ CONTAINS
       !                                                                      *
       !***********************************************************************
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_p, matrix_pp
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_p, matrix_pp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: e
-      TYPE(cp_fm_type), POINTER                          :: matrix_aux
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
 
       INTEGER                                            :: i, j, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -1056,16 +1031,16 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_x, matrix_axa
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_x, matrix_axa
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a
-      TYPE(cp_fm_type), POINTER                          :: matrix_aux
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
 
       INTEGER                                            :: i, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: vec_full
-      TYPE(cp_fm_type), POINTER                          :: vec_a
+      TYPE(cp_fm_type)                                   :: vec_a
 
       CALL cp_fm_struct_get(matrix_x%matrix_struct, context=context)
       CALL cp_fm_struct_create(fmstruct=vec_full, &
@@ -1073,7 +1048,6 @@ CONTAINS
                                nrow_global=n, &
                                ncol_global=1)
 
-      NULLIFY (vec_a)
       CALL cp_fm_create(vec_a, vec_full)
 
       CALL cp_fm_get_info(matrix_x, nrow_local=nrow_local, &
@@ -1120,16 +1094,16 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_x, matrix_axa
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_x, matrix_axa
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, r
-      TYPE(cp_fm_type), POINTER                          :: matrix_aux
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
 
       INTEGER                                            :: i, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: vec_full
-      TYPE(cp_fm_type), POINTER                          :: vec_a
+      TYPE(cp_fm_type)                                   :: vec_a
 
       CALL cp_fm_struct_get(matrix_x%matrix_struct, context=context)
       CALL cp_fm_struct_create(fmstruct=vec_full, &
@@ -1140,7 +1114,6 @@ CONTAINS
       CALL cp_fm_get_info(matrix_aux, nrow_local=nrow_local, &
                           row_indices=row_indices)
 
-      NULLIFY (vec_a)
       CALL cp_fm_create(vec_a, vec_full)
 
       DO i = 1, nrow_local
@@ -1187,11 +1160,11 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_p, matrix_q, matrix_r
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_p, matrix_q, matrix_r
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: t, rr
-      TYPE(cp_fm_type), POINTER                          :: matrix_aux
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
 
       INTEGER                                            :: i
       REAL(KIND=dp), DIMENSION(n)                        :: vec
@@ -1238,11 +1211,11 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      TYPE(cp_fm_type), POINTER                          :: matrix_p, matrix_q, matrix_r
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_p, matrix_q, matrix_r
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: t, rr
-      TYPE(cp_fm_type), POINTER                          :: matrix_aux
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
 
       INTEGER                                            :: i
       REAL(KIND=dp), DIMENSION(n)                        :: vec

@@ -127,7 +127,7 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: energy_hartree
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_fm, rho_ao_s1, rho_ao_s1_rho_ao, &
+      TYPE(cp_fm_type)                                   :: rho_ao_fm, rho_ao_s1, rho_ao_s1_rho_ao, &
                                                             s1_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao, rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env

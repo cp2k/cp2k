@@ -197,6 +197,7 @@ CONTAINS
             occupation(ispin)%array(1 + nmo:ndim) = 0.0_dp
             CALL cp_fm_struct_create(fm_struct_tmp, ncol_global=ndim, &
                                      template_fmstruct=mo_coeff%matrix_struct)
+            ALLOCATE (mo_arrays(ispin)%matrix)
             CALL cp_fm_create(mo_arrays(ispin)%matrix, fm_struct_tmp, name="mo_arrays")
             CALL cp_fm_struct_release(fm_struct_tmp)
             CALL cp_fm_to_fm(mo_coeff, mo_arrays(ispin)%matrix, nmo, 1, 1)
@@ -214,6 +215,7 @@ CONTAINS
             DEALLOCATE (evals(ispin)%array)
             DEALLOCATE (occupation(ispin)%array)
             CALL cp_fm_release(mo_arrays(ispin)%matrix)
+            DEALLOCATE (mo_arrays(ispin)%matrix)
          END IF
       END DO
       DEALLOCATE (mo_arrays)
@@ -285,7 +287,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occ_tot
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: matrix_v, matrix_vf
+      TYPE(cp_fm_type)                                   :: matrix_v, matrix_vf
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)

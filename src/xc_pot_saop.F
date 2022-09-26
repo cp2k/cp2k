@@ -142,7 +142,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_uniform
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: single_mo_coeff
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: single_mo_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: orbital_density_matrix, rho_struct_ao
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: molecular_orbitals
@@ -320,11 +320,11 @@ CONTAINS
                          mo_coeff=mo_coeff, &
                          eigenvalues=mo_eigenvalues, &
                          homo=homo)
-         CALL cp_fm_create(single_mo_coeff(ispin)%matrix, &
+         CALL cp_fm_create(single_mo_coeff(ispin), &
                            mo_coeff%matrix_struct, &
                            "orbital density matrix")
 
-         CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
+         CALL cp_fm_get_info(single_mo_coeff(ispin), &
                              nrow_global=nrow(ispin), ncol_global=ncol(ispin))
          ALLOCATE (coeff_col(nrow(ispin), 1))
 
@@ -335,15 +335,15 @@ CONTAINS
             efac = K_rho*SQRT(mo_eigenvalues(homo) - mo_eigenvalues(orb))
             IF (.NOT. lsd) efac = 2.0_dp*efac
 
-            CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(single_mo_coeff(ispin), 0.0_dp)
             CALL cp_fm_get_submatrix(mo_coeff, coeff_col, &
                                      1, orb, nrow(ispin), 1)
-            CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
+            CALL cp_fm_set_submatrix(single_mo_coeff(ispin), coeff_col, &
                                      1, orb)
             CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
-                                       matrix_v=single_mo_coeff(ispin)%matrix, &
-                                       matrix_g=single_mo_coeff(ispin)%matrix, &
+                                       matrix_v=single_mo_coeff(ispin), &
+                                       matrix_g=single_mo_coeff(ispin), &
                                        ncol=ncol(ispin), &
                                        alpha=1.0_dp)
             CALL pw_zero(orbital%pw)
@@ -404,15 +404,15 @@ CONTAINS
             vxc_tmp(ispin)%pw%cr3d = we_LB*vxc_LB(ispin)%pw%cr3d + &
                                      we_GLLB*vxc_GLLB(ispin)%pw%cr3d
 
-            CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
+            CALL cp_fm_set_all(single_mo_coeff(ispin), 0.0_dp)
             CALL cp_fm_get_submatrix(mo_coeff, coeff_col, &
                                      1, orb, nrow(ispin), 1)
-            CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
+            CALL cp_fm_set_submatrix(single_mo_coeff(ispin), coeff_col, &
                                      1, orb)
             CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
             CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
-                                       matrix_v=single_mo_coeff(ispin)%matrix, &
-                                       matrix_g=single_mo_coeff(ispin)%matrix, &
+                                       matrix_v=single_mo_coeff(ispin), &
+                                       matrix_g=single_mo_coeff(ispin), &
                                        ncol=ncol(ispin), &
                                        alpha=1.0_dp)
             CALL pw_zero(orbital%pw)
@@ -429,7 +429,6 @@ CONTAINS
 
          END DO
 
-         CALL cp_fm_release(single_mo_coeff(ispin)%matrix)
          CALL dbcsr_deallocate_matrix(orbital_density_matrix(ispin)%matrix)
 
          DEALLOCATE (coeff_col)
@@ -448,6 +447,11 @@ CONTAINS
          END DO
 
       END DO
+
+      DO ispin = 1, nspins
+         CALL cp_fm_release(single_mo_coeff(ispin))
+      END DO
+      DEALLOCATE (single_mo_coeff)
 
       CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital%pw)
@@ -478,7 +482,7 @@ CONTAINS
          CALL pw_release(vxc_LB(ispin)%pw)
          CALL pw_release(vxc_tmp(ispin)%pw)
       END DO
-      DEALLOCATE (vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix, single_mo_coeff)
+      DEALLOCATE (vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix)
 
       DEALLOCATE (rho_r, vxc_SAOP)
 
@@ -523,7 +527,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho_h, drho_s, vxg
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: mo_eigenvalues
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff, single_mo_coeff
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: single_mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, orbital_density_matrix, &
                                                             rho_struct_ao
@@ -556,7 +561,7 @@ CONTAINS
                atomic_kind_set, qs_kind_set, deriv, atomic_grid, rho_struct_ao, &
                harmonics, molecular_orbitals, rho_structure, r_h, r_s, dr_h, dr_s, &
                r_h_d, r_s_d, rho_atom_set, rho_atom, para_env, &
-               mo_coeff, single_mo_coeff, mo_eigenvalues, local_rho_set, matrix_ks, &
+               mo_eigenvalues, local_rho_set, matrix_ks, &
                orbital_density_matrix, vxc_SAOP_h, vxc_SAOP_s)
 
       ! tau is needed for fill_rho_set, but should never be used
@@ -614,10 +619,10 @@ CONTAINS
                          mo_coeff=mo_coeff(ispin)%matrix, &
                          eigenvalues=mo_eigenvalues(ispin)%array, &
                          homo=homo(ispin))
-         CALL cp_fm_create(single_mo_coeff(ispin)%matrix, &
+         CALL cp_fm_create(single_mo_coeff(ispin), &
                            mo_coeff(ispin)%matrix%matrix_struct, &
                            "orbital density matrix")
-         CALL cp_fm_get_info(single_mo_coeff(ispin)%matrix, &
+         CALL cp_fm_get_info(single_mo_coeff(ispin), &
                              nrow_global=nrow(ispin), ncol_global=ncol(ispin))
          ALLOCATE (orbital_density_matrix(ispin)%matrix)
          CALL dbcsr_copy(orbital_density_matrix(ispin)%matrix, &
@@ -800,15 +805,15 @@ CONTAINS
                                     mo_eigenvalues(ispin)%array(orb))
                   IF (.NOT. lsd) efac = 2.0_dp*efac
 
-                  CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
+                  CALL cp_fm_set_all(single_mo_coeff(ispin), 0.0_dp)
                   CALL cp_fm_get_submatrix(mo_coeff(ispin)%matrix, coeff_col, &
                                            1, orb, nrow(ispin), 1)
-                  CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
+                  CALL cp_fm_set_submatrix(single_mo_coeff(ispin), coeff_col, &
                                            1, orb)
                   CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
-                                             matrix_v=single_mo_coeff(ispin)%matrix, &
-                                             matrix_g=single_mo_coeff(ispin)%matrix, &
+                                             matrix_v=single_mo_coeff(ispin), &
+                                             matrix_g=single_mo_coeff(ispin), &
                                              ncol=ncol(ispin), &
                                              alpha=1.0_dp)
 
@@ -903,15 +908,15 @@ CONTAINS
                   vxc_tmp_s(:, :, ispin) = we_LB*vxc_LB_s(:, :, ispin) + &
                                            we_GLLB*vxc_GLLB_s(:, :, ispin)
 
-                  CALL cp_fm_set_all(single_mo_coeff(ispin)%matrix, 0.0_dp)
+                  CALL cp_fm_set_all(single_mo_coeff(ispin), 0.0_dp)
                   CALL cp_fm_get_submatrix(mo_coeff(ispin)%matrix, coeff_col, &
                                            1, orb, nrow(ispin), 1)
-                  CALL cp_fm_set_submatrix(single_mo_coeff(ispin)%matrix, coeff_col, &
+                  CALL cp_fm_set_submatrix(single_mo_coeff(ispin), coeff_col, &
                                            1, orb)
                   CALL dbcsr_set(orbital_density_matrix(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(orbital_density_matrix(ispin)%matrix, &
-                                             matrix_v=single_mo_coeff(ispin)%matrix, &
-                                             matrix_g=single_mo_coeff(ispin)%matrix, &
+                                             matrix_v=single_mo_coeff(ispin), &
+                                             matrix_g=single_mo_coeff(ispin), &
                                              ncol=ncol(ispin), &
                                              alpha=1.0_dp)
 
@@ -1043,7 +1048,7 @@ CONTAINS
 
       CALL local_rho_set_release(local_rho_set)
       DO ispin = 1, nspins
-         CALL cp_fm_release(single_mo_coeff(ispin)%matrix)
+         CALL cp_fm_release(single_mo_coeff(ispin))
       END DO
       DEALLOCATE (mo_coeff, single_mo_coeff, mo_eigenvalues)
       CALL dbcsr_deallocate_matrix_set(orbital_density_matrix)

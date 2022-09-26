@@ -616,6 +616,7 @@ CONTAINS
          DO i = 1, SIZE(matrix%mixed_mo_coeff, 2)
             DO j = 1, SIZE(matrix%mixed_mo_coeff, 1)
                CALL cp_fm_release(matrix%mixed_mo_coeff(j, i)%matrix)
+               DEALLOCATE (matrix%mixed_mo_coeff(j, i)%matrix)
             END DO
          END DO
          DEALLOCATE (matrix%mixed_mo_coeff)

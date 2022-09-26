@@ -984,6 +984,8 @@ CONTAINS
          IF (ASSOCIATED(tddfpt_control%lumos)) THEN
             DO ispin = 1, SIZE(tddfpt_control%lumos)
                CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix)
+               DEALLOCATE (tddfpt_control%lumos(ispin)%matrix)
+               NULLIFY (tddfpt_control%lumos(ispin)%matrix)
                !MK the following line just avoids a crash of TDDFT runs using
                !MK the sdbg version compiled with the NAG compiler when
                !MK tddfpt_control%lumos is deallocated. This is most likely a

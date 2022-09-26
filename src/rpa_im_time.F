@@ -140,8 +140,8 @@ CONTAINS
                                   has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                   dbcsr_time, dbcsr_nflop)
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
-      TYPE(cp_fm_type), POINTER :: fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, fm_mo_coeff_occ, &
-         fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
+      TYPE(cp_fm_type), INTENT(IN) :: fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
+         fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(IN)                                :: ispin
@@ -664,13 +664,13 @@ CONTAINS
                                     jquad, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, qs_env, &
                                     num_cells_dm, index_to_cell_dm, para_env)
 
-      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       INTEGER, INTENT(IN)                                :: num_integ_points
       REAL(KIND=dp), DIMENSION(0:num_integ_points), &
          INTENT(IN)                                      :: tau_tj
       INTEGER, INTENT(IN)                                :: nmo
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                                             fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ_global, mat_dm_virt_global
@@ -887,7 +887,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, exp_scaling, occupation
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: cpmat, fwork, rpmat
+      TYPE(cp_fm_type)                                   :: fwork
+      TYPE(cp_fm_type), POINTER                          :: cpmat, rpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
 
@@ -1247,7 +1248,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_type), POINTER                          :: cpmat, fm_mat_work, rpmat
+      TYPE(cp_fm_type)                                   :: fm_mat_work
+      TYPE(cp_fm_type), POINTER                          :: cpmat, rpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1256,7 +1258,6 @@ CONTAINS
 
       NULLIFY (xkp, wkp)
 
-      NULLIFY (fm_mat_work)
       CALL cp_fm_create(fm_mat_work, kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1)%matrix%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 

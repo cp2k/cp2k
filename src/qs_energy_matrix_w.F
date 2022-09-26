@@ -106,7 +106,7 @@ CONTAINS
 
             ALLOCATE (fmwork(2))
             DO is = 1, SIZE(fmwork)
-               NULLIFY (fmwork(is)%matrix)
+               ALLOCATE (fmwork(is)%matrix)
                CALL cp_fm_create(fmwork(is)%matrix, matrix_struct=ao_ao_fmstruct)
             END DO
             CALL cp_fm_struct_release(ao_ao_fmstruct)
@@ -119,6 +119,7 @@ CONTAINS
 
             DO is = 1, SIZE(fmwork)
                CALL cp_fm_release(fmwork(is)%matrix)
+               DEALLOCATE (fmwork(is)%matrix)
             END DO
             DEALLOCATE (fmwork)
 

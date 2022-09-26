@@ -227,6 +227,7 @@ CONTAINS
       NULLIFY (propagator_matrix_fm)
       ALLOCATE (propagator_matrix_fm(SIZE(propagator_matrix)))
       DO i = 1, SIZE(propagator_matrix)
+         ALLOCATE (propagator_matrix_fm(i)%matrix)
          CALL cp_fm_create(propagator_matrix_fm(i)%matrix, &
                            matrix_struct=rtp%ao_ao_fmstruct, &
                            name="prop_fm")
@@ -349,10 +350,12 @@ CONTAINS
       NULLIFY (propagator_matrix_fm)
       ALLOCATE (propagator_matrix_fm(SIZE(propagator_matrix)))
       DO i = 1, SIZE(propagator)
+         ALLOCATE (propagator_fm(i)%matrix)
          CALL cp_fm_create(propagator_fm(i)%matrix, &
                            matrix_struct=rtp%ao_ao_fmstruct, &
                            name="prop_fm")
          CALL copy_dbcsr_to_fm(propagator(i)%matrix, propagator_fm(i)%matrix)
+         ALLOCATE (propagator_matrix_fm(i)%matrix)
          CALL cp_fm_create(propagator_matrix_fm(i)%matrix, &
                            matrix_struct=rtp%ao_ao_fmstruct, &
                            name="prop_mat_fm")

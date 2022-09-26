@@ -159,7 +159,7 @@ CONTAINS
                                                             do_kpoints_cubic_RPA
       TYPE(cp_cfm_p_type), ALLOCATABLE, &
          DIMENSION(:, :), INTENT(INOUT)                  :: cfm_mat_W_kp_tau
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega, mat_P_omega_kp
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -168,7 +168,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_L
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work
+      TYPE(cp_fm_type)                                   :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_mat_SiVtrSi
 
@@ -280,7 +280,7 @@ CONTAINS
 !> \author Jan Wilhelm, 07.2021
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_matrix_exponential(matrix, work, threshold, exponent, min_eigval)
-      TYPE(cp_cfm_type), POINTER                         :: matrix, work
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix, work
       REAL(KIND=dp)                                      :: threshold, exponent
       REAL(KIND=dp), OPTIONAL                            :: min_eigval
 
@@ -344,9 +344,9 @@ CONTAINS
                                fm_mat_RI_global_work, dimen_RI, ikp, nkp, ikp_local, para_env, &
                                make_chi_pos_definite)
 
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_L_re, fm_mat_L_im, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im, &
                                                             fm_mat_RI_global_work
       INTEGER, INTENT(IN)                                :: dimen_RI, ikp, nkp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
@@ -356,20 +356,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Q_kp_RPA'
 
       INTEGER                                            :: handle
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_L, cfm_mat_work
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_work
+      TYPE(cp_cfm_type)                                  :: cfm_mat_L, cfm_mat_work
+      TYPE(cp_fm_type)                                   :: fm_mat_work
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cfm_mat_work)
       CALL cp_cfm_create(cfm_mat_work, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
-      NULLIFY (cfm_mat_L)
       CALL cp_cfm_create(cfm_mat_L, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_L, z_zero)
 
-      NULLIFY (fm_mat_work)
       CALL cp_fm_create(fm_mat_work, fm_mat_L_re%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 
@@ -422,8 +419,8 @@ CONTAINS
                                 fm_mat_work, cfm_mat_Q, ikp, nkp, ikp_local, para_env)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_RI_global_work, fm_mat_work
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_RI_global_work, fm_mat_work
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp, nkp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -431,7 +428,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mat_P_to_subgroup'
 
       INTEGER                                            :: handle, jkp
-      TYPE(cp_fm_type), POINTER                          :: fm_dummy
+      TYPE(cp_fm_type)                                   :: fm_dummy
       TYPE(dbcsr_type), POINTER                          :: mat_P_omega_im, mat_P_omega_re
 
       CALL timeset(routineN, handle)
@@ -462,7 +459,6 @@ CONTAINS
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_mat_work, para_env)
                CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_Q, z_one, fm_mat_work)
             ELSE
-               NULLIFY (fm_dummy)
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_dummy, para_env)
             END IF
 
@@ -476,7 +472,6 @@ CONTAINS
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_mat_work, para_env)
                CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_Q, gaussi, fm_mat_work)
             ELSE
-               NULLIFY (fm_dummy)
                CALL cp_fm_copy_general(fm_mat_RI_global_work, fm_dummy, para_env)
             END IF
 
@@ -499,7 +494,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cholesky_decomp_Q(cfm_mat_Q, para_env_RPA, trace_Qomega, dimen_RI)
 
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
@@ -509,15 +504,13 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q_tmp, cfm_mat_work
+      TYPE(cp_cfm_type)                                  :: cfm_mat_Q_tmp, cfm_mat_work
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cfm_mat_work)
       CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
-      NULLIFY (cfm_mat_Q_tmp)
       CALL cp_cfm_create(cfm_mat_Q_tmp, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_Q_tmp, z_zero)
 
@@ -571,7 +564,7 @@ CONTAINS
                                                dimen_RI, freq_weight, kp_weight)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
@@ -696,7 +689,7 @@ CONTAINS
 
       TYPE(cp_cfm_p_type), ALLOCATABLE, &
          DIMENSION(:, :), INTENT(OUT)                    :: cfm_mat_W_kp_tau
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: num_integ_points, jquad, nkp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: ikp_local
 
@@ -714,6 +707,7 @@ CONTAINS
             DO jkp = 1, nkp
                NULLIFY (cfm_mat_W_kp_tau(jkp, iquad)%matrix)
                IF (.NOT. (ANY(ikp_local(:) == jkp))) CYCLE
+               ALLOCATE (cfm_mat_W_kp_tau(jkp, iquad)%matrix)
                CALL cp_cfm_create(cfm_mat_W_kp_tau(jkp, iquad)%matrix, cfm_mat_Q%matrix_struct)
                CALL cp_cfm_set_all(matrix=cfm_mat_W_kp_tau(jkp, iquad)%matrix, alpha=z_zero)
             END DO
@@ -1032,8 +1026,8 @@ CONTAINS
                                            fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im)
 
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mat_W_tau
-      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_L_re, fm_mat_L_im
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj
       REAL(KIND=dp), DIMENSION(0:num_integ_points), &
@@ -1046,7 +1040,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
       LOGICAL, INTENT(IN)                                :: do_W_and_not_V
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, POINTER    :: fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_mat_SiVtrSi_re, fm_mat_SiVtrSi_im
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_real_space_tau_GW'
 
@@ -1063,8 +1057,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_L, cfm_mat_work, cfm_mat_work_2
-      TYPE(cp_fm_type), POINTER                          :: fm_dummy, fm_mat_work_global, &
+      TYPE(cp_cfm_type)                                  :: cfm_mat_L, cfm_mat_work, cfm_mat_work_2
+      TYPE(cp_fm_type)                                   :: fm_dummy, fm_mat_work_global, &
                                                             fm_mat_work_local
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -1072,15 +1066,12 @@ CONTAINS
 
       CALL timeset(routineN//"_1", handle2)
 
-      NULLIFY (cfm_mat_work)
       CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
-      NULLIFY (cfm_mat_work_2)
       CALL cp_cfm_create(cfm_mat_work_2, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work_2, z_zero)
 
-      NULLIFY (cfm_mat_L)
       CALL cp_cfm_create(cfm_mat_L, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_L, z_zero)
 
@@ -1088,11 +1079,9 @@ CONTAINS
       CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_L, z_one, fm_mat_L_re)
       CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
 
-      NULLIFY (fm_mat_work_global)
       CALL cp_fm_create(fm_mat_work_global, fm_mat_W_tau(1)%matrix%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work_global, 0.0_dp)
 
-      NULLIFY (fm_mat_work_local)
       CALL cp_fm_create(fm_mat_work_local, cfm_mat_Q%matrix_struct)
       CALL cp_fm_set_all(fm_mat_work_local, 0.0_dp)
 
@@ -1239,7 +1228,6 @@ CONTAINS
                IF (ANY(ikp_local(:) == jkp)) THEN
                   CALL cp_fm_copy_general(fm_mat_work_local, fm_mat_work_global, para_env)
                ELSE
-                  NULLIFY (fm_dummy)
                   CALL cp_fm_copy_general(fm_dummy, fm_mat_work_global, para_env)
                END IF
 
@@ -1275,7 +1263,6 @@ CONTAINS
                IF (ANY(ikp_local(:) == jkp)) THEN
                   CALL cp_fm_copy_general(fm_mat_work_local, fm_mat_work_global, para_env)
                ELSE
-                  NULLIFY (fm_dummy)
                   CALL cp_fm_copy_general(fm_dummy, fm_mat_work_global, para_env)
                END IF
                CALL fm_mat_work_global_to_mat_SinvVSinv(mat_SinvVSinv, fm_mat_work_global)
@@ -1304,7 +1291,7 @@ CONTAINS
    SUBROUTINE fm_mat_work_global_to_mat_SinvVSinv(mat_SinvVSinv, fm_mat_work_global)
 
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_SinvVSinv
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_work_global
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_work_global
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mat_work_global_to_mat_SinvVSinv'
 
@@ -1347,8 +1334,8 @@ CONTAINS
                                    ikp, tj, tau_tj, weights_cos_tf_w_to_t)
 
       TYPE(cp_cfm_p_type), DIMENSION(:, :), INTENT(IN)   :: cfm_mat_W_kp_tau
-      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_mat_L_re, fm_mat_L_im
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj
       REAL(KIND=dp), DIMENSION(0:num_integ_points), &
@@ -1361,15 +1348,13 @@ CONTAINS
                                                             j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: omega, tau, weight
-      TYPE(cp_cfm_type), POINTER                         :: cfm_mat_L, cfm_mat_work
+      TYPE(cp_cfm_type)                                  :: cfm_mat_L, cfm_mat_work
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (cfm_mat_work)
       CALL cp_cfm_create(cfm_mat_work, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
-      NULLIFY (cfm_mat_L)
       CALL cp_cfm_create(cfm_mat_L, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_L, z_zero)
 
@@ -1597,7 +1582,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE own_cfm_upper_to_full(cfm_mat_Q, cfm_mat_work)
 
-      TYPE(cp_cfm_type), INTENT(IN), POINTER             :: cfm_mat_Q, cfm_mat_work
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q, cfm_mat_work
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'own_cfm_upper_to_full'
 
@@ -1747,7 +1732,7 @@ CONTAINS
 
    END SUBROUTINE release_hfx_stuff
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param kpoints ...
@@ -1779,9 +1764,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: cksmat, cmos, csmat, cwork
+      TYPE(cp_cfm_type)                                  :: cksmat, cmos, csmat, cwork
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_work, imos, rmos
+      TYPE(cp_fm_type)                                   :: fm_work
+      TYPE(cp_fm_type), POINTER                          :: imos, rmos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_desymm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_ks_kp, mat_s_kp

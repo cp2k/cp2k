@@ -89,7 +89,7 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: my_retain_sparsity, my_use_dbcsr
       REAL(KIND=dp)                                      :: alpha
-      TYPE(cp_fm_type), POINTER                          :: fm_tmp
+      TYPE(cp_fm_type)                                   :: fm_tmp
       TYPE(dbcsr_type)                                   :: dbcsr_tmp
 
       CALL timeset(routineN, handle)
@@ -117,7 +117,6 @@ CONTAINS
                                 last_k=mo_set%homo)
             CALL dbcsr_release(dbcsr_tmp)
          ELSE
-            NULLIFY (fm_tmp)
             CALL cp_fm_create(fm_tmp, mo_set%mo_coeff%matrix_struct)
             CALL cp_fm_to_fm(mo_set%mo_coeff, fm_tmp)
             CALL cp_fm_column_scale(fm_tmp, mo_set%occupation_numbers(1:mo_set%homo))
@@ -169,10 +168,9 @@ CONTAINS
 
       INTEGER                                            :: handle, imo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigocc
-      TYPE(cp_fm_type), POINTER                          :: weighted_vectors
+      TYPE(cp_fm_type)                                   :: weighted_vectors
 
       CALL timeset(routineN, handle)
-      NULLIFY (weighted_vectors)
 
       CALL dbcsr_set(w_matrix, 0.0_dp)
       CALL cp_fm_create(weighted_vectors, mo_set%mo_coeff%matrix_struct, "weighted_vectors")
@@ -225,12 +223,12 @@ CONTAINS
                                                             nrow_block, nrow_global
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers, scaling_factor
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: gradient, h_block, h_block_t, &
+      TYPE(cp_fm_type)                                   :: gradient, h_block, h_block_t, &
                                                             weighted_vectors
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
-      NULLIFY (weighted_vectors, h_block, fm_struct_tmp)
+      NULLIFY (fm_struct_tmp)
 
       CALL cp_fm_get_info(matrix=mo_set%mo_coeff, &
                           ncol_global=ncol_global, &
@@ -322,18 +320,15 @@ CONTAINS
       INTEGER                                            :: handle, nao
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: c, ks, p, work
+      TYPE(cp_fm_type)                                   :: ks, p, work
+      TYPE(cp_fm_type), POINTER                          :: c
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (c)
       NULLIFY (context)
       NULLIFY (fm_struct)
-      NULLIFY (ks)
-      NULLIFY (p)
       NULLIFY (para_env)
-      NULLIFY (work)
 
       CALL get_mo_set(mo_set=mo_set, mo_coeff=c)
       CALL cp_fm_get_info(c, context=context, nrow_global=nao, para_env=para_env)
@@ -373,7 +368,7 @@ CONTAINS
    SUBROUTINE calculate_wz_matrix(mo_set, psi1, ks_matrix, w_matrix)
 
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: psi1
+      TYPE(cp_fm_type), INTENT(IN)                       :: psi1
       TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wz_matrix', &
@@ -381,7 +376,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: ksmat, scrv
+      TYPE(cp_fm_type)                                   :: ksmat, scrv
 
       CALL timeset(routineN, handle)
 
@@ -420,7 +415,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_whz_matrix(c0vec, hzm, w_matrix, focc)
 
-      TYPE(cp_fm_type), POINTER                          :: c0vec
+      TYPE(cp_fm_type), INTENT(IN)                       :: c0vec
       TYPE(dbcsr_type), POINTER                          :: hzm, w_matrix
       REAL(KIND=dp), INTENT(IN)                          :: focc
 
@@ -430,7 +425,7 @@ CONTAINS
       INTEGER                                            :: handle, nao, norb
       REAL(KIND=dp)                                      :: falpha
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
-      TYPE(cp_fm_type), POINTER                          :: chcmat, hcvec
+      TYPE(cp_fm_type)                                   :: chcmat, hcvec
 
       CALL timeset(routineN, handle)
 
@@ -468,7 +463,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_wx_matrix(mos_occ, xvec, ks_matrix, w_matrix)
 
-      TYPE(cp_fm_type), POINTER                          :: mos_occ, xvec
+      TYPE(cp_fm_type), INTENT(IN)                       :: mos_occ, xvec
       TYPE(dbcsr_type), POINTER                          :: ks_matrix, w_matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_wx_matrix', &
@@ -476,7 +471,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: ksmat, scrv
+      TYPE(cp_fm_type)                                   :: ksmat, scrv
 
       CALL timeset(routineN, handle)
 
@@ -513,7 +508,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_xwx_matrix(mos_occ, xvec, s_matrix, ks_matrix, w_matrix, eval)
 
-      TYPE(cp_fm_type), POINTER                          :: mos_occ, xvec
+      TYPE(cp_fm_type), INTENT(IN)                       :: mos_occ, xvec
       TYPE(dbcsr_type), POINTER                          :: s_matrix, ks_matrix, w_matrix
       REAL(KIND=dp), INTENT(IN)                          :: eval
 
@@ -522,7 +517,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: scrv, xsxmat
+      TYPE(cp_fm_type)                                   :: scrv, xsxmat
 
       CALL timeset(routineN, handle)
 

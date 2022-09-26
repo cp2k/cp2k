@@ -366,12 +366,14 @@ CONTAINS
                                   nrow_global=nsgf, &
                                   ncol_global=nsgf)
          IF (.NOT. ASSOCIATED(fm_work1)) THEN
+            ALLOCATE (fm_work1)
             CALL cp_fm_create(matrix=fm_work1, &
                               matrix_struct=fmstruct, &
                               name="FULL WORK MATRIX 1")
             fm_work1_local_alloc = .TRUE.
          END IF
          IF (.NOT. ASSOCIATED(fm_work2)) THEN
+            ALLOCATE (fm_work2)
             CALL cp_fm_create(matrix=fm_work2, &
                               matrix_struct=fmstruct, &
                               name="FULL WORK MATRIX 2")
@@ -811,9 +813,11 @@ CONTAINS
       NULLIFY (fm_s_half)
       IF (fm_work1_local_alloc) THEN
          CALL cp_fm_release(matrix=fm_work1)
+         DEALLOCATE (fm_work1)
       END IF
       IF (fm_work2_local_alloc) THEN
          CALL cp_fm_release(matrix=fm_work2)
+         DEALLOCATE (fm_work2)
       END IF
 
       ! Release (local) sparse matrices

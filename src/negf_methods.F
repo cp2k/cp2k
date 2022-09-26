@@ -20,8 +20,7 @@ MODULE negf_methods
    USE cp_cfm_types,                    ONLY: &
         copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
         cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_p_type, &
-        cp_cfm_release, cp_cfm_retain, cp_cfm_set_submatrix, cp_cfm_start_copy_general, &
-        cp_cfm_to_fm, cp_cfm_type
+        cp_cfm_release, cp_cfm_set_submatrix, cp_cfm_start_copy_general, cp_cfm_to_fm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
@@ -30,9 +29,14 @@ MODULE negf_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        cp_fm_copy_general, cp_fm_create, cp_fm_get_info, cp_fm_p_type, cp_fm_release, &
-        cp_fm_retain, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
+                                              cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_p_type,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -383,7 +387,8 @@ CONTAINS
          nelectrons_qs_cell1, offset_au, rscale, t1, t2, trace
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm, rho_ao_fm, work_fm
+      TYPE(cp_fm_type)                                   :: fm_dummy, rho_ao_fm
+      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env_global
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_qs_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -413,25 +418,23 @@ CONTAINS
          CPASSERT(SIZE(negf_env%contacts(contact_id)%h_00) == nspins)
 
          IF (sub_env%ngroups > 1) THEN
-            NULLIFY (matrix_s_fm, rho_ao_fm, fm_struct)
+            NULLIFY (matrix_s_fm, fm_struct)
 
             CALL cp_fm_get_info(negf_env%contacts(contact_id)%s_00, nrow_global=nao)
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env_global)
             CALL cp_fm_create(rho_ao_fm, fm_struct)
 
+            ALLOCATE (matrix_s_fm)
             CALL cp_fm_create(matrix_s_fm, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
 
             IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
-               work_fm => negf_env%contacts(contact_id)%s_00
+               CALL cp_fm_copy_general(negf_env%contacts(contact_id)%s_00, matrix_s_fm, para_env_global)
             ELSE
-               NULLIFY (work_fm)
+               CALL cp_fm_copy_general(fm_dummy, matrix_s_fm, para_env_global)
             END IF
-
-            CALL cp_fm_copy_general(work_fm, matrix_s_fm, para_env_global)
          ELSE
             matrix_s_fm => negf_env%contacts(contact_id)%s_00
-            CALL cp_fm_retain(matrix_s_fm)
             CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
             CALL cp_fm_create(rho_ao_fm, fm_struct)
          END IF
@@ -625,7 +628,10 @@ CONTAINS
 
          negf_control%contacts(contact_id)%fermi_level = fermi_level_guess
 
-         CALL cp_fm_release(matrix_s_fm)
+         IF (sub_env%ngroups > 1) THEN
+            CALL cp_fm_release(matrix_s_fm)
+            DEALLOCATE (matrix_s_fm)
+         END IF
          CALL cp_fm_release(rho_ao_fm)
       END IF
 
@@ -668,7 +674,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: rho_ao_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm, work_fm
+      TYPE(cp_fm_type)                                   :: fm_dummy
+      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_qs_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -700,20 +707,17 @@ CONTAINS
          CALL cp_fm_get_info(negf_env%s_s, nrow_global=nao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
 
+         ALLOCATE (matrix_s_fm)
          CALL cp_fm_create(matrix_s_fm, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
          IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
-            work_fm => negf_env%s_s
+            CALL cp_fm_copy_general(negf_env%s_s, matrix_s_fm, para_env)
          ELSE
-            NULLIFY (work_fm)
+            CALL cp_fm_copy_general(fm_dummy, matrix_s_fm, para_env)
          END IF
-
-         CALL cp_fm_copy_general(work_fm, matrix_s_fm, para_env)
       ELSE
          matrix_s_fm => negf_env%s_s
-         CALL cp_fm_retain(matrix_s_fm)
-         CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
       END IF
 
       CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
@@ -729,7 +733,7 @@ CONTAINS
       nelectrons_ref = 0.0_dp
       ALLOCATE (rho_ao_fm(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rho_ao_fm(ispin)%matrix)
+         ALLOCATE (rho_ao_fm(ispin)%matrix)
          CALL cp_fm_create(rho_ao_fm(ispin)%matrix, fm_struct)
 
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=rho_ao_qs_kp(ispin, 1)%matrix, &
@@ -891,11 +895,14 @@ CONTAINS
 
       DO ispin = nspins, 1, -1
          CALL cp_fm_release(rho_ao_fm(ispin)%matrix)
+         DEALLOCATE (rho_ao_fm(ispin)%matrix)
       END DO
       DEALLOCATE (rho_ao_fm)
 
-      IF (ASSOCIATED(matrix_s_fm)) &
+      IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) THEN
          CALL cp_fm_release(matrix_s_fm)
+         DEALLOCATE (matrix_s_fm)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE shift_potential
@@ -934,7 +941,8 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: rho_ao_delta_fm, rho_ao_new_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: ao_ao_fm_global, matrix_s_fm, work_fm
+      TYPE(cp_fm_type)                                   :: fm_dummy
+      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_initial_kp, matrix_ks_qs_kp, &
                                                             rho_ao_initial_kp, rho_ao_new_kp, &
@@ -969,20 +977,17 @@ CONTAINS
          CALL cp_fm_get_info(negf_env%s_s, nrow_global=nao)
          CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
 
+         ALLOCATE (matrix_s_fm)
          CALL cp_fm_create(matrix_s_fm, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
 
          IF (sub_env%group_distribution(sub_env%mepos_global) == 0) THEN
-            work_fm => negf_env%s_s
+            CALL cp_fm_copy_general(negf_env%s_s, matrix_s_fm, para_env)
          ELSE
-            NULLIFY (work_fm)
+            CALL cp_fm_copy_general(fm_dummy, matrix_s_fm, para_env)
          END IF
-
-         CALL cp_fm_copy_general(work_fm, matrix_s_fm, para_env)
       ELSE
          matrix_s_fm => negf_env%s_s
-         CALL cp_fm_retain(matrix_s_fm)
-         CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
       END IF
 
       CALL cp_fm_get_info(matrix_s_fm, matrix_struct=fm_struct)
@@ -1023,7 +1028,7 @@ CONTAINS
       nelectrons = 0.0_dp
       ALLOCATE (rho_ao_delta_fm(nspins), rho_ao_new_fm(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rho_ao_delta_fm(ispin)%matrix, rho_ao_new_fm(ispin)%matrix)
+         ALLOCATE (rho_ao_delta_fm(ispin)%matrix, rho_ao_new_fm(ispin)%matrix)
          CALL cp_fm_create(rho_ao_delta_fm(ispin)%matrix, fm_struct)
          CALL cp_fm_create(rho_ao_new_fm(ispin)%matrix, fm_struct)
 
@@ -1037,10 +1042,6 @@ CONTAINS
          CALL cp_fm_trace(rho_ao_delta_fm(ispin)%matrix, matrix_s_fm, trace)
          nelectrons = nelectrons + trace
       END DO
-
-      NULLIFY (ao_ao_fm_global)
-      IF (sub_env%ngroups > 1) &
-         CALL cp_fm_create(ao_ao_fm_global, fm_struct)
 
       ! mixing storage allocation
       IF (negf_env%mixing_method >= gspace_mixing_nr) THEN
@@ -1259,11 +1260,10 @@ CONTAINS
          END IF
       END DO
 
-      CALL cp_fm_release(ao_ao_fm_global)
-
       DO ispin = nspins, 1, -1
          CALL cp_fm_release(rho_ao_new_fm(ispin)%matrix)
          CALL cp_fm_release(rho_ao_delta_fm(ispin)%matrix)
+         DEALLOCATE (rho_ao_new_fm(ispin)%matrix, rho_ao_delta_fm(ispin)%matrix)
       END DO
       DEALLOCATE (rho_ao_delta_fm, rho_ao_new_fm)
 
@@ -1279,8 +1279,10 @@ CONTAINS
       END DO
       DEALLOCATE (matrix_ks_initial_kp, rho_ao_new_kp, rho_ao_initial_kp)
 
-      IF (ASSOCIATED(matrix_s_fm)) &
+      IF (sub_env%ngroups > 1 .AND. ASSOCIATED(matrix_s_fm)) THEN
          CALL cp_fm_release(matrix_s_fm)
+         DEALLOCATE (matrix_s_fm)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE converge_density
@@ -1303,7 +1305,7 @@ CONTAINS
    SUBROUTINE negf_surface_green_function_batch(g_surf, omega, h0, s0, h1, s1, sub_env, v_external, conv, transp)
       TYPE(cp_cfm_p_type), DIMENSION(:), INTENT(inout)   :: g_surf
       COMPLEX(kind=dp), DIMENSION(:), INTENT(in)         :: omega
-      TYPE(cp_fm_type), POINTER                          :: h0, s0, h1, s1
+      TYPE(cp_fm_type), INTENT(IN)                       :: h0, s0, h1, s1
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       REAL(kind=dp), INTENT(in)                          :: v_external, conv
       LOGICAL, INTENT(in)                                :: transp
@@ -1331,6 +1333,7 @@ CONTAINS
          IF (debug_this_module) THEN
             CPASSERT(.NOT. ASSOCIATED(g_surf(ipoint)%matrix))
          END IF
+         ALLOCATE (g_surf(ipoint)%matrix)
          CALL cp_cfm_create(g_surf(ipoint)%matrix, fm_struct)
 
          CALL do_sancho(g_surf(ipoint)%matrix, omega(ipoint) - v_external, &
@@ -1408,17 +1411,15 @@ CONTAINS
                                                             zwork1_contacts, zwork2_contacts
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: gamma_contacts_group, &
                                                             gret_gamma_gadv_group
-      TYPE(cp_cfm_type), POINTER                         :: matrix_s_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: g_ret_imag, matrix_s
+      TYPE(cp_fm_type)                                   :: g_ret_imag
+      TYPE(cp_fm_type), POINTER                          :: matrix_s
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
       npoints = SIZE(omega)
       ncontacts = SIZE(negf_env%contacts)
       CPASSERT(SIZE(negf_control%contacts) == ncontacts)
-
-      NULLIFY (matrix_s_cfm)
 
       IF (PRESENT(just_contact)) THEN
          CPASSERT(just_contact <= ncontacts)
@@ -1441,27 +1442,27 @@ CONTAINS
       IF (PRESENT(just_contact)) THEN
          CALL cp_fm_get_info(negf_env%contacts(just_contact)%s_01, matrix_struct=fm_struct)
          DO icontact = 1, ncontacts
-            NULLIFY (zwork1_contacts(icontact)%matrix, zwork2_contacts(icontact)%matrix)
+            ALLOCATE (zwork1_contacts(icontact)%matrix, zwork2_contacts(icontact)%matrix)
             CALL cp_cfm_create(zwork1_contacts(icontact)%matrix, fm_struct)
             CALL cp_cfm_create(zwork2_contacts(icontact)%matrix, fm_struct)
          END DO
 
          CALL cp_fm_get_info(negf_env%contacts(just_contact)%s_00, nrow_global=nrows, matrix_struct=fm_struct)
          DO icontact = 1, ncontacts
-            NULLIFY (self_energy_contacts(icontact)%matrix)
+            ALLOCATE (self_energy_contacts(icontact)%matrix)
             CALL cp_cfm_create(self_energy_contacts(icontact)%matrix, fm_struct)
          END DO
       ELSE
          DO icontact = 1, ncontacts
             CALL cp_fm_get_info(negf_env%s_sc(icontact)%matrix, matrix_struct=fm_struct)
-            NULLIFY (zwork1_contacts(icontact)%matrix, zwork2_contacts(icontact)%matrix)
+            ALLOCATE (zwork1_contacts(icontact)%matrix, zwork2_contacts(icontact)%matrix)
             CALL cp_cfm_create(zwork1_contacts(icontact)%matrix, fm_struct)
             CALL cp_cfm_create(zwork2_contacts(icontact)%matrix, fm_struct)
          END DO
 
          CALL cp_fm_get_info(negf_env%s_s, nrow_global=nrows, matrix_struct=fm_struct)
          DO icontact = 1, ncontacts
-            NULLIFY (self_energy_contacts(icontact)%matrix)
+            ALLOCATE (self_energy_contacts(icontact)%matrix)
             CALL cp_cfm_create(self_energy_contacts(icontact)%matrix, fm_struct)
          END DO
       END IF
@@ -1477,7 +1478,6 @@ CONTAINS
          ELSE
             DO ipoint = 1, npoints
                g_ret_s_group(ipoint)%matrix => g_ret_s(ipoint)%matrix
-               CALL cp_cfm_retain(g_ret_s_group(ipoint)%matrix)
             END DO
          END IF
       END IF
@@ -1498,7 +1498,6 @@ CONTAINS
             DO ipoint = 1, npoints
                DO icontact = 1, ncontacts
                   gamma_contacts_group(icontact, ipoint)%matrix => gamma_contacts(icontact, ipoint)%matrix
-                  CALL cp_cfm_retain(gamma_contacts_group(icontact, ipoint)%matrix)
                END DO
             END DO
          END IF
@@ -1520,9 +1519,6 @@ CONTAINS
             DO ipoint = 1, npoints
                DO icontact = 1, ncontacts
                   gret_gamma_gadv_group(icontact, ipoint)%matrix => gret_gamma_gadv(icontact, ipoint)%matrix
-
-                  IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) &
-                     CALL cp_cfm_retain(gret_gamma_gadv_group(icontact, ipoint)%matrix)
                END DO
             END DO
          END IF
@@ -1537,6 +1533,7 @@ CONTAINS
                ! at least two parallel groups; otherwise pointers to group-specific matrices have
                ! already been initialised and they point to globally distributed matrices
                IF (ALLOCATED(g_ret_s_group)) THEN
+                  ALLOCATE (g_ret_s_group(ipoint)%matrix)
                   CALL cp_cfm_create(g_ret_s_group(ipoint)%matrix, fm_struct)
                END IF
             END IF
@@ -1544,6 +1541,7 @@ CONTAINS
             IF (sub_env%ngroups > 1 .OR. .NOT. PRESENT(gamma_contacts)) THEN
                IF (ALLOCATED(gamma_contacts_group)) THEN
                   DO icontact = 1, ncontacts
+                     ALLOCATE (gamma_contacts_group(icontact, ipoint)%matrix)
                      CALL cp_cfm_create(gamma_contacts_group(icontact, ipoint)%matrix, fm_struct)
                   END DO
                END IF
@@ -1552,8 +1550,10 @@ CONTAINS
             IF (sub_env%ngroups > 1) THEN
                IF (ALLOCATED(gret_gamma_gadv_group)) THEN
                   DO icontact = 1, ncontacts
-                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) &
+                     IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
+                        ALLOCATE (gret_gamma_gadv_group(icontact, ipoint)%matrix)
                         CALL cp_cfm_create(gret_gamma_gadv_group(icontact, ipoint)%matrix, fm_struct)
+                     END IF
                   END DO
                END IF
             END IF
@@ -1606,15 +1606,13 @@ CONTAINS
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
                                                     h_s=negf_env%contacts(just_contact)%h_00(ispin)%matrix, &
-                                                    s_s=negf_env%contacts(just_contact)%s_00, &
-                                                    v_hartree_s=null())
+                                                    s_s=negf_env%contacts(just_contact)%s_00)
                ELSE IF (ignore_bias) THEN
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
                                                     omega=omega(ipoint) - v_shift, &
                                                     self_energy_ret_sum=self_energy_contacts(1)%matrix, &
                                                     h_s=negf_env%h_s(ispin)%matrix, &
-                                                    s_s=negf_env%s_s, &
-                                                    v_hartree_s=null())
+                                                    s_s=negf_env%s_s)
                ELSE
                   CALL negf_retarded_green_function(g_ret_s=g_ret_s_group(ipoint)%matrix, &
                                                     omega=omega(ipoint) - v_shift, &
@@ -1674,7 +1672,7 @@ CONTAINS
                   IF (ASSOCIATED(g_ret_s(ipoint)%matrix)) THEN
                      CALL cp_cfm_finish_copy_general(g_ret_s(ipoint)%matrix, info1(ipoint))
                      IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) &
-                        CALL cp_cfm_cleanup_copy_general(g_ret_s_group(ipoint)%matrix, info1(ipoint))
+                        CALL cp_cfm_cleanup_copy_general(info1(ipoint))
                   END IF
                END DO
 
@@ -1713,8 +1711,7 @@ CONTAINS
                      IF (ASSOCIATED(gamma_contacts(icontact, ipoint)%matrix)) THEN
                         CALL cp_cfm_finish_copy_general(gamma_contacts(icontact, ipoint)%matrix, info2(icontact, ipoint))
                         IF (ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) THEN
-                           CALL cp_cfm_cleanup_copy_general(gamma_contacts_group(icontact, ipoint)%matrix, &
-                                                            info2(icontact, ipoint))
+                           CALL cp_cfm_cleanup_copy_general(info2(icontact, ipoint))
                         END IF
                      END IF
                   END DO
@@ -1756,8 +1753,7 @@ CONTAINS
                      IF (ASSOCIATED(gret_gamma_gadv(icontact, ipoint)%matrix)) THEN
                         CALL cp_cfm_finish_copy_general(gret_gamma_gadv(icontact, ipoint)%matrix, info2(icontact, ipoint))
                         IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
-                           CALL cp_cfm_cleanup_copy_general(gret_gamma_gadv_group(icontact, ipoint)%matrix, &
-                                                            info2(icontact, ipoint))
+                           CALL cp_cfm_cleanup_copy_general(info2(icontact, ipoint))
                         END IF
                      END IF
                   END DO
@@ -1778,7 +1774,6 @@ CONTAINS
          END IF
 
          CALL cp_fm_get_info(matrix_s, matrix_struct=fm_struct)
-         NULLIFY (g_ret_imag)
          CALL cp_fm_create(g_ret_imag, fm_struct)
 
          DO ipoint = 1, npoints
@@ -1826,18 +1821,22 @@ CONTAINS
       ! -- deallocate temporary matrices
       IF (ALLOCATED(g_ret_s_group)) THEN
          DO ipoint = npoints, 1, -1
-            IF (ASSOCIATED(g_ret_s_group(ipoint)%matrix)) CALL cp_cfm_release(g_ret_s_group(ipoint)%matrix)
+            IF ((sub_env%ngroups > 1 .OR. .NOT. PRESENT(g_ret_s)) .AND. ASSOCIATED(g_ret_s_group(ipoint)%matrix)) THEN
+               CALL cp_cfm_release(g_ret_s_group(ipoint)%matrix)
+               DEALLOCATE (g_ret_s_group(ipoint)%matrix)
+            END IF
          END DO
          DEALLOCATE (g_ret_s_group)
       END IF
 
-      IF (ASSOCIATED(matrix_s_cfm)) CALL cp_cfm_release(matrix_s_cfm)
-
       IF (ALLOCATED(gamma_contacts_group)) THEN
          DO ipoint = npoints, 1, -1
             DO icontact = ncontacts, 1, -1
-               IF (ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) &
+               IF ((sub_env%ngroups > 1 .OR. .NOT. PRESENT(gamma_contacts)) .AND. &
+                   ASSOCIATED(gamma_contacts_group(icontact, ipoint)%matrix)) THEN
                   CALL cp_cfm_release(gamma_contacts_group(icontact, ipoint)%matrix)
+                  DEALLOCATE (gamma_contacts_group(icontact, ipoint)%matrix)
+               END IF
             END DO
          END DO
          DEALLOCATE (gamma_contacts_group)
@@ -1846,8 +1845,10 @@ CONTAINS
       IF (ALLOCATED(gret_gamma_gadv_group)) THEN
          DO ipoint = npoints, 1, -1
             DO icontact = ncontacts, 1, -1
-               IF (ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) &
+               IF (sub_env%ngroups > 1 .AND. ASSOCIATED(gret_gamma_gadv_group(icontact, ipoint)%matrix)) THEN
                   CALL cp_cfm_release(gret_gamma_gadv_group(icontact, ipoint)%matrix)
+                  DEALLOCATE (gret_gamma_gadv_group(icontact, ipoint)%matrix)
+               END IF
             END DO
          END DO
          DEALLOCATE (gret_gamma_gadv_group)
@@ -1855,24 +1856,30 @@ CONTAINS
 
       IF (ALLOCATED(self_energy_contacts)) THEN
          DO icontact = ncontacts, 1, -1
-            IF (ASSOCIATED(self_energy_contacts(icontact)%matrix)) &
+            IF (ASSOCIATED(self_energy_contacts(icontact)%matrix)) THEN
                CALL cp_cfm_release(self_energy_contacts(icontact)%matrix)
+               DEALLOCATE (self_energy_contacts(icontact)%matrix)
+            END IF
          END DO
          DEALLOCATE (self_energy_contacts)
       END IF
 
       IF (ALLOCATED(zwork1_contacts)) THEN
          DO icontact = ncontacts, 1, -1
-            IF (ASSOCIATED(zwork1_contacts(icontact)%matrix)) &
+            IF (ASSOCIATED(zwork1_contacts(icontact)%matrix)) THEN
                CALL cp_cfm_release(zwork1_contacts(icontact)%matrix)
+               DEALLOCATE (zwork1_contacts(icontact)%matrix)
+            END IF
          END DO
          DEALLOCATE (zwork1_contacts)
       END IF
 
       IF (ALLOCATED(zwork2_contacts)) THEN
          DO icontact = ncontacts, 1, -1
-            IF (ASSOCIATED(zwork2_contacts(icontact)%matrix)) &
+            IF (ASSOCIATED(zwork2_contacts(icontact)%matrix)) THEN
                CALL cp_cfm_release(zwork2_contacts(icontact)%matrix)
+               DEALLOCATE (zwork2_contacts(icontact)%matrix)
+            END IF
          END DO
          DEALLOCATE (zwork2_contacts)
       END IF
@@ -1918,7 +1925,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_init_rho_equiv_residuals(rho_ao_fm, v_shift, ignore_bias, negf_env, &
                                             negf_control, sub_env, ispin, base_contact, just_contact)
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
@@ -1965,7 +1972,7 @@ CONTAINS
          ALLOCATE (omega(npoles), g_ret_s(npoles))
 
          DO ipole = 1, npoles
-            NULLIFY (g_ret_s(ipole)%matrix)
+            ALLOCATE (g_ret_s(ipole)%matrix)
             CALL cp_cfm_create(g_ret_s(ipole)%matrix, fm_struct)
 
             omega(ipole) = CMPLX(mu_base, REAL(2*ipole - 1, kind=dp)*pi_temperature, kind=dp)
@@ -2027,6 +2034,7 @@ CONTAINS
 
          DO ipole = npoles, 1, -1
             CALL cp_cfm_release(g_ret_s(ipole)%matrix)
+            DEALLOCATE (g_ret_s(ipole)%matrix)
          END DO
          DEALLOCATE (g_ret_s, omega)
       END IF
@@ -2056,7 +2064,7 @@ CONTAINS
    SUBROUTINE negf_add_rho_equiv_low(rho_ao_fm, stats, v_shift, ignore_bias, negf_env, negf_control, sub_env, &
                                      ispin, base_contact, integr_lbound, integr_ubound, matrix_s_global, &
                                      is_circular, g_surf_cache, just_contact)
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
       TYPE(integration_status_type), INTENT(inout)       :: stats
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
@@ -2065,7 +2073,7 @@ CONTAINS
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin, base_contact
       COMPLEX(kind=dp), INTENT(in)                       :: integr_lbound, integr_ubound
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_global
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_s_global
       LOGICAL, INTENT(in)                                :: is_circular
       TYPE(green_functions_cache_type), INTENT(inout)    :: g_surf_cache
       INTEGER, INTENT(in), OPTIONAL                      :: just_contact
@@ -2081,7 +2089,7 @@ CONTAINS
       TYPE(ccquad_type)                                  :: cc_env
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: zdata, zdata_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: integral_imag
+      TYPE(cp_fm_type)                                   :: integral_imag
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(simpsonrule_type)                             :: sr_env
 
@@ -2118,7 +2126,6 @@ CONTAINS
       END IF
       npoints_total = 0
 
-      NULLIFY (integral_imag)
       CALL cp_fm_get_info(rho_ao_fm, para_env=para_env, matrix_struct=fm_struct)
       CALL cp_fm_create(integral_imag, fm_struct)
 
@@ -2145,7 +2152,7 @@ CONTAINS
 
          ALLOCATE (zdata(npoints))
          DO ipoint = 1, npoints
-            NULLIFY (zdata(ipoint)%matrix)
+            ALLOCATE (zdata(ipoint)%matrix)
             CALL cp_cfm_create(zdata(ipoint)%matrix, fm_struct)
          END DO
 
@@ -2235,7 +2242,7 @@ CONTAINS
             DEALLOCATE (zdata_tmp)
 
             DO ipoint = npoints_exist + 1, npoints
-               NULLIFY (zdata(ipoint)%matrix)
+               ALLOCATE (zdata(ipoint)%matrix)
                CALL cp_cfm_create(zdata(ipoint)%matrix, fm_struct)
             END DO
          END DO
@@ -2244,7 +2251,10 @@ CONTAINS
          stats%error = stats%error + cc_env%error/pi
 
          DO ipoint = SIZE(zdata_tmp), 1, -1
-            IF (ASSOCIATED(zdata_tmp(ipoint)%matrix)) CALL cp_cfm_release(zdata_tmp(ipoint)%matrix)
+            IF (ASSOCIATED(zdata_tmp(ipoint)%matrix)) THEN
+               CALL cp_cfm_release(zdata_tmp(ipoint)%matrix)
+               DEALLOCATE (zdata_tmp(ipoint)%matrix)
+            END IF
          END DO
          DEALLOCATE (zdata_tmp)
 
@@ -2276,7 +2286,7 @@ CONTAINS
 
          DO WHILE (npoints > 0 .AND. npoints_total < max_points)
             DO ipoint = 1, npoints
-               NULLIFY (zdata(ipoint)%matrix)
+               ALLOCATE (zdata(ipoint)%matrix)
                CALL cp_cfm_create(zdata(ipoint)%matrix, fm_struct)
             END DO
 
@@ -2391,14 +2401,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_add_rho_nonequiv(rho_ao_fm, stats, v_shift, negf_env, negf_control, sub_env, &
                                     ispin, base_contact, matrix_s_global, g_surf_cache)
-      TYPE(cp_fm_type), POINTER                          :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
       TYPE(integration_status_type), INTENT(inout)       :: stats
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
       TYPE(negf_control_type), POINTER                   :: negf_control
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       INTEGER, INTENT(in)                                :: ispin, base_contact
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_global
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_s_global
       TYPE(green_functions_cache_type), INTENT(inout)    :: g_surf_cache
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_add_rho_nonequiv'
@@ -2415,7 +2425,7 @@ CONTAINS
                                                             temperature_base, temperature_contact
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:, :)  :: zdata
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: integral_real
+      TYPE(cp_fm_type)                                   :: integral_real
       TYPE(simpsonrule_type)                             :: sr_env
 
       CALL timeset(routineN, handle)
@@ -2494,6 +2504,7 @@ CONTAINS
                END IF
 
                DO ipoint = 1, npoints
+                  ALLOCATE (zdata(icontact, ipoint)%matrix)
                   CALL cp_cfm_create(zdata(icontact, ipoint)%matrix, fm_struct)
                END DO
 
@@ -2531,7 +2542,6 @@ CONTAINS
                CALL simpsonrule_get_next_nodes(sr_env, xnodes, npoints)
             END DO
 
-            NULLIFY (integral_real)
             CALL cp_fm_create(integral_real, fm_struct)
 
             CALL cp_cfm_to_fm(sr_env%integral, mtargetr=integral_real)
@@ -2636,7 +2646,7 @@ CONTAINS
          temperature_contact1, temperature_contact2, v_contact1, v_contact2
       TYPE(cp_cfm_p_type), ALLOCATABLE, DIMENSION(:)     :: zdata
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_single
-      TYPE(cp_fm_type), POINTER                          :: weights
+      TYPE(cp_fm_type)                                   :: weights
       TYPE(green_functions_cache_type)                   :: g_surf_cache
       TYPE(simpsonrule_type)                             :: sr_env
 
@@ -2677,7 +2687,7 @@ CONTAINS
       npoints_total = 0
       npoints = min_points
 
-      NULLIFY (fm_struct_single, weights)
+      NULLIFY (fm_struct_single)
       CALL cp_fm_struct_create(fm_struct_single, nrow_global=1, ncol_global=1, context=blacs_env_global)
       CALL cp_fm_create(weights, fm_struct_single)
       CALL cp_fm_set_all(weights, 1.0_dp)
@@ -2715,6 +2725,7 @@ CONTAINS
                                                  transm_contact2=contact_id2)
 
          DO ipoint = 1, npoints
+            ALLOCATE (zdata(ipoint)%matrix)
             CALL cp_cfm_create(zdata(ipoint)%matrix, fm_struct_single)
 
             energy = REAL(xnodes(ipoint), kind=dp)

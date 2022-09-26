@@ -199,7 +199,10 @@ CONTAINS
 
       IF (ASSOCIATED(mos_virt)) THEN
          DO ispin = 1, SIZE(mos_virt)
-            IF (ASSOCIATED(mos_virt(ispin)%matrix)) CALL cp_fm_release(mos_virt(ispin)%matrix)
+            IF (ASSOCIATED(mos_virt(ispin)%matrix)) THEN
+               CALL cp_fm_release(mos_virt(ispin)%matrix)
+               DEALLOCATE (mos_virt(ispin)%matrix)
+            END IF
          END DO
          DEALLOCATE (mos_virt)
       END IF
@@ -236,7 +239,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       INTEGER, INTENT(in)                                :: cholesky_method
       TYPE(dbcsr_type), POINTER                          :: matrix_ks, matrix_s
-      TYPE(cp_fm_type), POINTER                          :: mos_virt
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: mos_virt
       REAL(kind=dp), DIMENSION(:), POINTER               :: evals_virt
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init_ground_state_mos'
@@ -256,8 +259,8 @@ CONTAINS
       TYPE(cp_fm_pool_type), POINTER                     :: wfn_fm_pool
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fm_struct, ao_mo_occ_fm_struct, &
                                                             ao_mo_virt_fm_struct, wfn_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: matrix_ks_fm, mo_coeff_extended, &
-                                                            ortho_fm, work_fm
+      TYPE(cp_fm_type)                                   :: matrix_ks_fm, ortho_fm, work_fm
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_extended
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(mo_set_type), POINTER                         :: mos_extended
 
@@ -279,7 +282,6 @@ CONTAINS
       do_eigen = .FALSE.
       ! diagonalise the Kohn-Sham matrix one more time if the number of available unoccupied states are too small
       IF (ASSOCIATED(evals_virt)) THEN
-         CPASSERT(ASSOCIATED(mos_virt))
          IF (nmo_virt > nmo_scf - nmo_occ + SIZE(evals_virt)) do_eigen = .TRUE.
       ELSE
          IF (nmo_virt > nmo_scf - nmo_occ) do_eigen = .TRUE.
@@ -291,6 +293,7 @@ CONTAINS
       CALL cp_fm_struct_create(ao_mo_virt_fm_struct, nrow_global=nao, ncol_global=nmo_virt, context=blacs_env)
 
       NULLIFY (gs_mos%mos_occ, gs_mos%mos_virt, gs_mos%evals_occ_matrix)
+      ALLOCATE (gs_mos%mos_occ, gs_mos%mos_virt)
       CALL cp_fm_create(gs_mos%mos_occ, ao_mo_occ_fm_struct)
       CALL cp_fm_create(gs_mos%mos_virt, ao_mo_virt_fm_struct)
 
@@ -330,7 +333,6 @@ CONTAINS
          mo_occ_extended(nmo_scf + 1:) = 0.0_dp
 
          ! ++ allocate temporary matrices
-         NULLIFY (matrix_ks_fm, ortho_fm, work_fm)
          CALL cp_fm_create(matrix_ks_fm, ao_ao_fm_struct)
          CALL cp_fm_create(ortho_fm, ao_ao_fm_struct)
          CALL cp_fm_create(work_fm, ao_ao_fm_struct)
@@ -481,14 +483,20 @@ CONTAINS
       IF (ALLOCATED(gs_mos%evals_occ)) &
          DEALLOCATE (gs_mos%evals_occ)
 
-      IF (ASSOCIATED(gs_mos%evals_occ_matrix)) &
+      IF (ASSOCIATED(gs_mos%evals_occ_matrix)) THEN
          CALL cp_fm_release(gs_mos%evals_occ_matrix)
+         DEALLOCATE (gs_mos%evals_occ_matrix)
+      END IF
 
-      IF (ASSOCIATED(gs_mos%mos_virt)) &
+      IF (ASSOCIATED(gs_mos%mos_virt)) THEN
          CALL cp_fm_release(gs_mos%mos_virt)
+         DEALLOCATE (gs_mos%mos_virt)
+      END IF
 
-      IF (ASSOCIATED(gs_mos%mos_occ)) &
+      IF (ASSOCIATED(gs_mos%mos_occ)) THEN
          CALL cp_fm_release(gs_mos%mos_occ)
+         DEALLOCATE (gs_mos%mos_occ)
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE tddfpt_release_ground_state_mos
@@ -513,7 +521,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_occ_fm_struct, &
                                                             mo_occ_mo_occ_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: work_fm
+      TYPE(cp_fm_type)                                   :: work_fm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -610,6 +618,7 @@ CONTAINS
             nmo_occ = SIZE(gs_mos(ispin)%evals_occ)
             CALL cp_fm_struct_create(mo_occ_mo_occ_fm_struct, nrow_global=nmo_occ, ncol_global=nmo_occ, &
                                      context=blacs_env)
+            ALLOCATE (gs_mos(ispin)%evals_occ_matrix)
             CALL cp_fm_create(gs_mos(ispin)%evals_occ_matrix, mo_occ_mo_occ_fm_struct)
             CALL cp_fm_struct_release(mo_occ_mo_occ_fm_struct)
             ! work_fm is a temporary [nao x nmo_occ] matrix
@@ -684,7 +693,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, n_spins, na, nb, nhomo, &
                                                             nl, nos, nrow, nu, nvirt
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
-      TYPE(cp_fm_type), POINTER                          :: cmos, coeff, cvec
+      TYPE(cp_fm_type)                                   :: cmos, cvec
+      TYPE(cp_fm_type), POINTER                          :: coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: smat
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -949,6 +959,7 @@ CONTAINS
 
             DO jspin = 1, nspins
                ! .NOT. ASSOCIATED(evects(jspin, istate)%matrix))
+               ALLOCATE (evects(jspin, istate)%matrix)
                CALL cp_fm_create(evects(jspin, istate)%matrix, fm_struct_evects(jspin)%struct)
                CALL cp_fm_set_all(evects(jspin, istate)%matrix, 0.0_dp)
 

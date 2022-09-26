@@ -1160,7 +1160,7 @@ CONTAINS
       INTEGER                                            :: handle, hesunit, i, j, ndf
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_hes
-      TYPE(cp_fm_type), POINTER                          :: hess_mat
+      TYPE(cp_fm_type)                                   :: hess_mat
 
       CALL timeset(routineN, handle)
 

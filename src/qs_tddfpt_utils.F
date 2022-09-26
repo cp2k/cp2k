@@ -303,6 +303,7 @@ CONTAINS
          nrows(spin) = t_control%lumos(spin)%matrix%matrix_struct%nrow_global
          nhomos(spin) = t_env%evecs(1, spin)%matrix%matrix_struct%ncol_global
          nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
+         ALLOCATE (S_lumos(spin)%matrix)
          CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
                            "S times lumos")
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, t_control%lumos(spin)%matrix, &
@@ -355,6 +356,7 @@ CONTAINS
 
       DO spin = 1, n_spins
          CALL cp_fm_release(S_lumos(spin)%matrix)
+         DEALLOCATE (S_lumos(spin)%matrix)
       END DO
       DEALLOCATE (homo_coeff_col, lumo_coeff_col)
 

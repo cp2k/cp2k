@@ -146,8 +146,10 @@ CONTAINS
          ncontacts = SIZE(cache%g_surf_contacts, 1)
          DO ipoint = SIZE(cache%g_surf_contacts, 2), 1, -1
             DO icontact = ncontacts, 1, -1
-               IF (ASSOCIATED(cache%g_surf_contacts(icontact, ipoint)%matrix)) &
+               IF (ASSOCIATED(cache%g_surf_contacts(icontact, ipoint)%matrix)) THEN
                   CALL cp_cfm_release(cache%g_surf_contacts(icontact, ipoint)%matrix)
+                  DEALLOCATE (cache%g_surf_contacts(icontact, ipoint)%matrix)
+               END IF
             END DO
          END DO
 

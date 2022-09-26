@@ -229,13 +229,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_overlap_inverse(matrix_s, matrix_s_inv, para_env, context)
       TYPE(dbcsr_type), POINTER                          :: matrix_s
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_inv
+      TYPE(cp_fm_type), INTENT(OUT)                      :: matrix_s_inv
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: context
 
       INTEGER                                            :: nao
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: work1
+      TYPE(cp_fm_type)                                   :: work1
 
       CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nao, &

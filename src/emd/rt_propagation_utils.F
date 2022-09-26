@@ -374,6 +374,7 @@ CONTAINS
          alpha = 3*one - REAL(SIZE(mos_new)/2, dp)
          CALL dbcsr_set(rho_ao(i)%matrix, zero)
          CALL cp_fm_get_info(mos_new(re)%matrix, ncol_global=ncol)
+         ALLOCATE (mos_occ%matrix)
          CALL cp_fm_create(mos_occ%matrix, &
                            matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
                            name="mos_occ")
@@ -391,6 +392,7 @@ CONTAINS
                                     ncol=ncol, &
                                     alpha=alpha)
          CALL cp_fm_release(mos_occ%matrix)
+         DEALLOCATE (mos_occ%matrix)
       END DO
       CALL qs_rho_update_rho(rho, qs_env)
 
@@ -482,6 +484,7 @@ CONTAINS
       DO i = 1, SIZE(mos_new)/2
          re = 2*i - 1; im = 2*i
          alpha = 3.0_dp - REAL(SIZE(matrix_p_im), dp)
+         ALLOCATE (mos_occ(re)%matrix, mos_occ(im)%matrix)
          CALL cp_fm_create(mos_occ(re)%matrix, &
                            matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct, &
                            name="mos_occ")

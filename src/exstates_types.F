@@ -77,12 +77,14 @@ CONTAINS
          IF (ASSOCIATED(ex_env%evect)) THEN
             DO is = 1, SIZE(ex_env%evect)
                CALL cp_fm_release(ex_env%evect(is)%matrix)
+               DEALLOCATE (ex_env%evect(is)%matrix)
             END DO
             DEALLOCATE (ex_env%evect)
          END IF
          IF (ASSOCIATED(ex_env%cpmos)) THEN
             DO is = 1, SIZE(ex_env%cpmos)
                CALL cp_fm_release(ex_env%cpmos(is)%matrix)
+               DEALLOCATE (ex_env%cpmos(is)%matrix)
             END DO
             DEALLOCATE (ex_env%cpmos)
          END IF

@@ -1379,6 +1379,7 @@ CONTAINS
             IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
                DO I = 1, SIZE(qs_env%mo_loc_history)
                   CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
+                  DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
                END DO
                DEALLOCATE (qs_env%mo_loc_history)
             END IF
@@ -1574,6 +1575,7 @@ CONTAINS
             IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
                DO I = 1, SIZE(qs_env%mo_loc_history)
                   CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
+                  DEALLOCATE (qs_env%mo_loc_history(I)%matrix)
                END DO
                DEALLOCATE (qs_env%mo_loc_history)
             END IF

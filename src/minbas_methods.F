@@ -93,8 +93,9 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_a, fm_struct_b, fm_struct_c, &
                                                             fm_struct_d, fm_struct_e
-      TYPE(cp_fm_type), POINTER                          :: fm1, fm2, fm3, fm4, fm5, fm6, fm_mos, &
-                                                            fma, fmb, fmwork
+      TYPE(cp_fm_type)                                   :: fm1, fm2, fm3, fm4, fm5, fm6, fma, fmb, &
+                                                            fmwork
+      TYPE(cp_fm_type), POINTER                          :: fm_mos
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef

@@ -350,7 +350,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
@@ -1093,7 +1093,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
@@ -1680,7 +1680,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), POINTER                         :: mo_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_aux_fit
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_aux_mo_derivs_none'
@@ -1815,7 +1815,7 @@ CONTAINS
       ALLOCATE (mo_derivs_fm(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, mo_coeff=mo_coeff)
-         NULLIFY (mo_derivs_fm(ispin)%matrix)
+         ALLOCATE (mo_derivs_fm(ispin)%matrix)
          CALL cp_fm_create(mo_derivs_fm(ispin)%matrix, mo_coeff%matrix_struct)
       END DO
 
@@ -1831,6 +1831,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL cp_fm_release(mo_derivs_fm(ispin)%matrix)
+         DEALLOCATE (mo_derivs_fm(ispin)%matrix)
       END DO
       DEALLOCATE (mo_derivs_fm)
 

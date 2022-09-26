@@ -113,6 +113,8 @@ CONTAINS
       IF (ASSOCIATED(et_coupling%et_mo_coeff)) THEN
          DO i = 1, SIZE(et_coupling%et_mo_coeff)
             CALL cp_fm_release(et_coupling%et_mo_coeff(i)%matrix)
+            DEALLOCATE (et_coupling%et_mo_coeff(i)%matrix)
+            NULLIFY (et_coupling%et_mo_coeff(i)%matrix)
          END DO
          DEALLOCATE (et_coupling%et_mo_coeff)
       END IF

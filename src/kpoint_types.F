@@ -706,6 +706,7 @@ CONTAINS
             DO is = 1, SIZE(kp_env%pmat, 2)
                DO ic = 1, SIZE(kp_env%pmat, 1)
                   CALL cp_fm_release(kp_env%pmat(ic, is)%matrix)
+                  DEALLOCATE (kp_env%pmat(ic, is)%matrix)
                END DO
             END DO
             DEALLOCATE (kp_env%pmat)
@@ -715,6 +716,7 @@ CONTAINS
             DO is = 1, SIZE(kp_env%wmat, 2)
                DO ic = 1, SIZE(kp_env%wmat, 1)
                   CALL cp_fm_release(kp_env%wmat(ic, is)%matrix)
+                  DEALLOCATE (kp_env%wmat(ic, is)%matrix)
                END DO
             END DO
             DEALLOCATE (kp_env%wmat)

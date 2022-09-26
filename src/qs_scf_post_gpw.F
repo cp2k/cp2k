@@ -516,6 +516,7 @@ CONTAINS
                                eigenvalues=mo_eigenvalues)
                occupied_orbs(ispin)%matrix => mo_coeff
                occupied_evals(ispin)%array => mo_eigenvalues
+               ALLOCATE (homo_localized(ispin)%matrix)
                CALL cp_fm_create(homo_localized(ispin)%matrix, occupied_orbs(ispin)%matrix%matrix_struct)
                CALL cp_fm_to_fm(occupied_orbs(ispin)%matrix, homo_localized(ispin)%matrix)
             END DO
@@ -633,6 +634,7 @@ CONTAINS
             IF (p_loc_lumo) THEN
                ALLOCATE (lumo_localized(dft_control%nspins))
                DO ispin = 1, dft_control%nspins
+                  ALLOCATE (lumo_localized(ispin)%matrix)
                   CALL cp_fm_create(lumo_localized(ispin)%matrix, unoccupied_orbs(ispin)%matrix%matrix_struct)
                   CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix, lumo_localized(ispin)%matrix)
                END DO
@@ -677,6 +679,7 @@ CONTAINS
                                eigenvalues=mo_eigenvalues)
                mixed_orbs(ispin)%matrix => mo_coeff
                mixed_evals(ispin)%array => mo_eigenvalues
+               ALLOCATE (mixed_localized(ispin)%matrix)
                CALL cp_fm_create(mixed_localized(ispin)%matrix, mixed_orbs(ispin)%matrix%matrix_struct)
                CALL cp_fm_to_fm(mixed_orbs(ispin)%matrix, mixed_localized(ispin)%matrix)
             END DO
@@ -749,8 +752,10 @@ CONTAINS
          IF (compute_lumos) THEN
             DO ispin = 1, dft_control%nspins
                DEALLOCATE (unoccupied_evals(ispin)%array)
-               IF (.NOT. dft_control%do_tddfpt_calculation) &
+               IF (.NOT. dft_control%do_tddfpt_calculation) THEN
                   CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
+                  DEALLOCATE (unoccupied_orbs(ispin)%matrix)
+               END IF
             END DO
             DEALLOCATE (unoccupied_evals)
             IF (.NOT. dft_control%do_tddfpt_calculation) THEN
@@ -778,6 +783,7 @@ CONTAINS
                DO ispin = 1, dft_control%nspins
                   DEALLOCATE (unoccupied_evals_stm(ispin)%array)
                   CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
+                  DEALLOCATE (unoccupied_orbs_stm(ispin)%matrix)
                END DO
                DEALLOCATE (unoccupied_evals_stm)
                DEALLOCATE (unoccupied_orbs_stm)
@@ -886,6 +892,7 @@ CONTAINS
          ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=n, ncol_global=nlumos)
+         ALLOCATE (unoccupied_orbs(ispin)%matrix)
          CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp, name="lumos")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix, nlumos)
@@ -1005,7 +1012,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: homo, ispin
@@ -1108,7 +1115,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: unoccupied_orbs
+      TYPE(cp_fm_type), INTENT(IN)                       :: unoccupied_orbs
       TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: nlumos, homo, ispin
@@ -1402,7 +1409,7 @@ CONTAINS
             ALLOCATE (my_mos(dft_control%nspins))
             ALLOCATE (qs_env%et_coupling%et_mo_coeff(dft_control%nspins))
             DO ispin = 1, dft_control%nspins
-               NULLIFY (my_mos(ispin)%matrix)
+               ALLOCATE (my_mos(ispin)%matrix)
                CALL cp_fm_create(matrix=my_mos(ispin)%matrix, &
                                  matrix_struct=qs_env%mos(ispin)%mo_set%mo_coeff%matrix_struct, &
                                  name="FIRST_RUN_COEFF"//TRIM(ADJUSTL(cp_to_string(ispin)))//"MATRIX")
@@ -1547,7 +1554,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: S_cond_number
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
-      TYPE(cp_fm_type), POINTER                          :: fm_s, fm_work, mo_coeff
+      TYPE(cp_fm_type)                                   :: fm_s, fm_work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_energy_type), POINTER                      :: energy

@@ -578,7 +578,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ncol_fm, nrow_fm
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: mo_fm_copy
+      TYPE(cp_fm_type)                                   :: mo_fm_copy
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -586,7 +586,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! create and init scf_env (this is necessary to return MOs to qs)
-      NULLIFY (mos, mo_fm_copy, fm_struct_tmp, scf_env)
+      NULLIFY (mos, fm_struct_tmp, scf_env)
       CALL scf_env_create(scf_env)
 
       !CALL qs_scf_env_initialize(qs_env, scf_env)

@@ -1479,6 +1479,7 @@ CONTAINS
                DO idir = 1, SIZE(polar_env%dBerry_psi0, 1)
                   DO ispin = 1, SIZE(polar_env%dBerry_psi0, 2)
                      CALL cp_fm_release(polar_env%dBerry_psi0(idir, ispin)%matrix)
+                     DEALLOCATE (polar_env%dBerry_psi0(idir, ispin)%matrix)
                   END DO
                END DO
                DEALLOCATE (polar_env%dBerry_psi0)
@@ -1487,6 +1488,7 @@ CONTAINS
                DO idir = 1, SIZE(polar_env%psi1_dBerry, 1)
                   DO ispin = 1, SIZE(polar_env%psi1_dBerry, 2)
                      CALL cp_fm_release(polar_env%psi1_dBerry(idir, ispin)%matrix)
+                     DEALLOCATE (polar_env%psi1_dBerry(idir, ispin)%matrix)
                   END DO
                END DO
                DEALLOCATE (polar_env%psi1_dBerry)

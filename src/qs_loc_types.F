@@ -221,6 +221,8 @@ CONTAINS
          DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
             ii = LBOUND(qs_loc_env%moloc_coeff, 1) + i - 1
             CALL cp_fm_release(qs_loc_env%moloc_coeff(ii)%matrix)
+            DEALLOCATE (qs_loc_env%moloc_coeff(ii)%matrix)
+            NULLIFY (qs_loc_env%moloc_coeff(ii)%matrix)
          END DO
          DEALLOCATE (qs_loc_env%moloc_coeff)
       END IF
@@ -229,6 +231,8 @@ CONTAINS
          DO i = 1, SIZE(qs_loc_env%op_fm_set, 2)
             DO j = 1, SIZE(qs_loc_env%op_fm_set, 1)
                CALL cp_fm_release(qs_loc_env%op_fm_set(j, i)%matrix)
+               DEALLOCATE (qs_loc_env%op_fm_set(j, i)%matrix)
+               NULLIFY (qs_loc_env%op_fm_set(j, i)%matrix)
             END DO
          END DO
          DEALLOCATE (qs_loc_env%op_fm_set)
@@ -483,6 +487,8 @@ CONTAINS
          IF (ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
             DO i = 1, SIZE(qs_loc_env%moloc_coeff, 1)
                CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix)
+               DEALLOCATE (qs_loc_env%moloc_coeff(i)%matrix)
+               NULLIFY (qs_loc_env%moloc_coeff(i)%matrix)
             END DO
             DEALLOCATE (qs_loc_env%moloc_coeff)
          END IF

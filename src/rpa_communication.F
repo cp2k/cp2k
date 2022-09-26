@@ -82,7 +82,7 @@ CONTAINS
    SUBROUTINE gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3, para_env_RPA, para_env_sub, &
                                 homo, virtual, mo_coeff_o, ngroup, my_group_L_start, my_group_L_end, &
                                 my_group_L_size)
-      TYPE(cp_fm_type), POINTER                          :: fm_mat_Gamma_3
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Gamma_3
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dbcsr_Gamma_3
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_RPA
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
@@ -109,7 +109,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_ia
+      TYPE(cp_fm_type)                                   :: fm_ia
       TYPE(group_dist_d1_type)                           :: gd_ia
       TYPE(index_map), ALLOCATABLE, DIMENSION(:)         :: indices_rec
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
@@ -128,6 +128,7 @@ CONTAINS
       CALL prepare_redistribution(para_env_RPA, para_env_sub, ngroup, &
                                   group_grid_2_mepos, mepos_2_grid_group)
 
+      ! fm_mat_Gamma_3 is released here
       CALL fm2array(Gamma_2D, my_ia_size, my_ia_start, my_ia_end, &
                     my_group_L_size, my_group_L_start, my_group_L_end, &
                     group_grid_2_mepos, mepos_2_grid_group, &
@@ -139,7 +140,6 @@ CONTAINS
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_sub)
 
       ! create the fm_ia buffer matrix
-      NULLIFY (fm_ia)
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=homo, &
                                ncol_global=virtual, para_env=para_env_sub)
@@ -439,8 +439,6 @@ CONTAINS
 
       ! release buffer matrix
       CALL cp_fm_release(fm_ia)
-      ! release auxiliary gamma
-      CALL cp_fm_release(fm_mat_Gamma_3)
 
       CALL timestop(handle)
 

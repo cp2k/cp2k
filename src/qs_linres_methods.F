@@ -157,6 +157,7 @@ CONTAINS
       ALLOCATE (mos_localized(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+         ALLOCATE (mos_localized(ispin)%matrix)
          CALL cp_fm_create(mos_localized(ispin)%matrix, mo_coeff%matrix_struct)
          CALL cp_fm_to_fm(mo_coeff, mos_localized(ispin)%matrix)
       END DO
@@ -233,7 +234,8 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: tr_pAp, tr_rz0, tr_rz00, tr_rz1
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: Ap, chc, mo_coeff_array, p, r, Sc, z
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: buf, mo_coeff
+      TYPE(cp_fm_type)                                   :: buf
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, matrix_t
       TYPE(dbcsr_type), POINTER                          :: matrix_x
@@ -244,7 +246,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, linres_control, matrix_s, matrix_t, matrix_ks, para_env)
-      NULLIFY (buf, mos, tmp_fm_struct, mo_coeff)
+      NULLIFY (mos, tmp_fm_struct, mo_coeff)
 
       t1 = m_walltime()
 
@@ -279,7 +281,7 @@ CONTAINS
       END DO
       !
       DO ispin = 1, nspins
-         NULLIFY (r(ispin)%matrix, p(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
+         ALLOCATE (r(ispin)%matrix, p(ispin)%matrix, z(ispin)%matrix, Ap(ispin)%matrix)
          CALL cp_fm_create(r(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
          CALL cp_fm_create(p(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
          CALL cp_fm_create(z(ispin)%matrix, psi1(ispin)%matrix%matrix_struct)
@@ -290,11 +292,13 @@ CONTAINS
       ALLOCATE (chc(nspins), Sc(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         ALLOCATE (Sc(ispin)%matrix)
          CALL cp_fm_create(Sc(ispin)%matrix, mo_coeff%matrix_struct)
          NULLIFY (tmp_fm_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nmo, &
                                   ncol_global=nmo, para_env=para_env, &
                                   context=mo_coeff%matrix_struct%context)
+         ALLOCATE (chc(ispin)%matrix)
          CALL cp_fm_create(chc(ispin)%matrix, tmp_fm_struct)
          CALL cp_fm_struct_release(tmp_fm_struct)
       END DO
@@ -546,6 +550,9 @@ CONTAINS
          !
          CALL cp_fm_release(Sc(ispin)%matrix)
          CALL cp_fm_release(chc(ispin)%matrix)
+         DEALLOCATE (r(ispin)%matrix, p(ispin)%matrix, &
+                     z(ispin)%matrix, Ap(ispin)%matrix, &
+                     Sc(ispin)%matrix, chc(ispin)%matrix)
       END DO
       DEALLOCATE (tr_pAp, tr_rz0, tr_rz00, tr_rz1, r, p, z, Ap, Sc, chc, mo_coeff_array)
       !
@@ -647,18 +654,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_op_1(v, Av, matrix_ks, matrix_s, chc)
       !
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: v, Av
+      TYPE(cp_fm_type), INTENT(IN)                       :: v, Av
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks, matrix_s
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: chc
+      TYPE(cp_fm_type), INTENT(IN)                       :: chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op_1'
 
       INTEGER                                            :: handle, ncol, nrow
-      TYPE(cp_fm_type), POINTER                          :: buf
+      TYPE(cp_fm_type)                                   :: buf
 
       CALL timeset(routineN, handle)
-      !
-      NULLIFY (buf)
       !
       CALL cp_fm_create(buf, v%matrix_struct)
       !
@@ -694,11 +699,11 @@ CONTAINS
       INTEGER                                            :: handle, ispin, mp, mt, mv, np, nspins, &
                                                             nt, nv
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: buf
+      TYPE(cp_fm_type)                                   :: buf
 
       CALL timeset(routineN, handle)
       !
-      NULLIFY (buf, tmp_fm_struct)
+      NULLIFY (tmp_fm_struct)
       !
       nspins = SIZE(v, 1)
       !
@@ -746,11 +751,11 @@ CONTAINS
       INTEGER                                            :: handle, ispin, mp, mt, mv, np, nspins, &
                                                             nt, nv
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: buf
+      TYPE(cp_fm_type)                                   :: buf
 
       CALL timeset(routineN, handle)
       !
-      NULLIFY (buf, tmp_fm_struct)
+      NULLIFY (tmp_fm_struct)
       !
       nspins = SIZE(v, 1)
       !

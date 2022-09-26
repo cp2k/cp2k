@@ -275,14 +275,14 @@ CONTAINS
 !> \param eigenvalues eigenvalues of the input matrix
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_elpa(matrix, eigenvectors, eigenvalues)
-      TYPE(cp_fm_type), INTENT(INOUT), TARGET  :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)          :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_elpa'
 
 #if defined(__ELPA)
       INTEGER                                  :: handle
-      TYPE(cp_fm_type), POINTER                :: eigenvectors_new, matrix_new
+      TYPE(cp_fm_type)                         :: eigenvectors_new, matrix_new
       TYPE(cp_fm_redistribute_info)            :: rdinfo
 
       CALL timeset(routineN, handle)
@@ -296,7 +296,7 @@ CONTAINS
                                     caller_is_elpa=.TRUE., redist_info=rdinfo)
 
       ! Call ELPA on CPUs that hold the new matrix
-      IF (ASSOCIATED(matrix_new)) &
+      IF (ASSOCIATED(matrix_new%matrix_struct)) &
          CALL cp_fm_diag_elpa_base(matrix_new, eigenvectors_new, eigenvalues, rdinfo)
 
       ! Redistribute results and clean up
@@ -322,7 +322,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_elpa_base(matrix, eigenvectors, eigenvalues, rdinfo)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       TYPE(cp_fm_redistribute_info), INTENT(IN)          :: rdinfo
 
@@ -340,7 +340,7 @@ CONTAINS
       LOGICAL                                  :: use_qr, check_eigenvalues
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eval, eval_noqr
       TYPE(cp_blacs_env_type), POINTER         :: context
-      TYPE(cp_fm_type), POINTER                :: matrix_noqr, eigenvectors_noqr
+      TYPE(cp_fm_type)                         :: matrix_noqr, eigenvectors_noqr
       TYPE(cp_logger_type), POINTER            :: logger
       REAL(KIND=dp), PARAMETER                 :: th = 1.0E-14_dp
       INTEGER, DIMENSION(:), POINTER           :: ncol_locals

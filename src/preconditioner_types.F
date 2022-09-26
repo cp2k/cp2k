@@ -132,6 +132,8 @@ CONTAINS
 
       IF (ASSOCIATED(preconditioner_env%fm)) THEN
          CALL cp_fm_release(preconditioner_env%fm)
+         DEALLOCATE (preconditioner_env%fm)
+         NULLIFY (preconditioner_env%fm)
       END IF
       IF (ASSOCIATED(preconditioner_env%dbcsr_matrix)) THEN
          CALL dbcsr_release_p(preconditioner_env%dbcsr_matrix)

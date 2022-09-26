@@ -514,6 +514,7 @@ CONTAINS
                   DO is = 1, SIZE(kp%pmat, 2)
                      DO ic = 1, SIZE(kp%pmat, 1)
                         CALL cp_fm_release(kp%pmat(ic, is)%matrix)
+                        DEALLOCATE (kp%pmat(ic, is)%matrix)
                      END DO
                   END DO
                   DEALLOCATE (kp%pmat)
@@ -521,6 +522,7 @@ CONTAINS
                ALLOCATE (kp%pmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
+                     ALLOCATE (kp%pmat(ic, is)%matrix)
                      CALL cp_fm_create(kp%pmat(ic, is)%matrix, matrix_struct)
                   END DO
                END DO
@@ -529,6 +531,7 @@ CONTAINS
                   DO is = 1, SIZE(kp%wmat, 2)
                      DO ic = 1, SIZE(kp%wmat, 1)
                         CALL cp_fm_release(kp%wmat(ic, is)%matrix)
+                        DEALLOCATE (kp%wmat(ic, is)%matrix)
                      END DO
                   END DO
                   DEALLOCATE (kp%wmat)
@@ -536,6 +539,7 @@ CONTAINS
                ALLOCATE (kp%wmat(nc, nspin))
                DO is = 1, nspin
                   DO ic = 1, nc
+                     ALLOCATE (kp%wmat(ic, is)%matrix)
                      CALL cp_fm_create(kp%wmat(ic, is)%matrix, matrix_struct)
                   END DO
                END DO
@@ -942,7 +946,8 @@ CONTAINS
       LOGICAL                                            :: wtype
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type), POINTER                          :: cpmat, fwork, pmat, rpmat
+      TYPE(cp_fm_type)                                   :: fwork
+      TYPE(cp_fm_type), POINTER                          :: cpmat, pmat, rpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
 
@@ -1040,7 +1045,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: tempmat
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: fmwork
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fmwork
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform'
 
@@ -1052,7 +1057,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:)    :: info
-      TYPE(cp_fm_type), POINTER                          :: fmdummy
+      TYPE(cp_fm_type)                                   :: fmdummy
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
       TYPE(dbcsr_type), POINTER                          :: cpmat, rpmat, scpmat, srpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -1087,7 +1092,6 @@ CONTAINS
       real_only = (nc == 1)
 
       para_env => kpoint%blacs_env_all%para_env
-      NULLIFY (fmdummy)
       ALLOCATE (info(nspin*nkp*nc))
 
       ! Start all the communication
@@ -1179,11 +1183,7 @@ CONTAINS
 
                DO ic = 1, nc
                   indx = indx + 1
-                  IF (wtype) THEN
-                     CALL cp_fm_cleanup_copy_general(kp%wmat(ic, ispin)%matrix, info(indx))
-                  ELSE
-                     CALL cp_fm_cleanup_copy_general(kp%pmat(ic, ispin)%matrix, info(indx))
-                  END IF
+                  CALL cp_fm_cleanup_copy_general(info(indx))
                END DO
             ELSE
                ! calls with dummy arguments, so not included

@@ -114,7 +114,7 @@ CONTAINS
       COMPLEX(kind=dp), DIMENSION(nnodes), INTENT(out)   :: xnodes
       COMPLEX(kind=dp), INTENT(in)                       :: a, b
       INTEGER, INTENT(in)                                :: interval_id, shape_id
-      TYPE(cp_fm_type), POINTER                          :: weights
+      TYPE(cp_fm_type), INTENT(IN)                       :: weights
       REAL(kind=dp), DIMENSION(nnodes), INTENT(in), &
          OPTIONAL                                        :: tnodes_restart
 
@@ -129,7 +129,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CPASSERT(nnodes > 2)
-      CPASSERT(ASSOCIATED(weights))
 
       ! ensure that MOD(nnodes-1, 2) == 0
       nnodes = 2*((nnodes - 1)/2) + 1
@@ -141,6 +140,7 @@ CONTAINS
       cc_env%error = HUGE(0.0_dp)
 
       NULLIFY (cc_env%integral, cc_env%error_fm, cc_env%weights)
+      ALLOCATE (cc_env%weights)
       CALL cp_fm_get_info(weights, local_data=w_data, nrow_local=nrows, ncol_local=ncols, matrix_struct=fm_struct)
       CALL cp_fm_create(cc_env%weights, fm_struct)
       CALL cp_fm_get_info(cc_env%weights, local_data=w_data_my)
@@ -206,19 +206,30 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(cc_env%error_fm)) &
+      IF (ASSOCIATED(cc_env%error_fm)) THEN
          CALL cp_fm_release(cc_env%error_fm)
+         DEALLOCATE (cc_env%error_fm)
+         NULLIFY (cc_env%error_fm)
+      END IF
 
-      IF (ASSOCIATED(cc_env%weights)) &
+      IF (ASSOCIATED(cc_env%weights)) THEN
          CALL cp_fm_release(cc_env%weights)
+         DEALLOCATE (cc_env%weights)
+         NULLIFY (cc_env%weights)
+      END IF
 
-      IF (ASSOCIATED(cc_env%integral)) &
+      IF (ASSOCIATED(cc_env%integral)) THEN
          CALL cp_cfm_release(cc_env%integral)
+         DEALLOCATE (cc_env%integral)
+         NULLIFY (cc_env%integral)
+      END IF
 
       IF (ALLOCATED(cc_env%zdata_cache)) THEN
          DO ipoint = SIZE(cc_env%zdata_cache), 1, -1
-            IF (ASSOCIATED(cc_env%zdata_cache(ipoint)%matrix)) &
+            IF (ASSOCIATED(cc_env%zdata_cache(ipoint)%matrix)) THEN
                CALL cp_cfm_release(cc_env%zdata_cache(ipoint)%matrix)
+               DEALLOCATE (cc_env%zdata_cache(ipoint)%matrix)
+            END IF
          END DO
 
          DEALLOCATE (cc_env%zdata_cache)
@@ -447,7 +458,10 @@ CONTAINS
          equiv = cp_fm_struct_equivalent(fm_struct, cc_env%weights%matrix_struct)
          CPASSERT(equiv)
 
+         ALLOCATE (cc_env%integral)
          CALL cp_cfm_create(cc_env%integral, fm_struct)
+         NULLIFY (cc_env%error_fm)
+         ALLOCATE (cc_env%error_fm)
          CALL cp_fm_create(cc_env%error_fm, fm_struct)
       END IF
 

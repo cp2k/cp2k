@@ -174,7 +174,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -183,7 +183,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN), OPTIONAL                      :: nextra, nmo
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, POINTER    :: vectors_2, guess_mos
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: vectors_2, guess_mos
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry'
 
@@ -326,7 +326,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
-      TYPE(cp_fm_type), POINTER                          :: vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: zij_fm_set
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
@@ -337,7 +337,8 @@ CONTAINS
                                                             ncol, nmoloc, output_unit, sweeps
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nsgf
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
-      TYPE(cp_fm_type), POINTER                          :: opvec, ov_fm
+      TYPE(cp_fm_type)                                   :: opvec
+      TYPE(cp_fm_type), POINTER                          :: ov_fm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -651,7 +652,7 @@ CONTAINS
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: print_loc_section
       INTEGER, INTENT(IN), OPTIONAL                      :: myspin
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: ext_mo_coeff
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: ext_mo_coeff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_loc_driver'
 
@@ -672,8 +673,8 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: op_fm_set
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mos_guess, tmp_fm, tmp_fm_1, &
-                                                            vectors_2
+      TYPE(cp_fm_type)                                   :: mos_guess, tmp_fm, tmp_fm_1, vectors_2
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, op_sm_set
@@ -779,7 +780,7 @@ CONTAINS
             ALLOCATE (op_fm_set(2, dim_op))
             DO i = 1, dim_op
                DO j = 1, SIZE(op_fm_set, 1)
-                  NULLIFY (op_fm_set(j, i)%matrix)
+                  ALLOCATE (op_fm_set(j, i)%matrix)
                   CALL cp_fm_create(op_fm_set(j, i)%matrix, tmp_fm_struct)
                   CALL cp_fm_get_info(op_fm_set(j, i)%matrix, nrow_global=nmosub)
                   CPASSERT(nmo >= nmosub)
@@ -790,7 +791,6 @@ CONTAINS
 
             IF (localized_wfn_control%do_mixed) THEN
                IF (nextra > 0) THEN
-                  NULLIFY (vectors_2, mos_guess, tmp_fm, tmp_fm_1)
                   norextra = nmo - nmosub
                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
                   CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
@@ -904,6 +904,7 @@ CONTAINS
                DO i = 1, dim_op
                   DO j = 1, SIZE(op_fm_set, 1)
                      CALL cp_fm_release(op_fm_set(j, i)%matrix)
+                     DEALLOCATE (op_fm_set(j, i)%matrix)
                   END DO
                END DO
                DEALLOCATE (op_fm_set)
@@ -1064,7 +1065,7 @@ CONTAINS
                              print_key, root, ispin, idir, state0, file_position)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: nstates
       INTEGER, DIMENSION(:), POINTER                     :: state_list
       REAL(dp), DIMENSION(:, :), POINTER                 :: centers
@@ -1345,7 +1346,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(6)                        :: cov
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_localized, momv, mvector, omvector
+      TYPE(cp_fm_type)                                   :: momv, mvector, omvector
+      TYPE(cp_fm_type), POINTER                          :: mo_localized
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments
@@ -1496,7 +1498,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: moloc_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: mo_localized, momv, mvector, omvector
+      TYPE(cp_fm_type)                                   :: momv, mvector, omvector
+      TYPE(cp_fm_type), POINTER                          :: mo_localized
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, moments

@@ -1769,7 +1769,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_ks, fm_mo, fm_ortho
+      TYPE(cp_fm_type)                                   :: fm_ks, fm_mo, fm_ortho
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_type), POINTER                          :: buf1_dbcsr, buf2_dbcsr, buf3_dbcsr, &
                                                             ortho_dbcsr, ref_matrix
@@ -1795,7 +1795,7 @@ CONTAINS
       CALL dbcsr_get_info(matrix_ks(1, 1)%matrix, nfullrows_total=nsize)
       ALLOCATE (eigenvalues(nsize))
 
-      NULLIFY (fm_ortho, fm_ks, fm_mo, fm_struct, ref_matrix)
+      NULLIFY (fm_struct, ref_matrix)
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nsize, &
                                ncol_global=nsize, para_env=para_env)
       CALL cp_fm_create(fm_ortho, fm_struct)
@@ -2603,7 +2603,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, sv
+      TYPE(cp_fm_type)                                   :: sv
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_rmpv
@@ -2709,7 +2710,6 @@ CONTAINS
          CALL cp_fm_set_all(mo_coeff, 0.0_dp)
          CALL cp_fm_init_random(mo_coeff, nmo)
 
-         NULLIFY (sv)
          CALL cp_fm_create(sv, mo_coeff%matrix_struct, "SV")
          ! multiply times PS
          ! PS*C(:,1:nomo)+C(:,nomo+1:nmo) (nomo=NINT(nelectron/maxocc))

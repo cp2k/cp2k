@@ -112,6 +112,8 @@ CONTAINS
                DO j = 1, SIZE(diis_buffer%error, 2)
                   DO i = 1, SIZE(diis_buffer%error, 1)
                      CALL cp_fm_release(diis_buffer%error(i, j)%matrix)
+                     DEALLOCATE (diis_buffer%error(i, j)%matrix)
+                     NULLIFY (diis_buffer%error(i, j)%matrix)
                   END DO
                END DO
                DEALLOCATE (diis_buffer%error)
@@ -120,6 +122,8 @@ CONTAINS
                DO j = 1, SIZE(diis_buffer%parameter, 2)
                   DO i = 1, SIZE(diis_buffer%parameter, 1)
                      CALL cp_fm_release(diis_buffer%parameter(i, j)%matrix)
+                     DEALLOCATE (diis_buffer%parameter(i, j)%matrix)
+                     NULLIFY (diis_buffer%parameter(i, j)%matrix)
                   END DO
                END DO
                DEALLOCATE (diis_buffer%parameter)

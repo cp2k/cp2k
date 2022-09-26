@@ -150,8 +150,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: L1_mu_i, L2_nu_a
       TYPE(dbcsr_p_type)                                 :: matrix_P_munu
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_o, mo_coeff_v
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
@@ -459,24 +459,24 @@ CONTAINS
          ! Now we move from the local matrices to the global ones
          ! defined over all MPI tasks
          ! Start with moving from the DBCSR to FM for the lagrangians
-         NULLIFY (L1_mu_i(ispin)%matrix, fm_struct_tmp)
+         NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
                                   nrow_global=dimen, ncol_global=homo(ispin))
-         CALL cp_fm_create(L1_mu_i(ispin)%matrix, fm_struct_tmp, name="Lag_mu_i")
+         CALL cp_fm_create(L1_mu_i(ispin), fm_struct_tmp, name="Lag_mu_i")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(L1_mu_i(ispin)%matrix, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1(ispin), fm=L1_mu_i(ispin)%matrix)
+         CALL cp_fm_set_all(L1_mu_i(ispin), 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1(ispin), fm=L1_mu_i(ispin))
 
          ! release Lag_mu_i_1
          CALL dbcsr_release(Lag_mu_i_1(ispin))
 
-         NULLIFY (L2_nu_a(ispin)%matrix, fm_struct_tmp)
+         NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
                                   nrow_global=dimen, ncol_global=virtual(ispin))
-         CALL cp_fm_create(L2_nu_a(ispin)%matrix, fm_struct_tmp, name="Lag_nu_a")
+         CALL cp_fm_create(L2_nu_a(ispin), fm_struct_tmp, name="Lag_nu_a")
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(L2_nu_a(ispin)%matrix, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2(ispin), fm=L2_nu_a(ispin)%matrix)
+         CALL cp_fm_set_all(L2_nu_a(ispin), 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2(ispin), fm=L2_nu_a(ispin))
 
          ! release Lag_nu_a_2
          CALL dbcsr_release(Lag_nu_a_2(ispin))
@@ -489,9 +489,10 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL create_W_P(qs_env, mp2_env, mo_coeff(ispin)%matrix, homo(ispin), virtual(ispin), dimen, para_env, &
-                         para_env_sub, Eigenval(:, ispin), L1_mu_i(ispin)%matrix, L2_nu_a(ispin)%matrix, &
+                         para_env_sub, Eigenval(:, ispin), L1_mu_i(ispin), L2_nu_a(ispin), &
                          factor, ispin)
       END DO
+      DEALLOCATE (L1_mu_i, L2_nu_a)
 
       CALL timestop(handle)
 
@@ -656,11 +657,11 @@ CONTAINS
                          Eigenval, L1_mu_i, L2_nu_a, factor, kspin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      TYPE(cp_fm_type), POINTER                          :: L1_mu_i, L2_nu_a
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: L1_mu_i, L2_nu_a
       REAL(KIND=dp), INTENT(IN)                          :: factor
       INTEGER, INTENT(IN)                                :: kspin
 
@@ -692,7 +693,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ab_rec, ab_send, mat_rec, mat_send
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: fm_P_ij, L_mu_q
+      TYPE(cp_fm_type)                                   :: fm_P_ij, L_mu_q
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
@@ -705,7 +706,7 @@ CONTAINS
       NULLIFY (blacs_env)
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
 
-      NULLIFY (L_mu_q, fm_struct_tmp)
+      NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
       CALL cp_fm_create(L_mu_q, fm_struct_tmp, name="Lag_mu_q")
@@ -1122,7 +1123,7 @@ CONTAINS
       ! update the P_ij block of P_MP2 with the
       ! non-singular ij pairs
       CALL timeset(routineN//"_Pij", handle2)
-      NULLIFY (fm_P_ij, fm_struct_tmp)
+      NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=homo, ncol_global=homo)
       CALL cp_fm_create(fm_P_ij, fm_struct_tmp, name="fm_P_ij")
@@ -1193,6 +1194,7 @@ CONTAINS
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
+      ALLOCATE (mp2_env%ri_grad%P_mo(kspin)%matrix)
       CALL cp_fm_create(mp2_env%ri_grad%P_mo(kspin)%matrix, fm_struct_tmp, name="P_MP2_MO")
       CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(kspin)%matrix, 0.0_dp)
 
@@ -1339,6 +1341,7 @@ CONTAINS
          END DO
       END IF
 
+      ALLOCATE (mp2_env%ri_grad%W_mo(kspin)%matrix)
       CALL cp_fm_create(mp2_env%ri_grad%W_mo(kspin)%matrix, fm_struct_tmp, name="W_MP2_MO")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
@@ -1384,6 +1387,7 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=homo, ncol_global=virtual)
+      ALLOCATE (mp2_env%ri_grad%L_jb(kspin)%matrix)
       CALL cp_fm_create(mp2_env%ri_grad%L_jb(kspin)%matrix, fm_struct_tmp, name="fm_L_jb")
       CALL cp_fm_struct_release(fm_struct_tmp)
 

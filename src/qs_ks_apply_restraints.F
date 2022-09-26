@@ -215,6 +215,7 @@ CONTAINS
          ALLOCATE (fm_mo_derivs(SIZE(mo_derivs, 1))) !fm->dbcsr
          DO i = 1, SIZE(mo_derivs, 1) !fm->dbcsr
             CALL get_mo_set(mo_set=mo_array(i)%mo_set, mo_coeff=mo_coeff) !fm->dbcsr
+            ALLOCATE (fm_mo_derivs(i)%matrix)
             CALL cp_fm_create(fm_mo_derivs(i)%matrix, mo_coeff%matrix_struct) !fm->dbcsr
             CALL copy_dbcsr_to_fm(mo_derivs(i)%matrix, fm_mo_derivs(i)%matrix) !fm->dbcsr
          END DO !fm->dbcsr

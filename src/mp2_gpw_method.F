@@ -119,7 +119,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo, homo
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
@@ -162,7 +162,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C, BIb_Ex, BIb_send
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
+      TYPE(cp_fm_type)                                   :: fm_BIb_jb
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: matrix_ia_jb, matrix_ia_jb_beta, &
@@ -199,7 +199,6 @@ CONTAINS
 
       IF (calc_ex) THEN
          ! create the analogous of matrix_ia_jb in fm type
-         NULLIFY (fm_BIb_jb)
          NULLIFY (fm_struct)
          CALL dbcsr_get_info(matrix_ia_jb, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
          CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, nrow_global=nfullrows_total, &
@@ -677,7 +676,7 @@ CONTAINS
                                 local_col_row_info, &
                                 my_B_virtual_end, my_B_virtual_start)
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
-      TYPE(cp_fm_type), POINTER                          :: fm_BIb_jb
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_BIb_jb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       INTEGER, INTENT(IN)                                :: max_row_col_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info

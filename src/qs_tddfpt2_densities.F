@@ -72,7 +72,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
-      TYPE(cp_fm_type), POINTER                          :: wfm_rho_orb
+      TYPE(cp_fm_type), INTENT(IN)                       :: wfm_rho_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_construct_ground_state_orb_density'
 
@@ -160,7 +160,7 @@ CONTAINS
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
-      TYPE(cp_fm_type), POINTER                          :: wfm_rho_orb, wfm_rho_aux_fit, wfm_aux_orb
+      TYPE(cp_fm_type), INTENT(IN)                       :: wfm_rho_orb, wfm_rho_aux_fit, wfm_aux_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_construct_aux_fit_density'
 

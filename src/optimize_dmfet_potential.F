@@ -132,6 +132,7 @@ CONTAINS
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
 
       NULLIFY (opt_dmfet%dmfet_pot, opt_dmfet%dm_1, opt_dmfet%dm_2, opt_dmfet%dm_total, opt_dmfet%dm_diff)
+      DEALLOCATE (opt_dmfet%dmfet_pot, opt_dmfet%dm_subsys, opt_dmfet%dm_total, opt_dmfet%dm_diff)
       NULLIFY (fm_struct)
 
       CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
@@ -148,6 +149,10 @@ CONTAINS
 
       ! Beta spin counterparts
       IF (opt_dmfet%open_shell_embed) THEN
+         NULLIFY (opt_dmfet%dmfet_pot_beta, opt_dmfet%dm_subsys_beta, &
+                  opt_dmfet%dm_total_beta, opt_dmfet%dm_diff_beta)
+         ALLOCATE (opt_dmfet%dmfet_pot_beta, opt_dmfet%dm_subsys_beta, &
+                   opt_dmfet%dm_total_beta, opt_dmfet%dm_diff_beta)
          CALL cp_fm_create(opt_dmfet%dmfet_pot_beta, fm_struct, name="dmfet_pot_beta")
          CALL cp_fm_create(opt_dmfet%dm_subsys_beta, fm_struct, name="dm_subsys_beta")
          CALL cp_fm_create(opt_dmfet%dm_total_beta, fm_struct, name="dm_total_beta")
@@ -182,16 +187,48 @@ CONTAINS
    SUBROUTINE release_dmfet_opt(opt_dmfet)
       TYPE(opt_dmfet_pot_type)                           :: opt_dmfet
 
-      CALL cp_fm_release(opt_dmfet%dmfet_pot)
-      CALL cp_fm_release(opt_dmfet%dm_subsys)
-      CALL cp_fm_release(opt_dmfet%dm_total)
-      CALL cp_fm_release(opt_dmfet%dm_diff)
+      IF (ASSOCIATED(opt_dmfet%dmfet_pot)) THEN
+         CALL cp_fm_release(opt_dmfet%dmfet_pot)
+         DEALLOCATE (opt_dmfet%dmfet_pot)
+         NULLIFY (opt_dmfet%dmfet_pot)
+      END IF
+      IF (ASSOCIATED(opt_dmfet%dm_subsys)) THEN
+         CALL cp_fm_release(opt_dmfet%dm_subsys)
+         DEALLOCATE (opt_dmfet%dm_subsys)
+         NULLIFY (opt_dmfet%dm_subsys)
+      END IF
+      IF (ASSOCIATED(opt_dmfet%dm_total)) THEN
+         CALL cp_fm_release(opt_dmfet%dm_total)
+         DEALLOCATE (opt_dmfet%dm_total)
+         NULLIFY (opt_dmfet%dm_total)
+      END IF
+      IF (ASSOCIATED(opt_dmfet%dm_diff)) THEN
+         CALL cp_fm_release(opt_dmfet%dm_diff)
+         DEALLOCATE (opt_dmfet%dm_diff)
+         NULLIFY (opt_dmfet%dm_diff)
+      END IF
 
       IF (opt_dmfet%open_shell_embed) THEN
-         CALL cp_fm_release(opt_dmfet%dmfet_pot_beta)
-         CALL cp_fm_release(opt_dmfet%dm_subsys_beta)
-         CALL cp_fm_release(opt_dmfet%dm_total_beta)
-         CALL cp_fm_release(opt_dmfet%dm_diff_beta)
+         IF (ASSOCIATED(opt_dmfet%dmfet_pot_beta)) THEN
+            CALL cp_fm_release(opt_dmfet%dmfet_pot_beta)
+            DEALLOCATE (opt_dmfet%dmfet_pot_beta)
+            NULLIFY (opt_dmfet%dmfet_pot_beta)
+         END IF
+         IF (ASSOCIATED(opt_dmfet%dm_subsys_beta)) THEN
+            CALL cp_fm_release(opt_dmfet%dm_subsys_beta)
+            DEALLOCATE (opt_dmfet%dm_subsys_beta)
+            NULLIFY (opt_dmfet%dm_subsys_beta)
+         END IF
+         IF (ASSOCIATED(opt_dmfet%dm_total_beta)) THEN
+            CALL cp_fm_release(opt_dmfet%dm_total_beta)
+            DEALLOCATE (opt_dmfet%dm_total_beta)
+            NULLIFY (opt_dmfet%dm_total_beta)
+         END IF
+         IF (ASSOCIATED(opt_dmfet%dm_diff_beta)) THEN
+            CALL cp_fm_release(opt_dmfet%dm_diff_beta)
+            DEALLOCATE (opt_dmfet%dm_diff_beta)
+            NULLIFY (opt_dmfet%dm_diff_beta)
+         END IF
       END IF
 
       DEALLOCATE (opt_dmfet%w_func)
@@ -211,9 +248,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_full_dm(qs_env, dm, open_shell, open_shell_embed, dm_beta)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), POINTER                          :: dm
+      TYPE(cp_fm_type), INTENT(IN)                       :: dm
       LOGICAL                                            :: open_shell, open_shell_embed
-      TYPE(cp_fm_type), POINTER                          :: dm_beta
+      TYPE(cp_fm_type), INTENT(IN)                       :: dm_beta
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_full_dm'
 
@@ -249,7 +286,7 @@ CONTAINS
                             beta=0.0_dp, matrix_c=dm_beta)
       END IF
 
-      ! If embedding is open shell, but subsystem is not, copy alpha-spin DM intou beta-spin DM
+      ! If embedding is open shell, but subsystem is not, copy alpha-spin DM into beta-spin DM
       IF (open_shell_embed .AND. (.NOT. open_shell)) THEN
          CALL get_qs_env(qs_env=qs_env, para_env=para_env)
          CALL cp_fm_copy_general(dm, dm_beta, para_env)

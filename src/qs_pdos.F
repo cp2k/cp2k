@@ -152,7 +152,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin
       CHARACTER(LEN=default_string_length), INTENT(IN), &
          OPTIONAL                                        :: xas_mittle
-      TYPE(cp_fm_type), OPTIONAL, POINTER                :: external_matrix_shalf
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL, TARGET     :: external_matrix_shalf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos'
 
@@ -183,8 +183,8 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: matrix_shalf, matrix_shalfc, &
-                                                            matrix_work, mo_coeff, mo_virt
+      TYPE(cp_fm_type)                                   :: matrix_shalfc, matrix_work, mo_virt
+      TYPE(cp_fm_type), POINTER                          :: matrix_shalf, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
@@ -210,8 +210,8 @@ CONTAINS
       IF ((.NOT. should_output)) RETURN
 
       NULLIFY (context, s_matrix, orb_basis_set, para_env, pdos_array)
-      NULLIFY (eigenvalues, fm_struct_tmp, matrix_work, matrix_shalf, mo_coeff, vecbuffer)
-      NULLIFY (ldos_section, list, cell, pw_env, auxbas_pw_pool, mo_virt, evals_virt)
+      NULLIFY (eigenvalues, fm_struct_tmp, mo_coeff, vecbuffer)
+      NULLIFY (ldos_section, list, cell, pw_env, auxbas_pw_pool, evals_virt)
       NULLIFY (occupation_numbers, ldos_p, r_ldos_p, dft_control, occupation_numbers)
 
       CALL timeset(routineN, handle)
@@ -249,7 +249,7 @@ CONTAINS
 
          CALL generate_virtual_mo(qs_env, mo_set, evals_virt, mo_virt, nvirt, ispin=my_spin)
       ELSE
-         NULLIFY (evals_virt, mo_virt)
+         NULLIFY (evals_virt)
          nvirt = 0
       END IF
 
@@ -258,8 +258,10 @@ CONTAINS
 
       ! Create S^1/2 : from sparse to full matrix, if no external available
       IF (calc_matsh) THEN
+         NULLIFY (matrix_shalf)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
                                   nrow_global=nrow_global, ncol_global=nrow_global)
+         ALLOCATE (matrix_shalf)
          CALL cp_fm_create(matrix_shalf, fm_struct_tmp, name="matrix_shalf")
          CALL cp_fm_create(matrix_work, fm_struct_tmp, name="matrix_work")
          CALL cp_fm_struct_release(fm_struct_tmp)
@@ -289,7 +291,10 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
       END IF
 
-      IF (calc_matsh) CALL cp_fm_release(matrix_shalf)
+      IF (calc_matsh) THEN
+         CALL cp_fm_release(matrix_shalf)
+         DEALLOCATE (matrix_shalf)
+      END IF
       ! Array to store the PDOS per kind and angular momentum
       do_ldos = .FALSE.
       ldos_section => section_vals_get_subs_vals(dft_section, "PRINT%PDOS%LDOS")
@@ -935,7 +940,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mo_set_type), POINTER                         :: mo_set
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virt
-      TYPE(cp_fm_type), POINTER                          :: mo_virt
+      TYPE(cp_fm_type), INTENT(OUT)                      :: mo_virt
       INTEGER, INTENT(IN)                                :: nvirt, ispin
 
       INTEGER                                            :: nmo, nrow_global
@@ -947,7 +952,7 @@ CONTAINS
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      NULLIFY (evals_virt, mo_virt)
+      NULLIFY (evals_virt)
       ALLOCATE (evals_virt(nvirt))
 
       CALL get_qs_env(qs_env, matrix_ks=ks_matrix, matrix_s=s_matrix, &

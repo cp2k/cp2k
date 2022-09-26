@@ -598,6 +598,7 @@ CONTAINS
                      DO ispin = 1, dft_control%nspins
                         DEALLOCATE (unoccupied_evals_stm(ispin)%array)
                         CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
+                        DEALLOCATE (unoccupied_orbs_stm(ispin)%matrix)
                      END DO
                      DEALLOCATE (unoccupied_evals_stm)
                      DEALLOCATE (unoccupied_orbs_stm)
@@ -802,7 +803,8 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: lumos
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct, ao_lumo_struct
-      TYPE(cp_fm_type), POINTER                          :: KS_tmp, mo_coeff, MO_tmp, S_tmp, work
+      TYPE(cp_fm_type)                                   :: KS_tmp, MO_tmp, S_tmp, work
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos
@@ -835,6 +837,7 @@ CONTAINS
          CALL cp_fm_struct_create(fmstruct=ao_lumo_struct, nrow_global=nao, ncol_global=nao - nmo, &
                                   template_fmstruct=mo_coeff%matrix_struct)
 
+         ALLOCATE (lumos(ispin)%matrix)
          CALL cp_fm_create(lumos(ispin)%matrix, matrix_struct=ao_lumo_struct)
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, KS_tmp)
          CALL cp_fm_cholesky_reduce(KS_tmp, S_tmp)
@@ -852,6 +855,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(mos)
          CALL cp_fm_release(lumos(ispin)%matrix)
+         DEALLOCATE (lumos(ispin)%matrix)
       END DO
       DEALLOCATE (lumos)
       CALL cp_fm_release(S_tmp)
@@ -919,6 +923,7 @@ CONTAINS
          ALLOCATE (unoccupied_evals(ispin)%array(nlumos))
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=n, ncol_global=nlumos)
+         ALLOCATE (unoccupied_orbs(ispin)%matrix)
          CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp, name="lumos")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix, nlumos)

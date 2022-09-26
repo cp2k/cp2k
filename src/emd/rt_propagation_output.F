@@ -271,9 +271,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: alpha, max_alpha, max_beta
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: overlap_re, svec_im, svec_re
+      TYPE(cp_fm_type)                                   :: overlap_re, svec_im, svec_re
 
-      NULLIFY (tmp_fm_struct, svec_im, svec_re, overlap_re)
+      NULLIFY (tmp_fm_struct)
 
       CALL timeset(routineN, handle)
 
@@ -353,7 +353,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, max_alpha
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_new
       TYPE(cp_fm_struct_type), POINTER                   :: newstruct, newstruct1, tmp_fm_struct
-      TYPE(cp_fm_type), POINTER                          :: work, work1, work2
+      TYPE(cp_fm_type)                                   :: work, work1, work2
 
       NULLIFY (tmp_fm_struct)
 

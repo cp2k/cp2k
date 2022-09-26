@@ -195,7 +195,7 @@ CONTAINS
    SUBROUTINE init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, unit_nr, mp2_env, qs_env)
 
       TYPE(im_time_force_type), INTENT(INOUT)            :: force_data
-      TYPE(cp_fm_type), POINTER                          :: fm_matrix_PQ
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type)                                     :: mp2_env
@@ -605,10 +605,10 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M, t_3c_O
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
-      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
@@ -1108,10 +1108,10 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M, t_3c_O
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
-      TYPE(cp_fm_type), POINTER                          :: fm_scaled_dm_occ_tau, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), POINTER                          :: fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
@@ -2173,7 +2173,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
          CALL cp_fm_get_info(mo_coeff, matrix_struct=fm_struct)
-         NULLIFY (cpmos(ispin)%matrix)
+         ALLOCATE (cpmos(ispin)%matrix)
          CALL cp_fm_create(cpmos(ispin)%matrix, fm_struct)
          CALL cp_fm_set_all(cpmos(ispin)%matrix, 0.0_dp)
       END DO
@@ -2243,7 +2243,10 @@ CONTAINS
       CALL linres_control_release(linres_control)
 
       DO ispin = 1, nspins
-         CALL cp_fm_release(cpmos(ispin)%matrix)
+         IF (ASSOCIATED(cpmos(ispin)%matrix)) THEN
+            CALL cp_fm_release(cpmos(ispin)%matrix)
+            DEALLOCATE (cpmos(ispin)%matrix)
+         END IF
       END DO
       DEALLOCATE (cpmos)
       CALL p_env_release(p_env)
