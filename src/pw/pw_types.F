@@ -40,26 +40,6 @@ MODULE pw_types
    PUBLIC :: pw_type, pw_p_type
    PUBLIC :: pw_retain, pw_release, pw_create
 
-! **************************************************************************************************
-   TYPE pw_type
-      REAL(KIND=dp), DIMENSION(:), POINTER :: cr
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: cr3d
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER :: cc
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc3d
-
-      INTEGER :: in_use ! Which data is used [r1d/c1d/r3d/c3d]
-      INTEGER :: in_space ! Real/Reciprocal space
-      INTEGER :: id_nr ! unique identifier
-      INTEGER :: ref_count ! reference count
-
-      TYPE(pw_grid_type), POINTER :: pw_grid
-   END TYPE pw_type
-
-! **************************************************************************************************
-   TYPE pw_p_type
-      TYPE(pw_type), POINTER :: pw
-   END TYPE pw_p_type
-
    ! Flags for the structure member 'in_use'
    INTEGER, PARAMETER, PUBLIC :: REALDATA1D = 301, COMPLEXDATA1D = 302
    INTEGER, PARAMETER, PUBLIC :: REALDATA3D = 303, COMPLEXDATA3D = 304, NODATA = 305
@@ -71,6 +51,26 @@ MODULE pw_types
    ! to generate unique id_nr
    INTEGER, SAVE, PRIVATE :: last_pw_id_nr = 0
    INTEGER, SAVE, PRIVATE :: allocated_pw_count = 0
+
+! **************************************************************************************************
+   TYPE pw_type
+      REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cr => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cr3d => NULL()
+      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cc => NULL()
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cc3d => NULL()
+
+      INTEGER :: in_use = NODATA ! Which data is used [r1d/c1d/r3d/c3d]
+      INTEGER :: in_space = NOSPACE ! Real/Reciprocal space
+      INTEGER :: id_nr = -1 ! unique identifier
+      INTEGER :: ref_count = 0 ! reference count
+
+      TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
+   END TYPE pw_type
+
+! **************************************************************************************************
+   TYPE pw_p_type
+      TYPE(pw_type), POINTER :: pw => NULL()
+   END TYPE pw_p_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_types'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
