@@ -67,8 +67,7 @@ MODULE qs_kpp1_env_methods
                                               RECIPROCALSPACE,&
                                               pw_create,&
                                               pw_p_type,&
-                                              pw_release,&
-                                              pw_retain
+                                              pw_release
    USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                               deallocate_qs_energy,&
                                               qs_energy_type
@@ -360,14 +359,12 @@ CONTAINS
          ALLOCATE (rho1_r_pw(nspins))
          DO ispin = 1, nspins
             rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
-            CALL pw_retain(rho1_r_pw(ispin)%pw)
          END DO
 
          IF (ASSOCIATED(tau1_r)) THEN
             ALLOCATE (tau1_r_pw(nspins))
             DO ispin = 1, nspins
                tau1_r_pw(ispin)%pw => tau1_r(ispin)%pw
-               CALL pw_retain(tau1_r_pw(ispin)%pw)
             END DO
          END IF
 
@@ -398,16 +395,19 @@ CONTAINS
                                           do_tddft=do_tddft, do_triplet=do_triplet)
       END IF
 
-      DO ispin = 1, SIZE(rho1_r_pw)
-         CALL pw_release(rho1_r_pw(ispin)%pw)
-      END DO
-      DEALLOCATE (rho1_r_pw)
-      IF (ASSOCIATED(tau1_r_pw)) THEN
-      DO ispin = 1, SIZE(tau1_r_pw)
-         IF (ASSOCIATED(tau1_r_pw(ispin)%pw)) CALL pw_release(tau1_r_pw(ispin)%pw)
-      END DO
-      DEALLOCATE (tau1_r_pw)
+      IF (nspins == 1 .AND. do_excitations .AND. &
+          (lsd_singlets .OR. do_triplet)) THEN
+         DO ispin = 1, SIZE(rho1_r_pw)
+            CALL pw_release(rho1_r_pw(ispin)%pw)
+         END DO
+         IF (ASSOCIATED(tau1_r_pw)) THEN
+         DO ispin = 1, SIZE(tau1_r_pw)
+            IF (ASSOCIATED(tau1_r_pw(ispin)%pw)) CALL pw_release(tau1_r_pw(ispin)%pw)
+         END DO
+         END IF
       END IF
+      DEALLOCATE (rho1_r_pw)
+      IF (ASSOCIATED(tau1_r_pw)) DEALLOCATE (tau1_r_pw)
 
       alpha = 1.0_dp
       IF (do_excitations .AND. nspins == 1) alpha = 2.0_dp
@@ -739,13 +739,11 @@ CONTAINS
             ALLOCATE (my_rho_r(SIZE(rho_r)))
             DO ispin = 1, SIZE(rho_r)
                my_rho_r(ispin)%pw => rho_r(ispin)%pw
-               CALL pw_retain(my_rho_r(ispin)%pw)
             END DO
             IF (dft_control%use_kinetic_energy_density) THEN
                ALLOCATE (my_tau_r(SIZE(tau_r)))
                DO ispin = 1, SIZE(tau_r)
                   my_tau_r(ispin)%pw => tau_r(ispin)%pw
-                  CALL pw_retain(my_tau_r(ispin)%pw)
                END DO
             END IF
          END IF
@@ -761,16 +759,19 @@ CONTAINS
                                 my_rho_r, auxbas_pw_pool, &
                                 xc_section=xc_section, tau_r=my_tau_r)
 
+         IF (nspins == 1 .AND. (do_excitations .AND. &
+                                (lsd_singlets .OR. do_triplet))) THEN
          DO ispin = 1, SIZE(my_rho_r)
             CALL pw_release(my_rho_r(ispin)%pw)
          END DO
-         DEALLOCATE (my_rho_r)
-         IF (dft_control%use_kinetic_energy_density) THEN
+         IF (ASSOCIATED(my_tau_r)) THEN
             DO ispin = 1, SIZE(my_tau_r)
                CALL pw_release(my_tau_r(ispin)%pw)
             END DO
-            DEALLOCATE (my_tau_r)
          END IF
+         END IF
+         DEALLOCATE (my_rho_r)
+         IF (ASSOCIATED(my_tau_r)) DEALLOCATE (my_tau_r)
       END IF
 
       ! ADMM Correction

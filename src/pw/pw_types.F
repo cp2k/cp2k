@@ -38,7 +38,7 @@ MODULE pw_types
 
    PRIVATE
    PUBLIC :: pw_type, pw_p_type
-   PUBLIC :: pw_retain, pw_release, pw_create
+   PUBLIC :: pw_release, pw_create
 
    ! Flags for the structure member 'in_use'
    INTEGER, PARAMETER, PUBLIC :: REALDATA1D = 301, COMPLEXDATA1D = 302
@@ -75,23 +75,6 @@ MODULE pw_types
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief retains a pw type
-!> \param pw the pw to retain
-!> \par History
-!>      03.2003 created [fawzi]
-!> \author fawzi
-!> \note
-!>      see doc/ReferenceCounting.html
-! **************************************************************************************************
-   SUBROUTINE pw_retain(pw)
-      TYPE(pw_type), POINTER                             :: pw
-
-      CPASSERT(ASSOCIATED(pw))
-      CPASSERT(pw%ref_count > 0)
-      pw%ref_count = pw%ref_count + 1
-   END SUBROUTINE pw_retain
 
 ! **************************************************************************************************
 !> \brief releases the given pw
