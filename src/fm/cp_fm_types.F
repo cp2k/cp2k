@@ -833,28 +833,15 @@ CONTAINS
       TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       IF (PRESENT(name)) name = matrix%name
-      IF (PRESENT(context)) context => matrix%matrix_struct%context
       IF (PRESENT(matrix_struct)) matrix_struct => matrix%matrix_struct
       IF (PRESENT(local_data)) local_data => matrix%local_data ! not hiding things anymore :-(
-      IF (PRESENT(row_indices)) THEN
-         CALL cp_fm_struct_get(matrix%matrix_struct, row_indices=row_indices)
-      END IF
-      IF (PRESENT(col_indices)) THEN
-         CALL cp_fm_struct_get(matrix%matrix_struct, col_indices=col_indices)
-      END IF
-      IF (PRESENT(nrow_locals)) THEN
-         nrow_locals => matrix%matrix_struct%nrow_locals
-      END IF
-      IF (PRESENT(ncol_locals)) THEN
-         ncol_locals => matrix%matrix_struct%ncol_locals
-      END IF
 
       CALL cp_fm_struct_get(matrix%matrix_struct, nrow_local=nrow_local, &
                             ncol_local=ncol_local, nrow_global=nrow_global, &
                             ncol_global=ncol_global, nrow_block=nrow_block, &
-                            ncol_block=ncol_block)
-
-      IF (PRESENT(para_env)) para_env => matrix%matrix_struct%para_env
+                            ncol_block=ncol_block, row_indices=row_indices, &
+                            col_indices=col_indices, nrow_locals=nrow_locals, &
+                            ncol_locals=ncol_locals, context=context, para_env=para_env)
 
    END SUBROUTINE cp_fm_get_info
 
