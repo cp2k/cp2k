@@ -45,15 +45,6 @@ elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
   set(_sci_lib "sci_cray")
 endif()
 
-set(_sci_mpi_lib ${_sci_lib}_mpi)
-
-# use multi-threaded version if OpenMP available
-find_package(OpenMP QUIET COMPONENTS CXX)
-if(TARGET OpenMP::OpenMP_CXX)
-  set(_sci_lib ${_sci_lib}_mp ${_sci_lib})
-  set(_sci_mpi_lib ${_sci_mpi_lib}_mp ${_sci_mpi_lib})
-endif()
-
 cp2k_find_libraries("LIBSCI" "${_sci_lib}")
 cp2k_find_libraries("LIBSCI_MP" "${_sci_lib}_mp")
 cp2k_find_libraries("LIBSCI_MPI" "${_sci_lib}_mpi")
@@ -71,39 +62,43 @@ if(CP2K_LIBSCI_FOUND)
     add_library(CP2K_SCI::sci_mpi INTERFACE IMPORTED)
     add_library(CP2K_SCI::sci_mp INTERFACE IMPORTED)
     add_library(CP2K_SCI::sci_mpi_mp INTERFACE IMPORTED)
-    add_library(CP2K_SCI::blas INTERFACE_IMPORTED)
-  endif()
-  set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_LINK_LIBRARIES
-    ${CP2K_LIBSCI_LINK_LIBRARIES})
-  if (CP2K_LIBSCI_INCLUDE_DIRS)
-    set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-      ${CP2K_LIBSCI_INCLUDE_DIRS})
-  endif()
-  set_property(TARGET CP2K_SCI::sci_mp PROPERTY INTERFACE_LINK_LIBRARIES
-    ${CP2K_LIBSCI_MP_LINK_LIBRARIES})
-
-  if(CP2K_LIBSCI_MPI_FOUND)
-    if(NOT TARGET CP2K_SCI::sci_mpi)
-      add_library(CP2K_SCI::sci_mpi INTERFACE IMPORTED)
-      add_library(CP2K_SCI::scalapack_link INTERFACE IMPORTED)
-      set_property(TARGET CP2K_SCI::sci_mpi PROPERTY INTERFACE_LINK_LIBRARIES
-        ${CP2K_LIBSCI_MPI_LINK_LIBRARIES} CP2K_SCI::sci)
-      set_property(TARGET CP2K_SCI::sci_mpi_mp PROPERTY INTERFACE_LINK_LIBRARIES
-        ${CP2K_LIBSCI_MPI_MP_LINK_LIBRARIES} CP2K_SCI::sci_mp)
-      set_property(TARGET CP2K_SCI::scalapack_link
-        PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CP2K_LIBSCI_INCLUDE_DIRS})
+    add_library(CP2K_SCI::scalapack_link INTERFACE IMPORTED)
+    if (CP2K_LIBSCI_INCLUDE_DIRS)
+      set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        "${CP2K_LIBSCI_INCLUDE_DIRS}")
+      set_property(TARGET CP2K_SCI::sci_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        "${CP2K_LIBSCI_INCLUDE_DIRS}")
+      set_property(TARGET CP2K_SCI::sci_mpi PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        "${CP2K_LIBSCI_INCLUDE_DIRS}")
+      set_property(TARGET CP2K_SCI::sci_mpi_mp PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+        "${CP2K_LIBSCI_INCLUDE_DIRS}")
     endif()
-  endif()
 
-  if (CP2K_BLAS_THREADING MATCHES "sequential")
-    set_properties(TARGET CP2K_SCI::blas INTERFACE_LINK_LIBRARIES CP2K_SCI::sci)
+    set_property(TARGET CP2K_SCI::sci PROPERTY INTERFACE_LINK_LIBRARIES
+      ${CP2K_LIBSCI_LINK_LIBRARIES})
+    set_property(TARGET CP2K_SCI::sci_mp PROPERTY INTERFACE_LINK_LIBRARIES
+      ${CP2K_LIBSCI_MP_LINK_LIBRARIES})
+    set_property(TARGET CP2K_SCI::sci_mpi PROPERTY INTERFACE_LINK_LIBRARIES
+      ${CP2K_LIBSCI_MPI_LINK_LIBRARIES} CP2K_SCI::sci)
+    set_property(TARGET CP2K_SCI::sci_mpi_mp PROPERTY INTERFACE_LINK_LIBRARIES
+      ${CP2K_LIBSCI_MPI_MP_LINK_LIBRARIES} CP2K_SCI::sci_mp)
     set_property(TARGET CP2K_SCI::scalapack_link
-      PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi CP2K_SCI::sci)
-  else()
-    set_properties(TARGET CP2K_SCI::blas INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mp)
-    set_property(TARGET CP2K_SCI::scalapack_link
-      PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi_mp CP2K_SCI::sci_mp)
+      PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CP2K_LIBSCI_INCLUDE_DIRS}")
   endif()
+endif()
+
+if(NOT TARGET CP2K_SCI::blas)
+  add_library(CP2K_SCI::blas INTERFACE IMPORTED)
+endif()
+
+if (CP2K_BLAS_THREADING MATCHES "sequential")
+	set_property(TARGET CP2K_SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci)
+  set_property(TARGET CP2K_SCI::scalapack_link
+    PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi)
+else()
+	set_property(TARGET CP2K_SCI::blas PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mp)
+	set_property(TARGET CP2K_SCI::scalapack_link
+    PROPERTY INTERFACE_LINK_LIBRARIES CP2K_SCI::sci_mpi_mp)
 endif()
 
 # prevent clutter in cache

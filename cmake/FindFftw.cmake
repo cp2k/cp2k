@@ -30,7 +30,9 @@ foreach(_lib fftw3 fftw3f fftw3l fftw3q)
   endforeach()
 endforeach()
 
+if (NOT CP2K_FFTW3_INCLUDE_DIRS)
 cp2k_include_dirs(FFTW3 "fftw3.h;fftw3/fftw3.h")
+endif()
 
 if (CP2K_FFTW3_INCLUDE_DIRS)
 find_package_handle_standard_args(Fftw DEFAULT_MSG CP2K_FFTW3_INCLUDE_DIRS

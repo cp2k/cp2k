@@ -11,20 +11,19 @@ function(cp2k_set_default_paths _varname)
 
   # search common environment variables names
   if (NOT CP2K_${_varname}_PREFIX_TMP)
-    foreach(__var ${_varname}_ROOT CRAY_${_varname}_ROOT OLCF_${_varname}_ROOT ${_varname}_PREFIX ${_varname}ROOT EB${_varname}ROOT)
+    foreach(__var ${_varname}_ROOT CRAY_${_varname}_PREFIX_DIR CRAY_${_varname}_ROOT OLCF_${_varname}_ROOT ${_varname}_PREFIX ${_varname}ROOT EB${_varname}ROOT)
 	    if(DEFINED ENV{${__var}})
 	      set(CP2K_${_varname}_PREFIX_TMP
-          $ENV{${__var}}
-          PARENT_SCOPE)
+          $ENV{${__var}})
       endif()
     endforeach()
 
     # search for the default path
     if (NOT CP2K_${_varname}_PREFIX_TMP)
-	    set(CP2K_${_varname}_PREFIX_TMP "/usr"  PARENT_SCOPE)
+	    set(CP2K_${_varname}_PREFIX_TMP "/usr")
     endif()
   endif()
-  set(CP2K_${_varname}_PREFIX ${CP2K_${_varname}_PREFIX_TMP} PARENT_SCOPE)
+  set(CP2K_${_varname}_PREFIX "${CP2K_${_varname}_PREFIX_TMP}" PARENT_SCOPE)
   unset(CP2K_${_varname}_PREFIX_TMP)
   #mark_as_advanced(CP2K_${_varname}_PREFIX)
 endfunction()
@@ -41,7 +40,6 @@ function(cp2k_find_libraries _package_name _library_name)
     set(CP2K_${_package_name}_LIBRARIES "${CP2K_${_package_name}_LIBRARIES_TMP}" PARENT_SCOPE)
     set(CP2K_${_package_name}_FOUND ON PARENT_SCOPE)
   endif()
-  message("${CP2K_${_package_name}_PREFIX}: ${CP2K_${_package_name}_LIBRARIES_TMP}")
   unset(CP2K_${_package_name}_LIBRARIES_TMP)
   #  mark_as_advanced(CP2K_${_package_name}_LINK_LIBRARIES CP2K_${_package_name}_LIBRARIES)
 endfunction()
@@ -55,6 +53,6 @@ function(cp2k_include_dirs _package_name _library_include_file)
     HINTS "${CP2K_${_package_name}_PREFIX}"
     PATH_SUFFIXES "include" "include/${_pacakge_name}" "${_package_name}"
     NO_DEFAULT_PATH)
-  set(CP2K_${_package_name}_INCLUDE_DIRS CP2K_${_package_name}_INCLUDE_DIRS_TMP PARENT_SCOPE)
+  set(CP2K_${_package_name}_INCLUDE_DIRS "${CP2K_${_package_name}_INCLUDE_DIRS_TMP}" PARENT_SCOPE)
   unset(CP2K_${_package_name}_INCLUDE_DIRS_TMP)
 endfunction()
