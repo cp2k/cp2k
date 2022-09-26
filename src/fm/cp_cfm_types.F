@@ -612,87 +612,26 @@ CONTAINS
                               nrow_block, ncol_block, nrow_local, ncol_local, &
                               row_indices, col_indices, local_data, context, &
                               matrix_struct, para_env)
-      TYPE(cp_cfm_type), INTENT(IN)           :: matrix
-      CHARACTER(len=*), OPTIONAL, INTENT(OUT) :: name
-      INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block, ncol_global, &
-                                                 nrow_block, nrow_global, &
-                                                 nrow_local, ncol_local
-      INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices, col_indices
-      TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
-      TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-      TYPE(cp_fm_struct_type), POINTER, OPTIONAL :: matrix_struct
-      COMPLEX(kind=dp), DIMENSION(:, :), CONTIGUOUS, POINTER, OPTIONAL :: local_data
-
-      INTEGER i, nprow, npcol, myprow, mypcol
-      TYPE(cp_blacs_env_type), POINTER :: ctxt
-#if defined(__SCALAPACK)
-      INTEGER, EXTERNAL :: indxl2g
-#endif
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
+      CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: name
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nrow_global, ncol_global, nrow_block, &
+                                                            ncol_block, nrow_local, ncol_local
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_indices, col_indices
+      COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:, :), &
+         OPTIONAL, POINTER                               :: local_data
+      TYPE(cp_blacs_env_type), OPTIONAL, POINTER         :: context
+      TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: matrix_struct
+      TYPE(cp_para_env_type), OPTIONAL, POINTER          :: para_env
 
       IF (PRESENT(name)) name = matrix%name
-      IF (PRESENT(nrow_global)) nrow_global = matrix%matrix_struct%nrow_global
-      IF (PRESENT(ncol_global)) ncol_global = matrix%matrix_struct%ncol_global
-      IF (PRESENT(nrow_block)) nrow_block = matrix%matrix_struct%nrow_block
-      IF (PRESENT(ncol_block)) ncol_block = matrix%matrix_struct%ncol_block
-      IF (PRESENT(context)) context => matrix%matrix_struct%context
       IF (PRESENT(matrix_struct)) matrix_struct => matrix%matrix_struct
       IF (PRESENT(local_data)) local_data => matrix%local_data ! not hiding things anymore :-(
 
-      ctxt => matrix%matrix_struct%context
-      myprow = ctxt%mepos(1)
-      mypcol = ctxt%mepos(2)
-      nprow = ctxt%num_pe(1)
-      npcol = ctxt%num_pe(2)
-
-      IF (PRESENT(nrow_local)) THEN
-         nrow_local = matrix%matrix_struct%nrow_locals(myprow)
-      END IF
-
-      IF (PRESENT(ncol_local)) THEN
-         ncol_local = matrix%matrix_struct%ncol_locals(mypcol)
-      END IF
-
-      IF (PRESENT(row_indices)) THEN
-         row_indices => matrix%matrix_struct%row_indices
-         IF (.NOT. ASSOCIATED(row_indices)) THEN
-            ALLOCATE (matrix%matrix_struct%row_indices &
-                      (matrix%matrix_struct%nrow_locals(myprow)))
-            row_indices => matrix%matrix_struct%row_indices
-#if defined(__SCALAPACK)
-            DO i = 1, SIZE(row_indices)
-               row_indices(i) = &
-                  indxl2g(i, matrix%matrix_struct%nrow_block, myprow, &
-                          matrix%matrix_struct%first_p_pos(1), nprow)
-            END DO
-#else
-            DO i = 1, SIZE(row_indices)
-               row_indices(i) = i
-            END DO
-#endif
-         END IF
-      END IF
-
-      IF (PRESENT(col_indices)) THEN
-         col_indices => matrix%matrix_struct%col_indices
-         IF (.NOT. ASSOCIATED(col_indices)) THEN
-            ALLOCATE (matrix%matrix_struct%col_indices &
-                      (matrix%matrix_struct%ncol_locals(mypcol)))
-            col_indices => matrix%matrix_struct%col_indices
-#if defined(__SCALAPACK)
-            DO i = 1, SIZE(col_indices)
-               col_indices(i) = &
-                  indxl2g(i, matrix%matrix_struct%ncol_block, mypcol, &
-                          matrix%matrix_struct%first_p_pos(2), npcol)
-            END DO
-#else
-            DO i = 1, SIZE(col_indices)
-               col_indices(i) = i
-            END DO
-#endif
-         END IF
-      END IF
-
-      IF (PRESENT(para_env)) para_env => matrix%matrix_struct%para_env
+      CALL cp_fm_struct_get(matrix%matrix_struct, nrow_local=nrow_local, &
+                            ncol_local=ncol_local, nrow_global=nrow_global, &
+                            ncol_global=ncol_global, nrow_block=nrow_block, &
+                            ncol_block=ncol_block, context=context, &
+                            row_indices=row_indices, col_indices=col_indices, para_env=para_env)
 
    END SUBROUTINE cp_cfm_get_info
 
