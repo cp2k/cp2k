@@ -50,7 +50,6 @@ MODULE pw_types
 
    ! to generate unique id_nr
    INTEGER, SAVE, PRIVATE :: last_pw_id_nr = 0
-   INTEGER, SAVE, PRIVATE :: allocated_pw_count = 0
 
 ! **************************************************************************************************
    TYPE pw_type
@@ -112,7 +111,6 @@ CONTAINS
          IF (pw%ref_count == 0) THEN
             pw%ref_count = 1
 
-            allocated_pw_count = allocated_pw_count - 1
             SELECT CASE (pw%in_use)
             CASE (REALDATA1D)
                DEALLOCATE (pw%cr)
@@ -192,8 +190,6 @@ CONTAINS
       CALL pw_grid_retain(pw%pw_grid)
       pw%in_space = NOSPACE
       bounds => pw%pw_grid%bounds_local
-
-      allocated_pw_count = allocated_pw_count + 1
 
       NULLIFY (pw%cr, pw%cc, pw%cr3d, pw%cc3d)
 
