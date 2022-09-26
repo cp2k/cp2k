@@ -2,12 +2,12 @@
 #
 # CP2K (GNU aarch64) arch file for a serial static ARM64 binary
 #
-# Tested with: GNU 12.1.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
+# Tested with: GNU 12.2.0, FFTW 3.3.10, LIBINT 2.6.0, LIBVORI 220621,
 #              LIBXC 5.2.3, OpenBLAS 0.3.21, SPGLIB 1.16.2
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (08.08.2022)
+# Author: Matthias Krack (26.09.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
