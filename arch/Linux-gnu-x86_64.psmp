@@ -2,7 +2,7 @@
 #
 # CP2K (GNU x86_64) arch file for Linux clusters
 #
-# Tested with: GNU 11.2.0 (and 12.1.0), MPICH 3.4.3 (and OpenMPI 4.1.3),
+# Tested with: GNU 12.2.0, MPICH 3.4.3 (and OpenMPI 4.1.3),
 #              ScaLAPACK 2.1.0, OpenBLAS 0.3.21, FFTW 3.3.10, LIBINT 2.6.0,
 #              LIBXC 5.2.3, ELPA 2021.11.002, PLUMED 2.8.0, SPGLIB 1.16.2,
 #              LIBVORI 220621, GSL 2.7, COSMA 2.6.2, SIRIUS 7.3.2
@@ -13,7 +13,7 @@
 #        Optionally, GNU compiler and MPICH version can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (15.09.2022)
+# Author: Matthias Krack (26.09.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -25,9 +25,14 @@
    cd tools/toolchain; \
    if [[ -n "${1}" ]]; then \
       module add ${1}; \
-      [[ -n "${2}" ]] && module add ${2}; \
-      module list; \
-      ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-gcc=system --with-mpich=system; \
+      if [[ -n "${2}" ]]; then \
+         module add ${2}; \
+         module list; \
+         ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-gcc=system --with-mpich=system; \
+      else \
+         module list; \
+         ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-gcc=system --with-mpich; \
+      fi; \
    else \
       ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-gcc --with-mpich; \
    fi; \
