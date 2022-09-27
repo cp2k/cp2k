@@ -97,8 +97,8 @@ MODULE library_tests
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_create,&
-                                              pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE realspace_grid_types,            ONLY: &
         pw2rs, realspace_grid_desc_type, realspace_grid_input_type, realspace_grid_type, rs2pw, &
         rs_grid_create, rs_grid_create_descriptor, rs_grid_print, rs_grid_release, &
@@ -719,7 +719,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: tend, tstart
       TYPE(cell_type), POINTER                           :: box
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_p_type)                                    :: ca
+      TYPE(pw_type)                                      :: ca
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
@@ -748,10 +748,9 @@ CONTAINS
       CALL pw_grid_setup(box%hmat, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE., iounit=iw)
       no = grid%npts
 
-      NULLIFY (ca%pw)
-      CALL pw_create(ca%pw, grid, REALDATA3D)
-      ca%pw%in_space = REALSPACE
-      CALL pw_zero(ca%pw)
+      CALL pw_create(ca, grid, REALDATA3D)
+      ca%in_space = REALSPACE
+      CALL pw_zero(ca)
 
       ! .. rs input setting type
       CALL section_vals_val_get(rs_pw_transfer_section, "HALO_SIZE", i_val=halo_size)
@@ -788,7 +787,7 @@ CONTAINS
       DO i_loop = 1, N_loop
          CALL mp_sync(para_env%group)
          tstart = m_walltime()
-         CALL rs_pw_transfer(rs_grid, ca%pw, dir)
+         CALL rs_pw_transfer(rs_grid, ca, dir)
          CALL mp_sync(para_env%group)
          tend = m_walltime()
          IF (para_env%ionode) THEN
@@ -799,7 +798,7 @@ CONTAINS
       !cleanup
       CALL rs_grid_release(rs_grid)
       CALL rs_grid_release_descriptor(rs_desc)
-      CALL pw_release(ca%pw)
+      CALL pw_release(ca)
       CALL pw_grid_release(grid)
       CALL cell_release(box)
       CALL finalize_fft(para_env, wisdom_file=globenv%fftw_wisdom_file_name)
@@ -841,7 +840,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: t_end, t_start
       TYPE(cell_type), POINTER                           :: box
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_p_type)                                    :: ca, cb, cc
+      TYPE(pw_type)                                      :: ca, cb, cc
 
 !..set fft lib
 
@@ -948,23 +947,19 @@ CONTAINS
             ! note that the number of grid points might be different from what the user requested (fft-able needed)
             no = grid%npts
 
-            NULLIFY (ca%pw)
-            NULLIFY (cb%pw)
-            NULLIFY (cc%pw)
-
-            CALL pw_create(ca%pw, grid, COMPLEXDATA1D)
-            CALL pw_create(cb%pw, grid, COMPLEXDATA3D)
-            CALL pw_create(cc%pw, grid, COMPLEXDATA1D)
+            CALL pw_create(ca, grid, COMPLEXDATA1D)
+            CALL pw_create(cb, grid, COMPLEXDATA3D)
+            CALL pw_create(cc, grid, COMPLEXDATA1D)
 
             ! initialize data
-            CALL pw_zero(ca%pw)
-            CALL pw_zero(cb%pw)
-            CALL pw_zero(cc%pw)
-            ca%pw%in_space = RECIPROCALSPACE
-            nn = SIZE(ca%pw%cc)
+            CALL pw_zero(ca)
+            CALL pw_zero(cb)
+            CALL pw_zero(cc)
+            ca%in_space = RECIPROCALSPACE
+            nn = SIZE(ca%cc)
             DO ig = 1, nn
                gsq = grid%gsq(ig)
-               ca%pw%cc(ig) = EXP(-gsq)
+               ca%cc(ig) = EXP(-gsq)
             END DO
 
             flops = PRODUCT(no)*30.0_dp*LOG(REAL(MAXVAL(no), KIND=dp))
@@ -972,8 +967,8 @@ CONTAINS
             DO ip = 1, n_loop
                CALL mp_sync(para_env%group)
                t_start(ip) = m_walltime()
-               CALL pw_transfer(ca%pw, cb%pw, debug)
-               CALL pw_transfer(cb%pw, cc%pw, debug)
+               CALL pw_transfer(ca, cb, debug)
+               CALL pw_transfer(cb, cc, debug)
                CALL mp_sync(para_env%group)
                t_end(ip) = m_walltime()
             END DO
@@ -985,9 +980,9 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            em = MAXVAL(ABS(ca%pw%cc(:) - cc%pw%cc(:)))
+            em = MAXVAL(ABS(ca%cc(:) - cc%cc(:)))
             CALL mp_max(em, para_env%group)
-            et = SUM(ABS(ca%pw%cc(:) - cc%pw%cc(:)))
+            et = SUM(ABS(ca%cc(:) - cc%cc(:)))
             CALL mp_sum(et, para_env%group)
             t_min = MINVAL(t_end - t_start)
             t_max = MAXVAL(t_end - t_start)
@@ -1006,14 +1001,14 @@ CONTAINS
             ! need debugging ???
             IF (em > toler .OR. et > toler) THEN
                CPWARN("The FFT results are not accurate ... starting debug pw_transfer")
-               CALL pw_transfer(ca%pw, cb%pw, .TRUE.)
-               CALL pw_transfer(cb%pw, cc%pw, .TRUE.)
+               CALL pw_transfer(ca, cb, .TRUE.)
+               CALL pw_transfer(cb, cc, .TRUE.)
             END IF
 
             ! done with these grids
-            CALL pw_release(ca%pw)
-            CALL pw_release(cb%pw)
-            CALL pw_release(cc%pw)
+            CALL pw_release(ca)
+            CALL pw_release(cb)
+            CALL pw_release(cc)
             CALL pw_grid_release(grid)
 
          END DO

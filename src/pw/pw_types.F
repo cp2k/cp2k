@@ -85,29 +85,25 @@ CONTAINS
 !>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
    SUBROUTINE pw_release(pw)
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
 
-      IF (ASSOCIATED(pw)) THEN
-         SELECT CASE (pw%in_use)
-         CASE (REALDATA1D)
-            DEALLOCATE (pw%cr)
-         CASE (COMPLEXDATA1D)
-            DEALLOCATE (pw%cc)
-         CASE (REALDATA3D)
-            IF (ASSOCIATED(pw%cr3d)) THEN
-               !FM optimizations of pools might have removed the 3d field to cache it
-               DEALLOCATE (pw%cr3d)
-            END IF
-         CASE (COMPLEXDATA3D)
-            DEALLOCATE (pw%cc3d)
-         CASE (NODATA)
-         CASE default
-            CPABORT("unknown data type "//cp_to_string(pw%in_use))
-         END SELECT
-         CALL pw_grid_release(pw%pw_grid)
-         DEALLOCATE (pw)
-      END IF
-      NULLIFY (pw)
+      SELECT CASE (pw%in_use)
+      CASE (REALDATA1D)
+         DEALLOCATE (pw%cr)
+      CASE (COMPLEXDATA1D)
+         DEALLOCATE (pw%cc)
+      CASE (REALDATA3D)
+         IF (ASSOCIATED(pw%cr3d)) THEN
+            !FM optimizations of pools might have removed the 3d field to cache it
+            DEALLOCATE (pw%cr3d)
+         END IF
+      CASE (COMPLEXDATA3D)
+         DEALLOCATE (pw%cc3d)
+      CASE (NODATA)
+      CASE default
+         CPABORT("unknown data type "//cp_to_string(pw%in_use))
+      END SELECT
+      CALL pw_grid_release(pw%pw_grid)
    END SUBROUTINE pw_release
 
 ! **************************************************************************************************
@@ -123,12 +119,12 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
-      TYPE(pw_type), POINTER                             :: pw
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_type), INTENT(OUT)                         :: pw
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(in)                                :: use_data
       INTEGER, INTENT(in), OPTIONAL                      :: in_space
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
-         POINTER                                         :: cr3d_ptr
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         OPTIONAL, POINTER                               :: cr3d_ptr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_create'
 
@@ -137,8 +133,6 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
-      CPASSERT(.NOT. ASSOCIATED(pw))
-      ALLOCATE (pw)
       logger => cp_get_default_logger()
       IF (debug_this_module) THEN
          WRITE (cp_logger_get_default_unit_nr(logger), "('*** allocated pw ***')")
