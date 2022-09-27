@@ -140,6 +140,7 @@ if __name__ == "__main__":
         "OPENCL": False,
         "WARNALL": False,
         "DEBUG": False,
+        "ASAN": False,
         "STATIC": False,
         "VALGRIND": False,
         "COVERAGE": False,
