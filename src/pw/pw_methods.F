@@ -95,7 +95,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_zero(pw)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_zero'
 
@@ -323,7 +323,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_scale(pw, a)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scale'
@@ -379,7 +379,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gauss_damp(pw, omega)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
@@ -434,7 +434,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_compl_gauss_damp(pw, omega)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_compl_gauss_damp'
@@ -443,7 +443,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, omega_2, tmp
 
       CALL timeset(routineN, handle)
-      CPASSERT(omega >= 0)
 
       flop = 0.0_dp
       n_exp = 0
@@ -496,7 +495,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gauss_damp_mix(pw, omega, scale_coul, scale_long)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: omega, scale_coul, scale_long
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp_mix'
@@ -505,7 +504,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, omega_2
 
       CALL timeset(routineN, handle)
-      CPASSERT(omega >= 0)
 
       flop = 0.0_dp
       n_exp = 0
@@ -551,7 +549,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_truncated(pw, rcutoff)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: rcutoff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_truncated'
@@ -608,7 +606,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_derive(pw, n)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_derive'
@@ -696,7 +694,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_laplace(pw)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_laplace'
 
@@ -742,8 +740,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_dr2(pw, pwdr2, i, j)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw
-      TYPE(pw_type), INTENT(INOUT)                       :: pwdr2
+      TYPE(pw_type), INTENT(IN)                          :: pw, pwdr2
       INTEGER, INTENT(IN)                                :: i, j
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2'
@@ -803,8 +800,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_dr2_gg(pw, pwdr2_gg, i, j)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw
-      TYPE(pw_type), INTENT(INOUT)                       :: pwdr2_gg
+      TYPE(pw_type), INTENT(IN)                          :: pw, pwdr2_gg
       INTEGER, INTENT(IN)                                :: i, j
 
       INTEGER                                            :: cnt, handle, ig
@@ -864,7 +860,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_smoothing(pw, ecut, sigma)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: ecut, sigma
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_smoothing'
@@ -913,8 +909,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_transfer(pw1, pw2, debug)
 
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_type), INTENT(INOUT)                       :: pw2
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_transfer'
@@ -978,8 +974,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_axpy(pw1, pw2, alpha)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy'
@@ -1191,8 +1186,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_multiply(pw_out, pw1, pw2, alpha)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
-      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
+      TYPE(pw_type), INTENT(IN)                          :: pw_out, pw1, pw2
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply'
@@ -1353,7 +1347,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gather_p(pw, c, scale)
 
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
@@ -1538,7 +1532,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_scatter_p(pw, c, scale)
 
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
@@ -1662,8 +1656,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_wrap_pw1pw2(pw1, pw2, debug)
 
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      TYPE(pw_type), INTENT(IN)                  :: pw1
+      TYPE(pw_type), INTENT(INOUT)               :: pw2
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2'
@@ -2341,7 +2335,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_structure_factor(sf, r)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: sf
+      TYPE(pw_type), INTENT(IN)                          :: sf
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: r
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor'
@@ -2444,7 +2438,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_set(pw, values)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: values
 

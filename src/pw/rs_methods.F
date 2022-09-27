@@ -60,9 +60,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd3(f, df, rs_grid)
 
-      TYPE(pw_type), POINTER                             :: f
+      TYPE(pw_type), INTENT(IN)                          :: f
       TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd3'
 
@@ -74,8 +74,6 @@ CONTAINS
       TYPE(realspace_grid_p_type), DIMENSION(3)          :: drs_grid
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(f))
 
       ! Setup
       rs_desc => rs_grid%desc
@@ -131,9 +129,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd5(f, df, rs_grid)
 
-      TYPE(pw_type), POINTER                             :: f
+      TYPE(pw_type), INTENT(IN)                          :: f
       TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd5'
 
@@ -145,8 +143,6 @@ CONTAINS
       TYPE(realspace_grid_p_type), DIMENSION(3)          :: drs_grid
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(f))
 
       ! Setup
       rs_desc => rs_grid%desc
@@ -202,9 +198,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE derive_fdm_cd7(f, df, rs_grid)
 
-      TYPE(pw_type), POINTER                             :: f
+      TYPE(pw_type), INTENT(IN)                          :: f
       TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd7'
 
@@ -216,8 +212,6 @@ CONTAINS
       TYPE(realspace_grid_p_type), DIMENSION(3)          :: drs_grid
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(f))
 
       ! Setup
       rs_desc => rs_grid%desc
@@ -280,7 +274,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
 
-      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT)   :: x_glbl, y_glbl, z_glbl, x_locl, y_locl, &
                                                             z_locl
 
@@ -376,8 +370,8 @@ CONTAINS
       REAL(dp), INTENT(IN)                     :: zeta
       REAL(dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
-      TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
-      TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
+      TYPE(pw_type), INTENT(IN)       :: pw_in
+      TYPE(pw_type), INTENT(INOUT)   :: pw_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_mollifier'
 

@@ -505,7 +505,7 @@ CONTAINS
 !> \author DH (29-Mar-2001)
 ! **************************************************************************************************
    SUBROUTINE influence_factor(gftype)
-      TYPE(greens_fn_type), POINTER                      :: gftype
+      TYPE(greens_fn_type), INTENT(INOUT)                :: gftype
 
       COMPLEX(KIND=dp)                                   :: b_m, exp_m, sum_m
       INTEGER                                            :: dim, j, k, l, n, pt
@@ -514,7 +514,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: l_arg, prod_arg, val
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m_assign
 
-      CPASSERT(ASSOCIATED(gftype))
       CPASSERT(gftype%ref_count > 0)
       n = gftype%p3m_order
 
@@ -568,7 +567,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_p3m_charge(gf)
 
-      TYPE(greens_fn_type), POINTER                      :: gf
+      TYPE(greens_fn_type), INTENT(IN)                   :: gf
 
       INTEGER                                            :: ig, l, m, n
       REAL(KIND=dp)                                      :: arg, novol

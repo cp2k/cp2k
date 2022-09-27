@@ -137,7 +137,7 @@ CONTAINS
 !>      does not work with spherical cutoff
 ! **************************************************************************************************
    SUBROUTINE pw_spline2_interpolate_values_g(spline_g)
-      TYPE(pw_type), POINTER                             :: spline_g
+      TYPE(pw_type), INTENT(IN)                          :: spline_g
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_interpolate_values_g'
 
@@ -152,7 +152,6 @@ CONTAINS
       n_tot(1:3) = spline_g%pw_grid%npts(1:3)
       gbo = spline_g%pw_grid%bounds
 
-      CPASSERT(ASSOCIATED(spline_g))
       CPASSERT(spline_g%in_use == COMPLEXDATA1D)
       CPASSERT(spline_g%in_space == RECIPROCALSPACE)
       CPASSERT(.NOT. spline_g%pw_grid%spherical)
@@ -211,7 +210,7 @@ CONTAINS
 !>      needed cos, and avoid the mp_sum
 ! **************************************************************************************************
    SUBROUTINE pw_spline3_interpolate_values_g(spline_g)
-      TYPE(pw_type), POINTER                             :: spline_g
+      TYPE(pw_type), INTENT(IN)                          :: spline_g
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_interpolate_values_g'
 
@@ -226,7 +225,6 @@ CONTAINS
       n_tot(1:3) = spline_g%pw_grid%npts(1:3)
       gbo = spline_g%pw_grid%bounds
 
-      CPASSERT(ASSOCIATED(spline_g))
       CPASSERT(spline_g%in_use == COMPLEXDATA1D)
       CPASSERT(spline_g%in_space == RECIPROCALSPACE)
       CPASSERT(.NOT. spline_g%pw_grid%spherical)
@@ -380,7 +378,7 @@ CONTAINS
 !>      the distance between gridpoints is assumed to be 1
 ! **************************************************************************************************
    SUBROUTINE pw_spline3_deriv_g(spline_g, idir)
-      TYPE(pw_type), POINTER                             :: spline_g
+      TYPE(pw_type), INTENT(IN)                          :: spline_g
       INTEGER, INTENT(in)                                :: idir
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv_g'
@@ -399,7 +397,6 @@ CONTAINS
       bo = spline_g%pw_grid%bounds_local
       gbo = spline_g%pw_grid%bounds
 
-      CPASSERT(ASSOCIATED(spline_g))
       CPASSERT(spline_g%in_use == COMPLEXDATA1D)
       CPASSERT(spline_g%in_space == RECIPROCALSPACE)
       CPASSERT(.NOT. spline_g%pw_grid%spherical)
@@ -518,7 +515,7 @@ CONTAINS
 !>      the distance between gridpoints is assumed to be 1
 ! **************************************************************************************************
    SUBROUTINE pw_spline2_deriv_g(spline_g, idir)
-      TYPE(pw_type), POINTER                             :: spline_g
+      TYPE(pw_type), INTENT(IN)                          :: spline_g
       INTEGER, INTENT(in)                                :: idir
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv_g'
@@ -536,7 +533,6 @@ CONTAINS
       n_tot(1:3) = spline_g%pw_grid%npts(1:3)
       bo = spline_g%pw_grid%bounds
 
-      CPASSERT(ASSOCIATED(spline_g))
       CPASSERT(spline_g%in_use == COMPLEXDATA1D)
       CPASSERT(spline_g%in_space == RECIPROCALSPACE)
       CPASSERT(.NOT. spline_g%pw_grid%spherical)
@@ -762,7 +758,7 @@ CONTAINS
    SUBROUTINE pw_nn_compose_r_work(weights, in_val, out_val, pw_in, bo)
       REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)            :: weights
       INTEGER, DIMENSION(2, 3)                           :: bo
-      TYPE(pw_type), POINTER                             :: pw_in
+      TYPE(pw_type), INTENT(IN)                          :: pw_in
       REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
          2):bo(2, 2), bo(1, 3):bo(2, 3)), INTENT(inout)  :: out_val
       REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, 1), bo(1, &
@@ -846,17 +842,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
       REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)            :: weights
-      TYPE(pw_type), POINTER                             :: pw_in, pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_nn_compose_r'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-      CPASSERT(ASSOCIATED(pw_in))
       CPASSERT(pw_in%in_space == REALSPACE)
       CPASSERT(pw_in%in_use == REALDATA3D)
-      CPASSERT(ASSOCIATED(pw_out))
       CPASSERT(pw_out%in_space == REALSPACE)
       CPASSERT(pw_out%in_use == REALDATA3D)
       IF (.NOT. ALL(pw_in%pw_grid%bounds_local(:, 2:3) == pw_in%pw_grid%bounds(:, 2:3))) THEN
@@ -884,7 +878,7 @@ CONTAINS
 !>      coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
 ! **************************************************************************************************
    SUBROUTINE pw_nn_smear_r(pw_in, pw_out, coeffs)
-      TYPE(pw_type), POINTER                             :: pw_in, pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
       REAL(KIND=dp), DIMENSION(4), INTENT(in)            :: coeffs
 
       INTEGER                                            :: i, j, k
@@ -927,7 +921,7 @@ CONTAINS
 !>      coeff=(/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /)
 ! **************************************************************************************************
    SUBROUTINE pw_nn_deriv_r(pw_in, pw_out, coeffs, idir)
-      TYPE(pw_type), POINTER                             :: pw_in, pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: coeffs
       INTEGER                                            :: idir
 
@@ -1005,7 +999,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE add_coarse2fine(coarse_coeffs_pw, fine_values_pw, &
                               weights_1d, w_border0, w_border1, pbc, safe_computation)
-      TYPE(pw_type), POINTER                             :: coarse_coeffs_pw, fine_values_pw
+      TYPE(pw_type), INTENT(IN)                          :: coarse_coeffs_pw, fine_values_pw
       REAL(kind=dp), DIMENSION(4), INTENT(in)            :: weights_1d
       REAL(kind=dp), INTENT(in)                          :: w_border0
       REAL(kind=dp), DIMENSION(3), INTENT(in)            :: w_border1
@@ -1802,7 +1796,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE add_fine2coarse(fine_values_pw, coarse_coeffs_pw, &
                               weights_1d, w_border0, w_border1, pbc, safe_computation)
-      TYPE(pw_type), POINTER                             :: fine_values_pw, coarse_coeffs_pw
+      TYPE(pw_type), INTENT(IN)                          :: fine_values_pw, coarse_coeffs_pw
       REAL(kind=dp), DIMENSION(4), INTENT(in)            :: weights_1d
       REAL(kind=dp), INTENT(in)                          :: w_border0
       REAL(kind=dp), DIMENSION(3), INTENT(in)            :: w_border1
@@ -2652,10 +2646,9 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_spline_do_precond(preconditioner, in_v, out_v)
-      TYPE(pw_spline_precond_type), POINTER              :: preconditioner
+      TYPE(pw_spline_precond_type), INTENT(IN)           :: preconditioner
       TYPE(pw_type), POINTER                             :: in_v, out_v
 
-      CPASSERT(ASSOCIATED(preconditioner))
       CPASSERT(preconditioner%ref_count > 0)
       SELECT CASE (preconditioner%kind)
       CASE (no_precond)
@@ -2707,12 +2700,12 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION find_coeffs(values, coeffs, linOp, preconditioner, pool, &
                         eps_r, eps_x, max_iter, sumtype) RESULT(res)
-      TYPE(pw_type), POINTER                             :: values, coeffs
+      TYPE(pw_type), INTENT(IN)                          :: values, coeffs
       INTERFACE
 ! **************************************************************************************************
          SUBROUTINE linOp(pw_in, pw_out)
             USE pw_types, ONLY: pw_type
-            TYPE(pw_type), POINTER :: pw_in, pw_out
+            TYPE(pw_type), INTENT(IN) :: pw_in, pw_out
          END SUBROUTINE linOp
       END INTERFACE
       TYPE(pw_spline_precond_type), POINTER              :: preconditioner
@@ -2814,7 +2807,7 @@ CONTAINS
    SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d, pw_in, pw_out, &
                                      sharpen, normalize, transpose, smooth_boundary)
       REAL(kind=dp), DIMENSION(-1:1)                     :: weights_1d
-      TYPE(pw_type), POINTER                             :: pw_in, pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
       LOGICAL, INTENT(in), OPTIONAL                      :: sharpen, normalize, transpose, &
                                                             smooth_boundary
 
@@ -3154,7 +3147,7 @@ CONTAINS
 !> \param pw_out ...
 ! **************************************************************************************************
    SUBROUTINE spl3_nopbc(pw_in, pw_out)
-      TYPE(pw_type), POINTER                             :: pw_in, pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
 
       CALL pw_zero(pw_out)
       CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0, pw_in=pw_in, &
@@ -3167,7 +3160,7 @@ CONTAINS
 !> \param pw_out ...
 ! **************************************************************************************************
    SUBROUTINE spl3_nopbct(pw_in, pw_out)
-      TYPE(pw_type), POINTER                             :: pw_in, pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
 
       CALL pw_zero(pw_out)
       CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0, pw_in=pw_in, &
@@ -3180,7 +3173,7 @@ CONTAINS
 !> \param pw_out ...
 ! **************************************************************************************************
    SUBROUTINE spl3_pbc(pw_in, pw_out)
-      TYPE(pw_type), POINTER                             :: pw_in, pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_out
 
       CALL pw_zero(pw_out)
       CALL pw_nn_smear_r(pw_in, pw_out, coeffs=spline3_coeffs)
@@ -3200,7 +3193,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION Eval_Interp_Spl3_pbc(vec, pw) RESULT(val)
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: vec
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp)                                      :: val
 
       INTEGER                                            :: i, ivec(3), j, k, npts(3)
@@ -3349,7 +3342,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION Eval_d_Interp_Spl3_pbc(vec, pw) RESULT(val)
       REAL(KIND=dp), DIMENSION(3), INTENT(in)            :: vec
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp)                                      :: val(3)
 
       INTEGER                                            :: i, ivec(3), j, k, npts(3)

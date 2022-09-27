@@ -180,7 +180,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION rs_grid_locate_rank(rs_desc, rank_in, shift) RESULT(rank_out)
-      TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
+      TYPE(realspace_grid_desc_type), INTENT(IN)         :: rs_desc
       INTEGER, INTENT(IN)                                :: rank_in
       INTEGER, DIMENSION(3), INTENT(IN)                  :: shift
       INTEGER                                            :: rank_out
@@ -686,8 +686,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_pw_transfer(rs, pw, dir)
 
-      TYPE(realspace_grid_type), POINTER                 :: rs
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
+      TYPE(pw_type), INTENT(IN)                          :: pw
       INTEGER, INTENT(IN)                                :: dir
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_pw_transfer'
@@ -838,8 +838,8 @@ CONTAINS
 !>      pw2rs will scatter all pw data to the rs grids
 ! **************************************************************************************************
    SUBROUTINE rs_pw_transfer_replicated(rs, pw, dir)
-      TYPE(realspace_grid_type), POINTER                 :: rs
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
+      TYPE(pw_type), INTENT(IN)                          :: pw
       INTEGER, INTENT(IN)                                :: dir
 
       INTEGER                                            :: dest, group, i, ii, im, ip, ix, iy, iz, &
@@ -1019,8 +1019,8 @@ CONTAINS
 !>       with the central domain of several CPUs (i.e. next nearest neighbors)
 ! **************************************************************************************************
    SUBROUTINE rs_pw_transfer_distributed(rs, pw, dir)
-      TYPE(realspace_grid_type), POINTER                 :: rs
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
+      TYPE(pw_type), INTENT(IN)                          :: pw
       INTEGER, INTENT(IN)                                :: dir
 
       CHARACTER(LEN=200)                                 :: error_string
@@ -1935,7 +1935,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_zero(rs)
 
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_grid_zero'
 
@@ -1971,7 +1971,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_mult_and_add(rs1, rs2, rs3, scalar)
 
-      TYPE(realspace_grid_type), POINTER                 :: rs1, rs2, rs3
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs1, rs2, rs3
       REAL(dp), INTENT(IN)                               :: scalar
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_mult_and_add'
@@ -2133,9 +2133,9 @@ CONTAINS
 !>      04.2009 created [Iain Bethune]
 !>        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 ! **************************************************************************************************
-   SUBROUTINE cart_shift(rs_grid, dir, disp, source, dest)
+   PURE SUBROUTINE cart_shift(rs_grid, dir, disp, source, dest)
 
-      TYPE(realspace_grid_type), POINTER                 :: rs_grid
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
       INTEGER, INTENT(IN)                                :: dir, disp
       INTEGER, INTENT(OUT)                               :: source, dest
 
@@ -2159,7 +2159,7 @@ CONTAINS
 !>      10.2011 created [Iain Bethune]
 ! **************************************************************************************************
    FUNCTION rs_grid_max_ngpts(desc) RESULT(max_ngpts)
-      TYPE(realspace_grid_desc_type), POINTER            :: desc
+      TYPE(realspace_grid_desc_type), INTENT(IN)         :: desc
       INTEGER                                            :: max_ngpts
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rs_grid_max_ngpts'
