@@ -1074,7 +1074,7 @@ CONTAINS
                             cell=cell, &
                             particle_set=particle_set, &
                             pw_env=pw_env)
-            CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+            CALL calculate_wavefunction(mo_coeff, ivector, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
                                         cell, dft_control, particle_set, pw_env)
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
             mpi_io = .TRUE.
@@ -1152,7 +1152,7 @@ CONTAINS
                             cell=cell, &
                             particle_set=particle_set, &
                             pw_env=pw_env)
-            CALL calculate_wavefunction(unoccupied_orbs, ivector, wf_r, wf_g, atomic_kind_set, &
+            CALL calculate_wavefunction(unoccupied_orbs, ivector, wf_r%pw, wf_g%pw, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env)
 
             IF (ifirst == 1) THEN

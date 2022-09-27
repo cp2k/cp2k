@@ -214,7 +214,7 @@ CONTAINS
                DO iorb = iorb_block, MIN(iorb_block + blocksize - 1, norb)
 
                   iloc = iorb - iorb_block + 1
-                  CALL calculate_wavefunction(mo_coeff, iorb, rho_i(iloc), rho_g, &
+                  CALL calculate_wavefunction(mo_coeff, iorb, rho_i(iloc)%pw, rho_g%pw, &
                                               atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
 
@@ -225,7 +225,7 @@ CONTAINS
                   DO jorb = jorb_block, MIN(jorb_block + blocksize - 1, norb)
 
                      jloc = jorb - jorb_block + 1
-                     CALL calculate_wavefunction(mo_coeff, jorb, rho_j(jloc), rho_g, &
+                     CALL calculate_wavefunction(mo_coeff, jorb, rho_j(jloc)%pw, rho_g%pw, &
                                                  atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                                  pw_env)
 

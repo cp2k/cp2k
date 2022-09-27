@@ -649,11 +649,11 @@ CONTAINS
 
                IF (imo > nmo) THEN
                   CALL calculate_wavefunction(mo_virt, imo - nmo, &
-                                              wf_r, wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+                                              wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
                ELSE
                   CALL calculate_wavefunction(mo_coeff, imo, &
-                                              wf_r, wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+                                              wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
                END IF
                r_ldos_p(ildos)%ldos%pdos_array(imo) = 0.0_dp

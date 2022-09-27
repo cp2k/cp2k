@@ -1337,7 +1337,7 @@ CONTAINS
       DO iset = 1, 2
          CALL get_mo_set(mo_set=mos(iset)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
          DO i = 1, nmo
-            CALL calculate_wavefunction(mo_coeff, i, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+            CALL calculate_wavefunction(mo_coeff, i, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
                                         cell, dft_control, particle_set, pw_env)
             IF (iset == 1) THEN
                WRITE (filename, '(a4,I3.3,I2.2,a11)') "NTO_STATE", istate, i, "_Hole_State"

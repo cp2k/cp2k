@@ -367,7 +367,7 @@ CONTAINS
          CALL pw_zero(drho_g%pw)
 
          ! Calculate the Hartree potential on the perturbed density and Poisson solve it
-         CALL calculate_drho_core(drho_core=drho_g, qs_env=qs_env, &
+         CALL calculate_drho_core(drho_core=drho_g%pw, qs_env=qs_env, &
                                   beta=beta, lambda=dcdr_env%lambda)
          CALL pw_poisson_solve(poisson_env, drho_g%pw, &
                                vhartree=v_hartree_gspace%pw)

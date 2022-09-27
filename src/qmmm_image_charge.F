@@ -749,7 +749,7 @@ CONTAINS
       iatom_ref = 1 !
       !collocate gaussian of reference MM atom on grid
       CALL pw_zero(rho_gb%pw)
-      CALL calculate_rho_single_gaussian(rho_gb, qs_env, iatom_ref)
+      CALL calculate_rho_single_gaussian(rho_gb%pw, qs_env, iatom_ref)
       !calculate potential vb like hartree potential
       CALL pw_zero(vb_gspace%pw)
       CALL pw_poisson_solve(poisson_env, rho_gb%pw, vhartree=vb_gspace%pw)
@@ -920,7 +920,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       CALL pw_zero(rho_metal%pw)
-      CALL calculate_rho_metal(rho_metal, coeff, total_rho_metal=total_rho_metal, &
+      CALL calculate_rho_metal(rho_metal%pw, coeff, total_rho_metal=total_rho_metal, &
                                qs_env=qs_env)
 
       CALL pw_zero(v_metal_gspace%pw)

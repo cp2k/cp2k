@@ -1222,7 +1222,7 @@ CONTAINS
                              pw=rho_core%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL calculate_rho_core(rho_core, total_rho_core_rspace, qs_env)
+      CALL calculate_rho_core(rho_core%pw, total_rho_core_rspace, qs_env)
 
       IF (iounit > 0) THEN
          WRITE (UNIT=iounit, FMT="(/,T2,A,T66,F15.6)") &
@@ -1541,7 +1541,7 @@ CONTAINS
                DO i = 1, nlist
                   ivector = list_index(i)
                   IF (ivector > homo) CYCLE
-                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
                                               cell, dft_control, particle_set, pw_env)
                   WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
                   mpi_io = .TRUE.
@@ -1571,7 +1571,7 @@ CONTAINS
                   ilast = MIN(nmo, ilast)
                END IF
                DO ivector = ifirst, ilast
-                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
+                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r%pw, wf_g%pw, atomic_kind_set, &
                                               qs_kind_set, cell, dft_control, particle_set, pw_env)
                   WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
                   mpi_io = .TRUE.

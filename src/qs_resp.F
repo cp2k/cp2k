@@ -972,7 +972,7 @@ CONTAINS
       DO i = 1, natom
          !collocate gaussian for each atom
          CALL pw_zero(rho_ga%pw)
-         CALL calculate_rho_resp_single(rho_ga, qs_env, resp_env%eta, i)
+         CALL calculate_rho_resp_single(rho_ga%pw, qs_env, resp_env%eta, i)
          !calculate potential va and store the part needed for fitting in vpot
          CALL pw_zero(va_gspace%pw)
          CALL pw_poisson_solve(poisson_env, rho_ga%pw, vhartree=va_gspace%pw)
@@ -1739,7 +1739,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       CALL pw_zero(rho_resp%pw)
-      CALL calculate_rho_resp_all(rho_resp, resp_env%rhs, natom, &
+      CALL calculate_rho_resp_all(rho_resp%pw, resp_env%rhs, natom, &
                                   resp_env%eta, qs_env)
       CALL pw_zero(v_resp_gspace%pw)
       CALL pw_poisson_solve(poisson_env, rho_resp%pw, &

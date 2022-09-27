@@ -1511,10 +1511,12 @@ CONTAINS
                CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, embed_pot%pw)
                CALL pw_release(embed_pot%pw)
+               DEALLOCATE (embed_pot%pw)
                DEALLOCATE (embed_pot)
                IF (ASSOCIATED(spin_embed_pot)) THEN
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, spin_embed_pot%pw)
                   CALL pw_release(spin_embed_pot%pw)
+                  DEALLOCATE (spin_embed_pot%pw)
                   DEALLOCATE (spin_embed_pot)
                END IF
             END IF
@@ -1870,9 +1872,11 @@ CONTAINS
 
             ! Release embedding potential for subsystem
             CALL pw_release(embed_pot_subsys%pw)
+            DEALLOCATE (embed_pot_subsys%pw)
             DEALLOCATE (embed_pot_subsys)
             IF (opt_embed%open_shell_embed) THEN
                CALL pw_release(spin_embed_pot_subsys%pw)
+               DEALLOCATE (spin_embed_pot_subsys%pw)
                DEALLOCATE (spin_embed_pot_subsys)
             END IF
 
@@ -1943,9 +1947,11 @@ CONTAINS
 
       ! Give away plane waves pools
       CALL pw_release(diff_rho_r%pw)
+      DEALLOCATE (diff_rho_r%pw)
       DEALLOCATE (diff_rho_r)
       IF (opt_embed%open_shell_embed) THEN
          CALL pw_release(diff_rho_spin%pw)
+         DEALLOCATE (diff_rho_spin%pw)
          DEALLOCATE (diff_rho_spin)
       END IF
 
@@ -1985,9 +1991,11 @@ CONTAINS
 
       ! Deallocate embedding potential
       CALL pw_release(embed_pot%pw)
+      DEALLOCATE (embed_pot%pw)
       DEALLOCATE (embed_pot)
       IF (opt_embed%open_shell_embed) THEN
          CALL pw_release(spin_embed_pot%pw)
+         DEALLOCATE (spin_embed_pot%pw)
          DEALLOCATE (spin_embed_pot)
       END IF
 

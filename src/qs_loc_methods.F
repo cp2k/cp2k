@@ -1137,7 +1137,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, cell=cell, &
                          dft_control=dft_control, particle_set=particle_set, pw_env=pw_env)
 
-         CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, ivector, wf_r%pw, wf_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env)
 
          ! Formatting the middle part of the name

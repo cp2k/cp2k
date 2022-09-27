@@ -142,7 +142,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! pseudo psi_L
-      CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+      CALL calculate_wavefunction(mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                   qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                   basis_type="RI_AUX", &
                                   external_vector=external_vector)
@@ -226,7 +226,7 @@ CONTAINS
          i_counter = i_counter + 1
 
          ! pseudo psi_L
-         CALL collocate_single_gaussian(psi_L, rho_g, atomic_kind_set, &
+         CALL collocate_single_gaussian(psi_L%pw, rho_g%pw, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                         required_function=LLL, basis_type="RI_AUX")
 
@@ -431,7 +431,7 @@ CONTAINS
       ! pseudo psi_L
       CALL pw_zero(rho_r%pw)
       CALL pw_zero(rho_g%pw)
-      CALL collocate_single_gaussian(rho_r, rho_g, atomic_kind_set, &
+      CALL collocate_single_gaussian(rho_r%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
                                      pw_env_sub, required_function=LLL, basis_type='RI_AUX')
       IF (use_virial) THEN
@@ -451,7 +451,7 @@ CONTAINS
          ! hartree potential derivatives
          CALL pw_zero(psi_L%pw)
          CALL pw_zero(rho_g%pw)
-         CALL calculate_wavefunction(matrix, 1, psi_L, rho_g, atomic_kind_set, &
+         CALL calculate_wavefunction(matrix, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                      basis_type="RI_AUX", &
                                      external_vector=0.5_dp*factor*G_PQ_local)

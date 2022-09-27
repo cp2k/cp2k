@@ -1048,7 +1048,7 @@ CONTAINS
 
       ! Calculate charge density
       CALL pw_zero(rho_resp%pw)
-      CALL calculate_rho_resp_all(rho_resp, rhs_subsys, natom, eta, qs_env)
+      CALL calculate_rho_resp_all(rho_resp%pw, rhs_subsys, natom, eta, qs_env)
 
       ! Calculate potential
       CALL pw_zero(v_resp_gspace%pw)
@@ -1884,7 +1884,7 @@ CONTAINS
          CALL mp_sum(wf_vector, para_env%group)
 
          ! Calculate the variable part of the embedding potential
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env, &
                                      basis_type="RI_AUX", &
                                      external_vector=wf_vector)
@@ -1911,7 +1911,7 @@ CONTAINS
          CALL mp_sum(wf_vector, para_env%group)
 
          ! Calculate the variable part of the embedding potential
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env, &
                                      basis_type="RI_AUX", &
                                      external_vector=wf_vector)
@@ -1933,10 +1933,10 @@ CONTAINS
          CALL mp_sum(wf_vector, para_env%group)
 
          ! Calculate the variable part of the embedding potential
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env)
 
-         CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env, &
                                      basis_type="RI_AUX", &
                                      external_vector=wf_vector)

@@ -86,7 +86,7 @@ CONTAINS
          qs_env%qs_charges%total_rho_core_rspace = qs_env%local_rho_set%rhoz_tot
          IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
             CPASSERT(ASSOCIATED(rho_core))
-            CALL calculate_rho_core(rho_core, &
+            CALL calculate_rho_core(rho_core%pw, &
                                     qs_env%qs_charges%total_rho_core_rspace, qs_env, only_nopaw=.TRUE.)
          ELSE
             IF (ASSOCIATED(rho_core)) THEN
@@ -104,7 +104,7 @@ CONTAINS
          !??
       ELSE
          CPASSERT(ASSOCIATED(rho_core))
-         CALL calculate_rho_core(rho_core, &
+         CALL calculate_rho_core(rho_core%pw, &
                                  qs_env%qs_charges%total_rho_core_rspace, qs_env)
       END IF
 
@@ -114,14 +114,14 @@ CONTAINS
          NULLIFY (vppl)
          CALL get_qs_env(qs_env, vppl=vppl)
          CPASSERT(ASSOCIATED(vppl))
-         CALL calculate_ppl_grid(vppl, qs_env)
+         CALL calculate_ppl_grid(vppl%pw, qs_env)
       END IF
 
       ! compute the rho_nlcc
       NULLIFY (rho_nlcc, rho_nlcc_g)
       CALL get_qs_env(qs_env, rho_nlcc=rho_nlcc, rho_nlcc_g=rho_nlcc_g)
       IF (ASSOCIATED(rho_nlcc)) THEN
-         CALL calculate_rho_nlcc(rho_nlcc, qs_env)
+         CALL calculate_rho_nlcc(rho_nlcc%pw, qs_env)
          CALL pw_transfer(rho_nlcc%pw, rho_nlcc_g%pw)
       END IF
 

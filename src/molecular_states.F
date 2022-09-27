@@ -322,8 +322,8 @@ CONTAINS
             DO i = 1, ns
                IF (evals(i) < eval_range(1) .OR. evals(i) > eval_range(2)) CYCLE
 
-               CALL calculate_wavefunction(rot_e_vectors, i, wf_r, &
-                                           wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+               CALL calculate_wavefunction(rot_e_vectors, i, wf_r%pw, &
+                                           wf_g%pw, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                            pw_env)
 
                WRITE (filename, '(a9,I4.4,a1,I5.5,a4)') "MOLECULE_", imol, "_", i, tag

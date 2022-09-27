@@ -368,7 +368,7 @@ CONTAINS
       CPASSERT(.NOT. lri_env%exact_1c_terms)
 
       DO ispin = 1, nspins
-         CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin), qs_env, &
+         CALL calculate_lri_rho_elec(rho_g(ispin)%pw, rho_r(ispin)%pw, qs_env, &
                                      lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
                                      "LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag, atomlist=atomlist)
       END DO
@@ -954,13 +954,13 @@ CONTAINS
             END IF
             !
             IF (.NOT. response_density) THEN
-               CALL calculate_lri_rho_elec(rho_g(ispin), &
-                                           rho_r(ispin), qs_env, &
+               CALL calculate_lri_rho_elec(rho_g(ispin)%pw, &
+                                           rho_r(ispin)%pw, qs_env, &
                                            lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
                                            "LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag)
             ELSE
-               CALL calculate_lri_rho_elec(rho_g(ispin), &
-                                           rho_r(ispin), qs_env, &
+               CALL calculate_lri_rho_elec(rho_g(ispin)%pw, &
+                                           rho_r(ispin)%pw, qs_env, &
                                            lri_density%lri_coefs(ispin)%lri_kinds, tot_rho_r(ispin), &
                                            "P_LRI_AUX", lri_env%exact_1c_terms, pmat=pmat_diag)
             END IF

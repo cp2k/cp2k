@@ -1094,7 +1094,7 @@ CONTAINS
                CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin)%pw, &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
-               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
+               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin)%pw, rho_g%pw, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
                   WRITE (iw, "(T4,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
@@ -1477,7 +1477,7 @@ CONTAINS
                do_mo = .TRUE.
             END IF
             IF (.NOT. do_mo) CYCLE
-            CALL calculate_wavefunction(mo_coeff, imo, wf_r, wf_g, atomic_kind_set, &
+            CALL calculate_wavefunction(mo_coeff, imo, wf_r%pw, wf_g%pw, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env)
             IF (para_env%ionode) THEN
                WRITE (filename, '(A,A1,I4.4,A1,I1.1,A)') TRIM(filebody), "_", imo, "_", isp, ".cube"

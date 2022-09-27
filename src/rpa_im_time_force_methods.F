@@ -2699,7 +2699,7 @@ CONTAINS
             wf_vector = 0.0_dp
             wf_vector(j_RI) = 1.0_dp
 
-            CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+            CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env_ext, &
                                         basis_type="RI_AUX", external_vector=wf_vector)
 
@@ -2721,7 +2721,7 @@ CONTAINS
                END DO
 
                CALL pw_copy(rho_g%pw, rho_g_copy%pw)
-               CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+               CALL calculate_wavefunction(mos(1)%mo_set%mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_ext, &
                                            basis_type="RI_AUX", external_vector=wf_vector)
 
