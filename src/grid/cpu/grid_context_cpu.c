@@ -543,7 +543,7 @@ void set_grid_parameters(
   grid->dh_inv[2][1] = dh_inv[2][1];
   grid->dh_inv[2][2] = dh_inv[2][2];
 
-  verify_orthogonality((const double(*)[3])grid->dh, grid->orthogonal);
+  verify_orthogonality(dh, grid->orthogonal);
 
   if (orthorhombic) {
     grid->orthogonal[0] = true;
