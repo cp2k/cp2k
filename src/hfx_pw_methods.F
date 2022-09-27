@@ -188,11 +188,11 @@ CONTAINS
          END IF
 
          DO iorb_block = 1, blocksize
-            NULLIFY (rho_i(iorb_block)%pw)
+            ALLOCATE (rho_i(iorb_block)%pw)
             CALL pw_create(rho_i(iorb_block)%pw, rho_r%pw%pw_grid, &
                            use_data=REALDATA3D, &
                            in_space=REALSPACE)
-            NULLIFY (rho_j(iorb_block)%pw)
+            ALLOCATE (rho_j(iorb_block)%pw)
             CALL pw_create(rho_j(iorb_block)%pw, rho_r%pw%pw_grid, &
                            use_data=REALDATA3D, &
                            in_space=REALSPACE)

@@ -50,7 +50,6 @@ MODULE xc
                        REALDATA3D, &
                        REALSPACE, &
                        RECIPROCALSPACE, &
-                       pw_create, &
                        pw_p_type, &
                        pw_release, &
                        pw_type

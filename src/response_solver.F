@@ -2274,18 +2274,19 @@ CONTAINS
       END IF
 
       pw_grid => v_hartree_rspace%pw%pw_grid
+      ALLOCATE (vh_rspace%pw)
       CALL pw_create(vh_rspace%pw, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
       DO ispin = 1, nspins
-         NULLIFY (vxc_rspace(ispin)%pw)
+         ALLOCATE (vxc_rspace(ispin)%pw)
          CALL pw_create(vxc_rspace(ispin)%pw, pw_grid, &
                         use_data=REALDATA3D, in_space=REALSPACE)
          IF (ASSOCIATED(vtau_rspace)) THEN
-            NULLIFY (vtau_rspace(ispin)%pw)
+            ALLOCATE (vtau_rspace(ispin)%pw)
             CALL pw_create(vtau_rspace(ispin)%pw, pw_grid, &
                            use_data=REALDATA3D, in_space=REALSPACE)
          END IF
          IF (ASSOCIATED(vadmm_rspace)) THEN
-            NULLIFY (vadmm_rspace(ispin)%pw)
+            ALLOCATE (vadmm_rspace(ispin)%pw)
             CALL pw_create(vadmm_rspace(ispin)%pw, pw_grid, &
                            use_data=REALDATA3D, in_space=REALSPACE)
          END IF

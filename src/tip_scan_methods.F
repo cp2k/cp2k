@@ -298,6 +298,7 @@ CONTAINS
       CALL mp_bcast(dcell, para_env%source, para_env%group)
 
       NULLIFY (pw, pw_grid)
+      ALLOCATE (pw)
       CALL pw_grid_create(pw_grid, para_env%group)
       CALL pw_grid_setup(dcell, pw_grid, npts=npts)
       CALL pw_create(pw, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
@@ -307,6 +308,7 @@ CONTAINS
       CALL cp_cube_to_pw(pw, scan_env%tip_cube_file, scaling, silent=.TRUE.)
       scan_env%tip_pw_r => pw
       NULLIFY (pw)
+      ALLOCATE (pw)
       CALL pw_create(pw, pw_grid, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_transfer(scan_env%tip_pw_r, pw)
       scan_env%tip_pw_g => pw

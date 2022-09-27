@@ -1510,14 +1510,22 @@ CONTAINS
                                embed_pot=embed_pot, spin_embed_pot=spin_embed_pot, pw_env=pw_env)
                CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, embed_pot%pw)
-               CALL pw_release(embed_pot%pw)
-               DEALLOCATE (embed_pot%pw)
+               IF (ASSOCIATED(embed_pot)) THEN
+               IF (ASSOCIATED(embed_pot%pw)) THEN
+                  CALL pw_release(embed_pot%pw)
+                  DEALLOCATE (embed_pot%pw)
+               END IF
                DEALLOCATE (embed_pot)
+               END IF
                IF (ASSOCIATED(spin_embed_pot)) THEN
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, spin_embed_pot%pw)
-                  CALL pw_release(spin_embed_pot%pw)
-                  DEALLOCATE (spin_embed_pot%pw)
+                  IF (ASSOCIATED(spin_embed_pot)) THEN
+                  IF (ASSOCIATED(spin_embed_pot%pw)) THEN
+                     CALL pw_release(spin_embed_pot%pw)
+                     DEALLOCATE (spin_embed_pot%pw)
+                  END IF
                   DEALLOCATE (spin_embed_pot)
+                  END IF
                END IF
             END IF
          END IF

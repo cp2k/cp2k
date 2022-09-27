@@ -337,6 +337,7 @@ CONTAINS
       END SELECT
 
       IF (.NOT. ASSOCIATED(pw)) THEN
+         ALLOCATE (pw)
          CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
                         cr3d_ptr=cr3d_ptr)
          IF (debug_this_module) THEN

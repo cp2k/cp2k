@@ -481,11 +481,22 @@ CONTAINS
                CALL pw_pool_give_back_pw(pw_pool, gftype%p3m_charge, &
                                          accept_non_compatible=.TRUE.)
             ELSE
-               CALL pw_release(gftype%influence_fn)
-               CALL pw_release(gftype%dct_influence_fn)
-               CALL pw_release(gftype%screen_fn)
-               CALL pw_release(gftype%p3m_charge)
-               DEALLOCATE (gftype%influence_fn, gftype%dct_influence_fn, gftype%screen_fn, gftype%p3m_charge)
+               IF (ASSOCIATED(gftype%influence_fn)) THEN
+                  CALL pw_release(gftype%influence_fn)
+                  DEALLOCATE (gftype%influence_fn)
+               END IF
+               IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
+                  CALL pw_release(gftype%dct_influence_fn)
+                  DEALLOCATE (gftype%dct_influence_fn)
+               END IF
+               IF (ASSOCIATED(gftype%screen_fn)) THEN
+                  CALL pw_release(gftype%screen_fn)
+                  DEALLOCATE (gftype%screen_fn)
+               END IF
+               IF (ASSOCIATED(gftype%p3m_charge)) THEN
+                  CALL pw_release(gftype%p3m_charge)
+                  DEALLOCATE (gftype%p3m_charge)
+               END IF
             END IF
             IF (ASSOCIATED(gftype%p3m_bm2)) &
                DEALLOCATE (gftype%p3m_bm2)

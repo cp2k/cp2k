@@ -338,7 +338,7 @@ CONTAINS
          lsd = .TRUE.
          ALLOCATE (rho1_r_pw(2))
          DO ispin = 1, 2
-            NULLIFY (rho1_r_pw(ispin)%pw)
+            ALLOCATE (rho1_r_pw(ispin)%pw)
             CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
                            rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
@@ -347,7 +347,7 @@ CONTAINS
          IF (ASSOCIATED(tau1_r)) THEN
             ALLOCATE (tau1_r_pw(2))
             DO ispin = 1, 2
-               NULLIFY (tau1_r_pw(ispin)%pw)
+               ALLOCATE (tau1_r_pw(ispin)%pw)
                CALL pw_create(tau1_r_pw(ispin)%pw, tau1_r(1)%pw%pw_grid, &
                               tau1_r(1)%pw%in_use, tau1_r(1)%pw%in_space)
                CALL pw_transfer(tau1_r(1)%pw, tau1_r_pw(ispin)%pw)

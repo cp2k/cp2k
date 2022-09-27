@@ -208,6 +208,7 @@ CONTAINS
 
       deriv_att => xc_dset_get_derivative(deriv_set, description)
       IF (ASSOCIATED(deriv_att)) THEN
+         ALLOCATE (pw)
          CALL pw_create(pw, pw_grid=pw_grid, cr3d_ptr=deriv_att%deriv_data, &
                         use_data=REALDATA3D, in_space=REALSPACE)
          NULLIFY (deriv_att%deriv_data)

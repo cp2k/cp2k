@@ -466,6 +466,7 @@ CONTAINS
             REAL(KIND=dp), DIMENSION(:, :, :), POINTER, OPTIONAL :: rhoa, rhob
 
             IF (ASSOCIATED(rho)) THEN
+               ALLOCATE (rho_pw)
                CALL pw_create(rho_pw, pw_grid=pw_grid, &
                               cr3d_ptr=rho, &
                               use_data=REALDATA3D, in_space=REALSPACE)

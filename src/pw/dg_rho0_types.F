@@ -175,8 +175,10 @@ CONTAINS
             IF (ASSOCIATED(dg_rho0%zet)) THEN
                DEALLOCATE (dg_rho0%zet)
             END IF
-            CALL pw_release(dg_rho0%density%pw)
-            DEALLOCATE (dg_rho0%density%pw)
+            IF (ASSOCIATED(dg_rho0%density%pw)) THEN
+               CALL pw_release(dg_rho0%density%pw)
+               DEALLOCATE (dg_rho0%density%pw)
+            END IF
             NULLIFY (dg_rho0%gcc)
             NULLIFY (dg_rho0%zet)
             DEALLOCATE (dg_rho0)
@@ -194,13 +196,17 @@ CONTAINS
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      CALL pw_release(dg_rho0%density%pw)
-      DEALLOCATE (dg_rho0%density%pw)
+      IF (ASSOCIATED(dg_rho0%density%pw)) THEN
+         CALL pw_release(dg_rho0%density%pw)
+         DEALLOCATE (dg_rho0%density%pw)
+      END IF
       SELECT CASE (dg_rho0%type)
       CASE (do_ewald_ewald)
+         ALLOCATE (dg_rho0%density%pw)
          CALL pw_create(dg_rho0%density%pw, pw_grid, REALDATA3D)
          CALL dg_rho0_pme_gauss(dg_rho0%density, dg_rho0%zet(1))
       CASE (do_ewald_pme)
+         ALLOCATE (dg_rho0%density%pw)
          CALL pw_create(dg_rho0%density%pw, pw_grid, REALDATA3D)
          CALL dg_rho0_pme_gauss(dg_rho0%density, dg_rho0%zet(1))
       CASE (do_ewald_spme)
