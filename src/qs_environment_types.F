@@ -1443,10 +1443,12 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
                CALL pw_release(qs_env%external_vxc%pw)
+               DEALLOCATE (qs_env%external_vxc%pw)
                DEALLOCATE (qs_env%external_vxc)
             END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
                CALL pw_release(qs_env%mask%pw)
+               DEALLOCATE (qs_env%mask%pw)
                DEALLOCATE (qs_env%mask)
             END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
@@ -1455,9 +1457,11 @@ CONTAINS
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
                CALL pw_release(qs_env%embed_pot%pw)
+               DEALLOCATE (qs_env%embed_pot%pw)
                DEALLOCATE (qs_env%embed_pot)
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
                   CALL pw_release(qs_env%spin_embed_pot%pw)
+                  DEALLOCATE (qs_env%spin_embed_pot%pw)
                   DEALLOCATE (qs_env%spin_embed_pot)
                END IF
             END IF
@@ -1639,10 +1643,12 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
                CALL pw_release(qs_env%external_vxc%pw)
+               DEALLOCATE (qs_env%external_vxc%pw)
                DEALLOCATE (qs_env%external_vxc)
             END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
                CALL pw_release(qs_env%mask%pw)
+               DEALLOCATE (qs_env%mask%pw)
                DEALLOCATE (qs_env%mask)
             END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
@@ -1651,9 +1657,11 @@ CONTAINS
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
                CALL pw_release(qs_env%embed_pot%pw)
+               DEALLOCATE (qs_env%embed_pot%pw)
                DEALLOCATE (qs_env%embed_pot)
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
                   CALL pw_release(qs_env%spin_embed_pot%pw)
+                  DEALLOCATE (qs_env%spin_embed_pot%pw)
                   DEALLOCATE (qs_env%spin_embed_pot)
                END IF
             END IF

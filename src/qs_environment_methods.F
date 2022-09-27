@@ -245,6 +245,7 @@ CONTAINS
          IF (dft_control%qs_control%gapw) THEN
             IF (ASSOCIATED(rho_core)) THEN
                CALL pw_release(rho_core%pw)
+               DEALLOCATE (rho_core%pw)
                DEALLOCATE (rho_core)
             END IF
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
@@ -279,6 +280,7 @@ CONTAINS
          ELSE
             IF (ASSOCIATED(rho_core)) THEN
                CALL pw_release(rho_core%pw)
+               DEALLOCATE (rho_core%pw)
                DEALLOCATE (rho_core)
             END IF
             ALLOCATE (rho_core)
@@ -295,6 +297,7 @@ CONTAINS
             CALL get_qs_env(qs_env, pw_env=new_pw_env, vppl=vppl)
             IF (ASSOCIATED(vppl)) THEN
                CALL pw_release(vppl%pw)
+               DEALLOCATE (vppl%pw)
                DEALLOCATE (vppl)
             END IF
             ALLOCATE (vppl)
@@ -313,6 +316,7 @@ CONTAINS
             CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_nlcc=rho_nlcc)
             IF (ASSOCIATED(rho_nlcc)) THEN
                CALL pw_release(rho_nlcc%pw)
+               DEALLOCATE (rho_nlcc%pw)
                DEALLOCATE (rho_nlcc)
             END IF
             ALLOCATE (rho_nlcc)
@@ -325,6 +329,7 @@ CONTAINS
             CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_nlcc_g=rho_nlcc_g)
             IF (ASSOCIATED(rho_nlcc_g)) THEN
                CALL pw_release(rho_nlcc_g%pw)
+               DEALLOCATE (rho_nlcc_g%pw)
                DEALLOCATE (rho_nlcc_g)
             END IF
             ALLOCATE (rho_nlcc_g)
@@ -340,6 +345,7 @@ CONTAINS
             CALL get_qs_env(qs_env, pw_env=new_pw_env, vee=vee)
             IF (ASSOCIATED(vee)) THEN
                CALL pw_release(vee%pw)
+               DEALLOCATE (vee%pw)
                DEALLOCATE (vee)
             END IF
             ALLOCATE (vee)
@@ -356,6 +362,7 @@ CONTAINS
             CALL get_qs_env(qs_env, pw_env=new_pw_env, external_vxc=external_vxc)
             IF (ASSOCIATED(external_vxc)) THEN
                CALL pw_release(external_vxc%pw)
+               DEALLOCATE (external_vxc%pw)
                DEALLOCATE (external_vxc)
             END IF
             ALLOCATE (external_vxc)
@@ -372,6 +379,7 @@ CONTAINS
             CALL get_qs_env(qs_env, pw_env=new_pw_env, embed_pot=embed_pot)
             IF (ASSOCIATED(embed_pot)) THEN
                CALL pw_release(embed_pot%pw)
+               DEALLOCATE (embed_pot%pw)
                DEALLOCATE (embed_pot)
             END IF
             ALLOCATE (embed_pot)
@@ -384,6 +392,7 @@ CONTAINS
             CALL get_qs_env(qs_env, pw_env=new_pw_env, spin_embed_pot=spin_embed_pot)
             IF (ASSOCIATED(spin_embed_pot)) THEN
                CALL pw_release(spin_embed_pot%pw)
+               DEALLOCATE (spin_embed_pot%pw)
                DEALLOCATE (spin_embed_pot)
             END IF
             ALLOCATE (spin_embed_pot)
@@ -394,8 +403,10 @@ CONTAINS
          END IF
 
          CALL get_ks_env(ks_env, v_hartree_rspace=v_hartree_rspace)
-         IF (ASSOCIATED(v_hartree_rspace)) &
+         IF (ASSOCIATED(v_hartree_rspace)) THEN
             CALL pw_release(v_hartree_rspace)
+            DEALLOCATE (v_hartree_rspace)
+         END IF
          CALL get_qs_env(qs_env, pw_env=new_pw_env)
          CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &

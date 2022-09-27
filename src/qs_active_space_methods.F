@@ -1210,6 +1210,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo)
             DO iwfn = 1, nmo
                CALL pw_release(wfn_a(iwfn, ispin)%pw)
+               DEALLOCATE (wfn_a(iwfn, ispin)%pw)
             END DO
          END DO
          DEALLOCATE (wfn_a)

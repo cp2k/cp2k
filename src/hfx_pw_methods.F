@@ -262,6 +262,7 @@ CONTAINS
          DO iorb_block = 1, blocksize
             CALL pw_release(rho_i(iorb_block)%pw)
             CALL pw_release(rho_j(iorb_block)%pw)
+            DEALLOCATE (rho_i(iorb_block)%pw, rho_j(iorb_block)%pw)
          END DO
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)

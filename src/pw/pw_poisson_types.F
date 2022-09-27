@@ -485,6 +485,7 @@ CONTAINS
                CALL pw_release(gftype%dct_influence_fn)
                CALL pw_release(gftype%screen_fn)
                CALL pw_release(gftype%p3m_charge)
+               DEALLOCATE (gftype%influence_fn, gftype%dct_influence_fn, gftype%screen_fn, gftype%p3m_charge)
             END IF
             IF (ASSOCIATED(gftype%p3m_bm2)) &
                DEALLOCATE (gftype%p3m_bm2)

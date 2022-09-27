@@ -214,6 +214,7 @@ CONTAINS
       ELSE
          DO k = 1, n_tiles
             CALL pw_release(dbc%tiles(k)%tile%tile_pw)
+            DEALLOCATE (dbc%tiles(k)%tile%tile_pw)
             DEALLOCATE (dbc%tiles(k)%tile)
          END DO
          DEALLOCATE (dbc%tiles)

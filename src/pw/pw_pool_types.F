@@ -190,6 +190,7 @@ CONTAINS
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
          CALL pw_release(pw_el)
+         DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%real1d_pw)
 
@@ -197,6 +198,7 @@ CONTAINS
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
          CALL pw_release(pw_el)
+         DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%real3d_pw)
 
@@ -204,6 +206,7 @@ CONTAINS
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
          CALL pw_release(pw_el)
+         DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%complex1d_pw)
 
@@ -211,6 +214,7 @@ CONTAINS
       DO
          IF (.NOT. cp_sll_pw_next(iterator, el_att=pw_el)) EXIT
          CALL pw_release(pw_el)
+         DEALLOCATE (pw_el)
       END DO
       CALL cp_sll_pw_dealloc(pool%complex3d_pw)
 
@@ -418,6 +422,7 @@ CONTAINS
             IF (.NOT. my_accept_non_compatible) &
                CPABORT("pool cannot reuse pw of another grid")
             CALL pw_release(pw)
+            DEALLOCATE (pw)
             failure = .TRUE.
          END IF
       END IF
@@ -439,6 +444,7 @@ CONTAINS
                IF (max_max_cache >= 0) &
                   CPWARN("hit max_cache")
                CALL pw_release(pw)
+               DEALLOCATE (pw)
             END IF
          CASE (REALDATA3D)
             IF (ASSOCIATED(pw%cr3d)) THEN
@@ -448,6 +454,7 @@ CONTAINS
                   IF (max_max_cache >= 0) &
                      CPWARN("hit max_cache")
                   CALL pw_release(pw)
+                  DEALLOCATE (pw)
                END IF
             ELSE
                IF (debug_this_module) THEN
@@ -458,6 +465,7 @@ CONTAINS
                END IF
                CPASSERT(my_accept_non_compatible)
                CALL pw_release(pw)
+               DEALLOCATE (pw)
             END IF
          CASE (COMPLEXDATA1D)
             IF (cp_sll_pw_get_length(pool%complex1d_pw) < pool%max_cache) THEN
@@ -466,6 +474,7 @@ CONTAINS
                IF (max_max_cache >= 0) &
                   CPWARN("hit max_cache")
                CALL pw_release(pw)
+               DEALLOCATE (pw)
             END IF
          CASE (COMPLEXDATA3D)
             IF (cp_sll_pw_get_length(pool%complex3d_pw) < pool%max_cache) THEN
@@ -474,6 +483,7 @@ CONTAINS
                IF (max_max_cache >= 0) &
                   CPWARN("hit max_cache")
                CALL pw_release(pw)
+               DEALLOCATE (pw)
             END IF
          CASE default
             ! unknown in_use
@@ -517,6 +527,7 @@ CONTAINS
             cr3d => pw%cr3d
             NULLIFY (pw%cr3d)
             CALL pw_release(pw)
+            DEALLOCATE (pw)
          END IF
       END IF
       IF (.NOT. ASSOCIATED(cr3d)) THEN

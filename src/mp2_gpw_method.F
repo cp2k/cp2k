@@ -583,6 +583,7 @@ CONTAINS
 
       DO i = my_I_occupied_start, my_I_occupied_end
          CALL pw_release(psi_i(i)%pw)
+         DEALLOCATE (psi_i(i)%pw)
       END DO
       DEALLOCATE (psi_i)
 

@@ -399,10 +399,14 @@ CONTAINS
           (lsd_singlets .OR. do_triplet)) THEN
          DO ispin = 1, SIZE(rho1_r_pw)
             CALL pw_release(rho1_r_pw(ispin)%pw)
+            DEALLOCATE (rho1_r_pw(ispin)%pw)
          END DO
          IF (ASSOCIATED(tau1_r_pw)) THEN
          DO ispin = 1, SIZE(tau1_r_pw)
-            IF (ASSOCIATED(tau1_r_pw(ispin)%pw)) CALL pw_release(tau1_r_pw(ispin)%pw)
+            IF (ASSOCIATED(tau1_r_pw(ispin)%pw)) THEN
+               CALL pw_release(tau1_r_pw(ispin)%pw)
+               DEALLOCATE (tau1_r_pw(ispin)%pw)
+            END IF
          END DO
          END IF
       END IF
@@ -763,10 +767,12 @@ CONTAINS
                                 (lsd_singlets .OR. do_triplet))) THEN
          DO ispin = 1, SIZE(my_rho_r)
             CALL pw_release(my_rho_r(ispin)%pw)
+            DEALLOCATE (my_rho_r(ispin)%pw)
          END DO
          IF (ASSOCIATED(my_tau_r)) THEN
             DO ispin = 1, SIZE(my_tau_r)
                CALL pw_release(my_tau_r(ispin)%pw)
+               DEALLOCATE (my_tau_r(ispin)%pw)
             END DO
          END IF
          END IF

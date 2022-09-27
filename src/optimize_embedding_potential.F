@@ -948,6 +948,7 @@ CONTAINS
 
       DO i_dens = 1, SIZE(opt_embed%prev_subsys_dens)
          CALL pw_release(opt_embed%prev_subsys_dens(i_dens)%pw)
+         DEALLOCATE (opt_embed%prev_subsys_dens(i_dens)%pw)
       END DO
       DEALLOCATE (opt_embed%prev_subsys_dens)
       DEALLOCATE (opt_embed%max_subsys_dens_diff)
@@ -956,23 +957,28 @@ CONTAINS
 
       IF (opt_embed%add_const_pot .AND. (.NOT. opt_embed%grid_opt)) THEN
          CALL pw_release(opt_embed%const_pot%pw)
+         DEALLOCATE (opt_embed%const_pot%pw)
          DEALLOCATE (opt_embed%const_pot)
       END IF
 
       IF (opt_embed%Coulomb_guess) THEN
          CALL pw_release(opt_embed%pot_diff%pw)
+         DEALLOCATE (opt_embed%pot_diff%pw)
          DEALLOCATE (opt_embed%pot_diff)
       END IF
 
       IF (opt_embed%fab) THEN
          CALL pw_release(opt_embed%prev_embed_pot%pw)
+         DEALLOCATE (opt_embed%prev_embed_pot%pw)
          DEALLOCATE (opt_embed%prev_embed_pot)
          IF (opt_embed%open_shell_embed) THEN
             CALL pw_release(opt_embed%prev_spin_embed_pot%pw)
+            DEALLOCATE (opt_embed%prev_spin_embed_pot%pw)
             DEALLOCATE (opt_embed%prev_spin_embed_pot)
          END IF
          DO i_spin = 1, SIZE(opt_embed%v_w)
             CALL pw_release(opt_embed%v_w(i_spin)%pw)
+            DEALLOCATE (opt_embed%v_w(i_spin)%pw)
          END DO
          DEALLOCATE (opt_embed%v_w)
       END IF
@@ -1069,6 +1075,7 @@ CONTAINS
       CALL pw_release(v_resp_gspace%pw)
       CALL pw_release(v_resp_rspace%pw)
       CALL pw_release(rho_resp%pw)
+      DEALLOCATE (v_resp_gspace%pw, v_resp_rspace%pw, rho_resp%pw)
 
       ! Deallocate map_index array
       DEALLOCATE (map_index)
@@ -2711,6 +2718,7 @@ CONTAINS
          DO i_spin = 1, nspins
             CALL pw_release(rho_n_1(i_spin)%pw)
             CALL pw_release(temp_embed_pot(i_spin)%pw)
+            DEALLOCATE (rho_n_1(i_spin)%pw, temp_embed_pot(i_spin)%pw)
          END DO
          DEALLOCATE (rho_n_1)
          DEALLOCATE (temp_embed_pot)
@@ -2718,6 +2726,7 @@ CONTAINS
 
       DO i_spin = 1, nspins
          CALL pw_release(new_embed_pot(i_spin)%pw)
+         DEALLOCATE (new_embed_pot(i_spin)%pw)
       END DO
 
       DEALLOCATE (new_embed_pot)
@@ -2911,6 +2920,7 @@ CONTAINS
 
             DO i_spin = 1, nspins
                CALL pw_release(temp_embed_pot(i_spin)%pw)
+               DEALLOCATE (temp_embed_pot(i_spin)%pw)
             END DO
             DEALLOCATE (temp_embed_pot)
 
@@ -2920,6 +2930,7 @@ CONTAINS
             CALL pw_release(curr_rho(i_spin)%pw)
             CALL pw_release(new_embed_pot(i_spin)%pw)
             CALL pw_release(v_w(i_spin)%pw)
+            DEALLOCATE (curr_rho(i_spin)%pw, new_embed_pot(i_spin)%pw, v_w(i_spin)%pw)
          END DO
 
          DEALLOCATE (new_embed_pot)
@@ -3078,6 +3089,7 @@ CONTAINS
 
       DO i_spin = 1, nspins
          CALL pw_release(rho_g(i_spin)%pw)
+         DEALLOCATE (rho_g(i_spin)%pw)
       END DO
       DEALLOCATE (rho_g)
 
@@ -3423,9 +3435,11 @@ CONTAINS
                                            "DFT%QS%OPT_EMBED%WRITE_SIMPLE_GRID")
          ! Release structures
          CALL pw_release(pot_alpha%pw)
+         DEALLOCATE (pot_alpha%pw)
          DEALLOCATE (pot_alpha)
          IF (open_shell_embed) THEN
             CALL pw_release(pot_beta%pw)
+            DEALLOCATE (pot_beta%pw)
             DEALLOCATE (pot_beta)
          END IF
 

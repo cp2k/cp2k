@@ -176,6 +176,7 @@ CONTAINS
                DEALLOCATE (dg_rho0%zet)
             END IF
             CALL pw_release(dg_rho0%density%pw)
+            DEALLOCATE (dg_rho0%density%pw)
             NULLIFY (dg_rho0%gcc)
             NULLIFY (dg_rho0%zet)
             DEALLOCATE (dg_rho0)
@@ -194,6 +195,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
       CALL pw_release(dg_rho0%density%pw)
+      DEALLOCATE (dg_rho0%density%pw)
       SELECT CASE (dg_rho0%type)
       CASE (do_ewald_ewald)
          CALL pw_create(dg_rho0%density%pw, pw_grid, REALDATA3D)

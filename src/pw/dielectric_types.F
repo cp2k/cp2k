@@ -106,8 +106,10 @@ CONTAINS
          ELSE
             CALL pw_release(dielectric%eps)
             CALL pw_release(dielectric%deps_drho)
+            DEALLOCATE (dielectric%eps, dielectric%deps_drho)
             DO i = 1, 3
                CALL pw_release(dielectric%dln_eps(i)%pw)
+               DEALLOCATE (dielectric%dln_eps(i)%pw)
             END DO
          END IF
          CALL dielectric_parameters_dealloc(dielectric%params)

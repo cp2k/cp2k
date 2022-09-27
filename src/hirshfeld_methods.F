@@ -534,6 +534,7 @@ CONTAINS
       CALL get_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
       IF (ASSOCIATED(fnorm)) THEN
          CALL pw_release(fnorm%pw)
+         DEALLOCATE (fnorm%pw)
          DEALLOCATE (fnorm)
       END IF
       ALLOCATE (fnorm)

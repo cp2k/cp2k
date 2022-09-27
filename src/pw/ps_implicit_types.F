@@ -111,6 +111,7 @@ CONTAINS
             CALL pw_release(ps_implicit_env%initial_guess)
             CALL pw_release(ps_implicit_env%v_eps)
             CALL pw_release(ps_implicit_env%cstr_charge)
+            DEALLOCATE (ps_implicit_env%initial_guess, ps_implicit_env%v_eps, ps_implicit_env%cstr_charge)
             CALL dbc_release(ps_implicit_env%contacts, do_dbc_cube)
          END IF
 

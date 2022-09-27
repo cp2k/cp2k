@@ -293,11 +293,13 @@ CONTAINS
          ! SQRT(rsnew) < 1.0E-08
          IF (rsnew < 1.0E-16) THEN
             CALL pw_release(auxpot_Ad_rspace%pw)
+            DEALLOCATE (auxpot_Ad_rspace%pw)
             EXIT
          END IF
          d = z + rsnew/rsold*d
          rsold = rsnew
          CALL pw_release(auxpot_Ad_rspace%pw)
+         DEALLOCATE (auxpot_Ad_rspace%pw)
       END DO
 
       ! print iteration info
@@ -318,6 +320,7 @@ CONTAINS
       END IF
 
       CALL pw_release(v_metal_rspace_guess%pw)
+      DEALLOCATE (v_metal_rspace_guess%pw)
       DEALLOCATE (pot_const)
       DEALLOCATE (vmetal_const)
       DEALLOCATE (r)
@@ -770,6 +773,7 @@ CONTAINS
       CALL pw_release(vb_gspace%pw)
       CALL pw_release(vb_rspace%pw)
       CALL pw_release(rho_gb%pw)
+      DEALLOCATE (vb_gspace%pw, vb_rspace%pw, rho_gb%pw)
 
       DEALLOCATE (int_res)
 
@@ -941,6 +945,7 @@ CONTAINS
       CALL pw_scale(v_metal_rspace%pw, v_metal_rspace%pw%pw_grid%dvol)
       CALL pw_release(v_metal_gspace%pw)
       CALL pw_release(rho_metal%pw)
+      DEALLOCATE (v_metal_gspace%pw, rho_metal%pw)
 
       CALL timestop(handle)
 
