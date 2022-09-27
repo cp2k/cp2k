@@ -64,14 +64,14 @@ void dbm_create(dbm_matrix_t **matrix_out, dbm_distribution_t *dist,
  ******************************************************************************/
 void dbm_release(dbm_matrix_t *matrix) {
   assert(omp_get_num_threads() == 1);
-  dbm_distribution_release(matrix->dist);
-  free(matrix->name);
-  free(matrix->row_sizes);
-  free(matrix->col_sizes);
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_release(&matrix->shards[ishard]);
   }
+  dbm_distribution_release(matrix->dist);
+  free(matrix->row_sizes);
+  free(matrix->col_sizes);
   free(matrix->shards);
+  free(matrix->name);
   free(matrix);
 }
 

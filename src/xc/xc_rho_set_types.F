@@ -613,7 +613,7 @@ CONTAINS
             TYPE(xc_rho_set_type), INTENT(INOUT)               :: rho_set
             TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: rho_r
             TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
-            TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: tau
+            TYPE(pw_p_type), DIMENSION(:), POINTER, INTENT(IN) :: tau
             TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
             INTEGER, INTENT(IN)                                :: xc_deriv_method_id, xc_rho_smooth_id
             TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -933,6 +933,7 @@ CONTAINS
 
             ! tau part
             IF (needs%tau .OR. needs%tau_spin) THEN
+               CPASSERT(ASSOCIATED(tau))
                DO ispin = 1, nspins
                   CPASSERT(ASSOCIATED(tau(ispin)%pw))
                   CPASSERT(ASSOCIATED(tau(ispin)%pw%cr3d))

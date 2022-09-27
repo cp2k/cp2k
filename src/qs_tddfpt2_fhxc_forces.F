@@ -105,7 +105,6 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_create,&
                                               qs_rho_get,&
-                                              qs_rho_release,&
                                               qs_rho_set,&
                                               qs_rho_type
    USE qs_tddfpt2_stda_types,           ONLY: stda_env_type
@@ -357,8 +356,13 @@ CONTAINS
             CALL qs_fgxc_create(ks_env, rho, rhox, xc_section, 6, is_rks_triplets, &
                                 fxc_rho, fxc_tau, gxc_rho, gxc_tau)
          END IF
-         CALL qs_rho_set(rho_struct=rhox, rho_ao=NULL(), rho_r=NULL(), rho_g=NULL())
-         CALL qs_rho_release(rhox)
+
+         ! Well, this is a hack :-(
+         ! When qs_rho_set() was called on rhox it assumed ownership of the passed arrays.
+         ! However, these arrays actually belong to ex_env. Hence, we can not call qs_rho_release()
+         ! because this would release the arrays. Instead we're simply going to deallocate rhox.
+         DEALLOCATE (rhox)
+
          IF (nspins == 2) THEN
             DO ispin = 1, nspins
                CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
@@ -463,8 +467,13 @@ CONTAINS
                   CALL qs_fgxc_create(ks_env, rho_aux_fit, rhox_aux, xc_section, &
                                       6, is_rks_triplets, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
                END IF
-               CALL qs_rho_set(rho_struct=rhox_aux, rho_ao=NULL(), rho_r=NULL(), rho_g=NULL())
-               CALL qs_rho_release(rhox_aux)
+
+               ! Well, this is a hack :-(
+               ! When qs_rho_set() was called on rhox_aux it assumed ownership of the passed arrays.
+               ! However, these arrays actually belong to ex_env. Hence, we can not call qs_rho_release()
+               ! because this would release the arrays. Instead we're simply going to deallocate rhox_aux.
+               DEALLOCATE (rhox_aux)
+
                DO ispin = 1, nspins
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r_aux(ispin)%pw)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g_aux(ispin)%pw)
