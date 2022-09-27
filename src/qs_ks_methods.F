@@ -493,6 +493,7 @@ CONTAINS
                END IF
             END IF
             CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw)
+            DEALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace%pw)
          END IF
          IF (.NOT. just_energy) THEN
             CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &

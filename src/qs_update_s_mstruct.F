@@ -91,6 +91,7 @@ CONTAINS
          ELSE
             IF (ASSOCIATED(rho_core)) THEN
                CALL pw_release(rho_core%pw)
+               DEALLOCATE (rho_core%pw)
                DEALLOCATE (rho_core)
             END IF
          END IF

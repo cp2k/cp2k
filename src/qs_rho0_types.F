@@ -377,11 +377,13 @@ CONTAINS
 
          IF (ASSOCIATED(rho0%rho0_s_rs)) THEN
             CALL pw_release(rho0%rho0_s_rs%pw)
+            DEALLOCATE (rho0%rho0_s_rs%pw)
             DEALLOCATE (rho0%rho0_s_rs)
          END IF
 
          IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
             CALL pw_release(rho0%rho0_s_gs%pw)
+            DEALLOCATE (rho0%rho0_s_gs%pw)
             DEALLOCATE (rho0%rho0_s_gs)
 
          END IF

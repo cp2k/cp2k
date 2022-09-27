@@ -990,6 +990,7 @@ CONTAINS
       CALL pw_release(va_gspace%pw)
       CALL pw_release(va_rspace%pw)
       CALL pw_release(rho_ga%pw)
+      DEALLOCATE (va_gspace%pw, va_rspace%pw, rho_ga%pw)
 
       DO i = 1, natom
          DO j = 1, natom
@@ -1756,6 +1757,7 @@ CONTAINS
       END IF
       CALL pw_release(v_resp_gspace%pw)
       CALL pw_release(rho_resp%pw)
+      DEALLOCATE (v_resp_gspace%pw, rho_resp%pw)
 
       !***now print the v_resp_rspace%pw to a cube file if requested
       IF (BTEST(cp_print_key_should_output(logger%iter_info, resp_section, &
@@ -1811,6 +1813,7 @@ CONTAINS
       END IF
 
       CALL pw_release(v_resp_rspace%pw)
+      DEALLOCATE (v_resp_rspace%pw)
 
       CALL timestop(handle)
 

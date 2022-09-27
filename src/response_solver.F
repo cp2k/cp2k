@@ -2226,6 +2226,7 @@ CONTAINS
       ! allocate potentials
       IF (ASSOCIATED(vh_rspace)) THEN
          CALL pw_release(vh_rspace%pw)
+         DEALLOCATE (vh_rspace%pw)
       ELSE
          ALLOCATE (vh_rspace)
          NULLIFY (vh_rspace%pw)
@@ -2233,6 +2234,7 @@ CONTAINS
       IF (ASSOCIATED(vxc_rspace)) THEN
          DO iab = 1, SIZE(vxc_rspace)
             CALL pw_release(vxc_rspace(iab)%pw)
+            DEALLOCATE (vxc_rspace(iab)%pw)
          END DO
       ELSE
          ALLOCATE (vxc_rspace(nspins))
@@ -2244,6 +2246,7 @@ CONTAINS
          IF (ASSOCIATED(vtau_rspace)) THEN
             DO iab = 1, SIZE(vtau_rspace)
                CALL pw_release(vtau_rspace(iab)%pw)
+               DEALLOCATE (vtau_rspace(iab)%pw)
             END DO
          ELSE
             ALLOCATE (vtau_rspace(nspins))
@@ -2258,6 +2261,7 @@ CONTAINS
          IF (ASSOCIATED(vadmm_rspace)) THEN
             DO iab = 1, SIZE(vadmm_rspace)
                CALL pw_release(vadmm_rspace(iab)%pw)
+               DEALLOCATE (vadmm_rspace(iab)%pw)
             END DO
          ELSE
             ALLOCATE (vadmm_rspace(nspins))

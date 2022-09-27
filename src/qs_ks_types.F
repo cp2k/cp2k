@@ -707,8 +707,10 @@ CONTAINS
          ks_env%ref_count = ks_env%ref_count - 1
 
          IF (ks_env%ref_count < 1) THEN
-            IF (ASSOCIATED(ks_env%v_hartree_rspace)) &
+            IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
                CALL pw_release(ks_env%v_hartree_rspace)
+               DEALLOCATE (ks_env%v_hartree_rspace)
+            END IF
             IF (ASSOCIATED(ks_env%matrix_ks_im)) &
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
@@ -739,22 +741,27 @@ CONTAINS
 
             IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
                CALL pw_release(ks_env%rho_nlcc_g%pw)
+               DEALLOCATE (ks_env%rho_nlcc_g%pw)
                DEALLOCATE (ks_env%rho_nlcc_g)
             END IF
             IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
                CALL pw_release(ks_env%rho_nlcc%pw)
+               DEALLOCATE (ks_env%rho_nlcc%pw)
                DEALLOCATE (ks_env%rho_nlcc)
             END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
                CALL pw_release(ks_env%rho_core%pw)
+               DEALLOCATE (ks_env%rho_core%pw)
                DEALLOCATE (ks_env%rho_core)
             END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN
                CALL pw_release(ks_env%vppl%pw)
+               DEALLOCATE (ks_env%vppl%pw)
                DEALLOCATE (ks_env%vppl)
             END IF
             IF (ASSOCIATED(ks_env%vee)) THEN
                CALL pw_release(ks_env%vee%pw)
+               DEALLOCATE (ks_env%vee%pw)
                DEALLOCATE (ks_env%vee)
             END IF
             IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
@@ -806,8 +813,10 @@ CONTAINS
          CPASSERT(ks_env%ref_count > 0)
 
          IF (ks_env%ref_count == 1) THEN
-            IF (ASSOCIATED(ks_env%v_hartree_rspace)) &
+            IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
                CALL pw_release(ks_env%v_hartree_rspace)
+               DEALLOCATE (ks_env%v_hartree_rspace)
+            END IF
             IF (ASSOCIATED(ks_env%matrix_ks_im)) &
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
@@ -834,22 +843,27 @@ CONTAINS
 
             IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
                CALL pw_release(ks_env%rho_nlcc_g%pw)
+               DEALLOCATE (ks_env%rho_nlcc_g%pw)
                DEALLOCATE (ks_env%rho_nlcc_g)
             END IF
             IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
                CALL pw_release(ks_env%rho_nlcc%pw)
+               DEALLOCATE (ks_env%rho_nlcc%pw)
                DEALLOCATE (ks_env%rho_nlcc)
             END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
                CALL pw_release(ks_env%rho_core%pw)
+               DEALLOCATE (ks_env%rho_core%pw)
                DEALLOCATE (ks_env%rho_core)
             END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN
                CALL pw_release(ks_env%vppl%pw)
+               DEALLOCATE (ks_env%vppl%pw)
                DEALLOCATE (ks_env%vppl)
             END IF
             IF (ASSOCIATED(ks_env%vee)) THEN
                CALL pw_release(ks_env%vee%pw)
+               DEALLOCATE (ks_env%vee%pw)
                DEALLOCATE (ks_env%vee)
             END IF
 

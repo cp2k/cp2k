@@ -1396,6 +1396,7 @@ CONTAINS
             NULLIFY (v_drho_r)
          ELSE
             CALL pw_release(v_drho_r)
+            DEALLOCATE (v_drho_r)
          END IF
       ELSE
          exc = 0.0_dp
@@ -1739,11 +1740,13 @@ CONTAINS
             END DO
             DO ispin = 1, nspins
                CALL pw_release(vxc_rho(ispin)%pw)
+               DEALLOCATE (vxc_rho(ispin)%pw)
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
                DO ispin = 1, nspins
                   CALL pw_release(vxc_tau(ispin)%pw)
+                  DEALLOCATE (vxc_tau(ispin)%pw)
                END DO
                DEALLOCATE (vxc_tau)
             END IF
@@ -1792,11 +1795,13 @@ CONTAINS
             END IF
             DO ispin = 1, 2
                CALL pw_release(vxc_rho(ispin)%pw)
+               DEALLOCATE (vxc_rho(ispin)%pw)
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
             DO ispin = 1, 2
                CALL pw_release(vxc_tau(ispin)%pw)
+               DEALLOCATE (vxc_tau(ispin)%pw)
             END DO
             DEALLOCATE (vxc_tau)
             END IF
@@ -1825,11 +1830,13 @@ CONTAINS
             END IF
             DO ispin = 1, 2
                CALL pw_release(vxc_rho(ispin)%pw)
+               DEALLOCATE (vxc_rho(ispin)%pw)
             END DO
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
             DO ispin = 1, 2
                CALL pw_release(vxc_tau(ispin)%pw)
+               DEALLOCATE (vxc_tau(ispin)%pw)
             END DO
             DEALLOCATE (vxc_tau)
             END IF
@@ -1866,9 +1873,11 @@ CONTAINS
                CALL pw_axpy(vxc_tau(1)%pw, v_tau(1)%pw, weight)
             END IF
             CALL pw_release(vxc_rho(1)%pw)
+            DEALLOCATE (vxc_rho(1)%pw)
             DEALLOCATE (vxc_rho)
             IF (ASSOCIATED(vxc_tau)) THEN
                CALL pw_release(vxc_tau(1)%pw)
+               DEALLOCATE (vxc_tau(1)%pw)
                DEALLOCATE (vxc_tau)
             END IF
          END DO

@@ -298,6 +298,7 @@ CONTAINS
       ! rho0 density in real space
       IF (ASSOCIATED(rho_rs)) THEN
          CALL pw_release(rho_rs%pw)
+         DEALLOCATE (rho_rs%pw)
          DEALLOCATE (rho_rs)
       END IF
       ALLOCATE (rho_rs)
@@ -308,6 +309,7 @@ CONTAINS
       ! rho0 density in reciprocal space
       IF (ASSOCIATED(rho_gs)) THEN
          CALL pw_release(rho_gs%pw)
+         DEALLOCATE (rho_gs%pw)
          DEALLOCATE (rho_gs)
       END IF
       ALLOCATE (rho_gs)

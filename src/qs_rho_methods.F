@@ -211,6 +211,7 @@ CONTAINS
          IF (ASSOCIATED(rho_r)) THEN
             DO i = 1, SIZE(rho_r)
                CALL pw_release(rho_r(i)%pw)
+               DEALLOCATE (rho_r(i)%pw)
             END DO
             DEALLOCATE (rho_r)
          END IF
@@ -227,6 +228,7 @@ CONTAINS
          IF (ASSOCIATED(rho_g)) THEN
             DO i = 1, SIZE(rho_g)
                CALL pw_release(rho_g(i)%pw)
+               DEALLOCATE (rho_g(i)%pw)
             END DO
             DEALLOCATE (rho_g)
          END IF
@@ -243,6 +245,7 @@ CONTAINS
          IF (my_rebuild_grids .OR. (.NOT. ASSOCIATED(rho_r_sccs))) THEN
             IF (ASSOCIATED(rho_r_sccs)) THEN
                CALL pw_release(rho_r_sccs%pw)
+               DEALLOCATE (rho_r_sccs%pw)
                DEALLOCATE (rho_r_sccs)
             END IF
             ALLOCATE (rho_r_sccs)
@@ -261,6 +264,7 @@ CONTAINS
             IF (ASSOCIATED(drho_r)) THEN
                DO i = 1, SIZE(drho_r)
                   CALL pw_release(drho_r(i)%pw)
+                  DEALLOCATE (drho_r(i)%pw)
                END DO
                DEALLOCATE (drho_r)
             END IF
@@ -276,6 +280,7 @@ CONTAINS
             IF (ASSOCIATED(drho_g)) THEN
                DO i = 1, SIZE(drho_g)
                   CALL pw_release(drho_g(i)%pw)
+                  DEALLOCATE (drho_g(i)%pw)
                END DO
                DEALLOCATE (drho_g)
             END IF
@@ -295,6 +300,7 @@ CONTAINS
             IF (ASSOCIATED(tau_r)) THEN
                DO i = 1, SIZE(tau_r)
                   CALL pw_release(tau_r(i)%pw)
+                  DEALLOCATE (tau_r(i)%pw)
                END DO
                DEALLOCATE (tau_r)
             END IF
@@ -311,6 +317,7 @@ CONTAINS
             IF (ASSOCIATED(tau_g)) THEN
                DO i = 1, SIZE(tau_g)
                   CALL pw_release(tau_g(i)%pw)
+                  DEALLOCATE (tau_g(i)%pw)
                END DO
                DEALLOCATE (tau_g)
             END IF

@@ -481,6 +481,7 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_GLLB(ispin)%pw)
          CALL pw_release(vxc_LB(ispin)%pw)
          CALL pw_release(vxc_tmp(ispin)%pw)
+         DEALLOCATE (vxc_LB(ispin)%pw, vxc_tmp(ispin)%pw)
       END DO
       DEALLOCATE (vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix)
 

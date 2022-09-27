@@ -438,6 +438,7 @@ CONTAINS
                                     my_vxc_rho(1)%pw%cr3d ! 1=m
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
+               DEALLOCATE (my_vxc_rho(1)%pw, my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
             END IF
 
@@ -508,6 +509,7 @@ CONTAINS
                                            my_vxc_rho(1)%pw%cr3d
                   CALL pw_release(my_vxc_rho(1)%pw)
                   CALL pw_release(my_vxc_rho(2)%pw)
+                  DEALLOCATE (my_vxc_rho(1)%pw, my_vxc_rho(2)%pw)
                   DEALLOCATE (my_vxc_rho)
                END IF
             END DO
@@ -554,6 +556,7 @@ CONTAINS
                                     2.0_dp*dft_control%sic_scaling_b*my_vxc_rho(1)%pw%cr3d
                CALL pw_release(my_vxc_rho(1)%pw)
                CALL pw_release(my_vxc_rho(2)%pw)
+               DEALLOCATE (my_vxc_rho(1)%pw, my_vxc_rho(2)%pw)
                DEALLOCATE (my_vxc_rho)
             END IF
 
@@ -732,9 +735,11 @@ CONTAINS
          ! remove arrays
          DO ispin = 1, nspins
             CALL pw_release(vxc_rho(ispin)%pw)
+            DEALLOCATE (vxc_rho(ispin)%pw)
          END DO
          DEALLOCATE (vxc_rho)
          CALL pw_release(exc_r%pw)
+         DEALLOCATE (exc_r%pw)
          !
       END IF
 
