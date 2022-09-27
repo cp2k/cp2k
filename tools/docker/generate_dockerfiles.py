@@ -36,6 +36,10 @@ def main() -> None:
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(toolchain_full() + regtest("sdbg", "minimal"))
 
+    for version in "ssmp", "psmp":
+        with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
+            f.write(toolchain_full() + regtest(version, "local_asan"))
+
     for version in "sdbg", "pdbg":
         with OutputFile(f"Dockerfile.test_coverage-{version}", args.check) as f:
             f.write(toolchain_full() + coverage(version))

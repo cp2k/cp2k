@@ -38,7 +38,7 @@ if [ "${with_intel}" != "__DONTUSE__" ]; then
 elif [ "${generic}" = "__TRUE__" ]; then
   BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -mtune=generic"
 else
-  BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -march=native -mtune=native"
+  BASEFLAGS="-fno-omit-frame-pointer -fopenmp -g -march=native -mtune=native IF_ASAN(-fsanitize=address|)"
 fi
 
 OPT_FLAGS="-O3 -funroll-loops"
@@ -349,12 +349,14 @@ rm -f ${INSTALLDIR}/arch/local*
 gen_arch_file "local.ssmp"
 gen_arch_file "local_static.ssmp" STATIC
 gen_arch_file "local.sdbg" DEBUG
+gen_arch_file "local_asan.ssmp" ASAN
 gen_arch_file "local_coverage.sdbg" COVERAGE
 arch_vers="ssmp sdbg"
 
 if [ "$MPI_MODE" != no ]; then
   gen_arch_file "local.psmp" MPI
   gen_arch_file "local.pdbg" MPI DEBUG
+  gen_arch_file "local_asan.psmp" MPI ASAN
   gen_arch_file "local_static.psmp" MPI STATIC
   gen_arch_file "local_warn.psmp" MPI WARNALL
   gen_arch_file "local_coverage.pdbg" MPI COVERAGE
