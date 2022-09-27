@@ -2325,7 +2325,7 @@ CONTAINS
       CALL pw_zero(rhoz_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=force_data%sum_ker_tau(ispin)%matrix, &
-                                 rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin))
+                                 rho=rhoz_r(ispin)%pw, rho_gspace=rhoz_g(ispin)%pw)
          CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace%pw)
       END DO
 
@@ -2346,7 +2346,7 @@ CONTAINS
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
             CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=force_data%sum_ker_tau(ispin)%matrix, &
-                                    rho=tauz_r(ispin), rho_gspace=tauz_g(ispin), compute_tau=.TRUE.)
+                                    rho=tauz_r(ispin)%pw, rho_gspace=tauz_g(ispin)%pw, compute_tau=.TRUE.)
          END DO
       END IF
 
@@ -2428,7 +2428,7 @@ CONTAINS
                CALL pw_zero(rhoz_r(ispin)%pw)
                CALL pw_zero(rhoz_g(ispin)%pw)
                CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=ker_tau_admm(ispin)%matrix, &
-                                       rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin), &
+                                       rho=rhoz_r(ispin)%pw, rho_gspace=rhoz_g(ispin)%pw, &
                                        basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
             END DO
 
@@ -2437,7 +2437,7 @@ CONTAINS
                   CALL pw_zero(tauz_r(ispin)%pw)
                   CALL pw_zero(tauz_g(ispin)%pw)
                   CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=ker_tau_admm(ispin)%matrix, &
-                                          rho=tauz_r(ispin), rho_gspace=tauz_g(ispin), &
+                                          rho=tauz_r(ispin)%pw, rho_gspace=tauz_g(ispin)%pw, &
                                           basis_type="AUX_FIT", task_list_external=task_list_aux_fit, &
                                           compute_tau=.TRUE.)
                END DO
@@ -2738,7 +2738,7 @@ CONTAINS
             DO i = 1, SIZE(rs_v)
                CALL rs_grid_retain(rs_v(i)%rs_grid)
             END DO
-            CALL potential_pw2rs(rs_v, rho_r, pw_env_ext)
+            CALL potential_pw2rs(rs_v, rho_r%pw, pw_env_ext)
 
             DO iatom = 1, natom
 
@@ -3363,7 +3363,7 @@ CONTAINS
          CALL pw_zero(rhoz_tot_gspace%pw)
          DO ispin = 1, nspins
             CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density(ispin)%matrix, &
-                                    rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin))
+                                    rho=rhoz_r(ispin)%pw, rho_gspace=rhoz_g(ispin)%pw)
             CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace%pw)
          END DO
 
@@ -3374,7 +3374,7 @@ CONTAINS
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
-            CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
+            CALL calc_rho_tot_gspace(rho_tot_gspace%pw, qs_env, rho)
 
             h_stress(:, :) = 0.0_dp
             CALL pw_poisson_solve(poisson_env, &
@@ -3409,7 +3409,7 @@ CONTAINS
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
                CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density(ispin)%matrix, &
-                                       rho=tauz_r(ispin), rho_gspace=tauz_g(ispin), compute_tau=.TRUE.)
+                                       rho=tauz_r(ispin)%pw, rho_gspace=tauz_g(ispin)%pw, compute_tau=.TRUE.)
             END DO
          END IF
 
@@ -3508,7 +3508,7 @@ CONTAINS
                      CALL pw_zero(rhoz_r(ispin)%pw)
                      CALL pw_zero(rhoz_g(ispin)%pw)
                      CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density_admm(ispin)%matrix, &
-                                             rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin), &
+                                             rho=rhoz_r(ispin)%pw, rho_gspace=rhoz_g(ispin)%pw, &
                                              basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
                   END DO
 
@@ -3517,7 +3517,7 @@ CONTAINS
                         CALL pw_zero(tauz_r(ispin)%pw)
                         CALL pw_zero(tauz_g(ispin)%pw)
                         CALL calculate_rho_elec(ks_env=qs_env%ks_env, matrix_p=current_density(ispin)%matrix, &
-                                                rho=tauz_r(ispin), rho_gspace=tauz_g(ispin), &
+                                                rho=tauz_r(ispin)%pw, rho_gspace=tauz_g(ispin)%pw, &
                                                 basis_type="AUX_FIT", task_list_external=task_list_aux_fit, &
                                                 compute_tau=.TRUE.)
                      END DO

@@ -143,8 +143,8 @@ CONTAINS
                                     ispin)
 
          CALL calculate_rho_elec(matrix_p=matrix_p_aux(ispin)%matrix, &
-                                 rho=rho_r_aux(ispin), &
-                                 rho_gspace=rho_g_aux(ispin), &
+                                 rho=rho_r_aux(ispin)%pw, &
+                                 rho_gspace=rho_g_aux(ispin)%pw, &
                                  total_rho=tot_rho_r_aux(ispin), &
                                  ks_env=ks_env, soft_valid=.FALSE., &
                                  basis_type="AUX_FIT", &

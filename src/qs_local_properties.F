@@ -45,7 +45,8 @@ MODULE qs_local_properties
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_energy_matrix_w,              ONLY: qs_energies_compute_w
@@ -98,12 +99,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: band_density, edens_g, edens_r, &
-                                                            hartree_density, rho_tot_gspace, &
-                                                            rho_tot_rspace, v_hartree_rspace, &
+                                                            hartree_density, v_hartree_rspace, &
                                                             xc_density
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: rho_tot_gspace, rho_tot_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct
@@ -164,8 +165,8 @@ CONTAINS
       DO ispin = 1, nspins
          rho_ao => matrix_w(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=edens_r, &
-                                 rho_gspace=edens_g, &
+                                 rho=edens_r%pw, &
+                                 rho_gspace=edens_g%pw, &
                                  ks_env=ks_env, soft_valid=(gapw .OR. gapw_xc))
          CALL pw_axpy(edens_r%pw, band_density%pw)
       END DO
@@ -174,11 +175,11 @@ CONTAINS
 
       ! Hartree energy density correction = -0.5 * V_H(r) * [rho(r) - rho_core(r)]
       CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             rho_tot_gspace%pw, &
+                             rho_tot_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             rho_tot_rspace%pw, &
+                             rho_tot_rspace, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       NULLIFY (rho_core)
@@ -188,18 +189,18 @@ CONTAINS
       CALL qs_rho_get(rho, rho_r=rho_r)
       IF (ASSOCIATED(rho_core)) THEN
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
-         CALL pw_transfer(rho_core%pw, rho_tot_rspace%pw)
+         CALL pw_transfer(rho_core%pw, rho_tot_rspace)
       ELSE
-         CALL pw_zero(rho_tot_rspace%pw)
+         CALL pw_zero(rho_tot_rspace)
       END IF
       DO ispin = 1, nspins
-         CALL pw_axpy(rho_r(ispin)%pw, rho_tot_rspace%pw, alpha=-1.0_dp)
+         CALL pw_axpy(rho_r(ispin)%pw, rho_tot_rspace, alpha=-1.0_dp)
       END DO
       CALL pw_zero(hartree_density%pw)
       ovol = 0.5_dp/hartree_density%pw%pw_grid%dvol
-      CALL pw_multiply(hartree_density%pw, v_hartree_rspace%pw, rho_tot_rspace%pw, alpha=ovol)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_rspace%pw)
+      CALL pw_multiply(hartree_density%pw, v_hartree_rspace%pw, rho_tot_rspace, alpha=ovol)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_rspace)
 
       IF (dft_control%do_admm) THEN
          CALL cp_warn(__LOCATION__, "ADMM not supported for local energy calculation")

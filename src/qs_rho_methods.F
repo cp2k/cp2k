@@ -511,8 +511,8 @@ CONTAINS
       DO ispin = 1, nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin), &
-                                 rho_gspace=rho_g(ispin), &
+                                 rho=rho_r(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin)%pw, &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env, soft_valid=gapw, &
                                  task_list_external=task_list_external, &
@@ -540,8 +540,8 @@ CONTAINS
          DO ispin = 1, nspins
             rho_ao => rho_xc_ao(ispin, :)
             CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                    rho=rho_xc_r(ispin), &
-                                    rho_gspace=rho_xc_g(ispin), &
+                                    rho=rho_xc_r(ispin)%pw, &
+                                    rho_gspace=rho_xc_g(ispin)%pw, &
                                     total_rho=tot_rho_r_xc(ispin), &
                                     ks_env=ks_env, soft_valid=gapw_xc, &
                                     task_list_external=task_list_external_soft, &
@@ -582,8 +582,8 @@ CONTAINS
             DO ispin = 1, nspins
                rho_ao => rho_ao_kp(ispin, :)
                CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                       rho=tau_r(ispin), &
-                                       rho_gspace=tau_g(ispin), &
+                                       rho=tau_r(ispin)%pw, &
+                                       rho_gspace=tau_g(ispin)%pw, &
                                        total_rho=dum, & ! presumably not meaningful
                                        ks_env=ks_env, soft_valid=gapw, &
                                        compute_tau=.TRUE., &
@@ -614,8 +614,8 @@ CONTAINS
             DO ispin = 1, nspins
                rho_ao => rho_xc_ao(ispin, :)
                CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                       rho=tau_xc_r(ispin), &
-                                       rho_gspace=tau_xc_g(ispin), &
+                                       rho=tau_xc_r(ispin)%pw, &
+                                       rho_gspace=tau_xc_g(ispin)%pw, &
                                        total_rho=dum, & ! presumably not meaningful
                                        ks_env=ks_env, soft_valid=gapw_xc, &
                                        compute_tau=.TRUE., &
@@ -721,8 +721,8 @@ CONTAINS
          DO ispin = 1, nspins
             rho_ao => rho_ao_kp(ispin, :)
             CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                    rho=rho_r(ispin), &
-                                    rho_gspace=rho_g(ispin), &
+                                    rho=rho_r(ispin)%pw, &
+                                    rho_gspace=rho_g(ispin)%pw, &
                                     total_rho=tot_rho_r(ispin), &
                                     ks_env=ks_env, &
                                     task_list_external=task_list_external, &

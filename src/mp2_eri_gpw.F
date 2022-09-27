@@ -240,7 +240,7 @@ CONTAINS
          DO i = 1, SIZE(rs_v)
             CALL rs_grid_retain(rs_v(i)%rs_grid)
          END DO
-         CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+         CALL potential_pw2rs(rs_v, rho_r%pw, pw_env_sub)
 
          CALL timestop(handle2)
 
@@ -586,8 +586,8 @@ CONTAINS
       CALL pw_zero(rho_r%pw)
       CALL pw_zero(rho_g%pw)
       CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix, &
-                              rho=rho_r, &
-                              rho_gspace=rho_g, &
+                              rho=rho_r%pw, &
+                              rho_gspace=rho_g%pw, &
                               task_list_external=task_list_sub, &
                               pw_env_external=pw_env_sub, &
                               ks_env=ks_env)
@@ -605,7 +605,7 @@ CONTAINS
       DO i = 1, SIZE(rs_v)
          CALL rs_grid_retain(rs_v(i)%rs_grid)
       END DO
-      CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+      CALL potential_pw2rs(rs_v, rho_r%pw, pw_env_sub)
 
       offset = 0
       DO iatom = 1, SIZE(kind_of)
@@ -899,7 +899,7 @@ CONTAINS
       DO i = 1, SIZE(rs_v)
          CALL rs_grid_retain(rs_v(i)%rs_grid)
       END DO
-      CALL potential_pw2rs(rs_v, pot_r, pw_env_sub)
+      CALL potential_pw2rs(rs_v, pot_r%pw, pw_env_sub)
 
       offset = 0
       DO iatom = 1, SIZE(kind_of)

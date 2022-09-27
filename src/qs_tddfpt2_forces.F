@@ -584,8 +584,8 @@ CONTAINS
       CALL pw_zero(rho_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_pe(ispin)%matrix, &
-                                 rho=trho_r(ispin), &
-                                 rho_gspace=trho_g(ispin), &
+                                 rho=trho_r(ispin)%pw, &
+                                 rho_gspace=trho_g(ispin)%pw, &
                                  total_rho=total_rho)
          CALL pw_axpy(trho_g(ispin)%pw, rho_tot_gspace%pw)
          IF (ABS(total_rho) > 1.e-08_dp) THEN
@@ -693,7 +693,7 @@ CONTAINS
             END DO
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpe(ispin, 1)%matrix, &
-                                       rho=rhoz_r_aux(ispin), rho_gspace=rhoz_g_aux(ispin), &
+                                       rho=rhoz_r_aux(ispin)%pw, rho_gspace=rhoz_g_aux(ispin)%pw, &
                                        basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
             END DO

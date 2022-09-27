@@ -1483,7 +1483,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho, rho_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_rho
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, compute_tau, compute_grad
@@ -1626,7 +1626,7 @@ CONTAINS
 
       ! Merge realspace multi-grids into single planewave grid.
       CALL density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
-      IF (PRESENT(total_rho)) total_rho = pw_integrate_function(rho%pw, isign=-1)
+      IF (PRESENT(total_rho)) total_rho = pw_integrate_function(rho, isign=-1)
 
       CALL timestop(handle)
 
@@ -1650,7 +1650,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_p_type), DIMENSION(:), INTENT(INOUT)       :: drho, drho_gspace
+      TYPE(pw_p_type), DIMENSION(3), INTENT(IN)          :: drho, drho_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
@@ -1986,7 +1986,7 @@ CONTAINS
 
          END DO loop_tasks
 
-         CALL density_rs2pw_basic(pw_env, rs_rho, drho(idir), drho_gspace(idir))
+         CALL density_rs2pw_basic(pw_env, rs_rho, drho(idir)%pw, drho_gspace(idir)%pw)
 
       END DO loop_xyz
 
@@ -2033,7 +2033,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_p_type), INTENT(INOUT)                     :: drho, drho_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: drho, drho_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type

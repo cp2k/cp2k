@@ -123,8 +123,8 @@ CONTAINS
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             rho_ao => rho_struct_ao(ispin, :)
             CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                    rho=tau_r(ispin), &
-                                    rho_gspace=tau_g(ispin), &
+                                    rho=tau_r(ispin)%pw, &
+                                    rho_gspace=tau_g(ispin)%pw, &
                                     ks_env=ks_env, soft_valid=.FALSE., &
                                     compute_tau=.TRUE.)
          END IF
@@ -157,8 +157,8 @@ CONTAINS
                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                   rho_ao => rho_struct_ao(ispin, :)
                   CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                          rho=drho_r(3*(ispin - 1) + idir), &
-                                          rho_gspace=drho_g(3*(ispin - 1) + idir), &
+                                          rho=drho_r(3*(ispin - 1) + idir)%pw, &
+                                          rho_gspace=drho_g(3*(ispin - 1) + idir)%pw, &
                                           ks_env=ks_env, soft_valid=.FALSE., &
                                           compute_tau=.FALSE., compute_grad=.TRUE., idir=idir)
 

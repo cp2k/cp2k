@@ -217,8 +217,8 @@ CONTAINS
 
          CALL calculate_rho_elec(ks_env=ks_env, &
                                  matrix_p=rho_ao_aux(ispin)%matrix, &
-                                 rho=rho_r_aux(ispin), &
-                                 rho_gspace=rho_g_aux(ispin), &
+                                 rho=rho_r_aux(ispin)%pw, &
+                                 rho_gspace=rho_g_aux(ispin)%pw, &
                                  total_rho=tot_rho_r_aux(ispin), &
                                  soft_valid=.FALSE., &
                                  basis_type=basis_type, &
@@ -1559,8 +1559,8 @@ CONTAINS
 
          CALL calculate_rho_elec(ks_env=ks_env, &
                                  matrix_p=rho_ao_aux_buffer(myspin)%matrix, &
-                                 rho=rho_r(myspin), &
-                                 rho_gspace=rho_g(myspin), &
+                                 rho=rho_r(myspin)%pw, &
+                                 rho_gspace=rho_g(myspin)%pw, &
                                  total_rho=tot_rho_r(myspin), &
                                  soft_valid=.FALSE., &
                                  basis_type="AUX_FIT", &

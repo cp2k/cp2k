@@ -59,7 +59,8 @@ MODULE qs_electric_field_gradient
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -113,12 +114,13 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: dvr2rs, rho_tot_gspace, &
-                                                            structure_factor, v_hartree_gspace
+      TYPE(pw_p_type)                                    :: dvr2rs, structure_factor, &
+                                                            v_hartree_gspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: dvr2, dvspl
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_type), POINTER                             :: rho_tot_gspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
@@ -220,17 +222,17 @@ CONTAINS
       !calculate electrostatic potential
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
-      CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree, &
+      CALL pw_poisson_solve(poisson_env, rho_tot_gspace, ehartree, &
                             v_hartree_gspace%pw)
 
       ! smoothing of potential
       IF (smoothing) CALL pw_smoothing(v_hartree_gspace%pw, ecut, sigma)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
 
       DO i = 1, 3
          DO j = 1, i

@@ -706,7 +706,7 @@ CONTAINS
 
       gridlevel_info => pw_env%gridlevel_info
 
-      CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+      CALL potential_pw2rs(rs_v, v_rspace%pw, pw_env)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -912,7 +912,7 @@ CONTAINS
       DO i = 1, SIZE(rs_v)
          CALL rs_grid_retain(rs_v(i)%rs_grid)
       END DO
-      CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+      CALL potential_pw2rs(rs_v, v_rspace%pw, pw_env)
 
       gridlevel_info => pw_env%gridlevel_info
 

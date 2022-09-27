@@ -349,7 +349,7 @@ CONTAINS
             CALL pw_zero(orbital%pw)
             CALL pw_zero(orbital_g%pw)
             CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
-                                    rho=orbital, rho_gspace=orbital_g, &
+                                    rho=orbital%pw, rho_gspace=orbital_g%pw, &
                                     ks_env=ks_env)
 
             vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
@@ -418,7 +418,7 @@ CONTAINS
             CALL pw_zero(orbital%pw)
             CALL pw_zero(orbital_g%pw)
             CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
-                                    rho=orbital, rho_gspace=orbital_g, &
+                                    rho=orbital%pw, rho_gspace=orbital_g%pw, &
                                     ks_env=ks_env)
 
 !TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env)

@@ -697,8 +697,8 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
       CALL pw_zero(wf_g%pw)
       CALL calculate_rho_elec(matrix_p=matrix_p_qs, &
-                              rho=wf_r, &
-                              rho_gspace=wf_g, &
+                              rho=wf_r%pw, &
+                              rho_gspace=wf_g%pw, &
                               ks_env=ks_env)
 
       ! write this to a cube

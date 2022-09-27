@@ -3338,11 +3338,11 @@ CONTAINS
 
       LOGICAL                                            :: use_virial
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
+      TYPE(pw_p_type)                                    :: v_hartree_gspace, v_hartree_rspace
       TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: rho_tot_gspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(virial_type), POINTER                         :: virial
 
@@ -3362,19 +3362,19 @@ CONTAINS
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                rho_tot_gspace%pw, &
+                                rho_tot_gspace, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
 
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
-         CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%hartree, &
+         CALL pw_poisson_solve(poisson_env, rho_tot_gspace, energy%hartree, &
                                v_hartree_gspace%pw, rho_core=rho_core)
 
          CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
          CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
       END IF
 
    END SUBROUTINE update_hartree_with_mp2

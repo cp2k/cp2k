@@ -1238,7 +1238,7 @@ CONTAINS
       IF (ASSOCIATED(atom_pair_send)) DEALLOCATE (atom_pair_send)
       IF (ASSOCIATED(atom_pair_recv)) DEALLOCATE (atom_pair_recv)
 
-      CALL density_rs2pw(pw_env, rs_current, current_rs, current_gs)
+      CALL density_rs2pw(pw_env, rs_current, current_rs%pw, current_gs%pw)
 
       IF (ASSOCIATED(rs_rho) .AND. .NOT. my_retain_rsgrid) THEN
          DO i = 1, SIZE(rs_rho)

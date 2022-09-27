@@ -193,7 +193,7 @@ CONTAINS
       group = rs_rho(1)%rs_grid%desc%group
 
       ! transform the potential on the rs_multigrids
-      CALL potential_pw2rs(rs_rho, v_rspace, pw_env)
+      CALL potential_pw2rs(rs_rho, v_rspace%pw, pw_env)
 
       nkind = SIZE(qs_kind_set)
 
@@ -720,7 +720,7 @@ CONTAINS
       gridlevel_info => pw_env%gridlevel_info
 
       ! transform the potential on the rs_multigrids
-      CALL potential_pw2rs(rs_v, v_rspace, pw_env)
+      CALL potential_pw2rs(rs_v, v_rspace%pw, pw_env)
 
       nimages = dft_control%nimages
       IF (nimages > 1) THEN

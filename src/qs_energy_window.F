@@ -212,8 +212,8 @@ CONTAINS
          CALL dbcsr_copy(window, matrix_ks(1)%matrix)
          CALL dbcsr_copy_into_existing(window, tmp)
          CALL calculate_rho_elec(matrix_p=window, &
-                                 rho=rho_r, &
-                                 rho_gspace=rho_g, &
+                                 rho=rho_r%pw, &
+                                 rho_gspace=rho_g%pw, &
                                  ks_env=ks_env)
          density_total = pw_integrate_function(rho_r%pw)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Ground-state density: ", density_total
@@ -279,8 +279,8 @@ CONTAINS
             CALL dbcsr_copy(window, matrix_ks(1)%matrix)
             CALL dbcsr_copy_into_existing(window, tmp)
             CALL calculate_rho_elec(matrix_p=window, &
-                                    rho=rho_r, &
-                                    rho_gspace=rho_g, &
+                                    rho=rho_r%pw, &
+                                    rho_gspace=rho_g%pw, &
                                     ks_env=ks_env)
             WRITE (ext, "(A14,I5.5,A)") "-ENERGY-WINDOW", i, TRIM(cp_iter_string(logger%iter_info))//".cube"
             mpi_io = .TRUE.

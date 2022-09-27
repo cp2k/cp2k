@@ -286,7 +286,7 @@ CONTAINS
       DO ispin = 1, nspins
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
-                                 rho=rhox_r(ispin), rho_gspace=rhox_g(ispin))
+                                 rho=rhox_r(ispin)%pw, rho_gspace=rhox_g(ispin)%pw)
          CALL pw_axpy(rhox_g(ispin)%pw, rhox_tot_gspace%pw)
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
       END DO
@@ -451,7 +451,7 @@ CONTAINS
                END DO
                DO ispin = 1, nspins
                   CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1_admm(ispin)%matrix, &
-                                          rho=rhox_r_aux(ispin), rho_gspace=rhox_g_aux(ispin), &
+                                          rho=rhox_r_aux(ispin)%pw, rho_gspace=rhox_g_aux(ispin)%pw, &
                                           basis_type="AUX_FIT", &
                                           task_list_external=task_list_aux_fit)
                END DO

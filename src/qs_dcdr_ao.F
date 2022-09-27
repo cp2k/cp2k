@@ -538,8 +538,8 @@ CONTAINS
 
          ! Get the density
          CALL calculate_drho_elec_dR(matrix_p=rho_ao(1)%matrix, &
-                                     drho=drho_r(1), &
-                                     drho_gspace=drho_g(1), &
+                                     drho=drho_r(1)%pw, &
+                                     drho_gspace=drho_g(1)%pw, &
                                      qs_env=qs_env, &
                                      beta=idir, lambda=dcdr_env%lambda)
 

@@ -444,8 +444,8 @@ CONTAINS
                CALL dbcsr_copy(rho1_ao(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
                CALL calculate_rho_elec(ks_env=ks_env, &
                                        matrix_p=rho1_ao(ispin)%matrix, &
-                                       rho=rho_r_aux(ispin), &
-                                       rho_gspace=rho_g_aux(ispin), &
+                                       rho=rho_r_aux(ispin)%pw, &
+                                       rho_gspace=rho_g_aux(ispin)%pw, &
                                        soft_valid=.FALSE., &
                                        basis_type=basis_type, &
                                        task_list_external=task_list)

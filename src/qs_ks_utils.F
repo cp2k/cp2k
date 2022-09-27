@@ -312,7 +312,7 @@ CONTAINS
                                 0.0_dp, matrix_p(ispin)%matrix, retain_sparsity=.TRUE.)
             ! compute the densities on the grid
             CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
-                                    rho=rho_r(ispin), rho_gspace=rho_g(ispin), &
+                                    rho=rho_r(ispin)%pw, rho_gspace=rho_g(ispin)%pw, &
                                     ks_env=ks_env)
          END DO
 
@@ -616,7 +616,7 @@ CONTAINS
                                     alpha=1.0_dp)
 
          CALL calculate_rho_elec(matrix_p=orb_density_matrix, &
-                                 rho=orb_rho_r, rho_gspace=orb_rho_g, &
+                                 rho=orb_rho_r%pw, rho_gspace=orb_rho_g%pw, &
                                  ks_env=ks_env)
 
          ! compute the energy functional for this orbital and its derivative

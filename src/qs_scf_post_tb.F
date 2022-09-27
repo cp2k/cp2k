@@ -1041,8 +1041,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin), &
-                                 rho_gspace=rho_g(ispin), &
+                                 rho=rho_r(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin)%pw, &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO
@@ -1206,8 +1206,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin), &
-                                 rho_gspace=rho_g(ispin), &
+                                 rho=rho_r(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin)%pw, &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO
@@ -1374,8 +1374,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin), &
-                                 rho_gspace=rho_g(ispin), &
+                                 rho=rho_r(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin)%pw, &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO

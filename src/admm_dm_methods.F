@@ -258,8 +258,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL calculate_rho_elec(ks_env=ks_env, &
                                  matrix_p=rho_ao_aux(ispin)%matrix, &
-                                 rho=rho_r_aux(ispin), &
-                                 rho_gspace=rho_g_aux(ispin), &
+                                 rho=rho_r_aux(ispin)%pw, &
+                                 rho_gspace=rho_g_aux(ispin)%pw, &
                                  total_rho=tot_rho_r_aux(ispin), &
                                  soft_valid=.FALSE., &
                                  basis_type="AUX_FIT", &

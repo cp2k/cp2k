@@ -87,7 +87,8 @@ MODULE qs_ks_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
                                               integrate_potential_devga_rspace
@@ -357,7 +358,7 @@ CONTAINS
           (.NOT. gapw) .AND. (.NOT. gapw_xc) .AND. &
           (.NOT. (poisson_env%parameters%solver .EQ. pw_poisson_implicit))) THEN
          CALL pw_zero(rho_tot_gspace%pw)
-         CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.)
+         CALL calc_rho_tot_gspace(rho_tot_gspace%pw, qs_env, rho, skip_nuclear_density=.TRUE.)
          CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%e_hartree, &
                                v_hartree_gspace%pw)
          CALL pw_zero(rho_tot_gspace%pw)
@@ -365,7 +366,7 @@ CONTAINS
       END IF
 
       ! Get the total density in g-space [ions + electrons]
-      CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
+      CALL calc_rho_tot_gspace(rho_tot_gspace%pw, qs_env, rho)
 
       IF (my_print) THEN
          CALL print_densities(qs_env, rho)
@@ -893,7 +894,7 @@ CONTAINS
 !> \param skip_nuclear_density ...
 ! **************************************************************************************************
    SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density)
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_tot_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_tot_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_nuclear_density
@@ -918,21 +919,21 @@ CONTAINS
             NULLIFY (rho0_s_gs)
             CALL get_qs_env(qs_env=qs_env, rho0_s_gs=rho0_s_gs)
             CPASSERT(ASSOCIATED(rho0_s_gs))
-            CALL pw_copy(rho0_s_gs%pw, rho_tot_gspace%pw)
+            CALL pw_copy(rho0_s_gs%pw, rho_tot_gspace)
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-               CALL pw_axpy(rho_core%pw, rho_tot_gspace%pw)
+               CALL pw_axpy(rho_core%pw, rho_tot_gspace)
             END IF
          ELSE
-            CALL pw_copy(rho_core%pw, rho_tot_gspace%pw)
+            CALL pw_copy(rho_core%pw, rho_tot_gspace)
          END IF
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace%pw)
+            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)
          END DO
          CALL get_qs_env(qs_env=qs_env, qs_charges=qs_charges)
-         qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw, isign=-1)
+         qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace, isign=-1)
       ELSE
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace%pw)
+            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)
          END DO
       END IF
 

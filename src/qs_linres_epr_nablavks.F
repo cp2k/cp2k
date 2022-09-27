@@ -147,12 +147,11 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho2_r, rho_r, v_rspace_new, &
                                                             v_tau_rspace
-      TYPE(pw_p_type), POINTER :: rho_tot_gspace, v_coulomb_gspace, v_coulomb_gtemp, &
-         v_coulomb_rtemp, v_hartree_gspace, v_hartree_gtemp, v_hartree_rtemp, v_xc_gtemp, &
-         v_xc_rtemp, wf_r
+      TYPE(pw_p_type), POINTER :: v_coulomb_gspace, v_coulomb_gtemp, v_coulomb_rtemp, &
+         v_hartree_gspace, v_hartree_gtemp, v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: pwx, pwy, pwz
+      TYPE(pw_type), POINTER                             :: pwx, pwy, pwz, rho_tot_gspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -287,7 +286,6 @@ CONTAINS
       ALLOCATE (v_hartree_gspace)
       ALLOCATE (v_hartree_gtemp)
       ALLOCATE (v_hartree_rtemp)
-      ALLOCATE (rho_tot_gspace)
 
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -295,7 +293,7 @@ CONTAINS
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rtemp%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       IF (gapw) THEN
@@ -306,12 +304,12 @@ CONTAINS
          CALL prepare_gapw_den(qs_env, do_rho0=.TRUE.)
       END IF
 
-      CALL pw_zero(rho_tot_gspace%pw)
+      CALL pw_zero(rho_tot_gspace)
 
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, &
                                skip_nuclear_density=.NOT. gapw)
 
-      CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, ehartree, &
+      CALL pw_poisson_solve(poisson_env, rho_tot_gspace, ehartree, &
                             v_hartree_gspace%pw)
 
       !   -------------------------------------
@@ -465,12 +463,11 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gtemp%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rtemp%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
 
       DEALLOCATE (v_hartree_gspace)
       DEALLOCATE (v_hartree_gtemp)
       DEALLOCATE (v_hartree_rtemp)
-      DEALLOCATE (rho_tot_gspace)
 
 !   -------------------------------------
 !   Add Coulomb potential

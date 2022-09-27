@@ -952,15 +952,16 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: dv_hartree_rspace, rho_tot_gspace, &
-                                                            rhodn_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace, vtot_rspace
+      TYPE(pw_p_type)                                    :: dv_hartree_rspace, rhodn_tot_gspace, &
+                                                            v_hartree_gspace, v_hartree_rspace, &
+                                                            vtot_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, tau_r, &
                                                             tauout_g, tauout_r, v_rspace, &
                                                             v_tau_rspace, v_xc, v_xc_tau
       TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: rho_tot_gspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1039,8 +1040,8 @@ CONTAINS
       CALL pw_zero(rhodn_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
-                                 rho=rhoout_r(ispin), &
-                                 rho_gspace=rhoout_g(ispin), &
+                                 rho=rhoout_r(ispin)%pw, &
+                                 rho_gspace=rhoout_g(ispin)%pw, &
                                  basis_type="HARRIS", &
                                  task_list_external=ec_env%task_list)
       END DO
@@ -1070,8 +1071,8 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=ec_env%matrix_p(ispin, 1)%matrix, &
-                                    rho=tauout_r(ispin), &
-                                    rho_gspace=tauout_g(ispin), &
+                                    rho=tauout_r(ispin)%pw, &
+                                    rho_gspace=tauout_g(ispin)%pw, &
                                     compute_tau=.TRUE., &
                                     basis_type="HARRIS", &
                                     task_list_external=ec_env%task_list)
@@ -1081,8 +1082,8 @@ CONTAINS
       IF (use_virial) THEN
 
          ! Calculate the Hartree potential
-         NULLIFY (rho_tot_gspace%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
+         NULLIFY (rho_tot_gspace)
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
          ! Get the total input density in g-space [ions + electrons]
@@ -1098,7 +1099,7 @@ CONTAINS
          ! Volume and Green function terms
          h_stress(:, :) = 0.0_dp
          CALL pw_poisson_solve(poisson_env, &
-                               density=rho_tot_gspace%pw, &  ! n_in
+                               density=rho_tot_gspace, &  ! n_in
                                ehartree=ehartree, &
                                vhartree=v_hartree_gspace%pw, & ! v_H[n_in]
                                h_stress=h_stress, &
@@ -1170,9 +1171,9 @@ CONTAINS
                                ehartree=dehartree, &
                                vhartree=v_hartree_gspace%pw, & ! v_H[delta_n]
                                h_stress=h_stress, &
-                               aux_density=rho_tot_gspace%pw)  ! n_in
+                               aux_density=rho_tot_gspace)  ! n_in
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
 
          virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
          virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
