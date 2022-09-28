@@ -23,7 +23,7 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
-   [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich";
+   [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
    if [[ -n "${1}" ]]; then \
       module add ${1}; \
       if [[ -n "${2}" ]]; then \
