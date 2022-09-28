@@ -308,6 +308,7 @@ CONTAINS
       INTEGER                                            :: handle
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d_ptr
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(pw_type), POINTER                             :: el
 
       CALL timeset(routineN, handle)
       NULLIFY (pw)
@@ -318,25 +319,25 @@ CONTAINS
 
       SELECT CASE (use_data)
       CASE (REALDATA1D)
-         pw => try_pop(pool%real1d_pw)
+         el => try_pop(pool%real1d_pw)
       CASE (REALDATA3D)
-         pw => try_pop(pool%real3d_pw)
-         IF (.NOT. ASSOCIATED(pw)) THEN
+         el => try_pop(pool%real3d_pw)
+         IF (.NOT. ASSOCIATED(el)) THEN
             IF (ASSOCIATED(pool%real3d_array)) THEN
                cr3d_ptr => cp_sll_3d_r_get_first_el(pool%real3d_array)
                CALL cp_sll_3d_r_rm_first_el(pool%real3d_array)
             END IF
          END IF
       CASE (COMPLEXDATA1D)
-         pw => try_pop(pool%complex1d_pw)
+         el => try_pop(pool%complex1d_pw)
       CASE (COMPLEXDATA3D)
-         pw => try_pop(pool%complex3d_pw)
+         el => try_pop(pool%complex3d_pw)
       CASE default
 ! unknown use_data
          CPABORT("")
       END SELECT
 
-      IF (.NOT. ASSOCIATED(pw)) THEN
+      IF (.NOT. ASSOCIATED(el)) THEN
          ALLOCATE (pw)
          CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
                         cr3d_ptr=cr3d_ptr)
@@ -365,6 +366,7 @@ CONTAINS
                pw=pw)
             CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
          END IF
+         pw => el
       END IF
 
       pw%in_space = 0
