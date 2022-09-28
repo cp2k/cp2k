@@ -715,6 +715,8 @@ CONTAINS
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_tau_rspace_sub(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin)%pw)
+            DEALLOCATE (work_matrices%wpw_rspace_sub(ispin)%pw, work_matrices%wpw_tau_rspace_sub(ispin)%pw, &
+                        work_matrices%wpw_gspace_sub(ispin)%pw, work_matrices%A_ia_rspace_sub(ispin)%pw)
          END DO
          DEALLOCATE (work_matrices%A_ia_rspace_sub, work_matrices%wpw_gspace_sub, &
                      work_matrices%wpw_rspace_sub, work_matrices%wpw_tau_rspace_sub)

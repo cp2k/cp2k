@@ -338,6 +338,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
+      DEALLOCATE (phi_g, rhob_g)
 
       !------------- STRESS TENSOR CALCULATION ------------
       IF (use_virial) THEN
@@ -361,10 +362,12 @@ CONTAINS
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
+         DEALLOCATE (dphi_g(i)%pw)
          CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
       END DO
 
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+      DEALLOCATE (rhob_r)
       !----------------- FORCE CALCULATION ----------------
       ! initialize the forces
       fg_coulomb = 0.0_dp
@@ -584,6 +587,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+      DEALLOCATE (phi_g, rhob_g, rhob_r)
       CALL rs_grid_release(rden)
 
       DEALLOCATE (rhos)
@@ -721,6 +725,7 @@ CONTAINS
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
+         DEALLOCATE (dphi_g(i)%pw)
          CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
       END DO
       !----------------- FORCE CALCULATION ----------------
@@ -749,6 +754,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+      DEALLOCATE (phi_g, rhob_g, rhob_r)
       CALL rs_grid_release(rden)
 
       DEALLOCATE (rhos)

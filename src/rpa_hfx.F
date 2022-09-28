@@ -404,11 +404,19 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
+      DEALLOCATE (vh_rspace%pw)
       DEALLOCATE (vh_rspace)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
-         IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
-         IF (ASSOCIATED(vadmm_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+         DEALLOCATE (vxc_rspace(ispin)%pw)
+         IF (ASSOCIATED(vtau_rspace)) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
+            DEALLOCATE (vtau_rspace(ispin)%pw)
+         END IF
+         IF (ASSOCIATED(vadmm_rspace)) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+            DEALLOCATE (vadmm_rspace(ispin)%pw)
+         END IF
       END DO
       DEALLOCATE (vxc_rspace)
       IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
@@ -582,12 +590,14 @@ CONTAINS
       IF (ASSOCIATED(v_rspace_aux_fit)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_aux_fit(ispin)%pw)
+            DEALLOCATE (v_rspace_aux_fit(ispin)%pw)
          END DO
          DEALLOCATE (v_rspace_aux_fit)
       END IF
       IF (ASSOCIATED(v_dummy)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_dummy(ispin)%pw)
+            DEALLOCATE (v_dummy(ispin)%pw)
          END DO
          DEALLOCATE (v_dummy)
       END IF
@@ -614,12 +624,14 @@ CONTAINS
       IF (ASSOCIATED(v_rspace)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
+            DEALLOCATE (v_rspace(ispin)%pw)
          END DO
          DEALLOCATE (v_rspace)
       END IF
       IF (ASSOCIATED(v_dummy)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_dummy(ispin)%pw)
+            DEALLOCATE (v_dummy(ispin)%pw)
          END DO
          DEALLOCATE (v_dummy)
       END IF

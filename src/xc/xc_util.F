@@ -173,7 +173,10 @@ CONTAINS
          ELSE
             CALL pw_transfer(my_tmp_g, pw)
          END IF
-         IF (owns_tmp_g) CALL pw_pool_give_back_pw(pw_pool, my_tmp_g)
+         IF (owns_tmp_g) THEN
+            CALL pw_pool_give_back_pw(pw_pool, my_tmp_g)
+            DEALLOCATE (my_tmp_g)
+         END IF
       CASE default
          CPABORT("Unsupported derivative method")
       END SELECT

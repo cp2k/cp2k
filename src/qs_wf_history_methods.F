@@ -213,6 +213,7 @@ CONTAINS
       ELSE IF (ASSOCIATED(snapshot%rho_r)) THEN
          DO ispin = 1, SIZE(snapshot%rho_r)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_r(ispin)%pw)
+            DEALLOCATE (snapshot%rho_r(ispin)%pw)
          END DO
          DEALLOCATE (snapshot%rho_r)
       END IF
@@ -234,6 +235,7 @@ CONTAINS
       ELSE IF (ASSOCIATED(snapshot%rho_g)) THEN
          DO ispin = 1, SIZE(snapshot%rho_g)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_g(ispin)%pw)
+            DEALLOCATE (snapshot%rho_g(ispin)%pw)
          END DO
          DEALLOCATE (snapshot%rho_g)
       END IF

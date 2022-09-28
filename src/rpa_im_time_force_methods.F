@@ -2370,10 +2370,12 @@ CONTAINS
                                  calculate_forces=.FALSE.)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+         DEALLOCATE (v_xc(ispin)%pw)
       END DO
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_tot_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, zv_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, zv_hartree_gspace%pw)
+      DEALLOCATE (rhoz_tot_gspace%pw, zv_hartree_rspace%pw, zv_hartree_gspace%pw)
       DEALLOCATE (v_xc)
 
       IF (do_tau) THEN
@@ -2385,6 +2387,7 @@ CONTAINS
                                     compute_tau=.TRUE., &
                                     calculate_forces=.FALSE.)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+            DEALLOCATE (v_xc_tau(ispin)%pw)
          END DO
          DEALLOCATE (v_xc_tau)
       END IF
@@ -2456,6 +2459,7 @@ CONTAINS
                                        basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+               DEALLOCATE (v_xc(ispin)%pw)
             END DO
             DEALLOCATE (v_xc)
 
@@ -2470,6 +2474,7 @@ CONTAINS
                                           task_list_external=task_list_aux_fit, &
                                           compute_tau=.TRUE.)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+                  DEALLOCATE (v_xc_tau(ispin)%pw)
                END DO
                DEALLOCATE (v_xc_tau)
             END IF
@@ -2479,6 +2484,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_g(ispin)%pw)
+         DEALLOCATE (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw)
       END DO
       DEALLOCATE (rhoz_r, rhoz_g)
 
@@ -2486,6 +2492,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, tauz_r(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, tauz_g(ispin)%pw)
+            DEALLOCATE (tauz_r(ispin)%pw, tauz_g(ispin)%pw)
          END DO
          DEALLOCATE (tauz_r, tauz_g)
       END IF
@@ -2835,8 +2842,10 @@ CONTAINS
 
       IF (use_virial) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy%pw)
+         DEALLOCATE (rho_g_copy%pw)
          DO i_xyz = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i_xyz)%pw)
+            DEALLOCATE (dvg(i_xyz)%pw)
          END DO
       END IF
 
@@ -3189,6 +3198,7 @@ CONTAINS
          END DO
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace%pw)
+      DEALLOCATE (vhxc_rspace%pw)
 
       IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
 
@@ -3387,6 +3397,7 @@ CONTAINS
                                   aux_density=rho_tot_gspace%pw)
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+            DEALLOCATE (rho_tot_gspace%pw)
 
             !Green contribution
             virial%pv_ehartree = virial%pv_ehartree + 2.0_dp*h_stress/REAL(para_env%num_pe, dp)
@@ -3475,10 +3486,12 @@ CONTAINS
                                     pmat=dbcsr_work_p(ispin, 1), &
                                     calculate_forces=.TRUE.)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+            DEALLOCATE (v_xc(ispin)%pw)
          END DO
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_tot_gspace%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, zv_hartree_rspace%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, zv_hartree_gspace%pw)
+         DEALLOCATE (rhoz_tot_gspace%pw, zv_hartree_rspace%pw, zv_hartree_gspace%pw)
          DEALLOCATE (v_xc)
 
          IF (do_tau) THEN
@@ -3491,6 +3504,7 @@ CONTAINS
                                        compute_tau=.TRUE., &
                                        calculate_forces=.TRUE.)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+               DEALLOCATE (v_xc_tau(ispin)%pw)
             END DO
             DEALLOCATE (v_xc_tau)
          END IF
@@ -3562,6 +3576,7 @@ CONTAINS
                                              basis_type="AUX_FIT", &
                                              task_list_external=task_list_aux_fit)
                      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+                     DEALLOCATE (v_xc(ispin)%pw)
                   END DO
                   DEALLOCATE (v_xc)
 
@@ -3577,6 +3592,7 @@ CONTAINS
                                                 task_list_external=task_list_aux_fit, &
                                                 compute_tau=.TRUE.)
                         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+                        DEALLOCATE (v_xc_tau(ispin)%pw)
                      END DO
                      DEALLOCATE (v_xc_tau)
                   END IF
@@ -3621,6 +3637,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_r(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_g(ispin)%pw)
+            DEALLOCATE (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw)
          END DO
          DEALLOCATE (rhoz_r, rhoz_g)
 
@@ -3628,6 +3645,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, tauz_r(ispin)%pw)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, tauz_g(ispin)%pw)
+               DEALLOCATE (tauz_r(ispin)%pw, tauz_g(ispin)%pw)
             END DO
             DEALLOCATE (tauz_r, tauz_g)
          END IF
@@ -3677,12 +3695,20 @@ CONTAINS
 
       !clean-up
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
+      DEALLOCATE (vh_rspace%pw)
       DEALLOCATE (vh_rspace)
 
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
-         IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
-         IF (ASSOCIATED(vadmm_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+         DEALLOCATE (vxc_rspace(ispin)%pw)
+         IF (ASSOCIATED(vtau_rspace)) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
+            DEALLOCATE (vtau_rspace(ispin)%pw)
+         END IF
+         IF (ASSOCIATED(vadmm_rspace)) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+            DEALLOCATE (vadmm_rspace(ispin)%pw)
+         END IF
       END DO
       DEALLOCATE (vxc_rspace)
       IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)

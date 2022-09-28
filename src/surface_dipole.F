@@ -277,6 +277,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vdip_r%pw)
+      DEALLOCATE (wf_r%pw, vdip_r%pw)
 
       CALL timestop(handle)
 

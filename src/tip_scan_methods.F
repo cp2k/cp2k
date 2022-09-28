@@ -206,6 +206,7 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vtip%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vref%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, sf%pw)
+         DEALLOCATE (vtip%pw, vref%pw, sf%pw)
          DEALLOCATE (vtip, sf, vref)
 
          logger%iter_info%print_level = plevel

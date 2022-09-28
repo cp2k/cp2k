@@ -1146,6 +1146,7 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace%pw)
+      DEALLOCATE (vhxc_rspace%pw)
 
       ! Stress-tensor Pz*v_Hxc[Pin]
       IF (use_virial) THEN
@@ -1242,6 +1243,7 @@ CONTAINS
                                     compute_tau=.TRUE.)
          END DO
          CALL pw_pool_give_back_pw(auxbas_pw_pool, work_g%pw)
+         DEALLOCATE (work_g%pw)
       END IF
 
       ! Save response density on real space grid for properties
@@ -1280,6 +1282,7 @@ CONTAINS
                                aux_density=rho_tot_gspace)  ! n_in
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+         DEALLOCATE (rho_tot_gspace)
 
          ! Stress tensor Green function contribution
          virial%pv_ehartree = virial%pv_ehartree + 2.0_dp*h_stress/REAL(para_env%num_pe, dp)
@@ -1504,16 +1507,19 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_tot_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, zv_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, zv_hartree_rspace%pw)
+      DEALLOCATE (rhoz_tot_gspace%pw, zv_hartree_gspace%pw, zv_hartree_rspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_g(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+         DEALLOCATE (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (rhoz_r, rhoz_g, v_xc)
       IF (ASSOCIATED(v_xc_tau)) THEN
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, tauz_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+         DEALLOCATE (tauz_r(ispin)%pw, v_xc_tau(ispin)%pw)
       END DO
       DEALLOCATE (tauz_r, v_xc_tau)
       END IF
@@ -1634,6 +1640,7 @@ CONTAINS
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_r_aux(ispin)%pw)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoz_g_aux(ispin)%pw)
+               DEALLOCATE (v_xc(ispin)%pw, rhoz_r_aux(ispin)%pw, rhoz_g_aux(ispin)%pw)
             END DO
             DEALLOCATE (v_xc, rhoz_r_aux, rhoz_g_aux)
             !
@@ -2195,6 +2202,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+      DEALLOCATE (v_hartree_gspace%pw, rho_tot_gspace)
       !
       CALL calculate_ecore_self(qs_env, E_self_core=eself)
       CALL calculate_ecore_overlap(qs_env, para_env, PRESENT(h_stress), E_overlap_core=eovrl)
@@ -2320,11 +2328,14 @@ CONTAINS
 
       ! return pw grids
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
+      DEALLOCATE (v_hartree_rspace%pw)
       IF (ASSOCIATED(v_rspace)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
+            DEALLOCATE (v_rspace(ispin)%pw)
             IF (ASSOCIATED(v_tau_rspace)) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+               DEALLOCATE (v_tau_rspace(ispin)%pw)
             END IF
          END DO
          DEALLOCATE (v_rspace)
@@ -2333,6 +2344,7 @@ CONTAINS
       IF (ASSOCIATED(v_admm_rspace)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_admm_rspace(ispin)%pw)
+            DEALLOCATE (v_admm_rspace(ispin)%pw)
          END DO
          DEALLOCATE (v_admm_rspace)
       END IF

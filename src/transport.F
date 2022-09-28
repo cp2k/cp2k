@@ -742,6 +742,7 @@ CONTAINS
                CALL dbcsr_deallocate_matrix(zero)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rs%pw)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, gs%pw)
+               DEALLOCATE (rs%pw, gs%pw)
                DEALLOCATE (rs, gs)
             END IF
          END IF

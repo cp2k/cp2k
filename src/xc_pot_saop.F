@@ -459,6 +459,7 @@ CONTAINS
       CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital_g%pw)
+      DEALLOCATE (orbital%pw, orbital_g%pw)
 
       !--------------------!
       ! Do the integration !
@@ -482,6 +483,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_SAOP(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_GLLB(ispin)%pw)
+         DEALLOCATE (vxc_SAOP(ispin)%pw, vxc_GLLB(ispin)%pw)
          CALL pw_release(vxc_LB(ispin)%pw)
          CALL pw_release(vxc_tmp(ispin)%pw)
          DEALLOCATE (vxc_LB(ispin)%pw, vxc_tmp(ispin)%pw)

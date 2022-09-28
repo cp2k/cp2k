@@ -434,6 +434,7 @@ CONTAINS
             DO ispin = 1, 2
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin)%pw)
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin)%pw)
+               DEALLOCATE (rho_m_rspace(ispin)%pw, rho_m_gspace(ispin)%pw)
             END DO
             DEALLOCATE (rho_m_rspace)
             DEALLOCATE (rho_m_gspace)
@@ -507,6 +508,7 @@ CONTAINS
             DO ispin = 1, 2
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_rspace(ispin)%pw)
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_m_gspace(ispin)%pw)
+               DEALLOCATE (rho_m_rspace(ispin)%pw, rho_m_gspace(ispin)%pw)
             END DO
             DEALLOCATE (rho_m_rspace)
             DEALLOCATE (rho_m_gspace)
@@ -558,6 +560,7 @@ CONTAINS
          IF (uf_grid) THEN
             DO ispin = 1, SIZE(rho_r)
                CALL pw_pool_give_back_pw(xc_pw_pool, rho_r(ispin)%pw)
+               DEALLOCATE (rho_r(ispin)%pw)
             END DO
             IF (ASSOCIATED(vxc_rho)) THEN
                DO ispin = 1, SIZE(vxc_rho)
@@ -575,6 +578,8 @@ CONTAINS
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g2)
                   CALL pw_pool_give_back_pw(xc_pw_pool, tmp_g)
                   CALL pw_pool_give_back_pw(xc_pw_pool, vxc_rho(ispin)%pw)
+                  DEALLOCATE (tmp_g2, tmp_g, vxc_rho(ispin)%pw)
+                  NULLIFY (tmp_g2, tmp_g, vxc_rho(ispin)%pw)
                   vxc_rho(ispin)%pw => tmp_pw
                   NULLIFY (tmp_pw)
                END DO
@@ -595,6 +600,8 @@ CONTAINS
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g2)
                   CALL pw_pool_give_back_pw(xc_pw_pool, tmp_g)
                   CALL pw_pool_give_back_pw(xc_pw_pool, vxc_tau(ispin)%pw)
+                  DEALLOCATE (tmp_g2, tmp_g, vxc_tau(ispin)%pw)
+                  NULLIFY (tmp_g2, tmp_g, vxc_tau(ispin)%pw)
                   vxc_tau(ispin)%pw => tmp_pw
                   NULLIFY (tmp_pw)
                END DO
@@ -606,6 +613,7 @@ CONTAINS
             IF (uf_grid) THEN
                DO ispin = 1, SIZE(rho_g)
                   CALL pw_pool_give_back_pw(xc_pw_pool, rho_g(ispin)%pw)
+                  DEALLOCATE (rho_g(ispin)%pw)
                END DO
             END IF
             DEALLOCATE (rho_g)
@@ -614,6 +622,7 @@ CONTAINS
             IF (uf_grid) THEN
                DO ispin = 1, SIZE(tau)
                   CALL pw_pool_give_back_pw(xc_pw_pool, tau(ispin)%pw)
+                  DEALLOCATE (tau(ispin)%pw)
                END DO
             END IF
             DEALLOCATE (tau)

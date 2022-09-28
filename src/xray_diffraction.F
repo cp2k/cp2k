@@ -477,6 +477,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, &
                                 rhotot_elec_gspace%pw)
+      DEALLOCATE (rhotot_elec_gspace%pw)
 
       CALL timestop(handle)
 
@@ -598,6 +599,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(pool=auxbas_pw_pool, &
                                 pw=rho_elec_gspace%pw)
+      DEALLOCATE (rho_elec_gspace%pw)
 
       rho_soft = pw_integrate_function(rhotot_elec_gspace%pw, isign=-1)
 

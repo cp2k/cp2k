@@ -479,6 +479,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r_aux(ispin)%pw)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g_aux(ispin)%pw)
+                  DEALLOCATE (rhox_r_aux(ispin)%pw, rhox_g_aux(ispin)%pw)
                END DO
                DEALLOCATE (rhox_r_aux, rhox_g_aux)
                IF (nspins == 2) THEN
@@ -578,14 +579,17 @@ CONTAINS
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace%pw)
+      DEALLOCATE (rhox_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g(ispin)%pw)
+         DEALLOCATE (rhox_r(ispin)%pw, rhox_g(ispin)%pw)
       END DO
       DEALLOCATE (rhox_r, rhox_g)
       IF (.NOT. is_rks_triplets) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_rspace%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_gspace%pw)
+         DEALLOCATE (xv_hartree_rspace%pw, xv_hartree_gspace%pw)
       END IF
 
       ! HFX
