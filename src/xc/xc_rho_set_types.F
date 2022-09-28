@@ -753,6 +753,8 @@ CONTAINS
                      IF (my_rho_g_local) THEN
                         my_rho_g_local = .FALSE.
                         CALL pw_pool_give_back_pw(pw_pool, my_rho_g)
+                        DEALLOCATE (my_rho_g)
+                        NULLIFY (my_rho_g)
                      END IF
                   END IF
 
@@ -764,7 +766,11 @@ CONTAINS
 
             END DO
 
-            IF (ASSOCIATED(tmp_g)) CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+            IF (ASSOCIATED(tmp_g)) THEN
+               CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+               DEALLOCATE (tmp_g)
+               NULLIFY (tmp_g)
+            END IF
 
             SELECT CASE (nspins)
             CASE (1)
@@ -930,15 +936,20 @@ CONTAINS
                IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
                   CALL pw_pool_give_back_pw(pw_pool, laplace_rho_r(ispin)%pw, &
                                             accept_non_compatible=.TRUE.)
+                  DEALLOCATE (laplace_rho_r(ispin)%pw)
                END IF
                DO idir = 1, 3
-                  CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw, &
-                                            accept_non_compatible=.TRUE.)
+                  IF (ASSOCIATED(drho_r(idir, ispin)%pw)) THEN
+                     CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw, &
+                                               accept_non_compatible=.TRUE.)
+                     DEALLOCATE (drho_r(idir, ispin)%pw)
+                  END IF
                END DO
             END DO
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw, &
                                          accept_non_compatible=.TRUE.)
+               DEALLOCATE (my_rho_r(ispin)%pw)
             END DO
 
             ! tau part

@@ -912,6 +912,7 @@ CONTAINS
       CALL pw_transfer(rhoc_r, rho_core)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1050,6 +1051,7 @@ CONTAINS
       CALL pw_transfer(rhoc_r, drho_core)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1143,6 +1145,7 @@ CONTAINS
       CALL pw_transfer(rhoc_r, rho_gb)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1255,6 +1258,7 @@ CONTAINS
 
       CALL pw_transfer(rhoc_r, rho_metal)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1350,6 +1354,7 @@ CONTAINS
       CALL pw_transfer(rhoc_r, rho_gb)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1458,6 +1463,7 @@ CONTAINS
 
       CALL pw_transfer(rhoc_r, rho_resp)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
+      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 

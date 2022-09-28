@@ -408,11 +408,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(pool))
       CPASSERT(pool%ref_count > 0)
       IF (ASSOCIATED(pw%pw_grid)) THEN
-      IF (.NOT. (ASSOCIATED(pw%cc) .OR. ASSOCIATED(pw%cc3d) .OR. ASSOCIATED(pw%cr) .OR. ASSOCIATED(pw%cr3d))) THEN
-         CPASSERT(my_accept_non_compatible)
-         failure = .TRUE.
-      END IF
-      IF (.NOT. failure) THEN
          IF (.NOT. pw_grid_compare(pw%pw_grid, pool%pw_grid)) THEN
             IF (debug_this_module) THEN
                WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
@@ -428,80 +423,83 @@ CONTAINS
             CALL pw_release(pw)
             failure = .TRUE.
          END IF
-      END IF
-      IF (.NOT. failure) THEN
-         IF (debug_this_module) THEN
-            WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                   fmt="(' *** pw_pool ',i4,' giving back pw ',i4)") &
-               pool%id_nr, pw%id_nr
-            CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                          pw=pw)
-            CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
-         END IF
-
-         NULLIFY (el)
-         ALLOCATE (el)
-         el = pw
-         NULLIFY (pw%cc, pw%cc3d, pw%cr, pw%cr3d)
-
-         SELECT CASE (el%in_use)
-         CASE (REALDATA1D)
-            IF (cp_sll_pw_get_length(pool%real1d_pw) < pool%max_cache) THEN
-               CALL cp_sll_pw_insert_el(pool%real1d_pw, el=el)
-            ELSE
-               IF (max_max_cache >= 0) &
-                  CPWARN("hit max_cache")
-               CALL pw_release(el)
-               DEALLOCATE (el)
+         IF (.NOT. failure) THEN
+            IF (debug_this_module) THEN
+               WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
+                      fmt="(' *** pw_pool ',i4,' giving back pw ',i4)") &
+                  pool%id_nr, pw%id_nr
+               CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
+                             pw=pw)
+               CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
             END IF
-         CASE (REALDATA3D)
-            IF (ASSOCIATED(el%cr3d)) THEN
-               IF (cp_sll_pw_get_length(pool%real3d_pw) < pool%max_cache) THEN
-                  CALL cp_sll_pw_insert_el(pool%real3d_pw, el=el)
+
+            NULLIFY (el)
+            ALLOCATE (el)
+            el = pw
+
+            SELECT CASE (el%in_use)
+            CASE (REALDATA1D)
+               IF (cp_sll_pw_get_length(pool%real1d_pw) < pool%max_cache) THEN
+                  CALL cp_sll_pw_insert_el(pool%real1d_pw, el=el)
                ELSE
                   IF (max_max_cache >= 0) &
                      CPWARN("hit max_cache")
                   CALL pw_release(el)
                   DEALLOCATE (el)
                END IF
-            ELSE
-               IF (debug_this_module) THEN
-                  WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
-                         fmt="(' *** pw_pool ',i4,' el ',i4,' cr3d is not associated, discarding')") &
-                     pool%id_nr, el%id_nr
-                  CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
+            CASE (REALDATA3D)
+               IF (ASSOCIATED(el%cr3d)) THEN
+                  IF (cp_sll_pw_get_length(pool%real3d_pw) < pool%max_cache) THEN
+                     CALL cp_sll_pw_insert_el(pool%real3d_pw, el=el)
+                  ELSE
+                     IF (max_max_cache >= 0) &
+                        CPWARN("hit max_cache")
+                     CALL pw_release(el)
+                     DEALLOCATE (el)
+                  END IF
+               ELSE
+                  IF (debug_this_module) THEN
+                     WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
+                            fmt="(' *** pw_pool ',i4,' el ',i4,' cr3d is not associated, discarding')") &
+                        pool%id_nr, el%id_nr
+                     CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
+                  END IF
+                  CPASSERT(my_accept_non_compatible)
+                  CALL pw_release(el)
+                  DEALLOCATE (el)
                END IF
-               CPASSERT(my_accept_non_compatible)
-               CALL pw_release(el)
-               DEALLOCATE (el)
-            END IF
-         CASE (COMPLEXDATA1D)
-            IF (cp_sll_pw_get_length(pool%complex1d_pw) < pool%max_cache) THEN
-               CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=el)
-            ELSE
-               IF (max_max_cache >= 0) &
-                  CPWARN("hit max_cache")
-               CALL pw_release(el)
-               DEALLOCATE (el)
-            END IF
-         CASE (COMPLEXDATA3D)
-            IF (cp_sll_pw_get_length(pool%complex3d_pw) < pool%max_cache) THEN
-               CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=el)
-            ELSE
-               IF (max_max_cache >= 0) &
-                  CPWARN("hit max_cache")
-               CALL pw_release(el)
-               DEALLOCATE (el)
-            END IF
-         CASE default
-            ! unknown in_use
-            CPABORT("")
-         END SELECT
-         !FM so that if someone tries to use a pw that is in the pool
-         !FM (s)he gets problems
+            CASE (COMPLEXDATA1D)
+               IF (cp_sll_pw_get_length(pool%complex1d_pw) < pool%max_cache) THEN
+                  CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=el)
+               ELSE
+                  IF (max_max_cache >= 0) &
+                     CPWARN("hit max_cache")
+                  CALL pw_release(el)
+                  DEALLOCATE (el)
+               END IF
+            CASE (COMPLEXDATA3D)
+               IF (cp_sll_pw_get_length(pool%complex3d_pw) < pool%max_cache) THEN
+                  CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=el)
+               ELSE
+                  IF (max_max_cache >= 0) &
+                     CPWARN("hit max_cache")
+                  CALL pw_release(el)
+                  DEALLOCATE (el)
+               END IF
+            CASE default
+               ! unknown in_use
+               CPABORT("")
+            END SELECT
+            !FM so that if someone tries to use a pw that is in the pool
+            !FM (s)he gets problems
+         END IF
+      ELSE
+         IF (ASSOCIATED(pw%cc)) DEALLOCATE (pw%cc)
+         IF (ASSOCIATED(pw%cc3d)) DEALLOCATE (pw%cc3d)
+         IF (ASSOCIATED(pw%cr)) DEALLOCATE (pw%cr)
+         IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
       END IF
-      NULLIFY (pw%pw_grid)
-      END IF
+      NULLIFY (pw%cc, pw%cc3d, pw%cr, pw%cr3d)
       CALL timestop(handle)
    END SUBROUTINE pw_pool_give_back_pw
 

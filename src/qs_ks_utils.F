@@ -343,6 +343,7 @@ CONTAINS
                CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
                                        qs_env=qs_env, calculate_forces=calculate_forces)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin)%pw)
+               DEALLOCATE (vxc(ispin)%pw)
             END DO
             DEALLOCATE (vxc)
 
@@ -365,12 +366,14 @@ CONTAINS
       DO ispin = 1, Nspin
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin)%pw)
+         DEALLOCATE (rho_r(ispin)%pw, rho_g(ispin)%pw)
       END DO
       DEALLOCATE (rho_r, rho_g)
       CALL dbcsr_deallocate_matrix_set(matrix_p)
       CALL dbcsr_deallocate_matrix_set(matrix_h)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace%pw)
+      DEALLOCATE (work_v_rspace%pw)
 
       CALL dbcsr_release_p(fm_deriv)
       CALL dbcsr_release_p(fm_scaled)
@@ -659,6 +662,7 @@ CONTAINS
             ! need to deallocate vxc
             CALL pw_pool_give_back_pw(xc_pw_pool, vxc(1)%pw)
             CALL pw_pool_give_back_pw(xc_pw_pool, vxc(2)%pw)
+            DEALLOCATE (vxc(1)%pw, vxc(2)%pw)
             DEALLOCATE (vxc)
 
          END IF
@@ -671,6 +675,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v_rspace%pw)
+      DEALLOCATE (orb_rho_r%pw, tmp_r%pw, orb_rho_g%pw, tmp_g%pw, work_v_gspace%pw, work_v_rspace%pw)
 
       CALL dbcsr_deallocate_matrix(orb_density_matrix)
       CALL dbcsr_deallocate_matrix(orb_h)
@@ -821,6 +826,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_rho%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v%pw)
+      DEALLOCATE (work_rho%pw, work_v%pw)
 
    END SUBROUTINE calc_v_sic_rspace
 
@@ -1391,6 +1397,7 @@ CONTAINS
                                              v_rspace_embed(ispin)%pw%pw_grid%dvol* &
                                              v_rspace_embed(ispin)%pw%cr3d
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
+               DEALLOCATE (v_rspace_embed(ispin)%pw)
             END IF
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
@@ -1434,12 +1441,14 @@ CONTAINS
                                        gapw=gapw)
             END IF
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
+            DEALLOCATE (v_rspace_new(ispin)%pw)
          END DO ! ispin
 
          SELECT CASE (dft_control%sic_method_id)
          CASE (sic_none)
          CASE (sic_mauri_us, sic_mauri_spz, sic_ad)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sic_rspace%pw)
+            DEALLOCATE (v_sic_rspace%pw)
          END SELECT
          DEALLOCATE (v_rspace_new)
 
@@ -1467,6 +1476,7 @@ CONTAINS
                                   v_rspace_embed(ispin)%pw%pw_grid%dvol* &
                                   v_rspace_embed(ispin)%pw%cr3d
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
+               DEALLOCATE (v_rspace_embed(ispin)%pw)
             END IF
             IF (lrigpw) THEN
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
@@ -1555,6 +1565,7 @@ CONTAINS
                                     calculate_forces=calculate_forces, compute_tau=.TRUE., &
                                     gapw=gapw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+            DEALLOCATE (v_tau_rspace(ispin)%pw)
          END DO
          DEALLOCATE (v_tau_rspace)
       END IF
@@ -1605,6 +1616,7 @@ CONTAINS
                               matrix_ks_aux_fit(ispin)%matrix, 1.0_dp, -1.0_dp)
 
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new_aux_fit(ispin)%pw)
+               DEALLOCATE (v_rspace_new_aux_fit(ispin)%pw)
             END DO
             DEALLOCATE (v_rspace_new_aux_fit)
          END IF
@@ -1612,6 +1624,7 @@ CONTAINS
          IF (ASSOCIATED(v_tau_rspace_aux_fit)) THEN
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace_aux_fit(ispin)%pw)
+               DEALLOCATE (v_tau_rspace_aux_fit(ispin)%pw)
             END DO
             DEALLOCATE (v_tau_rspace_aux_fit)
          END IF
@@ -1745,9 +1758,11 @@ CONTAINS
                                    rho_eff_gspace%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, &
                                    v_xc_gspace%pw)
+         DEALLOCATE (rho_eff_gspace%pw, v_xc_gspace%pw)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_rspace%pw)
+      DEALLOCATE (v_xc_rspace%pw)
 
       CALL timestop(handle)
 
@@ -1831,6 +1846,7 @@ CONTAINS
       IF (just_energy) THEN
          DO ispin = 1, dft_control%nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
+            DEALLOCATE (v_rspace_embed(ispin)%pw)
          END DO
          DEALLOCATE (v_rspace_embed)
       END IF

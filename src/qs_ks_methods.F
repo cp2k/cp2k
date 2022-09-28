@@ -423,6 +423,7 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw)
 
       IF (dft_control%apply_efield_field) THEN
          ALLOCATE (v_efield_rspace%pw)
@@ -504,6 +505,7 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+      DEALLOCATE (rho_tot_gspace%pw)
 
       ! calculate the density matrix for the fitted mo_coeffs
       IF (dft_control%do_admm) THEN
@@ -650,6 +652,7 @@ CONTAINS
                CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps%pw, -v_hartree_rspace%pw%pw_grid%dvol)
                CALL integrate_v_core_rspace(v_minus_veps, qs_env)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_minus_veps%pw)
+               DEALLOCATE (v_minus_veps%pw)
             ELSE
                CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
             END IF
@@ -717,20 +720,24 @@ CONTAINS
 
       IF (dft_control%qs_control%ddapc_explicit_potential) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_r%pw)
+         DEALLOCATE (v_spin_ddapc_rest_r%pw)
       END IF
 
       IF (dft_control%apply_efield_field) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_efield_rspace%pw)
+         DEALLOCATE (v_efield_rspace%pw)
       END IF
 
       IF (calculate_forces .AND. dft_control%qs_control%cdft) THEN
          IF (.NOT. cdft_control%transfer_pot) THEN
             DO iatom = 1, SIZE(cdft_control%group)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight%pw)
+               DEALLOCATE (cdft_control%group(iatom)%weight%pw)
             END DO
             IF (cdft_control%atomic_charges) THEN
                DO iatom = 1, cdft_control%natoms
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom)%pw)
+                  DEALLOCATE (cdft_control%charge(iatom)%pw)
                END DO
                DEALLOCATE (cdft_control%charge)
             END IF
@@ -738,12 +745,15 @@ CONTAINS
                 cdft_control%becke_control%cavity_confine) THEN
                IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
+                  DEALLOCATE (cdft_control%becke_control%cavity%pw)
                ELSE
                   DEALLOCATE (cdft_control%becke_control%cavity_mat)
                END IF
             ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
-               IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) &
+               IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) THEN
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
+                  DEALLOCATE (cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
+               END IF
             END IF
             IF (ASSOCIATED(cdft_control%charges_fragment)) DEALLOCATE (cdft_control%charges_fragment)
             cdft_control%save_pot = .FALSE.
@@ -754,6 +764,7 @@ CONTAINS
 
       IF (dft_control%do_sccs) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sccs_rspace%pw)
+         DEALLOCATE (v_sccs_rspace%pw)
       END IF
 
       IF (gapw) THEN

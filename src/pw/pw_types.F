@@ -152,14 +152,11 @@ CONTAINS
 
       last_pw_id_nr = last_pw_id_nr + 1
       pw%id_nr = last_pw_id_nr
-      NULLIFY (pw%pw_grid)
       pw%in_use = use_data
       pw%pw_grid => pw_grid
       CALL pw_grid_retain(pw%pw_grid)
       pw%in_space = NOSPACE
       bounds => pw%pw_grid%bounds_local
-
-      NULLIFY (pw%cr, pw%cc, pw%cr3d, pw%cc3d)
 
       SELECT CASE (use_data)
       CASE (REALDATA1D)

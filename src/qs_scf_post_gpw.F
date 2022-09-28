@@ -726,6 +726,7 @@ CONTAINS
       IF (((do_mo_cubes .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+         DEALLOCATE (wf_r%pw, wf_g%pw)
       END IF
 
       ! Destroy the localization environment
@@ -1518,6 +1519,7 @@ CONTAINS
                CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%ELF_CUBE", mpi_io=mpi_io)
 
                CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin)%pw)
+               DEALLOCATE (elf_r(ispin)%pw)
             END DO
 
             ! deallocate
@@ -1829,6 +1831,7 @@ CONTAINS
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,F20.10))') &
             "Integrated absolute spin density  : ", total_abs_spin_dens
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+         DEALLOCATE (wf_r%pw)
          !
          ! XXX Fix Me XXX
          ! should be extended to the case where added MOs are present
@@ -1988,6 +1991,7 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%PRINT%TOT_DENSITY_CUBE", mpi_io=mpi_io)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+         DEALLOCATE (wf_r%pw)
       END IF
 
       ! Write cube file with electron density
@@ -2225,6 +2229,7 @@ CONTAINS
             END IF
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_gspace%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
+            DEALLOCATE (rho_elec_gspace%pw, rho_elec_rspace%pw)
          ELSE
             IF (dft_control%nspins > 1) THEN
                CALL get_qs_env(qs_env=qs_env, &
@@ -2284,6 +2289,7 @@ CONTAINS
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                                  "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
+               DEALLOCATE (rho_elec_rspace%pw)
             ELSE
                filename = "ELECTRON_DENSITY"
                mpi_io = .TRUE.
@@ -2350,6 +2356,7 @@ CONTAINS
                                            "DFT%PRINT%V_HARTREE_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+         DEALLOCATE (aux_r%pw)
       END IF
 
       ! Print the external potential
@@ -2382,6 +2389,7 @@ CONTAINS
                                               "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE", mpi_io=mpi_io)
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+            DEALLOCATE (aux_r%pw)
          END IF
       END IF
 
@@ -2431,6 +2439,7 @@ CONTAINS
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_g%pw)
+         DEALLOCATE (aux_r%pw, aux_g%pw)
       END IF
 
       ! Write cube files from the local energy
@@ -2631,6 +2640,7 @@ CONTAINS
 
             IF (dft_control%nspins > 1) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
+               DEALLOCATE (rho_elec_rspace%pw)
             END IF
 
             IF (unit_nr_voro > 0) THEN
@@ -2929,6 +2939,7 @@ CONTAINS
                                            "DFT%PRINT%LOCAL_ENERGY_CUBE", mpi_io=mpi_io)
          !
          CALL pw_pool_give_back_pw(auxbas_pw_pool, eden%pw)
+         DEALLOCATE (eden%pw)
       END IF
       CALL timestop(handle)
 
@@ -3009,6 +3020,7 @@ CONTAINS
                                            "DFT%PRINT%LOCAL_STRESS_CUBE", mpi_io=mpi_io)
          !
          CALL pw_pool_give_back_pw(auxbas_pw_pool, stress%pw)
+         DEALLOCATE (stress%pw)
       END IF
 
       CALL timestop(handle)
@@ -3094,6 +3106,8 @@ CONTAINS
                                            "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+         DEALLOCATE (aux_r%pw)
+         NULLIFY (aux_r%pw)
       END IF
 
       ! Write Dirichlet constraint charges into a cube file
@@ -3143,6 +3157,8 @@ CONTAINS
                                            "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE", mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+         DEALLOCATE (aux_r%pw)
+         NULLIFY (aux_r%pw)
       END IF
 
       ! Write Dirichlet type constranits into cube files
@@ -3217,9 +3233,11 @@ CONTAINS
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                               "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", mpi_io=mpi_io)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dirichlet_tile)
+            DEALLOCATE (dirichlet_tile)
          END IF
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+         DEALLOCATE (aux_r%pw)
       END IF
 
       CALL timestop(handle)
@@ -3393,6 +3411,7 @@ CONTAINS
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+         DEALLOCATE (v_hartree_gspace%pw, rho_tot_gspace)
       END IF
 
    END SUBROUTINE update_hartree_with_mp2

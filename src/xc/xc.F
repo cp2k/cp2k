@@ -520,8 +520,10 @@ CONTAINS
       DO ispin = 1, 2
          CALL pw_pool_give_back_pw(pw_pool, rho2_r(ispin)%pw)
          CALL pw_pool_give_back_pw(pw_pool, vxc_rho2(ispin)%pw)
+         DEALLOCATE (rho2_r(ispin)%pw, vxc_rho2(ispin)%pw)
          IF (ASSOCIATED(vxc_tau2)) THEN
             CALL pw_pool_give_back_pw(pw_pool, vxc_tau2(ispin)%pw)
+            DEALLOCATE (vxc_tau2(ispin)%pw)
          END IF
       END DO
       DEALLOCATE (vxc_rho2, rho2_r, rho2_g)
@@ -1223,6 +1225,8 @@ CONTAINS
                END DO
             END DO
             CALL pw_pool_give_back_pw(pw_pool, virial_pw)
+            DEALLOCATE (virial_pw)
+            NULLIFY (virial_pw)
          END IF ! use_virial
          DO idir = 1, 3
             CPASSERT(ASSOCIATED(pw_to_deriv_rho(idir)%pw%cr3d))
@@ -1288,6 +1292,8 @@ CONTAINS
                      END DO
                   END DO
                   CALL pw_pool_give_back_pw(pw_pool, virial_pw)
+                  DEALLOCATE (virial_pw)
+                  NULLIFY (virial_pw)
                END IF ! use_virial
 
                DO idir = 1, 3
@@ -1318,7 +1324,10 @@ CONTAINS
                DO idir = 1, 3
                   CALL pw_axpy(pw_to_deriv_rho(idir)%pw, pw_to_deriv(idir)%pw)
                   IF (ispin == 2) THEN
-                     IF (dealloc_pw_to_deriv_rho) CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv_rho(idir)%pw)
+                     IF (dealloc_pw_to_deriv_rho) THEN
+                        CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv_rho(idir)%pw)
+                        DEALLOCATE (pw_to_deriv_rho(idir)%pw)
+                     END IF
                      NULLIFY (pw_to_deriv_rho(idir)%pw)
                   END IF
                END DO
@@ -1335,6 +1344,7 @@ CONTAINS
             IF (dealloc_pw_to_deriv) THEN
             DO idir = 1, 3
                CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(idir)%pw)
+               DEALLOCATE (pw_to_deriv(idir)%pw)
             END DO
             END IF
          END IF
@@ -1360,6 +1370,7 @@ CONTAINS
             CALL pw_axpy(pw_to_deriv(1)%pw, vxc_rho(ispin)%pw)
 
             CALL pw_pool_give_back_pw(pw_pool, pw_to_deriv(1)%pw)
+            DEALLOCATE (pw_to_deriv(1)%pw)
          END IF
 
          IF (pw_grid%spherical) THEN
@@ -1377,10 +1388,19 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL xc_pw_smooth(v_drho_r, vxc_rho(ispin)%pw, xc_rho_smooth_id)
          CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
+         DEALLOCATE (v_drho_r)
       END DO
 
-      IF (ASSOCIATED(vxc_g)) CALL pw_pool_give_back_pw(pw_pool, vxc_g)
-      IF (ASSOCIATED(tmp_g)) CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+      IF (ASSOCIATED(vxc_g)) THEN
+         CALL pw_pool_give_back_pw(pw_pool, vxc_g)
+         DEALLOCATE (vxc_g)
+         NULLIFY (vxc_g)
+      END IF
+      IF (ASSOCIATED(tmp_g)) THEN
+         CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+         DEALLOCATE (tmp_g)
+         NULLIFY (tmp_g)
+      END IF
 
       DO idir = 1, 3
          CPASSERT(.NOT. ASSOCIATED(pw_to_deriv(idir)%pw))
@@ -2278,12 +2298,14 @@ CONTAINS
 
       DO ispin = 1, SIZE(rho_r)
          CALL pw_pool_give_back_pw(pw_pool, rho_r(ispin)%pw)
+         DEALLOCATE (rho_r(ispin)%pw)
       END DO
       DEALLOCATE (rho_r)
 
       IF (ASSOCIATED(tau_r)) THEN
       DO ispin = 1, SIZE(tau_r)
          CALL pw_pool_give_back_pw(pw_pool, tau_r(ispin)%pw)
+         DEALLOCATE (tau_r(ispin)%pw)
       END DO
       DEALLOCATE (tau_r)
       END IF
@@ -3063,10 +3085,12 @@ CONTAINS
 
       IF (ASSOCIATED(tmp_g) .AND. ASSOCIATED(pw_pool)) THEN
          CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+         DEALLOCATE (tmp_g)
       END IF
 
       IF (ASSOCIATED(vxc_g) .AND. ASSOCIATED(pw_pool)) THEN
          CALL pw_pool_give_back_pw(pw_pool, vxc_g)
+         DEALLOCATE (vxc_g)
       END IF
 
       IF (my_compute_virial .AND. (gradient_f .OR. laplace_f)) THEN
@@ -3116,8 +3140,9 @@ CONTAINS
          CALL pw_pool_give_back_pw(pw_pool, pw)
       ELSE
          DEALLOCATE (pw%cr3d)
-         DEALLOCATE (pw)
       END IF
+      DEALLOCATE (pw)
+      NULLIFY (pw)
 
    END SUBROUTINE deallocate_pw
 
@@ -3235,6 +3260,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, virial_pw)
       CALL pw_pool_give_back_pw(pw_pool, tmp_g)
       CALL pw_pool_give_back_pw(pw_pool, rho_g)
+      DEALLOCATE (virial_pw, tmp_g, rho_g)
 
       CALL timestop(handle)
 
