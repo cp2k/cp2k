@@ -298,7 +298,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space)
-      TYPE(pw_pool_type), POINTER                        :: pool
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pool
       TYPE(pw_type), INTENT(OUT)                         :: pw
       INTEGER, INTENT(in)                                :: use_data
       INTEGER, INTENT(in), OPTIONAL                      :: in_space
@@ -387,8 +387,8 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE pw_pool_give_back_pw(pool, pw, accept_non_compatible)
-      TYPE(pw_pool_type), POINTER                        :: pool
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pool
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
@@ -407,7 +407,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(pool))
       CPASSERT(pool%ref_count > 0)
-      IF (.NOT. ASSOCIATED(pw)) THEN
+      IF (ASSOCIATED(pw%pw_grid)) THEN
+      IF (.NOT. (ASSOCIATED(pw%cc) .OR. ASSOCIATED(pw%cc3d) .OR. ASSOCIATED(pw%cr) .OR. ASSOCIATED(pw%cr3d))) THEN
          CPASSERT(my_accept_non_compatible)
          failure = .TRUE.
       END IF
@@ -441,6 +442,7 @@ CONTAINS
          NULLIFY (el)
          ALLOCATE (el)
          el = pw
+         NULLIFY (pw%cc, pw%cc3d, pw%cr, pw%cr3d)
 
          SELECT CASE (el%in_use)
          CASE (REALDATA1D)
@@ -498,8 +500,8 @@ CONTAINS
          !FM so that if someone tries to use a pw that is in the pool
          !FM (s)he gets problems
       END IF
-      IF (ASSOCIATED(pw)) DEALLOCATE (pw)
-      NULLIFY (pw)
+      NULLIFY (pw%pw_grid)
+      END IF
       CALL timestop(handle)
    END SUBROUTINE pw_pool_give_back_pw
 
@@ -667,6 +669,7 @@ CONTAINS
       CPASSERT(SIZE(pws) == SIZE(pools))
       DO i = 1, SIZE(pools)
          CALL pw_pool_give_back_pw(pools(i)%pool, pws(i)%pw)
+         DEALLOCATE (pws(i)%pw)
       END DO
       DEALLOCATE (pws)
    END SUBROUTINE pw_pools_give_back_pws

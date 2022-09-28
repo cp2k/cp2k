@@ -208,6 +208,7 @@ CONTAINS
       IF (PRESENT(pw_pool)) THEN
          DO k = 1, n_tiles
             CALL pw_pool_give_back_pw(pw_pool, dbc%tiles(k)%tile%tile_pw)
+            DEALLOCATE (dbc%tiles(k)%tile%tile_pw)
             DEALLOCATE (dbc%tiles(k)%tile)
          END DO
          DEALLOCATE (dbc%tiles)

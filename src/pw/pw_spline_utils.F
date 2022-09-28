@@ -2790,6 +2790,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pool, z)
       CALL pw_pool_give_back_pw(pool, p)
       CALL pw_pool_give_back_pw(pool, Ap)
+      DEALLOCATE (r, z, p, Ap)
    END FUNCTION find_coeffs
 
 ! **************************************************************************************************

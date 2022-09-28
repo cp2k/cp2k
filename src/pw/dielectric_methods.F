@@ -172,6 +172,7 @@ CONTAINS
             CALL pw_axpy(rho_core_rs, rho_elec_rs, -1.0_dp)
          END IF
          CALL pw_pool_give_back_pw(pw_pool, rho_core_rs)
+         DEALLOCATE (rho_core_rs)
       ELSE
          CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
       END IF
@@ -258,19 +259,23 @@ CONTAINS
          SELECT CASE (derivative_method)
          CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
             CALL pw_pool_give_back_pw(pw_pool, ln_eps)
+            DEALLOCATE (ln_eps)
          CASE (derivative_fft_use_deps)
             DO i = 1, 3
                CALL pw_pool_give_back_pw(pw_pool, deps(i)%pw)
+               DEALLOCATE (deps(i)%pw)
             END DO
          CASE (derivative_fft_use_drho)
             DO i = 1, 3
                CALL pw_pool_give_back_pw(pw_pool, drho(i)%pw)
                CALL pw_pool_give_back_pw(pw_pool, deps(i)%pw)
+               DEALLOCATE (drho(i)%pw, deps(i)%pw)
             END DO
          END SELECT
       END IF
 
       CALL pw_pool_give_back_pw(pw_pool, rho_elec_rs)
+      DEALLOCATE (rho_elec_rs)
 
       dielectric%params%times_called = dielectric%params%times_called + 1
 
@@ -377,6 +382,7 @@ CONTAINS
          END IF
          CALL pw_pool_give_back_pw(pw_pool_orig, rho_core_rs)
          CALL pw_pool_give_back_pw(pw_pool_xpndd, rho_core_rs_xpndd)
+         DEALLOCATE (rho_core_rs, rho_core_rs_xpndd)
       ELSE
          CPABORT("For dielectric constant larger than 1, rho_core has to be present.")
       END IF
@@ -463,20 +469,24 @@ CONTAINS
          SELECT CASE (derivative_method)
          CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
             CALL pw_pool_give_back_pw(pw_pool_xpndd, ln_eps)
+            DEALLOCATE (ln_eps)
          CASE (derivative_fft_use_deps)
             DO i = 1, 3
                CALL pw_pool_give_back_pw(pw_pool_xpndd, deps(i)%pw)
+               DEALLOCATE (deps(i)%pw)
             END DO
          CASE (derivative_fft_use_drho)
             DO i = 1, 3
                CALL pw_pool_give_back_pw(pw_pool_xpndd, drho(i)%pw)
                CALL pw_pool_give_back_pw(pw_pool_xpndd, deps(i)%pw)
+               DEALLOCATE (drho(i)%pw, deps(i)%pw)
             END DO
          END SELECT
       END IF
 
       CALL pw_pool_give_back_pw(pw_pool_orig, rho_elec_rs)
       CALL pw_pool_give_back_pw(pw_pool_xpndd, rho_elec_rs_xpndd)
+      DEALLOCATE (rho_elec_rs, rho_elec_rs_xpndd)
       CALL pw_pool_release(pw_pool_xpndd)
 
       dielectric%params%times_called = dielectric%params%times_called + 1
@@ -636,6 +646,7 @@ CONTAINS
 
       CALL pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, eps_tmp, eps)
       CALL pw_pool_give_back_pw(pw_pool, eps_tmp)
+      DEALLOCATE (eps_tmp)
 
       CALL timestop(handle)
 
@@ -734,6 +745,7 @@ CONTAINS
 
       CALL pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, eps_tmp, eps)
       CALL pw_pool_give_back_pw(pw_pool, eps_tmp)
+      DEALLOCATE (eps_tmp)
 
       CALL timestop(handle)
 
@@ -857,6 +869,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, dswch_func_drho)
       CALL pw_pool_give_back_pw(pw_pool, swch_func)
       CALL pw_pool_give_back_pw(pw_pool, eps_sptldep)
+      DEALLOCATE (dswch_func_drho, swch_func, eps_sptldep)
 
       CALL timestop(handle)
 
@@ -899,6 +912,7 @@ CONTAINS
 
       DO i = 1, 2
          CALL pw_pool_give_back_pw(pw_pool, work_gs(i)%pw)
+         DEALLOCATE (work_gs(i)%pw)
       END DO
 
       CALL timestop(handle)

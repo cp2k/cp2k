@@ -105,6 +105,7 @@ CONTAINS
             CALL pw_pool_give_back_pw(pw_pool, Vloc)
             CALL pw_pool_give_back_pw(pw_pool, Vlocg)
          END IF
+         DEALLOCATE (Vloc, Vlocg)
          !
          ! Get rid of the analytical FT of the erf(a*r)/r
          !

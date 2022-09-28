@@ -308,6 +308,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, res_new)
       CALL pw_pool_give_back_pw(pw_pool, QAinvxres)
       CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres)
+      DEALLOCATE (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres)
 
       CALL timestop(handle)
 
@@ -479,6 +480,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool_xpndd, density_xpndd)
       CALL pw_pool_give_back_pw(pw_pool_xpndd, v_new_xpndd)
       CALL pw_pool_give_back_pw(pw_pool_xpndd, v_eps_xpndd)
+      DEALLOCATE (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, density_xpndd, v_new_xpndd, v_eps_xpndd)
       CALL pw_pool_release(pw_pool_xpndd)
 
       CALL timestop(handle)
@@ -740,6 +742,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, QAinvxres)
       CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres)
       CALL pw_pool_give_back_pw(pw_pool, Axvbar)
+      DEALLOCATE (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, Axvbar)
 
       CALL timestop(handle)
 
@@ -1036,6 +1039,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool_xpndd, density_xpndd)
       CALL pw_pool_give_back_pw(pw_pool_xpndd, v_new_xpndd)
       CALL pw_pool_give_back_pw(pw_pool_xpndd, v_eps_xpndd)
+      DEALLOCATE (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, Axvbar, density_xpndd, v_new_xpndd, v_eps_xpndd)
       CALL pw_pool_release(pw_pool_xpndd)
 
       CALL timestop(handle)
@@ -1227,6 +1231,7 @@ CONTAINS
 
                CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in)
                CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out)
+               DEALLOCATE (pw_in, pw_out)
             END DO
             indx1 = indx2 + 1
          END DO
@@ -1355,6 +1360,7 @@ CONTAINS
 
                CALL pw_pool_give_back_pw(pw_pool_orig, pw_in)
                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
+               DEALLOCATE (pw_in, pw_out)
             END DO
             indx1 = indx2 + 1
          END DO
@@ -1463,6 +1469,7 @@ CONTAINS
 
       DO i = 1, 3
          CALL pw_pool_give_back_pw(pw_pool, dv(i)%pw)
+         DEALLOCATE (dv(i)%pw)
       END DO
 
       CALL timestop(handle)
@@ -1513,6 +1520,7 @@ CONTAINS
       CALL pw_transfer(pw_in_gs, pw_out)
 
       CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
+      DEALLOCATE (pw_in_gs)
 
       CALL timestop(handle)
 
@@ -1564,6 +1572,7 @@ CONTAINS
       CALL pw_transfer(pw_in_gs, pw_out)
 
       CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
+      DEALLOCATE (pw_in_gs)
 
       CALL timestop(handle)
 
@@ -1621,6 +1630,7 @@ CONTAINS
       CALL pw_transfer(pw_in_gs, pw_out)
 
       CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
+      DEALLOCATE (pw_in_gs)
 
       CALL timestop(handle)
 
@@ -1679,6 +1689,7 @@ CONTAINS
       CALL pw_transfer(pw_in_gs, pw_out)
 
       CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
+      DEALLOCATE (pw_in_gs)
 
       CALL timestop(handle)
 
@@ -1720,6 +1731,7 @@ CONTAINS
       CALL pw_axpy(Pxv, density)
 
       CALL pw_pool_give_back_pw(pw_pool, Pxv)
+      DEALLOCATE (Pxv)
 
       CALL timestop(handle)
 
@@ -1763,6 +1775,7 @@ CONTAINS
       CALL pw_axpy(Pxv, density)
 
       CALL pw_pool_give_back_pw(pw_pool, Pxv)
+      DEALLOCATE (Pxv)
 
       CALL timestop(handle)
 
@@ -1819,8 +1832,10 @@ CONTAINS
       v_eps%cr3d = -(1.0_dp/eightpi)*(dv2%cr3d*deps_drho%cr3d)
 
       CALL pw_pool_give_back_pw(pw_pool, dv2)
+      DEALLOCATE (dv2)
       DO i = 1, 3
          CALL pw_pool_give_back_pw(pw_pool, dv(i)%pw)
+         DEALLOCATE (dv(i)%pw)
       END DO
 
       CALL timestop(handle)
@@ -2163,6 +2178,7 @@ CONTAINS
 
       DO i = 1, 2
          CALL pw_pool_give_back_pw(pw_pool, work_gs(i)%pw)
+         DEALLOCATE (work_gs(i)%pw)
       END DO
 
       CALL timestop(handle)

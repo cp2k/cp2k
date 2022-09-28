@@ -457,6 +457,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, G_gs)
       CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
       CALL pw_pool_give_back_pw(pw_pool, pw_out_gs)
+      DEALLOCATE (G, G_gs, pw_in_gs, pw_out_gs)
       CALL timestop(handle)
 
    CONTAINS

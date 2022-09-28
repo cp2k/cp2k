@@ -390,6 +390,7 @@ CONTAINS
          END IF
 
          CALL pw_pool_give_back_pw(pw_pool, cylinder_pw)
+         DEALLOCATE (cylinder_pw)
 
          IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)
 

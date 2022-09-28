@@ -327,6 +327,7 @@ CONTAINS
             ELSE IF (PRESENT(ehartree)) THEN
                ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
                CALL pw_pool_give_back_pw(pw_pool, tmpg)
+               DEALLOCATE (tmpg)
             END IF
 
          CASE (PS_IMPLICIT)
@@ -382,6 +383,7 @@ CONTAINS
 
             CALL pw_pool_give_back_pw(pw_pool, rhor)
             CALL pw_pool_give_back_pw(pw_pool, vhartree_rs)
+            DEALLOCATE (rhor, vhartree_rs)
 
          CASE DEFAULT
             CALL cp_abort(__LOCATION__, &
@@ -410,6 +412,7 @@ CONTAINS
             CALL pw_transfer(rhor, rhog)
          END IF
          CALL pw_pool_give_back_pw(pw_pool, rhor)
+         DEALLOCATE (rhor)
 
       END SELECT
 
@@ -519,15 +522,19 @@ CONTAINS
 
          DO i = 1, 3
             CALL pw_pool_give_back_pw(pw_pool, dvg(i)%pw)
+            DEALLOCATE (dvg(i)%pw)
             IF (PRESENT(aux_density)) THEN
                CALL pw_pool_give_back_pw(pw_pool, dvg_aux(i)%pw)
+               DEALLOCATE (dvg_aux(i)%pw)
             END IF
          END DO
 
       END IF
       CALL pw_pool_give_back_pw(pw_pool, rhog)
+      DEALLOCATE (rhog)
       IF (PRESENT(aux_density)) THEN
          CALL pw_pool_give_back_pw(pw_pool, rhog_aux)
+         DEALLOCATE (rhog_aux)
       END IF
 
       CALL timestop(handle)

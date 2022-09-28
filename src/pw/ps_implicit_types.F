@@ -106,6 +106,7 @@ CONTAINS
                                       accept_non_compatible=.TRUE.)
             CALL pw_pool_give_back_pw(pw_pool, ps_implicit_env%cstr_charge, &
                                       accept_non_compatible=.TRUE.)
+            DEALLOCATE (ps_implicit_env%initial_guess, ps_implicit_env%v_eps, ps_implicit_env%cstr_charge)
             CALL dbc_release(ps_implicit_env%contacts, do_dbc_cube, pw_pool=pw_pool)
          ELSE
             CALL pw_release(ps_implicit_env%initial_guess)
