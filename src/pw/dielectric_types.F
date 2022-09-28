@@ -95,14 +95,11 @@ CONTAINS
          can_give_back = PRESENT(pw_pool)
          IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
          IF (can_give_back) THEN
-            CALL pw_pool_give_back_pw(pw_pool, dielectric%eps, &
-                                      accept_non_compatible=.TRUE.)
-            CALL pw_pool_give_back_pw(pw_pool, dielectric%deps_drho, &
-                                      accept_non_compatible=.TRUE.)
+            CALL pw_pool_give_back_pw(pw_pool, dielectric%eps)
+            CALL pw_pool_give_back_pw(pw_pool, dielectric%deps_drho)
             DEALLOCATE (dielectric%eps, dielectric%deps_drho)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool, dielectric%dln_eps(i)%pw, &
-                                         accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_pw(pw_pool, dielectric%dln_eps(i)%pw)
                DEALLOCATE (dielectric%dln_eps(i)%pw)
             END DO
          ELSE

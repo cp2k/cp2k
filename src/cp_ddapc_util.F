@@ -185,8 +185,7 @@ CONTAINS
          CALL cp_print_key_finished_output(iw2, logger, density_fit_section, &
                                            "PROGRAM_RUN_INFO/CONDITION_NUMBER")
          DEALLOCATE (radii)
-         CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g, &
-                                   accept_non_compatible=.TRUE.)
+         CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g)
       END IF
       CALL timestop(handle)
    END SUBROUTINE cp_ddapc_init
@@ -525,8 +524,7 @@ CONTAINS
          CALL cp_print_key_finished_output(iw, logger, density_fit_section, &
                                            "PROGRAM_RUN_INFO")
       END IF
-      CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g, &
-                                accept_non_compatible=.TRUE.)
+      CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g)
       CALL timestop(handle)
    END SUBROUTINE get_ddapc
 

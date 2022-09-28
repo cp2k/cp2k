@@ -226,7 +226,7 @@ CONTAINS
                                       use_data=REALDATA3D)
                CALL pw_transfer(rho0_s_gs%pw, rho_tot_r2)
                CALL pw_axpy(rho_tot_r2, rho_tot_r)
-               CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r2, accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r2)
             ELSE
                CALL pw_transfer(rho0_s_gs%pw, rho_tot_r)
                !
@@ -319,7 +319,7 @@ CONTAINS
       ! Give back rho_tot_t to auxbas_pool only for GPW/GAPW
       IF ((.NOT. dft_control%qs_control%semi_empirical) .AND. &
           (.NOT. dft_control%qs_control%dftb) .AND. (.NOT. dft_control%qs_control%xtb)) THEN
-         CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r, accept_non_compatible=.TRUE.)
+         CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r)
       END IF
       IF (iw > 0) THEN
          IF (.NOT. gapw) WRITE (iw, '(T2,"QMMM|",1X,A,T66,F15.9)') &

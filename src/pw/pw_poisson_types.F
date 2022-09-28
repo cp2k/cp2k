@@ -479,23 +479,19 @@ CONTAINS
             IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
             IF (can_give_back) THEN
                IF (ASSOCIATED(gftype%influence_fn)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn, &
-                                            accept_non_compatible=.TRUE.)
+                  CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn)
                   DEALLOCATE (gftype%influence_fn)
                END IF
                IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%dct_influence_fn, &
-                                            accept_non_compatible=.TRUE.)
+                  CALL pw_pool_give_back_pw(pw_pool, gftype%dct_influence_fn)
                   DEALLOCATE (gftype%dct_influence_fn)
                END IF
                IF (ASSOCIATED(gftype%screen_fn)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%screen_fn, &
-                                            accept_non_compatible=.TRUE.)
+                  CALL pw_pool_give_back_pw(pw_pool, gftype%screen_fn)
                   DEALLOCATE (gftype%screen_fn)
                END IF
                IF (ASSOCIATED(gftype%p3m_charge)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%p3m_charge, &
-                                            accept_non_compatible=.TRUE.)
+                  CALL pw_pool_give_back_pw(pw_pool, gftype%p3m_charge)
                   DEALLOCATE (gftype%p3m_charge)
                END IF
             ELSE

@@ -94,8 +94,7 @@ CONTAINS
       frho%cc(1:ng) = frho%cc(1:ng)*influence_fn%cc(1:ng)
       IF (grid%have_g0) frho%cc(1) = my_chi
 
-      CALL pw_pool_give_back_pw(pw_pool, influence_fn, &
-                                accept_non_compatible=.TRUE.)
+      CALL pw_pool_give_back_pw(pw_pool, influence_fn)
 
       CALL timestop(handle)
 

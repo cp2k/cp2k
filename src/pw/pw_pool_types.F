@@ -379,30 +379,21 @@ CONTAINS
 !> \brief returns the pw to the pool
 !> \param pool the pool where to reintegrate the pw
 !> \param pw the pw to give back
-!> \param accept_non_compatible if non compatible pw should be accepted
-!>        (they will be destroied). Defaults to false (and thus stops with
-!>        an error)
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE pw_pool_give_back_pw(pool, pw, accept_non_compatible)
+   SUBROUTINE pw_pool_give_back_pw(pool, pw)
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pool
       TYPE(pw_type), INTENT(INOUT)                       :: pw
-      LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw'
 
       INTEGER                                            :: handle
-      LOGICAL                                            :: failure, my_accept_non_compatible
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_type), POINTER                             :: el
 
-      failure = .FALSE.
-
-      my_accept_non_compatible = .FALSE.
       logger => cp_get_default_logger()
-      IF (PRESENT(accept_non_compatible)) my_accept_non_compatible = accept_non_compatible
 
       CALL timeset(routineN, handle)
       CPASSERT(ASSOCIATED(pool))
@@ -418,12 +409,8 @@ CONTAINS
                CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
             END IF
 
-            IF (.NOT. my_accept_non_compatible) &
-               CPABORT("pool cannot reuse pw of another grid")
             CALL pw_release(pw)
-            failure = .TRUE.
-         END IF
-         IF (.NOT. failure) THEN
+         ELSE
             IF (debug_this_module) THEN
                WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
                       fmt="(' *** pw_pool ',i4,' giving back pw ',i4)") &
@@ -464,7 +451,6 @@ CONTAINS
                         pool%id_nr, el%id_nr
                      CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
                   END IF
-                  CPASSERT(my_accept_non_compatible)
                   CALL pw_release(el)
                   DEALLOCATE (el)
                END IF
@@ -499,7 +485,7 @@ CONTAINS
          IF (ASSOCIATED(pw%cr)) DEALLOCATE (pw%cr)
          IF (ASSOCIATED(pw%cr3d)) DEALLOCATE (pw%cr3d)
       END IF
-      NULLIFY (pw%cc, pw%cc3d, pw%cr, pw%cr3d)
+      NULLIFY (pw%cc, pw%cc3d, pw%cr, pw%cr3d, pw%pw_grid)
       CALL timestop(handle)
    END SUBROUTINE pw_pool_give_back_pw
 

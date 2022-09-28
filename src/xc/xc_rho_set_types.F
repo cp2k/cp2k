@@ -934,21 +934,18 @@ CONTAINS
             ! post cleanup
             DO ispin = 1, nspins
                IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, laplace_rho_r(ispin)%pw, &
-                                            accept_non_compatible=.TRUE.)
+                  CALL pw_pool_give_back_pw(pw_pool, laplace_rho_r(ispin)%pw)
                   DEALLOCATE (laplace_rho_r(ispin)%pw)
                END IF
                DO idir = 1, 3
                   IF (ASSOCIATED(drho_r(idir, ispin)%pw)) THEN
-                     CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw, &
-                                               accept_non_compatible=.TRUE.)
+                     CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw)
                      DEALLOCATE (drho_r(idir, ispin)%pw)
                   END IF
                END DO
             END DO
             DO ispin = 1, nspins
-               CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw, &
-                                         accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw)
                DEALLOCATE (my_rho_r(ispin)%pw)
             END DO
 
