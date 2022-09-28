@@ -337,8 +337,8 @@ CONTAINS
          CPABORT("")
       END SELECT
 
+      ALLOCATE (pw)
       IF (.NOT. ASSOCIATED(el)) THEN
-         ALLOCATE (pw)
          CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
                         cr3d_ptr=cr3d_ptr)
          IF (debug_this_module) THEN
@@ -357,6 +357,7 @@ CONTAINS
             CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
          END IF
       ELSE
+         pw = el
          IF (debug_this_module) THEN
             WRITE (unit=cp_logger_get_default_unit_nr(logger, local=.TRUE.), &
                    fmt="(' *** pw_pool ',i4,' created pw reusing old ',i4)") &
@@ -366,7 +367,7 @@ CONTAINS
                pw=pw)
             CALL print_stack(cp_logger_get_default_unit_nr(logger, local=.TRUE.))
          END IF
-         pw => el
+         DEALLOCATE (el)
       END IF
 
       pw%in_space = 0
