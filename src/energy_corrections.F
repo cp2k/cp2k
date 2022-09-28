@@ -399,7 +399,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ALLOCATE (ec_env%rhoz_r(nspins))
          DO ispin = 1, nspins
-            NULLIFY (ec_env%rhoz_r(nspins)%pw)
+            ALLOCATE (ec_env%rhoz_r(nspins)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, ec_env%rhoz_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
          END DO
@@ -646,7 +646,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
-            NULLIFY (v_rspace(ispin)%pw)
+            ALLOCATE (v_rspace(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(v_rspace(ispin)%pw)
@@ -1008,7 +1008,7 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the Hartree potential
-      NULLIFY (v_hartree_gspace%pw, rhodn_tot_gspace%pw, v_hartree_rspace%pw)
+      ALLOCATE (v_hartree_gspace%pw, rhodn_tot_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhodn_tot_gspace%pw, &
@@ -1026,12 +1026,13 @@ CONTAINS
       NULLIFY (rhoout_r, rhoout_g)
       ALLOCATE (rhoout_r(nspins), rhoout_g(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rhoout_r(ispin)%pw, rhoout_g(ispin)%pw)
+         ALLOCATE (rhoout_r(ispin)%pw, rhoout_g(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoout_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
+      ALLOCATE (dv_hartree_rspace%pw, vtot_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, dv_hartree_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, vtot_rspace%pw, &
@@ -1049,7 +1050,7 @@ CONTAINS
       ! Save Harris on real space grid for use in properties
       ALLOCATE (ec_env%rhoout_r(nspins))
       DO ispin = 1, nspins
-         NULLIFY (ec_env%rhoout_r(ispin)%pw)
+         ALLOCATE (ec_env%rhoout_r(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, ec_env%rhoout_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_copy(rhoout_r(ispin)%pw, ec_env%rhoout_r(ispin)%pw)
@@ -1062,7 +1063,7 @@ CONTAINS
                           "tau-dependent functionals not implemented!")
          ALLOCATE (tauout_r(nspins), tauout_g(nspins))
          DO ispin = 1, nspins
-            NULLIFY (tauout_r(ispin)%pw, tauout_g(ispin)%pw)
+            ALLOCATE (tauout_r(ispin)%pw, tauout_g(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, tauout_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, tauout_g(ispin)%pw, &
@@ -1083,6 +1084,7 @@ CONTAINS
 
          ! Calculate the Hartree potential
          NULLIFY (rho_tot_gspace)
+         ALLOCATE (rho_tot_gspace)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1160,7 +1162,7 @@ CONTAINS
       IF (use_virial) THEN
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
-         NULLIFY (v_hartree_gspace%pw)
+         ALLOCATE (v_hartree_gspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1344,7 +1346,7 @@ CONTAINS
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
          ALLOCATE (v_rspace(nspins))
          DO ispin = 1, nspins
-            NULLIFY (v_rspace(ispin)%pw)
+            ALLOCATE (v_rspace(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, v_rspace(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(v_rspace(ispin)%pw)
@@ -2278,6 +2280,7 @@ CONTAINS
          CALL pw_env_get(pw_env=pw_env, &
                          auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
+         ALLOCATE (rho_elec_rspace%pw)
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                 pw=rho_elec_rspace%pw, &
                                 use_data=REALDATA3D, &

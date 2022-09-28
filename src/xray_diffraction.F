@@ -170,6 +170,7 @@ CONTAINS
 
       ! Plane waves grid to assemble the total electronic density
 
+      ALLOCATE (rhotot_elec_gspace%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=rhotot_elec_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -573,6 +574,7 @@ CONTAINS
 
       ! Load the soft contribution of the electronic density
 
+      ALLOCATE (rho_elec_gspace%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=rho_elec_gspace%pw, &
                              use_data=COMPLEXDATA1D, &

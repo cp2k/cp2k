@@ -2309,12 +2309,13 @@ CONTAINS
       !Apply the kernel on the density saved in force_data%sum_ker_tau
       ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw)
+         ALLOCATE (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
+      ALLOCATE (rhoz_tot_gspace%pw, zv_hartree_rspace%pw, zv_hartree_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, zv_hartree_rspace%pw, &
@@ -2339,7 +2340,7 @@ CONTAINS
       IF (do_tau) THEN
          ALLOCATE (tauz_r(nspins), tauz_g(nspins))
          DO ispin = 1, nspins
-            NULLIFY (tauz_r(ispin)%pw, tauz_g(ispin)%pw)
+            ALLOCATE (tauz_r(ispin)%pw, tauz_g(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, tauz_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, tauz_g(ispin)%pw, &
@@ -2659,12 +2660,12 @@ CONTAINS
                        auxbas_pw_pool, poisson_env, task_list_ext, rho_r, rho_g, pot_g, psi_L, sab_orb)
 
       IF (use_virial) THEN
-         NULLIFY (rho_g_copy%pw)
+         ALLOCATE (rho_g_copy%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_copy%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
          DO i_xyz = 1, 3
-            NULLIFY (dvg(i_xyz)%pw)
+            ALLOCATE (dvg(i_xyz)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i_xyz)%pw, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
@@ -3148,7 +3149,7 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      NULLIFY (vhxc_rspace%pw)
+      ALLOCATE (vhxc_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -3347,12 +3348,13 @@ CONTAINS
          !The core-denstiy derivative
          ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
          DO ispin = 1, nspins
-            NULLIFY (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw)
+            ALLOCATE (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g(ispin)%pw, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          END DO
+         ALLOCATE (rhoz_tot_gspace%pw, zv_hartree_rspace%pw, zv_hartree_gspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_tot_gspace%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, zv_hartree_rspace%pw, &
@@ -3369,7 +3371,7 @@ CONTAINS
 
          IF (use_virial) THEN
 
-            NULLIFY (rho_tot_gspace%pw)
+            ALLOCATE (rho_tot_gspace%pw)
             CALL get_qs_env(qs_env, rho=rho)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -3402,7 +3404,7 @@ CONTAINS
          IF (do_tau) THEN
             ALLOCATE (tauz_r(nspins), tauz_g(nspins))
             DO ispin = 1, nspins
-               NULLIFY (tauz_r(ispin)%pw, tauz_g(ispin)%pw)
+               ALLOCATE (tauz_r(ispin)%pw, tauz_g(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, tauz_r(ispin)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, tauz_g(ispin)%pw, &

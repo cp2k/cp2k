@@ -117,6 +117,7 @@ CONTAINS
          IF (tau_r_valid) THEN
             tau_r(ispin)%pw => tau_struct_r(ispin)%pw
          ELSE
+            ALLOCATE (tau_r(ispin)%pw, tau_g(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, tau_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, tau_g(ispin)%pw, &
@@ -138,10 +139,12 @@ CONTAINS
             !        deriv_pw = .TRUE.
             IF (deriv_pw) THEN
                nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
+               ALLOCATE (tmp_g)
                CALL pw_pool_create_pw(auxbas_pw_pool, tmp_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                udvol = 1.0_dp/rho_struct_r(ispin)%pw%pw_grid%dvol
                DO idir = 1, 3
+                  ALLOCATE (drho_r(3*(ispin - 1) + idir)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_transfer(rho_struct_r(ispin)%pw, tmp_g)
@@ -151,6 +154,7 @@ CONTAINS
 
             ELSE
                DO idir = 1, 3
+                  ALLOCATE (drho_r(3*(ispin - 1) + idir)%pw, drho_g(3*(ispin - 1) + idir)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(3*(ispin - 1) + idir)%pw, &

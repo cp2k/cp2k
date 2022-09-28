@@ -1548,7 +1548,7 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      NULLIFY (vhxc_rspace%pw)
+      ALLOCATE (vhxc_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       IF (use_virial) h_stress = virial%pv_virial
@@ -1635,7 +1635,7 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! get some of the grids ready
-      NULLIFY (pot_r%pw, pot_g%pw, rho_tot_g%pw)
+      ALLOCATE (pot_r%pw, pot_g%pw, rho_tot_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -1657,7 +1657,7 @@ CONTAINS
       IF (use_virial) THEN
          ALLOCATE (dvg(3))
          DO idir = 1, 3
-            NULLIFY (dvg(idir)%pw)
+            ALLOCATE (dvg(idir)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, dvg(idir)%pw, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
@@ -1688,7 +1688,7 @@ CONTAINS
       IF (use_virial) THEN
          ! update virial if necessary with the volume term
          ! first create pw auxiliary stuff
-         NULLIFY (temp_pw_g%pw)
+         ALLOCATE (temp_pw_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)

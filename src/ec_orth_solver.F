@@ -1169,6 +1169,7 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the NSC Hartree potential
+      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &

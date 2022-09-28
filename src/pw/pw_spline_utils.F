@@ -2727,6 +2727,8 @@ CONTAINS
 
       res = .FALSE.
       logger => cp_get_default_logger()
+      NULLIFY (r, z, p, Ap)
+      ALLOCATE (r, z, p, Ap)
       CALL pw_pool_create_pw(pool, r, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pool, z, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pool, p, use_data=REALDATA3D, in_space=REALSPACE)

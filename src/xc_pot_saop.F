@@ -294,6 +294,7 @@ CONTAINS
 
       ALLOCATE (vxc_GLLB(nspins))
       DO ispin = 1, nspins
+         ALLOCATE (vxc_GLLB(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, vxc_GLLB(ispin)%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -307,6 +308,7 @@ CONTAINS
 
       CALL xc_dset_release(deriv_set)
 
+      ALLOCATE (orbital%pw, orbital_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, orbital%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -386,6 +388,7 @@ CONTAINS
                          mo_coeff=mo_coeff, &
                          eigenvalues=mo_eigenvalues, &
                          homo=homo)
+         ALLOCATE (vxc_SAOP(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, vxc_SAOP(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(vxc_SAOP(ispin)%pw)

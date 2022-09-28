@@ -276,6 +276,7 @@ CONTAINS
       ALLOCATE (rho_r(Nspin))
       ALLOCATE (rho_g(Nspin))
       DO ispin = 1, Nspin
+         ALLOCATE (rho_r(ispin)%pw, rho_g(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -283,6 +284,7 @@ CONTAINS
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END DO
+      ALLOCATE (work_v_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, work_v_rspace%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -540,6 +542,7 @@ CONTAINS
       END SELECT
 
       ! data needed for each of the orbs
+      ALLOCATE (orb_rho_r%pw, tmp_r%pw, orb_rho_g%pw, tmp_g%pw, work_v_gspace%pw, work_v_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, orb_rho_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -597,13 +600,6 @@ CONTAINS
       CALL pw_zero(tmp_g%pw)
 
       NULLIFY (vxc)
-      ! ALLOCATE(vxc(2),stat=stat)
-      ! CPPostcondition(stat==0,cp_failure_level,routineP,failure)
-      ! CALL pw_pool_create_pw(xc_pw_pool,vxc(1)%pw,&
-      !         in_space=REALSPACE, use_data=REALDATA3D)
-      ! CALL pw_pool_create_pw(xc_pw_pool,vxc(2)%pw,&
-      !         in_space=REALSPACE, use_data=REALDATA3D)
-
       ! now apply to SIC correction to each selected orbital
       DO iorb = 1, Norb
          ! extract the proper orbital from the mo_coeff
@@ -738,6 +734,7 @@ CONTAINS
       ! OK, right now we like two spins to do sic, could be relaxed for AD
       CPASSERT(dft_control%nspins == 2)
 
+      ALLOCATE (work_rho%pw, work_v%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, work_rho%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -813,6 +810,7 @@ CONTAINS
       END IF
 
       IF (.NOT. just_energy) THEN
+         ALLOCATE (v_sic_rspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_sic_rspace%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(work_v%pw, v_sic_rspace%pw)
@@ -1647,7 +1645,7 @@ CONTAINS
 
       CHARACTER(*), PARAMETER :: routineN = 'calculate_zmp_potential'
 
-      INTEGER                                            :: handle, my_val, nelectron, nspins, stat
+      INTEGER                                            :: handle, my_val, nelectron, nspins
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       LOGICAL                                            :: do_zmp_read, fermi_amaldi
       REAL(KIND=dp)                                      :: factor, lambda
@@ -1682,8 +1680,8 @@ CONTAINS
                       poisson_env=poisson_env)
       CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)
       nspins = 1
-      ALLOCATE (v_rspace_new(nspins), stat=stat)
-      CPASSERT(stat == 0)
+      ALLOCATE (v_rspace_new(nspins))
+      ALLOCATE (v_rspace_new(1)%pw, v_xc_rspace%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_new(1)%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_xc_rspace%pw, &
@@ -1697,6 +1695,7 @@ CONTAINS
          exc = accurate_dot_product(v_rspace_new(1)%pw%cr3d, rho_r(1)%pw%cr3d)* &
                v_rspace_new(1)%pw%pw_grid%dvol
       ELSE
+         ALLOCATE (rho_eff_gspace%pw, v_xc_gspace%pw)
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                 pw=rho_eff_gspace%pw, &
                                 use_data=COMPLEXDATA1D, &
@@ -1796,6 +1795,7 @@ CONTAINS
       embed_corr = 0.0_dp
 
       DO ispin = 1, dft_control%nspins
+         ALLOCATE (v_rspace_embed(ispin)%pw)
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(v_rspace_embed(ispin)%pw)

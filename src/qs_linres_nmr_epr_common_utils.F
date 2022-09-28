@@ -15,7 +15,6 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE qs_linres_nmr_epr_common_utils
-   USE cell_types,                      ONLY: cell_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gaussi
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -46,7 +45,6 @@ CONTAINS
 !>         \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
 !>       which in reciprcal space reads  (for G/=0)
 !>          i G/|G|^2 x J(G)
-!> \param cell ...
 !> \param pw_pool ...
 !> \param rho_gspace ...
 !> \param funcG_times_rho ...
@@ -60,9 +58,8 @@ CONTAINS
 !>      This method would not work for a non periodic system
 !>      It should be generalized like the calculation of Hartree
 ! **************************************************************************************************
-   SUBROUTINE mult_G_ov_G2_grid(cell, pw_pool, rho_gspace, funcG_times_rho, idir, my_chi)
+   SUBROUTINE mult_G_ov_G2_grid(pw_pool, rho_gspace, funcG_times_rho, idir, my_chi)
 
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_p_type), POINTER                           :: rho_gspace
       TYPE(pw_p_type)                                    :: funcG_times_rho
@@ -78,9 +75,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(cell))
-      MARK_USED(cell)
-
+      NULLIFY (influence_fn)
+      ALLOCATE (influence_fn)
       CALL pw_pool_create_pw(pw_pool, influence_fn, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 

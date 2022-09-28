@@ -282,6 +282,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
       ALLOCATE (v_rspace_new(nspins))
+      ALLOCATE (v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -290,6 +291,7 @@ CONTAINS
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
       ! *** calculate the hartree potential on the total density ***
+      ALLOCATE (rho1_tot_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -312,6 +314,7 @@ CONTAINS
       END IF
 
       IF (.NOT. (nspins == 1 .AND. do_excitations .AND. do_triplet)) THEN
+         ALLOCATE (v_hartree_gspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
@@ -727,6 +730,7 @@ CONTAINS
                                 (lsd_singlets .OR. do_triplet))) THEN
             ALLOCATE (my_rho_r(2))
             DO ispin = 1, 2
+               ALLOCATE (my_rho_r(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, my_rho_r(ispin)%pw, &
                                       use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space)
                my_rho_r(ispin)%pw%cr3d = 0.5_dp*rho_r(1)%pw%cr3d
@@ -734,6 +738,7 @@ CONTAINS
             IF (dft_control%use_kinetic_energy_density) THEN
                ALLOCATE (my_tau_r(2))
                DO ispin = 1, 2
+                  ALLOCATE (my_tau_r(ispin)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, my_tau_r(ispin)%pw, &
                                          use_data=tau_r(1)%pw%in_use, in_space=tau_r(1)%pw%in_space)
                   my_tau_r(ispin)%pw%cr3d = 0.5_dp*tau_r(1)%pw%cr3d

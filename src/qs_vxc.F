@@ -258,11 +258,13 @@ CONTAINS
             CPASSERT(rho_g_valid)
             ALLOCATE (rho_g(mspin))
             DO ispin = 1, mspin
+               ALLOCATE (rho_g(ispin)%pw)
                CALL pw_pool_create_pw(xc_pw_pool, rho_g(ispin)%pw, &
                                       in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
                CALL pw_transfer(rho_struct_g(ispin)%pw, rho_g(ispin)%pw)
             END DO
             DO ispin = 1, mspin
+               ALLOCATE (rho_r(ispin)%pw)
                CALL pw_pool_create_pw(xc_pw_pool, rho_r(ispin)%pw, &
                                       in_space=REALSPACE, use_data=REALDATA3D)
                CALL pw_transfer(rho_g(ispin)%pw, rho_r(ispin)%pw)
@@ -270,21 +272,6 @@ CONTAINS
             IF (tau_r_valid) THEN
                ! tau with finer grids is not implemented (at least not correctly), which this asserts
                CPABORT("tau with finer grids")
-!                ALLOCATE(tau(dft_control%nspins),stat=stat)
-!                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
-!                DO ispin=1,mspin
-!                   CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
-!                        in_space=REALSPACE, use_data=REALDATA3D)
-!                   CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
-!                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D)
-!                   CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
-!                        in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D)
-!                   CALL pw_transfer(tau(ispin)%pw,tmp_g)
-!                   CALL pw_transfer(tmp_g,tmp_g2)
-!                   CALL pw_transfer(tmp_g2,tmp_pw)
-!                   CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2)
-!                   CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g)
-!                END DO
             END IF
          END IF
 
@@ -388,6 +375,7 @@ CONTAINS
          ! compute again the xc but now for Exc(m,o) and the opposite sign
          IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
+            ALLOCATE (rho_m_gspace(1)%pw, rho_m_rspace(1)%pw)
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(1)%pw, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
@@ -399,6 +387,7 @@ CONTAINS
             CALL pw_copy(rho_struct_g(1)%pw, rho_m_gspace(1)%pw)
             CALL pw_axpy(rho_struct_g(2)%pw, rho_m_gspace(1)%pw, alpha=-1._dp)
             ! bit sad, these will be just zero...
+            ALLOCATE (rho_m_gspace(2)%pw, rho_m_rspace(2)%pw)
             CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(2)%pw, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
@@ -459,6 +448,7 @@ CONTAINS
 
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
             DO ispin = 1, 2
+               ALLOCATE (rho_m_gspace(ispin)%pw, rho_m_rspace(ispin)%pw)
                CALL pw_pool_create_pw(xc_pw_pool, rho_m_gspace(ispin)%pw, &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
@@ -571,6 +561,8 @@ CONTAINS
             END DO
             IF (ASSOCIATED(vxc_rho)) THEN
                DO ispin = 1, SIZE(vxc_rho)
+                  NULLIFY (tmp_pw, tmp_g, tmp_g2)
+                  ALLOCATE (tmp_pw, tmp_g, tmp_g2)
                   CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
                                          in_space=REALSPACE, use_data=REALDATA3D)
                   CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &
@@ -589,6 +581,8 @@ CONTAINS
             END IF
             IF (ASSOCIATED(vxc_tau)) THEN
                DO ispin = 1, SIZE(vxc_tau)
+                  NULLIFY (tmp_pw, tmp_g, tmp_g2)
+                  ALLOCATE (tmp_pw, tmp_g, tmp_g2)
                   CALL pw_pool_create_pw(auxbas_pw_pool, tmp_pw, &
                                          in_space=REALSPACE, use_data=REALDATA3D)
                   CALL pw_pool_create_pw(xc_pw_pool, tmp_g, &

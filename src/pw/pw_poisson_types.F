@@ -302,6 +302,8 @@ CONTAINS
       ! allocate influence function,...
       SELECT CASE (green%method)
       CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT)
+         NULLIFY (green%influence_fn)
+         ALLOCATE (green%influence_fn)
          CALL pw_pool_create_pw(pw_pool, green%influence_fn, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -312,6 +314,8 @@ CONTAINS
             n = green%p3m_order
             ALLOCATE (green%p3m_coeff(-(n - 1):n - 1, 0:n - 1))
             CALL spme_coeff_calculate(n, green%p3m_coeff)
+            NULLIFY (green%p3m_charge)
+            ALLOCATE (green%p3m_charge)
             CALL pw_pool_create_pw(pw_pool, green%p3m_charge, use_data=REALDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL influence_factor(green)
@@ -330,6 +334,8 @@ CONTAINS
             IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
                 (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
                CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
+               NULLIFY (green%dct_influence_fn)
+               ALLOCATE (green%dct_influence_fn)
                CALL pw_pool_create_pw(pw_pool_xpndd, green%dct_influence_fn, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                CALL pw_pool_release(pw_pool_xpndd)

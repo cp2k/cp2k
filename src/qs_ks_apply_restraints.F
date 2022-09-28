@@ -83,6 +83,7 @@ CONTAINS
             IF (cdft_control%need_pot) THEN
                ! First SCF iteraration => allocate storage
                DO igroup = 1, SIZE(cdft_control%group)
+                  ALLOCATE (cdft_control%group(igroup)%weight%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%weight%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   ! Sanity check
@@ -95,6 +96,7 @@ CONTAINS
                   IF (.NOT. ASSOCIATED(cdft_control%charge)) &
                      ALLOCATE (cdft_control%charge(cdft_control%natoms))
                   DO iatom = 1, cdft_control%natoms
+                     ALLOCATE (cdft_control%charge(iatom)%pw)
                      CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%charge(iatom)%pw, &
                                             use_data=REALDATA3D, in_space=REALSPACE)
                   END DO

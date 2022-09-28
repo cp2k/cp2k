@@ -129,6 +129,7 @@ CONTAINS
       ! get working arrays
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ALLOCATE (band_density%pw, hartree_density%pw, xc_density%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, band_density%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, hartree_density%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, xc_density%pw, use_data=REALDATA3D, in_space=REALSPACE)
@@ -153,6 +154,7 @@ CONTAINS
       ! band structure energy density
       CALL qs_energies_compute_w(qs_env, .TRUE.)
       CALL get_qs_env(qs_env, ks_env=ks_env, matrix_w_kp=matrix_w)
+      ALLOCATE (edens_r%pw, edens_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              edens_r%pw, &
                              use_data=REALDATA3D, &
@@ -174,6 +176,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, edens_g%pw)
 
       ! Hartree energy density correction = -0.5 * V_H(r) * [rho(r) - rho_core(r)]
+      ALLOCATE (rho_tot_gspace, rho_tot_rspace)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_tot_gspace, &
                              use_data=COMPLEXDATA1D, &
@@ -332,6 +335,7 @@ CONTAINS
       ! get working arrays
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ALLOCATE (xc_density%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, xc_density%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
       ! init local stress tensor
@@ -357,11 +361,12 @@ CONTAINS
 
       ! Electrical field terms
       CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_rspace%pw)
+      ALLOCATE (v_hartree_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_transfer(v_hartree_rspace%pw, v_hartree_gspace%pw)
       DO i = 1, 3
-         NULLIFY (efield(i)%pw)
+         ALLOCATE (efield(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, efield(i)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_copy(v_hartree_gspace%pw, efield(i)%pw)

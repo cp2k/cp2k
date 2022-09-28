@@ -287,6 +287,7 @@ CONTAINS
       ALLOCATE (v_hartree_gtemp)
       ALLOCATE (v_hartree_rtemp)
 
+      ALLOCATE (v_hartree_gspace%pw, v_hartree_gtemp%pw, v_hartree_rtemp%pw, rho_tot_gspace)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gtemp%pw, &
@@ -517,6 +518,7 @@ CONTAINS
                ALLOCATE (v_coulomb_gtemp)
                ALLOCATE (v_coulomb_rtemp)
 
+               ALLOCATE (v_coulomb_gspace%pw, v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_gspace%pw, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_gtemp%pw, &
@@ -870,6 +872,7 @@ CONTAINS
       ALLOCATE (v_xc_gtemp)
       ALLOCATE (v_xc_rtemp)
 
+      ALLOCATE (v_xc_gtemp%pw, v_xc_rtemp%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_xc_gtemp%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_xc_rtemp%pw, &
@@ -962,6 +965,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, lr_section, &
                                            "EPR%PRINT%NABLAVKS_CUBES"), cp_p_file)) THEN
          ALLOCATE (wf_r)
+         ALLOCATE (wf_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)

@@ -899,6 +899,8 @@ CONTAINS
       END IF
       DEALLOCATE (pab)
 
+      NULLIFY (rhoc_r)
+      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1037,6 +1039,8 @@ CONTAINS
       END IF
       DEALLOCATE (pab)
 
+      NULLIFY (rhoc_r)
+      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1128,6 +1132,8 @@ CONTAINS
 
       DEALLOCATE (pab)
 
+      NULLIFY (rhoc_r)
+      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1235,6 +1241,8 @@ CONTAINS
 
       DEALLOCATE (pab, cores)
 
+      NULLIFY (rhoc_r)
+      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1331,6 +1339,8 @@ CONTAINS
 
       DEALLOCATE (pab)
 
+      NULLIFY (rhoc_r)
+      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1438,6 +1448,8 @@ CONTAINS
 
       DEALLOCATE (pab, cores)
 
+      NULLIFY (rhoc_r)
+      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 

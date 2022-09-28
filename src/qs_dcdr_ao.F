@@ -237,6 +237,7 @@ CONTAINS
       ! Done with deriv_set and rho_set
 
       ALLOCATE (v_rspace_new(1))
+      ALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -245,6 +246,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       ! Calculate the Hartree potential on the total density
+      ALLOCATE (rho1_tot_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -349,6 +351,7 @@ CONTAINS
                       pw_pools=pw_pools)
 
       ! Create the Hartree potential grids in real and reciprocal space.
+      ALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -358,6 +361,7 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       ! Create the grid for the derivative of the core potential
+      ALLOCATE (drho_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -519,6 +523,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools, poisson_env=poisson_env)
+      ALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -526,6 +531,7 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
+      ALLOCATE (drho_r(1)%pw, drho_g(1)%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(1)%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(1)%pw, &

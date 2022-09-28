@@ -158,6 +158,7 @@ CONTAINS
          ALLOCATE (coeff_rspace)
          ALLOCATE (coeff_gspace)
 
+         ALLOCATE (coeff_rspace%pw, coeff_gspace%pw)
          CALL pw_pool_create_pw(pw_pool, coeff_rspace%pw, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_pool_create_pw(pw_pool, coeff_gspace%pw, &
@@ -247,6 +248,7 @@ CONTAINS
 
       ELSE
 
+         ALLOCATE (rho0_r_tmp%pw)
          CALL pw_pool_create_pw(pw_pool, rho0_r_tmp%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -302,6 +304,7 @@ CONTAINS
          DEALLOCATE (rho_rs)
       END IF
       ALLOCATE (rho_rs)
+      ALLOCATE (rho_rs%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_rs%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       rho0_mpole%rho0_s_rs => rho_rs
@@ -313,6 +316,7 @@ CONTAINS
          DEALLOCATE (rho_gs)
       END IF
       ALLOCATE (rho_gs)
+      ALLOCATE (rho_gs%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_gs%pw, &
                              use_data=COMPLEXDATA1D)
       rho_gs%pw%in_space = RECIPROCALSPACE
@@ -441,6 +445,7 @@ CONTAINS
 
       ALLOCATE (coeff_gspace)
       ALLOCATE (coeff_rspace)
+      ALLOCATE (coeff_gspace%pw, coeff_rspace%pw)
       CALL pw_pool_create_pw(pw_pool, coeff_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -451,6 +456,7 @@ CONTAINS
       IF (igrid /= auxbas_grid) THEN
          pw_aux => pw_pools(auxbas_grid)%pool
          ALLOCATE (coeff_gaux)
+         ALLOCATE (coeff_gaux%pw)
          CALL pw_pool_create_pw(pw_aux, coeff_gaux%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
@@ -460,6 +466,7 @@ CONTAINS
          CALL pw_pool_give_back_pw(pw_aux, coeff_gaux%pw)
          DEALLOCATE (coeff_gaux)
          ALLOCATE (coeff_raux)
+         ALLOCATE (coeff_raux%pw)
          CALL pw_pool_create_pw(pw_aux, coeff_raux%pw, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          scale = coeff_rspace%pw%pw_grid%dvol/coeff_raux%pw%pw_grid%dvol

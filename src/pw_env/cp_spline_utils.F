@@ -92,19 +92,10 @@ CONTAINS
       CPASSERT(pbc .OR. interp_kind == spline3_nopbc_interp)
       bo = pw_coarse_out%pw_grid%bounds_local
       NULLIFY (values, coeffs)
+      ALLOCATE (values)
       CALL pw_pool_create_pw(coarse_pool, values, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_zero(values)
-
-!FM       nullify(tst_pw)
-!FM       CALL pw_pool_create_pw(coarse_pool,tst_pw, use_data=REALDATA3D,&
-!FM            in_space=REALSPACE)
-!FM       call pw_copy(values,tst_pw)
-!FM       call add_fine2coarse(fine_values_pw=pw_fine_in,&
-!FM            coarse_coeffs_pw=tst_pw,&
-!FM            weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
-!FM            w_border1=spl3_1d_transf_border1/2._dp,pbc=pbc,&
-!FM            safe_computation=.false.)
 
       CALL add_fine2coarse(fine_values_pw=pw_fine_in, &
                            coarse_coeffs_pw=values, &
@@ -112,10 +103,7 @@ CONTAINS
                            w_border1=spl3_1d_transf_border1/2._dp, pbc=pbc, &
                            safe_computation=safe_computation)
 
-!FM       CALL pw_compare_debug(tst_pw,values,max_diff)
-!FM       WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*)"f2cmax_diff=",max_diff
-!FM       CALL pw_pool_give_back_pw(coarse_pool,tst_pw)
-
+      ALLOCATE (coeffs)
       CALL pw_pool_create_pw(coarse_pool, coeffs, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       NULLIFY (precond)
@@ -172,6 +160,7 @@ CONTAINS
       ifile = ifile + 1
       CALL timeset(routineN, handle)
       NULLIFY (coeffs)
+      ALLOCATE (coeffs)
       CALL pw_pool_create_pw(coarse_pool, coeffs, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       bo = pw_coarse_in%pw_grid%bounds_local

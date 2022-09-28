@@ -219,6 +219,7 @@ CONTAINS
             IF (.NOT. ASSOCIATED(fxc_rho)) THEN
                ALLOCATE (fxc_rho(nspins))
                DO ispin = 1, nspins
+                  ALLOCATE (fxc_rho(ispin)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, fxc_rho(ispin)%pw, &
                                          in_space=REALSPACE, use_data=REALDATA3D)
                   CALL pw_zero(fxc_rho(ispin)%pw)
@@ -235,6 +236,7 @@ CONTAINS
                IF (.NOT. ASSOCIATED(fxc_tau)) THEN
                   ALLOCATE (fxc_tau(nspins))
                   DO ispin = 1, nspins
+                     ALLOCATE (fxc_tau(ispin)%pw)
                      CALL pw_pool_create_pw(auxbas_pw_pool, fxc_tau(ispin)%pw, &
                                             in_space=REALSPACE, use_data=REALDATA3D)
                      CALL pw_zero(fxc_tau(ispin)%pw)
@@ -359,6 +361,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(fxc_rho)) THEN
             ALLOCATE (fxc_rho(nspins))
             DO ispin = 1, nspins
+               ALLOCATE (fxc_rho(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, fxc_rho(ispin)%pw, &
                                       in_space=REALSPACE, use_data=REALDATA3D)
                CALL pw_zero(fxc_rho(ispin)%pw)
@@ -367,6 +370,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(gxc_rho)) THEN
             ALLOCATE (gxc_rho(nspins))
             DO ispin = 1, nspins
+               ALLOCATE (gxc_rho(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, gxc_rho(ispin)%pw, &
                                       in_space=REALSPACE, use_data=REALDATA3D)
                CALL pw_zero(gxc_rho(ispin)%pw)

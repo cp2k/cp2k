@@ -129,11 +129,13 @@ CONTAINS
          ! scratch memory for tip potentials and structure factor
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ALLOCATE (vtip)
+         ALLOCATE (vtip%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, vtip%pw, use_data=REALDATA3D)
          vtip%pw%in_space = REALSPACE
          CALL pw_zero(vtip%pw)
          NULLIFY (sf, vref)
          ALLOCATE (sf, vref)
+         ALLOCATE (vref%pw, sf%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, vref%pw, use_data=COMPLEXDATA1D)
          vref%pw%in_space = RECIPROCALSPACE
          CALL pw_zero(vref%pw)

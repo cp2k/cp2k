@@ -472,6 +472,8 @@ CONTAINS
                               use_data=REALDATA3D, in_space=REALSPACE)
                NULLIFY (rho)
             ELSE IF (PRESENT(rhoa) .AND. PRESENT(rhob)) THEN
+               NULLIFY (rho_pw)
+               ALLOCATE (rho_pw)
                CALL pw_pool_create_pw(pw_pool, rho_pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(rho_pw,rhoa,rhob)
@@ -688,10 +690,13 @@ CONTAINS
             END IF
 
             IF (needs_rho_g) THEN
+               NULLIFY (tmp_g)
+               ALLOCATE (tmp_g)
                CALL pw_pool_create_pw(pw_pool, tmp_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             END IF
             DO ispin = 1, nspins
+               ALLOCATE (my_rho_r(ispin)%pw)
                CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                ! introduce a smoothing kernel on the density
@@ -713,19 +718,23 @@ CONTAINS
                   ! (for the partial integration)
                   ! deriv rho
                   DO idir = 1, 3
-                     NULLIFY (drho_r(idir, ispin)%pw)
+                     ALLOCATE (drho_r(idir, ispin)%pw)
                      CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin)%pw, &
                                             use_data=REALDATA3D, in_space=REALSPACE)
                   END DO
                   IF (needs_rho_g) THEN
                      IF (.NOT. ASSOCIATED(my_rho_g)) THEN
                         my_rho_g_local = .TRUE.
+                        NULLIFY (my_rho_g)
+                        ALLOCATE (my_rho_g)
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
                                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                         CALL pw_transfer(my_rho_r(ispin)%pw, my_rho_g)
                      END IF
                      IF (.NOT. my_rho_g_local .AND. (xc_deriv_method_id == xc_deriv_spline2 .OR. &
                                                      xc_deriv_method_id == xc_deriv_spline3)) THEN
+                        NULLIFY (my_rho_g)
+                        ALLOCATE (my_rho_g)
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
                                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                         my_rho_g_local = .TRUE.
@@ -733,7 +742,7 @@ CONTAINS
                      END IF
                   END IF
                   IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
-                     NULLIFY (laplace_rho_r(ispin)%pw)
+                     ALLOCATE (laplace_rho_r(ispin)%pw)
                      CALL pw_pool_create_pw(pw_pool, laplace_rho_r(ispin)%pw, &
                                             use_data=REALDATA3D, in_space=REALSPACE)
                      CALL xc_pw_laplace(my_rho_g, pw_pool, xc_deriv_method_id, laplace_rho_r(ispin)%pw, tmp_g=tmp_g)

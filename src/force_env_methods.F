@@ -1694,7 +1694,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       NULLIFY (diff_rho_r)
       ALLOCATE (diff_rho_r)
-      NULLIFY (diff_rho_r%pw)
+      ALLOCATE (diff_rho_r%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -1702,7 +1702,7 @@ CONTAINS
       IF (opt_embed%open_shell_embed) THEN
          NULLIFY (diff_rho_spin)
          ALLOCATE (diff_rho_spin)
-         NULLIFY (diff_rho_spin%pw)
+         ALLOCATE (diff_rho_spin%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, diff_rho_spin%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)

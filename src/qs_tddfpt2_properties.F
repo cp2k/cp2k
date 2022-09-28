@@ -1313,6 +1313,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)

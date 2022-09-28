@@ -273,12 +273,13 @@ CONTAINS
 
       ALLOCATE (rhox_r(nspins), rhox_g(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rhox_r(ispin)%pw, rhox_g(ispin)%pw)
+         ALLOCATE (rhox_r(ispin)%pw, rhox_g(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
+      ALLOCATE (rhox_tot_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhox_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -294,6 +295,7 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force, para_env=para_env)
 
       IF (.NOT. is_rks_triplets) THEN
+         ALLOCATE (xv_hartree_rspace%pw, xv_hartree_gspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_rspace%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_gspace%pw, &
@@ -443,7 +445,7 @@ CONTAINS
                ! rhox_aux
                ALLOCATE (rhox_r_aux(nspins), rhox_g_aux(nspins))
                DO ispin = 1, nspins
-                  NULLIFY (rhox_r_aux(ispin)%pw, rhox_g_aux(ispin)%pw)
+                  ALLOCATE (rhox_r_aux(ispin)%pw, rhox_g_aux(ispin)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r_aux(ispin)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g_aux(ispin)%pw, &

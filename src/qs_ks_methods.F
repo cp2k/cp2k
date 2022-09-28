@@ -342,6 +342,7 @@ CONTAINS
       END IF
 
       ! Calculate the Hartree potential
+      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -374,6 +375,7 @@ CONTAINS
 
       IF (dft_control%do_sccs) THEN
          ! Self-consistent continuum solvation (SCCS) model
+         ALLOCATE (v_sccs_rspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 v_sccs_rspace%pw, &
                                 use_data=REALDATA3D, &
@@ -423,6 +425,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
 
       IF (dft_control%apply_efield_field) THEN
+         ALLOCATE (v_efield_rspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 v_efield_rspace%pw, &
                                 use_data=REALDATA3D, &
@@ -641,6 +644,7 @@ CONTAINS
             ! Getting nuclear force contribution from the core charge density
             IF ((poisson_env%parameters%solver .EQ. pw_poisson_implicit) .AND. &
                 (poisson_env%parameters%dielectric_params%dielec_core_correction)) THEN
+               ALLOCATE (v_minus_veps%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, v_minus_veps%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_copy(v_hartree_rspace%pw, v_minus_veps%pw)
                CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps%pw, -v_hartree_rspace%pw%pw_grid%dvol)

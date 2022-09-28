@@ -1066,7 +1066,7 @@ CONTAINS
                                     pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
       END IF
 
-      NULLIFY (wfn_r%pw, rho_g%pw)
+      ALLOCATE (wfn_r%pw, rho_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wfn_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
@@ -1090,7 +1090,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
             DO iwfn = 1, nmo
-               NULLIFY (wfn_a(iwfn, ispin)%pw)
+               ALLOCATE (wfn_a(iwfn, ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin)%pw, &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
@@ -1104,7 +1104,7 @@ CONTAINS
       END IF
 
       ! get some of the grids ready
-      NULLIFY (rho_r%pw, pot_g%pw)
+      ALLOCATE (rho_r%pw, pot_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1450,6 +1450,7 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       !
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       !

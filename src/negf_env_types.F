@@ -811,7 +811,7 @@ CONTAINS
          CALL dbcsr_copy(matrix_b=hmat%matrix, matrix_a=matrix_s_kp(1, 1)%matrix)
          CALL dbcsr_set(hmat%matrix, 0.0_dp)
 
-         NULLIFY (v_hartree%pw)
+         ALLOCATE (v_hartree%pw)
          CALL pw_pool_create_pw(pw_pool, v_hartree%pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL negf_env_init_v_hartree(v_hartree%pw, negf_env%contacts, negf_control%contacts)
 

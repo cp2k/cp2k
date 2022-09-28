@@ -322,6 +322,7 @@ CONTAINS
          ALLOCATE (tile_maxvals(n_tiles))
          tile_maxvals = 0.0_dp
          DO k = 1, n_tiles
+            ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_pool_create_pw(pw_pool, dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
@@ -353,10 +354,13 @@ CONTAINS
          dirichlet_bc%tiles = tiles
          IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T7,A,I5)') "number of partitions : ", n_tiles
 
+         NULLIFY (cylinder_pw)
+         ALLOCATE (cylinder_pw)
          CALL pw_pool_create_pw(pw_pool, cylinder_pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(cylinder_pw)
 
          DO k = 1, n_tiles
+            ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_pool_create_pw(pw_pool, dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
@@ -401,6 +405,7 @@ CONTAINS
          IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T7,A,I5)') "number of partitions : ", n_tiles
 
          DO k = 1, n_tiles
+            ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_pool_create_pw(pw_pool, dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 

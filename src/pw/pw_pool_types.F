@@ -299,7 +299,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space)
       TYPE(pw_pool_type), POINTER                        :: pool
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type), INTENT(OUT)                         :: pw
       INTEGER, INTENT(in)                                :: use_data
       INTEGER, INTENT(in), OPTIONAL                      :: in_space
 
@@ -311,7 +311,6 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: el
 
       CALL timeset(routineN, handle)
-      NULLIFY (pw)
       NULLIFY (cr3d_ptr)
       logger => cp_get_default_logger()
       CPASSERT(ASSOCIATED(pool))
@@ -337,7 +336,6 @@ CONTAINS
          CPABORT("")
       END SELECT
 
-      ALLOCATE (pw)
       IF (.NOT. ASSOCIATED(el)) THEN
          CALL pw_create(pw, pool%pw_grid, use_data=use_data, &
                         cr3d_ptr=cr3d_ptr)
@@ -639,7 +637,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(pools))
       ALLOCATE (pws(SIZE(pools)))
       DO i = 1, SIZE(pools)
-         NULLIFY (pws(i)%pw)
+         ALLOCATE (pws(i)%pw)
          CALL pw_pool_create_pw(pools(i)%pool, pws(i)%pw, use_data, &
                                 in_space=in_space)
       END DO

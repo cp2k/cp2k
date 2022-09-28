@@ -158,6 +158,7 @@ CONTAINS
 
          owns_tmp_g = .FALSE.
          IF (.NOT. ASSOCIATED(my_tmp_g)) THEN
+            ALLOCATE (my_tmp_g)
             CALL pw_pool_create_pw(pw_pool, my_tmp_g, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             owns_tmp_g = .TRUE.

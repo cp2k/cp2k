@@ -82,6 +82,7 @@ CONTAINS
          ALLOCATE (dielectric)
          NULLIFY (dielectric%eps)
          NULLIFY (dielectric%deps_drho)
+         ALLOCATE (dielectric%eps, dielectric%deps_drho)
          CALL pw_pool_create_pw(pw_pool, dielectric%eps, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(pw_pool, dielectric%deps_drho, &
@@ -89,7 +90,7 @@ CONTAINS
          dielectric%eps%cr3d = 1.0_dp
          CALL pw_zero(dielectric%deps_drho)
          DO i = 1, 3
-            NULLIFY (dielectric%dln_eps(i)%pw)
+            ALLOCATE (dielectric%dln_eps(i)%pw)
             CALL pw_pool_create_pw(pw_pool, dielectric%dln_eps(i)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(dielectric%dln_eps(i)%pw)
@@ -151,6 +152,7 @@ CONTAINS
       END IF
 
       NULLIFY (rho_elec_rs)
+      ALLOCATE (rho_elec_rs)
       CALL pw_pool_create_pw(pw_pool, rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE)
 
       ! for evaluating epsilon make sure rho is in the real space
@@ -158,6 +160,8 @@ CONTAINS
 
       IF (PRESENT(rho_core)) THEN
          ! make sure rho_core is in the real space
+         NULLIFY (rho_core_rs)
+         ALLOCATE (rho_core_rs)
          CALL pw_pool_create_pw(pw_pool, rho_core_rs, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(rho_core, rho_core_rs)
          IF (dielectric%params%dielec_core_correction) THEN
@@ -193,17 +197,18 @@ CONTAINS
          SELECT CASE (derivative_method)
          CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
             NULLIFY (ln_eps)
+            ALLOCATE (ln_eps)
             CALL pw_pool_create_pw(pw_pool, ln_eps, use_data=REALDATA3D, in_space=REALSPACE)
             ln_eps%cr3d = LOG(dielectric%eps%cr3d)
          CASE (derivative_fft_use_deps)
             DO i = 1, 3
-               NULLIFY (deps(i)%pw)
+               ALLOCATE (deps(i)%pw)
                CALL pw_pool_create_pw(pw_pool, deps(i)%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(deps(i)%pw)
             END DO
          CASE (derivative_fft_use_drho)
             DO i = 1, 3
-               NULLIFY (deps(i)%pw, drho(i)%pw)
+               ALLOCATE (deps(i)%pw, drho(i)%pw)
                CALL pw_pool_create_pw(pw_pool, deps(i)%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(pw_pool, drho(i)%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(deps(i)%pw)
@@ -341,20 +346,25 @@ CONTAINS
 
       NULLIFY (rho_elec_rs)
       ! make sure rho is in the real space
+      ALLOCATE (rho_elec_rs)
       CALL pw_pool_create_pw(pw_pool_orig, rho_elec_rs, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_transfer(rho, rho_elec_rs)
       ! expand rho_elec
       NULLIFY (rho_elec_rs_xpndd)
+      ALLOCATE (rho_elec_rs_xpndd)
       CALL pw_pool_create_pw(pw_pool_xpndd, rho_elec_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                      rho_elec_rs, rho_elec_rs_xpndd)
 
       IF (PRESENT(rho_core)) THEN
          ! make sure rho_core is in the real space
+         NULLIFY (rho_core_rs)
+         ALLOCATE (rho_core_rs)
          CALL pw_pool_create_pw(pw_pool_orig, rho_core_rs, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(rho_core, rho_core_rs)
          ! expand rho_core
          NULLIFY (rho_core_rs_xpndd)
+         ALLOCATE (rho_core_rs_xpndd)
          CALL pw_pool_create_pw(pw_pool_xpndd, rho_core_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                         rho_core_rs, rho_core_rs_xpndd)
@@ -392,17 +402,18 @@ CONTAINS
          SELECT CASE (derivative_method)
          CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
             NULLIFY (ln_eps)
+            ALLOCATE (ln_eps)
             CALL pw_pool_create_pw(pw_pool_xpndd, ln_eps, use_data=REALDATA3D, in_space=REALSPACE)
             ln_eps%cr3d = LOG(dielectric%eps%cr3d)
          CASE (derivative_fft_use_deps)
             DO i = 1, 3
-               NULLIFY (deps(i)%pw)
+               ALLOCATE (deps(i)%pw)
                CALL pw_pool_create_pw(pw_pool_xpndd, deps(i)%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(deps(i)%pw)
             END DO
          CASE (derivative_fft_use_drho)
             DO i = 1, 3
-               NULLIFY (deps(i)%pw, drho(i)%pw)
+               ALLOCATE (deps(i)%pw, drho(i)%pw)
                CALL pw_pool_create_pw(pw_pool_xpndd, deps(i)%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(pw_pool_xpndd, drho(i)%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(deps(i)%pw)
@@ -601,6 +612,8 @@ CONTAINS
                        "the simulation cell.")
       END IF
 
+      NULLIFY (eps_tmp)
+      ALLOCATE (eps_tmp)
       CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_copy(eps, eps_tmp)
 
@@ -697,6 +710,8 @@ CONTAINS
                        "the simulation cell.")
       END IF
 
+      NULLIFY (eps_tmp)
+      ALLOCATE (eps_tmp)
       CALL pw_pool_create_pw(pw_pool, eps_tmp, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_copy(eps, eps_tmp)
 
@@ -823,6 +838,8 @@ CONTAINS
          CPABORT("The dielectric constant has to be greater than or equal to 1.")
       END IF
 
+      NULLIFY (eps_sptldep, swch_func, dswch_func_drho)
+      ALLOCATE (eps_sptldep, swch_func, dswch_func_drho)
       CALL pw_pool_create_pw(pw_pool, eps_sptldep, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, swch_func, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, dswch_func_drho, use_data=REALDATA3D, in_space=REALSPACE)
@@ -866,7 +883,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       DO i = 1, 2
-         NULLIFY (work_gs(i)%pw)
+         ALLOCATE (work_gs(i)%pw)
          CALL pw_pool_create_pw(pw_pool, work_gs(i)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO

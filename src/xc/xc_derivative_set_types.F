@@ -213,6 +213,8 @@ CONTAINS
                         use_data=REALDATA3D, in_space=REALSPACE)
          NULLIFY (deriv_att%deriv_data)
       ELSE IF (PRESENT(pw_pool)) THEN
+         NULLIFY (pw)
+         ALLOCATE (pw)
          CALL pw_pool_create_pw(pw_pool, pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(pw)
       ELSE

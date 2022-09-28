@@ -735,6 +735,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
+      ALLOCATE (rho_gb%pw, vb_gspace%pw, vb_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_gb%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -908,6 +909,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
+      ALLOCATE (rho_metal%pw, v_metal_gspace%pw, v_metal_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_metal%pw, &
                              use_data=COMPLEXDATA1D, &

@@ -163,6 +163,7 @@ CONTAINS
       ELSEIF (ecut == -1._dp .AND. sigma == -1._dp) THEN
          smoothing = .TRUE.
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (dvr2rs%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, dvr2rs%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          ecut = 2._dp*dvr2rs%pw%pw_grid%cutoff*0.875_dp
@@ -220,6 +221,7 @@ CONTAINS
       IF (gapw) CALL prepare_gapw_den(qs_env, do_rho0=.TRUE.)
 
       !calculate electrostatic potential
+      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
@@ -237,6 +239,7 @@ CONTAINS
       DO i = 1, 3
          DO j = 1, i
             ij = (i*(i - 1))/2 + j
+            ALLOCATE (dvr2(ij)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, dvr2(ij)%pw, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             CALL pw_dr2(v_hartree_gspace%pw, dvr2(ij)%pw, i, j)
@@ -244,6 +247,7 @@ CONTAINS
       END DO
 
       IF (.NOT. efg_interpolation) THEN
+         ALLOCATE (structure_factor%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, structure_factor%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       ELSE
@@ -257,9 +261,11 @@ CONTAINS
          CALL section_vals_val_get(interp_section, "eps_r", r_val=eps_r)
          CALL section_vals_val_get(interp_section, "eps_x", r_val=eps_x)
 
+         ALLOCATE (dvr2rs%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, dvr2rs%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          DO i = 1, 6
+            ALLOCATE (dvspl(i)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, dvspl(i)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(dvr2(i)%pw, dvr2rs%pw)

@@ -301,6 +301,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ALLOCATE (rhonorm%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhonorm%pw, use_data=REALDATA3D)
       ! loop over spins
       DO is = 1, SIZE(rho_r)
@@ -393,6 +394,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ALLOCATE (rhonorm%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhonorm%pw, use_data=REALDATA3D)
       !
       DO iloop = 1, maxloop
@@ -538,6 +540,7 @@ CONTAINS
          DEALLOCATE (fnorm)
       END IF
       ALLOCATE (fnorm)
+      ALLOCATE (fnorm%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, fnorm%pw, use_data=REALDATA3D)
       fnorm%pw%in_space = REALSPACE
       CALL set_hirshfeld_info(hirshfeld_env, fnorm=fnorm)

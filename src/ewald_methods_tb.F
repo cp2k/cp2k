@@ -157,12 +157,16 @@ CONTAINS
          CALL dg_sum_patch(rden, rhos, center(:, p1))
       END DO
 
+      NULLIFY (rhob_r)
+      ALLOCATE (rhob_r)
       CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
       CALL rs_pw_transfer(rden, rhob_r, rs2pw)
 
       ! transform density to G space and add charge function
+      NULLIFY (rhob_g)
+      ALLOCATE (rhob_g)
       CALL pw_pool_create_pw(pw_pool, rhob_g, use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_transfer(rhob_r, rhob_g)
@@ -173,10 +177,12 @@ CONTAINS
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         NULLIFY (dphi_g(i)%pw)
+         ALLOCATE (dphi_g(i)%pw)
          CALL pw_pool_create_pw(pw_pool, dphi_g(i)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
+      NULLIFY (phi_g)
+      ALLOCATE (phi_g)
       CALL pw_pool_create_pw(pw_pool, phi_g, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       IF (use_virial) THEN
@@ -209,6 +215,8 @@ CONTAINS
                atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1) + 0.5_dp*mcharge(p1)*fint*dvols
             END DO
 
+            NULLIFY (phib_g)
+            ALLOCATE (phib_g)
             CALL pw_pool_create_pw(pw_pool, phib_g, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             ffa = (0.5_dp/alpha)**2
@@ -487,12 +495,16 @@ CONTAINS
          CALL dg_sum_patch(rden, rhos, center(:, p1))
       END DO
 
+      NULLIFY (rhob_r)
+      ALLOCATE (rhob_r)
       CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
       CALL rs_pw_transfer(rden, rhob_r, rs2pw)
 
       ! transform density to G space and add charge function
+      NULLIFY (rhob_g)
+      ALLOCATE (rhob_g)
       CALL pw_pool_create_pw(pw_pool, rhob_g, use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_transfer(rhob_r, rhob_g)
@@ -503,10 +515,12 @@ CONTAINS
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         NULLIFY (dphi_g(i)%pw)
+         ALLOCATE (dphi_g(i)%pw)
          CALL pw_pool_create_pw(pw_pool, dphi_g(i)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
+      NULLIFY (phi_g)
+      ALLOCATE (phi_g)
       CALL pw_pool_create_pw(pw_pool, phi_g, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_poisson_solve(poisson_env, rhob_g, vgc, phi_g, dphi_g)

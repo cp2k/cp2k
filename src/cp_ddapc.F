@@ -140,6 +140,7 @@ CONTAINS
       dft_control%qs_control%ddapc_explicit_potential = explicit_potential
       dft_control%qs_control%ddapc_restraint_is_spin = ddapc_restraint_is_spin
       IF (explicit_potential) THEN
+         ALLOCATE (v_spin_ddapc_rest_g%pw, v_spin_ddapc_rest_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_g%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_zero(v_spin_ddapc_rest_g%pw)

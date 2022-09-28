@@ -753,17 +753,20 @@ CONTAINS
          ! Setup pw
          cdft_control%group(igroup)%weight%pw%cr3d = 0.0_dp
 
+         ALLOCATE (cdft_control%group(igroup)%hw_rho_total_constraint%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          cdft_control%group(igroup)%hw_rho_total_constraint%pw%cr3d = 1.0_dp
 
          IF (igroup == 1) THEN
+            ALLOCATE (cdft_control%group(igroup)%hw_rho_total%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             cdft_control%group(igroup)%hw_rho_total%pw%cr3d = 1.0_dp
 
             IF (hirshfeld_control%print_density) THEN
                DO iatom = 1, cdft_control%natoms
+                  ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic(iatom)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic(iatom)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   cdft_control%group(igroup)%hw_rho_atomic(iatom)%pw%cr3d = 1.0_dp
@@ -785,6 +788,7 @@ CONTAINS
             END DO
 
             DO iatom = 1, cdft_control%natoms
+               ALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                cdft_control%group(igroup)%hw_rho_atomic_charge(iatom)%pw%cr3d = 1.0_dp
@@ -974,6 +978,7 @@ CONTAINS
                ALLOCATE (rs_single_dr(num_species))
 
                DO i = 1, num_species
+                  ALLOCATE (pw_single_dr(i)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, pw_single_dr(i)%pw, use_data=REALDATA3D, &
                                          in_space=REALSPACE)
                   pw_single_dr(i)%pw%cr3d(:, :, :) = 0.0_dp
@@ -1681,20 +1686,24 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
       ! Total density (rho_alpha + rho_beta)
+      ALLOCATE (cdft_control%fragments(1, 1)%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(1, 1)%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL cp_cube_to_pw(cdft_control%fragments(1, 1)%pw, &
                          cdft_control%fragment_a_fname, 1.0_dp)
+      ALLOCATE (cdft_control%fragments(1, 2)%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(1, 2)%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL cp_cube_to_pw(cdft_control%fragments(1, 2)%pw, &
                          cdft_control%fragment_b_fname, 1.0_dp)
       ! Spin difference density (rho_alpha - rho_beta) if needed
       IF (needs_spin_density) THEN
+         ALLOCATE (cdft_control%fragments(2, 1)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(2, 1)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL cp_cube_to_pw(cdft_control%fragments(2, 1)%pw, &
                             cdft_control%fragment_a_spin_fname, multiplier(1))
+         ALLOCATE (cdft_control%fragments(2, 2)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%fragments(2, 2)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL cp_cube_to_pw(cdft_control%fragments(2, 2)%pw, &
@@ -1702,6 +1711,7 @@ CONTAINS
       END IF
       ! Sum up fragments
       DO i = 1, nfrag_spins
+         ALLOCATE (rho_frag(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_frag(i)%pw, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_copy(cdft_control%fragments(i, 1)%pw, rho_frag(i)%pw)

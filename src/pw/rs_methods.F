@@ -395,6 +395,8 @@ CONTAINS
       lb2 = bounds_local(1, 2); ub2 = bounds_local(2, 2)
       lb3 = bounds_local(1, 3); ub3 = bounds_local(2, 3)
 
+      NULLIFY (G, G_gs, pw_in_gs, pw_out_gs)
+      ALLOCATE (G, G_gs, pw_in_gs, pw_out_gs)
       CALL pw_pool_create_pw(pw_pool, G, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)

@@ -108,6 +108,7 @@ CONTAINS
 
          IF (nspin == 2) THEN
             CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
+            ALLOCATE (rho_tmp%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
                                    rho_tmp%pw, &
                                    use_data=COMPLEXDATA1D, &

@@ -1087,7 +1087,7 @@ CONTAINS
                                  pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
 
       ! get some of the grids ready
-      NULLIFY (rho_r%pw, rho_g%pw, pot_g%pw, psi_L%pw)
+      ALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw, psi_L%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)

@@ -161,6 +161,7 @@ CONTAINS
                                         allocate_centre=.TRUE.)
       END IF
 
+      ALLOCATE (rhos1%pw, rhos2%pw)
       CALL pw_pool_create_pw(pw_small_pool, rhos1%pw, &
                              use_data=REALDATA3D)
       CALL pw_pool_create_pw(pw_small_pool, rhos2%pw, &
@@ -235,6 +236,7 @@ CONTAINS
          END DO
       END IF
 
+      ALLOCATE (rhob_r)
       CALL pw_pool_create_pw(pw_big_pool, rhob_r, use_data=REALDATA3D, in_space=REALSPACE)
       CALL rs_pw_transfer(rden, rhob_r, rs2pw)
 
@@ -242,11 +244,13 @@ CONTAINS
 
       ! allocate intermediate arrays
       DO i = 1, 3
-         NULLIFY (dphi_g(i)%pw)
+         ALLOCATE (dphi_g(i)%pw)
          CALL pw_pool_create_pw(pw_big_pool, dphi_g(i)%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END DO
+      NULLIFY (phi_r)
+      ALLOCATE (phi_r)
       CALL pw_pool_create_pw(pw_big_pool, phi_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -289,6 +293,8 @@ CONTAINS
             END IF
          END DO
          IF (atprop%stress) THEN
+            NULLIFY (phi_g, rhob_g)
+            ALLOCATE (phi_g, rhob_g)
             CALL pw_pool_create_pw(pw_big_pool, phi_g, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)

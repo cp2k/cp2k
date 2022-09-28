@@ -294,7 +294,7 @@ CONTAINS
                   CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
                   ALLOCATE (V_rspace_sub(nspins))
                   DO ispin = 1, nspins
-                     NULLIFY (V_rspace_sub(ispin)%pw)
+                     ALLOCATE (V_rspace_sub(ispin)%pw)
                      CALL pw_pool_create_pw(auxbas_pw_pool, V_rspace_sub(ispin)%pw, &
                                             use_data=REALDATA3D, in_space=REALSPACE)
                      CALL pw_zero(V_rspace_sub(ispin)%pw)

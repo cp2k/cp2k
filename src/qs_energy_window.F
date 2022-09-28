@@ -162,7 +162,7 @@ CONTAINS
       CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
       NULLIFY (rho_r, rho_g)
       ALLOCATE (rho_r, rho_g)
-      NULLIFY (rho_r%pw, rho_g%pw)
+      ALLOCATE (rho_r%pw, rho_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 

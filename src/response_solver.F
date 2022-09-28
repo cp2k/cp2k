@@ -1091,6 +1091,7 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
+      ALLOCATE (vhxc_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1206,12 +1207,13 @@ CONTAINS
       !
       ALLOCATE (rhoz_r(nspins), rhoz_g(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw)
+         ALLOCATE (rhoz_r(ispin)%pw, rhoz_g(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
+      ALLOCATE (rhoz_tot_gspace%pw, zv_hartree_rspace%pw, zv_hartree_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, zv_hartree_rspace%pw, &
@@ -1227,12 +1229,12 @@ CONTAINS
       END DO
 
       IF (ASSOCIATED(vtau_rspace)) THEN
-         NULLIFY (work_g%pw)
          ALLOCATE (tauz_r(nspins))
+         ALLOCATE (work_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_g%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          DO ispin = 1, nspins
-            NULLIFY (tauz_r(ispin)%pw)
+            ALLOCATE (tauz_r(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, tauz_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
@@ -1256,6 +1258,7 @@ CONTAINS
 
          NULLIFY (rho_tot_gspace)
          CALL get_qs_env(qs_env, rho=rho)
+         ALLOCATE (rho_tot_gspace)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1586,7 +1589,7 @@ CONTAINS
             NULLIFY (rhoz_g_aux, rhoz_r_aux)
             ALLOCATE (rhoz_r_aux(nspins), rhoz_g_aux(nspins))
             DO ispin = 1, nspins
-               NULLIFY (rhoz_r_aux(ispin)%pw, rhoz_g_aux(ispin)%pw)
+               ALLOCATE (rhoz_r_aux(ispin)%pw, rhoz_g_aux(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r_aux(ispin)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_aux(ispin)%pw, &
@@ -2173,7 +2176,8 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the Hartree potential
-      NULLIFY (v_hartree_gspace%pw, rho_tot_gspace, v_hartree_rspace%pw)
+      NULLIFY (rho_tot_gspace)
+      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &

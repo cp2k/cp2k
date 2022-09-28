@@ -132,6 +132,7 @@ CONTAINS
 
 ! v_eps
          NULLIFY (ps_implicit_env%v_eps)
+         ALLOCATE (ps_implicit_env%v_eps)
          CALL pw_pool_create_pw(pw_pool, ps_implicit_env%v_eps, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(ps_implicit_env%v_eps)
 
@@ -139,10 +140,12 @@ CONTAINS
          NULLIFY (ps_implicit_env%cstr_charge)
          SELECT CASE (boundary_condition)
          CASE (MIXED_PERIODIC_BC)
+            ALLOCATE (ps_implicit_env%cstr_charge)
             CALL pw_pool_create_pw(pw_pool, ps_implicit_env%cstr_charge, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(ps_implicit_env%cstr_charge)
          CASE (MIXED_BC)
             CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
+            ALLOCATE (ps_implicit_env%cstr_charge)
             CALL pw_pool_create_pw(pw_pool_xpndd, ps_implicit_env%cstr_charge, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(ps_implicit_env%cstr_charge)
             CALL pw_pool_release(pw_pool_xpndd)
@@ -224,6 +227,8 @@ CONTAINS
 ! check if this is the first scf iteration
       IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
+      NULLIFY (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres)
+      ALLOCATE (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres)
       CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE)
@@ -374,6 +379,8 @@ CONTAINS
 ! check if this is the first scf iteration
       IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool_xpndd)
 
+      NULLIFY (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, density_xpndd, v_new_xpndd, v_eps_xpndd)
+      ALLOCATE (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, density_xpndd, v_new_xpndd, v_eps_xpndd)
       CALL pw_pool_create_pw(pw_pool_xpndd, g, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool_xpndd, v_old, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool_xpndd, res_old, use_data=REALDATA3D, in_space=REALSPACE)
@@ -584,6 +591,8 @@ CONTAINS
       ALLOCATE (v_new1D(data_size))
       ALLOCATE (Bxv_new(n_tiles_tot))
 
+      NULLIFY (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, Axvbar)
+      ALLOCATE (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, Axvbar)
       CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE)
@@ -859,6 +868,8 @@ CONTAINS
       ALLOCATE (v_new1D(data_size))
       ALLOCATE (Bxv_new(n_tiles_tot))
 
+      NULLIFY (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, Axvbar, density_xpndd, v_new_xpndd, v_eps_xpndd)
+      ALLOCATE (g, v_old, res_old, res_new, QAinvxres, PxQAinvxres, Axvbar, density_xpndd, v_new_xpndd, v_eps_xpndd)
       CALL pw_pool_create_pw(pw_pool_xpndd, g, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool_xpndd, v_old, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool_xpndd, res_old, use_data=REALDATA3D, in_space=REALSPACE)
@@ -1051,6 +1062,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_tiles_tot = SIZE(ps_implicit_env%v_D)
+      NULLIFY (ps_implicit_env%initial_guess)
+      ALLOCATE (ps_implicit_env%initial_guess)
       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%initial_guess, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_zero(ps_implicit_env%initial_guess)
@@ -1190,6 +1203,8 @@ CONTAINS
             DO i = 1, n_tiles
                tile_pw => ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
+               NULLIFY (pw_in)
+               ALLOCATE (pw_in)
                CALL pw_pool_create_pw(pw_pool_xpndd, pw_in, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_expand(neumann_directions, &
                               dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
@@ -1199,6 +1214,8 @@ CONTAINS
                CALL pw_scale(pw_in, 1.0_dp/(vol_scfac*tile_volume)) ! normalize tile_pw
                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
+               NULLIFY (pw_out)
+               ALLOCATE (pw_out)
                CALL pw_pool_create_pw(pw_pool_xpndd, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
                CALL apply_inv_laplace_operator_dct(pw_pool_xpndd, green, pw_in, pw_out)
                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_out%cr3d, (/data_size/))
@@ -1316,6 +1333,8 @@ CONTAINS
             DO i = 1, n_tiles
                tile_pw => ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
+               NULLIFY (pw_in)
+               ALLOCATE (pw_in)
                CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_copy(tile_pw, pw_in)
 
@@ -1323,6 +1342,8 @@ CONTAINS
                CALL pw_scale(pw_in, 1.0_dp/tile_volume) ! normalize tile_pw
                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
+               NULLIFY (pw_out)
+               ALLOCATE (pw_out)
                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
                CALL apply_inv_laplace_operator_fft(pw_pool_orig, green, pw_in, pw_out)
                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_out%cr3d, (/data_size/))
@@ -1430,6 +1451,7 @@ CONTAINS
 
       dln_eps = dielectric%dln_eps
       DO i = 1, 3
+         ALLOCATE (dv(i)%pw)
          CALL pw_pool_create_pw(pw_pool, dv(i)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
       END DO
@@ -1479,6 +1501,8 @@ CONTAINS
       pw_grid => pw_pool%pw_grid
       ng = SIZE(pw_grid%gsq)
 
+      NULLIFY (pw_in_gs)
+      ALLOCATE (pw_in_gs)
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1528,6 +1552,8 @@ CONTAINS
       pw_grid => pw_pool%pw_grid
       ng = SIZE(pw_grid%gsq)
 
+      NULLIFY (pw_in_gs)
+      ALLOCATE (pw_in_gs)
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1577,6 +1603,8 @@ CONTAINS
       ng = SIZE(pw_in%pw_grid%gsq)
       have_g0 = green%influence_fn%pw_grid%have_g0
 
+      NULLIFY (pw_in_gs)
+      ALLOCATE (pw_in_gs)
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1633,6 +1661,8 @@ CONTAINS
       ng = SIZE(pw_in%pw_grid%gsq)
       have_g0 = green%dct_influence_fn%pw_grid%have_g0
 
+      NULLIFY (pw_in_gs)
+      ALLOCATE (pw_in_gs)
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1680,6 +1710,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      NULLIFY (Pxv)
+      ALLOCATE (Pxv)
       CALL pw_pool_create_pw(pw_pool, Pxv, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1721,6 +1753,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      NULLIFY (Pxv)
+      ALLOCATE (Pxv)
       CALL pw_pool_create_pw(pw_pool, Pxv, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1767,9 +1801,12 @@ CONTAINS
       eightpi = 2*fourpi
       deps_drho => dielectric%deps_drho
 
+      NULLIFY (dv2)
+      ALLOCATE (dv2)
       CALL pw_pool_create_pw(pw_pool, dv2, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       DO i = 1, 3
+         ALLOCATE (dv(i)%pw)
          CALL pw_pool_create_pw(pw_pool, dv(i)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
       END DO
@@ -2110,7 +2147,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       DO i = 1, 2
-         NULLIFY (work_gs(i)%pw)
+         ALLOCATE (work_gs(i)%pw)
          CALL pw_pool_create_pw(pw_pool, work_gs(i)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO

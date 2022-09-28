@@ -569,7 +569,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
-      NULLIFY (v_hartree_gspace%pw, rho_tot_gspace%pw, v_hartree_rspace%pw)
+      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
@@ -579,7 +579,7 @@ CONTAINS
 
       ALLOCATE (trho_r(nspins), trho_g(nspins))
       DO ispin = 1, nspins
-         NULLIFY (trho_r(ispin)%pw, trho_g(ispin)%pw)
+         ALLOCATE (trho_r(ispin)%pw, trho_g(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, trho_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, trho_g(ispin)%pw, &
@@ -689,7 +689,7 @@ CONTAINS
             ! rhoz_aux
             ALLOCATE (rhoz_r_aux(nspins), rhoz_g_aux(nspins))
             DO ispin = 1, nspins
-               NULLIFY (rhoz_r_aux(ispin)%pw, rhoz_g_aux(ispin)%pw)
+               ALLOCATE (rhoz_r_aux(ispin)%pw, rhoz_g_aux(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_r_aux(ispin)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, rhoz_g_aux(ispin)%pw, &

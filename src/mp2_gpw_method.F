@@ -394,7 +394,7 @@ CONTAINS
 
       ALLOCATE (psi_i(my_I_occupied_start:my_I_occupied_end))
       DO i = my_I_occupied_start, my_I_occupied_end
-         NULLIFY (psi_i(i)%pw)
+         ALLOCATE (psi_i(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, psi_i(i)%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)

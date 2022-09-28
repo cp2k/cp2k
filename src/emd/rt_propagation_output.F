@@ -710,6 +710,7 @@ CONTAINS
       END IF
       current_env%gauge = -1
       current_env%gauge_init = .FALSE.
+      ALLOCATE (rs%pw, gs%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, gs%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 

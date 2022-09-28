@@ -281,9 +281,11 @@ CONTAINS
       END IF
       ! density in G space
       NULLIFY (rhog)
+      ALLOCATE (rhog)
       CALL pw_pool_create_pw(pw_pool, rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       IF (PRESENT(aux_density)) THEN
          NULLIFY (rhog_aux)
+         ALLOCATE (rhog_aux)
          CALL pw_pool_create_pw(pw_pool, rhog_aux, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END IF
 
@@ -298,6 +300,8 @@ CONTAINS
                CALL pw_transfer(aux_density, rhog_aux)
             END IF
             IF (PRESENT(ehartree) .AND. (.NOT. PRESENT(vhartree))) THEN
+               NULLIFY (tmpg)
+               ALLOCATE (tmpg)
                CALL pw_pool_create_pw(pw_pool, tmpg, use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
                CALL pw_copy(rhog, tmpg)
@@ -349,6 +353,8 @@ CONTAINS
                END SELECT
             END IF
 
+            NULLIFY (rhor, vhartree_rs)
+            ALLOCATE (rhor, vhartree_rs)
             CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(density, rhor)
@@ -385,6 +391,8 @@ CONTAINS
 
       CASE (use_rs_grid)
 
+         NULLIFY (rhor)
+         ALLOCATE (rhor)
          CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(density, rhor)
          CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
@@ -408,7 +416,7 @@ CONTAINS
       ! do we need to calculate the derivative of the potential?
       IF (PRESENT(h_stress) .OR. PRESENT(dvhartree)) THEN
          DO i = 1, 3
-            NULLIFY (dvg(i)%pw)
+            ALLOCATE (dvg(i)%pw)
             CALL pw_pool_create_pw(pw_pool, dvg(i)%pw, use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             n = 0
@@ -416,7 +424,7 @@ CONTAINS
             CALL pw_copy(rhog, dvg(i)%pw)
             CALL pw_derive(dvg(i)%pw, n)
             IF (PRESENT(aux_density)) THEN
-               NULLIFY (dvg_aux(i)%pw)
+               ALLOCATE (dvg_aux(i)%pw)
                CALL pw_pool_create_pw(pw_pool, dvg_aux(i)%pw, use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
                CALL pw_copy(rhog_aux, dvg_aux(i)%pw)

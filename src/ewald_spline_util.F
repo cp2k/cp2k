@@ -113,6 +113,7 @@ CONTAINS
                                         "")
       ! pw_pool initialized
       CALL pw_pool_create(pw_pool, pw_grid=pw_grid)
+      ALLOCATE (pw, coeff)
       CALL pw_pool_create_pw(pw_pool, pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, coeff, use_data=REALDATA3D, in_space=REALSPACE)
       ! Evaluate function on grid

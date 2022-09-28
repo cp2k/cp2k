@@ -950,6 +950,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
+      ALLOCATE (rho_ga%pw, va_gspace%pw, va_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_ga%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -1726,6 +1727,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
+      ALLOCATE (rho_resp%pw, v_resp_gspace%pw, v_resp_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_resp%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -1762,6 +1764,7 @@ CONTAINS
       !***now print the v_resp_rspace%pw to a cube file if requested
       IF (BTEST(cp_print_key_should_output(logger%iter_info, resp_section, &
                                            "PRINT%V_RESP_CUBE"), cp_p_file)) THEN
+         ALLOCATE (aux_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)

@@ -191,6 +191,7 @@ CONTAINS
             NULLIFY (epr_env%bind_set(idir, i_B)%rho, rho_r, rho_g)
             CALL qs_rho_create(epr_env%bind_set(idir, i_B)%rho)
             ALLOCATE (rho_r(1), rho_g(1))
+            ALLOCATE (rho_r(1)%pw, rho_g(1)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(1)%pw, &
@@ -206,6 +207,7 @@ CONTAINS
             NULLIFY (epr_env%nablavks_set(idir, ispin)%rho, rho_r, rho_g)
             CALL qs_rho_create(epr_env%nablavks_set(idir, ispin)%rho)
             ALLOCATE (rho_r(1), rho_g(1))
+            ALLOCATE (rho_r(1)%pw, rho_g(1)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(1)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g(1)%pw, &

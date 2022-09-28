@@ -1058,6 +1058,7 @@ CONTAINS
          END IF
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+         ALLOCATE (rho_elec_rspace%pw)
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                 pw=rho_elec_rspace%pw, &
                                 use_data=REALDATA3D, &
@@ -1218,6 +1219,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      ALLOCATE (rho_core%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=rho_core%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -1231,6 +1233,7 @@ CONTAINS
             "Integrated core density:", total_rho_core_rspace
       END IF
 
+      ALLOCATE (rho_tot_rspace%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_transfer(rho_core%pw, rho_tot_rspace%pw)
@@ -1259,6 +1262,7 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
       END IF
       IF (my_v_hartree .OR. my_efield) THEN
+         ALLOCATE (rho_tot_gspace%pw)
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_gspace%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_transfer(rho_tot_rspace%pw, rho_tot_gspace%pw)
@@ -1270,6 +1274,7 @@ CONTAINS
          rho_tot_gspace%pw%cc(:) = rho_tot_gspace%pw%cc(:)*green_fft%influence_fn%cc(:)
          CALL pw_green_release(green_fft, auxbas_pw_pool)
          IF (my_v_hartree) THEN
+            ALLOCATE (vhartree%pw)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(rho_tot_gspace%pw, vhartree%pw)
@@ -1294,6 +1299,7 @@ CONTAINS
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree%pw)
          END IF
          IF (my_efield) THEN
+            ALLOCATE (vhartree%pw)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree%pw, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             udvol = 1.0_dp/rho_tot_rspace%pw%pw_grid%dvol
@@ -1388,6 +1394,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       DO ispin = 1, dft_control%nspins
+         ALLOCATE (elf_r(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin)%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -1510,6 +1517,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)

@@ -703,7 +703,7 @@ CONTAINS
 
                NULLIFY (rs, gs)
                ALLOCATE (rs, gs)
-               NULLIFY (rs%pw, gs%pw)
+               ALLOCATE (rs%pw, gs%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_pool_create_pw(auxbas_pw_pool, gs%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 

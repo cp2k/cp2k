@@ -141,6 +141,8 @@ CONTAINS
             WRITE (iw, '(/,A)') " Initializing the DDAPC Environment"
          END IF
          CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pool)
+         NULLIFY (rho_tot_g)
+         ALLOCATE (rho_tot_g)
          CALL pw_pool_create_pw(auxbas_pool, rho_tot_g, in_space=RECIPROCALSPACE, &
                                 use_data=COMPLEXDATA1D)
          Vol = rho_tot_g%pw_grid%vol
@@ -282,6 +284,8 @@ CONTAINS
       END IF
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pool)
+      NULLIFY (rho_tot_g)
+      ALLOCATE (rho_tot_g)
       CALL pw_pool_create_pw(auxbas_pool, rho_tot_g, in_space=RECIPROCALSPACE, &
                              use_data=COMPLEXDATA1D)
       IF (PRESENT(ext_rho_tot_g)) THEN

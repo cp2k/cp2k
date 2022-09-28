@@ -209,6 +209,8 @@ CONTAINS
          CALL pw_env_get(pw_env=pw_env, &
                          pw_pools=pw_pools, &
                          auxbas_pw_pool=auxbas_pool)
+         NULLIFY (rho_tot_r)
+         ALLOCATE (rho_tot_r)
          CALL pw_pool_create_pw(auxbas_pool, rho_tot_r, &
                                 in_space=REALSPACE, &
                                 use_data=REALDATA3D)
@@ -217,6 +219,8 @@ CONTAINS
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
                CALL pw_transfer(rho_core%pw, rho_tot_r)
                energy%qmmm_nu = pw_integral_ab(rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw)
+               NULLIFY (rho_tot_r2)
+               ALLOCATE (rho_tot_r2)
                CALL pw_pool_create_pw(auxbas_pool, rho_tot_r2, &
                                       in_space=REALSPACE, &
                                       use_data=REALDATA3D)
@@ -1362,6 +1366,7 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", extension=".qmmmLog")
       CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools)
+      ALLOCATE (v_qmmm_rspace%pw)
       CALL pw_pool_create_pw(pw_pools(1)%pool, v_qmmm_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       ALLOCATE (Num_Forces(3, num_mm_atoms))

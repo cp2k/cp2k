@@ -450,6 +450,7 @@ CONTAINS
       IF (((do_mo_cubes .OR. do_wannier_cubes) .AND. (nlumo /= 0 .OR. nhomo /= 0)) .OR. p_loc) THEN
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
+         ALLOCATE (wf_r%pw, wf_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -1473,6 +1474,7 @@ CONTAINS
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                             pw_pools=pw_pools)
             DO ispin = 1, dft_control%nspins
+               ALLOCATE (elf_r(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin)%pw, &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
@@ -1817,6 +1819,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
+         ALLOCATE (wf_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -1959,6 +1962,7 @@ CONTAINS
                          rho0_s_gs=rho0_s_gs)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
+         ALLOCATE (wf_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -2123,11 +2127,13 @@ CONTAINS
             CALL pw_env_get(pw_env=pw_env, &
                             auxbas_pw_pool=auxbas_pw_pool, &
                             pw_pools=pw_pools)
+            ALLOCATE (rho_elec_rspace%pw)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                    pw=rho_elec_rspace%pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
             CALL pw_zero(rho_elec_rspace%pw)
+            ALLOCATE (rho_elec_gspace%pw)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                    pw=rho_elec_gspace%pw, &
                                    use_data=COMPLEXDATA1D, &
@@ -2226,6 +2232,7 @@ CONTAINS
                CALL pw_env_get(pw_env=pw_env, &
                                auxbas_pw_pool=auxbas_pw_pool, &
                                pw_pools=pw_pools)
+               ALLOCATE (rho_elec_rspace%pw)
                CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                       pw=rho_elec_rspace%pw, &
                                       use_data=REALDATA3D, &
@@ -2316,6 +2323,7 @@ CONTAINS
                          pw_env=pw_env, &
                          v_hartree_rspace=v_hartree_rspace)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (aux_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -2350,6 +2358,7 @@ CONTAINS
          IF (dft_control%apply_external_potential) THEN
             CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, vee=vee)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+            ALLOCATE (aux_r%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
@@ -2382,6 +2391,7 @@ CONTAINS
 
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (aux_r%pw, aux_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -2585,6 +2595,7 @@ CONTAINS
                CALL pw_env_get(pw_env=pw_env, &
                                auxbas_pw_pool=auxbas_pw_pool, &
                                pw_pools=pw_pools)
+               ALLOCATE (rho_elec_rspace%pw)
                CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                       pw=rho_elec_rspace%pw, &
                                       use_data=REALDATA3D, &
@@ -2885,6 +2896,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
          CALL qs_subsys_get(subsys, particles=particles)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (eden%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, eden%pw, use_data=REALDATA3D, in_space=REALSPACE)
          !
          CALL qs_local_energy(qs_env, eden)
@@ -2961,6 +2973,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
          CALL qs_subsys_get(subsys, particles=particles)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (stress%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, stress%pw, use_data=REALDATA3D, in_space=REALSPACE)
          !
          ! use beta=0: kinetic energy density in symmetric form
@@ -3059,6 +3072,7 @@ CONTAINS
                                         extension=".cube", middle_name="DIELECTRIC_CONSTANT", file_position=my_pos_cube, &
                                         mpi_io=mpi_io)
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (aux_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
          boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
@@ -3107,6 +3121,7 @@ CONTAINS
                                         extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube, &
                                         mpi_io=mpi_io)
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (aux_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
          boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
@@ -3150,6 +3165,7 @@ CONTAINS
          tile_cubes = section_get_lval(input, "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%TILE_CUBES")
 
          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (aux_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(aux_r%pw)
 
@@ -3178,6 +3194,7 @@ CONTAINS
          ELSE
             ! a single cube file
             NULLIFY (dirichlet_tile)
+            ALLOCATE (dirichlet_tile)
             CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(dirichlet_tile)
             mpi_io = .TRUE.
@@ -3357,6 +3374,7 @@ CONTAINS
 
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          poisson_env=poisson_env)
+         ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 v_hartree_gspace%pw, &
                                 use_data=COMPLEXDATA1D, &

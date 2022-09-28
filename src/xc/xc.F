@@ -244,7 +244,7 @@ CONTAINS
 
       ALLOCATE (rho2_r(2))
       DO ispin = 1, 2
-         NULLIFY (rho2_r(ispin)%pw)
+         ALLOCATE (rho2_r(ispin)%pw)
          CALL pw_pool_create_pw(pw_pool, rho2_r(ispin)%pw, in_space=REALSPACE, &
                                 use_data=REALDATA3D)
       END DO
@@ -261,7 +261,7 @@ CONTAINS
       IF (ASSOCIATED(tau)) THEN
          ALLOCATE (tau2(2))
          DO ispin = 1, 2
-            NULLIFY (tau2(ispin)%pw)
+            ALLOCATE (tau2(ispin)%pw)
             CALL pw_pool_create_pw(pw_pool, tau2(ispin)%pw, in_space=REALSPACE, &
                                    use_data=REALDATA3D)
          END DO
@@ -1205,6 +1205,8 @@ CONTAINS
 
          CPASSERT(ASSOCIATED(deriv_data))
          IF (use_virial) THEN
+            NULLIFY (virial_pw)
+            ALLOCATE (virial_pw)
             CALL pw_pool_create_pw(pw_pool, virial_pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
@@ -1235,10 +1237,16 @@ CONTAINS
       END IF
 
       IF ((has_gradient .AND. xc_requires_tmp_g(xc_deriv_method_id)) .OR. pw_grid%spherical) THEN
+         NULLIFY (vxc_g)
+         ALLOCATE (vxc_g)
          CALL pw_pool_create_pw(pw_pool, vxc_g, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         IF (.NOT. pw_grid%spherical) CALL pw_pool_create_pw(pw_pool, tmp_g, &
-                                                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         IF (.NOT. pw_grid%spherical) THEN
+            NULLIFY (tmp_g)
+            ALLOCATE (tmp_g)
+            CALL pw_pool_create_pw(pw_pool, tmp_g, &
+                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         END IF
       END IF
 
       DO ispin = 1, nspins
@@ -1262,6 +1270,8 @@ CONTAINS
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
                IF (use_virial) THEN
+                  NULLIFY (virial_pw)
+                  ALLOCATE (virial_pw)
                   CALL pw_pool_create_pw(pw_pool, virial_pw, &
                                          use_data=REALDATA3D, &
                                          in_space=REALSPACE)
@@ -1362,7 +1372,7 @@ CONTAINS
                             rho_smooth_cutoff_range=density_smooth_cut_range)
 
          v_drho_r => vxc_rho(ispin)%pw
-         NULLIFY (vxc_rho(ispin)%pw)
+         ALLOCATE (vxc_rho(ispin)%pw)
          CALL pw_pool_create_pw(pw_pool, vxc_rho(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL xc_pw_smooth(v_drho_r, vxc_rho(ispin)%pw, xc_rho_smooth_id)
@@ -1570,7 +1580,7 @@ CONTAINS
       NULLIFY (v_xc, v_xc_tau)
       ALLOCATE (v_xc(nspins))
       DO ispin = 1, nspins
-         NULLIFY (v_xc(ispin)%pw)
+         ALLOCATE (v_xc(ispin)%pw)
          CALL pw_pool_create_pw(pw_pool, v_xc(ispin)%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -1585,7 +1595,7 @@ CONTAINS
             CPABORT("Tau-dependent functionals requires allocated kinetic energy density grid")
          ALLOCATE (v_xc_tau(nspins))
          DO ispin = 1, nspins
-            NULLIFY (v_xc_tau(ispin)%pw)
+            ALLOCATE (v_xc_tau(ispin)%pw)
             CALL pw_pool_create_pw(pw_pool, v_xc_tau(ispin)%pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
@@ -1714,13 +1724,13 @@ CONTAINS
          NULLIFY (vxc_rho, rho_g, vxc_tau)
          ALLOCATE (rho_r(2))
          DO ispin = 1, nspins
-            NULLIFY (rho_r(ispin)%pw)
+            ALLOCATE (rho_r(ispin)%pw)
             CALL pw_pool_create_pw(pw_pool, rho_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
          END DO
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(2))
             DO ispin = 1, nspins
-               NULLIFY (tau_r(ispin)%pw)
+               ALLOCATE (tau_r(ispin)%pw)
                CALL pw_pool_create_pw(pw_pool, tau_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
             END DO
          END IF
@@ -1754,13 +1764,13 @@ CONTAINS
          NULLIFY (vxc_rho, vxc_tau, rho_g)
          ALLOCATE (rho_r(2))
          DO ispin = 1, 2
-            NULLIFY (rho_r(ispin)%pw)
+            ALLOCATE (rho_r(ispin)%pw)
             CALL pw_pool_create_pw(pw_pool, rho_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
          END DO
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(2))
             DO ispin = 1, nspins
-               NULLIFY (tau_r(ispin)%pw)
+               ALLOCATE (tau_r(ispin)%pw)
                CALL pw_pool_create_pw(pw_pool, tau_r(ispin)%pw, in_space=REALSPACE, use_data=REALDATA3D)
             END DO
          END IF
@@ -1843,11 +1853,11 @@ CONTAINS
       ELSE
          NULLIFY (vxc_rho, rho_r, rho_g, vxc_tau, tau_r, tau)
          ALLOCATE (rho_r(1))
-         NULLIFY (rho_r(1)%pw)
+         ALLOCATE (rho_r(1)%pw)
          CALL pw_pool_create_pw(pw_pool, rho_r(1)%pw, in_space=REALSPACE, use_data=REALDATA3D)
          IF (ASSOCIATED(tau1_r) .AND. ASSOCIATED(v_tau)) THEN
             ALLOCATE (tau_r(1))
-            NULLIFY (tau_r(1)%pw)
+            ALLOCATE (tau_r(1)%pw)
             CALL pw_pool_create_pw(pw_pool, tau_r(1)%pw, in_space=REALSPACE, use_data=REALDATA3D)
          END IF
          CALL xc_rho_set_get(rho_set, can_return_null=.TRUE., rho=rho, tau=tau)
@@ -2729,6 +2739,8 @@ CONTAINS
 
          IF (xc_requires_tmp_g(xc_deriv_method_id) .AND. .NOT. my_gapw) THEN
             IF (ASSOCIATED(pw_pool)) THEN
+               NULLIFY (tmp_g, vxc_g)
+               ALLOCATE (tmp_g, vxc_g)
                CALL pw_pool_create_pw(pw_pool, tmp_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                CALL pw_pool_create_pw(pw_pool, vxc_g, &
@@ -3076,6 +3088,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
 
       IF (ASSOCIATED(pw_pool)) THEN
+         NULLIFY (pw)
+         ALLOCATE (pw)
          CALL pw_pool_create_pw(pw_pool, pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -3192,7 +3206,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (virial_pw, tmp_g, rho_g)
-
+      ALLOCATE (virial_pw, tmp_g, rho_g)
       CALL pw_pool_create_pw(pw_pool, virial_pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)

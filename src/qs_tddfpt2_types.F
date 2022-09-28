@@ -419,12 +419,12 @@ CONTAINS
       ALLOCATE (work_matrices%wpw_gspace_sub(nspins), work_matrices%wpw_rspace_sub(nspins), &
                 work_matrices%wpw_tau_rspace_sub(nspins))
       DO ispin = 1, nspins
-         NULLIFY (work_matrices%A_ia_rspace_sub(ispin)%pw)
+         ALLOCATE (work_matrices%A_ia_rspace_sub(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%A_ia_rspace_sub(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
 
-         NULLIFY (work_matrices%wpw_gspace_sub(ispin)%pw, work_matrices%wpw_rspace_sub(ispin)%pw, &
-                  work_matrices%wpw_tau_rspace_sub(ispin)%pw)
+         ALLOCATE (work_matrices%wpw_gspace_sub(ispin)%pw, work_matrices%wpw_rspace_sub(ispin)%pw, &
+                   work_matrices%wpw_tau_rspace_sub(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_gspace_sub(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, work_matrices%wpw_rspace_sub(ispin)%pw, &

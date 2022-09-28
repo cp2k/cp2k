@@ -136,6 +136,7 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, ncol_global=norb)
          blocksize = MAX(1, MIN(blocksize, norb))
 
+         ALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -150,6 +151,7 @@ CONTAINS
          ALLOCATE (rho_j(blocksize))
 
          NULLIFY (greenfn)
+         ALLOCATE (greenfn)
          CALL pw_pool_create_pw(auxbas_pw_pool, greenfn, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)

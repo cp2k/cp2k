@@ -284,7 +284,7 @@ CONTAINS
 
       ! Get work storage for the 3d grids in r-space
       DO i = 1, SIZE(work_r3d)
-         NULLIFY (work_r3d(i)%pw)
+         ALLOCATE (work_r3d(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 work_r3d(i)%pw, &
                                 use_data=REALDATA3D, &
@@ -393,7 +393,7 @@ CONTAINS
          ! Calculate the derivative of the electronic density in r-space
          ! TODO: Could be retrieved from the QS environment
          DO i = 1, 3
-            NULLIFY (drho_elec(i)%pw)
+            ALLOCATE (drho_elec(i)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
                                    drho_elec(i)%pw, &
                                    use_data=REALDATA3D, &
@@ -475,7 +475,7 @@ CONTAINS
             ! Calculate the second derivatives of the electronic density in r-space
             DO di = 1, 3
                DO dj = 1, 3
-                  NULLIFY (d2rho_elec(dj, di)%pw)
+                  ALLOCATE (d2rho_elec(dj, di)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, &
                                          d2rho_elec(dj, di)%pw, &
                                          use_data=REALDATA3D, &
@@ -562,7 +562,7 @@ CONTAINS
 
       ! Build the derivative of ln_eps_elec
       DO i = 1, 3
-         NULLIFY (dln_eps_elec(i)%pw)
+         ALLOCATE (dln_eps_elec(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 dln_eps_elec(i)%pw, &
                                 use_data=REALDATA3D, &
@@ -598,7 +598,7 @@ CONTAINS
 
       ! Get storage for the derivative of the total potential (field) in r-space
       DO i = 1, 3
-         NULLIFY (dphi_tot(i)%pw)
+         ALLOCATE (dphi_tot(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 dphi_tot(i)%pw, &
                                 use_data=REALDATA3D, &
@@ -1128,7 +1128,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ! Get work storage for the 1d grids in g-space (derivative calculation)
          DO i = 1, SIZE(work_g1d)
-            NULLIFY (work_g1d(i)%pw)
+            ALLOCATE (work_g1d(i)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
                                    work_g1d(i)%pw, &
                                    use_data=COMPLEXDATA1D, &
