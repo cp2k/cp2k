@@ -200,6 +200,7 @@ CONTAINS
       END DO ! ispin
       !
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work%pw)
+      DEALLOCATE (pw_gspace_work%pw)
       !
       ! compute shildings
       IF (interpolate_shift) THEN
@@ -217,6 +218,7 @@ CONTAINS
             END DO
          END DO
          CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace%pw)
+         DEALLOCATE (shift_pw_rspace%pw)
       ELSE
          DO ispin = 1, nspins
             DO idir = 1, 3
@@ -240,6 +242,7 @@ CONTAINS
       DO ispin = 1, nspins
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw)
+            DEALLOCATE (shift_pw_gspace(idir, ispin)%pw)
          END DO
       END DO
       DEALLOCATE (shift_pw_gspace)
@@ -599,6 +602,7 @@ CONTAINS
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, shiftspl%pw)
+      DEALLOCATE (shiftspl%pw)
 
       !
       CALL timestop(handle)
@@ -631,9 +635,6 @@ CONTAINS
       REAL(dp)                                           :: R_iatom(3), ra(3)
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_nics
       REAL(dp), DIMENSION(:, :, :), POINTER              :: chemical_shift, chemical_shift_nics
-
-!
-!
 
       CALL timeset(routineN, handle)
       !

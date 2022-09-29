@@ -307,6 +307,7 @@ CONTAINS
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
+      DEALLOCATE (rho1_tot_gspace%pw)
 
       ! *** calculate the xc potential ***
       NULLIFY (rho1a)
@@ -538,13 +539,16 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
+         DEALLOCATE (v_rspace_new(ispin)%pw)
       END DO
       DEALLOCATE (v_rspace_new)
       IF (ASSOCIATED(v_xc_tau)) THEN
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+         DEALLOCATE (v_xc_tau(ispin)%pw)
       END DO
       DEALLOCATE (v_xc_tau)
       END IF
@@ -946,6 +950,7 @@ CONTAINS
 
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+               DEALLOCATE (v_xc(ispin)%pw)
             END DO
             DEALLOCATE (v_xc)
             CALL dbcsr_deallocate_matrix(xcmat%matrix)

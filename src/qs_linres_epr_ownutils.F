@@ -522,6 +522,7 @@ CONTAINS
          DO ispin = 1, nspins
             DO idir1 = 1, 3
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vks_pw_spline(idir1, ispin)%pw)
+               DEALLOCATE (vks_pw_spline(idir1, ispin)%pw)
             END DO
          END DO
 
@@ -751,6 +752,7 @@ CONTAINS
 
          DO idir1 = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, bind_pw_spline(idir1, iB)%pw)
+            DEALLOCATE (bind_pw_spline(idir1, iB)%pw)
          END DO
 
          DEALLOCATE (bind_pw_spline)
@@ -878,13 +880,16 @@ CONTAINS
       !
       ! Dellocate grids for the calculation of jrho and the shift
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work%pw)
+      DEALLOCATE (pw_gspace_work%pw)
       DO ispin = 1, dft_control%nspins
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw)
+            DEALLOCATE (shift_pw_gspace(idir, ispin)%pw)
          END DO
       END DO
       DEALLOCATE (shift_pw_gspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace%pw)
+      DEALLOCATE (shift_pw_rspace%pw)
       !
       ! Finalize
       CALL timestop(handle)

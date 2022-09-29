@@ -357,6 +357,7 @@ CONTAINS
                   DEALLOCATE (dbwork)
                   DO ispin = 1, nspins
                      CALL pw_pool_give_back_pw(auxbas_pw_pool, V_rspace_sub(ispin)%pw)
+                     DEALLOCATE (V_rspace_sub(ispin)%pw)
                   END DO
                   DEALLOCATE (V_rspace_sub)
                   CALL cp_fm_release(work_aux_orb)

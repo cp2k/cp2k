@@ -331,9 +331,11 @@ CONTAINS
       END DO ! idir1
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhototspin_elec_gspace%pw)
+      DEALLOCATE (rhototspin_elec_gspace%pw)
       DEALLOCATE (rhototspin_elec_gspace)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, hypaniso_gspace%pw)
+      DEALLOCATE (hypaniso_gspace%pw)
       DEALLOCATE (hypaniso_gspace)
 
       ! Multiply hyperfine matrices with constant*gyromagnetic ratio's

@@ -1789,6 +1789,7 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, resp_section, &
                                            "PRINT%V_RESP_CUBE", mpi_io=mpi_io)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+         DEALLOCATE (aux_r%pw)
       END IF
 
       !*** RMS and RRMS

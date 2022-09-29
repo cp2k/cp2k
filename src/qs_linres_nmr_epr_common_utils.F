@@ -71,12 +71,10 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mult_G_ov_G2_grid'
 
-      TYPE(pw_type), POINTER                             :: frho, influence_fn
+      TYPE(pw_type)                                      :: influence_fn
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (influence_fn)
-      ALLOCATE (influence_fn)
       CALL pw_pool_create_pw(pw_pool, influence_fn, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -87,12 +85,11 @@ CONTAINS
       END DO ! ig
       IF (grid%have_g0) influence_fn%cc(1) = 0.0_dp
 
-      frho => funcG_times_rho%pw
-      CALL pw_transfer(rho_gspace%pw, frho)
+      CALL pw_transfer(rho_gspace%pw, funcG_times_rho%pw)
 
       ng = SIZE(grid%gsq)
-      frho%cc(1:ng) = frho%cc(1:ng)*influence_fn%cc(1:ng)
-      IF (grid%have_g0) frho%cc(1) = my_chi
+      funcG_times_rho%pw%cc(1:ng) = funcG_times_rho%pw%cc(1:ng)*influence_fn%cc(1:ng)
+      IF (grid%have_g0) funcG_times_rho%pw%cc(1) = my_chi
 
       CALL pw_pool_give_back_pw(pw_pool, influence_fn)
 

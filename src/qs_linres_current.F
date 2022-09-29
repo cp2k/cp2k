@@ -514,6 +514,7 @@ CONTAINS
          END DO
          !
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+         DEALLOCATE (wf_r%pw)
       END IF ! current cube
       !
       ! Integrated current response checksum

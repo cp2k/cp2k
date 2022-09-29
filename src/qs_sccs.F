@@ -511,6 +511,7 @@ CONTAINS
             DO di = 1, 3
                DO dj = 1, 3
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, d2rho_elec(dj, di)%pw)
+                  DEALLOCATE (d2rho_elec(dj, di)%pw)
                END DO
             END DO
          END IF
@@ -519,6 +520,7 @@ CONTAINS
          NULLIFY (theta)
          DO i = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_elec(i)%pw)
+            DEALLOCATE (drho_elec(i)%pw)
          END DO
 
       END IF
@@ -702,6 +704,7 @@ CONTAINS
       ! Release work storage which is no longer needed
       DO i = 1, 3
          CALL pw_pool_give_back_pw(auxbas_pw_pool, dln_eps_elec(i)%pw)
+         DEALLOCATE (dln_eps_elec(i)%pw)
       END DO
 
       ! Optional output of the total charge density in cube file format
@@ -908,10 +911,12 @@ CONTAINS
       NULLIFY (phi_pol)
       DO i = 1, SIZE(work_r3d)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, work_r3d(i)%pw)
+         DEALLOCATE (work_r3d(i)%pw)
       END DO
       NULLIFY (rho_iter_old)
       DO i = 1, 3
          CALL pw_pool_give_back_pw(auxbas_pw_pool, dphi_tot(i)%pw)
+         DEALLOCATE (dphi_tot(i)%pw)
       END DO
 
       ! Release the SCCS printout environment
@@ -1166,6 +1171,7 @@ CONTAINS
       CASE (sccs_derivative_fft)
          DO i = 1, SIZE(work_g1d)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_g1d(i)%pw)
+            DEALLOCATE (work_g1d(i)%pw)
          END DO
       END SELECT
 

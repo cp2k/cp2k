@@ -174,6 +174,7 @@ CONTAINS
       END DO
       CALL pw_pool_give_back_pw(auxbas_pw_pool, edens_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, edens_g%pw)
+      DEALLOCATE (edens_r%pw, edens_g%pw)
 
       ! Hartree energy density correction = -0.5 * V_H(r) * [rho(r) - rho_core(r)]
       ALLOCATE (rho_tot_gspace, rho_tot_rspace)
@@ -204,6 +205,7 @@ CONTAINS
       CALL pw_multiply(hartree_density%pw, v_hartree_rspace%pw, rho_tot_rspace, alpha=ovol)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_rspace)
+      DEALLOCATE (rho_tot_gspace, rho_tot_rspace)
 
       IF (dft_control%do_admm) THEN
          CALL cp_warn(__LOCATION__, "ADMM not supported for local energy calculation")
@@ -249,6 +251,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, band_density%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, hartree_density%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, xc_density%pw)
+      DEALLOCATE (band_density%pw, hartree_density%pw, xc_density%pw)
 
       CALL timestop(handle)
 
@@ -375,8 +378,10 @@ CONTAINS
       CALL pw_derive(efield(2)%pw, (/0, 1, 0/))
       CALL pw_derive(efield(3)%pw, (/0, 0, 1/))
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw)
       DO i = 1, 3
          CALL pw_pool_give_back_pw(auxbas_pw_pool, efield(i)%pw)
+         DEALLOCATE (efield(i)%pw)
       END DO
 
       pv_loc = 0.0_dp

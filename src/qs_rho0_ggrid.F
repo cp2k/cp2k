@@ -243,6 +243,7 @@ CONTAINS
 
          CALL pw_pool_give_back_pw(pw_pool, coeff_rspace%pw)
          CALL pw_pool_give_back_pw(pw_pool, coeff_gspace%pw)
+         DEALLOCATE (coeff_rspace%pw, coeff_gspace%pw)
 
          DEALLOCATE (coeff_rspace, coeff_gspace)
 
@@ -259,6 +260,7 @@ CONTAINS
 
          CALL pw_transfer(rho0_r_tmp%pw, rho0_s_rs%pw)
          CALL pw_pool_give_back_pw(pw_pool, rho0_r_tmp%pw)
+         DEALLOCATE (rho0_r_tmp%pw)
 
          CALL pw_zero(rho0_s_gs%pw)
          CALL pw_transfer(rho0_s_rs%pw, rho0_s_gs%pw)
@@ -464,6 +466,7 @@ CONTAINS
          CALL pw_copy(coeff_gaux%pw, coeff_gspace%pw)
          CALL pw_transfer(coeff_gspace%pw, coeff_rspace%pw)
          CALL pw_pool_give_back_pw(pw_aux, coeff_gaux%pw)
+         DEALLOCATE (coeff_gaux%pw)
          DEALLOCATE (coeff_gaux)
          ALLOCATE (coeff_raux)
          ALLOCATE (coeff_raux%pw)
@@ -472,6 +475,7 @@ CONTAINS
          scale = coeff_rspace%pw%pw_grid%dvol/coeff_raux%pw%pw_grid%dvol
          coeff_rspace%pw%cr3d = scale*coeff_rspace%pw%cr3d
          CALL pw_pool_give_back_pw(pw_aux, coeff_raux%pw)
+         DEALLOCATE (coeff_raux%pw)
          DEALLOCATE (coeff_raux)
       ELSE
 
@@ -483,6 +487,7 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(pw_pool, coeff_gspace%pw)
+      DEALLOCATE (coeff_gspace%pw)
       DEALLOCATE (coeff_gspace)
 
       ! Setup the rs grid at level igrid
@@ -491,6 +496,7 @@ CONTAINS
       CALL rs_pw_transfer(rs_v, coeff_rspace%pw, pw2rs)
 
       CALL pw_pool_give_back_pw(pw_pool, coeff_rspace%pw)
+      DEALLOCATE (coeff_rspace%pw)
       DEALLOCATE (coeff_rspace)
 
       ! Now the potential is on the right grid => integration

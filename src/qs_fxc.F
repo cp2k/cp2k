@@ -230,6 +230,7 @@ CONTAINS
             END DO
             DO ispin = 1, SIZE(vxc00)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc00(ispin)%pw)
+               DEALLOCATE (vxc00(ispin)%pw)
             END DO
             DEALLOCATE (vxc00)
             IF (ASSOCIATED(v_tau_rspace)) THEN
@@ -247,6 +248,7 @@ CONTAINS
                END DO
                DO ispin = 1, SIZE(v_tau_rspace)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+                  DEALLOCATE (v_tau_rspace(ispin)%pw)
                END DO
                DEALLOCATE (v_tau_rspace)
             END IF
@@ -387,6 +389,7 @@ CONTAINS
          END DO
          DO ispin = 1, SIZE(vxc00)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc00(ispin)%pw)
+            DEALLOCATE (vxc00(ispin)%pw)
          END DO
          DEALLOCATE (vxc00)
 
@@ -429,24 +432,28 @@ CONTAINS
       IF (ASSOCIATED(fxc_rho)) THEN
          DO ispin = 1, SIZE(fxc_rho)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, fxc_rho(ispin)%pw)
+            DEALLOCATE (fxc_rho(ispin)%pw)
          END DO
          DEALLOCATE (fxc_rho)
       END IF
       IF (ASSOCIATED(fxc_tau)) THEN
          DO ispin = 1, SIZE(fxc_tau)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, fxc_tau(ispin)%pw)
+            DEALLOCATE (fxc_tau(ispin)%pw)
          END DO
          DEALLOCATE (fxc_tau)
       END IF
       IF (ASSOCIATED(gxc_rho)) THEN
          DO ispin = 1, SIZE(gxc_rho)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, gxc_rho(ispin)%pw)
+            DEALLOCATE (gxc_rho(ispin)%pw)
          END DO
          DEALLOCATE (gxc_rho)
       END IF
       IF (ASSOCIATED(gxc_tau)) THEN
          DO ispin = 1, SIZE(gxc_tau)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, gxc_tau(ispin)%pw)
+            DEALLOCATE (gxc_tau(ispin)%pw)
          END DO
          DEALLOCATE (gxc_tau)
       END IF

@@ -322,6 +322,7 @@ CONTAINS
       CALL cp_fm_release(S_minus_half_fm)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
+      DEALLOCATE (rho_r%pw, rho_g%pw)
       DEALLOCATE (rho_r, rho_g)
       DEALLOCATE (eigenvalues)
       DEALLOCATE (STRIDE)

@@ -192,17 +192,21 @@ CONTAINS
          IF (.NOT. tau_r_valid) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_r(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_g(ispin)%pw)
+            DEALLOCATE (tau_r(ispin)%pw, tau_g(ispin)%pw)
          END IF
          IF (.NOT. drho_r_valid) THEN
             IF (deriv_pw) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g)
+               DEALLOCATE (tmp_g)
                DO idir = 1, 3
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw)
+                  DEALLOCATE (drho_r(3*(ispin - 1) + idir)%pw)
                END DO
             ELSE
                DO idir = 1, 3
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(3*(ispin - 1) + idir)%pw)
+                  DEALLOCATE (drho_r(3*(ispin - 1) + idir)%pw, drho_g(3*(ispin - 1) + idir)%pw)
                END DO
             END IF
          END IF

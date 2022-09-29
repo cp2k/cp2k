@@ -465,6 +465,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gtemp%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rtemp%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+      DEALLOCATE (v_hartree_gspace%pw, v_hartree_gtemp%pw, v_hartree_rtemp%pw, rho_tot_gspace)
 
       DEALLOCATE (v_hartree_gspace)
       DEALLOCATE (v_hartree_gtemp)
@@ -623,6 +624,7 @@ CONTAINS
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_gspace%pw)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_gtemp%pw)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_rtemp%pw)
+               DEALLOCATE (v_coulomb_gspace%pw, v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
 
                DEALLOCATE (v_coulomb_gspace)
                DEALLOCATE (v_coulomb_gtemp)
@@ -912,6 +914,7 @@ CONTAINS
             CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
+            DEALLOCATE (v_rspace_new(ispin)%pw)
 
          END DO
 
@@ -941,6 +944,7 @@ CONTAINS
             CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+            DEALLOCATE (v_tau_rspace(ispin)%pw)
 
          END DO
 
@@ -949,6 +953,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_gtemp%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_rtemp%pw)
+      DEALLOCATE (v_xc_gtemp%pw, v_xc_rtemp%pw)
 
       DEALLOCATE (v_xc_gtemp)
       DEALLOCATE (v_xc_rtemp)
@@ -989,6 +994,7 @@ CONTAINS
                                               "EPR%PRINT%NABLAVKS_CUBES", mpi_io=mpi_io)
          END DO
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+         DEALLOCATE (wf_r%pw)
          DEALLOCATE (wf_r)
       END IF
 

@@ -1106,6 +1106,7 @@ CONTAINS
                             stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
+         DEALLOCATE (rho_elec_rspace%pw)
       ELSE
          IF (iounit > 0) THEN
             WRITE (UNIT=iounit, FMT="(/,T2,A,T66,F15.6)") &
@@ -1297,6 +1298,8 @@ CONTAINS
                                stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree%pw)
+            DEALLOCATE (vhartree%pw)
+            NULLIFY (vhartree%pw)
          END IF
          IF (my_efield) THEN
             ALLOCATE (vhartree%pw)
@@ -1331,12 +1334,15 @@ CONTAINS
                CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
             END DO
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree%pw)
+            DEALLOCATE (vhartree%pw)
          END IF
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+         DEALLOCATE (rho_tot_gspace%pw)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_core%pw)
+      DEALLOCATE (rho_tot_rspace%pw, rho_core%pw)
 
    END SUBROUTINE print_density_cubes
 
@@ -1434,6 +1440,7 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, elf_section, '', mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin)%pw)
+         DEALLOCATE (elf_r(ispin)%pw)
       END DO
 
       DEALLOCATE (elf_r)
@@ -1597,6 +1604,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+      DEALLOCATE (wf_g%pw, wf_r%pw)
       IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
 
    END SUBROUTINE print_mo_cubes

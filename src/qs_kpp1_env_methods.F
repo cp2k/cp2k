@@ -323,10 +323,12 @@ CONTAINS
                                v_hartree_gspace%pw)
          CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+         DEALLOCATE (v_hartree_gspace%pw)
          CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
+      DEALLOCATE (rho1_tot_gspace%pw)
 
       ! *** calculate the xc potential ***
       IF (gapw_xc) THEN
@@ -382,13 +384,19 @@ CONTAINS
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
          v_rspace_new(ispin)%pw => v_xc(ispin)%pw
       END DO
-      IF (SIZE(v_xc) /= nspins) CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(2)%pw)
+      IF (SIZE(v_xc) /= nspins) THEN
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(2)%pw)
+         DEALLOCATE (v_xc(2)%pw)
+      END IF
       DEALLOCATE (v_xc)
       IF (ASSOCIATED(v_xc_tau)) THEN
       DO ispin = 1, nspins
          CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
       END DO
-      IF (SIZE(v_xc_tau) /= nspins) CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(2)%pw)
+      IF (SIZE(v_xc_tau) /= nspins) THEN
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(2)%pw)
+         DEALLOCATE (v_xc_tau(2)%pw)
+      END IF
       END IF
 
       IF (gapw .OR. gapw_xc) THEN
@@ -563,13 +571,16 @@ CONTAINS
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
+      DEALLOCATE (v_hartree_rspace%pw)
       DO ispin = 1, SIZE(v_rspace_new)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
+         DEALLOCATE (v_rspace_new(ispin)%pw)
       END DO
       DEALLOCATE (v_rspace_new)
       IF (ASSOCIATED(v_xc_tau)) THEN
       DO ispin = 1, SIZE(v_xc_tau)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+         DEALLOCATE (v_xc_tau(ispin)%pw)
       END DO
       DEALLOCATE (v_xc_tau)
       END IF
