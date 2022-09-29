@@ -43,7 +43,8 @@ MODULE qs_rho0_ggrid
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -342,7 +343,7 @@ CONTAINS
    SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type)                                    :: v_rspace
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(cp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
@@ -462,7 +463,7 @@ CONTAINS
          CALL pw_pool_create_pw(pw_aux, coeff_gaux%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
-         CALL pw_transfer(v_rspace%pw, coeff_gaux%pw)
+         CALL pw_transfer(v_rspace, coeff_gaux%pw)
          CALL pw_copy(coeff_gaux%pw, coeff_gspace%pw)
          CALL pw_transfer(coeff_gspace%pw, coeff_rspace%pw)
          CALL pw_pool_give_back_pw(pw_aux, coeff_gaux%pw)
@@ -480,10 +481,10 @@ CONTAINS
       ELSE
 
          IF (coeff_gspace%pw%pw_grid%spherical) THEN
-            CALL pw_transfer(v_rspace%pw, coeff_gspace%pw)
+            CALL pw_transfer(v_rspace, coeff_gspace%pw)
             CALL pw_transfer(coeff_gspace%pw, coeff_rspace%pw)
          ELSE
-            CALL pw_copy(v_rspace%pw, coeff_rspace%pw)
+            CALL pw_copy(v_rspace, coeff_rspace%pw)
          END IF
       END IF
       CALL pw_pool_give_back_pw(pw_pool, coeff_gspace%pw)

@@ -1241,7 +1241,7 @@ CONTAINS
                          name="MATRIX Kernel")
 
          ! Integrate with ground-state density matrix, in non-orthogonal basis
-         CALL integrate_v_rspace(v_rspace=v_xc(ispin), &
+         CALL integrate_v_rspace(v_rspace=v_xc(ispin)%pw, &
                                  pmat=rho_ao(ispin), &
                                  hmat=matrix_G(ispin), &
                                  qs_env=qs_env, &
@@ -1249,7 +1249,7 @@ CONTAINS
                                  basis_type="ORB")
 
          IF (ASSOCIATED(v_xc_tau)) THEN
-            CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+            CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                     pmat=rho_ao(ispin), &
                                     hmat=matrix_G(ispin), &
                                     qs_env=qs_env, &

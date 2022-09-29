@@ -2365,7 +2365,7 @@ CONTAINS
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
          CALL pw_axpy(zv_hartree_rspace%pw, v_xc(ispin)%pw)
          CALL integrate_v_rspace(qs_env=qs_env, &
-                                 v_rspace=v_xc(ispin), &
+                                 v_rspace=v_xc(ispin)%pw, &
                                  hmat=dbcsr_p_work(ispin), &
                                  calculate_forces=.FALSE.)
 
@@ -2382,7 +2382,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
             CALL integrate_v_rspace(qs_env=qs_env, &
-                                    v_rspace=v_xc_tau(ispin), &
+                                    v_rspace=v_xc_tau(ispin)%pw, &
                                     hmat=dbcsr_p_work(ispin), &
                                     compute_tau=.TRUE., &
                                     calculate_forces=.FALSE.)
@@ -2453,7 +2453,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, &
-                                       v_rspace=v_xc(ispin), &
+                                       v_rspace=v_xc(ispin)%pw, &
                                        hmat=work_admm(ispin), &
                                        calculate_forces=.FALSE., &
                                        basis_type="AUX_FIT", &
@@ -2467,7 +2467,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
                   CALL integrate_v_rspace(qs_env=qs_env, &
-                                          v_rspace=v_xc_tau(ispin), &
+                                          v_rspace=v_xc_tau(ispin)%pw, &
                                           hmat=work_admm(ispin), &
                                           calculate_forces=.FALSE., &
                                           basis_type="AUX_FIT", &
@@ -3146,7 +3146,7 @@ CONTAINS
       do_tau = ASSOCIATED(vtau_rspace)
 
       !Core forces from the SCF
-      CALL integrate_v_core_rspace(vh_rspace, qs_env)
+      CALL integrate_v_core_rspace(vh_rspace%pw, qs_env)
 
       !The Hartree-xc potential term, P*dVHxc (mp2 + SCF density x deriv of the SCF potential)
       !Get the total density
@@ -3169,16 +3169,16 @@ CONTAINS
          DO ispin = 1, nspins
             !Hartree
             CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
                                     hmat=scrm(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             !XC
             CALL pw_transfer(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
                                     hmat=scrm(ispin), pmat=matrix_p_mp2(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             IF (do_tau) THEN
-               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, &
                                        hmat=scrm(ispin), pmat=matrix_p_mp2(ispin), &
                                        qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
             END IF
@@ -3187,11 +3187,11 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
             CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
                                     hmat=scrm(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             IF (do_tau) THEN
-               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, &
                                        hmat=scrm(ispin), pmat=rho_ao(ispin), &
                                        qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
             END IF
@@ -3219,13 +3219,13 @@ CONTAINS
          IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             DO ispin = 1, nspins
                IF (do_exx) THEN
-                  CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), &
+                  CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, &
                                           hmat=scrm_admm(ispin), pmat=matrix_p_mp2_admm(ispin), &
                                           qs_env=qs_env, calculate_forces=.TRUE., &
                                           basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
                ELSE
                   CALL dbcsr_add(rho_ao_aux(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
-                  CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), &
+                  CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, &
                                           hmat=scrm_admm(ispin), pmat=rho_ao_aux(ispin), &
                                           qs_env=qs_env, calculate_forces=.TRUE., &
                                           basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
@@ -3410,7 +3410,7 @@ CONTAINS
 
          CALL pw_transfer(zv_hartree_gspace%pw, zv_hartree_rspace%pw)
          CALL pw_scale(zv_hartree_rspace%pw, zv_hartree_rspace%pw%pw_grid%dvol)
-         CALL integrate_v_core_rspace(zv_hartree_rspace, qs_env)
+         CALL integrate_v_core_rspace(zv_hartree_rspace%pw, qs_env)
 
          IF (do_tau) THEN
             ALLOCATE (tauz_r(nspins), tauz_g(nspins))
@@ -3481,7 +3481,7 @@ CONTAINS
             CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
             CALL pw_axpy(zv_hartree_rspace%pw, v_xc(ispin)%pw)
             CALL integrate_v_rspace(qs_env=qs_env, &
-                                    v_rspace=v_xc(ispin), &
+                                    v_rspace=v_xc(ispin)%pw, &
                                     hmat=current_mat_h(ispin), &
                                     pmat=dbcsr_work_p(ispin, 1), &
                                     calculate_forces=.TRUE.)
@@ -3498,7 +3498,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, &
-                                       v_rspace=v_xc_tau(ispin), &
+                                       v_rspace=v_xc_tau(ispin)%pw, &
                                        hmat=current_mat_h(ispin), &
                                        pmat=dbcsr_work_p(ispin, 1), &
                                        compute_tau=.TRUE., &
@@ -3569,7 +3569,7 @@ CONTAINS
                   DO ispin = 1, nspins
                      CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
                      CALL integrate_v_rspace(qs_env=qs_env, &
-                                             v_rspace=v_xc(ispin), &
+                                             v_rspace=v_xc(ispin)%pw, &
                                              hmat=scrm_admm(ispin), &
                                              pmat=dbcsr_work_p(ispin, 1), &
                                              calculate_forces=.TRUE., &
@@ -3584,7 +3584,7 @@ CONTAINS
                      DO ispin = 1, nspins
                         CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
                         CALL integrate_v_rspace(qs_env=qs_env, &
-                                                v_rspace=v_xc_tau(ispin), &
+                                                v_rspace=v_xc_tau(ispin)%pw, &
                                                 hmat=scrm_admm(ispin), &
                                                 pmat=dbcsr_work_p(ispin, 1), &
                                                 calculate_forces=.TRUE., &

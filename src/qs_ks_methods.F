@@ -491,7 +491,7 @@ CONTAINS
                                                  qs_env=qs_env)
                IF (calculate_forces) THEN
                   CALL integrate_potential_devga_rspace( &
-                     potential=v_hartree_rspace, coeff=qs_env%image_coeff, &
+                     potential=v_hartree_rspace%pw, coeff=qs_env%image_coeff, &
                      forces=qs_env%qmmm_env_qm%image_charge_pot%image_forcesMM, &
                      qmmm_env=qs_env%qmmm_env_qm, qs_env=qs_env)
                END IF
@@ -616,14 +616,14 @@ CONTAINS
       IF (do_ppl .AND. calculate_forces) THEN
          CPASSERT(.NOT. gapw)
          DO ispin = 1, nspins
-            CALL integrate_ppl_rspace(rho_r(ispin), qs_env)
+            CALL integrate_ppl_rspace(rho_r(ispin)%pw, qs_env)
          END DO
       END IF
 
       IF (ASSOCIATED(rho_nlcc) .AND. calculate_forces) THEN
          DO ispin = 1, nspins
-            CALL integrate_rho_nlcc(v_rspace_new(ispin), qs_env)
-            IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin), qs_env)
+            CALL integrate_rho_nlcc(v_rspace_new(ispin)%pw, qs_env)
+            IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin)%pw, qs_env)
          END DO
       END IF
 
@@ -650,11 +650,11 @@ CONTAINS
                CALL pw_pool_create_pw(auxbas_pw_pool, v_minus_veps%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_copy(v_hartree_rspace%pw, v_minus_veps%pw)
                CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps%pw, -v_hartree_rspace%pw%pw_grid%dvol)
-               CALL integrate_v_core_rspace(v_minus_veps, qs_env)
+               CALL integrate_v_core_rspace(v_minus_veps%pw, qs_env)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_minus_veps%pw)
                DEALLOCATE (v_minus_veps%pw)
             ELSE
-               CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+               CALL integrate_v_core_rspace(v_hartree_rspace%pw, qs_env)
             END IF
          END IF
 
@@ -773,7 +773,7 @@ CONTAINS
             CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &
                                          v_qmmm=vee, scale=-1.0_dp)
          END IF
-         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces)
+         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace%pw, para_env, calculate_forces)
       END IF
 
       IF (gapw .OR. gapw_xc) THEN

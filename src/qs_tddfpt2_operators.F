@@ -209,7 +209,7 @@ CONTAINS
                                  local_rho_set, &
                                  sub_env%para_env, tddft=.TRUE.)
          CALL pw_scale(work_v_rspace%pw, work_v_rspace%pw%pw_grid%dvol)
-         CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
+         CALL integrate_vhg0_rspace(qs_env, work_v_rspace%pw, sub_env%para_env, &
                                     calculate_forces=.FALSE., &
                                     local_rho_set=local_rho_set)
       END IF

@@ -241,7 +241,7 @@ CONTAINS
              .NOT. dft_control%qs_control%xtb .AND. &
              .NOT. dft_control%qs_control%dftb) THEN
             ! Nuclear charge correction
-            CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+            CALL integrate_v_core_rspace(v_hartree_rspace%pw, qs_env)
             ! Kohn-Sham Functional corrections
          END IF
          CALL atprop_array_add(atprop%atener, atprop%ateb)

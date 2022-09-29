@@ -314,7 +314,7 @@ CONTAINS
             CALL dbcsr_create(matrix_hx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_hx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_hx(ispin)%matrix, 0.0_dp)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace, &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace%pw, &
                                     pmat=matrix_px1(ispin), &
                                     hmat=matrix_hx(ispin), calculate_forces=.TRUE.)
          END DO
@@ -381,7 +381,7 @@ CONTAINS
             CALL dbcsr_copy(matrix_fx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_fx(ispin)%matrix, 0.0_dp)
             CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin)%pw, &
                                     pmat=matrix_px1(ispin), &
                                     hmat=matrix_fx(ispin), calculate_forces=.TRUE.)
          END DO
@@ -401,7 +401,7 @@ CONTAINS
             CALL dbcsr_set(matrix_gx(ispin)%matrix, 0.0_dp)
             CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
             CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin)%pw, &
                                     pmat=matrix_p(ispin), &
                                     hmat=matrix_gx(ispin), calculate_forces=.TRUE.)
             CALL dbcsr_scale(matrix_gx(ispin)%matrix, 2.0_dp)
@@ -492,7 +492,7 @@ CONTAINS
                IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
                DO ispin = 1, nspins
                   CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
-                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
+                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin)%pw, &
                                           hmat=mfx(ispin), &
                                           pmat=matrix_px1_admm(ispin), &
                                           basis_type="AUX_FIT", &
@@ -509,7 +509,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
                   CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
+                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin)%pw, &
                                           hmat=mgx(ispin), &
                                           pmat=matrix_p_admm(ispin), &
                                           basis_type="AUX_FIT", &

@@ -181,7 +181,7 @@ CONTAINS
                      CALL dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1, 1)%matrix, &
                                      name="ET_RESTRAINT_MATRIX_B")
                      CALL dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp)
-                     CALL integrate_v_rspace(v_spin_ddapc_rest_r, &
+                     CALL integrate_v_rspace(v_spin_ddapc_rest_r%pw, &
                                              hmat=qs_env%et_coupling%rest_mat(1), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)
                      qs_env%et_coupling%order_p = &
@@ -194,7 +194,7 @@ CONTAINS
                      CALL dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1, 1)%matrix, &
                                      name="ET_RESTRAINT_MATRIX_B")
                      CALL dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp)
-                     CALL integrate_v_rspace(v_spin_ddapc_rest_r, &
+                     CALL integrate_v_rspace(v_spin_ddapc_rest_r%pw, &
                                              hmat=qs_env%et_coupling%rest_mat(2), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)
                   END IF

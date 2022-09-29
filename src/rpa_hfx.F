@@ -358,17 +358,17 @@ CONTAINS
       CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, dummy_real1, dummy_real2)
       DO ispin = 1, nspins
          CALL pw_scale(vxc_rspace(ispin)%pw, -1.0_dp)
-         CALL integrate_v_rspace(v_rspace=vxc_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
+         CALL integrate_v_rspace(v_rspace=vxc_rspace(ispin)%pw, hmat=dbcsr_work(ispin), qs_env=qs_env, &
                                  calculate_forces=.FALSE.)
          IF (ASSOCIATED(vtau_rspace)) THEN
             CALL pw_scale(vtau_rspace(ispin)%pw, -1.0_dp)
-            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
+            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, hmat=dbcsr_work(ispin), qs_env=qs_env, &
                                     calculate_forces=.FALSE., compute_tau=.TRUE.)
          END IF
          IF (dft_control%do_admm) THEN
             !note: factor -1.0 taken care of later, after HFX ADMM contribution is taken
             IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
-               CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=work_admm(ispin), &
+               CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, hmat=work_admm(ispin), &
                                        qs_env=qs_env, calculate_forces=.FALSE., basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
             END IF
@@ -579,7 +579,7 @@ CONTAINS
          IF (use_virial) pv_loc = virial%pv_virial
          DO ispin = 1, nspins
             CALL pw_scale(v_rspace_aux_fit(ispin)%pw, v_rspace_aux_fit(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(v_rspace=v_rspace_aux_fit(ispin), hmat=matrix_aux(ispin), &
+            CALL integrate_v_rspace(v_rspace=v_rspace_aux_fit(ispin)%pw, hmat=matrix_aux(ispin), &
                                     pmat=rho_ao_aux_fit(ispin), qs_env=qs_env, &
                                     basis_type="AUX_FIT", calculate_forces=calc_forces, &
                                     task_list_external=qs_env%admm_env%task_list_aux_fit)
@@ -614,7 +614,7 @@ CONTAINS
          IF (use_virial) pv_loc = virial%pv_virial
          DO ispin = 1, nspins
             CALL pw_scale(v_rspace(ispin)%pw, v_rspace(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(v_rspace=v_rspace(ispin), hmat=matrix_prim(ispin), &
+            CALL integrate_v_rspace(v_rspace=v_rspace(ispin)%pw, hmat=matrix_prim(ispin), &
                                     pmat=rho_ao(ispin), qs_env=qs_env, &
                                     calculate_forces=calc_forces)
          END DO

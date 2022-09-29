@@ -1106,7 +1106,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
          CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
-         CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+         CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
                                  hmat=scrm(ispin), pmat=mpa(ispin), &
                                  qs_env=qs_env, calculate_forces=.TRUE.)
       END DO
@@ -1129,7 +1129,7 @@ CONTAINS
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
          DO ispin = 1, nspins
-            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, &
                                     hmat=scrm(ispin), pmat=mpa(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
          END DO
@@ -1344,7 +1344,7 @@ CONTAINS
       CALL pw_transfer(zv_hartree_gspace%pw, zv_hartree_rspace%pw)
       CALL pw_scale(zv_hartree_rspace%pw, zv_hartree_rspace%pw%pw_grid%dvol)
       ! Getting nuclear force contribution from the core charge density
-      CALL integrate_v_core_rspace(zv_hartree_rspace, qs_env)
+      CALL integrate_v_core_rspace(zv_hartree_rspace%pw, qs_env)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%rho_core(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
@@ -1408,7 +1408,7 @@ CONTAINS
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
          CALL pw_axpy(zv_hartree_rspace%pw, v_xc(ispin)%pw)
          CALL integrate_v_rspace(qs_env=qs_env, &
-                                 v_rspace=v_xc(ispin), &
+                                 v_rspace=v_xc(ispin)%pw, &
                                  hmat=matrix_hz(ispin), &
                                  pmat=matrix_p(ispin, 1), &
                                  calculate_forces=.TRUE.)
@@ -1432,7 +1432,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
             CALL integrate_v_rspace(qs_env=qs_env, &
-                                    v_rspace=v_xc_tau(ispin), &
+                                    v_rspace=v_xc_tau(ispin)%pw, &
                                     hmat=matrix_hz(ispin), &
                                     pmat=matrix_p(ispin, 1), &
                                     compute_tau=.TRUE., &
@@ -1578,7 +1578,7 @@ CONTAINS
             xc_section => admm_env%xc_section_aux
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
             DO ispin = 1, nspins
-               CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), &
+               CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, &
                                        hmat=mhx(ispin, 1), pmat=mpz(ispin, 1), &
                                        qs_env=qs_env, calculate_forces=.TRUE., &
                                        basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
@@ -1626,7 +1626,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL dbcsr_set(mhy(ispin, 1)%matrix, 0.0_dp)
                CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
-               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin)%pw, &
                                        hmat=mhy(ispin, 1), pmat=matrix_p(ispin, 1), &
                                        calculate_forces=.TRUE., basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)

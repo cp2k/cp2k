@@ -641,7 +641,7 @@ CONTAINS
          CALL dbcsr_set(matrix_hz(ispin)%matrix, 0.0_dp)
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
          CALL pw_axpy(v_hartree_rspace%pw, v_xc(ispin)%pw)
-         CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+         CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin)%pw, &
                                  hmat=matrix_hz(ispin), &
                                  calculate_forces=.FALSE.)
       END DO
@@ -720,7 +720,7 @@ CONTAINS
             !
             DO ispin = 1, nspins
                CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
-               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin)%pw, &
                                        hmat=mhz(ispin, 1), basis_type="AUX_FIT", &
                                        calculate_forces=.FALSE., &
                                        task_list_external=task_list_aux_fit)

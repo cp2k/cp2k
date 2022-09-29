@@ -340,7 +340,7 @@ CONTAINS
                                        vxc(ispin)%pw%cr3d
                ! zero first ?!
                CALL dbcsr_set(matrix_h(ispin)%matrix, 0.0_dp)
-               CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
+               CALL integrate_v_rspace(v_rspace=work_v_rspace%pw, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
                                        qs_env=qs_env, calculate_forces=calculate_forces)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc(ispin)%pw)
                DEALLOCATE (vxc(ispin)%pw)
@@ -646,7 +646,7 @@ CONTAINS
 
          IF (.NOT. just_energy) THEN
             ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
-            CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=orb_density_matrix_p, hmat=orb_h_p, &
+            CALL integrate_v_rspace(v_rspace=work_v_rspace%pw, pmat=orb_density_matrix_p, hmat=orb_h_p, &
                                     qs_env=qs_env, calculate_forces=calculate_forces)
 
             ! add this to the mo_derivs
@@ -1161,7 +1161,7 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control)
       gapw = dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc
       DO ispin = 1, SIZE(matrix_ks)
-         CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
+         CALL integrate_v_rspace(v_rspace=v_rspace(ispin)%pw, &
                                  hmat=matrix_vxc(ispin), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
@@ -1292,7 +1292,7 @@ CONTAINS
                ! add the xc  part due to v_rspace soft
                rho_ao => rho_ao_kp(ispin, :)
                ksmat => ks_matrix(ispin, :)
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat_kp=rho_ao, hmat_kp=ksmat, &
                                        qs_env=qs_env, &
                                        calculate_forces=calculate_forces, &
@@ -1405,7 +1405,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace_new(ispin)%pw, qs_env, &
                                                   lri_v_int, calculate_forces, "LRI_AUX")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
@@ -1413,7 +1413,7 @@ CONTAINS
                IF (lri_env%exact_1c_terms) THEN
                   rho_ao => my_rho(ispin, :)
                   ksmat => ks_matrix(ispin, :)
-                  CALL integrate_v_rspace_diagonal(v_rspace_new(ispin), ksmat(1)%matrix, &
+                  CALL integrate_v_rspace_diagonal(v_rspace_new(ispin)%pw, ksmat(1)%matrix, &
                                                    rho_ao(1)%matrix, qs_env, &
                                                    calculate_forces, "ORB")
                END IF
@@ -1426,7 +1426,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace_new(ispin)%pw, qs_env, &
                                                   lri_v_int, calculate_forces, "RI_HXC")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
@@ -1434,7 +1434,7 @@ CONTAINS
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat_kp=rho_ao, hmat_kp=ksmat, &
                                        qs_env=qs_env, &
                                        calculate_forces=calculate_forces, &
@@ -1484,7 +1484,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace%pw, qs_env, &
                                                   lri_v_int, calculate_forces, "LRI_AUX")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
@@ -1492,7 +1492,7 @@ CONTAINS
                IF (lri_env%exact_1c_terms) THEN
                   rho_ao => my_rho(ispin, :)
                   ksmat => ks_matrix(ispin, :)
-                  CALL integrate_v_rspace_diagonal(v_rspace, ksmat(1)%matrix, &
+                  CALL integrate_v_rspace_diagonal(v_rspace%pw, ksmat(1)%matrix, &
                                                    rho_ao(1)%matrix, qs_env, &
                                                    calculate_forces, "ORB")
                END IF
@@ -1505,7 +1505,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace%pw, qs_env, &
                                                   lri_v_int, calculate_forces, "RI_HXC")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
@@ -1513,7 +1513,7 @@ CONTAINS
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
-               CALL integrate_v_rspace(v_rspace=v_rspace, &
+               CALL integrate_v_rspace(v_rspace=v_rspace%pw, &
                                        pmat_kp=rho_ao, &
                                        hmat_kp=ksmat, &
                                        qs_env=qs_env, &
@@ -1559,7 +1559,7 @@ CONTAINS
 
             rho_ao => rho_ao_kp(ispin, :)
             ksmat => ks_matrix(ispin, :)
-            CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin), &
+            CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin)%pw, &
                                     pmat_kp=rho_ao, hmat_kp=ksmat, &
                                     qs_env=qs_env, &
                                     calculate_forces=calculate_forces, compute_tau=.TRUE., &
@@ -1599,7 +1599,7 @@ CONTAINS
                      basis_type = "AUX_FIT_SOFT"
                   END IF
 
-                  CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin)%pw, &
                                           pmat=rho_ao_aux(ispin), &
                                           hmat=matrix_ks_aux_fit(ispin), &
                                           qs_env=qs_env, &

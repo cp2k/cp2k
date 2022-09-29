@@ -1310,7 +1310,7 @@ CONTAINS
          lri(ikind)%v_int = 0.0_dp
       END DO
 
-      CALL integrate_v_rspace_one_center(rho_r, qs_env, lri, &
+      CALL integrate_v_rspace_one_center(rho_r%pw, qs_env, lri, &
                                          .FALSE., "RI_AUX")
       DO ikind = 1, SIZE(lri)
          CALL mp_sum(lri(ikind)%v_int, para_env%group)
@@ -1332,7 +1332,7 @@ CONTAINS
             lri(ikind)%v_int = 0.0_dp
          END DO
 
-         CALL integrate_v_rspace_one_center(rho_spin, qs_env, lri, &
+         CALL integrate_v_rspace_one_center(rho_spin%pw, qs_env, lri, &
                                             .FALSE., "RI_AUX")
          DO ikind = 1, SIZE(lri)
             CALL mp_sum(lri(ikind)%v_int, para_env%group)

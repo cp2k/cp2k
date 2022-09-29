@@ -438,14 +438,14 @@ CONTAINS
          IF (gapw_xc) THEN
 
             IF (do_excitations .AND. nspins == 1) THEN
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho_ao(ispin), &
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=my_calc_forces, gapw=gapw_xc)
 
                IF (ASSOCIATED(v_xc_tau)) THEN
-                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                           pmat=rho_ao(ispin), &
                                           hmat=p_env%kpp1_env%v_ao(ispin), &
                                           qs_env=qs_env, &
@@ -457,21 +457,21 @@ CONTAINS
                IF (.NOT. do_triplet) THEN
                   v_rspace_new(1)%pw%cr3d = v_hartree_rspace%pw%cr3d
 
-                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                           pmat=rho_ao(ispin), &
                                           hmat=p_env%kpp1_env%v_ao(ispin), &
                                           qs_env=qs_env, &
                                           calculate_forces=my_calc_forces, gapw=gapw)
                END IF
             ELSE
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho_ao(ispin), &
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=my_calc_forces, gapw=gapw_xc)
 
                IF (ASSOCIATED(v_xc_tau)) THEN
-                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                           pmat=rho_ao(ispin), &
                                           hmat=p_env%kpp1_env%v_ao(ispin), &
                                           qs_env=qs_env, &
@@ -480,7 +480,7 @@ CONTAINS
                END IF
 
                v_rspace_new(ispin)%pw%cr3d = v_hartree_rspace%pw%cr3d
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho_ao(ispin), &
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
@@ -509,7 +509,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace_new(ispin)%pw, qs_env, &
                                                   lri_v_int, .FALSE., "LRI_AUX")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
@@ -517,20 +517,20 @@ CONTAINS
                ALLOCATE (k1mat(1))
                k1mat(1)%matrix => p_env%kpp1_env%v_ao(ispin)%matrix
                IF (lri_env%exact_1c_terms) THEN
-                  CALL integrate_v_rspace_diagonal(v_rspace_new(ispin), k1mat(1)%matrix, &
+                  CALL integrate_v_rspace_diagonal(v_rspace_new(ispin)%pw, k1mat(1)%matrix, &
                                                    rho_ao(ispin)%matrix, qs_env, my_calc_forces, "ORB")
                END IF
                CALL calculate_lri_ks_matrix(lri_env, lri_v_int, k1mat, atomic_kind_set)
                DEALLOCATE (k1mat)
             ELSE
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho_ao(ispin), &
                                        hmat=p_env%kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=my_calc_forces, gapw=gapw)
 
                IF (ASSOCIATED(v_xc_tau)) THEN
-                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                           pmat=rho_ao(ispin), &
                                           hmat=p_env%kpp1_env%v_ao(ispin), &
                                           qs_env=qs_env, &
@@ -549,7 +549,7 @@ CONTAINS
                                     p_env%hartree_local%ecoul_1c, &
                                     p_env%local_rho_set, &
                                     para_env, tddft=.TRUE.)
-            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, &
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace%pw, para_env, &
                                        calculate_forces=my_calc_forces, &
                                        local_rho_set=p_env%local_rho_set)
          END IF

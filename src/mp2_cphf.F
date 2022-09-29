@@ -1560,16 +1560,16 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
             CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
                                     hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             IF (ASSOCIATED(vtau_rspace)) THEN
-               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, &
                                        hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
                                        qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
             END IF
@@ -1578,11 +1578,11 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
             CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             IF (ASSOCIATED(vtau_rspace)) THEN
-               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), &
+               CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, &
                                        hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                        qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE.)
             END IF
@@ -1676,7 +1676,7 @@ CONTAINS
       CALL pw_axpy(pot_r%pw, vh_rspace%pw)
 
       ! calculate core forces
-      CALL integrate_v_core_rspace(vh_rspace, qs_env)
+      CALL integrate_v_core_rspace(vh_rspace%pw, qs_env)
       IF (debug_forces) THEN
          deb(:) = force(1)%rho_core(:, 1)
          CALL mp_sum(deb, para_env%group)
@@ -1929,11 +1929,11 @@ CONTAINS
                END IF
                DO ispin = 1, nspins
                   IF (do_exx) THEN
-                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
+                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
                                              calculate_forces=.TRUE., basis_type="AUX_FIT", &
                                              task_list_external=task_list_aux_fit, pmat=matrix_p_mp2_admm(ispin))
                   ELSE
-                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
+                     CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, hmat=matrix_ks_aux(ispin), qs_env=qs_env, &
                                              calculate_forces=.TRUE., basis_type="AUX_FIT", &
                                              task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
                   END IF

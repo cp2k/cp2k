@@ -2149,7 +2149,7 @@ CONTAINS
             q_max = SQRT(SUM((pi/dr(:))**2))
             CALL calculate_rhotot_elec_gspace(qs_env=qs_env, &
                                               auxbas_pw_pool=auxbas_pw_pool, &
-                                              rhotot_elec_gspace=rho_elec_gspace, &
+                                              rhotot_elec_gspace=rho_elec_gspace%pw, &
                                               q_max=q_max, &
                                               rho_hard=rho_hard, &
                                               rho_soft=rho_soft)
@@ -2191,7 +2191,7 @@ CONTAINS
                CALL pw_zero(rho_elec_rspace%pw)
                CALL calculate_rhotot_elec_gspace(qs_env=qs_env, &
                                                  auxbas_pw_pool=auxbas_pw_pool, &
-                                                 rhotot_elec_gspace=rho_elec_gspace, &
+                                                 rhotot_elec_gspace=rho_elec_gspace%pw, &
                                                  q_max=q_max, &
                                                  rho_hard=rho_hard, &
                                                  rho_soft=rho_soft, &

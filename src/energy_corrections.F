@@ -664,7 +664,7 @@ CONTAINS
          CALL pw_scale(v_rspace(ispin)%pw, v_rspace(ispin)%pw%pw_grid%dvol)
          CALL pw_axpy(ec_env%vh_rspace%pw, v_rspace(ispin)%pw)
          ! integrate over potential <a|V|b>
-         CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
+         CALL integrate_v_rspace(v_rspace=v_rspace(ispin)%pw, &
                                  hmat=ec_env%matrix_ks(ispin, 1), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
@@ -674,7 +674,7 @@ CONTAINS
          IF (ASSOCIATED(v_tau_rspace)) THEN
             ! integrate over Tau-potential <nabla.a|V|nabla.b>
             CALL pw_scale(v_tau_rspace(ispin)%pw, v_tau_rspace(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin), hmat=ec_env%matrix_ks(ispin, 1), &
+            CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin)%pw, hmat=ec_env%matrix_ks(ispin, 1), &
                                     qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.TRUE., &
                                     basis_type="HARRIS", &
                                     task_list_external=ec_env%task_list)
@@ -1209,7 +1209,7 @@ CONTAINS
       CALL pw_axpy(dv_hartree_rspace%pw, vtot_rspace%pw)
       IF (debug_forces) fodeb(1:3) = force(1)%rho_core(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_ehartree
-      CALL integrate_v_core_rspace(vtot_rspace, qs_env)
+      CALL integrate_v_core_rspace(vtot_rspace%pw, qs_env)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%rho_core(1:3, 1) - fodeb(1:3)
          CALL mp_sum(fodeb, para_env%group)
@@ -1275,7 +1275,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
          CALL pw_axpy(dv_hartree_rspace%pw, v_xc(ispin)%pw)
-         CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+         CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin)%pw, &
                                  hmat=ec_env%matrix_hz(ispin), &
                                  pmat=matrix_p(ispin, 1), &
                                  calculate_forces=.TRUE.)
@@ -1299,7 +1299,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL pw_scale(v_xc_tau(ispin)%pw, v_xc_tau(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc_tau(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc_tau(ispin)%pw, &
                                     hmat=ec_env%matrix_hz(ispin), &
                                     pmat=matrix_p(ispin, 1), &
                                     compute_tau=.TRUE., &
@@ -1374,7 +1374,7 @@ CONTAINS
          CALL pw_scale(v_rspace(ispin)%pw, v_rspace(ispin)%pw%pw_grid%dvol)
          CALL pw_axpy(v_hartree_rspace%pw, v_rspace(ispin)%pw)
          ! integrate over potential <a|V|b>
-         CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
+         CALL integrate_v_rspace(v_rspace=v_rspace(ispin)%pw, &
                                  hmat=scrm, &
                                  pmat=ec_env%matrix_p(ispin, 1), &
                                  qs_env=qs_env, &
@@ -1385,7 +1385,7 @@ CONTAINS
          IF (ASSOCIATED(v_tau_rspace)) THEN
             ! integrate over Tau-potential <nabla.a|V|nabla.b>
             CALL pw_scale(v_tau_rspace(ispin)%pw, v_tau_rspace(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin), hmat=scrm, &
+            CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin)%pw, hmat=scrm, &
                                     pmat=ec_env%matrix_p(ispin, 1), &
                                     qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.TRUE., &
                                     basis_type="HARRIS", &

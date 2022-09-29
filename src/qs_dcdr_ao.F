@@ -281,7 +281,7 @@ CONTAINS
       CALL pw_axpy(v_hartree_rspace%pw, v_rspace_new(1)%pw, 1._dp)
 
       CALL dbcsr_set(dcdr_env%matrix_apply_op_constant(1)%matrix, 0.0_dp)
-      CALL integrate_v_rspace(v_rspace=v_rspace_new(1), &
+      CALL integrate_v_rspace(v_rspace=v_rspace_new(1)%pw, &
                               hmat=dcdr_env%matrix_apply_op_constant(1), &
                               qs_env=qs_env, &
                               calculate_forces=.FALSE.)
@@ -294,7 +294,7 @@ CONTAINS
 
       IF (ASSOCIATED(v_xc_tau)) THEN
          CALL pw_scale(v_xc_tau(1)%pw, 2._dp*v_xc_tau(1)%pw%pw_grid%dvol)
-         CALL integrate_v_rspace(v_rspace=v_xc_tau(1), &
+         CALL integrate_v_rspace(v_rspace=v_xc_tau(1)%pw, &
                                  hmat=dcdr_env%matrix_apply_op_constant(1), &
                                  qs_env=qs_env, &
                                  compute_tau=.TRUE., &
@@ -382,7 +382,7 @@ CONTAINS
          CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
          ! Calculate the integrals
-         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, &
+         CALL integrate_v_rspace(v_rspace=v_hartree_rspace%pw, &
                                  hmat=dcdr_env%matrix_core_charge_1(beta), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE.)
@@ -577,7 +577,7 @@ CONTAINS
          CALL pw_scale(v_xc(1)%pw, v_xc(1)%pw%pw_grid%dvol)
          CALL pw_axpy(v_hartree_rspace%pw, v_xc(1)%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
-         CALL integrate_v_rspace(v_rspace=v_xc(1), &
+         CALL integrate_v_rspace(v_rspace=v_xc(1)%pw, &
                                  hmat=dcdr_env%matrix_d_vhxc_dR(idir), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE.)
@@ -656,7 +656,7 @@ CONTAINS
       CALL pw_axpy(v_hartree_r%pw, v_hxc_r(1)%pw, 1._dp)
 
       matrix_vhxc_dbasis => dcdr_env%matrix_vhxc_perturbed_basis(1, :)
-      CALL integrate_v_dbasis(v_rspace=v_hxc_r(1), &
+      CALL integrate_v_dbasis(v_rspace=v_hxc_r(1)%pw, &
                               matrix_p=matrix_p(1, 1)%matrix, &
                               matrix_vhxc_dbasis=matrix_vhxc_dbasis, &
                               qs_env=qs_env, &

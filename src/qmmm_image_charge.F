@@ -58,7 +58,8 @@ MODULE qmmm_image_charge
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_collocate_density,            ONLY: calculate_rho_metal,&
                                               calculate_rho_single_gaussian
@@ -463,7 +464,7 @@ CONTAINS
    SUBROUTINE integrate_potential_devga_rspace(potential, coeff, forces, qmmm_env, &
                                                qs_env)
 
-      TYPE(pw_p_type), INTENT(IN)                        :: potential
+      TYPE(pw_type), INTENT(IN)                          :: potential
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
@@ -498,7 +499,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v)
       CALL rs_grid_retain(rs_v)
-      CALL rs_pw_transfer(rs_v, potential%pw, pw2rs)
+      CALL rs_pw_transfer(rs_v, potential, pw2rs)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &

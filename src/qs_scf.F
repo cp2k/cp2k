@@ -1099,7 +1099,7 @@ CONTAINS
             CALL dbcsr_copy(cdft_control%wmat(ivar)%matrix, matrix_s(1)%matrix, &
                             name="ET_RESTRAINT_MATRIX")
             CALL dbcsr_set(cdft_control%wmat(ivar)%matrix, 0.0_dp)
-            CALL integrate_v_rspace(cdft_control%group(ivar)%weight, &
+            CALL integrate_v_rspace(cdft_control%group(ivar)%weight%pw, &
                                     hmat=cdft_control%wmat(ivar), qs_env=qs_env, &
                                     calculate_forces=.FALSE., &
                                     gapw=dft_control%qs_control%gapw)

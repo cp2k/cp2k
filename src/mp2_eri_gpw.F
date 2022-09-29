@@ -151,7 +151,7 @@ CONTAINS
 
       ! and finally (K|mu nu)
       CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-      CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
+      CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, qs_env=qs_env, &
                               calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                               pw_env_external=pw_env_sub, task_list_external=task_list_sub)
 
@@ -498,7 +498,7 @@ CONTAINS
       ! integrate the potential of the single gaussian and update
       ! 3-center forces
       CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-      CALL integrate_v_rspace(rho_r, hmat=mat_munu, pmat=matrix_P_munu, &
+      CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, pmat=matrix_P_munu, &
                               qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.FALSE., gapw=.FALSE., &
                               pw_env_external=pw_env_sub, &
                               task_list_external=task_list_sub)

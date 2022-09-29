@@ -815,7 +815,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rhoc_r
+      TYPE(pw_type)                                      :: rhoc_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
@@ -899,8 +899,6 @@ CONTAINS
       END IF
       DEALLOCATE (pab)
 
-      NULLIFY (rhoc_r)
-      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -912,7 +910,6 @@ CONTAINS
       CALL pw_transfer(rhoc_r, rho_core)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
-      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -949,7 +946,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rhoc_r
+      TYPE(pw_type)                                      :: rhoc_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
@@ -1040,8 +1037,6 @@ CONTAINS
       END IF
       DEALLOCATE (pab)
 
-      NULLIFY (rhoc_r)
-      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1051,7 +1046,6 @@ CONTAINS
       CALL pw_transfer(rhoc_r, drho_core)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
-      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1083,7 +1077,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rhoc_r
+      TYPE(pw_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1134,8 +1128,6 @@ CONTAINS
 
       DEALLOCATE (pab)
 
-      NULLIFY (rhoc_r)
-      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1145,7 +1137,6 @@ CONTAINS
       CALL pw_transfer(rhoc_r, rho_gb)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
-      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1181,7 +1172,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rhoc_r
+      TYPE(pw_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1244,8 +1235,6 @@ CONTAINS
 
       DEALLOCATE (pab, cores)
 
-      NULLIFY (rhoc_r)
-      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1258,7 +1247,6 @@ CONTAINS
 
       CALL pw_transfer(rhoc_r, rho_metal)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
-      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1292,7 +1280,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rhoc_r
+      TYPE(pw_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1343,8 +1331,6 @@ CONTAINS
 
       DEALLOCATE (pab)
 
-      NULLIFY (rhoc_r)
-      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1354,7 +1340,6 @@ CONTAINS
       CALL pw_transfer(rhoc_r, rho_gb)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
-      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 
@@ -1392,7 +1377,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rhoc_r
+      TYPE(pw_type)                                      :: rhoc_r
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
       CALL timeset(routineN, handle)
@@ -1453,8 +1438,6 @@ CONTAINS
 
       DEALLOCATE (pab, cores)
 
-      NULLIFY (rhoc_r)
-      ALLOCATE (rhoc_r)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -1463,7 +1446,6 @@ CONTAINS
 
       CALL pw_transfer(rhoc_r, rho_resp)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoc_r)
-      DEALLOCATE (rhoc_r)
 
       CALL timestop(handle)
 

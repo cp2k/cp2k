@@ -346,12 +346,12 @@ CONTAINS
          DO ispin = 1, nspins
             v_xc(ispin)%pw%cr3d = v_xc(ispin)%pw%cr3d*v_xc(ispin)%pw%pw_grid%dvol
             CALL dbcsr_set(work_hmat%matrix, 0.0_dp)
-            CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=work_hmat, qs_env=qs_env, &
+            CALL integrate_v_rspace(v_rspace=v_xc(ispin)%pw, hmat=work_hmat, qs_env=qs_env, &
                                     calculate_forces=my_calc_forces, basis_type="AUX_FIT", &
                                     task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
             IF (ASSOCIATED(v_xc_tau)) THEN
                v_xc_tau(ispin)%pw%cr3d = v_xc_tau(ispin)%pw%cr3d*v_xc_tau(ispin)%pw%pw_grid%dvol
-               CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), hmat=work_hmat, qs_env=qs_env, &
+               CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, hmat=work_hmat, qs_env=qs_env, &
                                        compute_tau=.TRUE., &
                                        calculate_forces=my_calc_forces, basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))

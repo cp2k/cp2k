@@ -815,7 +815,7 @@ CONTAINS
          CALL pw_pool_create_pw(pw_pool, v_hartree%pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL negf_env_init_v_hartree(v_hartree%pw, negf_env%contacts, negf_control%contacts)
 
-         CALL integrate_v_rspace(v_rspace=v_hartree, hmat=hmat, qs_env=qs_env, &
+         CALL integrate_v_rspace(v_rspace=v_hartree%pw, hmat=hmat, qs_env=qs_env, &
                                  calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE.)
 
          CALL pw_pool_give_back_pw(pw_pool, v_hartree%pw)

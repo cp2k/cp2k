@@ -51,7 +51,8 @@ MODULE xc_pot_saop
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -147,11 +148,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: orbital_density_matrix, rho_struct_ao
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: molecular_orbitals
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: orbital, orbital_g
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rho_struct_r, tau, &
                                                             vxc_GLLB, vxc_LB, vxc_SAOP, vxc_tau, &
                                                             vxc_tmp
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: orbital, orbital_g
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: input, xc_fun_section_orig, &
@@ -308,11 +309,10 @@ CONTAINS
 
       CALL xc_dset_release(deriv_set)
 
-      ALLOCATE (orbital%pw, orbital_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, orbital%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, orbital, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, orbital_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, orbital_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
@@ -348,14 +348,14 @@ CONTAINS
                                        matrix_g=single_mo_coeff(ispin), &
                                        ncol=ncol(ispin), &
                                        alpha=1.0_dp)
-            CALL pw_zero(orbital%pw)
-            CALL pw_zero(orbital_g%pw)
+            CALL pw_zero(orbital)
+            CALL pw_zero(orbital_g)
             CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
-                                    rho=orbital%pw, rho_gspace=orbital_g%pw, &
+                                    rho=orbital, rho_gspace=orbital_g, &
                                     ks_env=ks_env)
 
             vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
-                                     efac*orbital%pw%cr3d
+                                     efac*orbital%cr3d
 
          END DO
          DEALLOCATE (coeff_col)
@@ -418,17 +418,14 @@ CONTAINS
                                        matrix_g=single_mo_coeff(ispin), &
                                        ncol=ncol(ispin), &
                                        alpha=1.0_dp)
-            CALL pw_zero(orbital%pw)
-            CALL pw_zero(orbital_g%pw)
+            CALL pw_zero(orbital)
+            CALL pw_zero(orbital_g)
             CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
-                                    rho=orbital%pw, rho_gspace=orbital_g%pw, &
+                                    rho=orbital, rho_gspace=orbital_g, &
                                     ks_env=ks_env)
 
-!TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env)
-!TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))
-
             vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d + &
-                                      orbital%pw%cr3d*vxc_tmp(ispin)%pw%cr3d
+                                      orbital%cr3d*vxc_tmp(ispin)%pw%cr3d
 
          END DO
 
@@ -457,9 +454,8 @@ CONTAINS
       DEALLOCATE (single_mo_coeff)
 
       CALL xc_rho_set_release(rho_set, auxbas_pw_pool)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital_g%pw)
-      DEALLOCATE (orbital%pw, orbital_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, orbital_g)
 
       !--------------------!
       ! Do the integration !
@@ -473,7 +469,7 @@ CONTAINS
          END IF
          vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d*vxc_SAOP(ispin)%pw%pw_grid%dvol
 
-         CALL integrate_v_rspace(v_rspace=vxc_SAOP(ispin), pmat=rho_struct_ao(ispin), &
+         CALL integrate_v_rspace(v_rspace=vxc_SAOP(ispin)%pw, pmat=rho_struct_ao(ispin), &
                                  hmat=ks_matrix(ispin), qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
                                  gapw=gapw)

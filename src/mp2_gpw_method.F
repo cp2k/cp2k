@@ -432,7 +432,7 @@ CONTAINS
             ! and finally (ia|munu)
             CALL timeset(routineN//"_int", handle3)
             CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-            CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
+            CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, qs_env=qs_env, &
                                     calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                     pw_env_external=pw_env_sub, task_list_external=task_list_sub)
             CALL timestop(handle3)
