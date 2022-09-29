@@ -260,6 +260,7 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
+      DEALLOCATE (rho1_tot_gspace%pw)
 
       ! Calculate the second derivative of the exchange-correlation potential
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, &
@@ -288,6 +289,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(1)%pw)
+      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw, v_rspace_new(1)%pw)
       DEALLOCATE (v_rspace_new)
 
       IF (ASSOCIATED(v_xc_tau)) THEN
@@ -299,6 +301,7 @@ CONTAINS
                                  calculate_forces=.FALSE.)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(1)%pw)
+         DEALLOCATE (v_xc_tau(1)%pw)
          DEALLOCATE (v_xc_tau)
       END IF
 
@@ -388,6 +391,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+      DEALLOCATE (drho_g%pw, v_hartree_rspace%pw, v_hartree_gspace%pw)
 
       CALL timestop(handle)
    END SUBROUTINE d_core_charge_density_dR
@@ -580,6 +584,7 @@ CONTAINS
 
          ! v_xc gets allocated again in xc_calc_2nd_deriv
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(1)%pw)
+         DEALLOCATE (v_xc(1)%pw)
          DEALLOCATE (v_xc)
       END DO ! idir
 
@@ -587,6 +592,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(1)%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(1)%pw)
+      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw, drho_g(1)%pw, drho_r(1)%pw)
 
       DEALLOCATE (drho_g)
       DEALLOCATE (drho_r)
@@ -657,6 +663,7 @@ CONTAINS
                               lambda=dcdr_env%lambda)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hxc_r(1)%pw)
+      DEALLOCATE (v_hxc_r(1)%pw)
 
       DEALLOCATE (v_hxc_r)
 

@@ -169,6 +169,7 @@ CONTAINS
          ecut = 2._dp*dvr2rs%pw%pw_grid%cutoff*0.875_dp
          sigma = 2._dp*dvr2rs%pw%pw_grid%cutoff*0.125_dp
          CALL pw_pool_give_back_pw(auxbas_pw_pool, dvr2rs%pw)
+         DEALLOCATE (dvr2rs%pw)
       ELSE
          smoothing = .TRUE.
       END IF
@@ -235,6 +236,7 @@ CONTAINS
       IF (smoothing) CALL pw_smoothing(v_hartree_gspace%pw, ecut, sigma)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+      DEALLOCATE (rho_tot_gspace)
 
       DO i = 1, 3
          DO j = 1, i
@@ -280,8 +282,10 @@ CONTAINS
             CPASSERT(success)
             CALL pw_spline_precond_release(precond)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvr2(i)%pw)
+            DEALLOCATE (dvr2(i)%pw)
          END DO
          CALL pw_pool_give_back_pw(auxbas_pw_pool, dvr2rs%pw)
+         DEALLOCATE (dvr2rs%pw)
       END IF
 
       nkind = SIZE(qs_kind_set)
@@ -391,14 +395,18 @@ CONTAINS
       END DO
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw)
       IF (.NOT. efg_interpolation) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, structure_factor%pw)
+         DEALLOCATE (structure_factor%pw)
          DO i = 1, 6
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvr2(i)%pw)
+            DEALLOCATE (dvr2(i)%pw)
          END DO
       ELSE
          DO i = 1, 6
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvspl(i)%pw)
+            DEALLOCATE (dvspl(i)%pw)
          END DO
       END IF
 

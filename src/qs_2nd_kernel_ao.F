@@ -365,6 +365,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+            DEALLOCATE (v_xc(ispin)%pw)
          END DO
          DEALLOCATE (v_xc)
 

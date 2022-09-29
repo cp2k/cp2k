@@ -927,15 +927,18 @@ CONTAINS
       DO igroup = 1, SIZE(cdft_control%group)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_total_constraint%pw)
+         DEALLOCATE (cdft_control%group(igroup)%hw_rho_total_constraint%pw)
 
          IF (.NOT. cdft_control%in_memory .AND. igroup == 1) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total%pw)
+            DEALLOCATE (cdft_control%group(1)%hw_rho_total%pw)
          END IF
 
          IF (hirshfeld_control%print_density .AND. igroup == 1) THEN
             DO i = 1, cdft_control%natoms
                CALL rs_grid_release(rs_single(i)%rs_grid)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic(i)%pw)
+               DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic(i)%pw)
             END DO
             DEALLOCATE (rs_single)
             DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic)
@@ -945,6 +948,7 @@ CONTAINS
             DO i = 1, cdft_control%natoms
                CALL rs_grid_release(rs_single_charge(i)%rs_grid)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw)
+               DEALLOCATE (cdft_control%group(igroup)%hw_rho_atomic_charge(i)%pw)
             END DO
             DEALLOCATE (rs_single_charge)
             DEALLOCATE (compute_charge)
@@ -1069,6 +1073,7 @@ CONTAINS
                   atom_a = atom_list(iatom)
                   cdft_control%group(igroup)%gradients_x(atom_a, :, :, :) = pw_single_dr(iatom)%pw%cr3d(:, :, :)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_single_dr(iatom)%pw)
+                  DEALLOCATE (pw_single_dr(iatom)%pw)
                END DO
 
                DEALLOCATE (rs_single_dr)
@@ -1133,6 +1138,7 @@ CONTAINS
 
             IF (igroup == 1) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total%pw)
+               DEALLOCATE (cdft_control%group(1)%hw_rho_total%pw)
             END IF
             CALL rs_grid_release(rs_rho_all)
          END DO
@@ -1718,6 +1724,7 @@ CONTAINS
          CALL pw_axpy(cdft_control%fragments(i, 2)%pw, rho_frag(i)%pw, 1.0_dp)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 1)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 2)%pw)
+         DEALLOCATE (cdft_control%fragments(i, 1)%pw, cdft_control%fragments(i, 2)%pw)
       END DO
       DEALLOCATE (cdft_control%fragments)
       ! Check that the number of electrons is consistent
@@ -1759,6 +1766,7 @@ CONTAINS
       END IF
       DO i = 1, nfrag_spins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i)%pw)
+         DEALLOCATE (rho_frag(i)%pw)
       END DO
       DEALLOCATE (rho_frag)
       cdft_control%fragments_integrated = .TRUE.

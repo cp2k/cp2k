@@ -1219,6 +1219,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
+      DEALLOCATE (wfn_r%pw, rho_g%pw, rho_r%pw, pot_g%pw)
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          CALL deallocate_task_list(task_list_sub)
@@ -1497,6 +1498,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+      DEALLOCATE (wf_r%pw, wf_g%pw)
 
    END SUBROUTINE print_orbital_cubes
 
