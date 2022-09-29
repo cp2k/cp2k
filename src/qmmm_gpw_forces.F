@@ -227,6 +227,7 @@ CONTAINS
                CALL pw_transfer(rho0_s_gs%pw, rho_tot_r2)
                CALL pw_axpy(rho_tot_r2, rho_tot_r)
                CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r2)
+               DEALLOCATE (rho_tot_r2)
             ELSE
                CALL pw_transfer(rho0_s_gs%pw, rho_tot_r)
                !
@@ -320,6 +321,7 @@ CONTAINS
       IF ((.NOT. dft_control%qs_control%semi_empirical) .AND. &
           (.NOT. dft_control%qs_control%dftb) .AND. (.NOT. dft_control%qs_control%xtb)) THEN
          CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r)
+         DEALLOCATE (rho_tot_r)
       END IF
       IF (iw > 0) THEN
          IF (.NOT. gapw) WRITE (iw, '(T2,"QMMM|",1X,A,T66,F15.9)') &
@@ -1447,6 +1449,7 @@ CONTAINS
       CALL cp_print_key_finished_output(iw, logger, print_section, "PROGRAM_RUN_INFO")
 
       CALL pw_pool_give_back_pw(pw_pools(1)%pool, v_qmmm_rspace%pw)
+      DEALLOCATE (v_qmmm_rspace%pw)
       DEALLOCATE (Num_Forces)
       CALL timestop(handle)
 100   FORMAT(I5, 2F15.9, " ( ", F7.2, " ) ", 2F15.9, " ( ", F7.2, " ) ", 2F15.9, " ( ", F7.2, " ) ")
