@@ -127,6 +127,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(coarse_pool, values)
       CALL pw_pool_give_back_pw(coarse_pool, coeffs)
+      DEALLOCATE (values, coeffs)
       CALL timestop(handle)
    END SUBROUTINE pw_restrict_s3
 
@@ -208,6 +209,7 @@ CONTAINS
                            pbc=pbc, safe_computation=safe_computation)
 
       CALL pw_pool_give_back_pw(coarse_pool, coeffs)
+      DEALLOCATE (coeffs)
 
       CALL timestop(handle)
    END SUBROUTINE pw_prolongate_s3

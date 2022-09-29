@@ -751,6 +751,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rs%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, gs%pw)
+      DEALLOCATE (rs%pw, gs%pw)
 
       DEALLOCATE (rs)
       DEALLOCATE (gs)
