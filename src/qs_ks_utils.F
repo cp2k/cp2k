@@ -99,7 +99,8 @@ MODULE qs_ks_utils
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_cdft_types,                   ONLY: cdft_control_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
@@ -1131,7 +1132,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_matrix_vxc(qs_env, v_rspace, matrix_vxc)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_vxc'
@@ -1240,10 +1241,9 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: v_rspace
-      TYPE(pw_p_type), POINTER                           :: vee
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: v_rspace, vee
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux_fit
       TYPE(task_list_type), POINTER                      :: task_list
@@ -1251,14 +1251,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
-               v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
+               v_rspace, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
                ksmat, matrix_ks_aux_fit_dft, lri_env, lri_density, atomic_kind_set, &
                rho_ao_nokp, ks_env, admm_env, task_list)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       pw_env=pw_env, &
-                      v_hartree_rspace=v_rspace%pw, &
+                      v_hartree_rspace=v_rspace, &
                       vee=vee)
 
       CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
@@ -1299,12 +1299,12 @@ CONTAINS
                                        gapw=gapw_xc)
 
                ! Now the Hartree potential to be integrated with the full basis
-               v_rspace_new(ispin)%pw%cr3d = v_rspace%pw%cr3d
+               v_rspace_new(ispin)%pw%cr3d = v_rspace%cr3d
             ELSE
                ! Add v_hartree + v_xc = v_rspace_new
                v_rspace_new(ispin)%pw%cr3d = &
                   v_rspace_new(ispin)%pw%pw_grid%dvol* &
-                  v_rspace_new(ispin)%pw%cr3d + v_rspace%pw%cr3d
+                  v_rspace_new(ispin)%pw%cr3d + v_rspace%cr3d
             END IF ! gapw_xc
             IF (dft_control%qs_control%ddapc_explicit_potential) THEN
                IF (dft_control%qs_control%ddapc_restraint_is_spin) THEN
@@ -1366,7 +1366,7 @@ CONTAINS
             END IF
             ! External electrostatic potential
             IF (dft_control%apply_external_potential) THEN
-               CALL qmmm_modify_hartree_pot(v_hartree=v_rspace_new(ispin), &
+               CALL qmmm_modify_hartree_pot(v_hartree=v_rspace_new(ispin)%pw, &
                                             v_qmmm=vee, scale=-1.0_dp)
             END IF
             IF (do_ppl) THEN
@@ -1459,22 +1459,22 @@ CONTAINS
          DO ispin = 1, nspins
             ! the efield contribution
             IF (dft_control%apply_efield_field) THEN
-               v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_efield_rspace%pw%cr3d
+               v_rspace%cr3d = v_rspace%cr3d + v_efield_rspace%pw%cr3d
             END IF
             ! extra contribution attributed to the dependency of the dielectric constant to the charge density
             IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
                dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
-               v_rspace%pw%cr3d = v_rspace%pw%cr3d + poisson_env%implicit_env%v_eps%cr3d*dvol
+               v_rspace%cr3d = v_rspace%cr3d + poisson_env%implicit_env%v_eps%cr3d*dvol
             END IF
             ! Add SCCS contribution
             IF (dft_control%do_sccs) THEN
-               v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_sccs_rspace%pw%cr3d
+               v_rspace%cr3d = v_rspace%cr3d + v_sccs_rspace%pw%cr3d
             END IF
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
-               v_rspace%pw%cr3d = v_rspace%pw%cr3d + &
-                                  v_rspace_embed(ispin)%pw%pw_grid%dvol* &
-                                  v_rspace_embed(ispin)%pw%cr3d
+               v_rspace%cr3d = v_rspace%cr3d + &
+                               v_rspace_embed(ispin)%pw%pw_grid%dvol* &
+                               v_rspace_embed(ispin)%pw%cr3d
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_embed(ispin)%pw)
                DEALLOCATE (v_rspace_embed(ispin)%pw)
             END IF
@@ -1484,7 +1484,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace%pw, qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
                                                   lri_v_int, calculate_forces, "LRI_AUX")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
@@ -1492,7 +1492,7 @@ CONTAINS
                IF (lri_env%exact_1c_terms) THEN
                   rho_ao => my_rho(ispin, :)
                   ksmat => ks_matrix(ispin, :)
-                  CALL integrate_v_rspace_diagonal(v_rspace%pw, ksmat(1)%matrix, &
+                  CALL integrate_v_rspace_diagonal(v_rspace, ksmat(1)%matrix, &
                                                    rho_ao(1)%matrix, qs_env, &
                                                    calculate_forces, "ORB")
                END IF
@@ -1505,7 +1505,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace%pw, qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace, qs_env, &
                                                   lri_v_int, calculate_forces, "RI_HXC")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
@@ -1513,7 +1513,7 @@ CONTAINS
             ELSE
                rho_ao => my_rho(ispin, :)
                ksmat => ks_matrix(ispin, :)
-               CALL integrate_v_rspace(v_rspace=v_rspace%pw, &
+               CALL integrate_v_rspace(v_rspace=v_rspace, &
                                        pmat_kp=rho_ao, &
                                        hmat_kp=ksmat, &
                                        qs_env=qs_env, &

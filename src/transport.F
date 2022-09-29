@@ -70,7 +70,8 @@ MODULE transport
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -663,8 +664,8 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
-      TYPE(pw_p_type), POINTER                           :: gs, rs
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: gs, rs
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: dft_section
@@ -701,11 +702,8 @@ CONTAINS
                current_env%gauge = -1
                current_env%gauge_init = .FALSE.
 
-               NULLIFY (rs, gs)
-               ALLOCATE (rs, gs)
-               ALLOCATE (rs%pw, gs%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, gs%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL pw_pool_create_pw(auxbas_pw_pool, rs, use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_create_pw(auxbas_pw_pool, gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
                NULLIFY (zero)
                ALLOCATE (zero)
@@ -714,8 +712,8 @@ CONTAINS
                CALL dbcsr_set(zero, 0.0_dp)
 
                DO dir = 1, 3
-                  CALL pw_zero(rs%pw)
-                  CALL pw_zero(gs%pw)
+                  CALL pw_zero(rs)
+                  CALL pw_zero(gs)
                   CALL calculate_jrho_resp(zero, transport_env%dm_imag, &
                                            zero, zero, dir, dir, rs, gs, qs_env, current_env, &
                                            retain_rsgrid=.TRUE.)
@@ -732,7 +730,7 @@ CONTAINS
                   unit_nr = cp_print_key_unit_nr(logger, dft_section, "TRANSPORT%PRINT%CURRENT", &
                                                  extension=ext, file_status="REPLACE", file_action="WRITE", &
                                                  log_filename=.FALSE., mpi_io=mpi_io)
-                  CALL cp_pw_to_cube(rs%pw, unit_nr, "Transport current", particles=particles, &
+                  CALL cp_pw_to_cube(rs, unit_nr, "Transport current", particles=particles, &
                                      stride=section_get_ivals(dft_section, "TRANSPORT%PRINT%CURRENT%STRIDE"), &
                                      mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "TRANSPORT%PRINT%CURRENT", &
@@ -740,10 +738,8 @@ CONTAINS
                END DO
 
                CALL dbcsr_deallocate_matrix(zero)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, rs%pw)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, gs%pw)
-               DEALLOCATE (rs%pw, gs%pw)
-               DEALLOCATE (rs, gs)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, rs)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, gs)
             END IF
          END IF
 

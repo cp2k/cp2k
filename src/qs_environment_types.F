@@ -629,7 +629,7 @@ CONTAINS
       TYPE(energy_correction_type), OPTIONAL, POINTER    :: ec_env
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vee
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: external_vxc, mask
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env

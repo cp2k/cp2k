@@ -29,7 +29,8 @@ MODULE qs_ks_qmmm_methods
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -208,8 +209,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE qmmm_modify_hartree_pot(v_hartree, v_qmmm, scale)
-      TYPE(pw_p_type), INTENT(INOUT)                     :: v_hartree
-      TYPE(pw_p_type), INTENT(IN)                        :: v_qmmm
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree, v_qmmm
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot'
@@ -219,8 +219,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      fac = v_qmmm%pw%pw_grid%dvol*scale
-      v_hartree%pw%cr3d = v_hartree%pw%cr3d + fac*v_qmmm%pw%cr3d
+      fac = v_qmmm%pw_grid%dvol*scale
+      v_hartree%cr3d = v_hartree%cr3d + fac*v_qmmm%cr3d
 
       CALL timestop(handle)
    END SUBROUTINE qmmm_modify_hartree_pot

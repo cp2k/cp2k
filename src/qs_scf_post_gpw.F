@@ -1913,10 +1913,10 @@ CONTAINS
       TYPE(pw_p_type)                                    :: aux_g, aux_r, rho_elec_gspace, &
                                                             rho_elec_rspace, wf_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
-      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core, vee
+      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: mb_rho, v_hartree_rspace
+      TYPE(pw_type), POINTER                             :: mb_rho, v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -2380,7 +2380,7 @@ CONTAINS
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE", &
                                            extension=".cube", middle_name="ext_pot", file_position=my_pos_cube, mpi_io=mpi_io)
 
-            CALL pw_copy(vee%pw, aux_r%pw)
+            CALL pw_copy(vee, aux_r%pw)
 
             CALL cp_pw_to_cube(aux_r%pw, unit_nr, "EXTERNAL POTENTIAL", particles=particles, &
                                stride=section_get_ivals(dft_section, &

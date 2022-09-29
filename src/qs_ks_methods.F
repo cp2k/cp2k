@@ -209,10 +209,11 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_p_type), POINTER                           :: rho0_s_rs, rho_core, rho_nlcc, vee, &
+      TYPE(pw_p_type), POINTER                           :: rho0_s_rs, rho_core, rho_nlcc, &
                                                             vppl_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: vee
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
@@ -459,14 +460,14 @@ CONTAINS
          ! Compute the energy due to the external potential
          ee_ener = 0.0_dp
          DO ispin = 1, nspins
-            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin)%pw, vee%pw)
+            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin)%pw, vee)
          END DO
          IF (.NOT. just_energy) THEN
             IF (gapw) THEN
                CALL get_qs_env(qs_env=qs_env, &
                                rho0_s_rs=rho0_s_rs)
                CPASSERT(ASSOCIATED(rho0_s_rs))
-               ee_ener = ee_ener + pw_integral_ab(rho0_s_rs%pw, vee%pw)
+               ee_ener = ee_ener + pw_integral_ab(rho0_s_rs%pw, vee)
             END IF
          END IF
          ! the sign accounts for the charge of the electrons
@@ -500,8 +501,8 @@ CONTAINS
             DEALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace%pw)
          END IF
          IF (.NOT. just_energy) THEN
-            CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &
-                                         v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace, scale=1.0_dp)
+            CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace%pw, &
+                                         v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace%pw, scale=1.0_dp)
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
@@ -770,7 +771,7 @@ CONTAINS
       IF (gapw) THEN
          IF (dft_control%apply_external_potential) THEN
             ! Integrals of the Hartree potential with g0_soft
-            CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &
+            CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace%pw, &
                                          v_qmmm=vee, scale=-1.0_dp)
          END IF
          CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace%pw, para_env, calculate_forces)

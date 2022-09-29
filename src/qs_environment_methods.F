@@ -210,9 +210,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: new_pw_env
       TYPE(pw_p_type), POINTER                           :: embed_pot, external_vxc, rho_core, &
                                                             rho_nlcc, rho_nlcc_g, spin_embed_pot, &
-                                                            vee, vppl
+                                                            vppl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_type), POINTER                             :: v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
@@ -349,15 +349,13 @@ CONTAINS
             NULLIFY (vee)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, vee=vee)
             IF (ASSOCIATED(vee)) THEN
-               CALL pw_release(vee%pw)
-               DEALLOCATE (vee%pw)
+               CALL pw_release(vee)
                DEALLOCATE (vee)
             END IF
             ALLOCATE (vee)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (vee%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, vee%pw, use_data=REALDATA3D)
-            vee%pw%in_space = REALSPACE
+            CALL pw_pool_create_pw(auxbas_pw_pool, vee, use_data=REALDATA3D)
+            vee%in_space = REALSPACE
             CALL set_ks_env(ks_env, vee=vee)
             dft_control%eval_external_potential = .TRUE.
          END IF

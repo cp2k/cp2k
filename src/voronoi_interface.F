@@ -21,7 +21,7 @@ MODULE voronoi_interface
                            Brehm2021, cite_reference
    USE kinds, ONLY: dp, default_path_length
    USE cell_types, ONLY: cell_type, pbc
-   USE pw_types, ONLY: pw_p_type, pw_type
+   USE pw_types, ONLY: pw_type
    USE physcon, ONLY: bohr, debye
    USE mathconstants, ONLY: fourpi
    USE orbital_pointers, ONLY: indco

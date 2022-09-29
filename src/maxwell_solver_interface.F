@@ -17,7 +17,7 @@ MODULE maxwell_solver_interface
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
    USE kinds, ONLY: dp
-   USE pw_types, ONLY: pw_p_type
+   USE pw_types, ONLY: pw_type
    USE message_passing, ONLY: &
       file_amode_rdonly, file_offset, mp_bcast, mp_file_close, mp_file_descriptor_type, &
       mp_file_get_position, mp_file_open, mp_file_read_all_chv, mp_file_type_free, &
@@ -79,7 +79,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE maxwell_solver(maxwell_control, v_ee, sim_step, sim_time, scaling_factor)
       TYPE(maxwell_control_type), INTENT(IN)             :: maxwell_control
-      TYPE(pw_p_type), POINTER                           :: v_ee
+      TYPE(pw_type), POINTER                           :: v_ee
       INTEGER, INTENT(IN)                                :: sim_step
       REAL(KIND=dp), INTENT(IN)                          :: sim_time
       REAL(KIND=dp), INTENT(IN)                          :: scaling_factor
@@ -106,18 +106,18 @@ CONTAINS
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_io_unit(logger)
 
-      my_rank = v_ee%pw%pw_grid%para%my_pos
-      num_pe = v_ee%pw%pw_grid%para%group_size
-      gid = v_ee%pw%pw_grid%para%group
+      my_rank = v_ee%pw_grid%para%my_pos
+      num_pe = v_ee%pw_grid%para%group_size
+      gid = v_ee%pw_grid%para%group
       tag = 1
 
-      lbounds = v_ee%pw%pw_grid%bounds(1, :)
-      ubounds = v_ee%pw%pw_grid%bounds(2, :)
-      npoints = v_ee%pw%pw_grid%npts
+      lbounds = v_ee%pw_grid%bounds(1, :)
+      ubounds = v_ee%pw_grid%bounds(2, :)
+      npoints = v_ee%pw_grid%npts
 
-      lbounds_local = v_ee%pw%pw_grid%bounds_local(1, :)
-      ubounds_local = v_ee%pw%pw_grid%bounds_local(2, :)
-      npoints_local = v_ee%pw%pw_grid%npts_local
+      lbounds_local = v_ee%pw_grid%bounds_local(1, :)
+      ubounds_local = v_ee%pw_grid%bounds_local(2, :)
+      npoints_local = v_ee%pw_grid%npts_local
 
       ALLOCATE (buffer(lbounds(3):ubounds(3)))
 
@@ -132,15 +132,15 @@ CONTAINS
                ubounds(1) - lbounds(1) + 1, &
                ubounds(2) - lbounds(2) + 1, &
                ubounds(3) - lbounds(3) + 1, &
-               v_ee%pw%pw_grid%dh(1, 1)*(ubounds(1) - lbounds(1) + 1), &
-               v_ee%pw%pw_grid%dh(2, 1)*(ubounds(1) - lbounds(1) + 1), &
-               v_ee%pw%pw_grid%dh(3, 1)*(ubounds(1) - lbounds(1) + 1), &
-               v_ee%pw%pw_grid%dh(1, 2)*(ubounds(2) - lbounds(2) + 1), &
-               v_ee%pw%pw_grid%dh(2, 2)*(ubounds(2) - lbounds(2) + 1), &
-               v_ee%pw%pw_grid%dh(3, 2)*(ubounds(2) - lbounds(2) + 1), &
-               v_ee%pw%pw_grid%dh(1, 3)*(ubounds(3) - lbounds(3) + 1), &
-               v_ee%pw%pw_grid%dh(2, 3)*(ubounds(3) - lbounds(3) + 1), &
-               v_ee%pw%pw_grid%dh(3, 3)*(ubounds(3) - lbounds(3) + 1) &
+               v_ee%pw_grid%dh(1, 1)*(ubounds(1) - lbounds(1) + 1), &
+               v_ee%pw_grid%dh(2, 1)*(ubounds(1) - lbounds(1) + 1), &
+               v_ee%pw_grid%dh(3, 1)*(ubounds(1) - lbounds(1) + 1), &
+               v_ee%pw_grid%dh(1, 2)*(ubounds(2) - lbounds(2) + 1), &
+               v_ee%pw_grid%dh(2, 2)*(ubounds(2) - lbounds(2) + 1), &
+               v_ee%pw_grid%dh(3, 2)*(ubounds(2) - lbounds(2) + 1), &
+               v_ee%pw_grid%dh(1, 3)*(ubounds(3) - lbounds(3) + 1), &
+               v_ee%pw_grid%dh(2, 3)*(ubounds(3) - lbounds(3) + 1), &
+               v_ee%pw_grid%dh(3, 3)*(ubounds(3) - lbounds(3) + 1) &
                )
 
          res = libcp2kmw_step(sim_step, sim_time)
@@ -179,7 +179,7 @@ CONTAINS
             IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. &
                 (lbounds_local(2) <= j) .AND. (j <= ubounds_local(2))) THEN
                !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
-               v_ee%pw%cr3d(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling_factor
+               v_ee%cr3d(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling_factor
             END IF
 
          END DO

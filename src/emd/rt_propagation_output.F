@@ -66,7 +66,7 @@ MODULE rt_propagation_output
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
@@ -685,8 +685,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: tmp, zero
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), POINTER                           :: gs, rs
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: gs, rs
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
@@ -696,9 +696,7 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      NULLIFY (zero, rs, gs, tmp)
-      ALLOCATE (rs, gs)
-      NULLIFY (rs%pw, gs%pw)
+      NULLIFY (zero, tmp)
       ALLOCATE (zero, tmp)
       CALL dbcsr_create(zero, template=P_im)
       CALL dbcsr_copy(zero, P_im)
@@ -710,17 +708,16 @@ CONTAINS
       END IF
       current_env%gauge = -1
       current_env%gauge_init = .FALSE.
-      ALLOCATE (rs%pw, gs%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rs%pw, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, gs%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, rs, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_pool_create_pw(auxbas_pw_pool, gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
       NULLIFY (stride)
       ALLOCATE (stride(3))
 
       DO dir = 1, 3
 
-         CALL pw_zero(rs%pw)
-         CALL pw_zero(gs%pw)
+         CALL pw_zero(rs)
+         CALL pw_zero(gs)
 
          CALL calculate_jrho_resp(zero, tmp, zero, zero, dir, dir, rs, gs, qs_env, current_env, retain_rsgrid=.TRUE.)
 
@@ -741,7 +738,7 @@ CONTAINS
                                            extension=ext, file_status="REPLACE", file_action="WRITE", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
 
-         CALL cp_pw_to_cube(rs%pw, print_unit, "EMD current", particles=particles, stride=stride, &
+         CALL cp_pw_to_cube(rs, print_unit, "EMD current", particles=particles, stride=stride, &
                             mpi_io=mpi_io)
 
          CALL cp_print_key_finished_output(print_unit, logger, dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT", &
@@ -749,12 +746,8 @@ CONTAINS
 
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rs%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, gs%pw)
-      DEALLOCATE (rs%pw, gs%pw)
-
-      DEALLOCATE (rs)
-      DEALLOCATE (gs)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rs)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, gs)
 
       CALL dbcsr_deallocate_matrix(zero)
       CALL dbcsr_deallocate_matrix(tmp)
