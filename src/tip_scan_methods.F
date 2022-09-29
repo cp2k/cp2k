@@ -269,7 +269,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: dcell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type), POINTER                             :: pw
 
       CALL timeset(routineN, handle)
 
@@ -296,21 +295,16 @@ CONTAINS
       CALL mp_bcast(npts, para_env%source, para_env%group)
       CALL mp_bcast(dcell, para_env%source, para_env%group)
 
-      NULLIFY (pw, pw_grid)
-      ALLOCATE (pw)
+      NULLIFY (pw_grid)
       CALL pw_grid_create(pw_grid, para_env%group)
       CALL pw_grid_setup(dcell, pw_grid, npts=npts)
-      CALL pw_create(pw, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_create(scan_env%tip_pw_r, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
 !deb
       scaling = 0.1_dp
 !deb
-      CALL cp_cube_to_pw(pw, scan_env%tip_cube_file, scaling, silent=.TRUE.)
-      scan_env%tip_pw_r => pw
-      NULLIFY (pw)
-      ALLOCATE (pw)
-      CALL pw_create(pw, pw_grid, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_transfer(scan_env%tip_pw_r, pw)
-      scan_env%tip_pw_g => pw
+      CALL cp_cube_to_pw(scan_env%tip_pw_r, scan_env%tip_cube_file, scaling, silent=.TRUE.)
+      CALL pw_create(scan_env%tip_pw_g, pw_grid, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_transfer(scan_env%tip_pw_r, scan_env%tip_pw_g)
       CALL pw_grid_release(pw_grid)
 
       CALL timestop(handle)

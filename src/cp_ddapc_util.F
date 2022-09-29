@@ -96,7 +96,6 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
       TYPE(pw_type), POINTER                             :: rho_tot_g
       TYPE(qs_charges_type), POINTER                     :: qs_charges
@@ -105,7 +104,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
-      NULLIFY (dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env, &
+      NULLIFY (dft_control, rho, rho_tot_g, pw_env, &
                radii, inp_radii, particle_set, qs_charges, para_env)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
@@ -126,8 +125,6 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, &
                          dft_control=dft_control, &
                          rho=rho, &
-                         rho_core=rho_core, &
-                         rho0_s_gs=rho0_s_gs, &
                          pw_env=pw_env, &
                          qs_charges=qs_charges, &
                          particle_set=particle_set, &
@@ -243,9 +240,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
-      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
-      TYPE(pw_type), POINTER                             :: rho_tot_g
+      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core, rho_tot_g
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -303,9 +299,9 @@ CONTAINS
          CASE (do_full_density)
             ! Otherwise build the total QS density (electron+nuclei) in G-space
             IF (dft_control%qs_control%gapw) THEN
-               CALL pw_transfer(rho0_s_gs%pw, rho_tot_g)
+               CALL pw_transfer(rho0_s_gs, rho_tot_g)
             ELSE
-               CALL pw_transfer(rho_core%pw, rho_tot_g)
+               CALL pw_transfer(rho_core, rho_tot_g)
             END IF
             DO ispin = 1, SIZE(rho_g)
                CALL pw_axpy(rho_g(ispin)%pw, rho_tot_g)

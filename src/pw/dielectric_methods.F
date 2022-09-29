@@ -122,7 +122,7 @@ CONTAINS
       TYPE(realspace_grid_type), POINTER                 :: diel_rs_grid
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(pw_type), INTENT(IN), POINTER                 :: rho
-      TYPE(pw_type), INTENT(IN), OPTIONAL, POINTER       :: rho_core
+      TYPE(pw_type), INTENT(IN), OPTIONAL                :: rho_core
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_compute_periodic'
       REAL(dp), PARAMETER                                :: small_value = EPSILON(1.0_dp)

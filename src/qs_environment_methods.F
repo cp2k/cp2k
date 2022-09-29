@@ -208,11 +208,10 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(pw_env_type), POINTER                         :: new_pw_env
-      TYPE(pw_p_type), POINTER                           :: embed_pot, external_vxc, rho_core, &
-                                                            rho_nlcc, rho_nlcc_g, spin_embed_pot, &
-                                                            vppl
+      TYPE(pw_p_type), POINTER                           :: embed_pot, external_vxc, rho_nlcc, &
+                                                            rho_nlcc_g, spin_embed_pot, vppl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace, vee
+      TYPE(pw_type), POINTER                             :: rho_core, v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
@@ -244,17 +243,15 @@ CONTAINS
          CPASSERT(ASSOCIATED(new_pw_env))
          IF (dft_control%qs_control%gapw) THEN
             IF (ASSOCIATED(rho_core)) THEN
-               CALL pw_release(rho_core%pw)
-               DEALLOCATE (rho_core%pw)
+               CALL pw_release(rho_core)
                DEALLOCATE (rho_core)
             END IF
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
                ALLOCATE (rho_core)
                CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-               ALLOCATE (rho_core%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_core, &
                                       use_data=COMPLEXDATA1D)
-               rho_core%pw%in_space = RECIPROCALSPACE
+               rho_core%in_space = RECIPROCALSPACE
                CALL set_ks_env(ks_env, rho_core=rho_core)
             END IF
             CALL get_qs_env(qs_env=qs_env, rho0_mpole=rho0_mpole)
@@ -280,16 +277,14 @@ CONTAINS
             END IF
          ELSE
             IF (ASSOCIATED(rho_core)) THEN
-               CALL pw_release(rho_core%pw)
-               DEALLOCATE (rho_core%pw)
+               CALL pw_release(rho_core)
                DEALLOCATE (rho_core)
             END IF
             ALLOCATE (rho_core)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (rho_core%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_core, &
                                    use_data=COMPLEXDATA1D)
-            rho_core%pw%in_space = RECIPROCALSPACE
+            rho_core%in_space = RECIPROCALSPACE
             CALL set_ks_env(ks_env, rho_core=rho_core)
          END IF
 

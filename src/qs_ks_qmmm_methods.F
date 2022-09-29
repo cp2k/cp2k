@@ -165,7 +165,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), POINTER                           :: rho0_s_rs
+      TYPE(pw_type), POINTER                             :: rho0_s_rs
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
@@ -190,7 +190,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, &
                          rho0_s_rs=rho0_s_rs)
          CPASSERT(ASSOCIATED(rho0_s_rs))
-         qmmm_energy = qmmm_energy + pw_integral_ab(rho0_s_rs%pw, v_qmmm%pw)
+         qmmm_energy = qmmm_energy + pw_integral_ab(rho0_s_rs, v_qmmm%pw)
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, input, &

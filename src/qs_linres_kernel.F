@@ -297,7 +297,7 @@ CONTAINS
          CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw)
       END DO
       IF (gapw) &
-         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
+         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace%pw)
 
       IF (.NOT. (nspins == 1 .AND. lr_triplet)) THEN
          CALL pw_poisson_solve(poisson_env, rho1_tot_gspace%pw, &

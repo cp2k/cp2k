@@ -1913,10 +1913,10 @@ CONTAINS
       TYPE(pw_p_type)                                    :: aux_g, aux_r, rho_elec_gspace, &
                                                             rho_elec_rspace, wf_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
-      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: mb_rho, v_hartree_rspace, vee
+      TYPE(pw_type), POINTER                             :: mb_rho, rho0_s_gs, rho_core, &
+                                                            v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1970,12 +1970,12 @@ CONTAINS
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          IF (dft_control%qs_control%gapw) THEN
-            CALL pw_transfer(rho0_s_gs%pw, wf_r%pw)
+            CALL pw_transfer(rho0_s_gs, wf_r%pw)
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-               CALL pw_axpy(rho_core%pw, wf_r%pw)
+               CALL pw_axpy(rho_core, wf_r%pw)
             END IF
          ELSE
-            CALL pw_transfer(rho_core%pw, wf_r%pw)
+            CALL pw_transfer(rho_core, wf_r%pw)
          END IF
          DO ispin = 1, dft_control%nspins
             CALL pw_axpy(rho_r(ispin)%pw, wf_r%pw)
@@ -3374,10 +3374,9 @@ CONTAINS
       LOGICAL                                            :: use_virial
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: v_hartree_gspace, v_hartree_rspace
-      TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rho_tot_gspace
+      TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(virial_type), POINTER                         :: virial
 

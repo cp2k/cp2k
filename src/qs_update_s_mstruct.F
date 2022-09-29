@@ -22,7 +22,8 @@ MODULE qs_update_s_mstruct
                                               kg_tnadd_embed_ri
    USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
                                               calculate_rho_core,&
                                               calculate_rho_nlcc
@@ -69,7 +70,8 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: do_ppl
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), POINTER                           :: rho_core, rho_nlcc, rho_nlcc_g, vppl
+      TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g, vppl
+      TYPE(pw_type), POINTER                             :: rho_core
 
       CALL timeset(routineN, handle)
 
@@ -86,12 +88,11 @@ CONTAINS
          qs_env%qs_charges%total_rho_core_rspace = qs_env%local_rho_set%rhoz_tot
          IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
             CPASSERT(ASSOCIATED(rho_core))
-            CALL calculate_rho_core(rho_core%pw, &
+            CALL calculate_rho_core(rho_core, &
                                     qs_env%qs_charges%total_rho_core_rspace, qs_env, only_nopaw=.TRUE.)
          ELSE
             IF (ASSOCIATED(rho_core)) THEN
-               CALL pw_release(rho_core%pw)
-               DEALLOCATE (rho_core%pw)
+               CALL pw_release(rho_core)
                DEALLOCATE (rho_core)
             END IF
          END IF
@@ -105,7 +106,7 @@ CONTAINS
          !??
       ELSE
          CPASSERT(ASSOCIATED(rho_core))
-         CALL calculate_rho_core(rho_core%pw, &
+         CALL calculate_rho_core(rho_core, &
                                  qs_env%qs_charges%total_rho_core_rspace, qs_env)
       END IF
 

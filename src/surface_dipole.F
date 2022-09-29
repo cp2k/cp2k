@@ -77,17 +77,16 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: vdip_r, wf_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
-      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: v_hartree_rspace
+      TYPE(pw_type)                                      :: vdip_r, wf_r
+      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core, v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       CALL timeset(routineN, handle)
-      NULLIFY (cell, dft_control, rho, pw_env, rho_core, rho0_s_gs, auxbas_pw_pool, &
+      NULLIFY (cell, dft_control, rho, pw_env, auxbas_pw_pool, &
                pw_pools, subsys, v_hartree_rspace, rho_r)
 
       CALL get_qs_env(qs_env, &
@@ -102,35 +101,34 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      ALLOCATE (wf_r%pw, vdip_r%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, vdip_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, vdip_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
       IF (dft_control%qs_control%gapw) THEN
-         CALL pw_transfer(rho0_s_gs%pw, wf_r%pw)
+         CALL pw_transfer(rho0_s_gs, wf_r)
          IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-            CALL pw_axpy(rho_core%pw, wf_r%pw)
+            CALL pw_axpy(rho_core, wf_r)
          END IF
       ELSE
-         CALL pw_transfer(rho_core%pw, wf_r%pw)
+         CALL pw_transfer(rho_core, wf_r)
       END IF
       CALL qs_rho_get(rho, rho_r=rho_r)
       DO ispin = 1, dft_control%nspins
-         CALL pw_axpy(rho_r(ispin)%pw, wf_r%pw)
+         CALL pw_axpy(rho_r(ispin)%pw, wf_r)
       END DO
 
-      ngrid(1:3) = wf_r%pw%pw_grid%npts(1:3)
+      ngrid(1:3) = wf_r%pw_grid%npts(1:3)
       idir_surfdip = dft_control%dir_surf_dip
 
       width = 4
 
       DO i = 1, 3
          IF (i /= idir_surfdip) THEN
-            IF (ABS(wf_r%pw%pw_grid%dh(idir_surfdip, i)) > 1.E-7_dp) THEN
+            IF (ABS(wf_r%pw_grid%dh(idir_surfdip, i)) > 1.E-7_dp) THEN
                ! stop surface dipole defined only for slab perpendigular to one of the Cartesian axis
                CALL cp_abort(__LOCATION__, &
                              " Dipole correction only for surface perpendicular to "// &
@@ -142,22 +140,22 @@ CONTAINS
          END IF
       END DO
 
-      ilow = wf_r%pw%pw_grid%bounds(1, idir_surfdip)
-      iup = wf_r%pw%pw_grid%bounds(2, idir_surfdip)
+      ilow = wf_r%pw_grid%bounds(1, idir_surfdip)
+      iup = wf_r%pw_grid%bounds(2, idir_surfdip)
 
       ALLOCATE (rhoavsurf(ilow:iup))
       rhoavsurf = 0.0_dp
 
-      bo => wf_r%pw%pw_grid%bounds_local
-      dh = wf_r%pw%pw_grid%dh
+      bo => wf_r%pw_grid%bounds_local
+      dh = wf_r%pw_grid%dh
 
-      wf_r%pw%cr3d = wf_r%pw%cr3d*wf_r%pw%pw_grid%vol
+      wf_r%cr3d = wf_r%cr3d*wf_r%pw_grid%vol
       IF (idir_surfdip == 3) THEN
          isurf = 1
          jsurf = 2
 
          DO i = bo(1, 3), bo(2, 3)
-            rhoavsurf(i) = accurate_sum(wf_r%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i))
+            rhoavsurf(i) = accurate_sum(wf_r%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), i))
          END DO
 
       ELSEIF (idir_surfdip == 2) THEN
@@ -165,25 +163,25 @@ CONTAINS
          jsurf = 1
 
          DO i = bo(1, 2), bo(2, 2)
-            rhoavsurf(i) = accurate_sum(wf_r%pw%cr3d(bo(1, 1):bo(2, 1), i, bo(1, 3):bo(2, 3)))
+            rhoavsurf(i) = accurate_sum(wf_r%cr3d(bo(1, 1):bo(2, 1), i, bo(1, 3):bo(2, 3)))
          END DO
       ELSE
          isurf = 2
          jsurf = 3
 
          DO i = bo(1, 1), bo(2, 1)
-            rhoavsurf(i) = accurate_sum(wf_r%pw%cr3d(i, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+            rhoavsurf(i) = accurate_sum(wf_r%cr3d(i, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
          END DO
       END IF
-      wf_r%pw%cr3d = wf_r%pw%cr3d/wf_r%pw%pw_grid%vol
-      rhoavsurf = rhoavsurf/wf_r%pw%pw_grid%vol
+      wf_r%cr3d = wf_r%cr3d/wf_r%pw_grid%vol
+      rhoavsurf = rhoavsurf/wf_r%pw_grid%vol
 
       surfarea = cell%hmat(isurf, isurf)*cell%hmat(jsurf, jsurf) - &
                  cell%hmat(isurf, jsurf)*cell%hmat(jsurf, isurf)
       dsurf = surfarea/REAL(ngrid(isurf)*ngrid(jsurf), dp)
 
-      IF (wf_r%pw%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
-         CALL mp_sum(rhoavsurf, wf_r%pw%pw_grid%para%group)
+      IF (wf_r%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
+         CALL mp_sum(rhoavsurf, wf_r%pw_grid%para%group)
       END IF
       rhoavsurf(ilow:iup) = dsurf*rhoavsurf(ilow:iup)
 
@@ -206,7 +204,7 @@ CONTAINS
 !   surface dipole form average rhoavsurf
 !   \sum_i NjdjNkdkdi rhoav_i (i-imin)di
       dip_hh = 0.0_dp
-      dip_fac = wf_r%pw%pw_grid%vol*dh(idir_surfdip, idir_surfdip)/REAL(ngrid(idir_surfdip), dp)
+      dip_fac = wf_r%pw_grid%vol*dh(idir_surfdip, idir_surfdip)/REAL(ngrid(idir_surfdip), dp)
 
       DO i = ilayer_min + 1, ilayer_min + ngrid(idir_surfdip)
          hh = REAL((i - ilayer_min), dp)
@@ -229,7 +227,7 @@ CONTAINS
       qs_env%surface_dipole_moment = dip_hh/bohr
 
 !    Calculation of the dipole potential as a function of the perpendicular coordinate
-      CALL pw_zero(vdip_r%pw)
+      CALL pw_zero(vdip_r)
       vdip_fac = dip_hh*4.0_dp*pi
 
       DO i = ilayer_min + 1, ilayer_min + ngrid(idir_surfdip)
@@ -250,34 +248,33 @@ CONTAINS
          vdip = vdip*cutoff
 
          IF (idir_surfdip == 3) THEN
-            vdip_r%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) = &
-               vdip_r%pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) + vdip
+            vdip_r%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) = &
+               vdip_r%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), irho) + vdip
          ELSEIF (idir_surfdip == 2) THEN
             IF (irho >= bo(1, 2) .AND. irho <= bo(2, 2)) THEN
-               vdip_r%pw%cr3d(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) = &
-                  vdip_r%pw%cr3d(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) + vdip
+               vdip_r%cr3d(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) = &
+                  vdip_r%cr3d(bo(1, 1):bo(2, 1), irho, bo(1, 3):bo(2, 3)) + vdip
             END IF
          ELSE
             IF (irho >= bo(1, 1) .AND. irho <= bo(2, 1)) THEN
-               vdip_r%pw%cr3d(irho, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)) = &
-                  vdip_r%pw%cr3d(irho, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)) + vdip
+               vdip_r%cr3d(irho, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)) = &
+                  vdip_r%cr3d(irho, bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)) + vdip
             END IF
          END IF
 
       END DO
 
 !    Dipole correction contribution to the energy
-      energy%surf_dipole = 0.5_dp*accurate_dot_product(vdip_r%pw%cr3d, wf_r%pw%cr3d)
-      IF (wf_r%pw%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
-         CALL mp_sum(energy%surf_dipole, wf_r%pw%pw_grid%para%group)
+      energy%surf_dipole = 0.5_dp*accurate_dot_product(vdip_r%cr3d, wf_r%cr3d)
+      IF (wf_r%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
+         CALL mp_sum(energy%surf_dipole, wf_r%pw_grid%para%group)
       END IF
 
 !    Add the dipole potential to the hartree potential on the realspace grid
-      v_hartree_rspace%cr3d = v_hartree_rspace%cr3d + vdip_r%pw%cr3d
+      v_hartree_rspace%cr3d = v_hartree_rspace%cr3d + vdip_r%cr3d
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vdip_r%pw)
-      DEALLOCATE (wf_r%pw, vdip_r%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vdip_r)
 
       CALL timestop(handle)
 

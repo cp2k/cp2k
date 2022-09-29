@@ -121,10 +121,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
-      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
-      TYPE(pw_type), POINTER                             :: rho_tot_r, rho_tot_r2
+      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core, rho_tot_r, &
+                                                            rho_tot_r2
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env_loc
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -217,26 +217,26 @@ CONTAINS
          ! IF GAPW the core charge is replaced by the compensation charge
          IF (gapw) THEN
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-               CALL pw_transfer(rho_core%pw, rho_tot_r)
+               CALL pw_transfer(rho_core, rho_tot_r)
                energy%qmmm_nu = pw_integral_ab(rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw)
                NULLIFY (rho_tot_r2)
                ALLOCATE (rho_tot_r2)
                CALL pw_pool_create_pw(auxbas_pool, rho_tot_r2, &
                                       in_space=REALSPACE, &
                                       use_data=REALDATA3D)
-               CALL pw_transfer(rho0_s_gs%pw, rho_tot_r2)
+               CALL pw_transfer(rho0_s_gs, rho_tot_r2)
                CALL pw_axpy(rho_tot_r2, rho_tot_r)
                CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_r2)
                DEALLOCATE (rho_tot_r2)
             ELSE
-               CALL pw_transfer(rho0_s_gs%pw, rho_tot_r)
+               CALL pw_transfer(rho0_s_gs, rho_tot_r)
                !
                ! QM/MM Nuclear Electrostatic Potential already included through rho0
                !
                energy%qmmm_nu = 0.0_dp
             END IF
          ELSE
-            CALL pw_transfer(rho_core%pw, rho_tot_r)
+            CALL pw_transfer(rho_core, rho_tot_r)
             !
             ! Computes the QM/MM Nuclear Electrostatic Potential
             !

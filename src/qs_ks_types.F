@@ -166,12 +166,12 @@ MODULE qs_ks_types
                                                                rho_buffer => Null(), &
                                                                rho_xc => Null()
 
-      TYPE(pw_p_type), POINTER                              :: rho_core => Null(), &
-                                                               vppl => Null(), &
+      TYPE(pw_p_type), POINTER                              :: vppl => Null(), &
                                                                rho_nlcc => Null(), &
                                                                rho_nlcc_g => Null()
 
-      TYPE(pw_type), POINTER :: vee => NULL()
+      TYPE(pw_type), POINTER :: rho_core => NULL(), &
+                                vee => NULL()
 
       INTEGER                                               :: neighbor_list_id = -1
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb => Null(), &
@@ -352,7 +352,9 @@ CONTAINS
                                                             matrix_s_kp, matrix_w_kp, &
                                                             matrix_s_RI_aux_kp
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_buffer, rho_xc
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_nlcc, rho_nlcc_g
       TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
@@ -576,7 +578,9 @@ CONTAINS
                                                             matrix_vxc_kp, kinetic_kp, &
                                                             matrix_s_kp, matrix_w_kp, &
                                                             matrix_s_RI_aux_kp
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_nlcc, rho_nlcc_g
       TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
@@ -753,8 +757,7 @@ CONTAINS
                DEALLOCATE (ks_env%rho_nlcc)
             END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
-               CALL pw_release(ks_env%rho_core%pw)
-               DEALLOCATE (ks_env%rho_core%pw)
+               CALL pw_release(ks_env%rho_core)
                DEALLOCATE (ks_env%rho_core)
             END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN
@@ -854,8 +857,7 @@ CONTAINS
                DEALLOCATE (ks_env%rho_nlcc)
             END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
-               CALL pw_release(ks_env%rho_core%pw)
-               DEALLOCATE (ks_env%rho_core%pw)
+               CALL pw_release(ks_env%rho_core)
                DEALLOCATE (ks_env%rho_core)
             END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN

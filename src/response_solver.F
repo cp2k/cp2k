@@ -2155,10 +2155,9 @@ CONTAINS
       TYPE(pw_p_type)                                    :: v_hartree_gspace, v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_admm_rspace, v_admm_tau_rspace, &
                                                             v_rspace, v_tau_rspace
-      TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rho_tot_gspace
+      TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: xc_section

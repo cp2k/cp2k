@@ -102,9 +102,8 @@ CONTAINS
                                                             hartree_density, v_hartree_rspace, &
                                                             xc_density
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
-      TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rho_tot_gspace, rho_tot_rspace
+      TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace, rho_tot_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct
@@ -193,7 +192,7 @@ CONTAINS
       CALL qs_rho_get(rho, rho_r=rho_r)
       IF (ASSOCIATED(rho_core)) THEN
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
-         CALL pw_transfer(rho_core%pw, rho_tot_rspace)
+         CALL pw_transfer(rho_core, rho_tot_rspace)
       ELSE
          CALL pw_zero(rho_tot_rspace)
       END IF

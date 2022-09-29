@@ -209,11 +209,10 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_p_type), POINTER                           :: rho0_s_rs, rho_core, rho_nlcc, &
-                                                            vppl_rspace
+      TYPE(pw_p_type), POINTER                           :: rho_nlcc, vppl_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: vee
+      TYPE(pw_type), POINTER                             :: rho0_s_rs, rho_core, vee
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
@@ -467,7 +466,7 @@ CONTAINS
                CALL get_qs_env(qs_env=qs_env, &
                                rho0_s_rs=rho0_s_rs)
                CPASSERT(ASSOCIATED(rho0_s_rs))
-               ee_ener = ee_ener + pw_integral_ab(rho0_s_rs%pw, vee)
+               ee_ener = ee_ener + pw_integral_ab(rho0_s_rs, vee)
             END IF
          END IF
          ! the sign accounts for the charge of the electrons
@@ -920,7 +919,7 @@ CONTAINS
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
-      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
+      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
       my_skip = .FALSE.
@@ -936,12 +935,12 @@ CONTAINS
             NULLIFY (rho0_s_gs)
             CALL get_qs_env(qs_env=qs_env, rho0_s_gs=rho0_s_gs)
             CPASSERT(ASSOCIATED(rho0_s_gs))
-            CALL pw_copy(rho0_s_gs%pw, rho_tot_gspace)
+            CALL pw_copy(rho0_s_gs, rho_tot_gspace)
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-               CALL pw_axpy(rho_core%pw, rho_tot_gspace)
+               CALL pw_axpy(rho_core, rho_tot_gspace)
             END IF
          ELSE
-            CALL pw_copy(rho_core%pw, rho_tot_gspace)
+            CALL pw_copy(rho_core, rho_tot_gspace)
          END IF
          DO ispin = 1, dft_control%nspins
             CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)

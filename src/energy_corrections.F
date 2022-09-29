@@ -961,10 +961,9 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rhoout_g, rhoout_r, tau_r, &
                                                             tauout_g, tauout_r, v_rspace, &
                                                             v_tau_rspace, v_xc, v_xc_tau
-      TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rho_tot_gspace
+      TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1096,7 +1095,7 @@ CONTAINS
 
          ! make rho_tot_gspace with output density
          CALL get_qs_env(qs_env=qs_env, rho_core=rho_core)
-         CALL pw_copy(rho_core%pw, rhodn_tot_gspace%pw)
+         CALL pw_copy(rho_core, rhodn_tot_gspace%pw)
          DO ispin = 1, dft_control%nspins
             CALL pw_axpy(rhoout_g(ispin)%pw, rhodn_tot_gspace%pw)
          END DO

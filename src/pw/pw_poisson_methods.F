@@ -246,8 +246,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(3), OPTIONAL            :: dvhartree
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_core
-      TYPE(pw_type), OPTIONAL, POINTER                   :: greenfn, aux_density
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core, greenfn, aux_density
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
 
@@ -338,7 +337,7 @@ CONTAINS
                   CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
                                           poisson_env%diel_rs_grid, &
                                           poisson_env%pw_pools(poisson_env%pw_level)%pool, &
-                                          density, rho_core=rho_core%pw)
+                                          density, rho_core=rho_core)
                CASE (NEUMANN_BC, MIXED_BC)
                   CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
                                           poisson_env%diel_rs_grid, &
@@ -350,7 +349,7 @@ CONTAINS
                                           poisson_env%implicit_env%dct_env%srcs_expand, &
                                           poisson_env%implicit_env%dct_env%flipg_stat, &
                                           poisson_env%implicit_env%dct_env%bounds_shftd, &
-                                          density, rho_core=rho_core%pw)
+                                          density, rho_core=rho_core)
                END SELECT
             END IF
 

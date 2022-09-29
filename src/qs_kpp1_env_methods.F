@@ -301,7 +301,7 @@ CONTAINS
          CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw)
       END DO
       IF (gapw) &
-         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
+         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace%pw)
 
       scf_section => section_vals_get_subs_vals(input, "DFT%SCF")
       IF (cp_print_key_should_output(logger%iter_info, scf_section, "PRINT%TOTAL_DENSITIES") &

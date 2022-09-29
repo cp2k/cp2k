@@ -93,7 +93,8 @@ MODULE mp2_cphf
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
@@ -1380,9 +1381,10 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: dvg, rho_g, rho_mp2_g, rho_mp2_r, &
                                                             rho_mp2_r_aux, rho_r, tau_mp2_r, &
                                                             vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_p_type), POINTER                           :: rho_core, vh_rspace
+      TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -1705,7 +1707,7 @@ CONTAINS
          ! calculate total SCF density and potential
          CALL pw_copy(rho_g(1)%pw, rho_tot_g%pw)
          IF (nspins == 2) CALL pw_axpy(rho_g(2)%pw, rho_tot_g%pw)
-         CALL pw_axpy(rho_core%pw, rho_tot_g%pw)
+         CALL pw_axpy(rho_core, rho_tot_g%pw)
          CALL pw_poisson_solve(poisson_env, rho_tot_g%pw, vhartree=pot_g%pw)
 
          ! finally update virial with the volume contribution
