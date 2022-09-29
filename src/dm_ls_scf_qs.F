@@ -709,6 +709,7 @@ CONTAINS
       !free memory
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+      DEALLOCATE (wf_r%pw, wf_g%pw)
       CALL dbcsr_release(matrix_p_qs)
       DEALLOCATE (matrix_p_qs)
 

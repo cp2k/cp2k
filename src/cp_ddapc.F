@@ -205,6 +205,7 @@ CONTAINS
 
       IF (explicit_potential) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_g%pw)
+         DEALLOCATE (v_spin_ddapc_rest_g%pw)
       END IF
       CALL timestop(handle)
 

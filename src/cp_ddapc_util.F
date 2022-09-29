@@ -186,6 +186,7 @@ CONTAINS
                                            "PROGRAM_RUN_INFO/CONDITION_NUMBER")
          DEALLOCATE (radii)
          CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g)
+         DEALLOCATE (rho_tot_g)
       END IF
       CALL timestop(handle)
    END SUBROUTINE cp_ddapc_init
@@ -525,6 +526,7 @@ CONTAINS
                                            "PROGRAM_RUN_INFO")
       END IF
       CALL pw_pool_give_back_pw(auxbas_pool, rho_tot_g)
+      DEALLOCATE (rho_tot_g)
       CALL timestop(handle)
    END SUBROUTINE get_ddapc
 

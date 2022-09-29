@@ -1290,13 +1290,16 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw, rho_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+         DEALLOCATE (v_xc(ispin)%pw)
       END DO
       DEALLOCATE (v_xc)
       IF (ASSOCIATED(v_xc_tau)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+            DEALLOCATE (v_xc_tau(ispin)%pw)
          END DO
          DEALLOCATE (v_xc_tau)
       END IF

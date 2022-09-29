@@ -252,16 +252,19 @@ CONTAINS
                END DO
             END DO
             CALL pw_pool_give_back_pw(pw_pool, phib_g)
+            DEALLOCATE (phib_g)
 
          END IF
       END IF
 
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
+      DEALLOCATE (rhob_g)
 
       CALL rs_grid_zero(rpot)
       phi_g%cc = phi_g%cc*green%p3m_charge%cr
       CALL pw_transfer(phi_g, rhob_r)
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
+      DEALLOCATE (phi_g)
       CALL rs_pw_transfer(rpot, rhob_r, pw2rs)
 
       !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -291,14 +294,17 @@ CONTAINS
             dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
             CALL pw_transfer(dphi_g(i)%pw, rhob_r)
             CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
+            DEALLOCATE (dphi_g(i)%pw)
             CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
          END DO
       ELSE
          DO i = 1, 3
             CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
+            DEALLOCATE (dphi_g(i)%pw)
          END DO
       END IF
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+      DEALLOCATE (rhob_r)
 
       !----------------- FORCE CALCULATION ----------------
 
@@ -529,11 +535,13 @@ CONTAINS
       CALL rs_grid_set_box(grid_spme, rs=rpot)
 
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
+      DEALLOCATE (rhob_g)
 
       CALL rs_grid_zero(rpot)
       phi_g%cc = phi_g%cc*green%p3m_charge%cr
       CALL pw_transfer(phi_g, rhob_r)
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
+      DEALLOCATE (phi_g)
       CALL rs_pw_transfer(rpot, rhob_r, pw2rs)
 
       !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -547,9 +555,11 @@ CONTAINS
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
+         DEALLOCATE (dphi_g(i)%pw)
          CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
       END DO
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+      DEALLOCATE (rhob_r)
 
       !----------------- FORCE CALCULATION ----------------
 

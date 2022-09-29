@@ -120,6 +120,7 @@ CONTAINS
       CALL eval_pw_TabLR(pw, pw_pool, coeff, Lg, gx, gy, gz, hmat_mm=hmat, &
                          param_section=param_section, tag=tag)
       CALL pw_pool_give_back_pw(pw_pool, pw)
+      DEALLOCATE (pw)
       CALL cell_release(cell)
 
    END SUBROUTINE Setup_Ewald_Spline
