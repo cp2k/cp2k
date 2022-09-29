@@ -315,6 +315,7 @@ CONTAINS
          charges(:, is) = charges(:, is)*hirshfeld_env%charges(:)
       END DO
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhonorm%pw)
+      DEALLOCATE (rhonorm%pw)
       !
       DEALLOCATE (rhonorm)
 
@@ -435,6 +436,7 @@ CONTAINS
       END DO
       !
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhonorm%pw)
+      DEALLOCATE (rhonorm%pw)
       !
       DEALLOCATE (rhonorm)
 

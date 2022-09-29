@@ -1619,9 +1619,14 @@ CONTAINS
       END IF
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
-         IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
+         DEALLOCATE (vxc_rspace(ispin)%pw)
+         IF (ASSOCIATED(vtau_rspace)) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
+            DEALLOCATE (vtau_rspace(ispin)%pw)
+         END IF
       END DO
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace%pw)
+      DEALLOCATE (vhxc_rspace%pw)
       DEALLOCATE (vxc_rspace)
       IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
 
@@ -1683,6 +1688,7 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
+      DEALLOCATE (vh_rspace%pw)
       DEALLOCATE (vh_rspace)
 
       IF (use_virial) THEN
@@ -1723,8 +1729,10 @@ CONTAINS
 
          ! free stuff
          CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g%pw)
+         DEALLOCATE (temp_pw_g%pw)
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(idir)%pw)
+            DEALLOCATE (dvg(idir)%pw)
          END DO
          DEALLOCATE (dvg)
 
@@ -1930,6 +1938,7 @@ CONTAINS
                                              task_list_external=task_list_aux_fit, pmat=rho_ao_aux(ispin))
                   END IF
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+                  DEALLOCATE (vadmm_rspace(ispin)%pw)
                END DO
                IF (use_virial) virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - h_stress)
                DEALLOCATE (vadmm_rspace)
@@ -2019,6 +2028,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_g%pw)
+      DEALLOCATE (pot_r%pw, pot_g%pw, rho_tot_g%pw)
 
       ! Release linres stuff
       CALL p_env_release(p_env)

@@ -1529,9 +1529,11 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, grid_reg)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, grid_reg_g)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, square_norm_dpot)
+      DEALLOCATE (potential_g, dr2_pot, grid_reg, grid_reg_g, square_norm_dpot)
       DO i = 1, 3
          CALL pw_pool_give_back_pw(auxbas_pw_pool, dpot(i)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, dpot_g(i)%pw)
+         DEALLOCATE (dpot(i)%pw, dpot_g(i)%pw)
       END DO
 
    END SUBROUTINE grid_regularize
@@ -1946,6 +1948,7 @@ CONTAINS
       DEALLOCATE (wf_vector)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
+      DEALLOCATE (psi_L%pw, rho_g%pw)
 
       IF (open_shell_embed) THEN
          CALL cp_fm_release(embed_pot_coef_spin)

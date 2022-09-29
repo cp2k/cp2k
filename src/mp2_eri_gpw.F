@@ -1148,6 +1148,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
+      DEALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw, psi_L%pw)
 
       CALL deallocate_task_list(task_list_sub)
       CALL pw_env_release(pw_env_sub, para_env=para_env_sub)

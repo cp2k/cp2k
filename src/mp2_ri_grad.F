@@ -417,8 +417,10 @@ CONTAINS
 
          IF (use_virial) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy%pw)
+            DEALLOCATE (rho_g_copy%pw)
             DO i = 1, 3
                CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i)%pw)
+               DEALLOCATE (dvg(i)%pw)
             END DO
          END IF
 

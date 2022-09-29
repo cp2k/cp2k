@@ -216,6 +216,7 @@ CONTAINS
             END IF
             CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+            DEALLOCATE (wf_g%pw, wf_r%pw)
             CALL qs_loc_env_destroy(qs_loc_env_homo)
             IF (ASSOCIATED(marked_states)) THEN
                DEALLOCATE (marked_states)

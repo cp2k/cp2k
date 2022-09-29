@@ -424,6 +424,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, ec_env%rhoout_r(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, ec_env%rhoz_r(ispin)%pw)
+            DEALLOCATE (ec_env%rhoout_r(ispin)%pw, ec_env%rhoz_r(ispin)%pw)
          END DO
          DEALLOCATE (ec_env%rhoout_r, ec_env%rhoz_r)
 
@@ -692,8 +693,10 @@ CONTAINS
       ! return pw grids
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
+         DEALLOCATE (v_rspace(ispin)%pw)
          IF (ASSOCIATED(v_tau_rspace)) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+            DEALLOCATE (v_tau_rspace(ispin)%pw)
          END IF
       END DO
       DEALLOCATE (v_rspace)
@@ -1138,12 +1141,14 @@ CONTAINS
          IF (ASSOCIATED(v_rspace)) THEN
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
+               DEALLOCATE (v_rspace(ispin)%pw)
             END DO
             DEALLOCATE (v_rspace)
          END IF
          IF (ASSOCIATED(v_tau_rspace)) THEN
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+               DEALLOCATE (v_tau_rspace(ispin)%pw)
             END DO
             DEALLOCATE (v_tau_rspace)
          END IF
@@ -1162,6 +1167,8 @@ CONTAINS
       IF (use_virial) THEN
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+         DEALLOCATE (v_hartree_gspace%pw)
+         NULLIFY (v_hartree_gspace%pw)
          ALLOCATE (v_hartree_gspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -1176,6 +1183,7 @@ CONTAINS
                                aux_density=rho_tot_gspace)  ! n_in
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
+         DEALLOCATE (rho_tot_gspace)
 
          virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
          virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
@@ -1408,10 +1416,13 @@ CONTAINS
 
       ! return pw grids
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
+      DEALLOCATE (v_hartree_rspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
+         DEALLOCATE (v_rspace(ispin)%pw)
          IF (ASSOCIATED(v_tau_rspace)) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
+            DEALLOCATE (v_tau_rspace(ispin)%pw)
          END IF
       END DO
       IF (ASSOCIATED(v_tau_rspace)) DEALLOCATE (v_tau_rspace)
@@ -1446,27 +1457,32 @@ CONTAINS
       !
       CALL pw_pool_give_back_pw(auxbas_pw_pool, dv_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, vtot_rspace%pw)
+      DEALLOCATE (dv_hartree_rspace%pw, vtot_rspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoout_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhoout_g(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+         DEALLOCATE (rhoout_r(ispin)%pw, rhoout_g(ispin)%pw, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (rhoout_r, rhoout_g, v_xc)
       IF (ASSOCIATED(tauout_r)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, tauout_r(ispin)%pw)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, tauout_g(ispin)%pw)
+            DEALLOCATE (tauout_r(ispin)%pw, tauout_g(ispin)%pw)
          END DO
          DEALLOCATE (tauout_r, tauout_g)
       END IF
       IF (ASSOCIATED(v_xc_tau)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+            DEALLOCATE (v_xc_tau(ispin)%pw)
          END DO
          DEALLOCATE (v_xc_tau)
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhodn_tot_gspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw, rhodn_tot_gspace%pw)
 
       ! Stress tensor - volume terms need to be stored,
       ! for a sign correction in QS at the end of qs_force
@@ -2326,6 +2342,7 @@ CONTAINS
                                    unit_nr_voro, qs_env, mb_rho)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
+         DEALLOCATE (rho_elec_rspace%pw)
 
          IF (unit_nr_voro > 0) THEN
             CALL cp_print_key_finished_output(unit_nr_voro, logger, ec_section, "PRINT%VORONOI")

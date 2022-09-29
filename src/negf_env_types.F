@@ -819,6 +819,7 @@ CONTAINS
                                  calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE.)
 
          CALL pw_pool_give_back_pw(pw_pool, v_hartree%pw)
+         DEALLOCATE (v_hartree%pw)
 
          CALL negf_copy_sym_dbcsr_to_fm_submat(matrix=hmat%matrix, &
                                                fm=negf_env%v_hartree_s, &

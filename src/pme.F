@@ -339,11 +339,13 @@ CONTAINS
             END DO
             CALL pw_pool_give_back_pw(pw_big_pool, phi_g)
             CALL pw_pool_give_back_pw(pw_big_pool, rhob_g)
+            DEALLOCATE (phi_g, rhob_g)
          END IF
          CALL rs_grid_release(rpot)
       END IF
 
       CALL pw_pool_give_back_pw(pw_big_pool, phi_r)
+      DEALLOCATE (phi_r)
 
       !---------- END OF ELECTROSTATIC CALCULATION --------
 
@@ -369,10 +371,12 @@ CONTAINS
          CALL rs_grid_set_box(grid_b, rs=drpot(i)%rs_grid)
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_big_pool, dphi_g(i)%pw)
+         DEALLOCATE (dphi_g(i)%pw)
          CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
       END DO
 
       CALL pw_pool_give_back_pw(pw_big_pool, rhob_r)
+      DEALLOCATE (rhob_r)
 
       !----------------- FORCE CALCULATION ----------------
 
@@ -476,6 +480,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(pw_small_pool, rhos1%pw)
       CALL pw_pool_give_back_pw(pw_small_pool, rhos2%pw)
+      DEALLOCATE (rhos1%pw, rhos2%pw)
       CALL structure_factor_deallocate(exp_igr)
 
       CALL timestop(handle)
