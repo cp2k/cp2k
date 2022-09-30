@@ -83,12 +83,12 @@ case "$with_elpa" in
       done
 
       # ELPA-2017xxxx enables AVX2 by default, switch off if machine doesn't support it.
+      AVX_flag=""
+      AVX512_flags=""
+      FMA_flag=""
+      SSE4_flag=""
+      config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
       if [ "${TARGET_CPU}" = "native" ]; then
-        AVX_flag=""
-        AVX512_flags=""
-        FMA_flag=""
-        SSE4_flag=""
-        config_flags="--disable-avx --disable-avx2 --disable-avx512 --disable-sse --disable-sse-assembly"
         if [ -f /proc/cpuinfo ] && [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
           has_AVX=$(grep '\bavx\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
           [ "${has_AVX}" = "yes" ] && AVX_flag="-mavx" || AVX_flag=""
