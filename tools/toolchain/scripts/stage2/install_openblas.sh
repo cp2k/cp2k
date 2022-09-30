@@ -53,7 +53,7 @@ case "${with_openblas}" in
       #                     for a good compromise between memory usage and scalability
       #
       # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
-      if [ "${generic}" = "__TRUE__" ]; then
+      if [ "${TARGET_CPU}" = "generic" ]; then
         make -j $(get_nprocs) \
           MAKE_NB_JOBS=0 \
           TARGET=NEHALEM \

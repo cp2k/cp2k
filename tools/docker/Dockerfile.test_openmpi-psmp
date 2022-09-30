@@ -23,6 +23,7 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --mpi-mode=openmpi \
+    --target-cpu=native \
     --with-gcc=install \
     --dry-run
 

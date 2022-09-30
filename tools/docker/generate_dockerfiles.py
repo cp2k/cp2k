@@ -21,10 +21,10 @@ def main() -> None:
             f.write(toolchain_full() + production(version))
 
         with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
-            f.write(toolchain_full(generic=True) + regtest(version))
+            f.write(toolchain_full(target_cpu="generic") + regtest(version))
 
         with OutputFile(f"Dockerfile.prod_generic_{version}", args.check) as f:
-            f.write(toolchain_full(generic=True) + production(version))
+            f.write(toolchain_full(target_cpu="generic") + production(version))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
         # Also testing --with-gcc=install here, see github.com/cp2k/cp2k/issues/2062 .
@@ -365,11 +365,9 @@ def toolchain_full(
     base_image: str = "ubuntu:22.04",
     mpi_mode: str = "mpich",
     gcc: str = "system",
-    generic: bool = False,
+    target_cpu: str = "native",
 ) -> str:
-    args = dict(install_all="", mpi_mode=mpi_mode, with_gcc=gcc)
-    if generic:
-        args["generic"] = ""
+    args = dict(install_all="", mpi_mode=mpi_mode, target_cpu=target_cpu, with_gcc=gcc)
     return f"\nFROM {base_image}\n\n" + install_toolchain(base_image=base_image, **args)
 
 

@@ -10,7 +10,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
-#        Optionally, GNU compiler and MPICH version can be specified as arguments.
+#        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
 # Author: Matthias Krack (30.09.2022)
@@ -24,18 +24,19 @@
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
+   [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    if [[ -n "${1}" ]]; then \
       module add ${1}; \
       if [[ -n "${2}" ]]; then \
          module add ${2}; \
          module list; \
-         ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-gcc=system --with-${mpi_implementation}=system; \
+         ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}=system; \
       else \
          module list; \
-         ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-gcc=system --with-${mpi_implementation}; \
+         ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}; \
       fi; \
    else \
-      ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-gcc --with-${mpi_implementation}; \
+      ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation}; \
    fi; \
    source ./install/setup; \
    cd ../..; \
@@ -54,6 +55,7 @@
 # Set options
 DO_CHECKS      := no
 SHARED         := no
+TARGET_CPU     := native
 USE_COSMA      := 2.6.2
 USE_ELPA       := 2021.11.002
 USE_FFTW       := 3.3.10
@@ -85,7 +87,7 @@ FC             := mpif90
 LD             := mpif90
 AR             := ar -r
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=native
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK

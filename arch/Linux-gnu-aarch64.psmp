@@ -20,7 +20,9 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
-   ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-gcc --with-mpich; \
+   [[ -z "${mpi_implementation}" ]] && mpi_implementation="mpich"; \
+   [[ -z "${target_cpu}" ]] && target_cpu="native"; \
+   ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation}; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -38,6 +40,7 @@
 # Set options
 DO_CHECKS      := no
 SHARED         := no
+TARGET_CPU     := native
 USE_COSMA      := 2.6.2
 USE_ELPA       := 2021.11.002
 USE_FFTW       := 3.3.10
@@ -69,7 +72,7 @@ FC             := mpif90
 LD             := mpif90
 AR             := ar -r
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=native
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
