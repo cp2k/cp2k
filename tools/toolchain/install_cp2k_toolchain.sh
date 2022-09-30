@@ -108,8 +108,8 @@ OPTIONS:
                           Default = 5
 --log-lines               Number of log file lines dumped in case of a non-zero exit code.
                           Default = 200
---generic                 Compile for a generic target system, i.e. do not optimize for
-                          the actual host system.
+--target-cpu              Compile for the specified target CPU (e.g. haswell or generic), i.e.
+                          do not optimize for the actual host system which is the default (native)
 --no-arch-files           Do not generate arch files
 --dry-run                 Write only config files, but don't actually build packages.
 
@@ -337,7 +337,6 @@ fi
 # default enable options
 dry_run="__FALSE__"
 no_arch_files="__FALSE__"
-export generic="__FALSE__"
 enable_tsan="__FALSE__"
 enable_gcc_master="__FALSE__"
 enable_libxsmm_master="__FALSE__"
@@ -345,6 +344,7 @@ enable_opencl="__FALSE__"
 enable_cuda="__FALSE__"
 enable_hip="__FALSE__"
 export GPUVER="no"
+export TARGET_CPU="native"
 
 # default for libint
 export LIBINT_LMAX="5"
@@ -452,6 +452,10 @@ while [ $# -ge 1 ]; do
           ;;
       esac
       ;;
+    --target-cpu=*)
+      user_input="${1#*=}"
+      export TARGET_CPU="${user_input}"
+      ;;
     --log-lines=*)
       user_input="${1#*=}"
       export LOG_LINES="${user_input}"
@@ -462,9 +466,6 @@ while [ $# -ge 1 ]; do
       ;;
     --no-arch-files)
       no_arch_files="__TRUE__"
-      ;;
-    --generic)
-      export generic="__TRUE__"
       ;;
     --dry-run)
       dry_run="__TRUE__"
@@ -897,7 +898,7 @@ fi
 # Installing tools required for building CP2K and associated libraries
 # ------------------------------------------------------------------------
 
-echo "Compiling with $(get_nprocs) processes."
+echo "Compiling with $(get_nprocs) processes for target ${TARGET_CPU}."
 
 # Select the correct compute number based on the GPU architecture
 case ${GPUVER} in

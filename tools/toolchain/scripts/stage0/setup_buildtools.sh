@@ -21,10 +21,10 @@ done
 # ------------------------------------------------------------------------
 
 # setup compiler flags, leading to nice stack traces on crashes but still optimised
-if [ "${generic}" = "__TRUE__" ]; then
+if [ "${TARGET_CPU}" = "generic" ]; then
   CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -fopenmp -g -mtune=generic ${TSANFLAGS}"
 else
-  CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -fopenmp -g -march=native -mtune=native ${TSANFLAGS}"
+  CFLAGS="-O2 -fPIC -fno-omit-frame-pointer -fopenmp -g -march=${TARGET_CPU} -mtune=${TARGET_CPU} ${TSANFLAGS}"
 fi
 FFLAGS="${CFLAGS} -fbacktrace"
 CXXFLAGS="${CFLAGS}"

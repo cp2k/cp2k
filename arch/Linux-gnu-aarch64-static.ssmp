@@ -16,7 +16,9 @@
       exit 1; \
    fi; \
    this_file=${BASH_SOURCE##*/}; \
-   ./install_cp2k_toolchain.sh --mpi-mode=no --no-arch-files --with-gcc=system --with-cmake=system; \
+   cd tools/toolchain; \
+   [[ -z "${target_cpu}" ]] && target_cpu="native"; \
+   ./install_cp2k_toolchain.sh --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-cmake=system; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -28,6 +30,7 @@
 
 # Set options
 DO_CHECKS      := no
+TARGET_CPU     := native
 USE_FFTW       := 3.3.10
 USE_LIBINT     := 2.6.0
 USE_LIBVORI    := 220621
@@ -44,7 +47,7 @@ FC             := gfortran
 LD             := gfortran
 AR             := ar -r
 
-CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=native
+CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
 
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
