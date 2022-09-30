@@ -13,7 +13,7 @@
 #        Optionally, GNU compiler and MPICH version can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Author: Matthias Krack (29.09.2022)
+# Author: Matthias Krack (30.09.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
