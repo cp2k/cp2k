@@ -23,11 +23,12 @@
    fi; \
    this_file=${BASH_SOURCE##*/}; \
    cd tools/toolchain; \
+   [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    if [[ -n "${1}" ]]; then \
       module add ${1}; \
       module list; \
    fi; \
-   ./install_cp2k_toolchain.sh --install-all --no-arch-files --with-intelmpi --with-mkl; \
+   ./install_cp2k_toolchain.sh --install-all --no-arch-files --target-cpu=${target_cpu} --with-intelmpi --with-mkl; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -45,6 +46,7 @@
 # Set options
 DO_CHECKS      := no
 SHARED         := no
+TARGET_CPU     := native
 USE_COSMA      := 2.6.2
 USE_ELPA       := 2021.11.002
 USE_LIBINT     := 2.6.0
@@ -72,7 +74,11 @@ FC             := mpiifort
 LD             := mpiifort
 AR             := ar -r
 
-CFLAGS         := -O2 -fopenmp -fp-model precise -funroll-loops -g -qopenmp-simd -traceback -xHost
+ifeq ($(strip $(TARGET_CPU)), native)
+   CFLAGS         := -O2 -fopenmp -fp-model precise -funroll-loops -g -qopenmp-simd -traceback -xHost
+else
+   CFLAGS         := -O2 -fopenmp -fp-model precise -funroll-loops -g -mtune=$(TARGET_CPU) -qopenmp-simd
+endif
 
 DFLAGS         := -D__parallel
 DFLAGS         += -D__SCALAPACK
