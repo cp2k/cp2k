@@ -7,7 +7,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Author: Matthias Krack (26.09.2022)
+# Author: Matthias Krack (30.09.2022)
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -53,6 +53,7 @@ INSTALL_PATH   := $(PWD)/tools/toolchain/install
 # Settings for regression testing
 ifeq ($(DO_CHECKS), yes)
    DFLAGS         += -D__CHECK_DIAG
+   CFLAGS_DEBUG   := -fsanitize=address
    FCFLAGS_DEBUG  := -fcheck=bounds,do,recursion,pointer
    FCFLAGS_DEBUG  += -fcheck=all,no-array-temps
    FCFLAGS_DEBUG  += -ffpe-trap=invalid,overflow,zero
@@ -61,7 +62,6 @@ ifeq ($(DO_CHECKS), yes)
    FCFLAGS_DEBUG  += -finit-real=snan
    FCFLAGS_DEBUG  += -finit-integer=-42
    FCFLAGS_DEBUG  += -finline-matmul-limit=0
-   LDFLAGS        += -fsanitize=leak
    WFLAGS         := -Werror=aliasing
    WFLAGS         += -Werror=ampersand
    WFLAGS         += -Werror=c-binding-type
@@ -133,7 +133,7 @@ ifneq ($(USE_OPENBLAS),)
    LIBS           += $(OPENBLAS_LIB)/libopenblas.a
 endif
 
-CFLAGS         += $(DFLAGS)
+CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 FCFLAGS        += -fallow-argument-mismatch
