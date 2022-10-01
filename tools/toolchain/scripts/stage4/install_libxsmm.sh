@@ -25,8 +25,7 @@ cd "${BUILDDIR}"
 case "$with_libxsmm" in
   __INSTALL__)
     echo "==================== Installing Libxsmm ===================="
-    if [[ ("$OPENBLAS_ARCH" != "x86_64") && (\
-      "$OPENBLAS_ARCH" != "arm64" || "$libxsmm_ver" != "master") ]]; then
+    if [[ ("$OPENBLAS_ARCH" != "x86_64") && ("$OPENBLAS_ARCH" != "arm64") ]]; then
       report_warning $LINENO "libxsmm is not supported on arch ${OPENBLAS_ARCH}"
       cat << EOF > "${BUILDDIR}/setup_libxsmm"
 with_libxsmm="__DONTUSE__"
@@ -38,22 +37,15 @@ EOF
     if verify_checksums "${install_lock_file}"; then
       echo "libxsmm-${libxsmm_ver} is already installed, skipping it."
     else
-      if [ "$libxsmm_ver" = "master" ]; then
-        download_pkg_no_checksum ${DOWNLOADER_FLAGS} \
-          -o libxsmm-master.zip \
-          https://github.com/hfp/libxsmm/archive/master.zip
-        [ -d libxsmm-master ] && rm -rf libxsmm-master
-        unzip -q -o libxsmm-master.zip
+      if [ -f libxsmm-${libxsmm_ver}.tar.gz ]; then
+        echo "libxsmm-${libxsmm_ver}.tar.gz is found"
       else
-        if [ -f libxsmm-${libxsmm_ver}.tar.gz ]; then
-          echo "libxsmm-${libxsmm_ver}.tar.gz is found"
-        else
-          download_pkg ${DOWNLOADER_FLAGS} ${libxsmm_sha256} \
-            https://www.cp2k.org/static/downloads/libxsmm-${libxsmm_ver}.tar.gz
-        fi
-        [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
-        tar -xzf libxsmm-${libxsmm_ver}.tar.gz
+        download_pkg ${DOWNLOADER_FLAGS} ${libxsmm_sha256} \
+          https://www.cp2k.org/static/downloads/libxsmm-${libxsmm_ver}.tar.gz
       fi
+      [ -d libxsmm-${libxsmm_ver} ] && rm -rf libxsmm-${libxsmm_ver}
+      tar -xzf libxsmm-${libxsmm_ver}.tar.gz
+
       echo "Installing from scratch into ${pkg_install_dir}"
       # note that we do not have to set -L flags to ld for the
       # linked math libraries for the libxsmm build, as for a
