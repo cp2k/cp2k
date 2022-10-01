@@ -618,33 +618,6 @@ checksum() {
   fi
 }
 
-# downloader for the package tars, excludes checksum
-download_pkg_no_checksum() {
-  # usage: download_pkg_no_checksum [-n] [-o output_filename] url
-  local __wget_flags='--quiet'
-  local __url=''
-  while [ $# -ge 1 ]; do
-    case "$1" in
-      -n)
-        local __wget_flags="$__wget_flags --no-check-certificate"
-        ;;
-      -o)
-        shift
-        __wget_flags="$__wget_flags -O $1"
-        ;;
-      *)
-        __url="$1"
-        ;;
-    esac
-    shift
-  done
-  # download
-  if ! wget $__wget_flags $__url; then
-    report_error "failed to download $__url"
-    return 1
-  fi
-}
-
 # downloader for the package tars, includes checksum
 download_pkg() {
   # usage: download_pkg [-n] [-o output_filename] sha256 url

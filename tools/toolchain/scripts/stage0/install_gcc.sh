@@ -31,19 +31,15 @@ case "${with_gcc}" in
     if verify_checksums "${install_lock_file}"; then
       echo "gcc-${gcc_ver} is already installed, skipping it."
     else
-      if [ "${gcc_ver}" = "master" ]; then
-        [ -d gcc-master ] && rm -rf gcc-master
-        svn checkout svn://gcc.gnu.org/svn/gcc/trunk gcc-master > svn-gcc.log 2>&1 || tail -n ${LOG_LINES} svn-gcc.log
+      if [ -f gcc-${gcc_ver}.tar.gz ]; then
+        echo "gcc-${gcc_ver}.tar.gz is found"
       else
-        if [ -f gcc-${gcc_ver}.tar.gz ]; then
-          echo "gcc-${gcc_ver}.tar.gz is found"
-        else
-          download_pkg ${DOWNLOADER_FLAGS} ${gcc_sha256} \
-            "https://www.cp2k.org/static/downloads/gcc-${gcc_ver}.tar.gz"
-        fi
-        [ -d gcc-${gcc_ver} ] && rm -rf gcc-${gcc_ver}
-        tar -xzf gcc-${gcc_ver}.tar.gz
+        download_pkg ${DOWNLOADER_FLAGS} ${gcc_sha256} \
+          "https://www.cp2k.org/static/downloads/gcc-${gcc_ver}.tar.gz"
       fi
+      [ -d gcc-${gcc_ver} ] && rm -rf gcc-${gcc_ver}
+      tar -xzf gcc-${gcc_ver}.tar.gz
+
       echo "Installing GCC from scratch into ${pkg_install_dir}"
       cd gcc-${gcc_ver}
       ./contrib/download_prerequisites > prereq.log 2>&1 || tail -n ${LOG_LINES} prereq.log
