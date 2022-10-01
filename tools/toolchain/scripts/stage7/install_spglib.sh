@@ -31,8 +31,7 @@ case "$with_spglib" in
         echo "spglib-${spglib_ver}.tar.gz is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${spglib_sha256} \
-          https://github.com/spglib/spglib/archive/v${spglib_ver}.tar.gz \
-          -o spglib-${spglib_ver}.tar.gz
+          "https://www.cp2k.org/static/downloads/v${spglib_ver}.tar.gz"
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"

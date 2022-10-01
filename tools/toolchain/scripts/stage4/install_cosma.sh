@@ -35,8 +35,7 @@ case "$with_cosma" in
         echo "COSMA-v${cosma_ver}.tar.gz is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${cosma_sha256} \
-          "https://github.com/eth-cscs/COSMA/releases/download/v${cosma_ver}/cosma.tar.gz" \
-          -o COSMA-v${cosma_ver}.tar.gz
+          "https://www.cp2k.org/static/downloads/COSMA-v${cosma_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d COSMA-${cosma_ver} ] && rm -rf COSMA-${cosma_ver}

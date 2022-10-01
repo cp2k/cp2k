@@ -31,8 +31,7 @@ case "${with_spla}" in
         echo "SpLA-${spla_ver}.tar.gz is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${spla_sha256} \
-          "https://github.com/eth-cscs/Spla/archive/v${spla_ver}.tar.gz" \
-          -o SpLA-${spla_ver}.tar.gz
+          "https://www.cp2k.org/static/downloads/SpLA-${spla_ver}.tar.gz"
 
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
