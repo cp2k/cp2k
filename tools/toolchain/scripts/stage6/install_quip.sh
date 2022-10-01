@@ -48,8 +48,7 @@ case "${with_quip}" in
       if [ -f QUIP-${quip_ver}.tar.gz ]; then
         echo "QUIP-${quip_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${quip_sha256} \
-          https://www.cp2k.org/static/downloads/QUIP-${quip_ver}.tar.gz
+        download_pkg_from_cp2k_org "${quip_sha256}" "QUIP-${quip_ver}.tar.gz"
       fi
       [ -d QUIP-${quip_ver} ] && rm -rf QUIP-${quip_ver}
       echo "Installing from scratch into ${pkg_install_dir}"

@@ -40,8 +40,7 @@ case "${with_cmake}" in
       if [ -f cmake-${cmake_ver}-${cmake_arch}.sh ]; then
         echo "cmake-${cmake_ver}-${cmake_arch}.sh is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${cmake_sha256} \
-          https://github.com/Kitware/CMake/releases/download/v${cmake_ver}/cmake-${cmake_ver}-${cmake_arch}.sh
+        download_pkg_from_cp2k_org "${cmake_sha256}" "cmake-${cmake_ver}-${cmake_arch}.sh"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}

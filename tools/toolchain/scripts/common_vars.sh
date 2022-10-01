@@ -13,9 +13,6 @@ SETUPFILE=${SETUPFILE:-"${INSTALLDIR}/setup"}
 ARCH_FILE_TEMPLATE=${ARCH_FILE_TEMPLATE:-"${SCRIPTDIR}/arch_base.tmpl"}
 VERSION_FILE=${VERSION_FILE:-"${SCRIPTDIR}/VERSION"}
 
-# downloader flags, used for downloading tarballs, see download_pkg macro in tool_kit.sh
-DOWNLOADER_FLAGS="${DOWNLOADER_FLAGS:-}"
-
 # system arch gotten from OpenBLAS prebuild
 OPENBLAS_ARCH=${OPENBLAS_ARCH:-"x86_64"}
 OPENBLAS_LIBCORE=${OPENBLAS_LIBCORE:-''}

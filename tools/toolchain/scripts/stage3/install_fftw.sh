@@ -37,8 +37,7 @@ case "$with_fftw" in
       if [ -f ${fftw_pkg} ]; then
         echo "${fftw_pkg} is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${fftw_sha256} \
-          "https://www.cp2k.org/static/downloads/${fftw_pkg}"
+        download_pkg_from_cp2k_org "${fftw_sha256}" "${fftw_pkg}"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d fftw-${fftw_ver} ] && rm -rf fftw-${fftw_ver}

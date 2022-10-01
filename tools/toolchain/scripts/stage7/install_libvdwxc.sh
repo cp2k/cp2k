@@ -38,29 +38,14 @@ case "$with_libvdwxc" in
       if [ -f libvdwxc-${libvdwxc_ver}.tar.gz ]; then
         echo "libvdwxc-${libvdwxc_ver}.tar.gz is found"
       else
-        # do not remove this. They do not publish official version often
-        download_pkg ${DOWNLOADER_FLAGS} ${libvdwxc_sha256} \
-          "https://www.cp2k.org/static/downloads/libvdwxc-${libvdwxc_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${libvdwxc_sha256}" "libvdwxc-${libvdwxc_ver}.tar.gz"
       fi
-
-      for patch in "${patches[@]}"; do
-        fname="${patch##*/}"
-        if [ -f "${fname}" ]; then
-          echo "${fname} is found"
-        else
-          # parallel build patch
-          download_pkg ${DOWNLOADER_FLAGS} "${patch}"
-        fi
-      done
 
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libvdwxc-${libvdwxc_ver} ] && rm -rf libvdwxc-${libvdwxc_ver}
       tar -xzf libvdwxc-${libvdwxc_ver}.tar.gz
       cd libvdwxc-${libvdwxc_ver}
 
-      for patch in "${patches[@]}"; do
-        patch -p1 < ../"${patch##*/}"
-      done
       if [ "${MPI_MODE}" = "no" ]; then
         # compile libvdwxc without mpi support since fftw (or mkl) do not have mpi support activated
         ./configure \

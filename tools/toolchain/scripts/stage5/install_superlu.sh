@@ -35,8 +35,7 @@ case "$with_superlu" in
       if [ -f superlu_dist_${superlu_ver}.tar.gz ]; then
         echo "superlu_dist_${superlu_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${superlu_sha256} \
-          https://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
+        download_pkg_from_cp2k_org "${superlu_sha256}" "superlu_dist_${superlu_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d superlu_dist-${superlu_ver} ] && rm -rf superlu_dist-${superlu_ver}

@@ -33,8 +33,7 @@ case "$with_libxc" in
       if [ -f libxc-${libxc_ver}.tar.gz ]; then
         echo "libxc-${libxc_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${libxc_sha256} \
-          https://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
+        download_pkg_from_cp2k_org "${libxc_sha256}" "libxc-${libxc_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}

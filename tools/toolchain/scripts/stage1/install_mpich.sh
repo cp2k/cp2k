@@ -36,8 +36,7 @@ case "${with_mpich}" in
       if [ -f ${mpich_pkg} ]; then
         echo "${mpich_pkg} is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${mpich_sha256} \
-          https://www.cp2k.org/static/downloads/${mpich_pkg}
+        download_pkg_from_cp2k_org "${mpich_sha256}" "${mpich_pkg}"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d mpich-${mpich_ver} ] && rm -rf mpich-${mpich_ver}

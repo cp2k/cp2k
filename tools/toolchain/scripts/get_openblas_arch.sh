@@ -38,8 +38,7 @@ if ! [ "$openblas_dir" ]; then
   if [ -f ${openblas_pkg} ]; then
     echo "${openblas_pkg} is found"
   else
-    download_pkg ${DOWNLOADER_FLAGS} ${openblas_sha256} \
-      https://www.cp2k.org/static/downloads/${openblas_pkg}
+    download_pkg_from_cp2k_org "${openblas_sha256}" "${openblas_pkg}"
   fi
   tar -xzf ${openblas_pkg}
   openblas_dir="$(find_openblas_dir)"
