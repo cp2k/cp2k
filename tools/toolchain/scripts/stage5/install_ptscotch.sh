@@ -33,8 +33,7 @@ case "${with_ptscotch}" in
       if [ -f scotch_${scotch_ver}.tar.gz ]; then
         echo "scotch_${scotch_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${scotch_sha256} \
-          https://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
+        download_pkg_from_cp2k_org "${scotch_sha256}" "scotch_${scotch_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d scotch_${scotch_ver} ] && rm -rf scotch_${scotch_ver}

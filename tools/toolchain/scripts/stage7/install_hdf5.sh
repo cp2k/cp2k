@@ -31,8 +31,7 @@ case "$with_hdf5" in
       if [ -f hdf5-${hdf5_ver}.tar.bz2 ]; then
         echo "hdf5-${hdf5_ver}.tar.bz2 is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${hdf5_sha256} \
-          https://www.cp2k.org/static/downloads/hdf5-${hdf5_ver}.tar.bz2
+        download_pkg_from_cp2k_org "${hdf5_sha256}" "hdf5-${hdf5_ver}.tar.bz2"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d hdf5-${hdf5_ver} ] && rm -rf hdf5-${hdf5_ver}

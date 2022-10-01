@@ -34,8 +34,7 @@ case "${with_gcc}" in
       if [ -f gcc-${gcc_ver}.tar.gz ]; then
         echo "gcc-${gcc_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${gcc_sha256} \
-          "https://www.cp2k.org/static/downloads/gcc-${gcc_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${gcc_sha256}" "gcc-${gcc_ver}.tar.gz"
       fi
       [ -d gcc-${gcc_ver} ] && rm -rf gcc-${gcc_ver}
       tar -xzf gcc-${gcc_ver}.tar.gz

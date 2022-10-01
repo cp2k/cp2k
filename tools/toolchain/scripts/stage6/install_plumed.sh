@@ -35,8 +35,7 @@ case "$with_plumed" in
       if [ -f ${plumed_pkg} ]; then
         echo "${plumed_pkg} is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${plumed_sha256} \
-          "https://www.cp2k.org/static/downloads/${plumed_pkg}"
+        download_pkg_from_cp2k_org "${plumed_sha256}" "${plumed_pkg}"
       fi
 
       [ -d plumed-${plumed_ver} ] && rm -rf plumed-${plumed_ver}

@@ -619,34 +619,13 @@ checksum() {
 }
 
 # downloader for the package tars, includes checksum
-download_pkg() {
-  # usage: download_pkg [-n] [-o output_filename] sha256 url
-  local __wget_flags='--quiet'
-  local __filename=''
-  local __url=''
-  while [ $# -ge 2 ]; do
-    case "$1" in
-      -n)
-        __wget_flags="$__wget_flags --no-check-certificate"
-        ;;
-      -o)
-        shift
-        __wget_flags="$__wget_flags -O $1"
-        __filename="$1"
-        ;;
-      *)
-        __sha256="$1"
-        __url="$2"
-        shift
-        ;;
-    esac
-    shift
-  done
-  if [ "$__filename" = "" ]; then
-    __filename="$(basename $__url)"
-  fi
+download_pkg_from_cp2k_org() {
+  # usage: download_pkg_from_cp2k_org sha256 filename
+  local __sha256="$1"
+  local __filename="$2"
+  local __url="https://www.cp2k.org/static/downloads/$__filename"
   # download
-  if ! wget $__wget_flags $__url; then
+  if ! wget --quiet $__url; then
     report_error "failed to download $__url"
     return 1
   fi

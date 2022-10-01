@@ -62,8 +62,7 @@ case "$with_elpa" in
       if [ -f elpa-${elpa_ver}.tar.gz ]; then
         echo "elpa-${elpa_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${elpa_sha256} \
-          https://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
+        download_pkg_from_cp2k_org "${elpa_sha256}" "elpa-${elpa_ver}.tar.gz"
       fi
       [ -d elpa-${elpa_ver} ] && rm -rf elpa-${elpa_ver}
       tar -xzf elpa-${elpa_ver}.tar.gz

@@ -39,8 +39,7 @@ case "$with_scalapack" in
       if [ -f ${scalapack_pkg} ]; then
         echo "${scalapack_pkg} is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${scalapack_sha256} \
-          https://www.cp2k.org/static/downloads/${scalapack_pkg}
+        download_pkg_from_cp2k_org "${scalapack_sha256}" "${scalapack_pkg}"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d scalapack-${scalapack_ver} ] && rm -rf scalapack-${scalapack_ver}

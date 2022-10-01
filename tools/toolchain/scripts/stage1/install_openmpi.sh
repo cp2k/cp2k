@@ -36,8 +36,7 @@ case "${with_openmpi}" in
       if [ -f ${openmpi_pkg} ]; then
         echo "${openmpi_pkg} is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${openmpi_sha256} \
-          "https://www.cp2k.org/static/downloads/${openmpi_pkg}"
+        download_pkg_from_cp2k_org "${openmpi_sha256}" "${openmpi_pkg}"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}

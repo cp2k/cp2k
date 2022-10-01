@@ -38,8 +38,7 @@ case "$with_pexsi" in
       if [ -f pexsi_v${pexsi_ver}.tar.gz ]; then
         echo "pexsi_v${pexsi_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${pexsi_sha256} \
-          https://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
+        download_pkg_from_cp2k_org "${pexsi_sha256}" "pexsi_v${pexsi_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d pexsi_v${pexsi_ver} ] && rm -rf pexsi_v${pexsi_ver}

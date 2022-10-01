@@ -95,8 +95,7 @@ case "$with_sirius" in
       if [ -f SIRIUS-${sirius_ver}.tar.gz ]; then
         echo "sirius_${sirius_ver}.tar.gz is found"
       else
-        download_pkg ${DOWNLOADER_FLAGS} ${sirius_sha256} \
-          "https://www.cp2k.org/static/downloads/SIRIUS-${sirius_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${sirius_sha256}" "SIRIUS-${sirius_ver}.tar.gz"
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"
