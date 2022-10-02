@@ -22,10 +22,10 @@ case "${with_cmake}" in
     echo "==================== Installing CMake ===================="
     cmake_ver="3.22.1"
     if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
-      cmake_arch="Linux-aarch64"
+      cmake_arch="linux-aarch64"
       cmake_sha256="ff886c6c16be867229a6c1fe4bc963ff77ae24187d5a8d64ef72a06f84c1a25c"
     elif [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
-      cmake_arch="Linux-x86_64"
+      cmake_arch="linux-x86_64"
       cmake_sha256="808a712bcb039fd71f6960dca82a9befb977d8bdb074718218cf7646fd08bb7a"
     else
       report_error ${LINENO} \
@@ -41,7 +41,7 @@ case "${with_cmake}" in
         echo "cmake-${cmake_ver}-${cmake_arch}.sh is found"
       else
         download_pkg ${DOWNLOADER_FLAGS} ${cmake_sha256} \
-          https://github.com/Kitware/CMake/releases/download/v${cmake_ver}/cmake-${cmake_ver}-${cmake_arch}.sh
+          "https://www.cp2k.org/static/downloads/cmake-${cmake_ver}-${cmake_arch}.sh"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       mkdir -p ${pkg_install_dir}
