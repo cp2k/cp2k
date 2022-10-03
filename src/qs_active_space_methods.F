@@ -71,7 +71,6 @@ MODULE qs_active_space_methods
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
                                               pw_env_type
-   USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_integrate_function,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
@@ -90,8 +89,7 @@ MODULE qs_active_space_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_release
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               create_active_space_type,&
                                               csr_idx_from_combined,&
@@ -1249,104 +1247,102 @@ CONTAINS
 
       INTEGER                                            :: ig
       REAL(KIND=dp)                                      :: a, ea, g2, g3d, ga, gg, rg, rlength
-      TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type), POINTER                             :: gf
 
       ! initialize influence function
-      gf => green%influence_fn
-      grid => green%influence_fn%pw_grid
-      SELECT CASE (green%method)
-      CASE (PERIODIC3D)
+      ASSOCIATE (gf => green%influence_fn, grid => green%influence_fn%pw_grid)
+         SELECT CASE (green%method)
+         CASE (PERIODIC3D)
 
-         SELECT CASE (eri_env%operator)
-         CASE (eri_operator_coulomb)
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gf%cc(ig) = fourpi/g2
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.0_dp
-         CASE (eri_operator_yukawa)
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gf%cc(ig) = fourpi/(a + g2)
-            END DO
-            IF (grid%have_g0) gf%cc(1) = fourpi/a
-         CASE (eri_operator_erf)
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               ga = -0.25_dp*g2/a
-               gf%cc(ig) = fourpi/g2*EXP(ga)
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.0_dp
-         CASE (eri_operator_erfc)
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               ga = -0.25_dp*g2/a
-               gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.25_dp*fourpi/a
-         CASE (eri_operator_gaussian)
-            CPABORT("")
+            SELECT CASE (eri_env%operator)
+            CASE (eri_operator_coulomb)
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gf%cc(ig) = fourpi/g2
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.0_dp
+            CASE (eri_operator_yukawa)
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gf%cc(ig) = fourpi/(a + g2)
+               END DO
+               IF (grid%have_g0) gf%cc(1) = fourpi/a
+            CASE (eri_operator_erf)
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = -0.25_dp*g2/a
+                  gf%cc(ig) = fourpi/g2*EXP(ga)
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.0_dp
+            CASE (eri_operator_erfc)
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = -0.25_dp*g2/a
+                  gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.25_dp*fourpi/a
+            CASE (eri_operator_gaussian)
+               CPABORT("")
+            CASE DEFAULT
+               CPABORT("")
+            END SELECT
+
+         CASE (ANALYTIC0D)
+
+            SELECT CASE (eri_env%operator)
+            CASE (eri_operator_coulomb)
+               rlength = green%radius
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gg = SQRT(g2)
+                  g3d = fourpi/g2
+                  gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+            CASE (eri_operator_yukawa)
+               rlength = green%radius
+               a = eri_env%operator_parameter
+               ea = EXP(-a*rlength)
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gg = SQRT(g2)
+                  g3d = fourpi/(a*a + g2)
+                  rg = rlength*gg
+                  gf%cc(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
+            CASE (eri_operator_erf)
+               rlength = green%radius
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gg = SQRT(g2)
+                  ga = -0.25_dp*g2/a
+                  gf%cc(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+            CASE (eri_operator_erfc)
+               rlength = green%radius
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gg = SQRT(g2)
+                  ga = -0.25_dp*g2/a
+                  gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0._dp
+            CASE (eri_operator_gaussian)
+               CPABORT("")
+            CASE DEFAULT
+               CPABORT("")
+            END SELECT
+
          CASE DEFAULT
             CPABORT("")
          END SELECT
-
-      CASE (ANALYTIC0D)
-
-         SELECT CASE (eri_env%operator)
-         CASE (eri_operator_coulomb)
-            rlength = green%radius
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gg = SQRT(g2)
-               g3d = fourpi/g2
-               gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
-         CASE (eri_operator_yukawa)
-            rlength = green%radius
-            a = eri_env%operator_parameter
-            ea = EXP(-a*rlength)
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gg = SQRT(g2)
-               g3d = fourpi/(a*a + g2)
-               rg = rlength*gg
-               gf%cc(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
-         CASE (eri_operator_erf)
-            rlength = green%radius
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gg = SQRT(g2)
-               ga = -0.25_dp*g2/a
-               gf%cc(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
-         CASE (eri_operator_erfc)
-            rlength = green%radius
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gg = SQRT(g2)
-               ga = -0.25_dp*g2/a
-               gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0._dp
-         CASE (eri_operator_gaussian)
-            CPABORT("")
-         CASE DEFAULT
-            CPABORT("")
-         END SELECT
-
-      CASE DEFAULT
-         CPABORT("")
-      END SELECT
+      END ASSOCIATE
 
    END SUBROUTINE pw_eri_green_create
 

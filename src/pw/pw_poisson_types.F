@@ -167,7 +167,7 @@ MODULE pw_poisson_types
       LOGICAL :: sr_screening
       REAL(KIND=dp) :: sr_alpha
       REAL(KIND=dp) :: sr_rc
-      TYPE(pw_type), POINTER :: influence_fn
+      TYPE(pw_type) :: influence_fn
       TYPE(pw_type), POINTER :: dct_influence_fn
       TYPE(pw_type), POINTER :: screen_fn
       TYPE(pw_type), POINTER :: p3m_charge
@@ -198,9 +198,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: g2, g3d, gg, gxy, gz, j0g, j1g, k0g, &
                                                             k1g, rlength, zlength
       REAL(KIND=dp), DIMENSION(3)                        :: abc
-      TYPE(pw_grid_type), POINTER                        :: dct_grid, grid
+      TYPE(pw_grid_type), POINTER                        :: dct_grid
       TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
-      TYPE(pw_type), POINTER                             :: dct_gf, gf
+      TYPE(pw_type), POINTER                             :: dct_gf
 
       CPASSERT(.NOT. (ASSOCIATED(green)))
       ALLOCATE (green)
@@ -222,7 +222,7 @@ CONTAINS
       green%sr_alpha = 1.0_dp
       green%sr_rc = 0.0_dp
 
-      NULLIFY (green%influence_fn, green%p3m_charge)
+      NULLIFY (green%p3m_charge)
       NULLIFY (green%p3m_coeff, green%p3m_bm2)
       NULLIFY (green%dct_influence_fn)
       NULLIFY (green%screen_fn)
@@ -302,8 +302,6 @@ CONTAINS
       ! allocate influence function,...
       SELECT CASE (green%method)
       CASE (PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT)
-         NULLIFY (green%influence_fn)
-         ALLOCATE (green%influence_fn)
          CALL pw_pool_create_pw(pw_pool, green%influence_fn, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -347,99 +345,99 @@ CONTAINS
       END SELECT
 
       ! initialize influence function
-      gf => green%influence_fn
-      grid => green%influence_fn%pw_grid
-      SELECT CASE (green%method)
-      CASE (PERIODIC3D, MULTIPOLE0D)
+      ASSOCIATE (gf => green%influence_fn, grid => green%influence_fn%pw_grid)
+         SELECT CASE (green%method)
+         CASE (PERIODIC3D, MULTIPOLE0D)
 
-         DO ig = grid%first_gne0, grid%ngpts_cut_local
-            g2 = grid%gsq(ig)
-            gf%cc(ig) = fourpi/g2
-         END DO
-         IF (grid%have_g0) gf%cc(1) = 0.0_dp
-
-      CASE (ANALYTIC2D)
-
-         iz = green%special_dimension ! iz is the direction with NO PBC
-         zlength = green%slab_size ! zlength is the thickness of the cell
-         DO ig = grid%first_gne0, grid%ngpts_cut_local
-            nz = grid%g_hat(iz, ig)
-            g2 = grid%gsq(ig)
-            g3d = fourpi/g2
-            gg = 0.5_dp*SQRT(g2)
-            gf%cc(ig) = g3d*(1.0_dp - (-1.0_dp)**nz*EXP(-gg*zlength))
-         END DO
-         IF (grid%have_g0) gf%cc(1) = 0.0_dp
-
-      CASE (ANALYTIC1D)
-         ! see 'ab initio molecular dynamics' table 3.1
-         ! iz is the direction of the PBC ( can be 1,2,3 -> x,y,z )
-         iz = green%special_dimension
-         ! rlength is the radius of the tube
-         rlength = green%radius
-         DO ig = grid%first_gne0, grid%ngpts_cut_local
-            g2 = grid%gsq(ig)
-            g3d = fourpi/g2
-            gxy = SQRT(MAX(0.0_dp, g2 - grid%g(iz, ig)*grid%g(iz, ig)))
-            gz = ABS(grid%g(iz, ig))
-            j0g = BESSEL_J0(rlength*gxy)
-            j1g = BESSEL_J1(rlength*gxy)
-            IF (gz > 0) THEN
-               k0g = bessk0(rlength*gz)
-               k1g = bessk1(rlength*gz)
-            ELSE
-               k0g = 0
-               k1g = 0
-            END IF
-            gf%cc(ig) = g3d*(1.0_dp + rlength* &
-                             (gxy*j1g*k0g - gz*j0g*k1g))
-         END DO
-         IF (grid%have_g0) gf%cc(1) = 0.0_dp
-
-      CASE (ANALYTIC0D)
-
-         rlength = green%radius ! rlength is the radius of the sphere
-         DO ig = grid%first_gne0, grid%ngpts_cut_local
-            g2 = grid%gsq(ig)
-            gg = SQRT(g2)
-            g3d = fourpi/g2
-            gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
-         END DO
-         IF (grid%have_g0) &
-            gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
-
-      CASE (MT2D, MT1D, MT0D)
-
-         DO ig = grid%first_gne0, grid%ngpts_cut_local
-            g2 = grid%gsq(ig)
-            g3d = fourpi/g2
-            gf%cc(ig) = g3d + green%screen_fn%cc(ig)
-         END DO
-         IF (grid%have_g0) &
-            gf%cc(1) = green%screen_fn%cc(1)
-
-      CASE (PS_IMPLICIT)
-
-         DO ig = grid%first_gne0, grid%ngpts_cut_local
-            g2 = grid%gsq(ig)
-            gf%cc(ig) = fourpi/g2
-         END DO
-         IF (grid%have_g0) gf%cc(1) = 0.0_dp
-
-         IF (ASSOCIATED(green%dct_influence_fn)) THEN
-            dct_gf => green%dct_influence_fn
-            dct_grid => green%dct_influence_fn%pw_grid
-
-            DO ig = dct_grid%first_gne0, dct_grid%ngpts_cut_local
-               g2 = dct_grid%gsq(ig)
-               dct_gf%cc(ig) = fourpi/g2
+            DO ig = grid%first_gne0, grid%ngpts_cut_local
+               g2 = grid%gsq(ig)
+               gf%cc(ig) = fourpi/g2
             END DO
-            IF (dct_grid%have_g0) dct_gf%cc(1) = 0.0_dp
-         END IF
+            IF (grid%have_g0) gf%cc(1) = 0.0_dp
 
-      CASE DEFAULT
-         CPABORT("")
-      END SELECT
+         CASE (ANALYTIC2D)
+
+            iz = green%special_dimension ! iz is the direction with NO PBC
+            zlength = green%slab_size ! zlength is the thickness of the cell
+            DO ig = grid%first_gne0, grid%ngpts_cut_local
+               nz = grid%g_hat(iz, ig)
+               g2 = grid%gsq(ig)
+               g3d = fourpi/g2
+               gg = 0.5_dp*SQRT(g2)
+               gf%cc(ig) = g3d*(1.0_dp - (-1.0_dp)**nz*EXP(-gg*zlength))
+            END DO
+            IF (grid%have_g0) gf%cc(1) = 0.0_dp
+
+         CASE (ANALYTIC1D)
+            ! see 'ab initio molecular dynamics' table 3.1
+            ! iz is the direction of the PBC ( can be 1,2,3 -> x,y,z )
+            iz = green%special_dimension
+            ! rlength is the radius of the tube
+            rlength = green%radius
+            DO ig = grid%first_gne0, grid%ngpts_cut_local
+               g2 = grid%gsq(ig)
+               g3d = fourpi/g2
+               gxy = SQRT(MAX(0.0_dp, g2 - grid%g(iz, ig)*grid%g(iz, ig)))
+               gz = ABS(grid%g(iz, ig))
+               j0g = BESSEL_J0(rlength*gxy)
+               j1g = BESSEL_J1(rlength*gxy)
+               IF (gz > 0) THEN
+                  k0g = bessk0(rlength*gz)
+                  k1g = bessk1(rlength*gz)
+               ELSE
+                  k0g = 0
+                  k1g = 0
+               END IF
+               gf%cc(ig) = g3d*(1.0_dp + rlength* &
+                                (gxy*j1g*k0g - gz*j0g*k1g))
+            END DO
+            IF (grid%have_g0) gf%cc(1) = 0.0_dp
+
+         CASE (ANALYTIC0D)
+
+            rlength = green%radius ! rlength is the radius of the sphere
+            DO ig = grid%first_gne0, grid%ngpts_cut_local
+               g2 = grid%gsq(ig)
+               gg = SQRT(g2)
+               g3d = fourpi/g2
+               gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
+            END DO
+            IF (grid%have_g0) &
+               gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+
+         CASE (MT2D, MT1D, MT0D)
+
+            DO ig = grid%first_gne0, grid%ngpts_cut_local
+               g2 = grid%gsq(ig)
+               g3d = fourpi/g2
+               gf%cc(ig) = g3d + green%screen_fn%cc(ig)
+            END DO
+            IF (grid%have_g0) &
+               gf%cc(1) = green%screen_fn%cc(1)
+
+         CASE (PS_IMPLICIT)
+
+            DO ig = grid%first_gne0, grid%ngpts_cut_local
+               g2 = grid%gsq(ig)
+               gf%cc(ig) = fourpi/g2
+            END DO
+            IF (grid%have_g0) gf%cc(1) = 0.0_dp
+
+            IF (ASSOCIATED(green%dct_influence_fn)) THEN
+               dct_gf => green%dct_influence_fn
+               dct_grid => green%dct_influence_fn%pw_grid
+
+               DO ig = dct_grid%first_gne0, dct_grid%ngpts_cut_local
+                  g2 = dct_grid%gsq(ig)
+                  dct_gf%cc(ig) = fourpi/g2
+               END DO
+               IF (dct_grid%have_g0) dct_gf%cc(1) = 0.0_dp
+            END IF
+
+         CASE DEFAULT
+            CPABORT("")
+         END SELECT
+      END ASSOCIATE
 
    END SUBROUTINE pw_green_create
 
@@ -478,10 +476,7 @@ CONTAINS
             can_give_back = PRESENT(pw_pool)
             IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
             IF (can_give_back) THEN
-               IF (ASSOCIATED(gftype%influence_fn)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn)
-                  DEALLOCATE (gftype%influence_fn)
-               END IF
+               CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn)
                IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
                   CALL pw_pool_give_back_pw(pw_pool, gftype%dct_influence_fn)
                   DEALLOCATE (gftype%dct_influence_fn)
@@ -495,10 +490,7 @@ CONTAINS
                   DEALLOCATE (gftype%p3m_charge)
                END IF
             ELSE
-               IF (ASSOCIATED(gftype%influence_fn)) THEN
-                  CALL pw_release(gftype%influence_fn)
-                  DEALLOCATE (gftype%influence_fn)
-               END IF
+               CALL pw_release(gftype%influence_fn)
                IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
                   CALL pw_release(gftype%dct_influence_fn)
                   DEALLOCATE (gftype%dct_influence_fn)
