@@ -165,7 +165,7 @@ CONTAINS
                                                             cos_gz(:, :), lhs(:, :), rhs(:, :), &
                                                             sin_gx(:, :), sin_gy(:, :), &
                                                             sin_gz(:, :)
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(section_vals_type), POINTER                   :: interp_section
 
 !NB pull expensive Cos() out of inner looop

@@ -119,7 +119,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: dvr2, dvspl
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(pw_type), POINTER                             :: rho_tot_gspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho

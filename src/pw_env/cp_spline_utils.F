@@ -56,7 +56,7 @@ CONTAINS
 !>      extremely slow (but correct) version
 ! **************************************************************************************************
    SUBROUTINE pw_restrict_s3(pw_fine_in, pw_coarse_out, coarse_pool, param_section)
-      TYPE(pw_type), POINTER                             :: pw_fine_in, pw_coarse_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_fine_in, pw_coarse_out
       TYPE(pw_pool_type), POINTER                        :: coarse_pool
       TYPE(section_vals_type), POINTER                   :: param_section
 
@@ -68,8 +68,8 @@ CONTAINS
       INTEGER, SAVE                                      :: ifile = 0
       LOGICAL                                            :: pbc, safe_computation, success
       REAL(kind=dp)                                      :: eps_r, eps_x
-      TYPE(pw_spline_precond_type), POINTER              :: precond
-      TYPE(pw_type), POINTER                             :: coeffs, values
+      TYPE(pw_spline_precond_type)                       :: precond
+      TYPE(pw_type)                                      :: coeffs, values
 
       ifile = ifile + 1
       CALL timeset(routineN, handle)
@@ -91,8 +91,6 @@ CONTAINS
       pbc = (interp_kind == spline3_pbc_interp)
       CPASSERT(pbc .OR. interp_kind == spline3_nopbc_interp)
       bo = pw_coarse_out%pw_grid%bounds_local
-      NULLIFY (values, coeffs)
-      ALLOCATE (values)
       CALL pw_pool_create_pw(coarse_pool, values, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_zero(values)
@@ -103,10 +101,8 @@ CONTAINS
                            w_border1=spl3_1d_transf_border1/2._dp, pbc=pbc, &
                            safe_computation=safe_computation)
 
-      ALLOCATE (coeffs)
       CALL pw_pool_create_pw(coarse_pool, coeffs, use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      NULLIFY (precond)
       CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                     pool=coarse_pool, pbc=pbc, transpose=.TRUE.)
       CALL pw_spline_do_precond(precond, values, coeffs)
@@ -127,7 +123,6 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(coarse_pool, values)
       CALL pw_pool_give_back_pw(coarse_pool, coeffs)
-      DEALLOCATE (values, coeffs)
       CALL timestop(handle)
    END SUBROUTINE pw_restrict_s3
 
@@ -143,7 +138,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_prolongate_s3(pw_coarse_in, pw_fine_out, coarse_pool, &
                                param_section)
-      TYPE(pw_type), POINTER                             :: pw_coarse_in, pw_fine_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_coarse_in, pw_fine_out
       TYPE(pw_pool_type), POINTER                        :: coarse_pool
       TYPE(section_vals_type), POINTER                   :: param_section
 
@@ -155,13 +150,11 @@ CONTAINS
       INTEGER, SAVE                                      :: ifile = 0
       LOGICAL                                            :: pbc, safe_computation, success
       REAL(kind=dp)                                      :: eps_r, eps_x
-      TYPE(pw_spline_precond_type), POINTER              :: precond
-      TYPE(pw_type), POINTER                             :: coeffs
+      TYPE(pw_spline_precond_type)                       :: precond
+      TYPE(pw_type)                                      :: coeffs
 
       ifile = ifile + 1
       CALL timeset(routineN, handle)
-      NULLIFY (coeffs)
-      ALLOCATE (coeffs)
       CALL pw_pool_create_pw(coarse_pool, coeffs, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       bo = pw_coarse_in%pw_grid%bounds_local
@@ -182,7 +175,6 @@ CONTAINS
 
       pbc = (interp_kind == spline3_pbc_interp)
       CPASSERT(pbc .OR. interp_kind == spline3_nopbc_interp)
-      NULLIFY (precond)
       CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                     pool=coarse_pool, pbc=pbc, transpose=.FALSE.)
       CALL pw_spline_do_precond(precond, pw_coarse_in, coeffs)
@@ -209,7 +201,6 @@ CONTAINS
                            pbc=pbc, safe_computation=safe_computation)
 
       CALL pw_pool_give_back_pw(coarse_pool, coeffs)
-      DEALLOCATE (coeffs)
 
       CALL timestop(handle)
    END SUBROUTINE pw_prolongate_s3

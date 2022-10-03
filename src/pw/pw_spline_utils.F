@@ -2500,12 +2500,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_spline_precond_create(preconditioner, precond_kind, &
                                        pool, pbc, transpose)
-      TYPE(pw_spline_precond_type), POINTER              :: preconditioner
+      TYPE(pw_spline_precond_type), INTENT(OUT)          :: preconditioner
       INTEGER, INTENT(in)                                :: precond_kind
-      TYPE(pw_pool_type), POINTER                        :: pool
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pool
       LOGICAL, INTENT(in)                                :: pbc, transpose
 
-      ALLOCATE (preconditioner)
       preconditioner%kind = no_precond
       preconditioner%pool => pool
       preconditioner%pbc = pbc
@@ -2524,14 +2523,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_spline_precond_set_kind(preconditioner, precond_kind, pbc, &
                                          transpose)
-      TYPE(pw_spline_precond_type), POINTER              :: preconditioner
+      TYPE(pw_spline_precond_type), INTENT(INOUT)        :: preconditioner
       INTEGER, INTENT(in)                                :: precond_kind
       LOGICAL, INTENT(in), OPTIONAL                      :: pbc, transpose
 
       LOGICAL                                            :: do_3d_coeff
       REAL(kind=dp)                                      :: s
 
-      CPASSERT(ASSOCIATED(preconditioner))
       IF (PRESENT(transpose)) preconditioner%transpose = transpose
       do_3d_coeff = .FALSE.
       preconditioner%kind = precond_kind
@@ -2608,12 +2606,9 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_spline_precond_release(preconditioner)
-      TYPE(pw_spline_precond_type), POINTER              :: preconditioner
+      TYPE(pw_spline_precond_type), INTENT(INOUT)        :: preconditioner
 
-      IF (ASSOCIATED(preconditioner)) THEN
-         CALL pw_pool_release(preconditioner%pool)
-         DEALLOCATE (preconditioner)
-      END IF
+      CALL pw_pool_release(preconditioner%pool)
    END SUBROUTINE pw_spline_precond_release
 
 ! **************************************************************************************************
@@ -2626,7 +2621,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_spline_do_precond(preconditioner, in_v, out_v)
       TYPE(pw_spline_precond_type), INTENT(IN)           :: preconditioner
-      TYPE(pw_type), POINTER                             :: in_v, out_v
+      TYPE(pw_type), INTENT(IN)                          :: in_v
+      TYPE(pw_type), INTENT(INOUT)                       :: out_v
 
       SELECT CASE (preconditioner%kind)
       CASE (no_precond)
@@ -2686,7 +2682,7 @@ CONTAINS
             TYPE(pw_type), INTENT(IN) :: pw_in, pw_out
          END SUBROUTINE linOp
       END INTERFACE
-      TYPE(pw_spline_precond_type), POINTER              :: preconditioner
+      TYPE(pw_spline_precond_type), INTENT(IN)           :: preconditioner
       TYPE(pw_pool_type), POINTER                        :: pool
       REAL(kind=dp), INTENT(in)                          :: eps_r, eps_x
       INTEGER, INTENT(in)                                :: max_iter
@@ -2699,14 +2695,12 @@ CONTAINS
       REAL(kind=dp)                                      :: alpha, beta, eps_r_att, eps_x_att, r_z, &
                                                             r_z_new
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(pw_type), POINTER                             :: Ap, p, r, z
+      TYPE(pw_type)                                      :: Ap, p, r, z
 
       last = .FALSE.
 
       res = .FALSE.
       logger => cp_get_default_logger()
-      NULLIFY (r, z, p, Ap)
-      ALLOCATE (r, z, p, Ap)
       CALL pw_pool_create_pw(pool, r, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pool, z, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pool, p, use_data=REALDATA3D, in_space=REALSPACE)
@@ -2768,7 +2762,6 @@ CONTAINS
       CALL pw_pool_give_back_pw(pool, z)
       CALL pw_pool_give_back_pw(pool, p)
       CALL pw_pool_give_back_pw(pool, Ap)
-      DEALLOCATE (r, z, p, Ap)
    END FUNCTION find_coeffs
 
 ! **************************************************************************************************

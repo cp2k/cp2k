@@ -313,7 +313,7 @@ CONTAINS
                                                             nrho3_r
       TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: vks_pw_spline
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER         :: jrho1_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -578,7 +578,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: brho1_r, rho_r
       TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: bind_pw_spline
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: bind_set
       TYPE(qs_rho_type), POINTER                         :: rho

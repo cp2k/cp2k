@@ -535,13 +535,12 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: chemical_shift, chemical_shift_nics
       TYPE(pw_p_type)                                    :: shiftspl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(section_vals_type), POINTER                   :: interp_section
 
       CALL timeset(routineN, handle)
       !
-      NULLIFY (interp_section)
-      NULLIFY (auxbas_pw_pool, precond)
+      NULLIFY (interp_section, auxbas_pw_pool)
       NULLIFY (cs_atom_list, chemical_shift, chemical_shift_nics, r_nics)
 
       CPASSERT(ASSOCIATED(shift_pw_rspace%pw))
