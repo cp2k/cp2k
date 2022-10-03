@@ -92,6 +92,31 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
+         name="E_GAP", &
+         description="Gap energy for integration grids in Hartree. Defaults to -1.0 (automatic determination). "// &
+         "Recommended to set if several RPA or SOS-MP2 gradient calculations are requested or to be restarted. "// &
+         "In this way, differences of integration grids across different runs are removed as CP2K "// &
+         "does not include derivatives thereof.", &
+         usage="E_GAP  0.5", &
+         default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="E_RANGE", &
+         description="Energy range (ratio of largest and smallest) energy difference "// &
+         "of unoccupied and occupied orbitals for integration grids. Defaults to 0.0 (automatic determination). "// &
+         "Recommended to set if several RPA or SOS-MP2 gradient calculations are requested or to be restarted. "// &
+         "In this way, differences of integration grids across different runs are removed as CP2K "// &
+         "does not include derivatives thereof.", &
+         usage="E_RANGE  10.0", &
+         default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
          name="SCALE_S", &
          description="Scaling factor of the singlet energy component (opposite spin, OS) of the "// &
          "MP2, RI-MP2 and SOS-MP2 correlation energy. ", &
