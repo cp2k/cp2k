@@ -161,7 +161,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL, INTENT(IN)                                :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
-      TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: exc_r
+      TYPE(pw_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
       INTEGER                                            :: f_routine
 
@@ -1104,7 +1104,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       LOGICAL                                            :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: virial_xc
-      TYPE(pw_p_type), INTENT(INOUT), OPTIONAL           :: exc_r
+      TYPE(pw_type), INTENT(INOUT), OPTIONAL           :: exc_r
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_vxc_pw_create'
       INTEGER, DIMENSION(2), PARAMETER :: norm_drho_spin_name = [deriv_norm_drhoa, deriv_norm_drhob]
@@ -1393,8 +1393,7 @@ CONTAINS
          ! return the xc functional value at the grid points
          !
          IF (PRESENT(exc_r)) THEN
-            ALLOCATE (exc_r%pw)
-            exc_r%pw = v_drho_r
+            exc_r = v_drho_r
          ELSE
             CALL pw_release(v_drho_r)
          END IF

@@ -658,10 +658,10 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: exc_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau_r, vxc_rho, vxc_tau
       TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
+      TYPE(pw_type)                                      :: exc_r
 
       CALL timeset(routineN, handle)
 
@@ -712,7 +712,7 @@ CONTAINS
                CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
             END DO
          END IF
-         NULLIFY (vxc_rho, vxc_tau, exc_r%pw)
+         NULLIFY (vxc_rho, vxc_tau)
          CALL xc_vxc_pw_create1(vxc_rho=vxc_rho, vxc_tau=vxc_tau, rho_r=rho_r, &
                                 rho_g=rho_g, tau=tau_r, exc=exc, &
                                 xc_section=xc_section, &
@@ -730,7 +730,7 @@ CONTAINS
          END IF
          !
          ovol = 1.0_dp/xc_den%pw%pw_grid%dvol
-         CALL pw_copy(exc_r%pw, xc_den%pw)
+         CALL pw_copy(exc_r, xc_den%pw)
          DO ispin = 1, nspins
 !deb        CALL pw_multiply(xc_den%pw, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-ovol)
             CALL pw_multiply(xc_den%pw, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-1.0_dp)
@@ -741,8 +741,7 @@ CONTAINS
             DEALLOCATE (vxc_rho(ispin)%pw)
          END DO
          DEALLOCATE (vxc_rho)
-         CALL pw_release(exc_r%pw)
-         DEALLOCATE (exc_r%pw)
+         CALL pw_release(exc_r)
          !
       END IF
 
