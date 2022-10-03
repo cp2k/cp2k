@@ -320,7 +320,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input_voro, input_bqb
       INTEGER, INTENT(IN)                                :: unit_voro
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), POINTER                             :: rspace_pw
+      TYPE(pw_type)                             :: rspace_pw
 
 #if defined(__LIBVORI)
 

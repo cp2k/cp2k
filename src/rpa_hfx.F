@@ -55,7 +55,8 @@ MODULE rpa_hfx
    USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -310,14 +311,14 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: vh_rspace
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
 
       NULLIFY (dbcsr_work, matrix_ks, rho, hfx_section, pw_env, vadmm_rspace, vtau_rspace, vxc_rspace, &
-               vh_rspace, auxbas_pw_pool, dft_control, rho_ao, rho_aux_fit, rho_ao_aux, work_admm, &
+               auxbas_pw_pool, dft_control, rho_ao, rho_aux_fit, rho_ao_aux, work_admm, &
                matrix_s_aux, admm_env, task_list_aux_fit)
 
       CALL timeset(routineN, handle)
@@ -403,9 +404,7 @@ CONTAINS
       END IF !do_hfx
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
-      DEALLOCATE (vh_rspace%pw)
-      DEALLOCATE (vh_rspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
          DEALLOCATE (vxc_rspace(ispin)%pw)

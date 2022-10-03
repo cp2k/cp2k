@@ -71,7 +71,8 @@ MODULE qs_tddfpt2_forces
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_density_matrices,             ONLY: calculate_wx_matrix,&
                                               calculate_xwx_matrix
@@ -157,7 +158,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_p_type), POINTER                           :: vh_rspace
+      TYPE(pw_type), POINTER                             :: vh_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: ks_force, td_force
 
       CALL timeset(routineN, handle)
@@ -178,13 +179,17 @@ CONTAINS
          CALL tddfpt_force_direct(qs_env, ex_env, gs_mos, kernel_env, sub_env, &
                                   work_matrices, debug_forces)
       ELSE
-         vh_rspace => ex_env%vh_rspace
+         IF (ASSOCIATED(ex_env%vh_rspace)) THEN
+            vh_rspace => ex_env%vh_rspace%pw
+         ELSE
+            ALLOCATE (ex_env%vh_rspace)
+            NULLIFY (vh_rspace)
+         END IF
          vxc_rspace => ex_env%vxc_rspace
          vtau_rspace => ex_env%vtau_rspace
          vadmm_rspace => ex_env%vadmm_rspace
          IF (ASSOCIATED(vh_rspace)) THEN
-            CALL pw_release(vh_rspace%pw)
-            DEALLOCATE (vh_rspace%pw)
+            CALL pw_release(vh_rspace)
             DEALLOCATE (vh_rspace)
          END IF
          IF (ASSOCIATED(vxc_rspace)) THEN
@@ -210,8 +215,9 @@ CONTAINS
          END IF
          !
          NULLIFY (vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace)
+         ALLOCATE (vh_rspace)
          CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, ehartree, exc)
-         ex_env%vh_rspace => vh_rspace
+         ex_env%vh_rspace%pw => vh_rspace
          ex_env%vxc_rspace => vxc_rspace
          ex_env%vtau_rspace => vtau_rspace
          ex_env%vadmm_rspace => vadmm_rspace

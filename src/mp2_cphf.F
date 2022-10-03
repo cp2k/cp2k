@@ -1376,14 +1376,13 @@ CONTAINS
          POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
-                                                            vhxc_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: dvg, rho_g, rho_mp2_g, rho_mp2_r, &
                                                             rho_mp2_r_aux, rho_r, tau_mp2_r, &
                                                             vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: pot_g, pot_r, rho_tot_g, temp_pw_g, &
+                                                            vh_rspace, vhxc_rspace
       TYPE(pw_type), POINTER                             :: rho_core
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -1524,7 +1523,7 @@ CONTAINS
       END IF
 
       ! Get the different components of the KS potential
-      NULLIFY (vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace)
+      NULLIFY (vxc_rspace, vtau_rspace, vadmm_rspace)
       IF (use_virial) THEN
          h_stress = 0.0_dp
          CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, ehartree, exc, h_stress)
@@ -1550,8 +1549,7 @@ CONTAINS
       CALL get_qs_env(qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
-      ALLOCATE (vhxc_rspace%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, vhxc_rspace, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       IF (use_virial) h_stress = virial%pv_virial
       IF (debug_forces) THEN
@@ -1560,14 +1558,14 @@ CONTAINS
       END IF
       IF (do_exx) THEN
          DO ispin = 1, nspins
-            CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
+            CALL pw_transfer(vh_rspace, vhxc_rspace)
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
-            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
+            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace)
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=matrix_p_mp2(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             IF (ASSOCIATED(vtau_rspace)) THEN
@@ -1578,9 +1576,9 @@ CONTAINS
          END DO
       ELSE
          DO ispin = 1, nspins
-            CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
-            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
-            CALL integrate_v_rspace(v_rspace=vhxc_rspace%pw, &
+            CALL pw_transfer(vh_rspace, vhxc_rspace)
+            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace)
+            CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=matrix_ks(ispin), pmat=rho_ao(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
             IF (ASSOCIATED(vtau_rspace)) THEN
@@ -1627,9 +1625,8 @@ CONTAINS
             DEALLOCATE (vtau_rspace(ispin)%pw)
          END IF
       END DO
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace%pw)
-      DEALLOCATE (vhxc_rspace%pw)
       DEALLOCATE (vxc_rspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vhxc_rspace)
       IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
 
       DO ispin = 1, nspins
@@ -1642,22 +1639,21 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! get some of the grids ready
-      ALLOCATE (pot_r%pw, pot_g%pw, rho_tot_g%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pot_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, pot_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
-      CALL pw_zero(rho_tot_g%pw)
+      CALL pw_zero(rho_tot_g)
 
       CALL qs_rho_get(p_env%rho1, rho_r=rho_mp2_r, rho_g=rho_mp2_g)
       DO ispin = 1, nspins
-         CALL pw_axpy(rho_mp2_g(ispin)%pw, rho_tot_g%pw)
+         CALL pw_axpy(rho_mp2_g(ispin)%pw, rho_tot_g)
       END DO
 
       NULLIFY (dvg)
@@ -1672,13 +1668,13 @@ CONTAINS
       END IF
 
       ! calculate the MP2 potential
-      CALL pw_poisson_solve(poisson_env, rho_tot_g%pw, vhartree=pot_g%pw, dvhartree=dvg)
-      CALL pw_transfer(pot_g%pw, pot_r%pw)
-      CALL pw_scale(pot_r%pw, pot_r%pw%pw_grid%dvol)
-      CALL pw_axpy(pot_r%pw, vh_rspace%pw)
+      CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g, dvhartree=dvg)
+      CALL pw_transfer(pot_g, pot_r)
+      CALL pw_scale(pot_r, pot_r%pw_grid%dvol)
+      CALL pw_axpy(pot_r, vh_rspace)
 
       ! calculate core forces
-      CALL integrate_v_core_rspace(vh_rspace%pw, qs_env)
+      CALL integrate_v_core_rspace(vh_rspace, qs_env)
       IF (debug_forces) THEN
          deb(:) = force(1)%rho_core(:, 1)
          CALL mp_sum(deb, para_env%group)
@@ -1689,49 +1685,45 @@ CONTAINS
             IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: core      ", e_dummy
          END IF
       END IF
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
-      DEALLOCATE (vh_rspace%pw)
-      DEALLOCATE (vh_rspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace)
 
       IF (use_virial) THEN
          ! update virial if necessary with the volume term
          ! first create pw auxiliary stuff
-         ALLOCATE (temp_pw_g%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, temp_pw_g, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
 
          ! make a copy of the MP2 density in G space
-         CALL pw_copy(rho_tot_g%pw, temp_pw_g%pw)
+         CALL pw_copy(rho_tot_g, temp_pw_g)
 
          ! calculate total SCF density and potential
-         CALL pw_copy(rho_g(1)%pw, rho_tot_g%pw)
-         IF (nspins == 2) CALL pw_axpy(rho_g(2)%pw, rho_tot_g%pw)
-         CALL pw_axpy(rho_core, rho_tot_g%pw)
-         CALL pw_poisson_solve(poisson_env, rho_tot_g%pw, vhartree=pot_g%pw)
+         CALL pw_copy(rho_g(1)%pw, rho_tot_g)
+         IF (nspins == 2) CALL pw_axpy(rho_g(2)%pw, rho_tot_g)
+         CALL pw_axpy(rho_core, rho_tot_g)
+         CALL pw_poisson_solve(poisson_env, rho_tot_g, vhartree=pot_g)
 
          ! finally update virial with the volume contribution
-         e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
+         e_hartree = pw_integral_ab(temp_pw_g, pot_g)
          IF (debug_forces .AND. iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: vh1*d0   ", e_hartree
 
          h_stress = 0.0_dp
          DO alpha = 1, 3
             comp = 0
             comp(alpha) = 1
-            CALL pw_copy(pot_g%pw, rho_tot_g%pw)
-            CALL pw_derive(rho_tot_g%pw, comp)
+            CALL pw_copy(pot_g, rho_tot_g)
+            CALL pw_derive(rho_tot_g, comp)
             h_stress(alpha, alpha) = -e_hartree
             DO beta = alpha, 3
                h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                       - 2.0_dp*pw_integral_ab(rho_tot_g%pw, dvg(beta)%pw)/fourpi
+                                       - 2.0_dp*pw_integral_ab(rho_tot_g, dvg(beta)%pw)/fourpi
                h_stress(beta, alpha) = h_stress(alpha, beta)
             END DO
          END DO
          IF (debug_forces .AND. iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hartree  ", third_tr(h_stress)
 
          ! free stuff
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g%pw)
-         DEALLOCATE (temp_pw_g%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, temp_pw_g)
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(idir)%pw)
             DEALLOCATE (dvg(idir)%pw)
@@ -1801,14 +1793,8 @@ CONTAINS
             IF (dft_control%do_admm) THEN
                CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
                CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux, rho_ao_kp=rho_ao_kp)
-               DO ispin = 1, nspins
-!                  CALL dbcsr_add(rho_ao_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
-               END DO
                rho1 => p_env%p1_admm
             ELSE
-               DO ispin = 1, nspins
-                  !         CALL dbcsr_add(rho_ao(ispin)%matrix, p_env%p1(ispin)%matrix, 1.0_dp, 1.0_dp)
-               END DO
                rho1 => p_env%p1
             END IF
          ELSE
@@ -2027,10 +2013,9 @@ CONTAINS
          END IF
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_g%pw)
-      DEALLOCATE (pot_r%pw, pot_g%pw, rho_tot_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_g)
 
       ! Release linres stuff
       CALL p_env_release(p_env)
