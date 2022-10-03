@@ -1366,9 +1366,6 @@ target_link_libraries(
   $<$<BOOL:${CP2K_USE_VORI}>:CP2K_VORI::vori>
   $<$<BOOL:${CP2K_USE_PEXSI}>:CP2K_PEXSI::pexsi>
   $<$<BOOL:${CP2K_USE_PEXSI}>:CP2K_ptscotch::ptscotch>
-  $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
-  $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_pxgemm>
-  $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
   $<$<BOOL:${CP2K_USE_SPGLIB}>:CP2K_LIBSPG::libspg>
   $<$<BOOL:${CP2K_USE_LIBXC}>:CP2K_Libxc::xc CP2K_Libxc::xcf90 CP2K_Libxc::xcf03>
   $<$<BOOL:${CP2K_USE_ELPA}>:CP2K_ELPA::elpa>
@@ -1377,6 +1374,9 @@ target_link_libraries(
   $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
   $<$<BOOL:${CP2K_USE_LIBINT2}>:CP2K_Libint2::int2>
   DBCSR::dbcsr
+  $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
+  $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_pxgemm>
+  $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
   $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cufft>
   $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cufftw>
   $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cublas>
@@ -1439,10 +1439,12 @@ add_compile_definitions(
   $<$<BOOL:${CP2K_USE_PEXSI}>:__LIBPEXSI>
   $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
   $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-  $<$<STREQUAL:${BLAS_VENDOR},MKL>:__MKL>
-  $<$<STREQUAL:${BLAS_VENDOR},Apple>:__ACCELERATE>
+  $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
+  $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
   $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
   $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP>
+  $<$<BOOL:${CP2K_USE_CUDA}>:__DBCSR_ACC>
+  $<$<BOOL:${CP2K_USE_HIP}>:__DBCSR_ACC>
   $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>)
 
 

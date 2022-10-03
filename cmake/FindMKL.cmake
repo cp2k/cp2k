@@ -280,7 +280,7 @@ foreach(_libtype "ST" "DYN")
           add_library(${_mkl_tgt} INTERFACE IMPORTED)
           set_target_properties(
             ${_mkl_tgt}
-            PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MKL_INCLUDE_DIRS}"
+	    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
                        INTERFACE_LINK_LIBRARIES "${_mkl_libs}")
         endif()
 
@@ -310,7 +310,7 @@ foreach(_libtype "ST" "DYN")
             add_library(CP2K_MKL::blacs_${_tgt_config} INTERFACE IMPORTED)
             set_target_properties(
               CP2K_MKL::blacs_${_tgt_config}
-              PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MKL_INCLUDE_DIRS}"
+	      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
               INTERFACE_LINK_LIBRARIES "${_mkl_blacs_lib}")
           endif()
 
@@ -379,10 +379,10 @@ if(MKL_FOUND AND NOT TARGET CP2K_MKL::blas)
     add_library(CP2K_MKL::lapack INTERFACE IMPORTED)
   endif()
   set_target_properties(
-    CP2K_MKL::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MKL_INCLUDE_DIRS}"
+	  CP2K_MKL::blas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
                          INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
   set_target_properties(
-    CP2K_MKL::MKL PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${MKL_INCLUDE_DIRS}"
+	  CP2K_MKL::MKL PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_MKL_INCLUDE_DIRS}"
                         INTERFACE_LINK_LIBRARIES "${MKL_BLAS_LIBRARIES}")
 
   if("${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES "Open MPI")
