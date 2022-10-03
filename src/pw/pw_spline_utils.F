@@ -116,7 +116,7 @@ MODULE pw_spline_utils
 !> \author fawzi
 ! **************************************************************************************************
    TYPE pw_spline_precond_type
-      INTEGER :: ref_count, id_nr, kind
+      INTEGER :: kind
       REAL(kind=dp), DIMENSION(4) :: coeffs
       REAL(kind=dp), DIMENSION(3) :: coeffs_1d
       LOGICAL :: sharpen, normalize, pbc, transpose
@@ -2506,9 +2506,6 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: pbc, transpose
 
       ALLOCATE (preconditioner)
-      last_precond_id = last_precond_id + 1
-      preconditioner%id_nr = last_precond_id
-      preconditioner%ref_count = 1
       preconditioner%kind = no_precond
       preconditioner%pool => pool
       preconditioner%pbc = pbc
@@ -2535,7 +2532,6 @@ CONTAINS
       REAL(kind=dp)                                      :: s
 
       CPASSERT(ASSOCIATED(preconditioner))
-      CPASSERT(preconditioner%ref_count > 0)
       IF (PRESENT(transpose)) preconditioner%transpose = transpose
       do_3d_coeff = .FALSE.
       preconditioner%kind = precond_kind
@@ -2607,19 +2603,6 @@ CONTAINS
    END SUBROUTINE pw_spline_precond_set_kind
 
 ! **************************************************************************************************
-!> \brief retains the preconditioner
-!> \param preconditioner the preconditioner to retain
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE pw_spline_precond_retain(preconditioner)
-      TYPE(pw_spline_precond_type), POINTER              :: preconditioner
-
-      CPASSERT(ASSOCIATED(preconditioner))
-      CPASSERT(preconditioner%ref_count > 1)
-      preconditioner%ref_count = preconditioner%ref_count + 1
-   END SUBROUTINE pw_spline_precond_retain
-
-! **************************************************************************************************
 !> \brief releases the preconditioner
 !> \param preconditioner the preconditioner to release
 !> \author fawzi
@@ -2628,12 +2611,8 @@ CONTAINS
       TYPE(pw_spline_precond_type), POINTER              :: preconditioner
 
       IF (ASSOCIATED(preconditioner)) THEN
-         CPASSERT(preconditioner%ref_count > 0)
-         preconditioner%ref_count = preconditioner%ref_count - 1
-         IF (preconditioner%ref_count == 0) THEN
-            CALL pw_pool_release(preconditioner%pool)
-            DEALLOCATE (preconditioner)
-         END IF
+         CALL pw_pool_release(preconditioner%pool)
+         DEALLOCATE (preconditioner)
       END IF
    END SUBROUTINE pw_spline_precond_release
 
@@ -2649,7 +2628,6 @@ CONTAINS
       TYPE(pw_spline_precond_type), INTENT(IN)           :: preconditioner
       TYPE(pw_type), POINTER                             :: in_v, out_v
 
-      CPASSERT(preconditioner%ref_count > 0)
       SELECT CASE (preconditioner%kind)
       CASE (no_precond)
          CALL pw_copy(in_v, out_v)
