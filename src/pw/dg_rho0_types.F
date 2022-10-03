@@ -21,7 +21,8 @@ MODULE dg_rho0_types
    USE pw_types,                        ONLY: REALDATA3D,&
                                               pw_create,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -204,11 +205,11 @@ CONTAINS
       CASE (do_ewald_ewald)
          ALLOCATE (dg_rho0%density%pw)
          CALL pw_create(dg_rho0%density%pw, pw_grid, REALDATA3D)
-         CALL dg_rho0_pme_gauss(dg_rho0%density, dg_rho0%zet(1))
+         CALL dg_rho0_pme_gauss(dg_rho0%density%pw, dg_rho0%zet(1))
       CASE (do_ewald_pme)
          ALLOCATE (dg_rho0%density%pw)
          CALL pw_create(dg_rho0%density%pw, pw_grid, REALDATA3D)
-         CALL dg_rho0_pme_gauss(dg_rho0%density, dg_rho0%zet(1))
+         CALL dg_rho0_pme_gauss(dg_rho0%density%pw, dg_rho0%zet(1))
       CASE (do_ewald_spme)
          CPABORT('SPME type not implemented')
       END SELECT
@@ -222,7 +223,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dg_rho0_pme_gauss(dg_rho0, alpha)
 
-      TYPE(pw_p_type), INTENT(INOUT)                     :: dg_rho0
+      TYPE(pw_type), INTENT(INOUT)                       :: dg_rho0
       REAL(KIND=dp), INTENT(IN)                          :: alpha
 
       INTEGER, PARAMETER                                 :: IMPOSSIBLE = 10000
@@ -236,7 +237,7 @@ CONTAINS
 
       const = 1.0_dp/(8.0_dp*alpha**2)
 
-      pw_grid => dg_rho0%pw%pw_grid
+      pw_grid => dg_rho0%pw_grid
       bds => pw_grid%bounds
 
       IF (-bds(1, 1) == bds(2, 1)) THEN
@@ -257,9 +258,9 @@ CONTAINS
          n0 = bds(1, 3)
       END IF
 
-      CALL pw_zero(dg_rho0%pw)
+      CALL pw_zero(dg_rho0)
 
-      rho0 => dg_rho0%pw%cr3d
+      rho0 => dg_rho0%cr3d
 
       DO gpt = 1, pw_grid%ngpts_cut_local
          ghat => pw_grid%g_hat(:, gpt)

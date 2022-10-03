@@ -203,21 +203,21 @@ CONTAINS
 
             ! add boxes to real space grid (big box)
             IF (is1_core) THEN
-               CALL dg_sum_patch(rden, rhos1, exp_igr%core_centre(:, particle_set(p1)%shell_index))
+               CALL dg_sum_patch(rden, rhos1%pw, exp_igr%core_centre(:, particle_set(p1)%shell_index))
             ELSE
-               CALL dg_sum_patch(rden, rhos1, exp_igr%centre(:, p1))
+               CALL dg_sum_patch(rden, rhos1%pw, exp_igr%centre(:, p1))
             END IF
             IF (p2 /= 0 .AND. is2_core) THEN
-               CALL dg_sum_patch(rden, rhos2, exp_igr%core_centre(:, particle_set(p2)%shell_index))
+               CALL dg_sum_patch(rden, rhos2%pw, exp_igr%core_centre(:, particle_set(p2)%shell_index))
             ELSE IF (p2 /= 0) THEN
-               CALL dg_sum_patch(rden, rhos2, exp_igr%centre(:, p2))
+               CALL dg_sum_patch(rden, rhos2%pw, exp_igr%centre(:, p2))
             END IF
          ELSE
             CALL get_patch(dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
                            rhos1, rhos2, charges=charges)
             ! add boxes to real space grid (big box)
-            CALL dg_sum_patch(rden, rhos1, exp_igr%centre(:, p1))
-            IF (p2 /= 0) CALL dg_sum_patch(rden, rhos2, exp_igr%centre(:, p2))
+            CALL dg_sum_patch(rden, rhos1%pw, exp_igr%centre(:, p1))
+            IF (p2 /= 0) CALL dg_sum_patch(rden, rhos2%pw, exp_igr%centre(:, p2))
          END IF
 
       END DO
@@ -231,8 +231,8 @@ CONTAINS
             CALL get_patch(dg, shell_particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
                            rhos1, rhos2, is1_shell=.TRUE., is2_shell=.TRUE., charges=charges)
             ! add boxes to real space grid (big box)
-            CALL dg_sum_patch(rpot, rhos1, exp_igr%shell_centre(:, p1))
-            IF (p2 /= 0) CALL dg_sum_patch(rpot, rhos2, exp_igr%shell_centre(:, p2))
+            CALL dg_sum_patch(rpot, rhos1%pw, exp_igr%shell_centre(:, p1))
+            IF (p2 /= 0) CALL dg_sum_patch(rpot, rhos2%pw, exp_igr%shell_centre(:, p2))
          END DO
       END IF
 
@@ -271,7 +271,7 @@ CONTAINS
             CALL get_patch(dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
                            rhos1, rhos2, charges=charges)
             ! add boxes to real space grid (big box)
-            CALL dg_sum_patch_force_1d(rpot, rhos1, exp_igr%centre(:, p1), fat1)
+            CALL dg_sum_patch_force_1d(rpot, rhos1%pw, exp_igr%centre(:, p1), fat1)
             IF (atprop%energy) THEN
                atprop%atener(p1) = atprop%atener(p1) + 0.5_dp*fat1*dvols
             END IF
@@ -281,7 +281,7 @@ CONTAINS
                atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1) + 0.5_dp*fat1*dvols
             END IF
             IF (p2 /= 0) THEN
-               CALL dg_sum_patch_force_1d(rpot, rhos2, exp_igr%centre(:, p2), fat1)
+               CALL dg_sum_patch_force_1d(rpot, rhos2%pw, exp_igr%centre(:, p2), fat1)
                IF (atprop%energy) THEN
                   atprop%atener(p2) = atprop%atener(p2) + 0.5_dp*fat1*dvols
                END IF
@@ -326,11 +326,11 @@ CONTAINS
                      CALL get_patch(dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
                                     rhos1, rhos2, charges=charges)
                      ! add boxes to real space grid (big box)
-                     CALL dg_sum_patch_force_1d(rpot, rhos1, exp_igr%centre(:, p1), fat1)
+                     CALL dg_sum_patch_force_1d(rpot, rhos1%pw, exp_igr%centre(:, p1), fat1)
                      atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1) + fat1*dvols
                      IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1) + fat1*dvols
                      IF (p2 /= 0) THEN
-                        CALL dg_sum_patch_force_1d(rpot, rhos2, exp_igr%centre(:, p2), fat1)
+                        CALL dg_sum_patch_force_1d(rpot, rhos2%pw, exp_igr%centre(:, p2), fat1)
                         atprop%atstress(i, j, p2) = atprop%atstress(i, j, p2) + fat1*dvols
                         IF (i /= j) atprop%atstress(j, i, p2) = atprop%atstress(j, i, p2) + fat1*dvols
                      END IF
@@ -406,7 +406,7 @@ CONTAINS
 
             ! sum boxes on real space grids (big box)
             IF (is1_core) THEN
-               CALL dg_sum_patch_force_3d(drpot, rhos1, &
+               CALL dg_sum_patch_force_3d(drpot, rhos1%pw, &
                                           exp_igr%core_centre(:, particle_set(p1)%shell_index), fat)
                fgcore_coulomb(1, particle_set(p1)%shell_index) = &
                   fgcore_coulomb(1, particle_set(p1)%shell_index) - fat(1)*dvols
@@ -415,13 +415,13 @@ CONTAINS
                fgcore_coulomb(3, particle_set(p1)%shell_index) = &
                   fgcore_coulomb(3, particle_set(p1)%shell_index) - fat(3)*dvols
             ELSE
-               CALL dg_sum_patch_force_3d(drpot, rhos1, exp_igr%centre(:, p1), fat)
+               CALL dg_sum_patch_force_3d(drpot, rhos1%pw, exp_igr%centre(:, p1), fat)
                fg_coulomb(1, p1) = fg_coulomb(1, p1) - fat(1)*dvols
                fg_coulomb(2, p1) = fg_coulomb(2, p1) - fat(2)*dvols
                fg_coulomb(3, p1) = fg_coulomb(3, p1) - fat(3)*dvols
             END IF
             IF (p2 /= 0 .AND. is2_core) THEN
-               CALL dg_sum_patch_force_3d(drpot, rhos1, &
+               CALL dg_sum_patch_force_3d(drpot, rhos1%pw, &
                                           exp_igr%core_centre(:, particle_set(p2)%shell_index), fat)
                fgcore_coulomb(1, particle_set(p2)%shell_index) = &
                   fgcore_coulomb(1, particle_set(p2)%shell_index) - fat(1)*dvols
@@ -430,7 +430,7 @@ CONTAINS
                fgcore_coulomb(3, particle_set(p2)%shell_index) = &
                   fgcore_coulomb(3, particle_set(p2)%shell_index) - fat(3)*dvols
             ELSEIF (p2 /= 0) THEN
-               CALL dg_sum_patch_force_3d(drpot, rhos2, exp_igr%centre(:, p2), fat)
+               CALL dg_sum_patch_force_3d(drpot, rhos2%pw, exp_igr%centre(:, p2), fat)
                fg_coulomb(1, p2) = fg_coulomb(1, p2) - fat(1)*dvols
                fg_coulomb(2, p2) = fg_coulomb(2, p2) - fat(2)*dvols
                fg_coulomb(3, p2) = fg_coulomb(3, p2) - fat(3)*dvols
@@ -453,12 +453,12 @@ CONTAINS
                                  is1_shell=.TRUE., is2_shell=.TRUE., charges=charges)
 
             ! sum boxes on real space grids (big box)
-            CALL dg_sum_patch_force_3d(drpot, rhos1, exp_igr%shell_centre(:, p1), fat)
+            CALL dg_sum_patch_force_3d(drpot, rhos1%pw, exp_igr%shell_centre(:, p1), fat)
             fgshell_coulomb(1, p1) = fgshell_coulomb(1, p1) - fat(1)*dvols
             fgshell_coulomb(2, p1) = fgshell_coulomb(2, p1) - fat(2)*dvols
             fgshell_coulomb(3, p1) = fgshell_coulomb(3, p1) - fat(3)*dvols
             IF (p2 /= 0) THEN
-               CALL dg_sum_patch_force_3d(drpot, rhos2, exp_igr%shell_centre(:, p2), fat)
+               CALL dg_sum_patch_force_3d(drpot, rhos2%pw, exp_igr%shell_centre(:, p2), fat)
                fgshell_coulomb(1, p2) = fgshell_coulomb(1, p2) - fat(1)*dvols
                fgshell_coulomb(2, p2) = fgshell_coulomb(2, p2) - fat(2)*dvols
                fgshell_coulomb(3, p2) = fgshell_coulomb(3, p2) - fat(3)*dvols
@@ -633,9 +633,9 @@ CONTAINS
       END IF
 
       IF (p2 == 0) THEN
-         CALL dg_get_patch(rho0, rhos1, q1, ex1, ey1, ez1)
+         CALL dg_get_patch(rho0%pw, rhos1%pw, q1, ex1, ey1, ez1)
       ELSE
-         CALL dg_get_patch(rho0, rhos1, rhos2, q1, q2, ex1, ey1, ez1, ex2, ey2, ez2)
+         CALL dg_get_patch(rho0%pw, rhos1%pw, rhos2%pw, q1, q2, ex1, ey1, ez1, ex2, ey2, ez2)
       END IF
 
    END SUBROUTINE get_patch
@@ -743,9 +743,9 @@ CONTAINS
       END IF
 
       IF (p2 == 0) THEN
-         CALL dg_get_patch(rho0, rhos1, q1, ex1, ey1, ez1)
+         CALL dg_get_patch(rho0%pw, rhos1%pw, q1, ex1, ey1, ez1)
       ELSE
-         CALL dg_get_patch(rho0, rhos1, rhos2, q1, q2, &
+         CALL dg_get_patch(rho0%pw, rhos1%pw, rhos2%pw, q1, q2, &
                            ex1, ey1, ez1, ex2, ey2, ez2)
       END IF
 
