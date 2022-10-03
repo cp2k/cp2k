@@ -1109,7 +1109,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_vxc_pw_create'
       INTEGER, DIMENSION(2), PARAMETER :: norm_drho_spin_name = [deriv_norm_drhoa, deriv_norm_drhob]
 
-      INTEGER                                            :: handle, i, idir, ispin, jdir, &
+      INTEGER                                            :: handle, idir, ispin, jdir, &
                                                             npoints, nspins, &
                                                             xc_deriv_method_id, xc_rho_smooth_id, deriv_id
       INTEGER, DIMENSION(2, 3)                           :: bo
@@ -1122,21 +1122,14 @@ CONTAINS
                                                             rho, rhoa, rhob
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_p_type), DIMENSION(2)                      :: vxc_to_deriv
       TYPE(pw_p_type), DIMENSION(3)                      :: pw_to_deriv, pw_to_deriv_rho
-      TYPE(pw_type), POINTER                             :: tmp_g, v_drho_r, virial_pw, vxc_g
+      TYPE(pw_type)                             :: tmp_g, v_drho_r, virial_pw, vxc_g
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
       TYPE(xc_rho_set_type)                              :: rho_set
 
       CALL timeset(routineN, handle)
-      NULLIFY (tmp_g, v_drho_r, vxc_g, norm_drho_spin, norm_drho, pos, virial_pw)
-      DO idir = 1, 3
-         NULLIFY (pw_to_deriv(idir)%pw, pw_to_deriv_rho(idir)%pw)
-      END DO
-      DO i = 1, 2
-         NULLIFY (vxc_to_deriv(i)%pw)
-      END DO
+      NULLIFY (norm_drho_spin, norm_drho, pos)
 
       pw_grid => rho_r(1)%pw%pw_grid
 
@@ -1180,7 +1173,7 @@ CONTAINS
 
       ALLOCATE (vxc_rho(nspins))
       DO ispin = 1, nspins
-         NULLIFY (vxc_rho(ispin)%pw)
+         ALLOCATE (vxc_rho(ispin)%pw)
       END DO
 
       CALL xc_rho_set_get(rho_set, rho=rho, rhoa=rhoa, rhob=rhob, &
@@ -1207,8 +1200,6 @@ CONTAINS
 
          CPASSERT(ASSOCIATED(deriv_data))
          IF (use_virial) THEN
-            NULLIFY (virial_pw)
-            ALLOCATE (virial_pw)
             CALL pw_pool_create_pw(pw_pool, virial_pw, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
@@ -1225,8 +1216,6 @@ CONTAINS
                END DO
             END DO
             CALL pw_pool_give_back_pw(pw_pool, virial_pw)
-            DEALLOCATE (virial_pw)
-            NULLIFY (virial_pw)
          END IF ! use_virial
          DO idir = 1, 3
             CPASSERT(ASSOCIATED(pw_to_deriv_rho(idir)%pw%cr3d))
@@ -1241,13 +1230,9 @@ CONTAINS
       END IF
 
       IF ((has_gradient .AND. xc_requires_tmp_g(xc_deriv_method_id)) .OR. pw_grid%spherical) THEN
-         NULLIFY (vxc_g)
-         ALLOCATE (vxc_g)
          CALL pw_pool_create_pw(pw_pool, vxc_g, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          IF (.NOT. pw_grid%spherical) THEN
-            NULLIFY (tmp_g)
-            ALLOCATE (tmp_g)
             CALL pw_pool_create_pw(pw_pool, tmp_g, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          END IF
@@ -1274,8 +1259,6 @@ CONTAINS
                CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
 
                IF (use_virial) THEN
-                  NULLIFY (virial_pw)
-                  ALLOCATE (virial_pw)
                   CALL pw_pool_create_pw(pw_pool, virial_pw, &
                                          use_data=REALDATA3D, &
                                          in_space=REALSPACE)
@@ -1292,8 +1275,6 @@ CONTAINS
                      END DO
                   END DO
                   CALL pw_pool_give_back_pw(pw_pool, virial_pw)
-                  DEALLOCATE (virial_pw)
-                  NULLIFY (virial_pw)
                END IF ! use_virial
 
                DO idir = 1, 3
@@ -1361,6 +1342,7 @@ CONTAINS
                deriv_id = deriv_laplace_rho
             END IF
 
+            ALLOCATE (pw_to_deriv(1)%pw)
             CALL xc_dset_recover_pw(deriv_set, [deriv_id], pw_to_deriv(1)%pw, pw_grid)
 
             IF (use_virial) CALL virial_laplace(rho_r(ispin)%pw, pw_pool, virial_xc, pw_to_deriv(1)%pw%cr3d)
@@ -1382,25 +1364,15 @@ CONTAINS
                             rho_cutoff=rho_cutoff*density_smooth_cut_range, &
                             rho_smooth_cutoff_range=density_smooth_cut_range)
 
-         v_drho_r => vxc_rho(ispin)%pw
-         ALLOCATE (vxc_rho(ispin)%pw)
+         v_drho_r = vxc_rho(ispin)%pw
          CALL pw_pool_create_pw(pw_pool, vxc_rho(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL xc_pw_smooth(v_drho_r, vxc_rho(ispin)%pw, xc_rho_smooth_id)
          CALL pw_pool_give_back_pw(pw_pool, v_drho_r)
-         DEALLOCATE (v_drho_r)
       END DO
 
-      IF (ASSOCIATED(vxc_g)) THEN
-         CALL pw_pool_give_back_pw(pw_pool, vxc_g)
-         DEALLOCATE (vxc_g)
-         NULLIFY (vxc_g)
-      END IF
-      IF (ASSOCIATED(tmp_g)) THEN
-         CALL pw_pool_give_back_pw(pw_pool, tmp_g)
-         DEALLOCATE (tmp_g)
-         NULLIFY (tmp_g)
-      END IF
+      CALL pw_pool_give_back_pw(pw_pool, vxc_g)
+      CALL pw_pool_give_back_pw(pw_pool, tmp_g)
 
       DO idir = 1, 3
          CPASSERT(.NOT. ASSOCIATED(pw_to_deriv(idir)%pw))
@@ -1421,11 +1393,10 @@ CONTAINS
          ! return the xc functional value at the grid points
          !
          IF (PRESENT(exc_r)) THEN
-            exc_r%pw => v_drho_r
-            NULLIFY (v_drho_r)
+            ALLOCATE (exc_r%pw)
+            exc_r%pw = v_drho_r
          ELSE
             CALL pw_release(v_drho_r)
-            DEALLOCATE (v_drho_r)
          END IF
       ELSE
          exc = 0.0_dp
@@ -1437,7 +1408,7 @@ CONTAINS
       IF (has_tau) THEN
          ALLOCATE (vxc_tau(nspins))
          DO ispin = 1, nspins
-            NULLIFY (vxc_tau(ispin)%pw)
+            ALLOCATE (vxc_tau(ispin)%pw)
          END DO
          IF (lsd) THEN
             CALL xc_dset_recover_pw(deriv_set, [deriv_tau_a], vxc_tau(1)%pw, pw_grid)
@@ -1716,10 +1687,10 @@ CONTAINS
                                                             laplacea, laplaceb, laplace1a, laplace1b, &
                                                             laplace2, laplace2a, laplace2b, deriv_data
       TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
-      TYPE(pw_p_type)                                    :: v_drho, v_drhoa, v_drhob
+      TYPE(pw_type)                                    :: v_drho, v_drhoa, v_drhob
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc_rho, &
                                                             tau_r, vxc_tau
-      TYPE(pw_type), POINTER                             :: virial_pw, v_laplace, v_laplacea, v_laplaceb
+      TYPE(pw_type)                            :: virial_pw, v_laplace, v_laplacea, v_laplaceb
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_derivative_set_type)                       :: deriv_set1
       TYPE(xc_rho_cflags_type)                           :: needs
@@ -1967,16 +1938,16 @@ CONTAINS
                CALL prepare_dr1dr(dra1dra, drhoa, drho1a)
                CALL prepare_dr1dr(drb1drb, drhob, drho1b)
 
-               CALL allocate_pw(v_drho%pw, pw_pool, bo)
-               CALL allocate_pw(v_drhoa%pw, pw_pool, bo)
-               CALL allocate_pw(v_drhob%pw, pw_pool, bo)
+               CALL allocate_pw(v_drho, pw_pool, bo)
+               CALL allocate_pw(v_drhoa, pw_pool, bo)
+               CALL allocate_pw(v_drhob, pw_pool, bo)
 
                IF (ASSOCIATED(norm_drhoa)) CALL apply_drho(deriv_set, [deriv_norm_drhoa], virial_pw, drhoa, drho1a, virial_xc, &
-                                                           norm_drhoa, gradient_cut, dra1dra, v_drhoa%pw%cr3d)
+                                                           norm_drhoa, gradient_cut, dra1dra, v_drhoa%cr3d)
                IF (ASSOCIATED(norm_drhob)) CALL apply_drho(deriv_set, [deriv_norm_drhob], virial_pw, drhob, drho1b, virial_xc, &
-                                                           norm_drhob, gradient_cut, drb1drb, v_drhob%pw%cr3d)
+                                                           norm_drhob, gradient_cut, drb1drb, v_drhob%cr3d)
                IF (ASSOCIATED(norm_drho)) CALL apply_drho(deriv_set, [deriv_norm_drho], virial_pw, drho, drho1, virial_xc, &
-                                                          norm_drho, gradient_cut, dr1dr, v_drho%pw%cr3d)
+                                                          norm_drho, gradient_cut, dr1dr, v_drho%cr3d)
                IF (laplace_f) THEN
                   CALL xc_derivative_get(xc_dset_get_derivative(deriv_set, [deriv_laplace_rhoa]), deriv_data=deriv_data)
                   CPASSERT(ASSOCIATED(deriv_data))
@@ -1996,10 +1967,10 @@ CONTAINS
             ELSE
 
                ! Create the work grid for the potential of the gradient part
-               CALL allocate_pw(v_drho%pw, pw_pool, bo)
+               CALL allocate_pw(v_drho, pw_pool, bo)
 
                CALL apply_drho(deriv_set, [deriv_norm_drho], virial_pw, drho, drho1, virial_xc, &
-                               norm_drho, gradient_cut, dr1dr, v_drho%pw%cr3d)
+                               norm_drho, gradient_cut, dr1dr, v_drho%cr3d)
                IF (laplace_f) THEN
                   CALL xc_derivative_get(xc_dset_get_derivative(deriv_set, [deriv_laplace_rho]), deriv_data=deriv_data)
                   CPASSERT(ASSOCIATED(deriv_data))
@@ -2056,78 +2027,78 @@ CONTAINS
                   IF (ASSOCIATED(norm_drhoa)) THEN
                      CALL get_derivs_rho(norm_drho2a, norm_drhoa, step, xc_fun_section, lsd, rho2_set, deriv_set1)
                      CALL update_deriv_rho(deriv_set1, [deriv_rhoa], bo, &
-                                           norm_drhoa, gradient_cut, weight, rho1a, v_drhoa%pw%cr3d)
+                                           norm_drhoa, gradient_cut, weight, rho1a, v_drhoa%cr3d)
                      CALL update_deriv_rho(deriv_set1, [deriv_rhob], bo, &
-                                           norm_drhoa, gradient_cut, weight, rho1b, v_drhoa%pw%cr3d)
+                                           norm_drhoa, gradient_cut, weight, rho1b, v_drhoa%cr3d)
                      CALL update_deriv_rho(deriv_set1, [deriv_norm_drhoa], bo, &
-                                           norm_drhoa, gradient_cut, weight, dra1dra, v_drhoa%pw%cr3d)
+                                           norm_drhoa, gradient_cut, weight, dra1dra, v_drhoa%cr3d)
                      CALL update_deriv_drho_ab(deriv_set1, [deriv_norm_drhob], bo, &
-                                               norm_drhoa, gradient_cut, weight, dra1dra, drb1drb, v_drhoa%pw%cr3d, v_drhob%pw%cr3d)
+                                               norm_drhoa, gradient_cut, weight, dra1dra, drb1drb, v_drhoa%cr3d, v_drhob%cr3d)
                      CALL update_deriv_drho_ab(deriv_set1, [deriv_norm_drho], bo, &
-                                               norm_drhoa, gradient_cut, weight, dra1dra, dr1dr, v_drhoa%pw%cr3d, v_drho%pw%cr3d)
+                                               norm_drhoa, gradient_cut, weight, dra1dra, dr1dr, v_drhoa%cr3d, v_drho%cr3d)
                      IF (tau_f) THEN
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_a], bo, &
-                                              norm_drhoa, gradient_cut, weight, tau1a, v_drhoa%pw%cr3d)
+                                              norm_drhoa, gradient_cut, weight, tau1a, v_drhoa%cr3d)
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_b], bo, &
-                                              norm_drhoa, gradient_cut, weight, tau1b, v_drhoa%pw%cr3d)
+                                              norm_drhoa, gradient_cut, weight, tau1b, v_drhoa%cr3d)
                      END IF
                      IF (laplace_f) THEN
                         CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhoa], bo, &
-                                              norm_drhoa, gradient_cut, weight, laplace1a, v_drhoa%pw%cr3d)
+                                              norm_drhoa, gradient_cut, weight, laplace1a, v_drhoa%cr3d)
                         CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhob], bo, &
-                                              norm_drhoa, gradient_cut, weight, laplace1b, v_drhoa%pw%cr3d)
+                                              norm_drhoa, gradient_cut, weight, laplace1b, v_drhoa%cr3d)
                      END IF
                   END IF
 
                   IF (ASSOCIATED(norm_drhob)) THEN
                      CALL get_derivs_rho(norm_drho2b, norm_drhob, step, xc_fun_section, lsd, rho2_set, deriv_set1)
                      CALL update_deriv_rho(deriv_set1, [deriv_rhoa], bo, &
-                                           norm_drhob, gradient_cut, weight, rho1a, v_drhob%pw%cr3d)
+                                           norm_drhob, gradient_cut, weight, rho1a, v_drhob%cr3d)
                      CALL update_deriv_rho(deriv_set1, [deriv_rhob], bo, &
-                                           norm_drhob, gradient_cut, weight, rho1b, v_drhob%pw%cr3d)
+                                           norm_drhob, gradient_cut, weight, rho1b, v_drhob%cr3d)
                      CALL update_deriv_rho(deriv_set1, [deriv_norm_drhob], bo, &
-                                           norm_drhob, gradient_cut, weight, drb1drb, v_drhob%pw%cr3d)
+                                           norm_drhob, gradient_cut, weight, drb1drb, v_drhob%cr3d)
                      CALL update_deriv_drho_ab(deriv_set1, [deriv_norm_drhoa], bo, &
-                                               norm_drhob, gradient_cut, weight, drb1drb, dra1dra, v_drhob%pw%cr3d, v_drhoa%pw%cr3d)
+                                               norm_drhob, gradient_cut, weight, drb1drb, dra1dra, v_drhob%cr3d, v_drhoa%cr3d)
                      CALL update_deriv_drho_ab(deriv_set1, [deriv_norm_drho], bo, &
-                                               norm_drhob, gradient_cut, weight, drb1drb, dr1dr, v_drhob%pw%cr3d, v_drho%pw%cr3d)
+                                               norm_drhob, gradient_cut, weight, drb1drb, dr1dr, v_drhob%cr3d, v_drho%cr3d)
                      IF (tau_f) THEN
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_a], bo, &
-                                              norm_drhob, gradient_cut, weight, tau1a, v_drhob%pw%cr3d)
+                                              norm_drhob, gradient_cut, weight, tau1a, v_drhob%cr3d)
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_b], bo, &
-                                              norm_drhob, gradient_cut, weight, tau1b, v_drhob%pw%cr3d)
+                                              norm_drhob, gradient_cut, weight, tau1b, v_drhob%cr3d)
                      END IF
                      IF (laplace_f) THEN
                         CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhoa], bo, &
-                                              norm_drhob, gradient_cut, weight, laplace1a, v_drhob%pw%cr3d)
+                                              norm_drhob, gradient_cut, weight, laplace1a, v_drhob%cr3d)
                         CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhob], bo, &
-                                              norm_drhob, gradient_cut, weight, laplace1b, v_drhob%pw%cr3d)
+                                              norm_drhob, gradient_cut, weight, laplace1b, v_drhob%cr3d)
                      END IF
                   END IF
 
                   IF (ASSOCIATED(norm_drho)) THEN
                      CALL get_derivs_rho(norm_drho2, norm_drho, step, xc_fun_section, lsd, rho2_set, deriv_set1)
                      CALL update_deriv_rho(deriv_set1, [deriv_rhoa], bo, &
-                                           norm_drho, gradient_cut, weight, rho1a, v_drho%pw%cr3d)
+                                           norm_drho, gradient_cut, weight, rho1a, v_drho%cr3d)
                      CALL update_deriv_rho(deriv_set1, [deriv_rhob], bo, &
-                                           norm_drho, gradient_cut, weight, rho1b, v_drho%pw%cr3d)
+                                           norm_drho, gradient_cut, weight, rho1b, v_drho%cr3d)
                      CALL update_deriv_rho(deriv_set1, [deriv_norm_drho], bo, &
-                                           norm_drho, gradient_cut, weight, dr1dr, v_drho%pw%cr3d)
+                                           norm_drho, gradient_cut, weight, dr1dr, v_drho%cr3d)
                      CALL update_deriv_drho_ab(deriv_set1, [deriv_norm_drhoa], bo, &
-                                               norm_drho, gradient_cut, weight, dr1dr, dra1dra, v_drho%pw%cr3d, v_drhoa%pw%cr3d)
+                                               norm_drho, gradient_cut, weight, dr1dr, dra1dra, v_drho%cr3d, v_drhoa%cr3d)
                      CALL update_deriv_drho_ab(deriv_set1, [deriv_norm_drhob], bo, &
-                                               norm_drho, gradient_cut, weight, dr1dr, drb1drb, v_drho%pw%cr3d, v_drhob%pw%cr3d)
+                                               norm_drho, gradient_cut, weight, dr1dr, drb1drb, v_drho%cr3d, v_drhob%cr3d)
                      IF (tau_f) THEN
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_a], bo, &
-                                              norm_drho, gradient_cut, weight, tau1a, v_drho%pw%cr3d)
+                                              norm_drho, gradient_cut, weight, tau1a, v_drho%cr3d)
                         CALL update_deriv_rho(deriv_set1, [deriv_tau_b], bo, &
-                                              norm_drho, gradient_cut, weight, tau1b, v_drho%pw%cr3d)
+                                              norm_drho, gradient_cut, weight, tau1b, v_drho%cr3d)
                      END IF
                      IF (laplace_f) THEN
                         CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhoa], bo, &
-                                              norm_drho, gradient_cut, weight, laplace1a, v_drho%pw%cr3d)
+                                              norm_drho, gradient_cut, weight, laplace1a, v_drho%cr3d)
                         CALL update_deriv_rho(deriv_set1, [deriv_laplace_rhob], bo, &
-                                              norm_drho, gradient_cut, weight, laplace1b, v_drho%pw%cr3d)
+                                              norm_drho, gradient_cut, weight, laplace1b, v_drho%cr3d)
                      END IF
                   END IF
 
@@ -2208,9 +2179,9 @@ CONTAINS
                CALL virial_drho_drho(virial_pw, drhob, v_drhob, virial_xc)
                CALL virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
 
-               CALL deallocate_pw(v_drho%pw, pw_pool)
-               CALL deallocate_pw(v_drhoa%pw, pw_pool)
-               CALL deallocate_pw(v_drhob%pw, pw_pool)
+               CALL deallocate_pw(v_drho, pw_pool)
+               CALL deallocate_pw(v_drhoa, pw_pool)
+               CALL deallocate_pw(v_drhob, pw_pool)
 
                IF (laplace_f) THEN
                   virial_pw%cr3d(:, :, :) = -rhoa(:, :, :)
@@ -2242,17 +2213,17 @@ CONTAINS
 
                   ! Obtain the numerical 2nd derivatives w.r.t. to drho and collect the potential
                   CALL update_deriv_rho(deriv_set1, [deriv_rho], bo, &
-                                        norm_drho, gradient_cut, weight, rho1, v_drho%pw%cr3d)
+                                        norm_drho, gradient_cut, weight, rho1, v_drho%cr3d)
                   CALL update_deriv_rho(deriv_set1, [deriv_norm_drho], bo, &
-                                        norm_drho, gradient_cut, weight, dr1dr, v_drho%pw%cr3d)
+                                        norm_drho, gradient_cut, weight, dr1dr, v_drho%cr3d)
 
                   IF (tau_f) THEN
                      CALL update_deriv_rho(deriv_set1, [deriv_tau], bo, &
-                                           norm_drho, gradient_cut, weight, tau1, v_drho%pw%cr3d)
+                                           norm_drho, gradient_cut, weight, tau1, v_drho%cr3d)
                   END IF
                   IF (laplace_f) THEN
                      CALL update_deriv_rho(deriv_set1, [deriv_laplace_rho], bo, &
-                                           norm_drho, gradient_cut, weight, laplace1, v_drho%pw%cr3d)
+                                           norm_drho, gradient_cut, weight, laplace1, v_drho%cr3d)
 
                      CALL get_derivs_rho(laplace2, laplace, step, xc_fun_section, lsd, rho2_set, deriv_set1)
 
@@ -2275,7 +2246,7 @@ CONTAINS
                ! Calculate the virial contribution from the potential
                CALL virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
 
-               CALL deallocate_pw(v_drho%pw, pw_pool)
+               CALL deallocate_pw(v_drho, pw_pool)
 
                IF (laplace_f) THEN
                   virial_pw%cr3d(:, :, :) = -rho(:, :, :)
@@ -2710,12 +2681,12 @@ CONTAINS
       TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE         :: v_drhoa, v_drhob, v_drho, v_laplace
       TYPE(pw_p_type), DIMENSION(:, :), ALLOCATABLE      :: v_drho_r
-      TYPE(pw_type), POINTER                             :: tmp_g, virial_pw, vxc_g
+      TYPE(pw_type)                             :: tmp_g, virial_pw, vxc_g
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (e_drhoa, e_drhob, e_drho, tmp_g, vxc_g)
+      NULLIFY (e_drhoa, e_drhob, e_drho)
 
       my_gapw = .FALSE.
       IF (PRESENT(gapw)) my_gapw = gapw
@@ -2752,17 +2723,15 @@ CONTAINS
          ALLOCATE (v_drho_r(3, nspins), v_drho(nspins))
          DO ispin = 1, nspins
             DO idir = 1, 3
-               NULLIFY (v_drho_r(idir, ispin)%pw)
+               ALLOCATE (v_drho_r(idir, ispin)%pw)
                CALL allocate_pw(v_drho_r(idir, ispin)%pw, pw_pool, bo)
             END DO
-            NULLIFY (v_drho(ispin)%pw)
+            ALLOCATE (v_drho(ispin)%pw)
             CALL allocate_pw(v_drho(ispin)%pw, pw_pool, bo)
          END DO
 
          IF (xc_requires_tmp_g(xc_deriv_method_id) .AND. .NOT. my_gapw) THEN
             IF (ASSOCIATED(pw_pool)) THEN
-               NULLIFY (tmp_g, vxc_g)
-               ALLOCATE (tmp_g, vxc_g)
                CALL pw_pool_create_pw(pw_pool, tmp_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                CALL pw_pool_create_pw(pw_pool, vxc_g, &
@@ -2815,7 +2784,7 @@ CONTAINS
 
             ALLOCATE (v_drhoa(nspins), v_drhob(nspins))
             DO ispin = 1, nspins
-               NULLIFY (v_drhoa(ispin)%pw, v_drhob(ispin)%pw)
+               ALLOCATE (v_drhoa(ispin)%pw, v_drhob(ispin)%pw)
             END DO
             DO ispin = 1, nspins
                CALL allocate_pw(v_drhoa(ispin)%pw, pw_pool, bo)
@@ -2829,7 +2798,7 @@ CONTAINS
 
             ALLOCATE (v_laplace(nspins))
             DO ispin = 1, nspins
-               NULLIFY (v_laplace(ispin)%pw)
+               ALLOCATE (v_laplace(ispin)%pw)
                CALL allocate_pw(v_laplace(ispin)%pw, pw_pool, bo)
             END DO
 
@@ -2853,8 +2822,8 @@ CONTAINS
          IF (gradient_f) THEN
 
             IF (my_compute_virial) THEN
-               CALL virial_drho_drho(virial_pw, drhoa, v_drhoa(1), virial_xc)
-               CALL virial_drho_drho(virial_pw, drhob, v_drhob(2), virial_xc)
+               CALL virial_drho_drho(virial_pw, drhoa, v_drhoa(1)%pw, virial_xc)
+               CALL virial_drho_drho(virial_pw, drhob, v_drhob(2)%pw, virial_xc)
                DO idir = 1, 3
 !$OMP          PARALLEL WORKSHARE DEFAULT(NONE) SHARED(drho,idir,v_drho,virial_pw)
                   virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*(v_drho(1)%pw%cr3d(:, :, :) + v_drho(2)%pw%cr3d(:, :, :))
@@ -2969,6 +2938,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL deallocate_pw(v_drhoa(ispin)%pw, pw_pool)
                CALL deallocate_pw(v_drhob(ispin)%pw, pw_pool)
+               DEALLOCATE (v_drhoa(ispin)%pw, v_drhob(ispin)%pw)
             END DO
 
             DEALLOCATE (v_drhoa, v_drhob)
@@ -3001,7 +2971,7 @@ CONTAINS
 
             ALLOCATE (v_laplace(nspins))
             DO ispin = 1, nspins
-               NULLIFY (v_laplace(ispin)%pw)
+               ALLOCATE (v_laplace(ispin)%pw)
                CALL allocate_pw(v_laplace(ispin)%pw, pw_pool, bo)
             END DO
 
@@ -3017,7 +2987,7 @@ CONTAINS
          IF (gradient_f) THEN
 
             IF (my_compute_virial) THEN
-               CALL virial_drho_drho(virial_pw, drho, v_drho(1), virial_xc)
+               CALL virial_drho_drho(virial_pw, drho, v_drho(1)%pw, virial_xc)
             END IF ! my_compute_virial
 
             IF (my_gapw) THEN
@@ -3068,8 +3038,10 @@ CONTAINS
 
          DO ispin = 1, nspins
             CALL deallocate_pw(v_drho(ispin)%pw, pw_pool)
+            DEALLOCATE (v_drho(ispin)%pw)
             DO idir = 1, 3
                CALL deallocate_pw(v_drho_r(idir, ispin)%pw, pw_pool)
+               DEALLOCATE (v_drho_r(idir, ispin)%pw)
             END DO
          END DO
          DEALLOCATE (v_drho, v_drho_r)
@@ -3079,18 +3051,17 @@ CONTAINS
       IF (laplace_f) THEN
       DO ispin = 1, nspins
          CALL deallocate_pw(v_laplace(ispin)%pw, pw_pool)
+         DEALLOCATE (v_laplace(ispin)%pw)
       END DO
       DEALLOCATE (v_laplace)
       END IF
 
-      IF (ASSOCIATED(tmp_g) .AND. ASSOCIATED(pw_pool)) THEN
+      IF (ASSOCIATED(tmp_g%pw_grid) .AND. ASSOCIATED(pw_pool)) THEN
          CALL pw_pool_give_back_pw(pw_pool, tmp_g)
-         DEALLOCATE (tmp_g)
       END IF
 
-      IF (ASSOCIATED(vxc_g) .AND. ASSOCIATED(pw_pool)) THEN
+      IF (ASSOCIATED(vxc_g%pw_grid) .AND. ASSOCIATED(pw_pool)) THEN
          CALL pw_pool_give_back_pw(pw_pool, vxc_g)
-         DEALLOCATE (vxc_g)
       END IF
 
       IF (my_compute_virial .AND. (gradient_f .OR. laplace_f)) THEN
@@ -3107,20 +3078,16 @@ CONTAINS
 !> \param bo ...
 ! **************************************************************************************************
    SUBROUTINE allocate_pw(pw, pw_pool, bo)
-      TYPE(pw_type), INTENT(INOUT), POINTER              :: pw
+      TYPE(pw_type), INTENT(OUT)                         :: pw
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bo
 
       IF (ASSOCIATED(pw_pool)) THEN
-         NULLIFY (pw)
-         ALLOCATE (pw)
          CALL pw_pool_create_pw(pw_pool, pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          CALL pw_zero(pw)
       ELSE
-         NULLIFY (pw)
-         ALLOCATE (pw)
          ALLOCATE (pw%cr3d(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
          pw%cr3d = 0.0_dp
       END IF
@@ -3133,7 +3100,7 @@ CONTAINS
 !> \param pw_pool ...
 ! **************************************************************************************************
    SUBROUTINE deallocate_pw(pw, pw_pool)
-      TYPE(pw_type), INTENT(INOUT), POINTER              :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
 
       IF (ASSOCIATED(pw_pool)) THEN
@@ -3141,8 +3108,6 @@ CONTAINS
       ELSE
          DEALLOCATE (pw%cr3d)
       END IF
-      DEALLOCATE (pw)
-      NULLIFY (pw)
 
    END SUBROUTINE deallocate_pw
 
@@ -3188,7 +3153,7 @@ CONTAINS
    SUBROUTINE virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
       TYPE(pw_type), INTENT(IN)                          :: virial_pw
       TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho
-      TYPE(pw_p_type), INTENT(IN)                        :: v_drho
+      TYPE(pw_type), INTENT(IN)                        :: v_drho
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
 
       INTEGER                                            :: idir, jdir
@@ -3197,7 +3162,7 @@ CONTAINS
       DO idir = 1, 3
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE)&
 !$OMP SHARED(drho,idir,v_drho,virial_pw)
-         virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*v_drho%pw%cr3d(:, :, :)
+         virial_pw%cr3d(:, :, :) = drho(idir)%array(:, :, :)*v_drho%cr3d(:, :, :)
 !$OMP END PARALLEL WORKSHARE
          DO jdir = 1, idir
             tmp = -virial_pw%pw_grid%dvol*accurate_dot_product(virial_pw%cr3d(:, :, :), &

@@ -66,7 +66,8 @@ CONTAINS
 !> \param xc_smooth_id ...
 ! **************************************************************************************************
    SUBROUTINE xc_pw_smooth(pw_in, pw_out, xc_smooth_id)
-      TYPE(pw_type), POINTER                             :: pw_in, pw_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_in
+      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
       INTEGER, INTENT(IN)                                :: xc_smooth_id
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_smooth'
@@ -115,7 +116,8 @@ CONTAINS
 !> \param xc_deriv_method_id ...
 ! **************************************************************************************************
    SUBROUTINE xc_pw_gradient(pw_r, pw_g, tmp_g, gradient, xc_deriv_method_id)
-      TYPE(pw_type), INTENT(IN), POINTER                 :: pw_r, pw_g, tmp_g
+      TYPE(pw_type), INTENT(IN)                          :: pw_r
+      TYPE(pw_type), INTENT(INOUT)                       :: pw_g, tmp_g
       TYPE(pw_p_type), DIMENSION(3), INTENT(IN)          :: gradient
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
 
@@ -137,28 +139,27 @@ CONTAINS
 !> \param tmp_g scratch grid in reciprocal space, used instead of the internal grid if given explicitly to save memory
 ! **************************************************************************************************
    SUBROUTINE xc_pw_laplace(pw, pw_pool, deriv_method_id, pw_out, tmp_g)
-      TYPE(pw_type), INTENT(IN), POINTER                 :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       INTEGER, INTENT(IN)                                :: deriv_method_id
-      TYPE(pw_type), INTENT(IN), OPTIONAL, POINTER       :: pw_out, tmp_g
+      TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: pw_out
+      TYPE(pw_type), INTENT(IN), OPTIONAL                :: tmp_g
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_laplace'
 
       INTEGER                                            :: handle
       LOGICAL                                            :: owns_tmp_g
-      TYPE(pw_type), POINTER                             :: my_tmp_g
+      TYPE(pw_type)                                      :: my_tmp_g
 
       CALL timeset(routineN, handle)
 
       SELECT CASE (deriv_method_id)
       CASE (xc_deriv_pw)
 
-         NULLIFY (my_tmp_g)
-         IF (PRESENT(tmp_g)) my_tmp_g => tmp_g
+         IF (PRESENT(tmp_g)) my_tmp_g = tmp_g
 
          owns_tmp_g = .FALSE.
-         IF (.NOT. ASSOCIATED(my_tmp_g)) THEN
-            ALLOCATE (my_tmp_g)
+         IF (.NOT. ASSOCIATED(my_tmp_g%pw_grid)) THEN
             CALL pw_pool_create_pw(pw_pool, my_tmp_g, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             owns_tmp_g = .TRUE.
@@ -175,7 +176,6 @@ CONTAINS
          END IF
          IF (owns_tmp_g) THEN
             CALL pw_pool_give_back_pw(pw_pool, my_tmp_g)
-            DEALLOCATE (my_tmp_g)
          END IF
       CASE default
          CPABORT("Unsupported derivative method")
@@ -196,7 +196,9 @@ CONTAINS
    SUBROUTINE xc_pw_divergence(xc_deriv_method_id, pw_to_deriv, tmp_g, vxc_g, vxc_r)
       INTEGER, INTENT(IN)                                :: xc_deriv_method_id
       TYPE(pw_p_type), DIMENSION(3)                      :: pw_to_deriv
-      TYPE(pw_type), POINTER                             :: tmp_g, vxc_g, vxc_r
+      TYPE(pw_type), INTENT(INOUT)                       :: tmp_g
+      TYPE(pw_type), INTENT(IN)                          :: vxc_g
+      TYPE(pw_type), INTENT(INOUT)                       :: vxc_r
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_divergence'
 
@@ -210,14 +212,14 @@ CONTAINS
                                     transpose=.TRUE.)
       END IF
 
-      IF (ASSOCIATED(vxc_g)) CALL pw_zero(vxc_g)
+      IF (ASSOCIATED(vxc_g%pw_grid)) CALL pw_zero(vxc_g)
 
       DO idir = 1, 3
          CALL xc_pw_derive(pw_to_deriv(idir)%pw, tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr=.FALSE.)
-         IF (ASSOCIATED(tmp_g) .AND. ASSOCIATED(vxc_g)) CALL pw_axpy(tmp_g, vxc_g)
+         IF (ASSOCIATED(tmp_g%pw_grid) .AND. ASSOCIATED(vxc_g%pw_grid)) CALL pw_axpy(tmp_g, vxc_g)
       END DO
 
-      IF (ASSOCIATED(vxc_g)) THEN
+      IF (ASSOCIATED(vxc_g%pw_grid)) THEN
          CALL pw_transfer(vxc_g, pw_to_deriv(1)%pw)
          CALL pw_axpy(pw_to_deriv(1)%pw, vxc_r)
       END IF
@@ -237,11 +239,11 @@ CONTAINS
 !> \param pw_g ...
 ! **************************************************************************************************
    SUBROUTINE xc_pw_derive(pw, tmp_g, vxc_r, idir, xc_deriv_method_id, copy_to_vxcr, pw_g)
-      TYPE(pw_type), INTENT(IN), POINTER                 :: pw
-      TYPE(pw_type), POINTER                             :: tmp_g, vxc_r
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: tmp_g, vxc_r
       INTEGER, INTENT(IN)                                :: idir, xc_deriv_method_id
       LOGICAL, INTENT(IN), OPTIONAL                      :: copy_to_vxcr
-      TYPE(pw_type), INTENT(IN), OPTIONAL, POINTER       :: pw_g
+      TYPE(pw_type), INTENT(IN), OPTIONAL                :: pw_g
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_derive'
       INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
@@ -257,7 +259,7 @@ CONTAINS
       IF (xc_requires_tmp_g(xc_deriv_method_id)) THEN
 
          IF (PRESENT(pw_g)) THEN
-            IF (ASSOCIATED(pw_g)) THEN
+            IF (ASSOCIATED(pw_g%pw_grid)) THEN
                CALL pw_copy(pw_g, tmp_g)
             ELSE
                CALL pw_transfer(pw, tmp_g)

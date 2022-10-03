@@ -629,15 +629,7 @@ CONTAINS
             REAL(kind=dp)                                      :: rho_cutoff
             TYPE(pw_p_type), DIMENSION(2)                      :: laplace_rho_r, my_rho_r
             TYPE(pw_p_type), DIMENSION(3, 2)                   :: drho_r
-            TYPE(pw_type), POINTER                             :: my_rho_g, tmp_g
-
-            DO ispin = 1, 2
-               NULLIFY (my_rho_r(ispin)%pw)
-               DO idir = 1, 3
-                  NULLIFY (drho_r(idir, ispin)%pw)
-               END DO
-            END DO
-            NULLIFY (tmp_g, my_rho_g)
+            TYPE(pw_type)                             :: my_rho_g, tmp_g
 
             IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
                CPABORT("pw_pool cr3d have different size than expected")
@@ -690,8 +682,6 @@ CONTAINS
             END IF
 
             IF (needs_rho_g) THEN
-               NULLIFY (tmp_g)
-               ALLOCATE (tmp_g)
                CALL pw_pool_create_pw(pw_pool, tmp_g, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             END IF
@@ -704,7 +694,7 @@ CONTAINS
                   IF (needs_rho_g) THEN
                      IF (ASSOCIATED(rho_g)) THEN
                         my_rho_g_local = .FALSE.
-                        my_rho_g => rho_g(ispin)%pw
+                        my_rho_g = rho_g(ispin)%pw
                      END IF
                   END IF
 
@@ -723,18 +713,14 @@ CONTAINS
                                             use_data=REALDATA3D, in_space=REALSPACE)
                   END DO
                   IF (needs_rho_g) THEN
-                     IF (.NOT. ASSOCIATED(my_rho_g)) THEN
+                     IF (.NOT. ASSOCIATED(my_rho_g%pw_grid)) THEN
                         my_rho_g_local = .TRUE.
-                        NULLIFY (my_rho_g)
-                        ALLOCATE (my_rho_g)
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
                                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                         CALL pw_transfer(my_rho_r(ispin)%pw, my_rho_g)
                      END IF
                      IF (.NOT. my_rho_g_local .AND. (xc_deriv_method_id == xc_deriv_spline2 .OR. &
                                                      xc_deriv_method_id == xc_deriv_spline3)) THEN
-                        NULLIFY (my_rho_g)
-                        ALLOCATE (my_rho_g)
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
                                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                         my_rho_g_local = .TRUE.
@@ -753,8 +739,6 @@ CONTAINS
                      IF (my_rho_g_local) THEN
                         my_rho_g_local = .FALSE.
                         CALL pw_pool_give_back_pw(pw_pool, my_rho_g)
-                        DEALLOCATE (my_rho_g)
-                        NULLIFY (my_rho_g)
                      END IF
                   END IF
 
@@ -766,10 +750,8 @@ CONTAINS
 
             END DO
 
-            IF (ASSOCIATED(tmp_g)) THEN
+            IF (ASSOCIATED(tmp_g%pw_grid)) THEN
                CALL pw_pool_give_back_pw(pw_pool, tmp_g)
-               DEALLOCATE (tmp_g)
-               NULLIFY (tmp_g)
             END IF
 
             SELECT CASE (nspins)
