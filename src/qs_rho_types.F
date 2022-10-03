@@ -71,10 +71,9 @@ MODULE qs_rho_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER      :: rho_ao_im => Null()
       TYPE(pw_p_type), DIMENSION(:), POINTER         :: rho_g => Null(), &
                                                         rho_r => Null(), &
-                                                        drho_g => Null(), &
-                                                        drho_r => Null(), &
                                                         tau_g => Null(), &
                                                         tau_r => Null()
+      TYPE(pw_p_type), DIMENSION(:, :), POINTER :: drho_r => NULL(), drho_g => NULL()
       ! Final rho_iter of last SCCS cycle (r-space)
       TYPE(pw_p_type), POINTER                       :: rho_r_sccs => Null()
       LOGICAL                                        :: rho_g_valid = .FALSE., &
@@ -166,7 +165,7 @@ CONTAINS
    SUBROUTINE qs_rho_clear(rho_struct)
       TYPE(qs_rho_type), POINTER                         :: rho_struct
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, j
 
       IF (ASSOCIATED(rho_struct%rho_r)) THEN
          DO i = 1, SIZE(rho_struct%rho_r)
@@ -176,16 +175,20 @@ CONTAINS
          DEALLOCATE (rho_struct%rho_r)
       END IF
       IF (ASSOCIATED(rho_struct%drho_r)) THEN
-         DO i = 1, SIZE(rho_struct%drho_r)
-            CALL pw_release(rho_struct%drho_r(i)%pw)
-            DEALLOCATE (rho_struct%drho_r(i)%pw)
+         DO j = 1, SIZE(rho_struct%drho_r, 2)
+            DO i = 1, SIZE(rho_struct%drho_r, 1)
+               CALL pw_release(rho_struct%drho_r(i, j)%pw)
+               DEALLOCATE (rho_struct%drho_r(i, j)%pw)
+            END DO
          END DO
          DEALLOCATE (rho_struct%drho_r)
       END IF
       IF (ASSOCIATED(rho_struct%drho_g)) THEN
-         DO i = 1, SIZE(rho_struct%drho_g)
-            CALL pw_release(rho_struct%drho_g(i)%pw)
-            DEALLOCATE (rho_struct%drho_g(i)%pw)
+         DO i = 1, SIZE(rho_struct%drho_g, 2)
+            DO j = 1, SIZE(rho_struct%drho_g, 1)
+               CALL pw_release(rho_struct%drho_g(i, j)%pw)
+               DEALLOCATE (rho_struct%drho_g(i, j)%pw)
+            END DO
          END DO
          DEALLOCATE (rho_struct%drho_g)
       END IF
@@ -264,8 +267,13 @@ CONTAINS
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_ao_kp
-      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r, drho_r, rho_g, drho_g, tau_r, &
-                                                            tau_g
+      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r
+      TYPE(pw_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: drho_r
+      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_g
+      TYPE(pw_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: drho_g
+      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: tau_r, tau_g
       LOGICAL, INTENT(out), OPTIONAL                     :: rho_r_valid, drho_r_valid, rho_g_valid, &
                                                             drho_g_valid, tau_r_valid, tau_g_valid
       INTEGER, INTENT(out), OPTIONAL                     :: rebuild_each
@@ -334,8 +342,13 @@ CONTAINS
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: rho_ao_kp
-      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r, drho_r, rho_g, drho_g, tau_r, &
-                                                            tau_g
+      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r
+      TYPE(pw_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: drho_r
+      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_g
+      TYPE(pw_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: drho_g
+      TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: tau_r, tau_g
       LOGICAL, INTENT(in), OPTIONAL                      :: rho_r_valid, drho_r_valid, rho_g_valid, &
                                                             drho_g_valid, tau_r_valid, tau_g_valid
       INTEGER, INTENT(in), OPTIONAL                      :: rebuild_each

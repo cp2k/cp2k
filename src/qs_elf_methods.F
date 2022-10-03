@@ -76,9 +76,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_struct_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, drho_struct_r, rho_r, &
-                                                            rho_struct_r, tau_g, tau_r, &
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, rho_struct_r, tau_g, tau_r, &
                                                             tau_struct_r
+      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: drho_g, drho_r, drho_struct_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), POINTER                             :: tmp_g
@@ -109,8 +109,8 @@ CONTAINS
       ALLOCATE (rho_r(nspin))
       ALLOCATE (tau_r(nspin))
       ALLOCATE (tau_g(nspin))
-      ALLOCATE (drho_r(3*nspin))
-      ALLOCATE (drho_g(3*nspin))
+      ALLOCATE (drho_r(3, nspin))
+      ALLOCATE (drho_g(3, nspin))
 
       DO ispin = 1, nspin
          rho_r(ispin)%pw => rho_struct_r(ispin)%pw
@@ -132,7 +132,7 @@ CONTAINS
 
          IF (drho_r_valid) THEN
             DO idir = 1, 3
-               drho_r(3*(ispin - 1) + idir)%pw => drho_struct_r(3*(ispin - 1) + idir)%pw
+               drho_r(idir, ispin)%pw => drho_struct_r(idir, ispin)%pw
             END DO
          ELSE
             deriv_pw = .FALSE.
@@ -144,25 +144,25 @@ CONTAINS
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                udvol = 1.0_dp/rho_struct_r(ispin)%pw%pw_grid%dvol
                DO idir = 1, 3
-                  ALLOCATE (drho_r(3*(ispin - 1) + idir)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw, &
+                  ALLOCATE (drho_r(idir, ispin)%pw)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(idir, ispin)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_transfer(rho_struct_r(ispin)%pw, tmp_g)
                   CALL pw_derive(tmp_g, nd(:, idir))
-                  CALL pw_transfer(tmp_g, drho_r(3*(ispin - 1) + idir)%pw)
+                  CALL pw_transfer(tmp_g, drho_r(idir, ispin)%pw)
                END DO
 
             ELSE
                DO idir = 1, 3
-                  ALLOCATE (drho_r(3*(ispin - 1) + idir)%pw, drho_g(3*(ispin - 1) + idir)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw, &
+                  ALLOCATE (drho_r(idir, ispin)%pw, drho_g(idir, ispin)%pw)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(idir, ispin)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(3*(ispin - 1) + idir)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(idir, ispin)%pw, &
                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                   rho_ao => rho_struct_ao(ispin, :)
                   CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                          rho=drho_r(3*(ispin - 1) + idir)%pw, &
-                                          rho_gspace=drho_g(3*(ispin - 1) + idir)%pw, &
+                                          rho=drho_r(idir, ispin)%pw, &
+                                          rho_gspace=drho_g(idir, ispin)%pw, &
                                           ks_env=ks_env, soft_valid=.FALSE., &
                                           compute_tau=.FALSE., compute_grad=.TRUE., idir=idir)
 
@@ -176,9 +176,9 @@ CONTAINS
          DO k = bo(1, 3), bo(2, 3)
             DO j = bo(1, 2), bo(2, 2)
                DO i = bo(1, 1), bo(2, 1)
-                  norm_drho = drho_r(3*(ispin - 1) + 1)%pw%cr3d(i, j, k)**2 + &
-                              drho_r(3*(ispin - 1) + 2)%pw%cr3d(i, j, k)**2 + &
-                              drho_r(3*(ispin - 1) + 3)%pw%cr3d(i, j, k)**2
+                  norm_drho = drho_r(1, ispin)%pw%cr3d(i, j, k)**2 + &
+                              drho_r(2, ispin)%pw%cr3d(i, j, k)**2 + &
+                              drho_r(3, ispin)%pw%cr3d(i, j, k)**2
                   norm_drho = norm_drho/MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)
                   rho_53 = cfermi*MAX(rho_r(ispin)%pw%cr3d(i, j, k), rho_cutoff)**f53
                   elf_kernel = (tau_r(ispin)%pw%cr3d(i, j, k) - f18*norm_drho) + 2.87E-5_dp
@@ -199,14 +199,14 @@ CONTAINS
                CALL pw_pool_give_back_pw(auxbas_pw_pool, tmp_g)
                DEALLOCATE (tmp_g)
                DO idir = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw)
-                  DEALLOCATE (drho_r(3*(ispin - 1) + idir)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(idir, ispin)%pw)
+                  DEALLOCATE (drho_r(idir, ispin)%pw)
                END DO
             ELSE
                DO idir = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(3*(ispin - 1) + idir)%pw)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(3*(ispin - 1) + idir)%pw)
-                  DEALLOCATE (drho_r(3*(ispin - 1) + idir)%pw, drho_g(3*(ispin - 1) + idir)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(idir, ispin)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(idir, ispin)%pw)
+                  DEALLOCATE (drho_r(idir, ispin)%pw, drho_g(idir, ispin)%pw)
                END DO
             END IF
          END IF
