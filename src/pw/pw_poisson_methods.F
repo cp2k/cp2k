@@ -173,7 +173,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_poisson_rebuild(poisson_env, density)
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_type), OPTIONAL, POINTER                   :: density
+      TYPE(pw_type), INTENT(IN), OPTIONAL                :: density
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild'
 
@@ -240,13 +240,13 @@ CONTAINS
                                dvhartree, h_stress, rho_core, greenfn, aux_density)
 
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      TYPE(pw_type), POINTER                             :: density
+      TYPE(pw_type), INTENT(IN)                          :: density
       REAL(kind=dp), INTENT(out), OPTIONAL               :: ehartree
-      TYPE(pw_type), OPTIONAL, POINTER                   :: vhartree
+      TYPE(pw_type), INTENT(INOUT), OPTIONAL             :: vhartree
       TYPE(pw_p_type), DIMENSION(3), OPTIONAL            :: dvhartree
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
-      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core, greenfn, aux_density
+      TYPE(pw_type), INTENT(IN), OPTIONAL                :: rho_core, greenfn, aux_density
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_poisson_solve'
 
@@ -255,11 +255,10 @@ CONTAINS
       LOGICAL                                            :: has_dielectric
       REAL(KIND=dp)                                      :: ffa
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_p_type)                                    :: dvg(3), dvg_aux(3)
       TYPE(pw_poisson_parameter_type), POINTER           :: poisson_params
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_type), POINTER                             :: influence_fn, rhog, rhog_aux, rhor, &
-                                                            tmpg, vhartree_rs
+      TYPE(pw_type)                                      :: dvg(3), dvg_aux(3), influence_fn, rhog, &
+                                                            rhog_aux, rhor, tmpg, vhartree_rs
 
       CALL timeset(routineN, handle)
 
@@ -274,17 +273,12 @@ CONTAINS
       pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
       pw_grid => pw_pool%pw_grid
       IF (PRESENT(vhartree)) THEN
-         CPASSERT(ASSOCIATED(vhartree))
          IF (.NOT. pw_grid_compare(pw_pool%pw_grid, vhartree%pw_grid)) &
             CPABORT("vhartree has a different grid than the poisson solver")
       END IF
       ! density in G space
-      NULLIFY (rhog)
-      ALLOCATE (rhog)
       CALL pw_pool_create_pw(pw_pool, rhog, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       IF (PRESENT(aux_density)) THEN
-         NULLIFY (rhog_aux)
-         ALLOCATE (rhog_aux)
          CALL pw_pool_create_pw(pw_pool, rhog_aux, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END IF
 
@@ -299,16 +293,14 @@ CONTAINS
                CALL pw_transfer(aux_density, rhog_aux)
             END IF
             IF (PRESENT(ehartree) .AND. (.NOT. PRESENT(vhartree))) THEN
-               NULLIFY (tmpg)
-               ALLOCATE (tmpg)
                CALL pw_pool_create_pw(pw_pool, tmpg, use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
                CALL pw_copy(rhog, tmpg)
             END IF
             IF (PRESENT(greenfn)) THEN
-               influence_fn => greenfn
+               influence_fn = greenfn
             ELSE
-               influence_fn => poisson_env%green_fft%influence_fn
+               influence_fn = poisson_env%green_fft%influence_fn
             END IF
             rhog%cc(:) = rhog%cc(:)*influence_fn%cc(:)
             IF (PRESENT(aux_density)) THEN
@@ -326,7 +318,6 @@ CONTAINS
             ELSE IF (PRESENT(ehartree)) THEN
                ehartree = 0.5_dp*pw_integral_ab(rhog, tmpg)
                CALL pw_pool_give_back_pw(pw_pool, tmpg)
-               DEALLOCATE (tmpg)
             END IF
 
          CASE (PS_IMPLICIT)
@@ -353,8 +344,6 @@ CONTAINS
                END SELECT
             END IF
 
-            NULLIFY (rhor, vhartree_rs)
-            ALLOCATE (rhor, vhartree_rs)
             CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(density, rhor)
@@ -382,7 +371,6 @@ CONTAINS
 
             CALL pw_pool_give_back_pw(pw_pool, rhor)
             CALL pw_pool_give_back_pw(pw_pool, vhartree_rs)
-            DEALLOCATE (rhor, vhartree_rs)
 
          CASE DEFAULT
             CALL cp_abort(__LOCATION__, &
@@ -392,8 +380,6 @@ CONTAINS
 
       CASE (use_rs_grid)
 
-         NULLIFY (rhor)
-         ALLOCATE (rhor)
          CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_transfer(density, rhor)
          CALL cp2k_distribution_to_z_slices(rhor, poisson_env%wavelet, rhor%pw_grid)
@@ -411,32 +397,29 @@ CONTAINS
             CALL pw_transfer(rhor, rhog)
          END IF
          CALL pw_pool_give_back_pw(pw_pool, rhor)
-         DEALLOCATE (rhor)
 
       END SELECT
 
       ! do we need to calculate the derivative of the potential?
       IF (PRESENT(h_stress) .OR. PRESENT(dvhartree)) THEN
          DO i = 1, 3
-            ALLOCATE (dvg(i)%pw)
-            CALL pw_pool_create_pw(pw_pool, dvg(i)%pw, use_data=COMPLEXDATA1D, &
+            CALL pw_pool_create_pw(pw_pool, dvg(i), use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             n = 0
             n(i) = 1
-            CALL pw_copy(rhog, dvg(i)%pw)
-            CALL pw_derive(dvg(i)%pw, n)
+            CALL pw_copy(rhog, dvg(i))
+            CALL pw_derive(dvg(i), n)
             IF (PRESENT(aux_density)) THEN
-               ALLOCATE (dvg_aux(i)%pw)
-               CALL pw_pool_create_pw(pw_pool, dvg_aux(i)%pw, use_data=COMPLEXDATA1D, &
+               CALL pw_pool_create_pw(pw_pool, dvg_aux(i), use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
-               CALL pw_copy(rhog_aux, dvg_aux(i)%pw)
-               CALL pw_derive(dvg_aux(i)%pw, n)
+               CALL pw_copy(rhog_aux, dvg_aux(i))
+               CALL pw_derive(dvg_aux(i), n)
             END IF
          END DO
          ! save the derivatives
          IF (PRESENT(dvhartree)) THEN
             DO i = 1, 3
-               CALL pw_transfer(dvg(i)%pw, dvhartree(i)%pw)
+               CALL pw_transfer(dvg(i), dvhartree(i)%pw)
             END DO
          END IF
          ! Calculate the contribution to the stress tensor this is only the contribution from
@@ -449,13 +432,13 @@ CONTAINS
                IF (PRESENT(aux_density)) THEN
                   DO beta = alpha, 3
                      h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                             + ffa*pw_integral_ab(dvg_aux(alpha)%pw, dvg(beta)%pw)
+                                             + ffa*pw_integral_ab(dvg_aux(alpha), dvg(beta))
                      h_stress(beta, alpha) = h_stress(alpha, beta)
                   END DO
                ELSE
                   DO beta = alpha, 3
                      h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                             + ffa*pw_integral_ab(dvg(alpha)%pw, dvg(beta)%pw)
+                                             + ffa*pw_integral_ab(dvg(alpha), dvg(beta))
                      h_stress(beta, alpha) = h_stress(alpha, beta)
                   END DO
                END IF
@@ -520,20 +503,16 @@ CONTAINS
          END IF
 
          DO i = 1, 3
-            CALL pw_pool_give_back_pw(pw_pool, dvg(i)%pw)
-            DEALLOCATE (dvg(i)%pw)
+            CALL pw_pool_give_back_pw(pw_pool, dvg(i))
             IF (PRESENT(aux_density)) THEN
-               CALL pw_pool_give_back_pw(pw_pool, dvg_aux(i)%pw)
-               DEALLOCATE (dvg_aux(i)%pw)
+               CALL pw_pool_give_back_pw(pw_pool, dvg_aux(i))
             END IF
          END DO
 
       END IF
       CALL pw_pool_give_back_pw(pw_pool, rhog)
-      DEALLOCATE (rhog)
       IF (PRESENT(aux_density)) THEN
          CALL pw_pool_give_back_pw(pw_pool, rhog_aux)
-         DEALLOCATE (rhog_aux)
       END IF
 
       CALL timestop(handle)

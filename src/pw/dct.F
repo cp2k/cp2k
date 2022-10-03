@@ -526,8 +526,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_shftd
-      TYPE(pw_type), INTENT(IN), POINTER                 :: pw_in
-      TYPE(pw_type), INTENT(INOUT), POINTER              :: pw_expanded
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_expanded
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand'
 
@@ -711,8 +710,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_shrink
       INTEGER, INTENT(IN)                                :: srcs_shrink
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_local_shftd
-      TYPE(pw_type), INTENT(IN), POINTER                 :: pw_in
-      TYPE(pw_type), INTENT(INOUT), POINTER              :: pw_shrinked
+      TYPE(pw_type), INTENT(IN)                          :: pw_in, pw_shrinked
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink'
 
@@ -1215,16 +1213,12 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   FUNCTION flipud_bounds_local(bndsl_in, bounds) RESULT(bndsl_out)
+   PURE FUNCTION flipud_bounds_local(bndsl_in, bounds) RESULT(bndsl_out)
 
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'flipud_bounds_local'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
 
       bndsl_out(1, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(2, 1)
       bndsl_out(2, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(1, 1)
@@ -1236,8 +1230,6 @@ CONTAINS
 
       bndsl_out(1, 3) = bndsl_in(1, 3)
       bndsl_out(2, 3) = bndsl_in(2, 3)
-
-      CALL timestop(handle)
 
    END FUNCTION flipud_bounds_local
 
@@ -1250,16 +1242,12 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   FUNCTION fliplr_bounds_local(bndsl_in, bounds) RESULT(bndsl_out)
+   PURE FUNCTION fliplr_bounds_local(bndsl_in, bounds) RESULT(bndsl_out)
 
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fliplr_bounds_local'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
 
       bndsl_out(1, 1) = bndsl_in(1, 1)
       bndsl_out(2, 1) = bndsl_in(2, 1)
@@ -1272,8 +1260,6 @@ CONTAINS
       bndsl_out(1, 3) = bndsl_in(1, 3)
       bndsl_out(2, 3) = bndsl_in(2, 3)
 
-      CALL timestop(handle)
-
    END FUNCTION fliplr_bounds_local
 
 ! **************************************************************************************************
@@ -1285,16 +1271,12 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   FUNCTION flipbf_bounds_local(bndsl_in, bounds) RESULT(bndsl_out)
+   PURE FUNCTION flipbf_bounds_local(bndsl_in, bounds) RESULT(bndsl_out)
 
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'flipbf_bounds_local'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
 
       bndsl_out(1, 1) = bndsl_in(1, 1)
       bndsl_out(2, 1) = bndsl_in(2, 1)
@@ -1307,8 +1289,6 @@ CONTAINS
       IF (bndsl_out(1, 3) .EQ. bounds(2, 3) + 2) bndsl_out(1, 3) = bndsl_out(1, 3) - 1
       IF (bndsl_out(2, 3) .EQ. 2*(bounds(2, 3) + 1) - bounds(1, 3)) bndsl_out(2, 3) = bndsl_out(2, 3) - 1
 
-      CALL timestop(handle)
-
    END FUNCTION flipbf_bounds_local
 
 ! **************************************************************************************************
@@ -1320,16 +1300,12 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   FUNCTION rot180_bounds_local(bndsl_in, bounds) RESULT(bndsl_out)
+   PURE FUNCTION rot180_bounds_local(bndsl_in, bounds) RESULT(bndsl_out)
 
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rot180_bounds_local'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
 
       bndsl_out(1, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(2, 1)
       bndsl_out(2, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(1, 1)
@@ -1343,8 +1319,6 @@ CONTAINS
 
       bndsl_out(1, 3) = bndsl_in(1, 3)
       bndsl_out(2, 3) = bndsl_in(2, 3)
-
-      CALL timestop(handle)
 
    END FUNCTION rot180_bounds_local
 

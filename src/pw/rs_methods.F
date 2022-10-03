@@ -26,7 +26,6 @@ MODULE rs_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE realspace_grid_types,            ONLY: &
         pw2rs, realspace_grid_desc_type, realspace_grid_p_type, realspace_grid_type, rs2pw, &
@@ -61,7 +60,7 @@ CONTAINS
    SUBROUTINE derive_fdm_cd3(f, df, rs_grid)
 
       TYPE(pw_type), INTENT(IN)                          :: f
-      TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd3'
@@ -108,7 +107,7 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw, rs2pw)
+         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
          CALL rs_grid_release(drs_grid(i)%rs_grid)
       END DO
 
@@ -130,7 +129,7 @@ CONTAINS
    SUBROUTINE derive_fdm_cd5(f, df, rs_grid)
 
       TYPE(pw_type), INTENT(IN)                          :: f
-      TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd5'
@@ -177,7 +176,7 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw, rs2pw)
+         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
          CALL rs_grid_release(drs_grid(i)%rs_grid)
       END DO
 
@@ -199,7 +198,7 @@ CONTAINS
    SUBROUTINE derive_fdm_cd7(f, df, rs_grid)
 
       TYPE(pw_type), INTENT(IN)                          :: f
-      TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
       TYPE(realspace_grid_type), INTENT(IN)              :: rs_grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive_fdm_cd7'
@@ -249,7 +248,7 @@ CONTAINS
 
       ! Cleanup
       DO i = 1, 3
-         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i)%pw, rs2pw)
+         CALL rs_pw_transfer(drs_grid(i)%rs_grid, df(i), rs2pw)
          CALL rs_grid_release(drs_grid(i)%rs_grid)
       END DO
 
@@ -366,23 +365,22 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_mollifier(pw_pool, zeta, x_glbl, y_glbl, z_glbl, pw_in, pw_out)
 
-      TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
-      REAL(dp), INTENT(IN)                     :: zeta
-      REAL(dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
-      TYPE(pw_type), INTENT(IN)       :: pw_in
-      TYPE(pw_type), INTENT(INOUT)   :: pw_out
+      TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
+      REAL(dp), INTENT(IN)                               :: zeta
+      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_glbl, y_glbl, z_glbl
+      TYPE(pw_type), INTENT(IN)                          :: pw_in
+      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'pw_mollifier'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_mollifier'
 
-      INTEGER                                  :: handle, i, j, k, lb1, lb2, &
-                                                  lb3, ub1, ub2, ub3
-      INTEGER, DIMENSION(2, 3)                 :: bounds, bounds_local
-      REAL(dp)                                 :: normfact, xi, xmax, xmin, yj, &
-                                                  ymax, ymin, zk, zmax, zmin
-      REAL(dp), DIMENSION(3, 3)                :: dh
-      TYPE(pw_grid_type), POINTER              :: pw_grid
-      TYPE(pw_type), POINTER                   :: G, G_gs, pw_in_gs, pw_out_gs
+      INTEGER                                            :: handle, i, j, k, lb1, lb2, lb3, ub1, &
+                                                            ub2, ub3
+      INTEGER, DIMENSION(2, 3)                           :: bounds, bounds_local
+      REAL(dp)                                           :: normfact, xi, xmax, xmin, yj, ymax, &
+                                                            ymin, zk, zmax, zmin
+      REAL(dp), DIMENSION(3, 3)                          :: dh
+      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_type)                                      :: G, G_gs, pw_in_gs, pw_out_gs
 
       CALL timeset(routineN, handle)
 
@@ -395,8 +393,6 @@ CONTAINS
       lb2 = bounds_local(1, 2); ub2 = bounds_local(2, 2)
       lb3 = bounds_local(1, 3); ub3 = bounds_local(2, 3)
 
-      NULLIFY (G, G_gs, pw_in_gs, pw_out_gs)
-      ALLOCATE (G, G_gs, pw_in_gs, pw_out_gs)
       CALL pw_pool_create_pw(pw_pool, G, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, G_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(pw_pool, pw_in_gs, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -411,22 +407,22 @@ CONTAINS
          DO j = lb2, ub2
             DO i = lb1, ub1
                xi = x_glbl(i); yj = y_glbl(j); zk = z_glbl(k)
-               IF (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
-               ELSE IF (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
-               ELSE IF (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
-               ELSE IF (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
-               ELSE IF (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
-               ELSE IF (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
-               ELSE IF (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
-               ELSE IF (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%cr3d(i, j, k) = EXP(1.0_dp/(vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
+               IF (norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
+                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
+               ELSE IF (norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
+                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
+               ELSE IF (norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
+                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
+               ELSE IF (norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
+                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
+               ELSE IF (norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
+                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
+               ELSE IF (norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
+                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
+               ELSE IF (norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
+                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
+               ELSE IF (norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
+                  G%cr3d(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
                END IF
             END DO
          END DO
@@ -457,21 +453,8 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, G_gs)
       CALL pw_pool_give_back_pw(pw_pool, pw_in_gs)
       CALL pw_pool_give_back_pw(pw_pool, pw_out_gs)
-      DEALLOCATE (G, G_gs, pw_in_gs, pw_out_gs)
       CALL timestop(handle)
 
-   CONTAINS
-! **************************************************************************************************
-!> \brief computes the norm 2 of a vector in the three-dimensional real space
-!> \param vec input vector
-!> \return ...
-! **************************************************************************************************
-      PURE FUNCTION vec_norm2(vec)
-      REAL(dp), DIMENSION(3), INTENT(IN)                 :: vec
-      REAL(dp)                                           :: vec_norm2
-
-         vec_norm2 = SQRT(SUM(vec**2))
-      END FUNCTION vec_norm2
    END SUBROUTINE pw_mollifier
 
 END MODULE rs_methods
