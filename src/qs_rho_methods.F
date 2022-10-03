@@ -46,7 +46,8 @@ MODULE qs_rho_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_drho_elec,&
                                               calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -121,9 +122,9 @@ CONTAINS
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau_g, tau_r
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: drho_g, drho_r
-      TYPE(pw_p_type), POINTER                           :: rho_r_sccs
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g, drho_r
+      TYPE(pw_type), POINTER                             :: rho_r_sccs
 
       CALL timeset(routineN, handle)
 
@@ -246,17 +247,15 @@ CONTAINS
       IF (dft_control%do_sccs) THEN
          IF (my_rebuild_grids .OR. (.NOT. ASSOCIATED(rho_r_sccs))) THEN
             IF (ASSOCIATED(rho_r_sccs)) THEN
-               CALL pw_release(rho_r_sccs%pw)
-               DEALLOCATE (rho_r_sccs%pw)
+               CALL pw_release(rho_r_sccs)
                DEALLOCATE (rho_r_sccs)
             END IF
             ALLOCATE (rho_r_sccs)
             CALL qs_rho_set(rho, rho_r_sccs=rho_r_sccs)
-            ALLOCATE (rho_r_sccs%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs, &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
-            CALL pw_zero(rho_r_sccs%pw)
+            CALL pw_zero(rho_r_sccs)
          END IF
       END IF
 
@@ -267,8 +266,7 @@ CONTAINS
             IF (ASSOCIATED(drho_r)) THEN
                DO j = 1, SIZE(drho_r, 2)
                   DO i = 1, SIZE(drho_r, 1)
-                     CALL pw_release(drho_r(i, j)%pw)
-                     DEALLOCATE (drho_r(i, j)%pw)
+                     CALL pw_release(drho_r(i, j))
                   END DO
                END DO
                DEALLOCATE (drho_r)
@@ -277,8 +275,7 @@ CONTAINS
             CALL qs_rho_set(rho, drho_r=drho_r)
             DO j = 1, nspins
                DO i = 1, 3
-                  ALLOCATE (drho_r(i, j)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(i, j)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(i, j), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                END DO
             END DO
@@ -288,8 +285,7 @@ CONTAINS
             IF (ASSOCIATED(drho_g)) THEN
                DO j = 1, SIZE(drho_g, 2)
                   DO i = 1, SIZE(drho_r, 1)
-                     CALL pw_release(drho_g(i, j)%pw)
-                     DEALLOCATE (drho_g(i, j)%pw)
+                     CALL pw_release(drho_g(i, j))
                   END DO
                END DO
                DEALLOCATE (drho_g)
@@ -298,8 +294,7 @@ CONTAINS
             CALL qs_rho_set(rho, drho_g=drho_g)
             DO j = 1, nspins
                DO i = 1, 3
-                  ALLOCATE (drho_g(i, j)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(i, j)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(i, j), &
                                          use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
                END DO
             END DO
@@ -489,7 +484,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, rho_xc_g, rho_xc_r, tau_g, &
                                                             tau_r, tau_xc_g, tau_xc_r
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: drho_g, drho_r, drho_xc_g, drho_xc_r
+      TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g, drho_r, drho_xc_g, drho_xc_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_xc
@@ -787,9 +782,9 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_in, rho_g_out, rho_r_in, &
                                                             rho_r_out, tau_g_in, tau_g_out, &
                                                             tau_r_in, tau_r_out
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: drho_g_in, drho_g_out, drho_r_in, &
+      TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g_in, drho_g_out, drho_r_in, &
                                                             drho_r_out
-      TYPE(pw_p_type), POINTER                           :: rho_r_sccs_in, rho_r_sccs_out
+      TYPE(pw_type), POINTER                             :: rho_r_sccs_in, rho_r_sccs_out
 
       CALL timeset(routineN, handle)
 
@@ -910,11 +905,10 @@ CONTAINS
       ! SCCS
       IF (ASSOCIATED(rho_r_sccs_in)) THEN
          CALL qs_rho_set(rho_output, rho_r_sccs=rho_r_sccs_out)
-         ALLOCATE (rho_r_sccs_out%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs_out%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs_out, &
                                 in_space=REALSPACE, &
                                 use_data=REALDATA3D)
-         rho_r_sccs_out%pw%cr3d(:, :, :) = rho_r_sccs_in%pw%cr3d(:, :, :)
+         rho_r_sccs_out%cr3d(:, :, :) = rho_r_sccs_in%cr3d(:, :, :)
       END IF
 
       ! drho_r
@@ -926,19 +920,17 @@ CONTAINS
          IF (mspin > nspins) THEN
             DO j = 1, mspin
                DO i = 1, 3
-                  ALLOCATE (drho_r_out(i, j)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  drho_r_out(i, j)%pw%cr3d(:, :, :) = drho_r_in(i, 1)%pw%cr3d(:, :, :)*ospin
+                  drho_r_out(i, j)%cr3d(:, :, :) = drho_r_in(i, 1)%cr3d(:, :, :)*ospin
                END DO
             END DO
          ELSE
             DO j = 1, nspins
                DO i = 1, 3
-                  ALLOCATE (drho_r_out(i, j)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  drho_r_out(i, j)%pw%cr3d(:, :, :) = drho_r_in(i, j)%pw%cr3d(:, :, :)
+                  drho_r_out(i, j)%cr3d(:, :, :) = drho_r_in(i, j)%cr3d(:, :, :)
                END DO
             END DO
          END IF
@@ -953,21 +945,19 @@ CONTAINS
          IF (mspin > nspins) THEN
             DO j = 1, mspin
                DO i = 1, 3
-                  ALLOCATE (drho_g_out(i, j)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j), &
                                          use_data=COMPLEXDATA1D, &
                                          in_space=RECIPROCALSPACE)
-                  drho_g_out(i, j)%pw%cc(:) = drho_g_in(i, 1)%pw%cc(:)*ospin
+                  drho_g_out(i, j)%cc(:) = drho_g_in(i, 1)%cc(:)*ospin
                END DO
             END DO
          ELSE
             DO j = 1, nspins
                DO i = 1, 3
-                  ALLOCATE (drho_g_out(i, j)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j), &
                                          use_data=COMPLEXDATA1D, &
                                          in_space=RECIPROCALSPACE)
-                  drho_g_out(i, j)%pw%cc(:) = drho_g_in(i, j)%pw%cc(:)
+                  drho_g_out(i, j)%cc(:) = drho_g_in(i, j)%cc(:)
                END DO
             END DO
          END IF
@@ -1091,8 +1081,8 @@ CONTAINS
                                                             rho_ao_im_b
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_a, rho_g_b, rho_r_a, rho_r_b, &
                                                             tau_g_a, tau_g_b, tau_r_a, tau_r_b
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: drho_g_a, drho_g_b, drho_r_a, drho_r_b
-      TYPE(pw_p_type), POINTER                           :: rho_r_sccs_a, rho_r_sccs_b
+      TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g_a, drho_g_b, drho_r_a, drho_r_b
+      TYPE(pw_type), POINTER                             :: rho_r_sccs_a, rho_r_sccs_b
 
       CALL timeset(routineN, handle)
 
@@ -1167,7 +1157,7 @@ CONTAINS
 
       ! SCCS
       IF (ASSOCIATED(rho_r_sccs_a) .AND. ASSOCIATED(rho_r_sccs_b)) THEN
-         rho_r_sccs_a%pw%cr3d(:, :, :) = alpha*rho_r_sccs_a%pw%cr3d(:, :, :) + beta*rho_r_sccs_b%pw%cr3d(:, :, :)
+         rho_r_sccs_a%cr3d(:, :, :) = alpha*rho_r_sccs_a%cr3d(:, :, :) + beta*rho_r_sccs_b%cr3d(:, :, :)
       END IF
 
       ! drho_r
@@ -1175,7 +1165,7 @@ CONTAINS
          CPASSERT(ALL(SHAPE(drho_r_a) == SHAPE(drho_r_b))) ! not implemented
          DO j = 1, SIZE(drho_r_a, 2)
             DO i = 1, SIZE(drho_r_a, 1)
-               drho_r_a(i, j)%pw%cr3d(:, :, :) = alpha*drho_r_a(i, j)%pw%cr3d(:, :, :) + beta*drho_r_b(i, j)%pw%cr3d(:, :, :)
+               drho_r_a(i, j)%cr3d(:, :, :) = alpha*drho_r_a(i, j)%cr3d(:, :, :) + beta*drho_r_b(i, j)%cr3d(:, :, :)
             END DO
          END DO
       END IF
@@ -1185,7 +1175,7 @@ CONTAINS
          CPASSERT(ALL(SHAPE(drho_g_a) == SHAPE(drho_g_b))) ! not implemented
          DO j = 1, SIZE(drho_g_a, 2)
             DO i = 1, SIZE(drho_g_a, 1)
-               drho_g_a(i, j)%pw%cc(:) = alpha*drho_g_a(i, j)%pw%cc(:) + beta*drho_g_b(i, j)%pw%cc(:)
+               drho_g_a(i, j)%cc(:) = alpha*drho_g_a(i, j)%cc(:) + beta*drho_g_b(i, j)%cc(:)
             END DO
          END DO
       END IF
@@ -1264,10 +1254,10 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g_in, rho_g_out, rho_r_in, &
                                                             rho_r_out, tau_g_in, tau_g_out, &
                                                             tau_r_in, tau_r_out
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: drho_g_in, drho_g_out, drho_r_in, &
-                                                            drho_r_out
-      TYPE(pw_p_type), POINTER                           :: rho_r_sccs_in, rho_r_sccs_out
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(:, :), POINTER            :: drho_g_in, drho_g_out, drho_r_in, &
+                                                            drho_r_out
+      TYPE(pw_type), POINTER                             :: rho_r_sccs_in, rho_r_sccs_out
 
       CALL timeset(routineN, handle)
 
@@ -1349,11 +1339,10 @@ CONTAINS
       ! SCCS
       IF (ASSOCIATED(rho_r_sccs_in)) THEN
          CALL qs_rho_set(rho_output, rho_r_sccs=rho_r_sccs_out)
-         ALLOCATE (rho_r_sccs_out%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs_out%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_r_sccs_out, &
                                 in_space=REALSPACE, &
                                 use_data=REALDATA3D)
-         rho_r_sccs_out%pw%cr3d(:, :, :) = rho_r_sccs_in%pw%cr3d(:, :, :)
+         rho_r_sccs_out%cr3d(:, :, :) = rho_r_sccs_in%cr3d(:, :, :)
       END IF
 
       ! drho_r and drho_g are only needed if calculated by collocation
@@ -1364,10 +1353,9 @@ CONTAINS
             CALL qs_rho_set(rho_output, drho_r=drho_r_out)
             DO j = 1, nspins
                DO i = 1, 3
-                  ALLOCATE (drho_r_out(i, j)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_r_out(i, j), &
                                          use_data=REALDATA3D, in_space=REALSPACE)
-                  drho_r_out(i, j)%pw%cr3d(:, :, :) = drho_r_in(i, j)%pw%cr3d(:, :, :)
+                  drho_r_out(i, j)%cr3d(:, :, :) = drho_r_in(i, j)%cr3d(:, :, :)
                END DO
             END DO
          END IF
@@ -1378,11 +1366,10 @@ CONTAINS
             CALL qs_rho_set(rho_output, drho_g=drho_g_out)
             DO j = 1, nspins
                DO i = 1, 3
-                  ALLOCATE (drho_g_out(i, j)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j)%pw, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, drho_g_out(i, j), &
                                          use_data=COMPLEXDATA1D, &
                                          in_space=RECIPROCALSPACE)
-                  drho_g_out(i, j)%pw%cc(:) = drho_g_in(i, j)%pw%cc(:)
+                  drho_g_out(i, j)%cc(:) = drho_g_in(i, j)%cc(:)
                END DO
             END DO
          END IF

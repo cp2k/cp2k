@@ -1650,7 +1650,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_p_kp
-      TYPE(pw_p_type), DIMENSION(3), INTENT(IN)          :: drho, drho_gspace
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: drho, drho_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
@@ -1986,7 +1986,7 @@ CONTAINS
 
          END DO loop_tasks
 
-         CALL density_rs2pw_basic(pw_env, rs_rho, drho(idir)%pw, drho_gspace(idir)%pw)
+         CALL density_rs2pw_basic(pw_env, rs_rho, drho(idir), drho_gspace(idir))
 
       END DO loop_xyz
 

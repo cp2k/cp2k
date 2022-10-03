@@ -158,15 +158,14 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(3)                      :: dphi_tot
       TYPE(pw_p_type), DIMENSION(5)                      :: work_r3d
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_pw_r
-      TYPE(pw_p_type), POINTER                           :: rho_pw_r_sccs
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), DIMENSION(3)                        :: dln_eps_elec, drho_elec
       TYPE(pw_type), DIMENSION(3, 3)                     :: d2rho_elec
       TYPE(pw_type), POINTER :: deps_elec, eps_elec, ln_eps_elec, norm_drho_elec, phi_pol, &
-         phi_solute, phi_tot, rho_elec, rho_iter_old, rho_pol, rho_solute, rho_tot, rho_tot_zero, &
-         theta
+         phi_solute, phi_tot, rho_elec, rho_iter_old, rho_pol, rho_pw_r_sccs, rho_solute, rho_tot, &
+         rho_tot_zero, theta
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -310,7 +309,7 @@ CONTAINS
 
       ! Retrieve the last rho_iter from the previous SCCS cycle if available
       CPASSERT(ASSOCIATED(rho_pw_r_sccs))
-      rho_iter_old => rho_pw_r_sccs%pw
+      rho_iter_old => rho_pw_r_sccs
 
       ! Retrieve the total electronic density in r-space
       CALL pw_copy(rho_pw_r(1)%pw, rho_elec)
