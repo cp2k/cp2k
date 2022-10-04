@@ -55,7 +55,7 @@ MODULE qs_integrate_potential_single
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -99,7 +99,7 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE integrate_ppl_rspace(rho_rspace, qs_env)
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_rspace
+      TYPE(pw_type), INTENT(IN)                          :: rho_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_ppl_rspace'
@@ -132,7 +132,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
       CALL rs_grid_retain(rs_v)
 
-      CALL rs_pw_transfer(rs_v, rho_rspace%pw, pw2rs)
+      CALL rs_pw_transfer(rs_v, rho_rspace, pw2rs)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -260,11 +260,11 @@ CONTAINS
                                        my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0)
 
             force(ikind)%gth_ppl(:, iatom) = &
-               force(ikind)%gth_ppl(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
+               force(ikind)%gth_ppl(:, iatom) + force_a(:)*rho_rspace%pw_grid%dvol
 
             IF (use_virial) THEN
-               virial%pv_ppl = virial%pv_ppl + my_virial_a*rho_rspace%pw%pw_grid%dvol
-               virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
+               virial%pv_ppl = virial%pv_ppl + my_virial_a*rho_rspace%pw_grid%dvol
+               virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw_grid%dvol
                CPABORT("Virial not debuged for CORE_PPL")
             END IF
          END DO
@@ -287,7 +287,7 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE integrate_rho_nlcc(rho_rspace, qs_env)
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_rspace
+      TYPE(pw_type), INTENT(IN)                          :: rho_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc'
@@ -321,7 +321,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
       CALL rs_grid_retain(rs_v)
 
-      CALL rs_pw_transfer(rs_v, rho_rspace%pw, pw2rs)
+      CALL rs_pw_transfer(rs_v, rho_rspace, pw2rs)
 
       CALL get_qs_env(qs_env=qs_env, &
                       atomic_kind_set=atomic_kind_set, &
@@ -460,11 +460,11 @@ CONTAINS
                                           my_virial_b=my_virial_b, use_subpatch=.TRUE., subpatch_pattern=0)
 
                force(ikind)%gth_nlcc(:, iatom) = &
-                  force(ikind)%gth_nlcc(:, iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
+                  force(ikind)%gth_nlcc(:, iatom) + force_a(:)*rho_rspace%pw_grid%dvol
 
                IF (use_virial) THEN
-                  virial%pv_nlcc = virial%pv_nlcc + my_virial_a*rho_rspace%pw%pw_grid%dvol
-                  virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw%pw_grid%dvol
+                  virial%pv_nlcc = virial%pv_nlcc + my_virial_a*rho_rspace%pw_grid%dvol
+                  virial%pv_virial = virial%pv_virial + my_virial_a*rho_rspace%pw_grid%dvol
                END IF
             END DO
 
@@ -489,7 +489,7 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE integrate_v_core_rspace(v_rspace, qs_env)
-      TYPE(pw_p_type), INTENT(INOUT)                     :: v_rspace
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace'
@@ -535,7 +535,7 @@ CONTAINS
          CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
          CALL rs_grid_retain(rs_v)
 
-         CALL rs_pw_transfer(rs_v, v_rspace%pw, pw2rs)
+         CALL rs_pw_transfer(rs_v, v_rspace, pw2rs)
 
          CALL get_qs_env(qs_env=qs_env, &
                          atomic_kind_set=atomic_kind_set, &
@@ -654,7 +654,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE integrate_v_rspace_one_center(v_rspace, qs_env, int_res, &
                                             calculate_forces, basis_type, atomlist)
-      TYPE(pw_p_type), INTENT(IN)                        :: v_rspace
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: int_res
       LOGICAL, INTENT(IN)                                :: calculate_forces
@@ -723,8 +723,8 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
       offset = 0
-      my_pos = v_rspace%pw%pw_grid%para%my_pos
-      group_size = v_rspace%pw%pw_grid%para%group_size
+      my_pos = v_rspace%pw_grid%para%my_pos
+      group_size = v_rspace%pw_grid%para%group_size
 
       DO ikind = 1, nkind
 
@@ -869,7 +869,7 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE integrate_v_rspace_diagonal(v_rspace, ksmat, pmat, qs_env, calculate_forces, basis_type)
-      TYPE(pw_p_type), INTENT(IN)                        :: v_rspace
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(dbcsr_type), INTENT(INOUT)                    :: ksmat, pmat
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
@@ -931,8 +931,8 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
       offset = 0
-      my_pos = v_rspace%pw%pw_grid%para%my_pos
-      group_size = v_rspace%pw%pw_grid%para%group_size
+      my_pos = v_rspace%pw_grid%para%my_pos
+      group_size = v_rspace%pw_grid%para%group_size
 
       DO ikind = 1, nkind
 

@@ -394,11 +394,11 @@ CONTAINS
 
       ALLOCATE (psi_i(my_I_occupied_start:my_I_occupied_end))
       DO i = my_I_occupied_start, my_I_occupied_end
-         NULLIFY (psi_i(i)%pw)
+         ALLOCATE (psi_i(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, psi_i(i)%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL calculate_wavefunction(mo_coeff, i, psi_i(i), rho_g, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, i, psi_i(i)%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
                                      pw_env_sub, external_vector=my_Cocc(:, i - my_I_occupied_start + 1))
       END DO
@@ -417,7 +417,7 @@ CONTAINS
          IF (calc_ex) BIb_C = 0.0_dp
 
          ! psi_a
-         CALL calculate_wavefunction(mo_coeff, a, psi_a, rho_g, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, a, psi_a%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
                                      pw_env_sub, external_vector=my_Cvirt(:, a - (homo + my_A_virtual_start) + 1))
          i_counter = 0
@@ -432,7 +432,7 @@ CONTAINS
             ! and finally (ia|munu)
             CALL timeset(routineN//"_int", handle3)
             CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-            CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
+            CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, qs_env=qs_env, &
                                     calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                     pw_env_external=pw_env_sub, task_list_external=task_list_sub)
             CALL timestop(handle3)
@@ -583,6 +583,7 @@ CONTAINS
 
       DO i = my_I_occupied_start, my_I_occupied_end
          CALL pw_release(psi_i(i)%pw)
+         DEALLOCATE (psi_i(i)%pw)
       END DO
       DEALLOCATE (psi_i)
 

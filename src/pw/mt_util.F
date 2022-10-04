@@ -79,11 +79,15 @@ CONTAINS
       IF (ASSOCIATED(super_ref_pw_grid)) THEN
          CALL pw_pool_create(pw_pool_aux, pw_grid=super_ref_pw_grid)
       END IF
+      NULLIFY (screen_function)
+      ALLOCATE (screen_function)
       CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_zero(screen_function)
       SELECT CASE (method)
       CASE (MT0D)
+         NULLIFY (Vloc, Vlocg)
+         ALLOCATE (Vloc, Vlocg)
          IF (ASSOCIATED(pw_pool_aux)) THEN
             CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -101,6 +105,7 @@ CONTAINS
             CALL pw_pool_give_back_pw(pw_pool, Vloc)
             CALL pw_pool_give_back_pw(pw_pool, Vlocg)
          END IF
+         DEALLOCATE (Vloc, Vlocg)
          !
          ! Get rid of the analytical FT of the erf(a*r)/r
          !

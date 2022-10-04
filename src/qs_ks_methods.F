@@ -87,7 +87,8 @@ MODULE qs_ks_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qmmm_image_charge,               ONLY: add_image_pot_to_hartree_pot,&
                                               calculate_image_pot,&
                                               integrate_potential_devga_rspace
@@ -208,10 +209,10 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_p_type), POINTER                           :: rho0_s_rs, rho_core, rho_nlcc, vee, &
-                                                            vppl_rspace
+      TYPE(pw_p_type), POINTER                           :: rho_nlcc, vppl_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: rho0_s_rs, rho_core, vee
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
@@ -341,6 +342,7 @@ CONTAINS
       END IF
 
       ! Calculate the Hartree potential
+      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -357,7 +359,7 @@ CONTAINS
           (.NOT. gapw) .AND. (.NOT. gapw_xc) .AND. &
           (.NOT. (poisson_env%parameters%solver .EQ. pw_poisson_implicit))) THEN
          CALL pw_zero(rho_tot_gspace%pw)
-         CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.)
+         CALL calc_rho_tot_gspace(rho_tot_gspace%pw, qs_env, rho, skip_nuclear_density=.TRUE.)
          CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, energy%e_hartree, &
                                v_hartree_gspace%pw)
          CALL pw_zero(rho_tot_gspace%pw)
@@ -365,7 +367,7 @@ CONTAINS
       END IF
 
       ! Get the total density in g-space [ions + electrons]
-      CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
+      CALL calc_rho_tot_gspace(rho_tot_gspace%pw, qs_env, rho)
 
       IF (my_print) THEN
          CALL print_densities(qs_env, rho)
@@ -373,6 +375,7 @@ CONTAINS
 
       IF (dft_control%do_sccs) THEN
          ! Self-consistent continuum solvation (SCCS) model
+         ALLOCATE (v_sccs_rspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 v_sccs_rspace%pw, &
                                 use_data=REALDATA3D, &
@@ -420,8 +423,10 @@ CONTAINS
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw)
 
       IF (dft_control%apply_efield_field) THEN
+         ALLOCATE (v_efield_rspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 v_efield_rspace%pw, &
                                 use_data=REALDATA3D, &
@@ -454,14 +459,14 @@ CONTAINS
          ! Compute the energy due to the external potential
          ee_ener = 0.0_dp
          DO ispin = 1, nspins
-            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin)%pw, vee%pw)
+            ee_ener = ee_ener + pw_integral_ab(rho_r(ispin)%pw, vee)
          END DO
          IF (.NOT. just_energy) THEN
             IF (gapw) THEN
                CALL get_qs_env(qs_env=qs_env, &
                                rho0_s_rs=rho0_s_rs)
                CPASSERT(ASSOCIATED(rho0_s_rs))
-               ee_ener = ee_ener + pw_integral_ab(rho0_s_rs%pw, vee%pw)
+               ee_ener = ee_ener + pw_integral_ab(rho0_s_rs, vee)
             END IF
          END IF
          ! the sign accounts for the charge of the electrons
@@ -486,19 +491,21 @@ CONTAINS
                                                  qs_env=qs_env)
                IF (calculate_forces) THEN
                   CALL integrate_potential_devga_rspace( &
-                     potential=v_hartree_rspace, coeff=qs_env%image_coeff, &
+                     potential=v_hartree_rspace%pw, coeff=qs_env%image_coeff, &
                      forces=qs_env%qmmm_env_qm%image_charge_pot%image_forcesMM, &
                      qmmm_env=qs_env%qmmm_env_qm, qs_env=qs_env)
                END IF
             END IF
             CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw)
+            DEALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace%pw)
          END IF
          IF (.NOT. just_energy) THEN
-            CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &
-                                         v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace, scale=1.0_dp)
+            CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace%pw, &
+                                         v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace%pw, scale=1.0_dp)
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+      DEALLOCATE (rho_tot_gspace%pw)
 
       ! calculate the density matrix for the fitted mo_coeffs
       IF (dft_control%do_admm) THEN
@@ -609,14 +616,14 @@ CONTAINS
       IF (do_ppl .AND. calculate_forces) THEN
          CPASSERT(.NOT. gapw)
          DO ispin = 1, nspins
-            CALL integrate_ppl_rspace(rho_r(ispin), qs_env)
+            CALL integrate_ppl_rspace(rho_r(ispin)%pw, qs_env)
          END DO
       END IF
 
       IF (ASSOCIATED(rho_nlcc) .AND. calculate_forces) THEN
          DO ispin = 1, nspins
-            CALL integrate_rho_nlcc(v_rspace_new(ispin), qs_env)
-            IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin), qs_env)
+            CALL integrate_rho_nlcc(v_rspace_new(ispin)%pw, qs_env)
+            IF (dft_control%do_admm) CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin)%pw, qs_env)
          END DO
       END IF
 
@@ -639,13 +646,15 @@ CONTAINS
             ! Getting nuclear force contribution from the core charge density
             IF ((poisson_env%parameters%solver .EQ. pw_poisson_implicit) .AND. &
                 (poisson_env%parameters%dielectric_params%dielec_core_correction)) THEN
+               ALLOCATE (v_minus_veps%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, v_minus_veps%pw, use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_copy(v_hartree_rspace%pw, v_minus_veps%pw)
                CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps%pw, -v_hartree_rspace%pw%pw_grid%dvol)
-               CALL integrate_v_core_rspace(v_minus_veps, qs_env)
+               CALL integrate_v_core_rspace(v_minus_veps%pw, qs_env)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_minus_veps%pw)
+               DEALLOCATE (v_minus_veps%pw)
             ELSE
-               CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
+               CALL integrate_v_core_rspace(v_hartree_rspace%pw, qs_env)
             END IF
          END IF
 
@@ -711,20 +720,24 @@ CONTAINS
 
       IF (dft_control%qs_control%ddapc_explicit_potential) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_r%pw)
+         DEALLOCATE (v_spin_ddapc_rest_r%pw)
       END IF
 
       IF (dft_control%apply_efield_field) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_efield_rspace%pw)
+         DEALLOCATE (v_efield_rspace%pw)
       END IF
 
       IF (calculate_forces .AND. dft_control%qs_control%cdft) THEN
          IF (.NOT. cdft_control%transfer_pot) THEN
             DO iatom = 1, SIZE(cdft_control%group)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight%pw)
+               DEALLOCATE (cdft_control%group(iatom)%weight%pw)
             END DO
             IF (cdft_control%atomic_charges) THEN
                DO iatom = 1, cdft_control%natoms
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom)%pw)
+                  DEALLOCATE (cdft_control%charge(iatom)%pw)
                END DO
                DEALLOCATE (cdft_control%charge)
             END IF
@@ -732,12 +745,15 @@ CONTAINS
                 cdft_control%becke_control%cavity_confine) THEN
                IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
+                  DEALLOCATE (cdft_control%becke_control%cavity%pw)
                ELSE
                   DEALLOCATE (cdft_control%becke_control%cavity_mat)
                END IF
             ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
-               IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) &
+               IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) THEN
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
+                  DEALLOCATE (cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
+               END IF
             END IF
             IF (ASSOCIATED(cdft_control%charges_fragment)) DEALLOCATE (cdft_control%charges_fragment)
             cdft_control%save_pot = .FALSE.
@@ -748,15 +764,16 @@ CONTAINS
 
       IF (dft_control%do_sccs) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sccs_rspace%pw)
+         DEALLOCATE (v_sccs_rspace%pw)
       END IF
 
       IF (gapw) THEN
          IF (dft_control%apply_external_potential) THEN
             ! Integrals of the Hartree potential with g0_soft
-            CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &
+            CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace%pw, &
                                          v_qmmm=vee, scale=-1.0_dp)
          END IF
-         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces)
+         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace%pw, para_env, calculate_forces)
       END IF
 
       IF (gapw .OR. gapw_xc) THEN
@@ -893,7 +910,7 @@ CONTAINS
 !> \param skip_nuclear_density ...
 ! **************************************************************************************************
    SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density)
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_tot_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_tot_gspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_nuclear_density
@@ -902,7 +919,7 @@ CONTAINS
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
-      TYPE(pw_p_type), POINTER                           :: rho0_s_gs, rho_core
+      TYPE(pw_type), POINTER                             :: rho0_s_gs, rho_core
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
       my_skip = .FALSE.
@@ -918,21 +935,21 @@ CONTAINS
             NULLIFY (rho0_s_gs)
             CALL get_qs_env(qs_env=qs_env, rho0_s_gs=rho0_s_gs)
             CPASSERT(ASSOCIATED(rho0_s_gs))
-            CALL pw_copy(rho0_s_gs%pw, rho_tot_gspace%pw)
+            CALL pw_copy(rho0_s_gs, rho_tot_gspace)
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-               CALL pw_axpy(rho_core%pw, rho_tot_gspace%pw)
+               CALL pw_axpy(rho_core, rho_tot_gspace)
             END IF
          ELSE
-            CALL pw_copy(rho_core%pw, rho_tot_gspace%pw)
+            CALL pw_copy(rho_core, rho_tot_gspace)
          END IF
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace%pw)
+            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)
          END DO
          CALL get_qs_env(qs_env=qs_env, qs_charges=qs_charges)
-         qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace%pw, isign=-1)
+         qs_charges%total_rho_gspace = pw_integrate_function(rho_tot_gspace, isign=-1)
       ELSE
          DO ispin = 1, dft_control%nspins
-            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace%pw)
+            CALL pw_axpy(rho_g(ispin)%pw, rho_tot_gspace)
          END DO
       END IF
 

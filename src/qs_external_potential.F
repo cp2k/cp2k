@@ -33,8 +33,7 @@ MODULE qs_external_potential
    USE message_passing,                 ONLY: mp_bcast
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -73,7 +72,7 @@ CONTAINS
       REAL(kind=dp)                                      :: dvol, efunc, scaling_factor
       REAL(kind=dp), DIMENSION(3)                        :: dr, grid_p
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), POINTER                           :: v_ee
+      TYPE(pw_type), POINTER                             :: v_ee
       TYPE(section_vals_type), POINTER                   :: ext_pot_section, input
 
       CALL timeset(routineN, handle)
@@ -89,18 +88,18 @@ CONTAINS
                dft_control%eval_external_potential = .FALSE.
             ELSEIF (dft_control%expot_control%read_from_cube) THEN
                scaling_factor = dft_control%expot_control%scaling_factor
-               CALL cp_cube_to_pw(v_ee%pw, 'pot.cube', scaling_factor)
+               CALL cp_cube_to_pw(v_ee, 'pot.cube', scaling_factor)
                dft_control%eval_external_potential = .FALSE.
             ELSE
                CALL get_qs_env(qs_env, input=input)
                ext_pot_section => section_vals_get_subs_vals(input, "DFT%EXTERNAL_POTENTIAL")
 
-               dr = v_ee%pw%pw_grid%dr
-               dvol = v_ee%pw%pw_grid%dvol
-               v_ee%pw%cr3d = 0.0_dp
+               dr = v_ee%pw_grid%dr
+               dvol = v_ee%pw_grid%dvol
+               v_ee%cr3d = 0.0_dp
 
-               bo_local = v_ee%pw%pw_grid%bounds_local
-               bo_global = v_ee%pw%pw_grid%bounds
+               bo_local = v_ee%pw_grid%bounds_local
+               bo_global = v_ee%pw_grid%bounds
 
                DO k = bo_local(1, 3), bo_local(2, 3)
                   DO j = bo_local(1, 2), bo_local(2, 2)
@@ -109,7 +108,7 @@ CONTAINS
                         grid_p(2) = (j - bo_global(1, 2))*dr(2)
                         grid_p(3) = (k - bo_global(1, 3))*dr(3)
                         CALL get_external_potential(grid_p, ext_pot_section, func=efunc)
-                        v_ee%pw%cr3d(i, j, k) = v_ee%pw%cr3d(i, j, k) + efunc
+                        v_ee%cr3d(i, j, k) = v_ee%cr3d(i, j, k) + efunc
                      END DO
                   END DO
                END DO
@@ -144,7 +143,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(pw_p_type), POINTER                           :: v_ee
+      TYPE(pw_type), POINTER                             :: v_ee
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -198,7 +197,7 @@ CONTAINS
                !if potential is on grid, interpolate the value at r,
                !otherwise evaluate the given function
                IF (pot_on_grid) THEN
-                  CALL interpolate_external_potential(r, v_ee%pw, func=efunc, &
+                  CALL interpolate_external_potential(r, v_ee, func=efunc, &
                                                       dfunc=dfunc, calc_derivatives=my_force)
                ELSE
                   CALL get_external_potential(r, ext_pot_section, func=efunc, &

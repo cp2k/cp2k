@@ -274,6 +274,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
       ALLOCATE (v_rspace_new(nspins))
+      ALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -285,6 +286,7 @@ CONTAINS
          CALL prepare_gapw_den(qs_env, p_env%local_rho_set, do_rho0=(.NOT. gapw_xc))
 
       ! *** calculate the hartree potential on the total density ***
+      ALLOCATE (rho1_tot_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -295,7 +297,7 @@ CONTAINS
          CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw)
       END DO
       IF (gapw) &
-         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
+         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace%pw)
 
       IF (.NOT. (nspins == 1 .AND. lr_triplet)) THEN
          CALL pw_poisson_solve(poisson_env, rho1_tot_gspace%pw, &
@@ -305,6 +307,7 @@ CONTAINS
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
+      DEALLOCATE (rho1_tot_gspace%pw)
 
       ! *** calculate the xc potential ***
       NULLIFY (rho1a)
@@ -375,14 +378,14 @@ CONTAINS
                END IF
                CALL qs_rho_get(rho1, rho_ao=rho1_ao)
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho1_ao(ispin), &
                                        hmat=kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=.FALSE., gapw=gapw_xc)
 
                IF (ASSOCIATED(v_xc_tau)) THEN
-                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                           pmat=rho1_ao(ispin), &
                                           hmat=kpp1_env%v_ao(ispin), &
                                           qs_env=qs_env, &
@@ -394,7 +397,7 @@ CONTAINS
                IF (.NOT. lr_triplet) THEN
                   v_rspace_new(1)%pw%cr3d = 2.0_dp*v_hartree_rspace%pw%cr3d
 
-                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                           pmat=rho_ao(ispin), &
                                           hmat=kpp1_env%v_ao(ispin), &
                                           qs_env=qs_env, &
@@ -402,14 +405,14 @@ CONTAINS
                END IF
             ELSE
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho_ao(ispin), &
                                        hmat=kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=.FALSE., gapw=gapw_xc)
 
                IF (ASSOCIATED(v_xc_tau)) THEN
-                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                           pmat=rho_ao(ispin), &
                                           hmat=kpp1_env%v_ao(ispin), &
                                           qs_env=qs_env, &
@@ -418,7 +421,7 @@ CONTAINS
                END IF
 
                v_rspace_new(ispin)%pw%cr3d = v_hartree_rspace%pw%cr3d
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho_ao(ispin), &
                                        hmat=kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
@@ -452,7 +455,7 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(v_rspace_new(ispin), qs_env, &
+               CALL integrate_v_rspace_one_center(v_rspace_new(ispin)%pw, qs_env, &
                                                   lri_v_int, .FALSE., "LRI_AUX")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
@@ -460,20 +463,20 @@ CONTAINS
                ALLOCATE (k1mat(1))
                k1mat(1)%matrix => kpp1_env%v_ao(ispin)%matrix
                IF (lri_env%exact_1c_terms) THEN
-                  CALL integrate_v_rspace_diagonal(v_rspace_new(ispin), k1mat(1)%matrix, &
+                  CALL integrate_v_rspace_diagonal(v_rspace_new(ispin)%pw, k1mat(1)%matrix, &
                                                    rho_ao(ispin)%matrix, qs_env, .FALSE., "ORB")
                END IF
                CALL calculate_lri_ks_matrix(lri_env, lri_v_int, k1mat, atomic_kind_set)
                DEALLOCATE (k1mat)
             ELSE
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin), &
+               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin)%pw, &
                                        pmat=rho_ao(ispin), &
                                        hmat=kpp1_env%v_ao(ispin), &
                                        qs_env=qs_env, &
                                        calculate_forces=.FALSE., gapw=gapw)
 
                IF (ASSOCIATED(v_xc_tau)) THEN
-                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+                  CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                           pmat=rho_ao(ispin), &
                                           hmat=kpp1_env%v_ao(ispin), &
                                           qs_env=qs_env, &
@@ -494,7 +497,7 @@ CONTAINS
                                     p_env%local_rho_set, &
                                     para_env, tddft=.TRUE.)
 
-            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, &
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace%pw, para_env, &
                                        calculate_forces=.FALSE., &
                                        local_rho_set=p_env%local_rho_set)
          END IF
@@ -536,13 +539,16 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
+         DEALLOCATE (v_rspace_new(ispin)%pw)
       END DO
       DEALLOCATE (v_rspace_new)
       IF (ASSOCIATED(v_xc_tau)) THEN
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+         DEALLOCATE (v_xc_tau(ispin)%pw)
       END DO
       DEALLOCATE (v_xc_tau)
       END IF
@@ -924,7 +930,7 @@ CONTAINS
                v_xc(ispin)%pw%cr3d = v_xc(ispin)%pw%cr3d*v_xc(ispin)%pw%pw_grid%dvol
                CALL dbcsr_copy(xcmat%matrix, matrix_s(1)%matrix)
                CALL dbcsr_set(xcmat%matrix, 0.0_dp)
-               CALL integrate_v_rspace(v_rspace=v_xc(ispin), hmat=xcmat, qs_env=qs_env, &
+               CALL integrate_v_rspace(v_rspace=v_xc(ispin)%pw, hmat=xcmat, qs_env=qs_env, &
                                        calculate_forces=.FALSE., basis_type="AUX_FIT", &
                                        task_list_external=task_list)
                CALL dbcsr_add(p_env%kpp1_admm(ispin)%matrix, xcmat%matrix, 1.0_dp, alpha)
@@ -944,6 +950,7 @@ CONTAINS
 
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+               DEALLOCATE (v_xc(ispin)%pw)
             END DO
             DEALLOCATE (v_xc)
             CALL dbcsr_deallocate_matrix(xcmat%matrix)

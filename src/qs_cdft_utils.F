@@ -394,6 +394,8 @@ CONTAINS
             DEALLOCATE (cores)
          END DO
          DEALLOCATE (pab)
+         NULLIFY (becke_control%cavity%pw)
+         ALLOCATE (becke_control%cavity%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%cavity%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL rs_pw_transfer(rs_cavity, becke_control%cavity%pw, rs2pw)

@@ -448,6 +448,7 @@ CONTAINS
 
       DO i = 1, SIZE(v_rspace)
          CALL pw_release(v_rspace(i)%pw)
+         DEALLOCATE (v_rspace(i)%pw)
       END DO
       DEALLOCATE (v_rspace)
 

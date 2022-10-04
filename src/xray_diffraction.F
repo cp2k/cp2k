@@ -114,8 +114,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rhotot_elec_gspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rhotot_elec_gspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
 
@@ -171,12 +171,12 @@ CONTAINS
       ! Plane waves grid to assemble the total electronic density
 
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=rhotot_elec_gspace%pw, &
+                             pw=rhotot_elec_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_zero(rhotot_elec_gspace%pw)
+      CALL pw_zero(rhotot_elec_gspace)
 
-      CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid, &
+      CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw_grid, &
                             dr=dr, &
                             npts=npts, &
                             cutoff=cutoff, &
@@ -250,7 +250,7 @@ CONTAINS
          f2sum(ishell) = 0.0_dp
          f4sum(ishell) = 0.0_dp
          DO ig_shell = 1, ng_shell(ishell)
-            f = ABS(rhotot_elec_gspace%pw%cc(ig + ig_shell))
+            f = ABS(rhotot_elec_gspace%cc(ig + ig_shell))
             fmin(ishell) = MIN(fmin(ishell), f)
             fmax(ishell) = MAX(fmax(ishell), f)
             fsum(ishell) = fsum(ishell) + f
@@ -475,7 +475,7 @@ CONTAINS
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, &
-                                rhotot_elec_gspace%pw)
+                                rhotot_elec_gspace)
 
       CALL timestop(handle)
 
@@ -501,7 +501,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rhotot_elec_gspace
+      TYPE(pw_type), INTENT(IN)                          :: rhotot_elec_gspace
       REAL(KIND=dp), INTENT(IN)                          :: q_max
       REAL(KIND=dp), INTENT(OUT)                         :: rho_hard, rho_soft
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fsign
@@ -524,8 +524,8 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
-      TYPE(pw_p_type)                                    :: rho_elec_gspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      TYPE(pw_type)                                      :: rho_elec_gspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: cpc_h, cpc_s
@@ -574,32 +574,32 @@ CONTAINS
       ! Load the soft contribution of the electronic density
 
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=rho_elec_gspace%pw, &
+                             pw=rho_elec_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
-      CALL pw_zero(rhotot_elec_gspace%pw)
+      CALL pw_zero(rhotot_elec_gspace)
 
       DO ispin = 1, nspin
-         CALL pw_zero(rho_elec_gspace%pw)
-         CALL pw_transfer(rho_r(ispin)%pw, rho_elec_gspace%pw, debug=.FALSE.)
+         CALL pw_zero(rho_elec_gspace)
+         CALL pw_transfer(rho_r(ispin)%pw, rho_elec_gspace, debug=.FALSE.)
          IF (PRESENT(fsign) .AND. (ispin == 2)) THEN
             alpha = fsign
          ELSE
             alpha = 1.0_dp
          END IF
-         CALL pw_axpy(rho_elec_gspace%pw, rhotot_elec_gspace%pw, alpha=alpha)
+         CALL pw_axpy(rho_elec_gspace, rhotot_elec_gspace, alpha=alpha)
       END DO
 
       ! Release the auxiliary PW grid for the calculation of the soft
       ! contribution
 
       CALL pw_pool_give_back_pw(pool=auxbas_pw_pool, &
-                                pw=rho_elec_gspace%pw)
+                                pw=rho_elec_gspace)
 
-      rho_soft = pw_integrate_function(rhotot_elec_gspace%pw, isign=-1)
+      rho_soft = pw_integrate_function(rhotot_elec_gspace, isign=-1)
 
-      CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid, &
+      CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw_grid, &
                             vol=volume, &
                             orthorhombic=orthorhombic)
       IF (.NOT. orthorhombic) THEN
@@ -607,7 +607,7 @@ CONTAINS
                        "The calculation of XRD spectra for non-orthorhombic cells is not implemented")
       END IF
 
-      CALL pw_scale(rhotot_elec_gspace%pw, volume)
+      CALL pw_scale(rhotot_elec_gspace, volume)
 
       ! Add the hard contribution of the electronic density
 
@@ -730,7 +730,7 @@ CONTAINS
                            nb=nb, &
                            eps_rho_gspace=eps_rho_gspace, &
                            gsq_max=q_max*q_max, &
-                           pw=rhotot_elec_gspace%pw)
+                           pw=rhotot_elec_gspace)
 
                      END DO ! next primitive Gaussian function "jpgf"
                   END DO ! next primitive Gaussian function "ipgf"
@@ -739,7 +739,7 @@ CONTAINS
          END DO ! next atom "iatom" of atomic kind "ikind"
       END DO ! next atomic kind "ikind"
 
-      rho_total = pw_integrate_function(rhotot_elec_gspace%pw, isign=-1)/volume
+      rho_total = pw_integrate_function(rhotot_elec_gspace, isign=-1)/volume
 
       rho_hard = rho_total - rho_soft
 
@@ -797,7 +797,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), POINTER                 :: pab
       INTEGER, INTENT(IN)                                :: na, nb
       REAL(dp), INTENT(IN)                               :: eps_rho_gspace, gsq_max
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_pgf_product_gspace'
 

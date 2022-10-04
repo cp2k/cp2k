@@ -95,7 +95,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_zero(pw)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_zero'
 
@@ -103,7 +103,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: zr
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       IF (pw%in_use == REALDATA1D) THEN
          ns = SIZE(pw%cr)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(pw)
@@ -157,8 +156,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       out_unit = cp_logger_get_default_io_unit()
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
       IF (pw1%pw_grid%id_nr /= pw2%pw_grid%id_nr) THEN
 
          IF (pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical) THEN
@@ -326,7 +323,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_scale(pw, a)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_scale'
@@ -335,7 +332,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       SELECT CASE (pw%in_use)
       CASE (REALDATA1D)
@@ -383,7 +379,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gauss_damp(pw, omega)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
@@ -392,7 +388,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, omega_2
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       CPASSERT(omega >= 0)
 
       flop = 0.0_dp
@@ -439,7 +434,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_compl_gauss_damp(pw, omega)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: omega
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_compl_gauss_damp'
@@ -448,8 +443,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, omega_2, tmp
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
-      CPASSERT(omega >= 0)
 
       flop = 0.0_dp
       n_exp = 0
@@ -502,7 +495,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gauss_damp_mix(pw, omega, scale_coul, scale_long)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: omega, scale_coul, scale_long
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp_mix'
@@ -511,8 +504,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, omega_2
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
-      CPASSERT(omega >= 0)
 
       flop = 0.0_dp
       n_exp = 0
@@ -558,7 +549,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_truncated(pw, rcutoff)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: rcutoff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_truncated'
@@ -567,7 +558,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, tmp
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       CPASSERT(rcutoff >= 0)
 
       flop = 0.0_dp
@@ -616,7 +606,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_derive(pw, n)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_derive'
@@ -626,7 +616,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       CPASSERT(ALL(n >= 0))
 
       m = SUM(n)
@@ -705,7 +694,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_laplace(pw)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_laplace'
 
@@ -713,7 +702,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       flop = 0.0_dp
 
@@ -752,8 +740,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_dr2(pw, pwdr2, i, j)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw
-      TYPE(pw_type), INTENT(INOUT)                       :: pwdr2
+      TYPE(pw_type), INTENT(IN)                          :: pw, pwdr2
       INTEGER, INTENT(IN)                                :: i, j
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2'
@@ -762,7 +749,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, gg, o3
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       flop = 0.0_dp
       o3 = 1._dp/3._dp
@@ -814,8 +800,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_dr2_gg(pw, pwdr2_gg, i, j)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw
-      TYPE(pw_type), INTENT(INOUT)                       :: pwdr2_gg
+      TYPE(pw_type), INTENT(IN)                          :: pw, pwdr2_gg
       INTEGER, INTENT(IN)                                :: i, j
 
       INTEGER                                            :: cnt, handle, ig
@@ -823,7 +808,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_dr2_gg'
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       flop = 0.0_dp
       o3 = 1._dp/3._dp
@@ -876,7 +860,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_smoothing(pw, ecut, sigma)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), INTENT(IN)                          :: ecut, sigma
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_smoothing'
@@ -885,7 +869,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: arg, f, flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       flop = 0.0_dp
 
@@ -926,8 +909,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_transfer(pw1, pw2, debug)
 
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_type), INTENT(INOUT)                       :: pw2
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_transfer'
@@ -937,9 +920,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       !sample peak memory
       CALL m_memory()
-
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
 
       IF (pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE) THEN
 
@@ -994,8 +974,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_axpy(pw1, pw2, alpha)
 
-      TYPE(pw_type), INTENT(IN)                          :: pw1
-      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_axpy'
@@ -1005,9 +984,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       out_unit = cp_logger_get_default_io_unit()
-
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
 
       my_alpha = 1.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
@@ -1210,8 +1186,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_multiply(pw_out, pw1, pw2, alpha)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw_out
-      TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
+      TYPE(pw_type), INTENT(IN)                          :: pw_out, pw1, pw2
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_multiply'
@@ -1220,10 +1195,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: flop, my_alpha
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(pw_out%ref_count > 0)
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
 
       my_alpha = 1.0_dp
       IF (PRESENT(alpha)) my_alpha = alpha
@@ -1321,7 +1292,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cpy
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
@@ -1377,7 +1347,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gather_p(pw, c, scale)
 
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
@@ -1389,7 +1359,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cpy
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
@@ -1470,7 +1439,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cpy
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
@@ -1564,7 +1532,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_scatter_p(pw, c, scale)
 
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: c
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale
 
@@ -1576,7 +1544,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cpy
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
 
       IF (pw%in_use /= COMPLEXDATA1D) THEN
          CPABORT("Data field has to be COMPLEXDATA1D")
@@ -1689,8 +1656,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_wrap_pw1pw2(pw1, pw2, debug)
 
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+      TYPE(pw_type), INTENT(IN)                  :: pw1
+      TYPE(pw_type), INTENT(INOUT)               :: pw2
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2'
@@ -1713,8 +1680,6 @@ CONTAINS
       CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
                                                CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
 
-      CPASSERT(pw1%ref_count > 0)
-      CPASSERT(pw2%ref_count > 0)
       NULLIFY (c_in)
       NULLIFY (c_out)
 
@@ -2370,7 +2335,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_structure_factor(sf, r)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: sf
+      TYPE(pw_type), INTENT(IN)                          :: sf
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: r
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_structure_factor'
@@ -2379,7 +2344,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: arg, flop
 
       CALL timeset(routineN, handle)
-      CPASSERT(sf%ref_count > 0)
       flop = 0.0_dp
 
       IF (sf%in_space == RECIPROCALSPACE .AND. &
@@ -2474,7 +2438,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_set(pw, values)
 
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
          POINTER                                         :: values
 
@@ -2484,7 +2448,6 @@ CONTAINS
       LOGICAL                                            :: is_match
 
       CALL timeset(routineN, handle)
-      CPASSERT(pw%ref_count > 0)
       IF (pw%in_use == REALDATA3D) THEN
          is_match = .TRUE.
          is_match = is_match .AND. (LBOUND(values, 1) .GE. LBOUND(pw%cr3d, 1))

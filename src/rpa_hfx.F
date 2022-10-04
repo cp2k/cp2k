@@ -55,7 +55,8 @@ MODULE rpa_hfx
    USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -310,14 +311,14 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace, vtau_rspace, vxc_rspace
-      TYPE(pw_p_type), POINTER                           :: vh_rspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: vh_rspace
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
 
       NULLIFY (dbcsr_work, matrix_ks, rho, hfx_section, pw_env, vadmm_rspace, vtau_rspace, vxc_rspace, &
-               vh_rspace, auxbas_pw_pool, dft_control, rho_ao, rho_aux_fit, rho_ao_aux, work_admm, &
+               auxbas_pw_pool, dft_control, rho_ao, rho_aux_fit, rho_ao_aux, work_admm, &
                matrix_s_aux, admm_env, task_list_aux_fit)
 
       CALL timeset(routineN, handle)
@@ -358,17 +359,17 @@ CONTAINS
       CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, dummy_real1, dummy_real2)
       DO ispin = 1, nspins
          CALL pw_scale(vxc_rspace(ispin)%pw, -1.0_dp)
-         CALL integrate_v_rspace(v_rspace=vxc_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
+         CALL integrate_v_rspace(v_rspace=vxc_rspace(ispin)%pw, hmat=dbcsr_work(ispin), qs_env=qs_env, &
                                  calculate_forces=.FALSE.)
          IF (ASSOCIATED(vtau_rspace)) THEN
             CALL pw_scale(vtau_rspace(ispin)%pw, -1.0_dp)
-            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin), hmat=dbcsr_work(ispin), qs_env=qs_env, &
+            CALL integrate_v_rspace(v_rspace=vtau_rspace(ispin)%pw, hmat=dbcsr_work(ispin), qs_env=qs_env, &
                                     calculate_forces=.FALSE., compute_tau=.TRUE.)
          END IF
          IF (dft_control%do_admm) THEN
             !note: factor -1.0 taken care of later, after HFX ADMM contribution is taken
             IF (.NOT. qs_env%admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
-               CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin), hmat=work_admm(ispin), &
+               CALL integrate_v_rspace(v_rspace=vadmm_rspace(ispin)%pw, hmat=work_admm(ispin), &
                                        qs_env=qs_env, calculate_forces=.FALSE., basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
             END IF
@@ -403,12 +404,18 @@ CONTAINS
       END IF !do_hfx
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace%pw)
-      DEALLOCATE (vh_rspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, vh_rspace)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rspace(ispin)%pw)
-         IF (ASSOCIATED(vtau_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
-         IF (ASSOCIATED(vadmm_rspace)) CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+         DEALLOCATE (vxc_rspace(ispin)%pw)
+         IF (ASSOCIATED(vtau_rspace)) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vtau_rspace(ispin)%pw)
+            DEALLOCATE (vtau_rspace(ispin)%pw)
+         END IF
+         IF (ASSOCIATED(vadmm_rspace)) THEN
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, vadmm_rspace(ispin)%pw)
+            DEALLOCATE (vadmm_rspace(ispin)%pw)
+         END IF
       END DO
       DEALLOCATE (vxc_rspace)
       IF (ASSOCIATED(vtau_rspace)) DEALLOCATE (vtau_rspace)
@@ -571,7 +578,7 @@ CONTAINS
          IF (use_virial) pv_loc = virial%pv_virial
          DO ispin = 1, nspins
             CALL pw_scale(v_rspace_aux_fit(ispin)%pw, v_rspace_aux_fit(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(v_rspace=v_rspace_aux_fit(ispin), hmat=matrix_aux(ispin), &
+            CALL integrate_v_rspace(v_rspace=v_rspace_aux_fit(ispin)%pw, hmat=matrix_aux(ispin), &
                                     pmat=rho_ao_aux_fit(ispin), qs_env=qs_env, &
                                     basis_type="AUX_FIT", calculate_forces=calc_forces, &
                                     task_list_external=qs_env%admm_env%task_list_aux_fit)
@@ -582,12 +589,14 @@ CONTAINS
       IF (ASSOCIATED(v_rspace_aux_fit)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_aux_fit(ispin)%pw)
+            DEALLOCATE (v_rspace_aux_fit(ispin)%pw)
          END DO
          DEALLOCATE (v_rspace_aux_fit)
       END IF
       IF (ASSOCIATED(v_dummy)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_dummy(ispin)%pw)
+            DEALLOCATE (v_dummy(ispin)%pw)
          END DO
          DEALLOCATE (v_dummy)
       END IF
@@ -604,7 +613,7 @@ CONTAINS
          IF (use_virial) pv_loc = virial%pv_virial
          DO ispin = 1, nspins
             CALL pw_scale(v_rspace(ispin)%pw, v_rspace(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(v_rspace=v_rspace(ispin), hmat=matrix_prim(ispin), &
+            CALL integrate_v_rspace(v_rspace=v_rspace(ispin)%pw, hmat=matrix_prim(ispin), &
                                     pmat=rho_ao(ispin), qs_env=qs_env, &
                                     calculate_forces=calc_forces)
          END DO
@@ -614,12 +623,14 @@ CONTAINS
       IF (ASSOCIATED(v_rspace)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
+            DEALLOCATE (v_rspace(ispin)%pw)
          END DO
          DEALLOCATE (v_rspace)
       END IF
       IF (ASSOCIATED(v_dummy)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_dummy(ispin)%pw)
+            DEALLOCATE (v_dummy(ispin)%pw)
          END DO
          DEALLOCATE (v_dummy)
       END IF

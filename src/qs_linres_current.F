@@ -88,7 +88,8 @@ MODULE qs_linres_current
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -213,10 +214,9 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: wf_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: jrho1_g, jrho1_r
-      TYPE(pw_p_type), POINTER                           :: jrho_gspace, jrho_rspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -225,7 +225,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       !
-      NULLIFY (jrho_rspace, jrho_gspace, logger, current_section, density_matrix0, density_matrix_a, &
+      NULLIFY (logger, current_section, density_matrix0, density_matrix_a, &
                density_matrix_ii, density_matrix_iii, cell, dft_control, mos, &
                particle_set, pw_env, auxbas_rs_desc, auxbas_pw_pool, &
                para_env, center_list, mo_coeff, psi_a_iB, jrho1_r, jrho1_g, &
@@ -412,23 +412,23 @@ CONTAINS
             ! Use the qs_rho_type already  used for rho during the scf
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r)
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g)
-            jrho_rspace => jrho1_r(ispin)
-            jrho_gspace => jrho1_g(ispin)
-            CALL pw_zero(jrho_rspace%pw)
-            CALL pw_zero(jrho_gspace%pw)
-            CALL calculate_jrho_resp(density_matrix0(ispin)%matrix, &
-                                     density_matrix_a(ispin)%matrix, &
-                                     density_matrix_ii(ispin)%matrix, &
-                                     density_matrix_iii(ispin)%matrix, &
-                                     iB, idir, jrho_rspace, jrho_gspace, qs_env, &
-                                     current_env, gapw)
+            ASSOCIATE (jrho_rspace => jrho1_r(ispin), jrho_gspace => jrho1_g(ispin))
+               CALL pw_zero(jrho_rspace%pw)
+               CALL pw_zero(jrho_gspace%pw)
+               CALL calculate_jrho_resp(density_matrix0(ispin)%matrix, &
+                                        density_matrix_a(ispin)%matrix, &
+                                        density_matrix_ii(ispin)%matrix, &
+                                        density_matrix_iii(ispin)%matrix, &
+                                        iB, idir, jrho_rspace%pw, jrho_gspace%pw, qs_env, &
+                                        current_env, gapw)
 
-            scale_fac = cell%deth/twopi
-            CALL pw_scale(jrho_rspace%pw, scale_fac)
-            CALL pw_scale(jrho_gspace%pw, scale_fac)
+               scale_fac = cell%deth/twopi
+               CALL pw_scale(jrho_rspace%pw, scale_fac)
+               CALL pw_scale(jrho_gspace%pw, scale_fac)
 
-            jrho_tot_G(idir, iB) = pw_integrate_function(jrho_gspace%pw, isign=-1)
-            jrho_tot_R(idir, iB) = pw_integrate_function(jrho_rspace%pw, isign=-1)
+               jrho_tot_G(idir, iB) = pw_integrate_function(jrho_gspace%pw, isign=-1)
+               jrho_tot_R(idir, iB) = pw_integrate_function(jrho_rspace%pw, isign=-1)
+            END ASSOCIATE
 
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T2,2(A,E24.16))') 'Integrated j_'&
@@ -479,14 +479,14 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                          auxbas_pw_pool=auxbas_pw_pool)
          !
-         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, use_data=REALDATA3D, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          !
          DO idir = 1, 3
-            CALL pw_zero(wf_r%pw)
+            CALL pw_zero(wf_r)
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_r=jrho1_r)
             DO ispin = 1, nspins
-               CALL pw_axpy(jrho1_r(ispin)%pw, wf_r%pw, 1.0_dp)
+               CALL pw_axpy(jrho1_r(ispin)%pw, wf_r, 1.0_dp)
             END DO
             !
             IF (gapw) THEN
@@ -504,7 +504,7 @@ CONTAINS
                                            log_filename=.FALSE., file_position=my_pos, &
                                            mpi_io=mpi_io)
 
-            CALL cp_pw_to_cube(wf_r%pw, unit_nr, "RESPONSE CURRENT DENSITY ", &
+            CALL cp_pw_to_cube(wf_r, unit_nr, "RESPONSE CURRENT DENSITY ", &
                                particles=particles, &
                                stride=section_get_ivals(current_section, "PRINT%CURRENT_CUBES%STRIDE"), &
                                mpi_io=mpi_io)
@@ -512,7 +512,7 @@ CONTAINS
                  &                            "PRINT%CURRENT_CUBES", mpi_io=mpi_io)
          END DO
          !
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
       END IF ! current cube
       !
       ! Integrated current response checksum
@@ -584,7 +584,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: mat_d0, mat_jp, mat_jp_rii, mat_jp_riii
       INTEGER, INTENT(IN)                                :: iB, idir
-      TYPE(pw_p_type), INTENT(INOUT)                     :: current_rs, current_gs
+      TYPE(pw_type), INTENT(INOUT)                       :: current_rs, current_gs
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(current_env_type)                             :: current_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid, retain_rsgrid

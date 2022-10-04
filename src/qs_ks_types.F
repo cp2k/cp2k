@@ -166,11 +166,12 @@ MODULE qs_ks_types
                                                                rho_buffer => Null(), &
                                                                rho_xc => Null()
 
-      TYPE(pw_p_type), POINTER                              :: rho_core => Null(), &
-                                                               vppl => Null(), &
+      TYPE(pw_p_type), POINTER                              :: vppl => Null(), &
                                                                rho_nlcc => Null(), &
-                                                               rho_nlcc_g => Null(), &
-                                                               vee => Null()
+                                                               rho_nlcc_g => Null()
+
+      TYPE(pw_type), POINTER :: rho_core => NULL(), &
+                                vee => NULL()
 
       INTEGER                                               :: neighbor_list_id = -1
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb => Null(), &
@@ -351,7 +352,10 @@ CONTAINS
                                                             matrix_s_kp, matrix_w_kp, &
                                                             matrix_s_RI_aux_kp
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_buffer, rho_xc
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_nlcc, rho_nlcc_g
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
          sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
@@ -574,7 +578,10 @@ CONTAINS
                                                             matrix_vxc_kp, kinetic_kp, &
                                                             matrix_s_kp, matrix_w_kp, &
                                                             matrix_s_RI_aux_kp
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_nlcc, rho_nlcc_g
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
@@ -707,8 +714,10 @@ CONTAINS
          ks_env%ref_count = ks_env%ref_count - 1
 
          IF (ks_env%ref_count < 1) THEN
-            IF (ASSOCIATED(ks_env%v_hartree_rspace)) &
+            IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
                CALL pw_release(ks_env%v_hartree_rspace)
+               DEALLOCATE (ks_env%v_hartree_rspace)
+            END IF
             IF (ASSOCIATED(ks_env%matrix_ks_im)) &
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
@@ -739,22 +748,25 @@ CONTAINS
 
             IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
                CALL pw_release(ks_env%rho_nlcc_g%pw)
+               DEALLOCATE (ks_env%rho_nlcc_g%pw)
                DEALLOCATE (ks_env%rho_nlcc_g)
             END IF
             IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
                CALL pw_release(ks_env%rho_nlcc%pw)
+               DEALLOCATE (ks_env%rho_nlcc%pw)
                DEALLOCATE (ks_env%rho_nlcc)
             END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
-               CALL pw_release(ks_env%rho_core%pw)
+               CALL pw_release(ks_env%rho_core)
                DEALLOCATE (ks_env%rho_core)
             END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN
                CALL pw_release(ks_env%vppl%pw)
+               DEALLOCATE (ks_env%vppl%pw)
                DEALLOCATE (ks_env%vppl)
             END IF
             IF (ASSOCIATED(ks_env%vee)) THEN
-               CALL pw_release(ks_env%vee%pw)
+               CALL pw_release(ks_env%vee)
                DEALLOCATE (ks_env%vee)
             END IF
             IF (ASSOCIATED(ks_env%dbcsr_dist)) THEN
@@ -806,8 +818,10 @@ CONTAINS
          CPASSERT(ks_env%ref_count > 0)
 
          IF (ks_env%ref_count == 1) THEN
-            IF (ASSOCIATED(ks_env%v_hartree_rspace)) &
+            IF (ASSOCIATED(ks_env%v_hartree_rspace)) THEN
                CALL pw_release(ks_env%v_hartree_rspace)
+               DEALLOCATE (ks_env%v_hartree_rspace)
+            END IF
             IF (ASSOCIATED(ks_env%matrix_ks_im)) &
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
@@ -834,22 +848,25 @@ CONTAINS
 
             IF (ASSOCIATED(ks_env%rho_nlcc_g)) THEN
                CALL pw_release(ks_env%rho_nlcc_g%pw)
+               DEALLOCATE (ks_env%rho_nlcc_g%pw)
                DEALLOCATE (ks_env%rho_nlcc_g)
             END IF
             IF (ASSOCIATED(ks_env%rho_nlcc)) THEN
                CALL pw_release(ks_env%rho_nlcc%pw)
+               DEALLOCATE (ks_env%rho_nlcc%pw)
                DEALLOCATE (ks_env%rho_nlcc)
             END IF
             IF (ASSOCIATED(ks_env%rho_core)) THEN
-               CALL pw_release(ks_env%rho_core%pw)
+               CALL pw_release(ks_env%rho_core)
                DEALLOCATE (ks_env%rho_core)
             END IF
             IF (ASSOCIATED(ks_env%vppl)) THEN
                CALL pw_release(ks_env%vppl%pw)
+               DEALLOCATE (ks_env%vppl%pw)
                DEALLOCATE (ks_env%vppl)
             END IF
             IF (ASSOCIATED(ks_env%vee)) THEN
-               CALL pw_release(ks_env%vee%pw)
+               CALL pw_release(ks_env%vee)
                DEALLOCATE (ks_env%vee)
             END IF
 

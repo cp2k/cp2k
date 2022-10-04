@@ -213,10 +213,14 @@ CONTAINS
       END IF
       !----------- END OF DENSITY CALCULATION -------------
 
+      NULLIFY (rhob_r)
+      ALLOCATE (rhob_r)
       CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL rs_pw_transfer(rden, rhob_r, rs2pw)
       ! transform density to G space and add charge function
+      NULLIFY (rhob_g)
+      ALLOCATE (rhob_g)
       CALL pw_pool_create_pw(pw_pool, rhob_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -227,11 +231,13 @@ CONTAINS
       !-------------- ELECTROSTATIC CALCULATION -----------
       ! allocate intermediate arrays
       DO i = 1, 3
-         NULLIFY (dphi_g(i)%pw)
+         ALLOCATE (dphi_g(i)%pw)
          CALL pw_pool_create_pw(pw_pool, dphi_g(i)%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END DO
+      NULLIFY (phi_g)
+      ALLOCATE (phi_g)
       CALL pw_pool_create_pw(pw_pool, phi_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -332,6 +338,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
+      DEALLOCATE (phi_g, rhob_g)
 
       !------------- STRESS TENSOR CALCULATION ------------
       IF (use_virial) THEN
@@ -355,10 +362,12 @@ CONTAINS
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
+         DEALLOCATE (dphi_g(i)%pw)
          CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
       END DO
 
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+      DEALLOCATE (rhob_r)
       !----------------- FORCE CALCULATION ----------------
       ! initialize the forces
       fg_coulomb = 0.0_dp
@@ -530,10 +539,14 @@ CONTAINS
       DEALLOCATE (center, delta)
       !----------- END OF DENSITY CALCULATION -------------
 
+      NULLIFY (rhob_r)
+      ALLOCATE (rhob_r)
       CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL rs_pw_transfer(rden, rhob_r, rs2pw)
       ! transform density to G space and add charge function
+      NULLIFY (rhob_g)
+      ALLOCATE (rhob_g)
       CALL pw_pool_create_pw(pw_pool, rhob_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -543,6 +556,8 @@ CONTAINS
 
       !-------------- ELECTROSTATIC CALCULATION -----------
       ! allocate intermediate arrays
+      NULLIFY (phi_g)
+      ALLOCATE (phi_g)
       CALL pw_pool_create_pw(pw_pool, phi_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -572,6 +587,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+      DEALLOCATE (phi_g, rhob_g, rhob_r)
       CALL rs_grid_release(rden)
 
       DEALLOCATE (rhos)
@@ -669,10 +685,14 @@ CONTAINS
       DEALLOCATE (center, delta)
       !----------- END OF DENSITY CALCULATION -------------
 
+      NULLIFY (rhob_r)
+      ALLOCATE (rhob_r)
       CALL pw_pool_create_pw(pw_pool, rhob_r, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL rs_pw_transfer(rden, rhob_r, rs2pw)
       ! transform density to G space and add charge function
+      NULLIFY (rhob_g)
+      ALLOCATE (rhob_g)
       CALL pw_pool_create_pw(pw_pool, rhob_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -683,11 +703,13 @@ CONTAINS
       !-------------- ELECTROSTATIC CALCULATION -----------
       ! allocate intermediate arrays
       DO i = 1, 3
-         NULLIFY (dphi_g(i)%pw)
+         ALLOCATE (dphi_g(i)%pw)
          CALL pw_pool_create_pw(pw_pool, dphi_g(i)%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
       END DO
+      NULLIFY (phi_g)
+      ALLOCATE (phi_g)
       CALL pw_pool_create_pw(pw_pool, phi_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -703,6 +725,7 @@ CONTAINS
          dphi_g(i)%pw%cc = dphi_g(i)%pw%cc*green%p3m_charge%cr
          CALL pw_transfer(dphi_g(i)%pw, rhob_r)
          CALL pw_pool_give_back_pw(pw_pool, dphi_g(i)%pw)
+         DEALLOCATE (dphi_g(i)%pw)
          CALL rs_pw_transfer(drpot(i)%rs_grid, rhob_r, pw2rs)
       END DO
       !----------------- FORCE CALCULATION ----------------
@@ -731,6 +754,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(pw_pool, phi_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_g)
       CALL pw_pool_give_back_pw(pw_pool, rhob_r)
+      DEALLOCATE (phi_g, rhob_g, rhob_r)
       CALL rs_grid_release(rden)
 
       DEALLOCATE (rhos)

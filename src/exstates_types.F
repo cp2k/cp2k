@@ -107,23 +107,27 @@ CONTAINS
          !
          IF (ASSOCIATED(ex_env%vh_rspace)) THEN
             CALL pw_release(ex_env%vh_rspace%pw)
+            DEALLOCATE (ex_env%vh_rspace%pw)
             DEALLOCATE (ex_env%vh_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vxc_rspace)
                CALL pw_release(ex_env%vxc_rspace(iab)%pw)
+               DEALLOCATE (ex_env%vxc_rspace(iab)%pw)
             END DO
             DEALLOCATE (ex_env%vxc_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vtau_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vtau_rspace)
                CALL pw_release(ex_env%vtau_rspace(iab)%pw)
+               DEALLOCATE (ex_env%vtau_rspace(iab)%pw)
             END DO
             DEALLOCATE (ex_env%vtau_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vadmm_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vadmm_rspace)
                CALL pw_release(ex_env%vadmm_rspace(iab)%pw)
+               DEALLOCATE (ex_env%vadmm_rspace(iab)%pw)
             END DO
             DEALLOCATE (ex_env%vadmm_rspace)
          END IF

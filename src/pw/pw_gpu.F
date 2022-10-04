@@ -103,9 +103,9 @@ CONTAINS
 !> \author Benjamin G Levine
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
-      REAL(KIND=dp)                                      :: scale
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_r3dc1d_3d'
 
@@ -163,9 +163,9 @@ CONTAINS
 !> \author Benjamin G Levine
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
-      REAL(KIND=dp)                                      :: scale
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_c1dr3d_3d'
 
@@ -223,9 +223,9 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_r3dc1d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
-      REAL(KIND=dp)                                      :: scale
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_r3dc1d_3d_ps'
 
@@ -403,9 +403,9 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_c1dr3d_3d_ps(pw1, pw2, scale)
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
-      REAL(KIND=dp)                                      :: scale
+      TYPE(pw_type), INTENT(IN)                          :: pw1
+      TYPE(pw_type), INTENT(INOUT)                       :: pw2
+      REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_gpu_c1dr3d_3d_ps'
 
@@ -586,9 +586,9 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_cff(pw1, pwbuf)
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      TYPE(pw_type), INTENT(IN)                          :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(INOUT), POINTER                          :: pwbuf
+         INTENT(INOUT), TARGET                           :: pwbuf
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_cff'
 
@@ -635,8 +635,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_ffc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
-         POINTER                                         :: pwbuf
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+         TARGET                                          :: pwbuf
+      TYPE(pw_type), INTENT(IN)                          :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_ffc'
 
@@ -682,9 +682,9 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_cf(pw1, pwbuf)
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      TYPE(pw_type), INTENT(IN)                          :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
-         POINTER                                         :: pwbuf
+         TARGET                                          :: pwbuf
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_cf'
 
@@ -730,8 +730,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_fc(pwbuf, pw2)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
-         POINTER                                         :: pwbuf
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+         TARGET                                          :: pwbuf
+      TYPE(pw_type), INTENT(IN)                          :: pw2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fc'
 
@@ -780,9 +780,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_f(pwbuf1, pwbuf2, dir, n, m)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
-         POINTER                                         :: pwbuf1
+         TARGET                                          :: pwbuf1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
-         POINTER                                         :: pwbuf2
+         TARGET                                          :: pwbuf2
       INTEGER, INTENT(IN)                                :: dir, n, m
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_f'
@@ -825,8 +825,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_fg(pwbuf, pw2, scale)
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN), &
-         POINTER                                         :: pwbuf
-      TYPE(pw_type), INTENT(INOUT), TARGET               :: pw2
+         TARGET                                          :: pwbuf
+      TYPE(pw_type), INTENT(IN)                          :: pw2
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fg'
@@ -884,9 +884,9 @@ CONTAINS
 !> \author Andreas Gloess
 ! **************************************************************************************************
    SUBROUTINE pw_gpu_sf(pw1, pwbuf, scale)
-      TYPE(pw_type), INTENT(IN), TARGET                  :: pw1
+      TYPE(pw_type), INTENT(IN)                          :: pw1
       COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
-         POINTER                                         :: pwbuf
+         TARGET                                          :: pwbuf
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_sf'

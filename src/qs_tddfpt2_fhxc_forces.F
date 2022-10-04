@@ -273,12 +273,13 @@ CONTAINS
 
       ALLOCATE (rhox_r(nspins), rhox_g(nspins))
       DO ispin = 1, nspins
-         NULLIFY (rhox_r(ispin)%pw, rhox_g(ispin)%pw)
+         ALLOCATE (rhox_r(ispin)%pw, rhox_g(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
+      ALLOCATE (rhox_tot_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rhox_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -286,7 +287,7 @@ CONTAINS
       DO ispin = 1, nspins
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
-                                 rho=rhox_r(ispin), rho_gspace=rhox_g(ispin))
+                                 rho=rhox_r(ispin)%pw, rho_gspace=rhox_g(ispin)%pw)
          CALL pw_axpy(rhox_g(ispin)%pw, rhox_tot_gspace%pw)
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
       END DO
@@ -294,6 +295,7 @@ CONTAINS
       CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force, para_env=para_env)
 
       IF (.NOT. is_rks_triplets) THEN
+         ALLOCATE (xv_hartree_rspace%pw, xv_hartree_gspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_rspace%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_gspace%pw, &
@@ -312,7 +314,7 @@ CONTAINS
             CALL dbcsr_create(matrix_hx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_hx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_hx(ispin)%matrix, 0.0_dp)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace, &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace%pw, &
                                     pmat=matrix_px1(ispin), &
                                     hmat=matrix_hx(ispin), calculate_forces=.TRUE.)
          END DO
@@ -379,7 +381,7 @@ CONTAINS
             CALL dbcsr_copy(matrix_fx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_fx(ispin)%matrix, 0.0_dp)
             CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin)%pw, &
                                     pmat=matrix_px1(ispin), &
                                     hmat=matrix_fx(ispin), calculate_forces=.TRUE.)
          END DO
@@ -399,7 +401,7 @@ CONTAINS
             CALL dbcsr_set(matrix_gx(ispin)%matrix, 0.0_dp)
             CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
             CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin)%pw, &
                                     pmat=matrix_p(ispin), &
                                     hmat=matrix_gx(ispin), calculate_forces=.TRUE.)
             CALL dbcsr_scale(matrix_gx(ispin)%matrix, 2.0_dp)
@@ -443,7 +445,7 @@ CONTAINS
                ! rhox_aux
                ALLOCATE (rhox_r_aux(nspins), rhox_g_aux(nspins))
                DO ispin = 1, nspins
-                  NULLIFY (rhox_r_aux(ispin)%pw, rhox_g_aux(ispin)%pw)
+                  ALLOCATE (rhox_r_aux(ispin)%pw, rhox_g_aux(ispin)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, rhox_r_aux(ispin)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g_aux(ispin)%pw, &
@@ -451,7 +453,7 @@ CONTAINS
                END DO
                DO ispin = 1, nspins
                   CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1_admm(ispin)%matrix, &
-                                          rho=rhox_r_aux(ispin), rho_gspace=rhox_g_aux(ispin), &
+                                          rho=rhox_r_aux(ispin)%pw, rho_gspace=rhox_g_aux(ispin)%pw, &
                                           basis_type="AUX_FIT", &
                                           task_list_external=task_list_aux_fit)
                END DO
@@ -477,6 +479,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r_aux(ispin)%pw)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g_aux(ispin)%pw)
+                  DEALLOCATE (rhox_r_aux(ispin)%pw, rhox_g_aux(ispin)%pw)
                END DO
                DEALLOCATE (rhox_r_aux, rhox_g_aux)
                IF (nspins == 2) THEN
@@ -489,7 +492,7 @@ CONTAINS
                IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
                DO ispin = 1, nspins
                   CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
-                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
+                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin)%pw, &
                                           hmat=mfx(ispin), &
                                           pmat=matrix_px1_admm(ispin), &
                                           basis_type="AUX_FIT", &
@@ -506,7 +509,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
                   CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
+                  CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin)%pw, &
                                           hmat=mgx(ispin), &
                                           pmat=matrix_p_admm(ispin), &
                                           basis_type="AUX_FIT", &
@@ -576,14 +579,17 @@ CONTAINS
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace%pw)
+      DEALLOCATE (rhox_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g(ispin)%pw)
+         DEALLOCATE (rhox_r(ispin)%pw, rhox_g(ispin)%pw)
       END DO
       DEALLOCATE (rhox_r, rhox_g)
       IF (.NOT. is_rks_triplets) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_rspace%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_gspace%pw)
+         DEALLOCATE (xv_hartree_rspace%pw, xv_hartree_gspace%pw)
       END IF
 
       ! HFX

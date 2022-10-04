@@ -200,7 +200,7 @@ CONTAINS
    SUBROUTINE xc_dset_recover_pw(deriv_set, description, pw, pw_grid, pw_pool)
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, DIMENSION(:), INTENT(IN)                  :: description
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type), INTENT(OUT)                         :: pw
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       TYPE(pw_pool_type), INTENT(IN), OPTIONAL, POINTER  :: pw_pool
 
@@ -214,8 +214,6 @@ CONTAINS
       ELSE IF (PRESENT(pw_pool)) THEN
          CALL pw_pool_create_pw(pw_pool, pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(pw)
-      ELSE
-         NULLIFY (pw)
       END IF
 
    END SUBROUTINE xc_dset_recover_pw

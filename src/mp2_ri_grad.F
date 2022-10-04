@@ -350,12 +350,12 @@ CONTAINS
          ! for calculate the MP2-volume contribution to the virial
          ! (hartree potential derivatives)
          IF (use_virial) THEN
-            NULLIFY (rho_g_copy%pw)
+            ALLOCATE (rho_g_copy%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_g_copy%pw, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             DO i = 1, 3
-               NULLIFY (dvg(i)%pw)
+               ALLOCATE (dvg(i)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, dvg(i)%pw, &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE)
@@ -417,8 +417,10 @@ CONTAINS
 
          IF (use_virial) THEN
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g_copy%pw)
+            DEALLOCATE (rho_g_copy%pw)
             DO i = 1, 3
                CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i)%pw)
+               DEALLOCATE (dvg(i)%pw)
             END DO
          END IF
 

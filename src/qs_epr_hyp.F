@@ -288,6 +288,7 @@ CONTAINS
                       auxbas_pw_pool=auxbas_pw_pool)
 
       ALLOCATE (rhototspin_elec_gspace)
+      ALLOCATE (rhototspin_elec_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rhototspin_elec_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -303,6 +304,7 @@ CONTAINS
       CALL pw_axpy(rho_g(2)%pw, rhototspin_elec_gspace%pw, alpha=-1._dp)
       ! grid to assemble anisotropic hyperfine terms
       ALLOCATE (hypaniso_gspace)
+      ALLOCATE (hypaniso_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              hypaniso_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -329,9 +331,11 @@ CONTAINS
       END DO ! idir1
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rhototspin_elec_gspace%pw)
+      DEALLOCATE (rhototspin_elec_gspace%pw)
       DEALLOCATE (rhototspin_elec_gspace)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, hypaniso_gspace%pw)
+      DEALLOCATE (hypaniso_gspace%pw)
       DEALLOCATE (hypaniso_gspace)
 
       ! Multiply hyperfine matrices with constant*gyromagnetic ratio's

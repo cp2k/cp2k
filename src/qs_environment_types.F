@@ -569,7 +569,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kinetic
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl, rho_core, rho_nlcc, rho_nlcc_g
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vppl
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho_core
+      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho_nlcc, rho_nlcc_g
       TYPE(qs_ks_env_type), OPTIONAL, POINTER            :: ks_env
       TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER       :: ks_qmmm_env
       TYPE(qs_wf_history_type), OPTIONAL, POINTER        :: wf_history
@@ -595,7 +597,7 @@ CONTAINS
       TYPE(rhoz_type), DIMENSION(:), OPTIONAL, POINTER   :: rhoz_set
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: rho0_s_rs, rho0_s_gs
+      TYPE(pw_type), OPTIONAL, POINTER                   :: rho0_s_rs, rho0_s_gs
       LOGICAL, OPTIONAL                                  :: do_kpoints, has_unit_metric, &
                                                             requires_mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -629,7 +631,7 @@ CONTAINS
       TYPE(energy_correction_type), OPTIONAL, POINTER    :: ec_env
       TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: vee
+      TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
       TYPE(pw_p_type), OPTIONAL, POINTER                 :: external_vxc, mask
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
@@ -1443,10 +1445,12 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
                CALL pw_release(qs_env%external_vxc%pw)
+               DEALLOCATE (qs_env%external_vxc%pw)
                DEALLOCATE (qs_env%external_vxc)
             END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
                CALL pw_release(qs_env%mask%pw)
+               DEALLOCATE (qs_env%mask%pw)
                DEALLOCATE (qs_env%mask)
             END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
@@ -1455,9 +1459,11 @@ CONTAINS
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
                CALL pw_release(qs_env%embed_pot%pw)
+               DEALLOCATE (qs_env%embed_pot%pw)
                DEALLOCATE (qs_env%embed_pot)
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
                   CALL pw_release(qs_env%spin_embed_pot%pw)
+                  DEALLOCATE (qs_env%spin_embed_pot%pw)
                   DEALLOCATE (qs_env%spin_embed_pot)
                END IF
             END IF
@@ -1639,10 +1645,12 @@ CONTAINS
             END IF
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
                CALL pw_release(qs_env%external_vxc%pw)
+               DEALLOCATE (qs_env%external_vxc%pw)
                DEALLOCATE (qs_env%external_vxc)
             END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
                CALL pw_release(qs_env%mask%pw)
+               DEALLOCATE (qs_env%mask%pw)
                DEALLOCATE (qs_env%mask)
             END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
@@ -1651,9 +1659,11 @@ CONTAINS
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
                CALL pw_release(qs_env%embed_pot%pw)
+               DEALLOCATE (qs_env%embed_pot%pw)
                DEALLOCATE (qs_env%embed_pot)
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
                   CALL pw_release(qs_env%spin_embed_pot%pw)
+                  DEALLOCATE (qs_env%spin_embed_pot%pw)
                   DEALLOCATE (qs_env%spin_embed_pot)
                END IF
             END IF

@@ -950,6 +950,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
+      ALLOCATE (rho_ga%pw, va_gspace%pw, va_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_ga%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -972,7 +973,7 @@ CONTAINS
       DO i = 1, natom
          !collocate gaussian for each atom
          CALL pw_zero(rho_ga%pw)
-         CALL calculate_rho_resp_single(rho_ga, qs_env, resp_env%eta, i)
+         CALL calculate_rho_resp_single(rho_ga%pw, qs_env, resp_env%eta, i)
          !calculate potential va and store the part needed for fitting in vpot
          CALL pw_zero(va_gspace%pw)
          CALL pw_poisson_solve(poisson_env, rho_ga%pw, vhartree=va_gspace%pw)
@@ -990,6 +991,7 @@ CONTAINS
       CALL pw_release(va_gspace%pw)
       CALL pw_release(va_rspace%pw)
       CALL pw_release(rho_ga%pw)
+      DEALLOCATE (va_gspace%pw, va_rspace%pw, rho_ga%pw)
 
       DO i = 1, natom
          DO j = 1, natom
@@ -1725,6 +1727,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
+      ALLOCATE (rho_resp%pw, v_resp_gspace%pw, v_resp_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_resp%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -1739,7 +1742,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       CALL pw_zero(rho_resp%pw)
-      CALL calculate_rho_resp_all(rho_resp, resp_env%rhs, natom, &
+      CALL calculate_rho_resp_all(rho_resp%pw, resp_env%rhs, natom, &
                                   resp_env%eta, qs_env)
       CALL pw_zero(v_resp_gspace%pw)
       CALL pw_poisson_solve(poisson_env, rho_resp%pw, &
@@ -1756,10 +1759,12 @@ CONTAINS
       END IF
       CALL pw_release(v_resp_gspace%pw)
       CALL pw_release(rho_resp%pw)
+      DEALLOCATE (v_resp_gspace%pw, rho_resp%pw)
 
       !***now print the v_resp_rspace%pw to a cube file if requested
       IF (BTEST(cp_print_key_should_output(logger%iter_info, resp_section, &
                                            "PRINT%V_RESP_CUBE"), cp_p_file)) THEN
+         ALLOCATE (aux_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -1784,6 +1789,7 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, resp_section, &
                                            "PRINT%V_RESP_CUBE", mpi_io=mpi_io)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+         DEALLOCATE (aux_r%pw)
       END IF
 
       !*** RMS and RRMS
@@ -1811,6 +1817,7 @@ CONTAINS
       END IF
 
       CALL pw_release(v_resp_rspace%pw)
+      DEALLOCATE (v_resp_rspace%pw)
 
       CALL timestop(handle)
 

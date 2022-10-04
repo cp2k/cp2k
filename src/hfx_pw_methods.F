@@ -136,6 +136,7 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, ncol_global=norb)
          blocksize = MAX(1, MIN(blocksize, norb))
 
+         ALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -150,6 +151,7 @@ CONTAINS
          ALLOCATE (rho_j(blocksize))
 
          NULLIFY (greenfn)
+         ALLOCATE (greenfn)
          CALL pw_pool_create_pw(auxbas_pw_pool, greenfn, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
@@ -188,11 +190,11 @@ CONTAINS
          END IF
 
          DO iorb_block = 1, blocksize
-            NULLIFY (rho_i(iorb_block)%pw)
+            ALLOCATE (rho_i(iorb_block)%pw)
             CALL pw_create(rho_i(iorb_block)%pw, rho_r%pw%pw_grid, &
                            use_data=REALDATA3D, &
                            in_space=REALSPACE)
-            NULLIFY (rho_j(iorb_block)%pw)
+            ALLOCATE (rho_j(iorb_block)%pw)
             CALL pw_create(rho_j(iorb_block)%pw, rho_r%pw%pw_grid, &
                            use_data=REALDATA3D, &
                            in_space=REALSPACE)
@@ -214,7 +216,7 @@ CONTAINS
                DO iorb = iorb_block, MIN(iorb_block + blocksize - 1, norb)
 
                   iloc = iorb - iorb_block + 1
-                  CALL calculate_wavefunction(mo_coeff, iorb, rho_i(iloc), rho_g, &
+                  CALL calculate_wavefunction(mo_coeff, iorb, rho_i(iloc)%pw, rho_g%pw, &
                                               atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
 
@@ -225,7 +227,7 @@ CONTAINS
                   DO jorb = jorb_block, MIN(jorb_block + blocksize - 1, norb)
 
                      jloc = jorb - jorb_block + 1
-                     CALL calculate_wavefunction(mo_coeff, jorb, rho_j(jloc), rho_g, &
+                     CALL calculate_wavefunction(mo_coeff, jorb, rho_j(jloc)%pw, rho_g%pw, &
                                                  atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                                  pw_env)
 
@@ -262,12 +264,14 @@ CONTAINS
          DO iorb_block = 1, blocksize
             CALL pw_release(rho_i(iorb_block)%pw)
             CALL pw_release(rho_j(iorb_block)%pw)
+            DEALLOCATE (rho_i(iorb_block)%pw, rho_j(iorb_block)%pw)
          END DO
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, greenfn)
+         DEALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw, greenfn)
 
          iw = cp_print_key_unit_nr(logger, hfx_section, "HF_INFO", &
                                    extension=".scfLog")

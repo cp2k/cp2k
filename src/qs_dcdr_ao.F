@@ -55,7 +55,8 @@ MODULE qs_dcdr_ao
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_drho_core,&
                                               calculate_drho_elec_dR
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -237,6 +238,7 @@ CONTAINS
       ! Done with deriv_set and rho_set
 
       ALLOCATE (v_rspace_new(1))
+      ALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -245,6 +247,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       ! Calculate the Hartree potential on the total density
+      ALLOCATE (rho1_tot_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
@@ -258,6 +261,7 @@ CONTAINS
       CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
+      DEALLOCATE (rho1_tot_gspace%pw)
 
       ! Calculate the second derivative of the exchange-correlation potential
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, &
@@ -278,7 +282,7 @@ CONTAINS
       CALL pw_axpy(v_hartree_rspace%pw, v_rspace_new(1)%pw, 1._dp)
 
       CALL dbcsr_set(dcdr_env%matrix_apply_op_constant(1)%matrix, 0.0_dp)
-      CALL integrate_v_rspace(v_rspace=v_rspace_new(1), &
+      CALL integrate_v_rspace(v_rspace=v_rspace_new(1)%pw, &
                               hmat=dcdr_env%matrix_apply_op_constant(1), &
                               qs_env=qs_env, &
                               calculate_forces=.FALSE.)
@@ -286,17 +290,19 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(1)%pw)
+      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw, v_rspace_new(1)%pw)
       DEALLOCATE (v_rspace_new)
 
       IF (ASSOCIATED(v_xc_tau)) THEN
          CALL pw_scale(v_xc_tau(1)%pw, 2._dp*v_xc_tau(1)%pw%pw_grid%dvol)
-         CALL integrate_v_rspace(v_rspace=v_xc_tau(1), &
+         CALL integrate_v_rspace(v_rspace=v_xc_tau(1)%pw, &
                                  hmat=dcdr_env%matrix_apply_op_constant(1), &
                                  qs_env=qs_env, &
                                  compute_tau=.TRUE., &
                                  calculate_forces=.FALSE.)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(1)%pw)
+         DEALLOCATE (v_xc_tau(1)%pw)
          DEALLOCATE (v_xc_tau)
       END IF
 
@@ -349,6 +355,7 @@ CONTAINS
                       pw_pools=pw_pools)
 
       ! Create the Hartree potential grids in real and reciprocal space.
+      ALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -358,6 +365,7 @@ CONTAINS
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
       ! Create the grid for the derivative of the core potential
+      ALLOCATE (drho_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -367,7 +375,7 @@ CONTAINS
          CALL pw_zero(drho_g%pw)
 
          ! Calculate the Hartree potential on the perturbed density and Poisson solve it
-         CALL calculate_drho_core(drho_core=drho_g, qs_env=qs_env, &
+         CALL calculate_drho_core(drho_core=drho_g%pw, qs_env=qs_env, &
                                   beta=beta, lambda=dcdr_env%lambda)
          CALL pw_poisson_solve(poisson_env, drho_g%pw, &
                                vhartree=v_hartree_gspace%pw)
@@ -375,7 +383,7 @@ CONTAINS
          CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
 
          ! Calculate the integrals
-         CALL integrate_v_rspace(v_rspace=v_hartree_rspace, &
+         CALL integrate_v_rspace(v_rspace=v_hartree_rspace%pw, &
                                  hmat=dcdr_env%matrix_core_charge_1(beta), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE.)
@@ -384,6 +392,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
+      DEALLOCATE (drho_g%pw, v_hartree_rspace%pw, v_hartree_gspace%pw)
 
       CALL timestop(handle)
    END SUBROUTINE d_core_charge_density_dR
@@ -493,11 +502,11 @@ CONTAINS
       INTEGER                                            :: handle, idir
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: v_hartree_gspace, v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, rho_r, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: v_hartree_gspace, v_hartree_rspace
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(xc_derivative_set_type)                       :: my_deriv_set
@@ -519,34 +528,35 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools, poisson_env=poisson_env)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
+      ALLOCATE (drho_r(1)%pw, drho_g(1)%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_r(1)%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, drho_g(1)%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       DO idir = 1, 3
-         CALL pw_zero(v_hartree_gspace%pw)
-         CALL pw_zero(v_hartree_rspace%pw)
+         CALL pw_zero(v_hartree_gspace)
+         CALL pw_zero(v_hartree_rspace)
          CALL pw_zero(drho_r(1)%pw)
          CALL pw_zero(drho_g(1)%pw)
 
          ! Get the density
          CALL calculate_drho_elec_dR(matrix_p=rho_ao(1)%matrix, &
-                                     drho=drho_r(1), &
-                                     drho_gspace=drho_g(1), &
+                                     drho=drho_r(1)%pw, &
+                                     drho_gspace=drho_g(1)%pw, &
                                      qs_env=qs_env, &
                                      beta=idir, lambda=dcdr_env%lambda)
 
          ! Get the Hartree potential corresponding to the perturbed density
          CALL pw_poisson_solve(poisson_env, drho_g(1)%pw, &
-                               vhartree=v_hartree_gspace%pw)
-         CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
+                               vhartree=v_hartree_gspace)
+         CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
 
          ! Get the XC potential corresponding to the perturbed density
          CALL xc_prep_2nd_deriv(my_deriv_set, my_rho_set, &
@@ -565,22 +575,24 @@ CONTAINS
          !-------------------------------!
          ! Can the dvol be different?
          CALL pw_scale(v_xc(1)%pw, v_xc(1)%pw%pw_grid%dvol)
-         CALL pw_axpy(v_hartree_rspace%pw, v_xc(1)%pw, v_hartree_rspace%pw%pw_grid%dvol)
+         CALL pw_axpy(v_hartree_rspace, v_xc(1)%pw, v_hartree_rspace%pw_grid%dvol)
 
-         CALL integrate_v_rspace(v_rspace=v_xc(1), &
+         CALL integrate_v_rspace(v_rspace=v_xc(1)%pw, &
                                  hmat=dcdr_env%matrix_d_vhxc_dR(idir), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE.)
 
          ! v_xc gets allocated again in xc_calc_2nd_deriv
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(1)%pw)
+         DEALLOCATE (v_xc(1)%pw)
          DEALLOCATE (v_xc)
       END DO ! idir
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_g(1)%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_r(1)%pw)
+      DEALLOCATE (drho_g(1)%pw, drho_r(1)%pw)
 
       DEALLOCATE (drho_g)
       DEALLOCATE (drho_r)
@@ -607,9 +619,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vhxc_dbasis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: v_hartree_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_hxc_r, v_tau_rspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: v_hartree_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
@@ -624,7 +636,7 @@ CONTAINS
                       input=input, &
                       ks_env=ks_env, &
                       pw_env=pw_env, &
-                      v_hartree_rspace=v_hartree_r%pw)
+                      v_hartree_rspace=v_hartree_r)
       CALL qs_rho_get(rho_struct, rho_ao_kp=matrix_p)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
 
@@ -641,16 +653,17 @@ CONTAINS
       CALL pw_scale(v_hxc_r(1)%pw, v_hxc_r(1)%pw%pw_grid%dvol)
 
       ! sum up potentials and integrate
-      CALL pw_axpy(v_hartree_r%pw, v_hxc_r(1)%pw, 1._dp)
+      CALL pw_axpy(v_hartree_r, v_hxc_r(1)%pw, 1._dp)
 
       matrix_vhxc_dbasis => dcdr_env%matrix_vhxc_perturbed_basis(1, :)
-      CALL integrate_v_dbasis(v_rspace=v_hxc_r(1), &
+      CALL integrate_v_dbasis(v_rspace=v_hxc_r(1)%pw, &
                               matrix_p=matrix_p(1, 1)%matrix, &
                               matrix_vhxc_dbasis=matrix_vhxc_dbasis, &
                               qs_env=qs_env, &
                               lambda=dcdr_env%lambda)
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hxc_r(1)%pw)
+      DEALLOCATE (v_hxc_r(1)%pw)
 
       DEALLOCATE (v_hxc_r)
 

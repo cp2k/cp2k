@@ -71,7 +71,6 @@ MODULE qs_active_space_methods
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
                                               pw_env_type
-   USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_integrate_function,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
@@ -90,8 +89,7 @@ MODULE qs_active_space_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release,&
-                                              pw_type
+                                              pw_release
    USE qs_active_space_types,           ONLY: active_space_type,&
                                               create_active_space_type,&
                                               csr_idx_from_combined,&
@@ -1066,7 +1064,7 @@ CONTAINS
                                     pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
       END IF
 
-      NULLIFY (wfn_r%pw, rho_g%pw)
+      ALLOCATE (wfn_r%pw, rho_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wfn_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
@@ -1090,11 +1088,11 @@ CONTAINS
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
             DO iwfn = 1, nmo
-               NULLIFY (wfn_a(iwfn, ispin)%pw)
+               ALLOCATE (wfn_a(iwfn, ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, wfn_a(iwfn, ispin)%pw, &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
-               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin), rho_g, atomic_kind_set, &
+               CALL calculate_wavefunction(mo_coeff, iwfn, wfn_a(iwfn, ispin)%pw, rho_g%pw, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env_sub)
                IF (print2 .AND. iw > 0) THEN
                   WRITE (iw, "(T4,'ERI_GPW|',' Orbital stored ',I4,'  Spin ',i1)") iwfn, ispin
@@ -1104,7 +1102,7 @@ CONTAINS
       END IF
 
       ! get some of the grids ready
-      NULLIFY (rho_r%pw, pot_g%pw)
+      ALLOCATE (rho_r%pw, pot_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -1210,6 +1208,7 @@ CONTAINS
             CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo)
             DO iwfn = 1, nmo
                CALL pw_release(wfn_a(iwfn, ispin)%pw)
+               DEALLOCATE (wfn_a(iwfn, ispin)%pw)
             END DO
          END DO
          DEALLOCATE (wfn_a)
@@ -1218,6 +1217,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
+      DEALLOCATE (wfn_r%pw, rho_g%pw, rho_r%pw, pot_g%pw)
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          CALL deallocate_task_list(task_list_sub)
@@ -1247,104 +1247,102 @@ CONTAINS
 
       INTEGER                                            :: ig
       REAL(KIND=dp)                                      :: a, ea, g2, g3d, ga, gg, rg, rlength
-      TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_type), POINTER                             :: gf
 
       ! initialize influence function
-      gf => green%influence_fn
-      grid => green%influence_fn%pw_grid
-      SELECT CASE (green%method)
-      CASE (PERIODIC3D)
+      ASSOCIATE (gf => green%influence_fn, grid => green%influence_fn%pw_grid)
+         SELECT CASE (green%method)
+         CASE (PERIODIC3D)
 
-         SELECT CASE (eri_env%operator)
-         CASE (eri_operator_coulomb)
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gf%cc(ig) = fourpi/g2
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.0_dp
-         CASE (eri_operator_yukawa)
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gf%cc(ig) = fourpi/(a + g2)
-            END DO
-            IF (grid%have_g0) gf%cc(1) = fourpi/a
-         CASE (eri_operator_erf)
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               ga = -0.25_dp*g2/a
-               gf%cc(ig) = fourpi/g2*EXP(ga)
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.0_dp
-         CASE (eri_operator_erfc)
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               ga = -0.25_dp*g2/a
-               gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.25_dp*fourpi/a
-         CASE (eri_operator_gaussian)
-            CPABORT("")
+            SELECT CASE (eri_env%operator)
+            CASE (eri_operator_coulomb)
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gf%cc(ig) = fourpi/g2
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.0_dp
+            CASE (eri_operator_yukawa)
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gf%cc(ig) = fourpi/(a + g2)
+               END DO
+               IF (grid%have_g0) gf%cc(1) = fourpi/a
+            CASE (eri_operator_erf)
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = -0.25_dp*g2/a
+                  gf%cc(ig) = fourpi/g2*EXP(ga)
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.0_dp
+            CASE (eri_operator_erfc)
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = -0.25_dp*g2/a
+                  gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.25_dp*fourpi/a
+            CASE (eri_operator_gaussian)
+               CPABORT("")
+            CASE DEFAULT
+               CPABORT("")
+            END SELECT
+
+         CASE (ANALYTIC0D)
+
+            SELECT CASE (eri_env%operator)
+            CASE (eri_operator_coulomb)
+               rlength = green%radius
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gg = SQRT(g2)
+                  g3d = fourpi/g2
+                  gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+            CASE (eri_operator_yukawa)
+               rlength = green%radius
+               a = eri_env%operator_parameter
+               ea = EXP(-a*rlength)
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gg = SQRT(g2)
+                  g3d = fourpi/(a*a + g2)
+                  rg = rlength*gg
+                  gf%cc(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
+            CASE (eri_operator_erf)
+               rlength = green%radius
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gg = SQRT(g2)
+                  ga = -0.25_dp*g2/a
+                  gf%cc(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
+            CASE (eri_operator_erfc)
+               rlength = green%radius
+               a = eri_env%operator_parameter**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  gg = SQRT(g2)
+                  ga = -0.25_dp*g2/a
+                  gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0._dp
+            CASE (eri_operator_gaussian)
+               CPABORT("")
+            CASE DEFAULT
+               CPABORT("")
+            END SELECT
+
          CASE DEFAULT
             CPABORT("")
          END SELECT
-
-      CASE (ANALYTIC0D)
-
-         SELECT CASE (eri_env%operator)
-         CASE (eri_operator_coulomb)
-            rlength = green%radius
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gg = SQRT(g2)
-               g3d = fourpi/g2
-               gf%cc(ig) = g3d*(1.0_dp - COS(rlength*gg))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
-         CASE (eri_operator_yukawa)
-            rlength = green%radius
-            a = eri_env%operator_parameter
-            ea = EXP(-a*rlength)
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gg = SQRT(g2)
-               g3d = fourpi/(a*a + g2)
-               rg = rlength*gg
-               gf%cc(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
-         CASE (eri_operator_erf)
-            rlength = green%radius
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gg = SQRT(g2)
-               ga = -0.25_dp*g2/a
-               gf%cc(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*rlength*rlength
-         CASE (eri_operator_erfc)
-            rlength = green%radius
-            a = eri_env%operator_parameter**2
-            DO ig = grid%first_gne0, grid%ngpts_cut_local
-               g2 = grid%gsq(ig)
-               gg = SQRT(g2)
-               ga = -0.25_dp*g2/a
-               gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
-            END DO
-            IF (grid%have_g0) gf%cc(1) = 0._dp
-         CASE (eri_operator_gaussian)
-            CPABORT("")
-         CASE DEFAULT
-            CPABORT("")
-         END SELECT
-
-      CASE DEFAULT
-         CPABORT("")
-      END SELECT
+      END ASSOCIATE
 
    END SUBROUTINE pw_eri_green_create
 
@@ -1449,6 +1447,7 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       !
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       !
@@ -1477,7 +1476,7 @@ CONTAINS
                do_mo = .TRUE.
             END IF
             IF (.NOT. do_mo) CYCLE
-            CALL calculate_wavefunction(mo_coeff, imo, wf_r, wf_g, atomic_kind_set, &
+            CALL calculate_wavefunction(mo_coeff, imo, wf_r%pw, wf_g%pw, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env)
             IF (para_env%ionode) THEN
                WRITE (filename, '(A,A1,I4.4,A1,I1.1,A)') TRIM(filebody), "_", imo, "_", isp, ".cube"
@@ -1495,6 +1494,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+      DEALLOCATE (wf_r%pw, wf_g%pw)
 
    END SUBROUTINE print_orbital_cubes
 

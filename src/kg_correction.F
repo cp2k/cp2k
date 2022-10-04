@@ -258,10 +258,11 @@ CONTAINS
       END DO
 
       DO ispin = 1, nspins
-         CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
+         CALL integrate_v_rspace(v_rspace=vxc_rho(ispin)%pw, &
                                  pmat=density_matrix(ispin), hmat=ks_matrix(ispin), &
                                  qs_env=qs_env, calculate_forces=calc_force)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
+         DEALLOCATE (vxc_rho(ispin)%pw)
       END DO
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
@@ -328,7 +329,7 @@ CONTAINS
          DO ispin = 1, nspins
             CALL pw_scale(vxc_rho(ispin)%pw, -alpha*vxc_rho(ispin)%pw%pw_grid%dvol)
 
-            CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
+            CALL integrate_v_rspace(v_rspace=vxc_rho(ispin)%pw, &
                                     pmat=density_matrix(ispin), &
                                     hmat=ks_matrix(ispin), &
                                     qs_env=qs_env, &
@@ -336,9 +337,10 @@ CONTAINS
                                     task_list_external=kg_env%subset(isub)%task_list)
             ! clean up vxc_rho
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
+            DEALLOCATE (vxc_rho(ispin)%pw)
             IF (ASSOCIATED(vxc_tau)) THEN
                CALL pw_scale(vxc_tau(ispin)%pw, -alpha*vxc_tau(ispin)%pw%pw_grid%dvol)
-               CALL integrate_v_rspace(v_rspace=vxc_tau(ispin), &
+               CALL integrate_v_rspace(v_rspace=vxc_tau(ispin)%pw, &
                                        pmat=density_matrix(ispin), &
                                        hmat=ks_matrix(ispin), &
                                        qs_env=qs_env, &
@@ -347,6 +349,7 @@ CONTAINS
                                        task_list_external=kg_env%subset(isub)%task_list)
                ! clean up vxc_rho
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_tau(ispin)%pw)
+               DEALLOCATE (vxc_tau(ispin)%pw)
             END IF
          END DO
          DEALLOCATE (vxc_rho)
@@ -471,8 +474,9 @@ CONTAINS
       DO ispin = 1, nspins
          vxc_rho(ispin)%pw%cr3d = vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
          lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
-         CALL integrate_v_rspace_one_center(vxc_rho(ispin), qs_env, lri_v_int, calc_force, "LRI_AUX")
+         CALL integrate_v_rspace_one_center(vxc_rho(ispin)%pw, qs_env, lri_v_int, calc_force, "LRI_AUX")
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
+         DEALLOCATE (vxc_rho(ispin)%pw)
       END DO
       DEALLOCATE (vxc_rho)
       ekin_mol = -ekin_imol
@@ -498,11 +502,12 @@ CONTAINS
          DO ispin = 1, nspins
             vxc_rho(ispin)%pw%cr3d = -vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol
             lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
-            CALL integrate_v_rspace_one_center(vxc_rho(ispin), qs_env, &
+            CALL integrate_v_rspace_one_center(vxc_rho(ispin)%pw, qs_env, &
                                                lri_v_int, calc_force, &
                                                "LRI_AUX", atomlist=atomlist)
             ! clean up vxc_rho
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
+            DEALLOCATE (vxc_rho(ispin)%pw)
          END DO
          DEALLOCATE (vxc_rho)
 
@@ -711,8 +716,9 @@ CONTAINS
             ! int w/ rho_ao
             lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
          END IF
-         CALL integrate_v_rspace_one_center(vxc_rho(ispin), qs_env, lri_v_int, calc_force, "LRI_AUX")
+         CALL integrate_v_rspace_one_center(vxc_rho(ispin)%pw, qs_env, lri_v_int, calc_force, "LRI_AUX")
          CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
+         DEALLOCATE (vxc_rho(ispin)%pw)
       END DO
 
       DEALLOCATE (vxc_rho)
@@ -777,11 +783,12 @@ CONTAINS
                lri_v_int => lri_density%lri_coefs(ispin)%lri_kinds
             END IF
 
-            CALL integrate_v_rspace_one_center(vxc_rho(ispin), qs_env, &
+            CALL integrate_v_rspace_one_center(vxc_rho(ispin)%pw, qs_env, &
                                                lri_v_int, calc_force, &
                                                "LRI_AUX", atomlist=atomlist)
             ! clean up vxc_rho
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vxc_rho(ispin)%pw)
+            DEALLOCATE (vxc_rho(ispin)%pw)
          END DO
          DEALLOCATE (vxc_rho)
 

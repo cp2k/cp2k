@@ -33,7 +33,8 @@ MODULE rs_pw_interface
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE realspace_grid_types,            ONLY: pw2rs,&
                                               realspace_grid_desc_p_type,&
                                               realspace_grid_p_type,&
@@ -71,7 +72,7 @@ CONTAINS
 
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho, rho_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw'
 
@@ -100,11 +101,11 @@ CONTAINS
                                in_space=RECIPROCALSPACE)
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
-         CALL rs_pw_transfer(rs_rho(1)%rs_grid, rho%pw, rs2pw)
+         CALL rs_pw_transfer(rs_rho(1)%rs_grid, rho, rs2pw)
          CALL rs_grid_release(rs_rho(1)%rs_grid)
-         CALL pw_transfer(rho%pw, rho_gspace%pw)
-         IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
-            CALL pw_transfer(rho_gspace%pw, rho%pw)
+         CALL pw_transfer(rho, rho_gspace)
+         IF (rho%pw_grid%spherical) THEN ! rho_gspace = rho
+            CALL pw_transfer(rho_gspace, rho)
          END IF
       ELSE
          DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -116,21 +117,21 @@ CONTAINS
          ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
          SELECT CASE (interp_kind)
          CASE (pw_interp)
-            CALL pw_zero(rho_gspace%pw)
+            CALL pw_zero(rho_gspace)
             DO igrid_level = 1, gridlevel_info%ngrid_levels
                CALL pw_transfer(mgrid_rspace(igrid_level)%pw, &
                                 mgrid_gspace(igrid_level)%pw)
-               CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_gspace%pw)
+               CALL pw_axpy(mgrid_gspace(igrid_level)%pw, rho_gspace)
             END DO
-            CALL pw_transfer(rho_gspace%pw, rho%pw)
+            CALL pw_transfer(rho_gspace, rho)
          CASE (spline3_pbc_interp)
             DO igrid_level = gridlevel_info%ngrid_levels, 2, -1
                CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw, &
                                      mgrid_rspace(igrid_level - 1)%pw, pw_pools(igrid_level)%pool, &
                                      pw_env%interp_section)
             END DO
-            CALL pw_copy(mgrid_rspace(1)%pw, rho%pw)
-            CALL pw_transfer(rho%pw, rho_gspace%pw)
+            CALL pw_copy(mgrid_rspace(1)%pw, rho)
+            CALL pw_transfer(rho, rho_gspace)
          CASE default
             CALL cp_abort(__LOCATION__, &
                           "interpolator "// &
@@ -160,7 +161,7 @@ CONTAINS
 
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho, rho_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw_basic'
 
@@ -189,8 +190,8 @@ CONTAINS
                                in_space=RECIPROCALSPACE)
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
-         CALL rs_pw_transfer(rs_rho(1)%rs_grid, rho%pw, rs2pw)
-         CALL pw_transfer(rho%pw, rho_gspace%pw)
+         CALL rs_pw_transfer(rs_rho(1)%rs_grid, rho, rs2pw)
+         CALL pw_transfer(rho, rho_gspace)
       ELSE
          DO igrid_level = 1, gridlevel_info%ngrid_levels
             CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid, &
@@ -207,16 +208,16 @@ CONTAINS
                   CALL pw_axpy(mgrid_gspace(igrid_level)%pw, mgrid_gspace(1)%pw)
                END IF
             END DO
-            CALL pw_transfer(mgrid_gspace(1)%pw, rho%pw)
-            CALL pw_transfer(mgrid_rspace(1)%pw, rho_gspace%pw)
+            CALL pw_transfer(mgrid_gspace(1)%pw, rho)
+            CALL pw_transfer(mgrid_rspace(1)%pw, rho_gspace)
          CASE (spline3_pbc_interp)
             DO igrid_level = gridlevel_info%ngrid_levels, 2, -1
                CALL pw_prolongate_s3(mgrid_rspace(igrid_level)%pw, &
                                      mgrid_rspace(igrid_level - 1)%pw, pw_pools(igrid_level)%pool, &
                                      pw_env%interp_section)
             END DO
-            CALL pw_copy(mgrid_rspace(1)%pw, rho%pw)
-            CALL pw_transfer(rho%pw, rho_gspace%pw)
+            CALL pw_copy(mgrid_rspace(1)%pw, rho)
+            CALL pw_transfer(rho, rho_gspace)
          CASE default
             CALL cp_abort(__LOCATION__, &
                           "interpolator "// &
@@ -247,7 +248,7 @@ CONTAINS
    SUBROUTINE potential_pw2rs(rs_v, v_rspace, pw_env)
 
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
-      TYPE(pw_p_type), INTENT(IN)                        :: v_rspace
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(pw_env_type), POINTER                         :: pw_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'potential_pw2rs'
@@ -276,7 +277,7 @@ CONTAINS
          CALL pw_pools_create_pws(pw_pools, mgrid_gspace, &
                                   use_data=COMPLEXDATA1D, &
                                   in_space=RECIPROCALSPACE)
-         CALL pw_transfer(v_rspace%pw, mgrid_gspace(auxbas_grid)%pw)
+         CALL pw_transfer(v_rspace, mgrid_gspace(auxbas_grid)%pw)
          DO igrid_level = 1, gridlevel_info%ngrid_levels
             IF (igrid_level /= auxbas_grid) THEN
                CALL pw_copy(mgrid_gspace(auxbas_grid)%pw, mgrid_gspace(igrid_level)%pw)
@@ -285,7 +286,7 @@ CONTAINS
                IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
                   CALL pw_transfer(mgrid_gspace(auxbas_grid)%pw, mgrid_rspace(auxbas_grid)%pw)
                ELSE ! fft forward + backward should be identical
-                  CALL pw_copy(v_rspace%pw, mgrid_rspace(auxbas_grid)%pw)
+                  CALL pw_copy(v_rspace, mgrid_rspace(auxbas_grid)%pw)
                END IF
             END IF
             ! *** Multiply by the grid volume element ratio ***
@@ -298,7 +299,7 @@ CONTAINS
          END DO
          CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
       CASE (spline3_pbc_interp)
-         CALL pw_copy(v_rspace%pw, mgrid_rspace(1)%pw)
+         CALL pw_copy(v_rspace, mgrid_rspace(1)%pw)
          DO igrid_level = 1, gridlevel_info%ngrid_levels - 1
             CALL pw_zero(mgrid_rspace(igrid_level + 1)%pw)
             CALL pw_restrict_s3(mgrid_rspace(igrid_level)%pw, &

@@ -580,6 +580,7 @@ CONTAINS
             END IF
             IF (ASSOCIATED(Per_Potentials(I)%Pot%TabLR)) THEN
                CALL pw_pool_give_back_pw(Per_Potentials(I)%Pot%pw_pool, Per_Potentials(I)%Pot%TabLR)
+               DEALLOCATE (Per_Potentials(I)%Pot%TabLR)
             END IF
             IF (ASSOCIATED(Per_Potentials(I)%Pot%pw_pool)) THEN
                CALL pw_pool_release(Per_Potentials(I)%Pot%pw_pool)

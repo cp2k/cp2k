@@ -142,7 +142,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! pseudo psi_L
-      CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
+      CALL calculate_wavefunction(mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                   qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                   basis_type="RI_AUX", &
                                   external_vector=external_vector)
@@ -151,7 +151,7 @@ CONTAINS
 
       ! and finally (K|mu nu)
       CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-      CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
+      CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, qs_env=qs_env, &
                               calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                               pw_env_external=pw_env_sub, task_list_external=task_list_sub)
 
@@ -226,7 +226,7 @@ CONTAINS
          i_counter = i_counter + 1
 
          ! pseudo psi_L
-         CALL collocate_single_gaussian(psi_L, rho_g, atomic_kind_set, &
+         CALL collocate_single_gaussian(psi_L%pw, rho_g%pw, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                         required_function=LLL, basis_type="RI_AUX")
 
@@ -240,7 +240,7 @@ CONTAINS
          DO i = 1, SIZE(rs_v)
             CALL rs_grid_retain(rs_v(i)%rs_grid)
          END DO
-         CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+         CALL potential_pw2rs(rs_v, rho_r%pw, pw_env_sub)
 
          CALL timestop(handle2)
 
@@ -431,7 +431,7 @@ CONTAINS
       ! pseudo psi_L
       CALL pw_zero(rho_r%pw)
       CALL pw_zero(rho_g%pw)
-      CALL collocate_single_gaussian(rho_r, rho_g, atomic_kind_set, &
+      CALL collocate_single_gaussian(rho_r%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
                                      pw_env_sub, required_function=LLL, basis_type='RI_AUX')
       IF (use_virial) THEN
@@ -451,7 +451,7 @@ CONTAINS
          ! hartree potential derivatives
          CALL pw_zero(psi_L%pw)
          CALL pw_zero(rho_g%pw)
-         CALL calculate_wavefunction(matrix, 1, psi_L, rho_g, atomic_kind_set, &
+         CALL calculate_wavefunction(matrix, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                      basis_type="RI_AUX", &
                                      external_vector=0.5_dp*factor*G_PQ_local)
@@ -498,7 +498,7 @@ CONTAINS
       ! integrate the potential of the single gaussian and update
       ! 3-center forces
       CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-      CALL integrate_v_rspace(rho_r, hmat=mat_munu, pmat=matrix_P_munu, &
+      CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, pmat=matrix_P_munu, &
                               qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.FALSE., gapw=.FALSE., &
                               pw_env_external=pw_env_sub, &
                               task_list_external=task_list_sub)
@@ -586,8 +586,8 @@ CONTAINS
       CALL pw_zero(rho_r%pw)
       CALL pw_zero(rho_g%pw)
       CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix, &
-                              rho=rho_r, &
-                              rho_gspace=rho_g, &
+                              rho=rho_r%pw, &
+                              rho_gspace=rho_g%pw, &
                               task_list_external=task_list_sub, &
                               pw_env_external=pw_env_sub, &
                               ks_env=ks_env)
@@ -605,7 +605,7 @@ CONTAINS
       DO i = 1, SIZE(rs_v)
          CALL rs_grid_retain(rs_v(i)%rs_grid)
       END DO
-      CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
+      CALL potential_pw2rs(rs_v, rho_r%pw, pw_env_sub)
 
       offset = 0
       DO iatom = 1, SIZE(kind_of)
@@ -899,7 +899,7 @@ CONTAINS
       DO i = 1, SIZE(rs_v)
          CALL rs_grid_retain(rs_v(i)%rs_grid)
       END DO
-      CALL potential_pw2rs(rs_v, pot_r, pw_env_sub)
+      CALL potential_pw2rs(rs_v, pot_r%pw, pw_env_sub)
 
       offset = 0
       DO iatom = 1, SIZE(kind_of)
@@ -1087,7 +1087,7 @@ CONTAINS
                                  pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
 
       ! get some of the grids ready
-      NULLIFY (rho_r%pw, rho_g%pw, pot_g%pw, psi_L%pw)
+      ALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw, psi_L%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -1148,6 +1148,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
+      DEALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw, psi_L%pw)
 
       CALL deallocate_task_list(task_list_sub)
       CALL pw_env_release(pw_env_sub, para_env=para_env_sub)

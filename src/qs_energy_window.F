@@ -162,7 +162,7 @@ CONTAINS
       CALL cp_fm_create(eigenvectors_nonorth, ao_ao_fmstruct)
       NULLIFY (rho_r, rho_g)
       ALLOCATE (rho_r, rho_g)
-      NULLIFY (rho_r%pw, rho_g%pw)
+      ALLOCATE (rho_r%pw, rho_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -212,8 +212,8 @@ CONTAINS
          CALL dbcsr_copy(window, matrix_ks(1)%matrix)
          CALL dbcsr_copy_into_existing(window, tmp)
          CALL calculate_rho_elec(matrix_p=window, &
-                                 rho=rho_r, &
-                                 rho_gspace=rho_g, &
+                                 rho=rho_r%pw, &
+                                 rho_gspace=rho_g%pw, &
                                  ks_env=ks_env)
          density_total = pw_integrate_function(rho_r%pw)
          IF (unit_nr > 0) WRITE (unit_nr, *) " Ground-state density: ", density_total
@@ -279,8 +279,8 @@ CONTAINS
             CALL dbcsr_copy(window, matrix_ks(1)%matrix)
             CALL dbcsr_copy_into_existing(window, tmp)
             CALL calculate_rho_elec(matrix_p=window, &
-                                    rho=rho_r, &
-                                    rho_gspace=rho_g, &
+                                    rho=rho_r%pw, &
+                                    rho_gspace=rho_g%pw, &
                                     ks_env=ks_env)
             WRITE (ext, "(A14,I5.5,A)") "-ENERGY-WINDOW", i, TRIM(cp_iter_string(logger%iter_info))//".cube"
             mpi_io = .TRUE.
@@ -322,6 +322,7 @@ CONTAINS
       CALL cp_fm_release(S_minus_half_fm)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
+      DEALLOCATE (rho_r%pw, rho_g%pw)
       DEALLOCATE (rho_r, rho_g)
       DEALLOCATE (eigenvalues)
       DEALLOCATE (STRIDE)

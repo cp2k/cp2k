@@ -158,9 +158,11 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scan_info%tip_pw_r)) THEN
          CALL pw_release(scan_info%tip_pw_r)
+         DEALLOCATE (scan_info%tip_pw_r)
       END IF
       IF (ASSOCIATED(scan_info%tip_pw_g)) THEN
          CALL pw_release(scan_info%tip_pw_g)
+         DEALLOCATE (scan_info%tip_pw_g)
       END IF
 
    END SUBROUTINE release_scanning_type

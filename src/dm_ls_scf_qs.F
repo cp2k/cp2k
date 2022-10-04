@@ -686,6 +686,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=wf_r%pw, &
                              use_data=REALDATA3D, &
@@ -697,8 +698,8 @@ CONTAINS
                              in_space=RECIPROCALSPACE)
       CALL pw_zero(wf_g%pw)
       CALL calculate_rho_elec(matrix_p=matrix_p_qs, &
-                              rho=wf_r, &
-                              rho_gspace=wf_g, &
+                              rho=wf_r%pw, &
+                              rho_gspace=wf_g%pw, &
                               ks_env=ks_env)
 
       ! write this to a cube
@@ -708,6 +709,7 @@ CONTAINS
       !free memory
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+      DEALLOCATE (wf_r%pw, wf_g%pw)
       CALL dbcsr_release(matrix_p_qs)
       DEALLOCATE (matrix_p_qs)
 

@@ -159,6 +159,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -225,6 +226,7 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(stm_density_ao)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+      DEALLOCATE (wf_r%pw, wf_g%pw)
 
       DEALLOCATE (stm_th_torb)
       DEALLOCATE (nadd_unocc)
@@ -372,7 +374,7 @@ CONTAINS
          DO i = 1, SIZE(stm_th_torb)
             iorb = stm_th_torb(i)
             CALL calculate_rho_elec(matrix_p=stm_density_ao, &
-                                    rho=wf_r, rho_gspace=wf_g, &
+                                    rho=wf_r%pw, rho_gspace=wf_g%pw, &
                                     ks_env=ks_env, der_type=iorb)
 
             oname = torb_string(iorb)

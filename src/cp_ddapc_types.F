@@ -435,9 +435,11 @@ CONTAINS
       IF (ASSOCIATED(cp_ddapc_ewald)) THEN
          IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN
             CALL pw_pool_give_back_pw(cp_ddapc_ewald%pw_pool_qm, cp_ddapc_ewald%coeff_qm)
+            DEALLOCATE (cp_ddapc_ewald%coeff_qm)
          END IF
          IF (ASSOCIATED(cp_ddapc_ewald%coeff_mm)) THEN
             CALL pw_pool_give_back_pw(cp_ddapc_ewald%pw_pool_mm, cp_ddapc_ewald%coeff_mm)
+            DEALLOCATE (cp_ddapc_ewald%coeff_mm)
          END IF
          IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_qm)) THEN
             CALL pw_pool_release(cp_ddapc_ewald%pw_pool_qm)

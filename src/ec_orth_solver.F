@@ -1169,6 +1169,7 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the NSC Hartree potential
+      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=v_hartree_gspace%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -1240,7 +1241,7 @@ CONTAINS
                          name="MATRIX Kernel")
 
          ! Integrate with ground-state density matrix, in non-orthogonal basis
-         CALL integrate_v_rspace(v_rspace=v_xc(ispin), &
+         CALL integrate_v_rspace(v_rspace=v_xc(ispin)%pw, &
                                  pmat=rho_ao(ispin), &
                                  hmat=matrix_G(ispin), &
                                  qs_env=qs_env, &
@@ -1248,7 +1249,7 @@ CONTAINS
                                  basis_type="ORB")
 
          IF (ASSOCIATED(v_xc_tau)) THEN
-            CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin), &
+            CALL integrate_v_rspace(v_rspace=v_xc_tau(ispin)%pw, &
                                     pmat=rho_ao(ispin), &
                                     hmat=matrix_G(ispin), &
                                     qs_env=qs_env, &
@@ -1289,13 +1290,16 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw, rho_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+         DEALLOCATE (v_xc(ispin)%pw)
       END DO
       DEALLOCATE (v_xc)
       IF (ASSOCIATED(v_xc_tau)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
+            DEALLOCATE (v_xc_tau(ispin)%pw)
          END DO
          DEALLOCATE (v_xc_tau)
       END IF

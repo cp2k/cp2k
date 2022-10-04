@@ -1290,6 +1290,7 @@ CONTAINS
          NULLIFY (rho_r, rho_g)
          ALLOCATE (rho_r(nspins), rho_g(nspins))
          DO ispin = 1, nspins
+            ALLOCATE (rho_r(ispin)%pw, rho_g(ispin)%pw,)
             CALL pw_pool_create_pw(auxbas_pw_pool, rho_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_zero(rho_r(ispin)%pw)

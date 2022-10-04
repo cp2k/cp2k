@@ -1099,7 +1099,7 @@ CONTAINS
             CALL dbcsr_copy(cdft_control%wmat(ivar)%matrix, matrix_s(1)%matrix, &
                             name="ET_RESTRAINT_MATRIX")
             CALL dbcsr_set(cdft_control%wmat(ivar)%matrix, 0.0_dp)
-            CALL integrate_v_rspace(cdft_control%group(ivar)%weight, &
+            CALL integrate_v_rspace(cdft_control%group(ivar)%weight%pw, &
                                     hmat=cdft_control%wmat(ivar), qs_env=qs_env, &
                                     calculate_forces=.FALSE., &
                                     gapw=dft_control%qs_control%gapw)
@@ -1157,10 +1157,12 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          DO iatom = 1, SIZE(cdft_control%group)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight%pw)
+            DEALLOCATE (cdft_control%group(iatom)%weight%pw)
          END DO
          IF (cdft_control%atomic_charges) THEN
             DO iatom = 1, cdft_control%natoms
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%charge(iatom)%pw)
+               DEALLOCATE (cdft_control%charge(iatom)%pw)
             END DO
             DEALLOCATE (cdft_control%charge)
          END IF
@@ -1168,12 +1170,15 @@ CONTAINS
              cdft_control%becke_control%cavity_confine) THEN
             IF (.NOT. ASSOCIATED(cdft_control%becke_control%cavity_mat)) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
+               DEALLOCATE (cdft_control%becke_control%cavity%pw)
             ELSE
                DEALLOCATE (cdft_control%becke_control%cavity_mat)
             END IF
          ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
-            IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) &
+            IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
+               DEALLOCATE (cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
+            END IF
          END IF
          IF (ASSOCIATED(cdft_control%charges_fragment)) DEALLOCATE (cdft_control%charges_fragment)
          cdft_control%need_pot = .TRUE.

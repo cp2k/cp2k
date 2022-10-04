@@ -55,7 +55,7 @@ MODULE qs_integrate_potential_product
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
@@ -109,7 +109,7 @@ CONTAINS
 !> \param lambda The atom index.
 ! **************************************************************************************************
    SUBROUTINE integrate_v_dbasis(v_rspace, matrix_vhxc_dbasis, matrix_p, qs_env, lambda)
-      TYPE(pw_p_type)                                    :: v_rspace
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vhxc_dbasis
       TYPE(dbcsr_type), POINTER                          :: matrix_p
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -587,7 +587,7 @@ CONTAINS
                                  qs_env, calculate_forces, force_adm, ispin, &
                                  compute_tau, gapw, basis_type, pw_env_external, task_list_external)
 
-      TYPE(pw_p_type)                                    :: v_rspace
+      TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(dbcsr_p_type), INTENT(INOUT), OPTIONAL        :: hmat
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: hmat_kp

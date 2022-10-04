@@ -58,7 +58,8 @@ MODULE qmmm_image_charge
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
    USE qs_collocate_density,            ONLY: calculate_rho_metal,&
                                               calculate_rho_single_gaussian
@@ -293,11 +294,13 @@ CONTAINS
          ! SQRT(rsnew) < 1.0E-08
          IF (rsnew < 1.0E-16) THEN
             CALL pw_release(auxpot_Ad_rspace%pw)
+            DEALLOCATE (auxpot_Ad_rspace%pw)
             EXIT
          END IF
          d = z + rsnew/rsold*d
          rsold = rsnew
          CALL pw_release(auxpot_Ad_rspace%pw)
+         DEALLOCATE (auxpot_Ad_rspace%pw)
       END DO
 
       ! print iteration info
@@ -318,6 +321,7 @@ CONTAINS
       END IF
 
       CALL pw_release(v_metal_rspace_guess%pw)
+      DEALLOCATE (v_metal_rspace_guess%pw)
       DEALLOCATE (pot_const)
       DEALLOCATE (vmetal_const)
       DEALLOCATE (r)
@@ -460,7 +464,7 @@ CONTAINS
    SUBROUTINE integrate_potential_devga_rspace(potential, coeff, forces, qmmm_env, &
                                                qs_env)
 
-      TYPE(pw_p_type), INTENT(IN)                        :: potential
+      TYPE(pw_type), INTENT(IN)                          :: potential
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: forces
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
@@ -495,7 +499,7 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v)
       CALL rs_grid_retain(rs_v)
-      CALL rs_pw_transfer(rs_v, potential%pw, pw2rs)
+      CALL rs_pw_transfer(rs_v, potential, pw2rs)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
@@ -732,6 +736,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
+      ALLOCATE (rho_gb%pw, vb_gspace%pw, vb_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_gb%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -749,7 +754,7 @@ CONTAINS
       iatom_ref = 1 !
       !collocate gaussian of reference MM atom on grid
       CALL pw_zero(rho_gb%pw)
-      CALL calculate_rho_single_gaussian(rho_gb, qs_env, iatom_ref)
+      CALL calculate_rho_single_gaussian(rho_gb%pw, qs_env, iatom_ref)
       !calculate potential vb like hartree potential
       CALL pw_zero(vb_gspace%pw)
       CALL pw_poisson_solve(poisson_env, rho_gb%pw, vhartree=vb_gspace%pw)
@@ -770,6 +775,7 @@ CONTAINS
       CALL pw_release(vb_gspace%pw)
       CALL pw_release(vb_rspace%pw)
       CALL pw_release(rho_gb%pw)
+      DEALLOCATE (vb_gspace%pw, vb_rspace%pw, rho_gb%pw)
 
       DEALLOCATE (int_res)
 
@@ -904,6 +910,7 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
+      ALLOCATE (rho_metal%pw, v_metal_gspace%pw, v_metal_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
                              rho_metal%pw, &
                              use_data=COMPLEXDATA1D, &
@@ -920,7 +927,7 @@ CONTAINS
                              in_space=REALSPACE)
 
       CALL pw_zero(rho_metal%pw)
-      CALL calculate_rho_metal(rho_metal, coeff, total_rho_metal=total_rho_metal, &
+      CALL calculate_rho_metal(rho_metal%pw, coeff, total_rho_metal=total_rho_metal, &
                                qs_env=qs_env)
 
       CALL pw_zero(v_metal_gspace%pw)
@@ -941,6 +948,7 @@ CONTAINS
       CALL pw_scale(v_metal_rspace%pw, v_metal_rspace%pw%pw_grid%dvol)
       CALL pw_release(v_metal_gspace%pw)
       CALL pw_release(rho_metal%pw)
+      DEALLOCATE (v_metal_gspace%pw, rho_metal%pw)
 
       CALL timestop(handle)
 

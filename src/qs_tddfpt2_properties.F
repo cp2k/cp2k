@@ -1313,6 +1313,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -1337,7 +1338,7 @@ CONTAINS
       DO iset = 1, 2
          CALL get_mo_set(mo_set=mos(iset)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
          DO i = 1, nmo
-            CALL calculate_wavefunction(mo_coeff, i, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+            CALL calculate_wavefunction(mo_coeff, i, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
                                         cell, dft_control, particle_set, pw_env)
             IF (iset == 1) THEN
                WRITE (filename, '(a4,I3.3,I2.2,a11)') "NTO_STATE", istate, i, "_Hole_State"
@@ -1361,6 +1362,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+      DEALLOCATE (wf_g%pw, wf_r%pw)
 
    END SUBROUTINE print_nto_cubes
 

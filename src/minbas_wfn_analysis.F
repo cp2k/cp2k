@@ -527,6 +527,7 @@ CONTAINS
       END DO
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_g%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
@@ -541,7 +542,7 @@ CONTAINS
                iw = cp_print_key_unit_nr(logger, print_section, "MINBAS_CUBE", extension=".cube", &
                                          middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
                                          mpi_io=mpi_io)
-               CALL calculate_wavefunction(minbas_coeff, ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+               CALL calculate_wavefunction(minbas_coeff, ivec, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
                                            cell, dft_control, particle_set, pw_env)
                CALL cp_pw_to_cube(wf_r%pw, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
                CALL cp_print_key_finished_output(iw, logger, print_section, "MINBAS_CUBE", mpi_io=mpi_io)
@@ -559,7 +560,7 @@ CONTAINS
                   iw = cp_print_key_unit_nr(logger, print_section, "MINBAS_CUBE", extension=".cube", &
                                             middle_name=TRIM(filename), file_position="REWIND", log_filename=.FALSE., &
                                             mpi_io=mpi_io)
-                  CALL calculate_wavefunction(minbas_coeff, ivec, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                  CALL calculate_wavefunction(minbas_coeff, ivec, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
                                               cell, dft_control, particle_set, pw_env)
                   CALL cp_pw_to_cube(wf_r%pw, iw, title, particles=particles, stride=stride, mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(iw, logger, print_section, "MINBAS_CUBE", mpi_io=mpi_io)
@@ -570,6 +571,7 @@ CONTAINS
       DEALLOCATE (blk_sizes, first_bas)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+      DEALLOCATE (wf_r%pw, wf_g%pw)
 
    END SUBROUTINE post_minbas_cubes
 

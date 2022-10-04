@@ -661,6 +661,7 @@ CONTAINS
       END IF
       ! In principle, we could reduce the memory footprint of becke_pot by only transferring the nonzero portion
       ! of the potential, but this would require a custom integrate_v_rspace
+      ALLOCATE (cdft_control_target%group(1)%weight%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control_target%group(1)%weight%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       cdft_control_target%group(1)%weight%pw%cr3d = 0.0_dp
@@ -956,21 +957,25 @@ CONTAINS
          IF (mixed_cdft%identical_constraints) THEN
             ! Weight function
             DO igroup = 1, SIZE(cdft_control_target%group)
+               ALLOCATE (cdft_control_target%group(igroup)%weight%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool_target, &
                                       cdft_control_target%group(igroup)%weight%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                ! We have ensured that the grids are consistent => no danger in using explicit copy
                cdft_control_target%group(igroup)%weight%pw%cr3d = cdft_control_source%group(igroup)%weight%pw%cr3d
                CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%group(igroup)%weight%pw)
+               DEALLOCATE (cdft_control_source%group(igroup)%weight%pw)
             END DO
             ! Cavity
             IF (cdft_control_source%type == outer_scf_becke_constraint) THEN
                IF (cdft_control_source%becke_control%cavity_confine) THEN
+                  ALLOCATE (cdft_control_target%becke_control%cavity%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool_target, cdft_control_target%becke_control%cavity%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   cdft_control_target%becke_control%cavity%pw%cr3d(:, :, :) = &
                      cdft_control_source%becke_control%cavity%pw%cr3d
                   CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%becke_control%cavity%pw)
+                  DEALLOCATE (cdft_control_source%becke_control%cavity%pw)
                END IF
             END IF
             ! Gradients
@@ -996,11 +1001,13 @@ CONTAINS
                IF (.NOT. ASSOCIATED(cdft_control_target%charge)) &
                   ALLOCATE (cdft_control_target%charge(cdft_control_target%natoms))
                DO iatom = 1, cdft_control_target%natoms
+                  ALLOCATE (cdft_control_target%charge(iatom)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool_target, &
                                          cdft_control_target%charge(iatom)%pw, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   cdft_control_target%charge(iatom)%pw%cr3d = cdft_control_source%charge(iatom)%pw%cr3d
                   CALL pw_pool_give_back_pw(auxbas_pw_pool_source, cdft_control_source%charge(iatom)%pw)
+                  DEALLOCATE (cdft_control_source%charge(iatom)%pw)
                END DO
             END IF
             ! Set some flags so the weight is not rebuilt during SCF
@@ -2605,6 +2612,7 @@ CONTAINS
             DEALLOCATE (cores)
          END DO
          DEALLOCATE (pab)
+         ALLOCATE (cdft_control%becke_control%cavity%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL rs_pw_transfer(rs_cavity, cdft_control%becke_control%cavity%pw, rs2pw)
@@ -2694,6 +2702,7 @@ CONTAINS
                                                                           bo_conf(1, 3):bo_conf(2, 3))
          END IF
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw)
+         DEALLOCATE (cdft_control%becke_control%cavity%pw)
       END IF
       IF (mixed_cdft%is_special) THEN
          DO i = 1, SIZE(mixed_cdft%dest_list)

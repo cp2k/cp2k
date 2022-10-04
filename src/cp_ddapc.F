@@ -140,6 +140,7 @@ CONTAINS
       dft_control%qs_control%ddapc_explicit_potential = explicit_potential
       dft_control%qs_control%ddapc_restraint_is_spin = ddapc_restraint_is_spin
       IF (explicit_potential) THEN
+         ALLOCATE (v_spin_ddapc_rest_g%pw, v_spin_ddapc_rest_r%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_g%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_zero(v_spin_ddapc_rest_g%pw)
@@ -180,7 +181,7 @@ CONTAINS
                      CALL dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1, 1)%matrix, &
                                      name="ET_RESTRAINT_MATRIX_B")
                      CALL dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp)
-                     CALL integrate_v_rspace(v_spin_ddapc_rest_r, &
+                     CALL integrate_v_rspace(v_spin_ddapc_rest_r%pw, &
                                              hmat=qs_env%et_coupling%rest_mat(1), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)
                      qs_env%et_coupling%order_p = &
@@ -193,7 +194,7 @@ CONTAINS
                      CALL dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1, 1)%matrix, &
                                      name="ET_RESTRAINT_MATRIX_B")
                      CALL dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp)
-                     CALL integrate_v_rspace(v_spin_ddapc_rest_r, &
+                     CALL integrate_v_rspace(v_spin_ddapc_rest_r%pw, &
                                              hmat=qs_env%et_coupling%rest_mat(2), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)
                   END IF
@@ -204,6 +205,7 @@ CONTAINS
 
       IF (explicit_potential) THEN
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_g%pw)
+         DEALLOCATE (v_spin_ddapc_rest_g%pw)
       END IF
       CALL timestop(handle)
 

@@ -170,7 +170,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_distribution_to_z_slices(density, wavelet, pw_grid)
 
-      TYPE(pw_type), POINTER                             :: density
+      TYPE(pw_type), INTENT(IN)                          :: density
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
@@ -330,7 +330,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE z_slices_to_cp2k_distribution(density, wavelet, pw_grid)
 
-      TYPE(pw_type), POINTER                             :: density
+      TYPE(pw_type), INTENT(IN)                          :: density
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 

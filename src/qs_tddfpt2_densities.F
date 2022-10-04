@@ -205,7 +205,7 @@ CONTAINS
          CALL copy_fm_to_dbcsr(wfm_rho_aux_fit, rho_ao_aux_fit(ispin)%matrix, keep_sparsity=.TRUE.)
 
          CALL calculate_rho_elec(matrix_p=rho_ao_aux_fit(ispin)%matrix, &
-                                 rho=rho_aux_fit_r(ispin), rho_gspace=rho_aux_fit_g(ispin), &
+                                 rho=rho_aux_fit_r(ispin)%pw, rho_gspace=rho_aux_fit_g(ispin)%pw, &
                                  total_rho=tot_rho_aux_fit_r(ispin), ks_env=ks_env, &
                                  soft_valid=.FALSE., basis_type=basis_type, &
                                  pw_env_external=sub_env%pw_env, task_list_external=task_list)

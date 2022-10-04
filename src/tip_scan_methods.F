@@ -38,7 +38,6 @@ MODULE tip_scan_methods
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_create,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -89,8 +88,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mos, mos_ref
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), POINTER                           :: sf, vee, vref, vtip
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: sf, vref
+      TYPE(pw_type), POINTER                             :: vee, vtip
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(scanning_type)                                :: scan_env
 
@@ -120,7 +120,6 @@ CONTAINS
                          dft_control=dft_control)
          expot = dft_control%apply_external_potential
          dft_control%apply_external_potential = .TRUE.
-         NULLIFY (vee, vtip)
          IF (expot) THEN
             ! save external potential
             CALL get_qs_env(qs_env, vee=vee)
@@ -128,20 +127,19 @@ CONTAINS
 
          ! scratch memory for tip potentials and structure factor
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         NULLIFY (vtip)
          ALLOCATE (vtip)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vtip%pw, use_data=REALDATA3D)
-         vtip%pw%in_space = REALSPACE
-         CALL pw_zero(vtip%pw)
-         NULLIFY (sf, vref)
-         ALLOCATE (sf, vref)
-         CALL pw_pool_create_pw(auxbas_pw_pool, vref%pw, use_data=COMPLEXDATA1D)
-         vref%pw%in_space = RECIPROCALSPACE
-         CALL pw_zero(vref%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, sf%pw, use_data=COMPLEXDATA1D)
-         sf%pw%in_space = RECIPROCALSPACE
+         CALL pw_pool_create_pw(auxbas_pw_pool, vtip, use_data=REALDATA3D)
+         vtip%in_space = REALSPACE
+         CALL pw_zero(vtip)
+         CALL pw_pool_create_pw(auxbas_pw_pool, vref, use_data=COMPLEXDATA1D)
+         vref%in_space = RECIPROCALSPACE
+         CALL pw_zero(vref)
+         CALL pw_pool_create_pw(auxbas_pw_pool, sf, use_data=COMPLEXDATA1D)
+         sf%in_space = RECIPROCALSPACE
 
          ! get the reference tip potential and store it in reciprocal space (vref)
-         CALL pw_transfer(scan_env%tip_pw_g, vref%pw)
+         CALL pw_transfer(scan_env%tip_pw_g, vref)
 
          ! store reference MOs
          CALL get_qs_env(qs_env, mos=mos)
@@ -167,7 +165,7 @@ CONTAINS
             CALL shift_tip_potential(vref, sf, vtip, rpos)
             ! set the external potential
             IF (ASSOCIATED(vee)) THEN
-               CALL pw_axpy(vee%pw, vtip%pw, alpha=1.0_dp)
+               CALL pw_axpy(vee, vtip, alpha=1.0_dp)
             END IF
             CALL set_ks_env(ks_env, vee=vtip)
 
@@ -201,10 +199,10 @@ CONTAINS
             NULLIFY (vee)
             CALL set_ks_env(ks_env, vee=vee)
          END IF
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vtip%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, vref%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, sf%pw)
-         DEALLOCATE (vtip, sf, vref)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, vtip)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, vref)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, sf)
+         DEALLOCATE (vtip)
 
          logger%iter_info%print_level = plevel
          logger%iter_info%project_name = cname
@@ -233,7 +231,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE shift_tip_potential(vref, sf, vtip, rpos)
 
-      TYPE(pw_p_type), POINTER                           :: vref, sf, vtip
+      TYPE(pw_type), INTENT(IN)                          :: vref, sf
+      TYPE(pw_type), INTENT(INOUT)                       :: vtip
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rpos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'shift_tip_potential'
@@ -242,9 +241,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL pw_structure_factor(sf%pw, rpos)
-      sf%pw%cc = vref%pw%cc*sf%pw%cc
-      CALL pw_transfer(sf%pw, vtip%pw)
+      CALL pw_structure_factor(sf, rpos)
+      sf%cc = vref%cc*sf%cc
+      CALL pw_transfer(sf, vtip)
 
       CALL timestop(handle)
 
@@ -270,7 +269,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: dcell
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(pw_type), POINTER                             :: pw
 
       CALL timeset(routineN, handle)
 
@@ -297,19 +295,16 @@ CONTAINS
       CALL mp_bcast(npts, para_env%source, para_env%group)
       CALL mp_bcast(dcell, para_env%source, para_env%group)
 
-      NULLIFY (pw, pw_grid)
+      NULLIFY (pw_grid)
       CALL pw_grid_create(pw_grid, para_env%group)
       CALL pw_grid_setup(dcell, pw_grid, npts=npts)
-      CALL pw_create(pw, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_create(scan_env%tip_pw_r, pw_grid, use_data=REALDATA3D, in_space=REALSPACE)
 !deb
       scaling = 0.1_dp
 !deb
-      CALL cp_cube_to_pw(pw, scan_env%tip_cube_file, scaling, silent=.TRUE.)
-      scan_env%tip_pw_r => pw
-      NULLIFY (pw)
-      CALL pw_create(pw, pw_grid, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_transfer(scan_env%tip_pw_r, pw)
-      scan_env%tip_pw_g => pw
+      CALL cp_cube_to_pw(scan_env%tip_pw_r, scan_env%tip_cube_file, scaling, silent=.TRUE.)
+      CALL pw_create(scan_env%tip_pw_g, pw_grid, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+      CALL pw_transfer(scan_env%tip_pw_r, scan_env%tip_pw_g)
       CALL pw_grid_release(pw_grid)
 
       CALL timestop(handle)

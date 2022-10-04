@@ -16,8 +16,7 @@ MODULE dielectric_types
    USE kinds,                           ONLY: dp
    USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                               pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release,&
+   USE pw_types,                        ONLY: pw_release,&
                                               pw_type
 #include "../base/base_uses.f90"
 
@@ -55,7 +54,7 @@ MODULE dielectric_types
       TYPE(dielectric_parameters)       :: params
       TYPE(pw_type), POINTER            :: eps
       TYPE(pw_type), POINTER            :: deps_drho
-      TYPE(pw_p_type), DIMENSION(3)     :: dln_eps
+      TYPE(pw_type), DIMENSION(3)     :: dln_eps
    END TYPE dielectric_type
 
    PUBLIC :: dielectric_type, dielectric_parameters
@@ -95,19 +94,18 @@ CONTAINS
          can_give_back = PRESENT(pw_pool)
          IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
          IF (can_give_back) THEN
-            CALL pw_pool_give_back_pw(pw_pool, dielectric%eps, &
-                                      accept_non_compatible=.TRUE.)
-            CALL pw_pool_give_back_pw(pw_pool, dielectric%deps_drho, &
-                                      accept_non_compatible=.TRUE.)
+            CALL pw_pool_give_back_pw(pw_pool, dielectric%eps)
+            CALL pw_pool_give_back_pw(pw_pool, dielectric%deps_drho)
+            DEALLOCATE (dielectric%eps, dielectric%deps_drho)
             DO i = 1, 3
-               CALL pw_pool_give_back_pw(pw_pool, dielectric%dln_eps(i)%pw, &
-                                         accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_pw(pw_pool, dielectric%dln_eps(i))
             END DO
          ELSE
             CALL pw_release(dielectric%eps)
             CALL pw_release(dielectric%deps_drho)
+            DEALLOCATE (dielectric%eps, dielectric%deps_drho)
             DO i = 1, 3
-               CALL pw_release(dielectric%dln_eps(i)%pw)
+               CALL pw_release(dielectric%dln_eps(i))
             END DO
          END IF
          CALL dielectric_parameters_dealloc(dielectric%params)

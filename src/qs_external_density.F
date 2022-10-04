@@ -196,7 +196,7 @@ CONTAINS
             IF (my_rank == 0) CALL close_file(unit_number=extunit)
          END IF
 
-         CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1), rho_gspace=rho_ext_g(1))
+         CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1)%pw, rho_gspace=rho_ext_g(1)%pw)
          tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw, isign=1)
          IF (my_rank == 0) THEN
             WRITE (*, FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ", &

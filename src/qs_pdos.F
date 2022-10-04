@@ -362,6 +362,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
 
+         ALLOCATE (wf_r%pw, wf_g%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -649,11 +650,11 @@ CONTAINS
 
                IF (imo > nmo) THEN
                   CALL calculate_wavefunction(mo_virt, imo - nmo, &
-                                              wf_r, wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+                                              wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
                ELSE
                   CALL calculate_wavefunction(mo_coeff, imo, &
-                                              wf_r, wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+                                              wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                               pw_env)
                END IF
                r_ldos_p(ildos)%ldos%pdos_array(imo) = 0.0_dp
@@ -903,6 +904,7 @@ CONTAINS
          DEALLOCATE (r_ldos_index)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
+         DEALLOCATE (wf_r%pw, wf_g%pw)
       END IF
       IF (do_virt) THEN
          DEALLOCATE (evals_virt)

@@ -56,7 +56,7 @@ CONTAINS
 !>      extremely slow (but correct) version
 ! **************************************************************************************************
    SUBROUTINE pw_restrict_s3(pw_fine_in, pw_coarse_out, coarse_pool, param_section)
-      TYPE(pw_type), POINTER                             :: pw_fine_in, pw_coarse_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_fine_in, pw_coarse_out
       TYPE(pw_pool_type), POINTER                        :: coarse_pool
       TYPE(section_vals_type), POINTER                   :: param_section
 
@@ -68,8 +68,8 @@ CONTAINS
       INTEGER, SAVE                                      :: ifile = 0
       LOGICAL                                            :: pbc, safe_computation, success
       REAL(kind=dp)                                      :: eps_r, eps_x
-      TYPE(pw_spline_precond_type), POINTER              :: precond
-      TYPE(pw_type), POINTER                             :: coeffs, values
+      TYPE(pw_spline_precond_type)                       :: precond
+      TYPE(pw_type)                                      :: coeffs, values
 
       ifile = ifile + 1
       CALL timeset(routineN, handle)
@@ -91,20 +91,9 @@ CONTAINS
       pbc = (interp_kind == spline3_pbc_interp)
       CPASSERT(pbc .OR. interp_kind == spline3_nopbc_interp)
       bo = pw_coarse_out%pw_grid%bounds_local
-      NULLIFY (values, coeffs)
       CALL pw_pool_create_pw(coarse_pool, values, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       CALL pw_zero(values)
-
-!FM       nullify(tst_pw)
-!FM       CALL pw_pool_create_pw(coarse_pool,tst_pw, use_data=REALDATA3D,&
-!FM            in_space=REALSPACE)
-!FM       call pw_copy(values,tst_pw)
-!FM       call add_fine2coarse(fine_values_pw=pw_fine_in,&
-!FM            coarse_coeffs_pw=tst_pw,&
-!FM            weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
-!FM            w_border1=spl3_1d_transf_border1/2._dp,pbc=pbc,&
-!FM            safe_computation=.false.)
 
       CALL add_fine2coarse(fine_values_pw=pw_fine_in, &
                            coarse_coeffs_pw=values, &
@@ -112,13 +101,8 @@ CONTAINS
                            w_border1=spl3_1d_transf_border1/2._dp, pbc=pbc, &
                            safe_computation=safe_computation)
 
-!FM       CALL pw_compare_debug(tst_pw,values,max_diff)
-!FM       WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*)"f2cmax_diff=",max_diff
-!FM       CALL pw_pool_give_back_pw(coarse_pool,tst_pw)
-
       CALL pw_pool_create_pw(coarse_pool, coeffs, use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      NULLIFY (precond)
       CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                     pool=coarse_pool, pbc=pbc, transpose=.TRUE.)
       CALL pw_spline_do_precond(precond, values, coeffs)
@@ -154,7 +138,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_prolongate_s3(pw_coarse_in, pw_fine_out, coarse_pool, &
                                param_section)
-      TYPE(pw_type), POINTER                             :: pw_coarse_in, pw_fine_out
+      TYPE(pw_type), INTENT(IN)                          :: pw_coarse_in, pw_fine_out
       TYPE(pw_pool_type), POINTER                        :: coarse_pool
       TYPE(section_vals_type), POINTER                   :: param_section
 
@@ -166,12 +150,11 @@ CONTAINS
       INTEGER, SAVE                                      :: ifile = 0
       LOGICAL                                            :: pbc, safe_computation, success
       REAL(kind=dp)                                      :: eps_r, eps_x
-      TYPE(pw_spline_precond_type), POINTER              :: precond
-      TYPE(pw_type), POINTER                             :: coeffs
+      TYPE(pw_spline_precond_type)                       :: precond
+      TYPE(pw_type)                                      :: coeffs
 
       ifile = ifile + 1
       CALL timeset(routineN, handle)
-      NULLIFY (coeffs)
       CALL pw_pool_create_pw(coarse_pool, coeffs, use_data=REALDATA3D, &
                              in_space=REALSPACE)
       bo = pw_coarse_in%pw_grid%bounds_local
@@ -192,7 +175,6 @@ CONTAINS
 
       pbc = (interp_kind == spline3_pbc_interp)
       CPASSERT(pbc .OR. interp_kind == spline3_nopbc_interp)
-      NULLIFY (precond)
       CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                     pool=coarse_pool, pbc=pbc, transpose=.FALSE.)
       CALL pw_spline_do_precond(precond, pw_coarse_in, coeffs)
@@ -211,28 +193,12 @@ CONTAINS
       CPASSERT(success)
       CALL pw_spline_precond_release(precond)
 
-!FM       nullify(tst_pw)
-!FM       call pw_create(tst_pw, pw_fine_out%pw_grid, use_data=REALDATA3D,&
-!FM            in_space=REALSPACE)
-!FM       call pw_copy(pw_fine_out,tst_pw)
-!FM       CALL add_coarse2fine(coarse_coeffs_pw=coeffs,&
-!FM            fine_values_pw=tst_pw,&
-!FM            weights_1d=spl3_1d_transf_coeffs,&
-!FM            w_border0=1._dp,&
-!FM            w_border1=spl3_1d_transf_border1,&
-!FM            pbc=pbc,safe_computation=.false.,&
-!FM
-
       CALL add_coarse2fine(coarse_coeffs_pw=coeffs, &
                            fine_values_pw=pw_fine_out, &
                            weights_1d=spl3_1d_transf_coeffs, &
                            w_border0=1._dp, &
                            w_border1=spl3_1d_transf_border1, &
                            pbc=pbc, safe_computation=safe_computation)
-
-!FM       CALL pw_compare_debug(tst_pw,pw_fine_out,max_diff)
-!FM       WRITE(cp_logger_get_default_unit_nr(logger,.TRUE.),*)"c2fmax_diff=",max_diff
-!FM       CALL pw_release(tst_pw)
 
       CALL pw_pool_give_back_pw(coarse_pool, coeffs)
 

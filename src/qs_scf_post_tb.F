@@ -1041,8 +1041,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin), &
-                                 rho_gspace=rho_g(ispin), &
+                                 rho=rho_r(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin)%pw, &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO
@@ -1058,6 +1058,7 @@ CONTAINS
          END IF
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+         ALLOCATE (rho_elec_rspace%pw)
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                                 pw=rho_elec_rspace%pw, &
                                 use_data=REALDATA3D, &
@@ -1105,6 +1106,7 @@ CONTAINS
                             stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec_rspace%pw)
+         DEALLOCATE (rho_elec_rspace%pw)
       ELSE
          IF (iounit > 0) THEN
             WRITE (UNIT=iounit, FMT="(/,T2,A,T66,F15.6)") &
@@ -1206,8 +1208,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin), &
-                                 rho_gspace=rho_g(ispin), &
+                                 rho=rho_r(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin)%pw, &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO
@@ -1218,11 +1220,12 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      ALLOCATE (rho_core%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
                              pw=rho_core%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL calculate_rho_core(rho_core, total_rho_core_rspace, qs_env)
+      CALL calculate_rho_core(rho_core%pw, total_rho_core_rspace, qs_env)
 
       IF (iounit > 0) THEN
          WRITE (UNIT=iounit, FMT="(/,T2,A,T66,F15.6)") &
@@ -1231,6 +1234,7 @@ CONTAINS
             "Integrated core density:", total_rho_core_rspace
       END IF
 
+      ALLOCATE (rho_tot_rspace%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_transfer(rho_core%pw, rho_tot_rspace%pw)
@@ -1259,6 +1263,7 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
       END IF
       IF (my_v_hartree .OR. my_efield) THEN
+         ALLOCATE (rho_tot_gspace%pw)
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=rho_tot_gspace%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_transfer(rho_tot_rspace%pw, rho_tot_gspace%pw)
@@ -1270,6 +1275,7 @@ CONTAINS
          rho_tot_gspace%pw%cc(:) = rho_tot_gspace%pw%cc(:)*green_fft%influence_fn%cc(:)
          CALL pw_green_release(green_fft, auxbas_pw_pool)
          IF (my_v_hartree) THEN
+            ALLOCATE (vhartree%pw)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(rho_tot_gspace%pw, vhartree%pw)
@@ -1292,8 +1298,11 @@ CONTAINS
                                stride=section_get_ivals(cube_section, "STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree%pw)
+            DEALLOCATE (vhartree%pw)
+            NULLIFY (vhartree%pw)
          END IF
          IF (my_efield) THEN
+            ALLOCATE (vhartree%pw)
             CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree%pw, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             udvol = 1.0_dp/rho_tot_rspace%pw%pw_grid%dvol
@@ -1325,12 +1334,15 @@ CONTAINS
                CALL cp_print_key_finished_output(unit_nr, logger, cube_section, '', mpi_io=mpi_io)
             END DO
             CALL pw_pool_give_back_pw(auxbas_pw_pool, vhartree%pw)
+            DEALLOCATE (vhartree%pw)
          END IF
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
+         DEALLOCATE (rho_tot_gspace%pw)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_rspace%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_core%pw)
+      DEALLOCATE (rho_tot_rspace%pw, rho_core%pw)
 
    END SUBROUTINE print_density_cubes
 
@@ -1374,8 +1386,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          rho_ao => rho_ao_kp(ispin, :)
          CALL calculate_rho_elec(matrix_p_kp=rho_ao, &
-                                 rho=rho_r(ispin), &
-                                 rho_gspace=rho_g(ispin), &
+                                 rho=rho_r(ispin)%pw, &
+                                 rho_gspace=rho_g(ispin)%pw, &
                                  total_rho=tot_rho_r(ispin), &
                                  ks_env=ks_env)
       END DO
@@ -1388,6 +1400,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       DO ispin = 1, dft_control%nspins
+         ALLOCATE (elf_r(ispin)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin)%pw, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
@@ -1427,6 +1440,7 @@ CONTAINS
          CALL cp_print_key_finished_output(unit_nr, logger, elf_section, '', mpi_io=mpi_io)
 
          CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin)%pw)
+         DEALLOCATE (elf_r(ispin)%pw)
       END DO
 
       DEALLOCATE (elf_r)
@@ -1510,6 +1524,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
+      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
@@ -1541,7 +1556,7 @@ CONTAINS
                DO i = 1, nlist
                   ivector = list_index(i)
                   IF (ivector > homo) CYCLE
-                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, qs_kind_set, &
+                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r%pw, wf_g%pw, atomic_kind_set, qs_kind_set, &
                                               cell, dft_control, particle_set, pw_env)
                   WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
                   mpi_io = .TRUE.
@@ -1571,7 +1586,7 @@ CONTAINS
                   ilast = MIN(nmo, ilast)
                END IF
                DO ivector = ifirst, ilast
-                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r, wf_g, atomic_kind_set, &
+                  CALL calculate_wavefunction(mo_coeff, ivector, wf_r%pw, wf_g%pw, atomic_kind_set, &
                                               qs_kind_set, cell, dft_control, particle_set, pw_env)
                   WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
                   mpi_io = .TRUE.
@@ -1589,6 +1604,7 @@ CONTAINS
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
+      DEALLOCATE (wf_g%pw, wf_r%pw)
       IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
 
    END SUBROUTINE print_mo_cubes

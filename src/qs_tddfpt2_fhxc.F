@@ -247,7 +247,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin)%pw, &
                              work_matrices%A_ia_rspace_sub(ispin)%pw%pw_grid%dvol)
-               CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+               CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin)%pw, &
                                        hmat=work_matrices%A_ia_munu_sub(ispin), &
                                        qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw_xc, &
                                        pw_env_external=sub_env%pw_env, &
@@ -294,7 +294,7 @@ CONTAINS
                   CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
                   ALLOCATE (V_rspace_sub(nspins))
                   DO ispin = 1, nspins
-                     NULLIFY (V_rspace_sub(ispin)%pw)
+                     ALLOCATE (V_rspace_sub(ispin)%pw)
                      CALL pw_pool_create_pw(auxbas_pw_pool, V_rspace_sub(ispin)%pw, &
                                             use_data=REALDATA3D, in_space=REALSPACE)
                      CALL pw_zero(V_rspace_sub(ispin)%pw)
@@ -316,7 +316,7 @@ CONTAINS
                                        work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
                   DO ispin = 1, nspins
                      CALL pw_scale(V_rspace_sub(ispin)%pw, V_rspace_sub(ispin)%pw%pw_grid%dvol)
-                     CALL integrate_v_rspace(v_rspace=V_rspace_sub(ispin), &
+                     CALL integrate_v_rspace(v_rspace=V_rspace_sub(ispin)%pw, &
                                              hmat=A_xc_munu_sub(ispin), &
                                              qs_env=qs_env, calculate_forces=.FALSE., &
                                              pw_env_external=sub_env%pw_env, &
@@ -357,6 +357,7 @@ CONTAINS
                   DEALLOCATE (dbwork)
                   DO ispin = 1, nspins
                      CALL pw_pool_give_back_pw(auxbas_pw_pool, V_rspace_sub(ispin)%pw)
+                     DEALLOCATE (V_rspace_sub(ispin)%pw)
                   END DO
                   DEALLOCATE (V_rspace_sub)
                   CALL cp_fm_release(work_aux_orb)
@@ -404,7 +405,7 @@ CONTAINS
                              work_matrices%A_ia_rspace_sub(ispin)%pw%pw_grid%dvol)
 
                IF (gapw) THEN
-                  CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                  CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin)%pw, &
                                           hmat=work_matrices%A_ia_munu_sub(ispin), &
                                           qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw, &
                                           pw_env_external=sub_env%pw_env, &
@@ -414,7 +415,7 @@ CONTAINS
                                       rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
                ELSEIF (gapw_xc) THEN
                   IF (.NOT. is_rks_triplets) THEN
-                     CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                     CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin)%pw, &
                                              hmat=work_matrices%A_ia_munu_sub(ispin), &
                                              qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
                                              pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
@@ -423,7 +424,7 @@ CONTAINS
                   CALL update_ks_atom(qs_env, work_matrices%A_ia_munu_sub, rho_ia_ao, forces=.FALSE., tddft=.TRUE., &
                                       rho_atom_external=work_matrices%local_rho_set%rho_atom_set)
                ELSE
-                  CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                  CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin)%pw, &
                                           hmat=work_matrices%A_ia_munu_sub(ispin), &
                                           qs_env=qs_env, calculate_forces=.FALSE., gapw=.FALSE., &
                                           pw_env_external=sub_env%pw_env, task_list_external=sub_env%task_list_orb)
@@ -436,21 +437,11 @@ CONTAINS
                DO ikind = 1, nkind
                   lri_v_int(ikind)%v_int = 0.0_dp
                END DO
-               CALL integrate_v_rspace_one_center(work_matrices%A_ia_rspace_sub(ispin), &
+               CALL integrate_v_rspace_one_center(work_matrices%A_ia_rspace_sub(ispin)%pw, &
                                                   qs_env, lri_v_int, .FALSE., "P_LRI_AUX")
                DO ikind = 1, nkind
                   CALL mp_sum(lri_v_int(ikind)%v_int, para_env%group)
                END DO
-               !          IF (lri_env%exact_1c_terms) THEN
-               !             rho_ao => my_rho(ispin, :)
-               !             ksmat => ks_matrix(ispin, :)
-               !             CALL integrate_v_rspace_diagonal(v_rspace, ksmat(1)%matrix, &
-               !                                              rho_ao(1)%matrix, qs_env, &
-               !                                              calculate_forces, "ORB")
-               !          END IF
-               !          IF (lri_env%ppl_ri) THEN
-               !             CALL v_int_ppl_update(qs_env, lri_v_int, calculate_forces)
-               !          END IF
             END IF ! for full kernel using lri
          END DO
 

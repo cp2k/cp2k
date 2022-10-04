@@ -113,12 +113,14 @@ CONTAINS
                                         "")
       ! pw_pool initialized
       CALL pw_pool_create(pw_pool, pw_grid=pw_grid)
+      ALLOCATE (pw, coeff)
       CALL pw_pool_create_pw(pw_pool, pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(pw_pool, coeff, use_data=REALDATA3D, in_space=REALSPACE)
       ! Evaluate function on grid
       CALL eval_pw_TabLR(pw, pw_pool, coeff, Lg, gx, gy, gz, hmat_mm=hmat, &
                          param_section=param_section, tag=tag)
       CALL pw_pool_give_back_pw(pw_pool, pw)
+      DEALLOCATE (pw)
       CALL cell_release(cell)
 
    END SUBROUTINE Setup_Ewald_Spline
@@ -163,7 +165,7 @@ CONTAINS
                                                             cos_gz(:, :), lhs(:, :), rhs(:, :), &
                                                             sin_gx(:, :), sin_gy(:, :), &
                                                             sin_gz(:, :)
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(section_vals_type), POINTER                   :: interp_section
 
 !NB pull expensive Cos() out of inner looop

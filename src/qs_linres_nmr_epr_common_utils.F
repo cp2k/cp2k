@@ -15,7 +15,6 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE qs_linres_nmr_epr_common_utils
-   USE cell_types,                      ONLY: cell_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gaussi
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -46,7 +45,6 @@ CONTAINS
 !>         \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
 !>       which in reciprcal space reads  (for G/=0)
 !>          i G/|G|^2 x J(G)
-!> \param cell ...
 !> \param pw_pool ...
 !> \param rho_gspace ...
 !> \param funcG_times_rho ...
@@ -60,9 +58,8 @@ CONTAINS
 !>      This method would not work for a non periodic system
 !>      It should be generalized like the calculation of Hartree
 ! **************************************************************************************************
-   SUBROUTINE mult_G_ov_G2_grid(cell, pw_pool, rho_gspace, funcG_times_rho, idir, my_chi)
+   SUBROUTINE mult_G_ov_G2_grid(pw_pool, rho_gspace, funcG_times_rho, idir, my_chi)
 
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(pw_p_type), POINTER                           :: rho_gspace
       TYPE(pw_p_type)                                    :: funcG_times_rho
@@ -74,12 +71,9 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mult_G_ov_G2_grid'
 
-      TYPE(pw_type), POINTER                             :: frho, influence_fn
+      TYPE(pw_type)                                      :: influence_fn
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(cell))
-      MARK_USED(cell)
 
       CALL pw_pool_create_pw(pw_pool, influence_fn, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -91,15 +85,13 @@ CONTAINS
       END DO ! ig
       IF (grid%have_g0) influence_fn%cc(1) = 0.0_dp
 
-      frho => funcG_times_rho%pw
-      CALL pw_transfer(rho_gspace%pw, frho)
+      CALL pw_transfer(rho_gspace%pw, funcG_times_rho%pw)
 
       ng = SIZE(grid%gsq)
-      frho%cc(1:ng) = frho%cc(1:ng)*influence_fn%cc(1:ng)
-      IF (grid%have_g0) frho%cc(1) = my_chi
+      funcG_times_rho%pw%cc(1:ng) = funcG_times_rho%pw%cc(1:ng)*influence_fn%cc(1:ng)
+      IF (grid%have_g0) funcG_times_rho%pw%cc(1) = my_chi
 
-      CALL pw_pool_give_back_pw(pw_pool, influence_fn, &
-                                accept_non_compatible=.TRUE.)
+      CALL pw_pool_give_back_pw(pw_pool, influence_fn)
 
       CALL timestop(handle)
 

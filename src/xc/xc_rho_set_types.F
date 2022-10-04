@@ -466,11 +466,14 @@ CONTAINS
             REAL(KIND=dp), DIMENSION(:, :, :), POINTER, OPTIONAL :: rhoa, rhob
 
             IF (ASSOCIATED(rho)) THEN
+               ALLOCATE (rho_pw)
                CALL pw_create(rho_pw, pw_grid=pw_grid, &
                               cr3d_ptr=rho, &
                               use_data=REALDATA3D, in_space=REALSPACE)
                NULLIFY (rho)
             ELSE IF (PRESENT(rhoa) .AND. PRESENT(rhob)) THEN
+               NULLIFY (rho_pw)
+               ALLOCATE (rho_pw)
                CALL pw_pool_create_pw(pw_pool, rho_pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
 !$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(rho_pw,rhoa,rhob)
@@ -626,15 +629,7 @@ CONTAINS
             REAL(kind=dp)                                      :: rho_cutoff
             TYPE(pw_p_type), DIMENSION(2)                      :: laplace_rho_r, my_rho_r
             TYPE(pw_p_type), DIMENSION(3, 2)                   :: drho_r
-            TYPE(pw_type), POINTER                             :: my_rho_g, tmp_g
-
-            DO ispin = 1, 2
-               NULLIFY (my_rho_r(ispin)%pw)
-               DO idir = 1, 3
-                  NULLIFY (drho_r(idir, ispin)%pw)
-               END DO
-            END DO
-            NULLIFY (tmp_g, my_rho_g)
+            TYPE(pw_type)                             :: my_rho_g, tmp_g
 
             IF (ANY(rho_set%local_bounds /= pw_pool%pw_grid%bounds_local)) &
                CPABORT("pw_pool cr3d have different size than expected")
@@ -691,6 +686,7 @@ CONTAINS
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             END IF
             DO ispin = 1, nspins
+               ALLOCATE (my_rho_r(ispin)%pw)
                CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
                ! introduce a smoothing kernel on the density
@@ -698,7 +694,7 @@ CONTAINS
                   IF (needs_rho_g) THEN
                      IF (ASSOCIATED(rho_g)) THEN
                         my_rho_g_local = .FALSE.
-                        my_rho_g => rho_g(ispin)%pw
+                        my_rho_g = rho_g(ispin)%pw
                      END IF
                   END IF
 
@@ -712,12 +708,12 @@ CONTAINS
                   ! (for the partial integration)
                   ! deriv rho
                   DO idir = 1, 3
-                     NULLIFY (drho_r(idir, ispin)%pw)
+                     ALLOCATE (drho_r(idir, ispin)%pw)
                      CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin)%pw, &
                                             use_data=REALDATA3D, in_space=REALSPACE)
                   END DO
                   IF (needs_rho_g) THEN
-                     IF (.NOT. ASSOCIATED(my_rho_g)) THEN
+                     IF (.NOT. ASSOCIATED(my_rho_g%pw_grid)) THEN
                         my_rho_g_local = .TRUE.
                         CALL pw_pool_create_pw(pw_pool, my_rho_g, &
                                                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -732,7 +728,7 @@ CONTAINS
                      END IF
                   END IF
                   IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
-                     NULLIFY (laplace_rho_r(ispin)%pw)
+                     ALLOCATE (laplace_rho_r(ispin)%pw)
                      CALL pw_pool_create_pw(pw_pool, laplace_rho_r(ispin)%pw, &
                                             use_data=REALDATA3D, in_space=REALSPACE)
                      CALL xc_pw_laplace(my_rho_g, pw_pool, xc_deriv_method_id, laplace_rho_r(ispin)%pw, tmp_g=tmp_g)
@@ -754,7 +750,9 @@ CONTAINS
 
             END DO
 
-            IF (ASSOCIATED(tmp_g)) CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+            IF (ASSOCIATED(tmp_g%pw_grid)) THEN
+               CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+            END IF
 
             SELECT CASE (nspins)
             CASE (1)
@@ -918,17 +916,19 @@ CONTAINS
             ! post cleanup
             DO ispin = 1, nspins
                IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, laplace_rho_r(ispin)%pw, &
-                                            accept_non_compatible=.TRUE.)
+                  CALL pw_pool_give_back_pw(pw_pool, laplace_rho_r(ispin)%pw)
+                  DEALLOCATE (laplace_rho_r(ispin)%pw)
                END IF
                DO idir = 1, 3
-                  CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw, &
-                                            accept_non_compatible=.TRUE.)
+                  IF (ASSOCIATED(drho_r(idir, ispin)%pw)) THEN
+                     CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw)
+                     DEALLOCATE (drho_r(idir, ispin)%pw)
+                  END IF
                END DO
             END DO
             DO ispin = 1, nspins
-               CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw, &
-                                         accept_non_compatible=.TRUE.)
+               CALL pw_pool_give_back_pw(pw_pool, my_rho_r(ispin)%pw)
+               DEALLOCATE (my_rho_r(ispin)%pw)
             END DO
 
             ! tau part

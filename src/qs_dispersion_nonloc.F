@@ -220,6 +220,8 @@ CONTAINS
       const = 1.0_dp/(3.0_dp*SQRT(pi)*b_value**1.5_dp)/(pi**0.75_dp)
 
       ! temporary arrays for FFT
+      NULLIFY (tmp_g, tmp_r)
+      ALLOCATE (tmp_g, tmp_r)
       CALL pw_pool_create_pw(pw_pool, tmp_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(pw_pool, tmp_r, use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -227,7 +229,7 @@ CONTAINS
       ALLOCATE (drho_r(3, nspin))
       DO ispin = 1, nspin
          DO idir = 1, 3
-            NULLIFY (drho_r(idir, ispin)%pw)
+            ALLOCATE (drho_r(idir, ispin)%pw)
             CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(rho_g(ispin)%pw, tmp_g)
@@ -398,7 +400,7 @@ CONTAINS
             END DO
          END DO
 !$OMP END PARALLEL DO
-         NULLIFY (thetas_g(i)%pw)
+         ALLOCATE (thetas_g(i)%pw)
          CALL pw_pool_create_pw(pw_pool, thetas_g(i)%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_transfer(tmp_r, thetas_g(i)%pw)
       END DO
@@ -480,6 +482,8 @@ CONTAINS
             potential(:) = (0.5_dp*potential(:) + beta)*dispersion_env%scale_rvv10
             hpot(:) = 0.5_dp*dispersion_env%scale_rvv10*hpot(:)
          END SELECT
+         NULLIFY (vxc_r)
+         ALLOCATE (vxc_r)
          CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
          DO i = 1, 3
             lo(i) = LBOUND(vxc_r%cr3d, i)
@@ -536,6 +540,9 @@ CONTAINS
          END DO
          CALL pw_transfer(vxc_r, tmp_g)
          CALL pw_pool_give_back_pw(pw_pool, vxc_r)
+         DEALLOCATE (vxc_r)
+         NULLIFY (vxc_r)
+         ALLOCATE (vxc_r, vxc_g)
          CALL pw_pool_create_pw(xc_pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(xc_pw_pool, vxc_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_transfer(tmp_g, vxc_g)
@@ -545,6 +552,7 @@ CONTAINS
          END DO
          CALL pw_pool_give_back_pw(xc_pw_pool, vxc_r)
          CALL pw_pool_give_back_pw(xc_pw_pool, vxc_g)
+         DEALLOCATE (vxc_r, vxc_g)
          DEALLOCATE (q0, dq0_drho, dq0_dgradrho)
       END IF
 
@@ -552,14 +560,17 @@ CONTAINS
 
       DO i = 1, dispersion_env%nqs
          CALL pw_pool_give_back_pw(pw_pool, thetas_g(i)%pw)
+         DEALLOCATE (thetas_g(i)%pw)
       END DO
       DO ispin = 1, nspin
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw)
+            DEALLOCATE (drho_r(idir, ispin)%pw)
          END DO
       END DO
       CALL pw_pool_give_back_pw(pw_pool, tmp_r)
       CALL pw_pool_give_back_pw(pw_pool, tmp_g)
+      DEALLOCATE (tmp_r, tmp_g)
 
       DEALLOCATE (rho, drho, drho_r, thetas_g)
 

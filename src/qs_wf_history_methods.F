@@ -202,7 +202,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(snapshot%rho_r)) THEN
             ALLOCATE (snapshot%rho_r(nspins))
             DO ispin = 1, nspins
-               NULLIFY (snapshot%rho_r(ispin)%pw)
+               ALLOCATE (snapshot%rho_r(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_r(ispin)%pw, &
                                       in_space=REALSPACE, use_data=REALDATA3D)
             END DO
@@ -213,6 +213,7 @@ CONTAINS
       ELSE IF (ASSOCIATED(snapshot%rho_r)) THEN
          DO ispin = 1, SIZE(snapshot%rho_r)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_r(ispin)%pw)
+            DEALLOCATE (snapshot%rho_r(ispin)%pw)
          END DO
          DEALLOCATE (snapshot%rho_r)
       END IF
@@ -223,7 +224,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(snapshot%rho_g)) THEN
             ALLOCATE (snapshot%rho_g(nspins))
             DO ispin = 1, nspins
-               NULLIFY (snapshot%rho_g(ispin)%pw)
+               ALLOCATE (snapshot%rho_g(ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, snapshot%rho_g(ispin)%pw, &
                                       in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
             END DO
@@ -234,6 +235,7 @@ CONTAINS
       ELSE IF (ASSOCIATED(snapshot%rho_g)) THEN
          DO ispin = 1, SIZE(snapshot%rho_g)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, snapshot%rho_g(ispin)%pw)
+            DEALLOCATE (snapshot%rho_g(ispin)%pw)
          END DO
          DEALLOCATE (snapshot%rho_g)
       END IF

@@ -38,27 +38,7 @@ MODULE pw_types
 
    PRIVATE
    PUBLIC :: pw_type, pw_p_type
-   PUBLIC :: pw_retain, pw_release, pw_create
-
-! **************************************************************************************************
-   TYPE pw_type
-      REAL(KIND=dp), DIMENSION(:), POINTER :: cr
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: cr3d
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER :: cc
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc3d
-
-      INTEGER :: in_use ! Which data is used [r1d/c1d/r3d/c3d]
-      INTEGER :: in_space ! Real/Reciprocal space
-      INTEGER :: id_nr ! unique identifier
-      INTEGER :: ref_count ! reference count
-
-      TYPE(pw_grid_type), POINTER :: pw_grid
-   END TYPE pw_type
-
-! **************************************************************************************************
-   TYPE pw_p_type
-      TYPE(pw_type), POINTER :: pw
-   END TYPE pw_p_type
+   PUBLIC :: pw_release, pw_create
 
    ! Flags for the structure member 'in_use'
    INTEGER, PARAMETER, PUBLIC :: REALDATA1D = 301, COMPLEXDATA1D = 302
@@ -70,29 +50,30 @@ MODULE pw_types
 
    ! to generate unique id_nr
    INTEGER, SAVE, PRIVATE :: last_pw_id_nr = 0
-   INTEGER, SAVE, PRIVATE :: allocated_pw_count = 0
+
+! **************************************************************************************************
+   TYPE pw_type
+      REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cr => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cr3d => NULL()
+      COMPLEX(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: cc => NULL()
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: cc3d => NULL()
+
+      INTEGER :: in_use = NODATA ! Which data is used [r1d/c1d/r3d/c3d]
+      INTEGER :: in_space = NOSPACE ! Real/Reciprocal space
+      INTEGER :: id_nr = -1 ! unique identifier
+
+      TYPE(pw_grid_type), POINTER :: pw_grid => NULL()
+   END TYPE pw_type
+
+! **************************************************************************************************
+   TYPE pw_p_type
+      TYPE(pw_type), POINTER :: pw => NULL()
+   END TYPE pw_p_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_types'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief retains a pw type
-!> \param pw the pw to retain
-!> \par History
-!>      03.2003 created [fawzi]
-!> \author fawzi
-!> \note
-!>      see doc/ReferenceCounting.html
-! **************************************************************************************************
-   SUBROUTINE pw_retain(pw)
-      TYPE(pw_type), POINTER                             :: pw
-
-      CPASSERT(ASSOCIATED(pw))
-      CPASSERT(pw%ref_count > 0)
-      pw%ref_count = pw%ref_count + 1
-   END SUBROUTINE pw_retain
 
 ! **************************************************************************************************
 !> \brief releases the given pw
@@ -104,37 +85,25 @@ CONTAINS
 !>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
    SUBROUTINE pw_release(pw)
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
 
-      IF (ASSOCIATED(pw)) THEN
-         CPASSERT(pw%ref_count > 0)
-         pw%ref_count = pw%ref_count - 1
-         IF (pw%ref_count == 0) THEN
-            pw%ref_count = 1
-
-            allocated_pw_count = allocated_pw_count - 1
-            SELECT CASE (pw%in_use)
-            CASE (REALDATA1D)
-               DEALLOCATE (pw%cr)
-            CASE (COMPLEXDATA1D)
-               DEALLOCATE (pw%cc)
-            CASE (REALDATA3D)
-               IF (ASSOCIATED(pw%cr3d)) THEN
-                  !FM optimizations of pools might have removed the 3d field to cache it
-                  DEALLOCATE (pw%cr3d)
-               END IF
-            CASE (COMPLEXDATA3D)
-               DEALLOCATE (pw%cc3d)
-            CASE (NODATA)
-            CASE default
-               CPABORT("unknown data type "//cp_to_string(pw%in_use))
-            END SELECT
-            CALL pw_grid_release(pw%pw_grid)
-            pw%ref_count = 0
-            DEALLOCATE (pw)
+      SELECT CASE (pw%in_use)
+      CASE (REALDATA1D)
+         DEALLOCATE (pw%cr)
+      CASE (COMPLEXDATA1D)
+         DEALLOCATE (pw%cc)
+      CASE (REALDATA3D)
+         IF (ASSOCIATED(pw%cr3d)) THEN
+            !FM optimizations of pools might have removed the 3d field to cache it
+            DEALLOCATE (pw%cr3d)
          END IF
-      END IF
-      NULLIFY (pw)
+      CASE (COMPLEXDATA3D)
+         DEALLOCATE (pw%cc3d)
+      CASE (NODATA)
+      CASE default
+         CPABORT("unknown data type "//cp_to_string(pw%in_use))
+      END SELECT
+      CALL pw_grid_release(pw%pw_grid)
    END SUBROUTINE pw_release
 
 ! **************************************************************************************************
@@ -150,12 +119,12 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
-      TYPE(pw_type), POINTER                             :: pw
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
+      TYPE(pw_type), INTENT(OUT)                         :: pw
+      TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(in)                                :: use_data
       INTEGER, INTENT(in), OPTIONAL                      :: in_space
-      REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
-         POINTER                                         :: cr3d_ptr
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
+         OPTIONAL, POINTER                               :: cr3d_ptr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_create'
 
@@ -164,8 +133,6 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
-      CPASSERT(.NOT. ASSOCIATED(pw))
-      ALLOCATE (pw)
       logger => cp_get_default_logger()
       IF (debug_this_module) THEN
          WRITE (cp_logger_get_default_unit_nr(logger), "('*** allocated pw ***')")
@@ -185,17 +152,11 @@ CONTAINS
 
       last_pw_id_nr = last_pw_id_nr + 1
       pw%id_nr = last_pw_id_nr
-      pw%ref_count = 1
-      NULLIFY (pw%pw_grid)
       pw%in_use = use_data
       pw%pw_grid => pw_grid
       CALL pw_grid_retain(pw%pw_grid)
       pw%in_space = NOSPACE
       bounds => pw%pw_grid%bounds_local
-
-      allocated_pw_count = allocated_pw_count + 1
-
-      NULLIFY (pw%cr, pw%cc, pw%cr3d, pw%cc3d)
 
       SELECT CASE (use_data)
       CASE (REALDATA1D)

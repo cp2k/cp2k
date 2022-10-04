@@ -155,17 +155,17 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(3)                      :: dln_eps_elec, dphi_tot, drho_elec
-      TYPE(pw_p_type), DIMENSION(3, 3)                   :: d2rho_elec
+      TYPE(pw_p_type), DIMENSION(3)                      :: dphi_tot
       TYPE(pw_p_type), DIMENSION(5)                      :: work_r3d
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_pw_r
-      TYPE(pw_p_type), POINTER                           :: rho_pw_r_sccs
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(3)                        :: dln_eps_elec, drho_elec
+      TYPE(pw_type), DIMENSION(3, 3)                     :: d2rho_elec
       TYPE(pw_type), POINTER :: deps_elec, eps_elec, ln_eps_elec, norm_drho_elec, phi_pol, &
-         phi_solute, phi_tot, rho_elec, rho_iter_old, rho_pol, rho_solute, rho_tot, rho_tot_zero, &
-         theta
+         phi_solute, phi_tot, rho_elec, rho_iter_old, rho_pol, rho_pw_r_sccs, rho_solute, rho_tot, &
+         rho_tot_zero, theta
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -284,7 +284,7 @@ CONTAINS
 
       ! Get work storage for the 3d grids in r-space
       DO i = 1, SIZE(work_r3d)
-         NULLIFY (work_r3d(i)%pw)
+         ALLOCATE (work_r3d(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 work_r3d(i)%pw, &
                                 use_data=REALDATA3D, &
@@ -309,7 +309,7 @@ CONTAINS
 
       ! Retrieve the last rho_iter from the previous SCCS cycle if available
       CPASSERT(ASSOCIATED(rho_pw_r_sccs))
-      rho_iter_old => rho_pw_r_sccs%pw
+      rho_iter_old => rho_pw_r_sccs
 
       ! Retrieve the total electronic density in r-space
       CALL pw_copy(rho_pw_r(1)%pw, rho_elec)
@@ -393,13 +393,12 @@ CONTAINS
          ! Calculate the derivative of the electronic density in r-space
          ! TODO: Could be retrieved from the QS environment
          DO i = 1, 3
-            NULLIFY (drho_elec(i)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   drho_elec(i)%pw, &
+                                   drho_elec(i), &
                                    use_data=REALDATA3D, &
                                    in_space=REALSPACE)
          END DO
-         CALL derive(rho_elec, drho_elec, sccs_derivative_fft, pw_env, input, para_env)
+         CALL derive(rho_elec, drho_elec, sccs_derivative_fft, pw_env, input)
 
          ! Calculate the norm of the gradient of the electronic density in r-space
          norm_drho_elec => work_r3d(5)%pw
@@ -409,12 +408,12 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  norm_drho_elec%cr3d(i, j, k) = SQRT(drho_elec(1)%pw%cr3d(i, j, k)* &
-                                                      drho_elec(1)%pw%cr3d(i, j, k) + &
-                                                      drho_elec(2)%pw%cr3d(i, j, k)* &
-                                                      drho_elec(2)%pw%cr3d(i, j, k) + &
-                                                      drho_elec(3)%pw%cr3d(i, j, k)* &
-                                                      drho_elec(3)%pw%cr3d(i, j, k))
+                  norm_drho_elec%cr3d(i, j, k) = SQRT(drho_elec(1)%cr3d(i, j, k)* &
+                                                      drho_elec(1)%cr3d(i, j, k) + &
+                                                      drho_elec(2)%cr3d(i, j, k)* &
+                                                      drho_elec(2)%cr3d(i, j, k) + &
+                                                      drho_elec(3)%cr3d(i, j, k)* &
+                                                      drho_elec(3)%cr3d(i, j, k))
                END DO
             END DO
          END DO
@@ -475,14 +474,13 @@ CONTAINS
             ! Calculate the second derivatives of the electronic density in r-space
             DO di = 1, 3
                DO dj = 1, 3
-                  NULLIFY (d2rho_elec(dj, di)%pw)
                   CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                         d2rho_elec(dj, di)%pw, &
+                                         d2rho_elec(dj, di), &
                                          use_data=REALDATA3D, &
                                          in_space=REALSPACE)
                END DO
-               CALL derive(drho_elec(di)%pw, d2rho_elec(:, di), sccs_derivative_fft, pw_env, &
-                           input, para_env)
+               CALL derive(drho_elec(di), d2rho_elec(:, di), sccs_derivative_fft, pw_env, &
+                           input)
             END DO
 
             ! Calculate the contribution of the cavitation energy to the Kohn-Sham potential
@@ -497,10 +495,10 @@ CONTAINS
                      DO di = 1, 3
                         DO dj = 1, 3
                            v_sccs%cr3d(i, j, k) = sccs_control%gamma_solvent*theta%cr3d(i, j, k)* &
-                                                  (drho_elec(di)%pw%cr3d(i, j, k)* &
-                                                   drho_elec(dj)%pw%cr3d(i, j, k)* &
-                                                   d2rho_elec(di, dj)%pw%cr3d(i, j, k)/norm_drho2 - &
-                                                   d2rho_elec(di, di)%pw%cr3d(i, j, k))/norm_drho2
+                                                  (drho_elec(di)%cr3d(i, j, k)* &
+                                                   drho_elec(dj)%cr3d(i, j, k)* &
+                                                   d2rho_elec(di, dj)%cr3d(i, j, k)/norm_drho2 - &
+                                                   d2rho_elec(di, di)%cr3d(i, j, k))/norm_drho2
                         END DO
                      END DO
                   END DO
@@ -510,7 +508,7 @@ CONTAINS
             CALL pw_scale(v_sccs, dvol)
             DO di = 1, 3
                DO dj = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, d2rho_elec(dj, di)%pw)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, d2rho_elec(dj, di))
                END DO
             END DO
          END IF
@@ -518,7 +516,7 @@ CONTAINS
          ! Release storage
          NULLIFY (theta)
          DO i = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_elec(i)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_elec(i))
          END DO
 
       END IF
@@ -562,14 +560,13 @@ CONTAINS
 
       ! Build the derivative of ln_eps_elec
       DO i = 1, 3
-         NULLIFY (dln_eps_elec(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                dln_eps_elec(i)%pw, &
+                                dln_eps_elec(i), &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_zero(dln_eps_elec(i)%pw)
+         CALL pw_zero(dln_eps_elec(i))
       END DO
-      CALL derive(ln_eps_elec, dln_eps_elec, sccs_control%derivative_method, pw_env, input, para_env)
+      CALL derive(ln_eps_elec, dln_eps_elec, sccs_control%derivative_method, pw_env, input)
 
       ! Print header for the SCCS cycle
       IF (should_output .AND. (output_unit > 0)) THEN
@@ -598,7 +595,7 @@ CONTAINS
 
       ! Get storage for the derivative of the total potential (field) in r-space
       DO i = 1, 3
-         NULLIFY (dphi_tot(i)%pw)
+         ALLOCATE (dphi_tot(i)%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, &
                                 dphi_tot(i)%pw, &
                                 use_data=REALDATA3D, &
@@ -656,9 +653,9 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  rho_iter_new = (dln_eps_elec(1)%pw%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k) + &
-                                  dln_eps_elec(2)%pw%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k) + &
-                                  dln_eps_elec(3)%pw%cr3d(i, j, k)*dphi_tot(3)%pw%cr3d(i, j, k))*f
+                  rho_iter_new = (dln_eps_elec(1)%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k) + &
+                                  dln_eps_elec(2)%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k) + &
+                                  dln_eps_elec(3)%cr3d(i, j, k)*dphi_tot(3)%pw%cr3d(i, j, k))*f
                   rho_iter_new = rho_iter_old%cr3d(i, j, k) + &
                                  sccs_control%mixing*(rho_iter_new - rho_iter_old%cr3d(i, j, k))
                   rho_delta = ABS(rho_iter_new - rho_iter_old%cr3d(i, j, k))
@@ -701,7 +698,7 @@ CONTAINS
 
       ! Release work storage which is no longer needed
       DO i = 1, 3
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, dln_eps_elec(i)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, dln_eps_elec(i))
       END DO
 
       ! Optional output of the total charge density in cube file format
@@ -908,10 +905,12 @@ CONTAINS
       NULLIFY (phi_pol)
       DO i = 1, SIZE(work_r3d)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, work_r3d(i)%pw)
+         DEALLOCATE (work_r3d(i)%pw)
       END DO
       NULLIFY (rho_iter_old)
       DO i = 1, 3
          CALL pw_pool_give_back_pw(auxbas_pw_pool, dphi_tot(i)%pw)
+         DEALLOCATE (dphi_tot(i)%pw)
       END DO
 
       ! Release the SCCS printout environment
@@ -1068,20 +1067,18 @@ CONTAINS
 !> \param method ...
 !> \param pw_env ...
 !> \param input ...
-!> \param para_env ...
 !> \par History:
 !>      - Creation (15.11.2013,MK)
 !> \author     Matthias Krack (MK)
 !> \version    1.0
 ! **************************************************************************************************
-   SUBROUTINE derive(f, df, method, pw_env, input, para_env)
+   SUBROUTINE derive(f, df, method, pw_env, input)
 
-      TYPE(pw_type), POINTER                             :: f
-      TYPE(pw_p_type), DIMENSION(3), INTENT(INOUT)       :: df
+      TYPE(pw_type), INTENT(IN)                          :: f
+      TYPE(pw_type), DIMENSION(3), INTENT(INOUT)         :: df
       INTEGER, INTENT(IN)                                :: method
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(section_vals_type), POINTER                   :: input
-      TYPE(cp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'derive'
 
@@ -1096,10 +1093,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(ASSOCIATED(f))
       CPASSERT(ASSOCIATED(pw_env))
-      CPASSERT(ASSOCIATED(para_env))
-      MARK_USED(para_env)
 
       ! Perform method specific setup
       SELECT CASE (method)
@@ -1128,7 +1122,7 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ! Get work storage for the 1d grids in g-space (derivative calculation)
          DO i = 1, SIZE(work_g1d)
-            NULLIFY (work_g1d(i)%pw)
+            ALLOCATE (work_g1d(i)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
                                    work_g1d(i)%pw, &
                                    use_data=COMPLEXDATA1D, &
@@ -1152,7 +1146,7 @@ CONTAINS
             n(i) = 1
             CALL pw_copy(work_g1d(1)%pw, work_g1d(2)%pw)
             CALL pw_derive(work_g1d(2)%pw, n(:))
-            CALL pw_transfer(work_g1d(2)%pw, df(i)%pw)
+            CALL pw_transfer(work_g1d(2)%pw, df(i))
          END DO
       CASE DEFAULT
          CPABORT("Invalid derivative method for SCCS specified")
@@ -1166,6 +1160,7 @@ CONTAINS
       CASE (sccs_derivative_fft)
          DO i = 1, SIZE(work_g1d)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, work_g1d(i)%pw)
+            DEALLOCATE (work_g1d(i)%pw)
          END DO
       END SELECT
 

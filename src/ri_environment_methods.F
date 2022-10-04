@@ -409,7 +409,7 @@ CONTAINS
       CALL qs_rho_get(lri_rho_struct, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r)
       DO ispin = 1, nspin
          lri_coef => lri_density%lri_coefs(ispin)%lri_kinds
-         CALL calculate_lri_rho_elec(rho_g(ispin), rho_r(ispin), qs_env, &
+         CALL calculate_lri_rho_elec(rho_g(ispin)%pw, rho_r(ispin)%pw, qs_env, &
                                      lri_coef, tot_rho_r(ispin), "RI_HXC", .FALSE.)
       END DO
 

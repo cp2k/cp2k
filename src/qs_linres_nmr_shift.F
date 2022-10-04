@@ -162,6 +162,7 @@ CONTAINS
       ALLOCATE (shift_pw_gspace(3, nspins))
       DO ispin = 1, nspins
          DO idir = 1, 3
+            ALLOCATE (shift_pw_gspace(idir, ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw, &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
             CALL pw_zero(shift_pw_gspace(idir, ispin)%pw)
@@ -171,6 +172,7 @@ CONTAINS
       !
       CALL set_vecp(iB, iiB, iiiB)
       !
+      ALLOCATE (pw_gspace_work%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work%pw, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_zero(pw_gspace_work%pw)
@@ -184,7 +186,7 @@ CONTAINS
             DO idir2 = 1, 3
                IF (idir /= idir2) THEN
                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                  CALL mult_G_ov_G2_grid(cell, auxbas_pw_pool, jrho_gspace, &
+                  CALL mult_G_ov_G2_grid(auxbas_pw_pool, jrho_gspace, &
                                          pw_gspace_work, idir2, 0.0_dp)
                   !
                   ! scale and add to the correct component of the shift column
@@ -198,9 +200,11 @@ CONTAINS
       END DO ! ispin
       !
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work%pw)
+      DEALLOCATE (pw_gspace_work%pw)
       !
       ! compute shildings
       IF (interpolate_shift) THEN
+         ALLOCATE (shift_pw_rspace%pw)
          CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_rspace%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          DO ispin = 1, nspins
@@ -214,6 +218,7 @@ CONTAINS
             END DO
          END DO
          CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace%pw)
+         DEALLOCATE (shift_pw_rspace%pw)
       ELSE
          DO ispin = 1, nspins
             DO idir = 1, 3
@@ -237,6 +242,7 @@ CONTAINS
       DO ispin = 1, nspins
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw)
+            DEALLOCATE (shift_pw_gspace(idir, ispin)%pw)
          END DO
       END DO
       DEALLOCATE (shift_pw_gspace)
@@ -529,15 +535,12 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: chemical_shift, chemical_shift_nics
       TYPE(pw_p_type)                                    :: shiftspl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(section_vals_type), POINTER                   :: interp_section
-
-!
 
       CALL timeset(routineN, handle)
       !
-      NULLIFY (interp_section)
-      NULLIFY (auxbas_pw_pool, precond)
+      NULLIFY (interp_section, auxbas_pw_pool)
       NULLIFY (cs_atom_list, chemical_shift, chemical_shift_nics, r_nics)
 
       CPASSERT(ASSOCIATED(shift_pw_rspace%pw))
@@ -553,6 +556,7 @@ CONTAINS
 
       ! calculate spline coefficients
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      ALLOCATE (shiftspl%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, shiftspl%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -597,6 +601,7 @@ CONTAINS
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool, shiftspl%pw)
+      DEALLOCATE (shiftspl%pw)
 
       !
       CALL timestop(handle)
@@ -629,9 +634,6 @@ CONTAINS
       REAL(dp)                                           :: R_iatom(3), ra(3)
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_nics
       REAL(dp), DIMENSION(:, :, :), POINTER              :: chemical_shift, chemical_shift_nics
-
-!
-!
 
       CALL timeset(routineN, handle)
       !

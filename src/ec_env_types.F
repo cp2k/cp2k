@@ -169,23 +169,27 @@ CONTAINS
          ! potential
          IF (ASSOCIATED(ec_env%vh_rspace)) THEN
             CALL pw_release(ec_env%vh_rspace%pw)
+            DEALLOCATE (ec_env%vh_rspace%pw)
             DEALLOCATE (ec_env%vh_rspace)
          END IF
          IF (ASSOCIATED(ec_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(ec_env%vxc_rspace)
                CALL pw_release(ec_env%vxc_rspace(iab)%pw)
+               DEALLOCATE (ec_env%vxc_rspace(iab)%pw)
             END DO
             DEALLOCATE (ec_env%vxc_rspace)
          END IF
          IF (ASSOCIATED(ec_env%vtau_rspace)) THEN
             DO iab = 1, SIZE(ec_env%vtau_rspace)
                CALL pw_release(ec_env%vtau_rspace(iab)%pw)
+               DEALLOCATE (ec_env%vtau_rspace(iab)%pw)
             END DO
             DEALLOCATE (ec_env%vtau_rspace)
          END IF
          IF (ASSOCIATED(ec_env%vadmm_rspace)) THEN
             DO iab = 1, SIZE(ec_env%vadmm_rspace)
                CALL pw_release(ec_env%vadmm_rspace(iab)%pw)
+               DEALLOCATE (ec_env%vadmm_rspace(iab)%pw)
             END DO
             DEALLOCATE (ec_env%vadmm_rspace)
          END IF

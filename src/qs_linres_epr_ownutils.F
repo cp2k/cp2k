@@ -313,7 +313,7 @@ CONTAINS
                                                             nrho3_r
       TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: vks_pw_spline
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER         :: jrho1_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -385,6 +385,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             DO idir1 = 1, 3
+               ALLOCATE (vks_pw_spline(idir1, ispin)%pw)
                CALL pw_pool_create_pw(auxbas_pw_pool, &
                                       vks_pw_spline(idir1, ispin)%pw, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
@@ -521,6 +522,7 @@ CONTAINS
          DO ispin = 1, nspins
             DO idir1 = 1, 3
                CALL pw_pool_give_back_pw(auxbas_pw_pool, vks_pw_spline(idir1, ispin)%pw)
+               DEALLOCATE (vks_pw_spline(idir1, ispin)%pw)
             END DO
          END DO
 
@@ -576,7 +578,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: brho1_r, rho_r
       TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: bind_pw_spline
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_spline_precond_type), POINTER              :: precond
+      TYPE(pw_spline_precond_type)                       :: precond
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: bind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -656,6 +658,7 @@ CONTAINS
          CALL section_vals_val_get(interp_section, "eps_x", r_val=eps_x)
 
          DO idir1 = 1, 3
+            ALLOCATE (bind_pw_spline(idir1, iB)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
                                    bind_pw_spline(idir1, iB)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
@@ -749,6 +752,7 @@ CONTAINS
 
          DO idir1 = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, bind_pw_spline(idir1, iB)%pw)
+            DEALLOCATE (bind_pw_spline(idir1, iB)%pw)
          END DO
 
          DEALLOCATE (bind_pw_spline)
@@ -819,19 +823,21 @@ CONTAINS
       ALLOCATE (shift_pw_gspace(3, nspins))
       DO ispin = 1, nspins
          DO idir = 1, 3
+            ALLOCATE (shift_pw_gspace(idir, ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw, &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
             CALL pw_zero(shift_pw_gspace(idir, ispin)%pw)
          END DO
       END DO
+      ALLOCATE (shift_pw_rspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_rspace%pw, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_zero(shift_pw_rspace%pw)
+      ALLOCATE (pw_gspace_work%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work%pw, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-
       CALL pw_zero(pw_gspace_work%pw)
       !
       CALL set_vecp(iB, iiB, iiiB)
@@ -850,7 +856,7 @@ CONTAINS
             DO idir2 = 1, 3
                IF (idir /= idir2) THEN
                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                  CALL mult_G_ov_G2_grid(cell, auxbas_pw_pool, rho_gspace, &
+                  CALL mult_G_ov_G2_grid(auxbas_pw_pool, rho_gspace, &
                                          pw_gspace_work, idir2, 0.0_dp)
                   !
                   ! scale and add to the correct component of the shift column
@@ -874,13 +880,16 @@ CONTAINS
       !
       ! Dellocate grids for the calculation of jrho and the shift
       CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work%pw)
+      DEALLOCATE (pw_gspace_work%pw)
       DO ispin = 1, dft_control%nspins
          DO idir = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw)
+            DEALLOCATE (shift_pw_gspace(idir, ispin)%pw)
          END DO
       END DO
       DEALLOCATE (shift_pw_gspace)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace%pw)
+      DEALLOCATE (shift_pw_rspace%pw)
       !
       ! Finalize
       CALL timestop(handle)
