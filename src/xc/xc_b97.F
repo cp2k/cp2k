@@ -260,9 +260,9 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_norm_drho, epsilon_rho, scale_c, &
                                                             scale_x
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, e_ndrho_ndrho, &
-         e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, e_rho_rho, &
-         e_rho_rho_rho, norm_drho, rho
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
+         e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
+         e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
@@ -371,9 +371,9 @@ CONTAINS
       INTEGER                                            :: handle, npoints, param
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, scale_c, scale_x
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndra, e_ndra_ndra, e_ndra_ndrb, &
-         e_ndra_ra, e_ndra_rb, e_ndrb, e_ndrb_ndrb, e_ndrb_ra, e_ndrb_rb, e_ra, e_ra_ra, e_ra_rb, &
-         e_rb, e_rb_rb, norm_drhoa, norm_drhob, rhoa, rhob
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndra, e_ndra_ndra, &
+         e_ndra_ndrb, e_ndra_ra, e_ndra_rb, e_ndrb, e_ndrb_ndrb, e_ndrb_ra, e_ndrb_rb, e_ra, &
+         e_ra_ra, e_ra_rb, e_rb, e_rb_rb, norm_drhoa, norm_drhob, rhoa, rhob
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)

@@ -14,7 +14,7 @@
 MODULE xc_xbecke88_long_range
    USE bibliography,                    ONLY: Becke1988,&
                                               cite_reference
-   USE cp_array_utils,                  ONLY: cp_3d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -130,9 +130,9 @@ CONTAINS
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, omega, sx
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, e_ndrho_ndrho, &
-         e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, e_rho_rho, &
-         e_rho_rho_rho, norm_drho, rho
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
+         e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
+         e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
@@ -845,8 +845,9 @@ CONTAINS
       INTEGER                                            :: handle, i, ispin, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, omega, sx
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0
-      TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, e_ndrho_ndrho_ndrho, &
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0
+      TYPE(cp_3d_r_cp_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, e_ndrho_ndrho_ndrho, &
          e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, &
          norm_drho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv

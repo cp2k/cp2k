@@ -12,7 +12,7 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE xc_rho_set_types
-   USE cp_array_utils, ONLY: cp_3d_r_p_type
+   USE cp_array_utils, ONLY: cp_3d_r_cp_type
    USE kinds, ONLY: dp
    USE pw_grid_types, ONLY: pw_grid_type
    USE pw_methods, ONLY: pw_copy, &
@@ -88,18 +88,18 @@ MODULE xc_rho_set_types
       REAL(kind=dp) :: rho_cutoff, drho_cutoff, tau_cutoff
       TYPE(xc_rho_cflags_type) :: owns, has
       ! for spin restricted systems
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rho
-      TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drho
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: norm_drho
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rho_1_3
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: tau
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rho
+      TYPE(cp_3d_r_cp_type), DIMENSION(3)         :: drho
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: norm_drho
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rho_1_3
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: tau
       ! for UNrestricted systems
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rhoa, rhob
-      TYPE(cp_3d_r_p_type), DIMENSION(3)         :: drhoa, drhob
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: norm_drhoa, norm_drhob
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: rhoa_1_3, rhob_1_3
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: tau_a, tau_b
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: laplace_rho, laplace_rhoa, laplace_rhob
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rhoa, rhob
+      TYPE(cp_3d_r_cp_type), DIMENSION(3)         :: drhoa, drhob
+      REAL(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: norm_drhoa, norm_drhob
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: rhoa_1_3, rhob_1_3
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: tau_a, tau_b
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER :: laplace_rho, laplace_rhoa, laplace_rhob
    END TYPE xc_rho_set_type
 
 CONTAINS
@@ -278,13 +278,13 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: can_return_null
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: rho
-      TYPE(cp_3d_r_p_type), DIMENSION(3), OPTIONAL       :: drho
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), OPTIONAL       :: drho
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: norm_drho, rhoa, rhob, norm_drhoa, &
                                                             norm_drhob, rho_1_3, rhoa_1_3, &
                                                             rhob_1_3, laplace_rho, laplace_rhoa, &
                                                             laplace_rhob
-      TYPE(cp_3d_r_p_type), DIMENSION(3), OPTIONAL       :: drhoa, drhob
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), OPTIONAL       :: drhoa, drhob
       REAL(kind=dp), INTENT(out), OPTIONAL               :: rho_cutoff, drho_cutoff, tau_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: tau, tau_a, tau_b
@@ -460,7 +460,7 @@ CONTAINS
 
          SUBROUTINE xc_rho_set_recover_pw_low(rho_pw, rho, pw_grid, pw_pool, rhoa, rhob)
             TYPE(pw_type), POINTER :: rho_pw
-            REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: rho
+            REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS :: rho
             TYPE(pw_grid_type), POINTER, INTENT(IN) :: pw_grid
             TYPE(pw_pool_type), POINTER, INTENT(IN) :: pw_pool
             REAL(KIND=dp), DIMENSION(:, :, :), POINTER, OPTIONAL :: rhoa, rhob

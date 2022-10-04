@@ -150,8 +150,8 @@ CONTAINS
       INTEGER                                            :: npoints, timer_handle
       INTEGER, DIMENSION(2, 3)                  :: bo
       REAL(KIND=dp)                                      :: rho_cutoff
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_rho, e_rho_rho, &
-                                                            e_rho_rho_rho, rho
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_rho, e_rho_rho, &
+                                                                        e_rho_rho_rho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, timer_handle)
@@ -280,8 +280,8 @@ CONTAINS
       INTEGER                                            :: npoints, timer_handle
       INTEGER, DIMENSION(2, 3)                  :: bo
       REAL(KIND=dp)                                      :: rho_cutoff
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: a, b, dummy, e_0, ea, eaa, eaaa, eaab, &
-                                                            eab, eabb, eb, ebb, ebbb
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER         :: a, b, dummy, e_0, ea, eaa, eaaa, eaab, &
+                                                                        eab, eabb, eb, ebb, ebbb
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, timer_handle)

@@ -146,7 +146,8 @@ CONTAINS
       INTEGER                                            :: npoints, timer_handle
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: rho_cutoff, sc
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_rho, e_rho_rho, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0, e_rho, e_rho_rho, &
                                                             e_rho_rho_rho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
@@ -276,7 +277,8 @@ CONTAINS
       INTEGER                                            :: npoints, timer_handle
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: rho_cutoff, sc
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: a, b, dummy, e_0, ea, eaa, eaaa, eaab, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: a, b, dummy, e_0, ea, eaa, eaaa, eaab, &
                                                             eab, eabb, ebb, ebbb
       TYPE(xc_derivative_type), POINTER                  :: deriv
 

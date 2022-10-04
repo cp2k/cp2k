@@ -555,11 +555,11 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                 :: bo
       LOGICAL                                  :: has_laplace, no_exc
       REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, func_scale
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rho, &
-                                                    e_laplace_rho_laplace_rho, e_laplace_rho_tau, e_ndrho, &
-                                                    e_ndrho_laplace_rho, e_ndrho_ndrho, e_ndrho_rho, e_ndrho_tau, e_rho, &
-                                                    e_rho_laplace_rho, e_rho_rho, e_rho_rho_rho, e_rho_tau, e_tau, &
-                                                    e_tau_tau, laplace_rho, norm_drho, rho, tau
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rho, &
+                                                                e_laplace_rho_laplace_rho, e_laplace_rho_tau, e_ndrho, &
+                                                              e_ndrho_laplace_rho, e_ndrho_ndrho, e_ndrho_rho, e_ndrho_tau, e_rho, &
+                                                                e_rho_laplace_rho, e_rho_rho, e_rho_rho_rho, e_rho_tau, e_tau, &
+                                                                e_tau_tau, laplace_rho, norm_drho, rho, tau
       TYPE(xc_derivative_type), POINTER        :: deriv
       TYPE(xc_f03_func_t)                      :: xc_func
       TYPE(xc_f03_func_info_t)                 :: xc_info
@@ -790,25 +790,25 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                 :: bo
       LOGICAL                                  :: has_laplace, no_exc
       REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, func_scale
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &
-                                                    e_laplace_rhoa_laplace_rhoa, e_laplace_rhoa_laplace_rhob, &
-                                                    e_laplace_rhoa_tau_a, e_laplace_rhoa_tau_b, e_laplace_rhob, &
-                                                    e_laplace_rhob_laplace_rhob, e_laplace_rhob_tau_a, &
-                                                    e_laplace_rhob_tau_b, e_ndrho, e_ndrho_laplace_rhoa, &
-                                                    e_ndrho_laplace_rhob, e_ndrho_ndrho, e_ndrho_ndrhoa, e_ndrho_ndrhob, &
-                                                    e_ndrho_rhoa, e_ndrho_rhob, e_ndrho_tau_a, e_ndrho_tau_b, e_ndrhoa, &
-                                                    e_ndrhoa_laplace_rhoa, e_ndrhoa_laplace_rhob, e_ndrhoa_ndrhoa, &
-                                                    e_ndrhoa_ndrhob, e_ndrhoa_rhoa, e_ndrhoa_rhob, e_ndrhoa_tau_a, &
-                                                    e_ndrhoa_tau_b, e_ndrhob
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_ndrhob_laplace_rhoa, &
-                                                    e_ndrhob_laplace_rhob, e_ndrhob_ndrhob, e_ndrhob_rhoa, e_ndrhob_rhob, &
-                                                    e_ndrhob_tau_a, e_ndrhob_tau_b, e_rhoa, e_rhoa_laplace_rhoa, &
-                                                    e_rhoa_laplace_rhob, e_rhoa_rhoa, e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, &
-                                                    e_rhoa_rhob, e_rhoa_rhob_rhob, e_rhoa_tau_a, e_rhoa_tau_b, e_rhob, &
-                                                    e_rhob_laplace_rhoa, e_rhob_laplace_rhob, e_rhob_rhob, &
-                                                    e_rhob_rhob_rhob, e_rhob_tau_a, e_rhob_tau_b, e_tau_a, e_tau_a_tau_a, &
-                                                    e_tau_a_tau_b, e_tau_b, e_tau_b_tau_b, laplace_rhoa, laplace_rhob, &
-                                                    norm_drho, norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &
+                                                                e_laplace_rhoa_laplace_rhoa, e_laplace_rhoa_laplace_rhob, &
+                                                                e_laplace_rhoa_tau_a, e_laplace_rhoa_tau_b, e_laplace_rhob, &
+                                                                e_laplace_rhob_laplace_rhob, e_laplace_rhob_tau_a, &
+                                                                e_laplace_rhob_tau_b, e_ndrho, e_ndrho_laplace_rhoa, &
+                                                              e_ndrho_laplace_rhob, e_ndrho_ndrho, e_ndrho_ndrhoa, e_ndrho_ndrhob, &
+                                                               e_ndrho_rhoa, e_ndrho_rhob, e_ndrho_tau_a, e_ndrho_tau_b, e_ndrhoa, &
+                                                                e_ndrhoa_laplace_rhoa, e_ndrhoa_laplace_rhob, e_ndrhoa_ndrhoa, &
+                                                                e_ndrhoa_ndrhob, e_ndrhoa_rhoa, e_ndrhoa_rhob, e_ndrhoa_tau_a, &
+                                                                e_ndrhoa_tau_b, e_ndrhob
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: e_ndrhob_laplace_rhoa, &
+                                                             e_ndrhob_laplace_rhob, e_ndrhob_ndrhob, e_ndrhob_rhoa, e_ndrhob_rhob, &
+                                                                e_ndrhob_tau_a, e_ndrhob_tau_b, e_rhoa, e_rhoa_laplace_rhoa, &
+                                                             e_rhoa_laplace_rhob, e_rhoa_rhoa, e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, &
+                                                                e_rhoa_rhob, e_rhoa_rhob_rhob, e_rhoa_tau_a, e_rhoa_tau_b, e_rhob, &
+                                                                e_rhob_laplace_rhoa, e_rhob_laplace_rhob, e_rhob_rhob, &
+                                                             e_rhob_rhob_rhob, e_rhob_tau_a, e_rhob_tau_b, e_tau_a, e_tau_a_tau_a, &
+                                                                e_tau_a_tau_b, e_tau_b, e_tau_b_tau_b, laplace_rhoa, laplace_rhob, &
+                                                                norm_drho, norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
       TYPE(xc_derivative_type), POINTER        :: deriv
       TYPE(xc_f03_func_t)                      :: xc_func
       TYPE(xc_f03_func_info_t)                 :: xc_info

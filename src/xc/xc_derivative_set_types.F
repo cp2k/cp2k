@@ -77,7 +77,8 @@ CONTAINS
 
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: std_deriv_desc
       LOGICAL                                            :: my_allocate_deriv
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d_ptr
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: cr3d_ptr
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 

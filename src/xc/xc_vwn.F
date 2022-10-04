@@ -175,7 +175,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho, sc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho, rho
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
@@ -531,7 +532,8 @@ CONTAINS
       INTEGER                                            :: handle, npoints, TYPE
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho, sc
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_a, e_aa, e_aaa, e_aab, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0, e_a, e_aa, e_aaa, e_aab, &
                                                             e_ab, e_abb, e_b, e_bb, e_bbb, rhoa, &
                                                             rhob
       TYPE(xc_derivative_type), POINTER                  :: deriv

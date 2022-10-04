@@ -16,7 +16,7 @@ MODULE xc_xbeef
 
    USE bibliography,                    ONLY: Wellendorff2012,&
                                               cite_reference
-   USE cp_array_utils,                  ONLY: cp_3d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -144,7 +144,8 @@ CONTAINS
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, sx
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_ndrho, e_rho, norm_drho, &
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0, e_ndrho, e_rho, norm_drho, &
                                                             rho, rho_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
@@ -317,8 +318,9 @@ CONTAINS
       INTEGER                                            :: handle, i, ispin, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, sx
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0
-      TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: e_ndrho, e_rho, norm_drho, rho, rho_1_3
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0
+      TYPE(cp_3d_r_cp_type), DIMENSION(2)                :: e_ndrho, e_rho, norm_drho, rho, rho_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)

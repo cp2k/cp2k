@@ -159,7 +159,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_norm_drho, epsilon_rho, omega, &
                                                             sx, sx0
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_ndrho, e_ndrho_ndrho, &
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0, e_ndrho, e_ndrho_ndrho, &
                                                             e_ndrho_rho, e_rho, e_rho_rho, &
                                                             norm_drho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
@@ -5263,9 +5264,9 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_norm_drho, epsilon_rho, omega, &
                                                             sx, sx0
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrhoa, e_ndrhoa_ndrhoa, &
-         e_ndrhoa_rhoa, e_ndrhob, e_ndrhob_ndrhob, e_ndrhob_rhob, e_rhoa, e_rhoa_rhoa, e_rhob, &
-         e_rhob_rhob, norm_drhoa, norm_drhob, rhoa, rhob
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrhoa, &
+         e_ndrhoa_ndrhoa, e_ndrhoa_rhoa, e_ndrhob, e_ndrhob_ndrhob, e_ndrhob_rhob, e_rhoa, &
+         e_rhoa_rhoa, e_rhob, e_rhob_rhob, norm_drhoa, norm_drhob, rhoa, rhob
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)

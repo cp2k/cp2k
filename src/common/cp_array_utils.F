@@ -33,6 +33,9 @@ MODULE cp_array_utils
       PUBLIC :: cp_1d_${nametype}$_p_type, &
                 cp_2d_${nametype}$_p_type, &
                 cp_3d_${nametype}$_p_type, &
+                cp_1d_${nametype}$_cp_type, &
+                cp_2d_${nametype}$_cp_type, &
+                cp_3d_${nametype}$_cp_type, &
                 cp_1d_${nametype}$_guarantee_size, &
                 cp_1d_${nametype}$_write, &
                 cp_2d_${nametype}$_write, &
@@ -83,6 +86,36 @@ MODULE cp_array_utils
       type cp_3d_${nametype1}$_p_type
          ${type1}$, dimension(:, :, :), pointer :: array
       end type cp_3d_${nametype1}$_p_type
+
+! **************************************************************************************************
+!> \brief represent a pointer to a contiguous 1d array
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+      type cp_1d_${nametype1}$_cp_type
+         ${type1}$, dimension(:), contiguous, pointer :: array
+      end type cp_1d_${nametype1}$_cp_type
+
+! **************************************************************************************************
+!> \brief represent a pointer to a contiguous 2d array
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+      type cp_2d_${nametype1}$_cp_type
+         ${type1}$, dimension(:, :), contiguous, pointer :: array
+      end type cp_2d_${nametype1}$_cp_type
+
+! **************************************************************************************************
+!> \brief represent a pointer to a contiguous 3d array
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! **************************************************************************************************
+      type cp_3d_${nametype1}$_cp_type
+         ${type1}$, dimension(:, :, :), contiguous, pointer :: array
+      end type cp_3d_${nametype1}$_cp_type
 
    #:endfor
 

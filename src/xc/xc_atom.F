@@ -352,7 +352,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(xc_derivative_set_type), INTENT(INOUT)        :: deriv_set
       REAL(dp), DIMENSION(:, :), POINTER                 :: w
-      REAL(dp), DIMENSION(:, :, :), POINTER              :: vxc
+      REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vxc
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_2nd_deriv_of_r'
