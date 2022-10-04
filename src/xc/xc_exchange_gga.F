@@ -171,7 +171,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: drho_cutoff, rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: s
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fs
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
          e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, &
          e_rho_rho_rho
       TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: norm_drho, rho, rho_1_3

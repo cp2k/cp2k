@@ -156,7 +156,7 @@ CONTAINS
       INTEGER                                            :: handle, m, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
          e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, &
          e_rho_rho_rho, grho, rho, rho13
       TYPE(xc_derivative_type), POINTER                  :: deriv
@@ -245,7 +245,8 @@ CONTAINS
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: e_0, e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, &
                                                             norm_drhoa, norm_drhob, rhoa, &
                                                             rhoa_1_3, rhob, rhob_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv

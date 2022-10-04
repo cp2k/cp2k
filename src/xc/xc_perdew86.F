@@ -129,7 +129,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff, rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rs
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
          e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, &
          e_rho_rho_rho, grho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv

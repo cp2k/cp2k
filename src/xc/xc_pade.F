@@ -145,7 +145,8 @@ CONTAINS
       INTEGER                                            :: n
       LOGICAL                                            :: calc(0:4)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rs
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_r, e_rr, e_rrr
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: e_0, e_r, e_rr, e_rrr
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       calc = .FALSE.
@@ -207,10 +208,11 @@ CONTAINS
       INTEGER                                            :: i, j, k
       LOGICAL                                            :: calc(0:4)
       REAL(KIND=dp)                                      :: rhoa, rhob, rs
-      REAL(KIND=dp), DIMENSION(4)                        :: fx
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_ra, e_rara, e_rarara, e_rararb, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: e_0, e_ra, e_rara, e_rarara, e_rararb, &
                                                             e_rarb, e_rarbrb, e_rb, e_rbrb, &
                                                             e_rbrbrb
+      REAL(KIND=dp), DIMENSION(4)                        :: fx
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       calc = .FALSE.

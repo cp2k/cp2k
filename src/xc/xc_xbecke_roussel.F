@@ -174,7 +174,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(dp)                                           :: gamma, R, sx
       REAL(kind=dp)                                      :: epsilon_rho
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_laplace_rho, e_ndrho, &
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0, e_laplace_rho, e_ndrho, &
                                                             e_rho, e_tau, laplace_rho, norm_drho, &
                                                             rho, tau
       TYPE(xc_derivative_type), POINTER                  :: deriv
@@ -370,9 +371,9 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(dp)                                           :: gamma, R, sx
       REAL(kind=dp)                                      :: epsilon_rho
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, e_laplace_rhob, &
-         e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, e_tau_a, e_tau_b, laplace_rhoa, laplace_rhob, &
-         norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &
+         e_laplace_rhob, e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, e_tau_a, e_tau_b, laplace_rhoa, &
+         laplace_rhob, norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)

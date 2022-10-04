@@ -131,9 +131,9 @@ CONTAINS
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, sx
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, e_ndrho_ndrho, &
-         e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, e_rho_rho, &
-         e_rho_rho_rho, norm_drho, rho, rho_1_3
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
+         e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
+         e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
@@ -644,7 +644,8 @@ CONTAINS
       INTEGER                                            :: handle, i, ispin, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, sx
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0
       TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, e_ndrho_ndrho_ndrho, &
          e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, &
          norm_drho, rho, rho_1_3

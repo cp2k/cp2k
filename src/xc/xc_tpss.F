@@ -117,7 +117,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(kind=dp)                                      :: epsilon_rho, epsilon_tau, scale_ec, &
                                                             scale_ex
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_ndrho, e_rho, e_tau, &
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: dummy, e_0, e_ndrho, e_rho, e_tau, &
                                                             norm_drho, rho, tau
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(xc_derivative_type), POINTER                  :: deriv

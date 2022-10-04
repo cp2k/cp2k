@@ -141,8 +141,9 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: s
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, e_rho, &
-         e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, e_rho_rho_rho, grho, r13, rho
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
+         e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, e_rho_rho_rho, grho, &
+         r13, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
@@ -253,7 +254,8 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: s
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_ndrho, e_ndrho_ndrho, e_rho, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: e_0, e_ndrho, e_ndrho_ndrho, e_rho, &
                                                             e_rho_ndrho, e_rho_ndrho_ndrho, &
                                                             e_rho_rho, e_rho_rho_ndrho, &
                                                             e_rho_rho_rho

@@ -128,7 +128,8 @@ CONTAINS
       INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho, &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho, &
                                                             r13, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
@@ -190,7 +191,8 @@ CONTAINS
       INTEGER                                            :: handle, i, ispin, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: epsilon_rho
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho
       TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: rho, rho_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
