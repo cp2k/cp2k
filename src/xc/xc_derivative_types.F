@@ -59,7 +59,8 @@ CONTAINS
 
       TYPE(xc_derivative_type)                           :: derivative
       INTEGER, DIMENSION(:), INTENT(in)                  :: desc
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d_ptr
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: cr3d_ptr
 
       CALL create_split_desc(desc, derivative%split_desc)
       derivative%deriv_data => cr3d_ptr
