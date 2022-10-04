@@ -2685,63 +2685,63 @@ CONTAINS
                                  bounds_1=ijbounds, unit_nr=unit_nr_dbcsr, flop=nflop)
                ri_data%dbcsr_nflop = ri_data%dbcsr_nflop + nflop
                CALL dbt_batched_contract_finalize(t_R)
-
             END DO !j_mem
-         END DO !i_mem
 
-         CALL dbt_copy(t_3c_5, t_3c_help_1, move_data=.TRUE.)
+            CALL dbt_copy(t_3c_5, t_3c_help_1, move_data=.TRUE.)
 
-         !The force from the 3c derivatives
-         pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
+            !The force from the 3c derivatives
+            pref = -0.5_dp*2.0_dp*hf_fraction*spin_fac
 
-         DO i_mem = 1, SIZE(t_3c_der_RI_comp, 1)
-            DO i_xyz = 1, 3
-               CALL dbt_clear(t_3c_der_RI(i_xyz))
-               CALL decompress_tensor(t_3c_der_RI(i_xyz), t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
-                                      t_3c_der_RI_comp(i_mem, i_xyz), ri_data%filter_eps_storage)
-            END DO
-            IF (use_virial_prv) THEN
-               CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_RI, atom_of_kind, kind_of, &
-                                            idx_to_at_RI, pref, work_virial, cell, particle_set)
-            ELSE
-               CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_RI, atom_of_kind, kind_of, &
-                                            idx_to_at_RI, pref)
-            END IF
-         END DO
-
-         pref = -0.5_dp*4.0_dp*hf_fraction*spin_fac
-         IF (do_resp) THEN
-            pref = 0.5_dp*pref
-            CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2])
-         END IF
-
-         DO i_mem = 1, SIZE(t_3c_der_AO_comp, 1)
-            DO i_xyz = 1, 3
-               CALL dbt_clear(t_3c_der_AO(i_xyz))
-               CALL decompress_tensor(t_3c_der_AO(i_xyz), t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
-                                      t_3c_der_AO_comp(i_mem, i_xyz), ri_data%filter_eps_storage)
-            END DO
-
-            IF (use_virial_prv) THEN
-               CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_AO, atom_of_kind, kind_of, &
-                                            idx_to_at_AO, pref, work_virial, cell, particle_set, deriv_dim=2)
-            ELSE
-               CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_AO, atom_of_kind, kind_of, &
-                                            idx_to_at_AO, pref, deriv_dim=2)
-            END IF
-
-            IF (do_resp) THEN
+            DO j_mem = 1, SIZE(t_3c_der_RI_comp, 1)
+               DO i_xyz = 1, 3
+                  CALL dbt_clear(t_3c_der_RI(i_xyz))
+                  CALL decompress_tensor(t_3c_der_RI(i_xyz), t_3c_der_RI_ind(j_mem, i_xyz)%ind, &
+                                         t_3c_der_RI_comp(j_mem, i_xyz), ri_data%filter_eps_storage)
+               END DO
                IF (use_virial_prv) THEN
-                  CALL get_force_from_3c_trace(force, t_3c_help_2, t_3c_der_AO, atom_of_kind, kind_of, &
+                  CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_RI, atom_of_kind, kind_of, &
+                                               idx_to_at_RI, pref, work_virial, cell, particle_set)
+               ELSE
+                  CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_RI, atom_of_kind, kind_of, &
+                                               idx_to_at_RI, pref)
+               END IF
+            END DO
+
+            pref = -0.5_dp*4.0_dp*hf_fraction*spin_fac
+            IF (do_resp) THEN
+               pref = 0.5_dp*pref
+               CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2])
+            END IF
+
+            DO j_mem = 1, SIZE(t_3c_der_AO_comp, 1)
+               DO i_xyz = 1, 3
+                  CALL dbt_clear(t_3c_der_AO(i_xyz))
+                  CALL decompress_tensor(t_3c_der_AO(i_xyz), t_3c_der_AO_ind(j_mem, i_xyz)%ind, &
+                                         t_3c_der_AO_comp(j_mem, i_xyz), ri_data%filter_eps_storage)
+               END DO
+
+               IF (use_virial_prv) THEN
+                  CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_AO, atom_of_kind, kind_of, &
                                                idx_to_at_AO, pref, work_virial, cell, particle_set, deriv_dim=2)
                ELSE
-                  CALL get_force_from_3c_trace(force, t_3c_help_2, t_3c_der_AO, atom_of_kind, kind_of, &
+                  CALL get_force_from_3c_trace(force, t_3c_help_1, t_3c_der_AO, atom_of_kind, kind_of, &
                                                idx_to_at_AO, pref, deriv_dim=2)
                END IF
-            END IF
-         END DO
-         CALL dbt_clear(t_3c_help_1)
-         CALL dbt_clear(t_3c_help_2)
+
+               IF (do_resp) THEN
+                  IF (use_virial_prv) THEN
+                     CALL get_force_from_3c_trace(force, t_3c_help_2, t_3c_der_AO, atom_of_kind, kind_of, &
+                                                  idx_to_at_AO, pref, work_virial, cell, particle_set, deriv_dim=2)
+                  ELSE
+                     CALL get_force_from_3c_trace(force, t_3c_help_2, t_3c_der_AO, atom_of_kind, kind_of, &
+                                                  idx_to_at_AO, pref, deriv_dim=2)
+                  END IF
+               END IF
+            END DO
+            CALL dbt_clear(t_3c_help_1)
+            CALL dbt_clear(t_3c_help_2)
+
+         END DO !i_mem
          CALL timestop(handle)
 
          CALL timeset(routineN//"_2c", handle)
