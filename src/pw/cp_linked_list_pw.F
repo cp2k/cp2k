@@ -16,7 +16,7 @@ MODULE cp_linked_list_pw
 
    #:mute
       #:set nametype1 = ['3d_r', 'pw', 'rs']
-      #:set type1 = ['REAL(kind=dp),dimension(:,:,:),pointer', 'type(pw_type),pointer', 'type(realspace_grid_type),pointer']
+      #:set type1 = ['REAL(kind=dp),dimension(:,:,:),pointer,contiguous', 'type(pw_type),pointer', 'type(realspace_grid_type),pointer']
       #:set type1in = type1
       #:set type1out = type1
 

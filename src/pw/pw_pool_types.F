@@ -170,7 +170,7 @@ CONTAINS
    SUBROUTINE pw_pool_flush_cache(pool)
       TYPE(pw_pool_type), POINTER                        :: pool
 
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: array_att
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS         :: array_att
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_sll_3d_r_type), POINTER                    :: array_iterator
       TYPE(cp_sll_pw_type), POINTER                      :: iterator
@@ -554,7 +554,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_pool_give_back_cr3d(pw_pool, cr3d, accept_non_compatible)
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d
+      REAL(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER         :: cr3d
       LOGICAL, INTENT(in), OPTIONAL                      :: accept_non_compatible
 
       LOGICAL                                            :: compatible, my_accept_non_compatible
