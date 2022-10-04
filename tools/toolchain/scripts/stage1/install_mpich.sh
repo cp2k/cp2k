@@ -38,7 +38,7 @@ case "${with_mpich}" in
       else
         download_pkg_from_cp2k_org "${mpich_sha256}" "${mpich_pkg}"
       fi
-      echo "Installing from scratch into ${pkg_install_dir}"
+      echo "Installing from scratch into ${pkg_install_dir} for MPICH device ${MPICH_DEVICE}"
       [ -d mpich-${mpich_ver} ] && rm -rf mpich-${mpich_ver}
       tar -xzf ${mpich_pkg}
       cd mpich-${mpich_ver}
@@ -58,7 +58,7 @@ case "${with_mpich}" in
         FCFLAGS="${FCFLAGS} ${compat_flag}" \
         --without-x \
         --enable-gl=no \
-        --with-device=ch3 \
+        --with-device=${MPICH_DEVICE} \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
