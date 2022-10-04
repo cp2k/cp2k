@@ -61,7 +61,7 @@ MODULE cp_array_utils
 !> \author fawzi
 ! **************************************************************************************************
       type cp_1d_${nametype1}$_p_type
-         ${type1}$, dimension(:), pointer :: array
+         ${type1}$, dimension(:), contiguous, pointer :: array
       end type cp_1d_${nametype1}$_p_type
 
 ! **************************************************************************************************
@@ -71,7 +71,7 @@ MODULE cp_array_utils
 !> \author fawzi
 ! **************************************************************************************************
       type cp_2d_${nametype1}$_p_type
-         ${type1}$, dimension(:, :), pointer :: array
+         ${type1}$, dimension(:, :), contiguous, pointer :: array
       end type cp_2d_${nametype1}$_p_type
 
 ! **************************************************************************************************
@@ -81,7 +81,7 @@ MODULE cp_array_utils
 !> \author fawzi
 ! **************************************************************************************************
       type cp_3d_${nametype1}$_p_type
-         ${type1}$, dimension(:, :, :), pointer :: array
+         ${type1}$, dimension(:, :, :), contiguous, pointer :: array
       end type cp_3d_${nametype1}$_p_type
 
    #:endfor

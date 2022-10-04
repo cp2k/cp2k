@@ -306,7 +306,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_pool_create_pw'
 
       INTEGER                                            :: handle
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: cr3d_ptr
+      REAL(kind=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER         :: cr3d_ptr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_type), POINTER                             :: el
 

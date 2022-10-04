@@ -32,7 +32,7 @@ MODULE xc_derivative_types
 ! **************************************************************************************************
    TYPE xc_derivative_type
       INTEGER, DIMENSION(:), POINTER                :: split_desc => NULL()
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER    :: deriv_data => NULL()
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER, CONTIGUOUS    :: deriv_data => NULL()
    END TYPE xc_derivative_type
 
 ! **************************************************************************************************

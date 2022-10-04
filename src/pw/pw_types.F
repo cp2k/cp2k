@@ -124,7 +124,7 @@ CONTAINS
       INTEGER, INTENT(in)                                :: use_data
       INTEGER, INTENT(in), OPTIONAL                      :: in_space
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN), &
-         OPTIONAL, POINTER                               :: cr3d_ptr
+         OPTIONAL, CONTIGUOUS, POINTER                   :: cr3d_ptr
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_create'
 
