@@ -15,7 +15,7 @@
 ! **************************************************************************************************
 MODULE xc_ke_gga
 
-   USE cp_array_utils,                  ONLY: cp_3d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE xc_derivative_desc,              ONLY: deriv_norm_drho,&
@@ -329,7 +329,7 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
          e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, &
          e_rho_rho_rho
-      TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: norm_drho, rho, rho_1_3
+      TYPE(cp_3d_r_cp_type), DIMENSION(2)                :: norm_drho, rho, rho_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)

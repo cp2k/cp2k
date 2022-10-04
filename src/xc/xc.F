@@ -16,7 +16,7 @@
 ! **************************************************************************************************
 MODULE xc
    #:include 'xc.fypp'
-   USE cp_array_utils, ONLY: cp_3d_r_p_type
+   USE cp_array_utils, ONLY: cp_3d_r_cp_type
    USE cp_linked_list_xc_deriv, ONLY: cp_sll_xc_deriv_next, &
                                       cp_sll_xc_deriv_type
    USE cp_log_handling, ONLY: cp_get_default_logger, &
@@ -1685,7 +1685,7 @@ CONTAINS
                                                             tau_a, tau_b, tau, tau1, tau1a, tau1b, laplace, laplace1, &
                                                             laplacea, laplaceb, laplace1a, laplace1b, &
                                                             laplace2, laplace2a, laplace2b, deriv_data
-      TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
+      TYPE(cp_3d_r_cp_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_type)                                    :: v_drho, v_drhoa, v_drhob
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, vxc_rho, &
                                                             tau_r, vxc_tau
@@ -2363,7 +2363,7 @@ CONTAINS
       TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
       INTEGER, DIMENSION(:), INTENT(in)                  :: description
       TYPE(pw_type), INTENT(IN)                          :: virial_pw
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: norm_drho
       REAL(KIND=dp), INTENT(IN)                          :: gradient_cut
@@ -2677,7 +2677,7 @@ CONTAINS
                                                             norm_drhob, rho1, rho1a, rho1b, &
                                                             tau1, tau1a, tau1b, laplace1, laplace1a, laplace1b, &
                                                             rho, rhoa, rhob
-      TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
+      TYPE(cp_3d_r_cp_type), DIMENSION(3)                 :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE         :: v_drhoa, v_drhob, v_drho, v_laplace
       TYPE(pw_p_type), DIMENSION(:, :), ALLOCATABLE      :: v_drho_r
       TYPE(pw_type)                             :: tmp_g, virial_pw, vxc_g
@@ -3120,7 +3120,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE virial_drho_drho1(virial_pw, drho, drho1, deriv_data, virial_xc)
       TYPE(pw_type), INTENT(IN)                          :: virial_pw
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: deriv_data
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
 
@@ -3151,7 +3151,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE virial_drho_drho(virial_pw, drho, v_drho, virial_xc)
       TYPE(pw_type), INTENT(IN)                          :: virial_pw
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drho
       TYPE(pw_type), INTENT(IN)                        :: v_drho
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: virial_xc
 
@@ -3307,7 +3307,7 @@ CONTAINS
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: norm_drho, norm_drhoa, norm_drhob
-      TYPE(cp_3d_r_p_type), DIMENSION(3)                 :: drho, drhoa, drhob
+      TYPE(cp_3d_r_cp_type), DIMENSION(3)                 :: drho, drhoa, drhob
       TYPE(cp_sll_xc_deriv_type), POINTER                :: pos
       TYPE(xc_derivative_type), POINTER                  :: deriv_att
 
@@ -3397,8 +3397,8 @@ CONTAINS
 !> \param drhob ...
 ! **************************************************************************************************
    SUBROUTINE calc_drho_from_ab(drho, drhoa, drhob)
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(OUT)    :: drho
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drhoa, drhob
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(OUT)    :: drho
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drhoa, drhob
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_drho_from_ab'
 
@@ -3429,7 +3429,7 @@ CONTAINS
    SUBROUTINE prepare_dr1dr(dr1dr, drho, drho1)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: dr1dr
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drho, drho1
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr'
 
@@ -3466,7 +3466,7 @@ CONTAINS
    SUBROUTINE prepare_dr1dr_ab(dr1dr, drhoa, drhob, drho1a, drho1b, fac)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: dr1dr
-      TYPE(cp_3d_r_p_type), DIMENSION(3), INTENT(IN)     :: drhoa, drhob, drho1a, drho1b
+      TYPE(cp_3d_r_cp_type), DIMENSION(3), INTENT(IN)     :: drhoa, drhob, drho1a, drho1b
       REAL(KIND=dp), INTENT(IN)                          :: fac
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_dr1dr_ab'

@@ -17,7 +17,7 @@
 !> \author JGH (17.02.2002)
 ! **************************************************************************************************
 MODULE xc_xalpha
-   USE cp_array_utils,                  ONLY: cp_3d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -233,7 +233,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: epsilon_rho, sx
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: e_0, e_rho, e_rho_rho, e_rho_rho_rho
-      TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: rho, rho_1_3
+      TYPE(cp_3d_r_cp_type), DIMENSION(2)                :: rho, rho_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)

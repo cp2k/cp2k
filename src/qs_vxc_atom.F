@@ -492,11 +492,12 @@ CONTAINS
       LOGICAL                                            :: gradient_functional, lsd, lsd_singlets, &
                                                             my_tddft, paw_atom, tau_f
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: vxc_h, vxc_s
       REAL(KIND=dp), DIMENSION(1, 1)                     :: rtau
       REAL(KIND=dp), DIMENSION(1, 1, 1, 1)               :: rrho
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rho1_h, rho1_s, rho_h, rho_s, tau1_h, &
                                                             tau1_s, tau_h, tau_s, weight
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: vxc_h, vxc_s
       REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: drho1_h, drho1_s, drho_h, drho_s, vxg_h, &
                                                             vxg_s
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set

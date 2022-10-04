@@ -14,7 +14,7 @@
 !> \author JGH (18.02.2002)
 ! **************************************************************************************************
 MODULE xc_tfw
-   USE cp_array_utils,                  ONLY: cp_3d_r_p_type
+   USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE kinds,                           ONLY: dp
    USE xc_derivative_desc,              ONLY: deriv_norm_drho,&
                                               deriv_norm_drhoa,&
@@ -259,7 +259,7 @@ CONTAINS
                                                             e_rho_ndrho, e_rho_ndrho_ndrho, &
                                                             e_rho_rho, e_rho_rho_ndrho, &
                                                             e_rho_rho_rho
-      TYPE(cp_3d_r_p_type), DIMENSION(2)                 :: norm_drho, rho, rho_1_3
+      TYPE(cp_3d_r_cp_type), DIMENSION(2)                :: norm_drho, rho, rho_1_3
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
