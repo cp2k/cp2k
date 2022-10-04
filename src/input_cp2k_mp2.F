@@ -111,7 +111,7 @@ CONTAINS
          "In this way, differences of integration grids across different runs are removed as CP2K "// &
          "does not include derivatives thereof.", &
          usage="E_RANGE  10.0", &
-         default_r_val=0.0_dp)
+         default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
