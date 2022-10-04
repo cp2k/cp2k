@@ -59,8 +59,6 @@ CONTAINS
 !> \param do_im_time ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param do_print ...
-!> \param e_gap ...
-!> \param e_range ...
 !> \param tau_tj ...
 !> \param tau_wj ...
 !> \param qs_env ...
@@ -74,7 +72,7 @@ CONTAINS
 !> \param weights_sin_tf_t_to_w ...
 ! **************************************************************************************************
    SUBROUTINE get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, &
-                               do_im_time, do_ri_sos_laplace_mp2, do_print, e_gap, e_range, tau_tj, tau_wj, qs_env, do_gw_im_time, &
+                               do_im_time, do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi, tj, wj, weights_cos_tf_t_to_w, &
                                weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
 
@@ -85,7 +83,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: do_im_time, do_ri_sos_laplace_mp2, &
                                                             do_print
-      REAL(KIND=dp), INTENT(IN)                          :: e_gap, e_range
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: tau_tj, tau_wj
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -124,7 +121,7 @@ CONTAINS
          CALL gap_and_max_eig_diff_kpoints(qs_env, para_env, Emin, Emax, e_fermi)
          my_E_Range = Emax/Emin
       ELSE
-         IF (E_range <= 1.0_dp .OR. E_gap <= 0.0_dp) THEN
+         IF (qs_env%mp2_env%E_range <= 1.0_dp .OR. qs_env%mp2_env%E_gap <= 0.0_dp) THEN
             Emin = HUGE(dp)
             Emax = 0.0_dp
             DO ispin = 1, nspins
@@ -141,8 +138,8 @@ CONTAINS
             CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_RANGE", r_val=my_e_range)
             CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_GAP", r_val=emin)
          ELSE
-            my_E_range = E_range
-            Emin = E_gap
+            my_E_range = qs_env%mp2_env%E_range
+            Emin = qs_env%mp2_env%E_gap
             Emax = Emin*my_E_range
          END IF
       END IF

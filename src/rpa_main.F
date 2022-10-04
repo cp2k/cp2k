@@ -290,7 +290,7 @@ CONTAINS
 
          ! check the range for the minimax approximation
          E_Range = mp2_env%e_range
-         IF (E_range <= 1.0_dp) THEN
+         IF (mp2_env%e_range <= 1.0_dp .OR. mp2_env%e_gap <= 0.0_dp) THEN
             Emin = HUGE(dp)
             Emax = 0.0_dp
             DO ispin = 1, nspins
@@ -1277,7 +1277,7 @@ CONTAINS
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          do_print = .NOT. do_ic_model .AND. (.NOT. qs_env%mp2_env%ri_rpa_im_time%keep_quad)
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
-                               do_ri_sos_laplace_mp2, do_print, mp2_env%e_gap, mp2_env%e_range, &
+                               do_ri_sos_laplace_mp2, do_print, &
                                tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
