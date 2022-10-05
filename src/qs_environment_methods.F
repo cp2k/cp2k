@@ -208,10 +208,10 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(pw_env_type), POINTER                         :: new_pw_env
-      TYPE(pw_p_type), POINTER                           :: external_vxc, rho_nlcc, rho_nlcc_g, vppl
+      TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g, vppl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: embed_pot, rho_core, spin_embed_pot, &
-                                                            v_hartree_rspace, vee
+      TYPE(pw_type), POINTER                             :: embed_pot, external_vxc, rho_core, &
+                                                            spin_embed_pot, v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
@@ -360,15 +360,13 @@ CONTAINS
             NULLIFY (external_vxc)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, external_vxc=external_vxc)
             IF (ASSOCIATED(external_vxc)) THEN
-               CALL pw_release(external_vxc%pw)
-               DEALLOCATE (external_vxc%pw)
-               DEALLOCATE (external_vxc)
+               CALL pw_release(external_vxc)
+            ELSE
+               ALLOCATE (external_vxc)
             END IF
-            ALLOCATE (external_vxc)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (external_vxc%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc%pw, use_data=REALDATA3D)
-            external_vxc%pw%in_space = REALSPACE
+            CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc, use_data=REALDATA3D)
+            external_vxc%in_space = REALSPACE
             CALL set_qs_env(qs_env, external_vxc=external_vxc)
             dft_control%read_external_vxc = .TRUE.
          END IF

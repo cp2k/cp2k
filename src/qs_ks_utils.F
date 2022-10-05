@@ -1703,7 +1703,7 @@ CONTAINS
       CALL pw_zero(v_rspace_new(1)%pw)
       do_zmp_read = dft_control%apply_external_vxc
       IF (do_zmp_read) THEN
-         CALL pw_copy(qs_env%external_vxc%pw, v_rspace_new(1)%pw)
+         CALL pw_copy(qs_env%external_vxc, v_rspace_new(1)%pw)
          exc = 0.0_dp
          exc = accurate_dot_product(v_rspace_new(1)%pw%cr3d, rho_r(1)%pw%cr3d)* &
                v_rspace_new(1)%pw%pw_grid%dvol

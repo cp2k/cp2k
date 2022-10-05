@@ -255,8 +255,8 @@ MODULE qs_environment_types
       TYPE(rel_control_type), POINTER                       :: rel_control
       ! ZMP adding variables
       TYPE(qs_rho_type), POINTER                            :: rho_external
-      TYPE(pw_p_type), POINTER                              :: external_vxc
-      TYPE(pw_p_type), POINTER                              :: mask
+      TYPE(pw_type), POINTER                              :: external_vxc
+      TYPE(pw_type), POINTER                              :: mask
       TYPE(qs_charges_type), POINTER                        :: qs_charges
       TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
@@ -633,7 +633,7 @@ CONTAINS
       TYPE(qs_gcp_type), OPTIONAL, POINTER               :: gcp_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: vee
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: external_vxc, mask
+      TYPE(pw_type), OPTIONAL, POINTER                   :: external_vxc, mask
       TYPE(mp2_type), OPTIONAL, POINTER                  :: mp2_env
       TYPE(kg_environment_type), OPTIONAL, POINTER       :: kg_env
       TYPE(wannier_centres_type), DIMENSION(:), &
@@ -1063,7 +1063,7 @@ CONTAINS
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho_external
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: external_vxc, mask
+      TYPE(pw_type), OPTIONAL, POINTER                   :: external_vxc, mask
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
       TYPE(rel_control_type), OPTIONAL, POINTER          :: rel_control
       TYPE(qs_charges_type), OPTIONAL, POINTER           :: qs_charges
@@ -1444,13 +1444,11 @@ CONTAINS
                CALL qs_rho_release(qs_env%rho_external)
             END IF
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
-               CALL pw_release(qs_env%external_vxc%pw)
-               DEALLOCATE (qs_env%external_vxc%pw)
+               CALL pw_release(qs_env%external_vxc)
                DEALLOCATE (qs_env%external_vxc)
             END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
-               CALL pw_release(qs_env%mask%pw)
-               DEALLOCATE (qs_env%mask%pw)
+               CALL pw_release(qs_env%mask)
                DEALLOCATE (qs_env%mask)
             END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
@@ -1642,13 +1640,11 @@ CONTAINS
                CALL qs_rho_release(qs_env%rho_external)
             END IF
             IF (ASSOCIATED(qs_env%external_vxc)) THEN
-               CALL pw_release(qs_env%external_vxc%pw)
-               DEALLOCATE (qs_env%external_vxc%pw)
+               CALL pw_release(qs_env%external_vxc)
                DEALLOCATE (qs_env%external_vxc)
             END IF
             IF (ASSOCIATED(qs_env%mask)) THEN
-               CALL pw_release(qs_env%mask%pw)
-               DEALLOCATE (qs_env%mask%pw)
+               CALL pw_release(qs_env%mask)
                DEALLOCATE (qs_env%mask)
             END IF
             IF (ASSOCIATED(qs_env%active_space)) THEN
