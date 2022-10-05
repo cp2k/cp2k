@@ -21,7 +21,8 @@ MODULE ec_env_types
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
                                               qs_dispersion_type
    USE qs_force_types,                  ONLY: deallocate_qs_force,&
@@ -100,7 +101,7 @@ MODULE ec_env_types
       ! Harris (rhoout), and response density (rhoz) on grid
       TYPE(pw_p_type), DIMENSION(:), POINTER           :: rhoout_r, rhoz_r
       ! potentials from input density
-      TYPE(pw_p_type), POINTER                         :: vh_rspace
+      TYPE(pw_type), POINTER                         :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER           :: vxc_rspace, vtau_rspace, vadmm_rspace
       ! efield
       TYPE(efield_berry_type), POINTER                 :: efield => NULL()
@@ -169,8 +170,7 @@ CONTAINS
          END IF
          ! potential
          IF (ASSOCIATED(ec_env%vh_rspace)) THEN
-            CALL pw_release(ec_env%vh_rspace%pw)
-            DEALLOCATE (ec_env%vh_rspace%pw)
+            CALL pw_release(ec_env%vh_rspace)
             DEALLOCATE (ec_env%vh_rspace)
          END IF
          IF (ASSOCIATED(ec_env%vxc_rspace)) THEN
