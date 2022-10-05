@@ -1211,7 +1211,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: my_rho
-      TYPE(pw_p_type), POINTER                           :: vppl_rspace
+      TYPE(pw_type), POINTER                             :: vppl_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_rspace_new_aux_fit, &
                                                             v_tau_rspace, v_tau_rspace_aux_fit
       TYPE(pw_p_type)                                    :: v_efield_rspace, v_sic_rspace, &
@@ -1372,7 +1372,7 @@ CONTAINS
             IF (do_ppl) THEN
                CPASSERT(.NOT. gapw)
                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                             vppl_rspace%pw%cr3d*vppl_rspace%pw%pw_grid%dvol
+                                             vppl_rspace%cr3d*vppl_rspace%pw_grid%dvol
             END IF
             ! the electrostatic sic contribution
             SELECT CASE (dft_control%sic_method_id)

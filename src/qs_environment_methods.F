@@ -42,7 +42,6 @@ MODULE qs_environment_methods
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_release,&
                                               pw_type
    USE qs_charges_types,                ONLY: qs_charges_create,&
@@ -208,10 +207,10 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(pw_env_type), POINTER                         :: new_pw_env
-      TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g, vppl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_type), POINTER                             :: embed_pot, external_vxc, rho_core, &
-                                                            spin_embed_pot, v_hartree_rspace, vee
+                                                            rho_nlcc, rho_nlcc_g, spin_embed_pot, &
+                                                            v_hartree_rspace, vee, vppl
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
@@ -293,15 +292,13 @@ CONTAINS
             NULLIFY (vppl)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, vppl=vppl)
             IF (ASSOCIATED(vppl)) THEN
-               CALL pw_release(vppl%pw)
-               DEALLOCATE (vppl%pw)
-               DEALLOCATE (vppl)
+               CALL pw_release(vppl)
+            ELSE
+               ALLOCATE (vppl)
             END IF
-            ALLOCATE (vppl)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (vppl%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, vppl%pw, use_data=REALDATA3D)
-            vppl%pw%in_space = REALSPACE
+            CALL pw_pool_create_pw(auxbas_pw_pool, vppl, use_data=REALDATA3D)
+            vppl%in_space = REALSPACE
             CALL set_ks_env(ks_env, vppl=vppl)
          END IF
 
@@ -313,29 +310,25 @@ CONTAINS
             NULLIFY (rho_nlcc)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_nlcc=rho_nlcc)
             IF (ASSOCIATED(rho_nlcc)) THEN
-               CALL pw_release(rho_nlcc%pw)
-               DEALLOCATE (rho_nlcc%pw)
-               DEALLOCATE (rho_nlcc)
+               CALL pw_release(rho_nlcc)
+            ELSE
+               ALLOCATE (rho_nlcc)
             END IF
-            ALLOCATE (rho_nlcc)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (rho_nlcc%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc%pw, use_data=REALDATA3D)
-            rho_nlcc%pw%in_space = REALSPACE
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc, use_data=REALDATA3D)
+            rho_nlcc%in_space = REALSPACE
             CALL set_ks_env(ks_env, rho_nlcc=rho_nlcc)
             ! the g-space version
             NULLIFY (rho_nlcc_g)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_nlcc_g=rho_nlcc_g)
             IF (ASSOCIATED(rho_nlcc_g)) THEN
-               CALL pw_release(rho_nlcc_g%pw)
-               DEALLOCATE (rho_nlcc_g%pw)
-               DEALLOCATE (rho_nlcc_g)
+               CALL pw_release(rho_nlcc_g)
+            ELSE
+               ALLOCATE (rho_nlcc_g)
             END IF
-            ALLOCATE (rho_nlcc_g)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (rho_nlcc_g%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g%pw, use_data=COMPLEXDATA1D)
-            rho_nlcc_g%pw%in_space = RECIPROCALSPACE
+            CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g, use_data=COMPLEXDATA1D)
+            rho_nlcc_g%in_space = RECIPROCALSPACE
             CALL set_ks_env(ks_env, rho_nlcc_g=rho_nlcc_g)
          END IF
 

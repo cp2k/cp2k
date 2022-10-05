@@ -131,9 +131,9 @@ CONTAINS
                                                             rho_m_gspace, rho_m_rspace, rho_r, &
                                                             rho_struct_g, rho_struct_r, tau, &
                                                             tau_struct_r
-      TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
-      TYPE(pw_type), POINTER                             :: tmp_g, tmp_g2, tmp_pw
+      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g, tmp_g, tmp_g2, &
+                                                            tmp_pw
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -279,8 +279,8 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
             DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
-               CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin)%pw, factor)
             END DO
          END IF
 
@@ -306,8 +306,8 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
             DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
-               CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin)%pw, factor)
             END DO
          END IF
 
@@ -659,9 +659,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r, tau_r, vxc_rho, vxc_tau
-      TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
       TYPE(pw_type)                                      :: exc_r
+      TYPE(pw_type), POINTER                             :: rho_nlcc, rho_nlcc_g
 
       CALL timeset(routineN, handle)
 
@@ -708,8 +708,8 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = 1.0_dp
             DO ispin = 1, nspins
-               CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
-               CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin)%pw, factor)
             END DO
          END IF
          NULLIFY (vxc_rho, vxc_tau)
@@ -724,8 +724,8 @@ CONTAINS
          IF (ASSOCIATED(rho_nlcc)) THEN
             factor = -1.0_dp
             DO ispin = 1, dft_control%nspins
-               CALL pw_axpy(rho_nlcc%pw, rho_r(ispin)%pw, factor)
-               CALL pw_axpy(rho_nlcc_g%pw, rho_g(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc, rho_r(ispin)%pw, factor)
+               CALL pw_axpy(rho_nlcc_g, rho_g(ispin)%pw, factor)
             END DO
          END IF
          !

@@ -21,8 +21,7 @@ MODULE qs_update_s_mstruct
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri
    USE pw_methods,                      ONLY: pw_transfer
-   USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_release,&
+   USE pw_types,                        ONLY: pw_release,&
                                               pw_type
    USE qs_collocate_density,            ONLY: calculate_ppl_grid,&
                                               calculate_rho_core,&
@@ -70,8 +69,7 @@ CONTAINS
       INTEGER                                            :: handle
       LOGICAL                                            :: do_ppl
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type), POINTER                           :: rho_nlcc, rho_nlcc_g, vppl
-      TYPE(pw_type), POINTER                             :: rho_core
+      TYPE(pw_type), POINTER                             :: rho_core, rho_nlcc, rho_nlcc_g, vppl
 
       CALL timeset(routineN, handle)
 
@@ -116,15 +114,15 @@ CONTAINS
          NULLIFY (vppl)
          CALL get_qs_env(qs_env, vppl=vppl)
          CPASSERT(ASSOCIATED(vppl))
-         CALL calculate_ppl_grid(vppl%pw, qs_env)
+         CALL calculate_ppl_grid(vppl, qs_env)
       END IF
 
       ! compute the rho_nlcc
       NULLIFY (rho_nlcc, rho_nlcc_g)
       CALL get_qs_env(qs_env, rho_nlcc=rho_nlcc, rho_nlcc_g=rho_nlcc_g)
       IF (ASSOCIATED(rho_nlcc)) THEN
-         CALL calculate_rho_nlcc(rho_nlcc%pw, qs_env)
-         CALL pw_transfer(rho_nlcc%pw, rho_nlcc_g%pw)
+         CALL calculate_rho_nlcc(rho_nlcc, qs_env)
+         CALL pw_transfer(rho_nlcc, rho_nlcc_g)
       END IF
 
       ! allocates and creates the task_list

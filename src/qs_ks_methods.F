@@ -209,10 +209,10 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_p_type), POINTER                           :: rho_nlcc, vppl_rspace
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rho0_s_rs, rho_core, vee
+      TYPE(pw_type), POINTER                             :: rho0_s_rs, rho_core, rho_nlcc, vee, &
+                                                            vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
@@ -859,7 +859,7 @@ CONTAINS
          ecore_ppl = 0._dp
          DO ispin = 1, nspins
             ecore_ppl = ecore_ppl + &
-                        SUM(vppl_rspace%pw%cr3d*rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
+                        SUM(vppl_rspace%cr3d*rho_r(ispin)%pw%cr3d)*vppl_rspace%pw_grid%dvol
          END DO
          CALL mp_sum(ecore_ppl, para_env%group)
          energy%core = energy%core + ecore_ppl
