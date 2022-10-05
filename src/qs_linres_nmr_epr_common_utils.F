@@ -24,7 +24,6 @@ MODULE qs_linres_nmr_epr_common_utils
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
 #include "./base/base_uses.f90"
 
@@ -61,8 +60,8 @@ CONTAINS
    SUBROUTINE mult_G_ov_G2_grid(pw_pool, rho_gspace, funcG_times_rho, idir, my_chi)
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
-      TYPE(pw_p_type), POINTER                           :: rho_gspace
-      TYPE(pw_p_type)                                    :: funcG_times_rho
+      TYPE(pw_type), INTENT(IN)                          :: rho_gspace
+      TYPE(pw_type), INTENT(INOUT)                       :: funcG_times_rho
       INTEGER, INTENT(IN)                                :: idir
       REAL(dp), INTENT(IN)                               :: my_chi
 
@@ -85,11 +84,11 @@ CONTAINS
       END DO ! ig
       IF (grid%have_g0) influence_fn%cc(1) = 0.0_dp
 
-      CALL pw_transfer(rho_gspace%pw, funcG_times_rho%pw)
+      CALL pw_transfer(rho_gspace, funcG_times_rho)
 
       ng = SIZE(grid%gsq)
-      funcG_times_rho%pw%cc(1:ng) = funcG_times_rho%pw%cc(1:ng)*influence_fn%cc(1:ng)
-      IF (grid%have_g0) funcG_times_rho%pw%cc(1) = my_chi
+      funcG_times_rho%cc(1:ng) = funcG_times_rho%cc(1:ng)*influence_fn%cc(1:ng)
+      IF (grid%have_g0) funcG_times_rho%cc(1) = my_chi
 
       CALL pw_pool_give_back_pw(pw_pool, influence_fn)
 

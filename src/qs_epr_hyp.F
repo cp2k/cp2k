@@ -49,7 +49,8 @@ MODULE qs_epr_hyp
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -104,8 +105,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
-      TYPE(pw_p_type), POINTER                           :: hypaniso_gspace, rhototspin_elec_gspace
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: hypaniso_gspace, rhototspin_elec_gspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: rho_rad_h, rho_rad_s
@@ -115,7 +116,7 @@ CONTAINS
 
       NULLIFY (pw_env, cell, atomic_kind_set, qs_kind_set, auxbas_pw_pool, dft_control, &
                logger, dft_section, para_env, particle_set, rho, rho_atom, &
-               rho_atom_set, rhototspin_elec_gspace, hypaniso_gspace, rho_g)
+               rho_atom_set, rho_g)
 
       logger => cp_get_default_logger()
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
@@ -287,41 +288,37 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pw_pool)
 
-      ALLOCATE (rhototspin_elec_gspace)
-      ALLOCATE (rhototspin_elec_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             rhototspin_elec_gspace%pw, &
+                             rhototspin_elec_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_zero(rhototspin_elec_gspace%pw)
+      CALL pw_zero(rhototspin_elec_gspace)
 
-      pw_grid => rhototspin_elec_gspace%pw%pw_grid
+      pw_grid => rhototspin_elec_gspace%pw_grid
 
       ! Load the contribution of the soft electronic density
       CALL qs_rho_get(rho, rho_g=rho_g)
       CPASSERT(SIZE(rho_g) > 1)
-      CALL pw_axpy(rho_g(1)%pw, rhototspin_elec_gspace%pw)
-      CALL pw_axpy(rho_g(2)%pw, rhototspin_elec_gspace%pw, alpha=-1._dp)
+      CALL pw_axpy(rho_g(1)%pw, rhototspin_elec_gspace)
+      CALL pw_axpy(rho_g(2)%pw, rhototspin_elec_gspace, alpha=-1._dp)
       ! grid to assemble anisotropic hyperfine terms
-      ALLOCATE (hypaniso_gspace)
-      ALLOCATE (hypaniso_gspace%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool, &
-                             hypaniso_gspace%pw, &
+                             hypaniso_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
       DO idir1 = 1, 3
          DO idir2 = idir1, 3 ! tensor symmetry
-            CALL pw_zero(hypaniso_gspace%pw)
-            CALL pw_dr2_gg(rhototspin_elec_gspace%pw, hypaniso_gspace%pw, &
+            CALL pw_zero(hypaniso_gspace)
+            CALL pw_dr2_gg(rhototspin_elec_gspace, hypaniso_gspace, &
                            idir1, idir2)
             DO iatom = 1, natom
                esum = 0.0_dp
                ra(:) = pbc(particle_set(iatom)%r, cell)
-               DO ig = 1, SIZE(hypaniso_gspace%pw%cc)
+               DO ig = 1, SIZE(hypaniso_gspace%cc)
                   arg = DOT_PRODUCT(pw_grid%g(:, ig), ra)
-                  esum = esum + COS(arg)*REAL(hypaniso_gspace%pw%cc(ig), dp) &
-                         - SIN(arg)*AIMAG(hypaniso_gspace%pw%cc(ig))
+                  esum = esum + COS(arg)*REAL(hypaniso_gspace%cc(ig), dp) &
+                         - SIN(arg)*AIMAG(hypaniso_gspace%cc(ig))
                END DO
                ! Actually, we need -1.0 * fourpi * hypaniso_gspace
                esum = esum*fourpi*(-1.0_dp)
@@ -330,13 +327,8 @@ CONTAINS
          END DO ! idir2
       END DO ! idir1
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhototspin_elec_gspace%pw)
-      DEALLOCATE (rhototspin_elec_gspace%pw)
-      DEALLOCATE (rhototspin_elec_gspace)
-
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, hypaniso_gspace%pw)
-      DEALLOCATE (hypaniso_gspace%pw)
-      DEALLOCATE (hypaniso_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhototspin_elec_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, hypaniso_gspace)
 
       ! Multiply hyperfine matrices with constant*gyromagnetic ratio's
       ! to have it in units of Mhz.

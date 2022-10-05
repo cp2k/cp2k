@@ -121,20 +121,19 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: pw_gspace_work, shift_pw_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: jrho1_g
-      TYPE(pw_p_type), DIMENSION(:, :), POINTER          :: shift_pw_gspace
-      TYPE(pw_p_type), POINTER                           :: jrho_gspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: pw_gspace_work, shift_pw_rspace
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: shift_pw_gspace
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (chemical_shift, chemical_shift_loc, chemical_shift_nics, chemical_shift_nics_loc, &
-               cell, dft_control, pw_env, auxbas_rs_desc, auxbas_pw_pool, jrho_gspace, &
-               pw_pools, particle_set, jrho1_g)
+      NULLIFY (chemical_shift, chemical_shift_loc, chemical_shift_nics, &
+               chemical_shift_nics_loc, cell, dft_control, pw_env, &
+               auxbas_rs_desc, auxbas_pw_pool, pw_pools, particle_set, jrho1_g)
 
       CALL get_qs_env(qs_env=qs_env, cell=cell, dft_control=dft_control, &
                       particle_set=particle_set)
@@ -162,63 +161,57 @@ CONTAINS
       ALLOCATE (shift_pw_gspace(3, nspins))
       DO ispin = 1, nspins
          DO idir = 1, 3
-            ALLOCATE (shift_pw_gspace(idir, ispin)%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw, &
+            CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin), &
                                    use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-            CALL pw_zero(shift_pw_gspace(idir, ispin)%pw)
+            CALL pw_zero(shift_pw_gspace(idir, ispin))
          END DO
       END DO
       !
       !
       CALL set_vecp(iB, iiB, iiiB)
       !
-      ALLOCATE (pw_gspace_work%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, pw_gspace_work, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_zero(pw_gspace_work%pw)
+      CALL pw_zero(pw_gspace_work)
       DO ispin = 1, nspins
          !
          DO idir = 1, 3
             CALL qs_rho_get(current_env%jrho1_set(idir)%rho, rho_g=jrho1_g)
-            jrho_gspace => jrho1_g(ispin)
             ! Field gradient
             ! loop over the Gvec  components: x,y,z
             DO idir2 = 1, 3
                IF (idir /= idir2) THEN
                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                  CALL mult_G_ov_G2_grid(auxbas_pw_pool, jrho_gspace, &
+                  CALL mult_G_ov_G2_grid(auxbas_pw_pool, jrho1_g(ispin)%pw, &
                                          pw_gspace_work, idir2, 0.0_dp)
                   !
                   ! scale and add to the correct component of the shift column
                   CALL set_vecp_rev(idir, idir2, idir3)
                   scale_fac = fac_vecp(idir3, idir2, idir)
-                  CALL pw_axpy(pw_gspace_work%pw, shift_pw_gspace(idir3, ispin)%pw, scale_fac)
+                  CALL pw_axpy(pw_gspace_work, shift_pw_gspace(idir3, ispin), scale_fac)
                END IF
             END DO
             !
          END DO ! idir
       END DO ! ispin
       !
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work%pw)
-      DEALLOCATE (pw_gspace_work%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_gspace_work)
       !
       ! compute shildings
       IF (interpolate_shift) THEN
-         ALLOCATE (shift_pw_rspace%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_rspace%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, shift_pw_rspace, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          DO ispin = 1, nspins
             DO idir = 1, 3
                ! Here first G->R and then interpolation to get the shifts.
                ! The interpolation doesnt work in parallel yet.
                ! The choice between both methods should be left to the user.
-               CALL pw_transfer(shift_pw_gspace(idir, ispin)%pw, shift_pw_rspace%pw)
+               CALL pw_transfer(shift_pw_gspace(idir, ispin), shift_pw_rspace)
                CALL interpolate_shift_pwgrid(nmr_env, pw_env, particle_set, cell, shift_pw_rspace, &
                                              iB, idir, nmr_section)
             END DO
          END DO
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace%pw)
-         DEALLOCATE (shift_pw_rspace%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_rspace)
       ELSE
          DO ispin = 1, nspins
             DO idir = 1, 3
@@ -241,8 +234,7 @@ CONTAINS
       ! Dellocate grids for the calculation of jrho and the shift
       DO ispin = 1, nspins
          DO idir = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin)%pw)
-            DEALLOCATE (shift_pw_gspace(idir, ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, shift_pw_gspace(idir, ispin))
          END DO
       END DO
       DEALLOCATE (shift_pw_gspace)
@@ -519,7 +511,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(pw_p_type)                                    :: shift_pw_rspace
+      TYPE(pw_type), INTENT(IN)                          :: shift_pw_rspace
       INTEGER, INTENT(IN)                                :: i_B, idir
       TYPE(section_vals_type), POINTER                   :: nmr_section
 
@@ -533,17 +525,15 @@ CONTAINS
                                                             shift_val
       REAL(dp), DIMENSION(:, :), POINTER                 :: r_nics
       REAL(dp), DIMENSION(:, :, :), POINTER              :: chemical_shift, chemical_shift_nics
-      TYPE(pw_p_type)                                    :: shiftspl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_spline_precond_type)                       :: precond
+      TYPE(pw_type)                                      :: shiftspl
       TYPE(section_vals_type), POINTER                   :: interp_section
 
       CALL timeset(routineN, handle)
       !
       NULLIFY (interp_section, auxbas_pw_pool)
       NULLIFY (cs_atom_list, chemical_shift, chemical_shift_nics, r_nics)
-
-      CPASSERT(ASSOCIATED(shift_pw_rspace%pw))
 
       interp_section => section_vals_get_subs_vals(nmr_section, &
                                                    "INTERPOLATOR")
@@ -556,15 +546,14 @@ CONTAINS
 
       ! calculate spline coefficients
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      ALLOCATE (shiftspl%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, shiftspl%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, shiftspl, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
       CALL pw_spline_precond_create(precond, precond_kind=aint_precond, &
                                     pool=auxbas_pw_pool, pbc=.TRUE., transpose=.FALSE.)
-      CALL pw_spline_do_precond(precond, shift_pw_rspace%pw, shiftspl%pw)
+      CALL pw_spline_do_precond(precond, shift_pw_rspace, shiftspl)
       CALL pw_spline_precond_set_kind(precond, precond_kind)
-      success = find_coeffs(values=shift_pw_rspace%pw, coeffs=shiftspl%pw, &
+      success = find_coeffs(values=shift_pw_rspace, coeffs=shiftspl, &
                             linOp=spl3_pbc, preconditioner=precond, pool=auxbas_pw_pool, &
                             eps_r=eps_r, eps_x=eps_x, max_iter=max_iter)
       CPASSERT(success)
@@ -585,7 +574,7 @@ CONTAINS
       DO iat = 1, natom
          iatom = cs_atom_list(iat)
          R_iatom = pbc(particle_set(iatom)%r, cell)
-         shift_val = Eval_Interp_Spl3_pbc(R_iatom, shiftspl%pw)
+         shift_val = Eval_Interp_Spl3_pbc(R_iatom, shiftspl)
          chemical_shift(idir, i_B, iatom) = chemical_shift(idir, i_B, iatom) + &
                                             nmr_env%shift_factor*twopi**2*shift_val
       END DO
@@ -594,14 +583,13 @@ CONTAINS
          DO iatom = 1, n_nics
             ra(:) = r_nics(:, iatom)
             R_iatom = pbc(ra, cell)
-            shift_val = Eval_Interp_Spl3_pbc(R_iatom, shiftspl%pw)
+            shift_val = Eval_Interp_Spl3_pbc(R_iatom, shiftspl)
             chemical_shift_nics(idir, i_B, iatom) = chemical_shift_nics(idir, i_B, iatom) + &
                                                     nmr_env%shift_factor*twopi**2*shift_val
          END DO
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, shiftspl%pw)
-      DEALLOCATE (shiftspl%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, shiftspl)
 
       !
       CALL timestop(handle)
@@ -622,7 +610,7 @@ CONTAINS
       TYPE(nmr_env_type)                                 :: nmr_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(pw_p_type)                                    :: shift_pw_gspace
+      TYPE(pw_type), INTENT(IN)                          :: shift_pw_gspace
       INTEGER, INTENT(IN)                                :: i_B, idir
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gsum_shift_pwgrid'
@@ -638,7 +626,6 @@ CONTAINS
       CALL timeset(routineN, handle)
       !
       NULLIFY (cs_atom_list, chemical_shift, chemical_shift_nics, r_nics)
-      CPASSERT(ASSOCIATED(shift_pw_gspace%pw))
       !
       CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list, &
                        chemical_shift=chemical_shift, &
@@ -655,7 +642,7 @@ CONTAINS
       DO iat = 1, natom
          iatom = cs_atom_list(iat)
          R_iatom = pbc(particle_set(iatom)%r, cell)
-         CALL gsumr(R_iatom, shift_pw_gspace%pw, cplx)
+         CALL gsumr(R_iatom, shift_pw_gspace, cplx)
          chemical_shift(idir, i_B, iatom) = chemical_shift(idir, i_B, iatom) + &
                                             nmr_env%shift_factor*twopi**2*REAL(cplx, dp)
       END DO
@@ -664,7 +651,7 @@ CONTAINS
       IF (do_nics) THEN
          DO iat = 1, n_nics
             ra = pbc(r_nics(:, iat), cell)
-            CALL gsumr(ra, shift_pw_gspace%pw, cplx)
+            CALL gsumr(ra, shift_pw_gspace, cplx)
             chemical_shift_nics(idir, i_B, iat) = chemical_shift_nics(idir, i_B, iat) + &
                                                   nmr_env%shift_factor*twopi**2*REAL(cplx, dp)
          END DO
@@ -682,7 +669,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE gsumr(r, pw, cplx)
       REAL(dp), INTENT(IN)                               :: r(3)
-      TYPE(pw_type), POINTER                             :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       COMPLEX(dp)                                        :: cplx
 
       COMPLEX(dp)                                        :: rg

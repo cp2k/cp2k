@@ -50,7 +50,8 @@ MODULE qs_cdft_methods
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_cdft_types,                   ONLY: becke_constraint_type,&
                                               cdft_control_type,&
                                               cdft_group_type,&
@@ -649,14 +650,15 @@ CONTAINS
       TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: pw_single_dr, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: pw_single_dr
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_single, rs_single_charge, rs_single_dr
       TYPE(realspace_grid_type), POINTER                 :: rs_rho_all, rs_rho_constr
 
-      NULLIFY (atom_list, atomic_kind_set, dft_control, pw_single_dr, &
+      NULLIFY (atom_list, atomic_kind_set, dft_control, &
                hirshfeld_env, particle_set, pw_env, auxbas_pw_pool, para_env, &
                auxbas_rs_desc, cdft_control, pab, rs_rho_all, &
                hirshfeld_control, cell, rho_r, rho, rs_single, rs_single_dr, &
@@ -982,10 +984,9 @@ CONTAINS
                ALLOCATE (rs_single_dr(num_species))
 
                DO i = 1, num_species
-                  ALLOCATE (pw_single_dr(i)%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, pw_single_dr(i)%pw, use_data=REALDATA3D, &
+                  CALL pw_pool_create_pw(auxbas_pw_pool, pw_single_dr(i), use_data=REALDATA3D, &
                                          in_space=REALSPACE)
-                  pw_single_dr(i)%pw%cr3d(:, :, :) = 0.0_dp
+                  pw_single_dr(i)%cr3d(:, :, :) = 0.0_dp
                END DO
 
                atoms_memory_num = SIZE((/(j, j=1, num_species, atoms_memory)/))
@@ -1062,7 +1063,7 @@ CONTAINS
                   END DO
 
                   DO iatom = num_species_small(k), num_species_small(k + 1)
-                     CALL rs_pw_transfer(rs_single_dr(iatom)%rs_grid, pw_single_dr(iatom)%pw, rs2pw)
+                     CALL rs_pw_transfer(rs_single_dr(iatom)%rs_grid, pw_single_dr(iatom), rs2pw)
                      CALL rs_grid_release(rs_single_dr(iatom)%rs_grid)
                   END DO
 
@@ -1071,9 +1072,8 @@ CONTAINS
 
                DO iatom = 1, num_species
                   atom_a = atom_list(iatom)
-                  cdft_control%group(igroup)%gradients_x(atom_a, :, :, :) = pw_single_dr(iatom)%pw%cr3d(:, :, :)
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_single_dr(iatom)%pw)
-                  DEALLOCATE (pw_single_dr(iatom)%pw)
+                  cdft_control%group(igroup)%gradients_x(atom_a, :, :, :) = pw_single_dr(iatom)%cr3d(:, :, :)
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, pw_single_dr(iatom))
                END DO
 
                DEALLOCATE (rs_single_dr)
@@ -1636,11 +1636,11 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_frag
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: rho_frag
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
-      NULLIFY (para_env, dft_control, logger, subsys, pw_env, auxbas_pw_pool, group, rho_frag)
+      NULLIFY (para_env, dft_control, logger, subsys, pw_env, auxbas_pw_pool, group)
       CALL timeset(routineN, handle)
       logger => cp_get_default_logger()
       CALL get_qs_env(qs_env, &
@@ -1717,11 +1717,10 @@ CONTAINS
       END IF
       ! Sum up fragments
       DO i = 1, nfrag_spins
-         ALLOCATE (rho_frag(i)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, rho_frag(i)%pw, use_data=REALDATA3D, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, rho_frag(i), use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_copy(cdft_control%fragments(i, 1)%pw, rho_frag(i)%pw)
-         CALL pw_axpy(cdft_control%fragments(i, 2)%pw, rho_frag(i)%pw, 1.0_dp)
+         CALL pw_copy(cdft_control%fragments(i, 1)%pw, rho_frag(i))
+         CALL pw_axpy(cdft_control%fragments(i, 2)%pw, rho_frag(i), 1.0_dp)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 1)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%fragments(i, 2)%pw)
          DEALLOCATE (cdft_control%fragments(i, 1)%pw, cdft_control%fragments(i, 2)%pw)
@@ -1730,7 +1729,7 @@ CONTAINS
       ! Check that the number of electrons is consistent
       CALL get_qs_env(qs_env, subsys=subsys)
       CALL qs_subsys_get(subsys, nelectron_total=nelectron_total)
-      nelectron_frag = pw_integrate_function(rho_frag(1)%pw)
+      nelectron_frag = pw_integrate_function(rho_frag(1))
       IF (NINT(nelectron_frag) /= nelectron_total) &
          CALL cp_abort(__LOCATION__, &
                        "The number of electrons in the reference and interacting "// &
@@ -1745,11 +1744,11 @@ CONTAINS
          END IF
          IF (is_becke .AND. (cdft_control%external_control .AND. becke_control%cavity_confine)) THEN
             cdft_control%target(igroup) = cdft_control%target(igroup) + &
-                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d, &
+                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%cr3d, &
                                                                becke_control%cavity_mat, becke_control%eps_cavity)*dvol
          ELSE
             cdft_control%target(igroup) = cdft_control%target(igroup) + &
-                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
+                                          accurate_dot_product(group(igroup)%weight%pw%cr3d, rho_frag(i)%cr3d)*dvol
          END IF
       END DO
       CALL mp_sum(cdft_control%target, para_env%group)
@@ -1759,14 +1758,13 @@ CONTAINS
          DO i = 1, nfrag_spins
             DO iatom = 1, cdft_control%natoms
                cdft_control%charges_fragment(iatom, i) = &
-                  accurate_dot_product(cdft_control%charge(iatom)%pw%cr3d, rho_frag(i)%pw%cr3d)*dvol
+                  accurate_dot_product(cdft_control%charge(iatom)%pw%cr3d, rho_frag(i)%cr3d)*dvol
             END DO
          END DO
          CALL mp_sum(cdft_control%charges_fragment, para_env%group)
       END IF
       DO i = 1, nfrag_spins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i)%pw)
-         DEALLOCATE (rho_frag(i)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_frag(i))
       END DO
       DEALLOCATE (rho_frag)
       cdft_control%fragments_integrated = .TRUE.
