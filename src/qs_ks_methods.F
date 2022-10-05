@@ -480,14 +480,14 @@ CONTAINS
                                     v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace, &
                                     qmmm_energy=energy%qmmm_el)
          IF (qs_env%qmmm_env_qm%image_charge) THEN
-            CALL calculate_image_pot(v_hartree_rspace=v_hartree_rspace, &
-                                     rho_hartree_gspace=rho_tot_gspace, &
+            CALL calculate_image_pot(v_hartree_rspace=v_hartree_rspace%pw, &
+                                     rho_hartree_gspace=rho_tot_gspace%pw, &
                                      energy=energy, &
                                      qmmm_env=qs_env%qmmm_env_qm, &
                                      qs_env=qs_env)
             IF (.NOT. just_energy) THEN
-               CALL add_image_pot_to_hartree_pot(v_hartree=v_hartree_rspace, &
-                                                 v_metal=qs_env%ks_qmmm_env%v_metal_rspace, &
+               CALL add_image_pot_to_hartree_pot(v_hartree=v_hartree_rspace%pw, &
+                                                 v_metal=qs_env%ks_qmmm_env%v_metal_rspace%pw, &
                                                  qs_env=qs_env)
                IF (calculate_forces) THEN
                   CALL integrate_potential_devga_rspace( &
