@@ -84,7 +84,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE qs_local_energy(qs_env, energy_density)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), INTENT(INOUT)                     :: energy_density
+      TYPE(pw_type), INTENT(INOUT)                       :: energy_density
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_local_energy'
 
@@ -98,13 +98,12 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_type)                                    :: band_density, edens_g, edens_r, &
-                                                            hartree_density, &
-                                                            xc_density
-TYPE(pw_type), POINTER :: v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace, rho_tot_rspace
+      TYPE(pw_type)                                      :: band_density, edens_g, edens_r, &
+                                                            hartree_density, xc_density
+      TYPE(pw_type), POINTER                             :: rho_core, rho_tot_gspace, &
+                                                            rho_tot_rspace, v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct
@@ -272,18 +271,16 @@ TYPE(pw_type), POINTER :: v_hartree_rspace
 
       INTEGER                                            :: handle, i, iounit, j, nimages, nkind, &
                                                             nspins
-      LOGICAL                                            :: do_stress, gapw, gapw_xc, &
-                                                            use_virial
+      LOGICAL                                            :: do_stress, gapw, gapw_xc, use_virial
       REAL(KIND=dp)                                      :: my_beta
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_type)                                    :: v_hartree_gspace, &
-                                                            xc_density
-TYPE(pw_type), POINTER :: v_hartree_rspace
-      TYPE(pw_type), DIMENSION(3)                      :: efield
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: v_hartree_gspace, xc_density
+      TYPE(pw_type), DIMENSION(3)                        :: efield
+      TYPE(pw_type), POINTER                             :: v_hartree_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: input, xc_section

@@ -312,8 +312,8 @@ MODULE qs_environment_types
       ! Subsystem densities
       TYPE(qs_rho_p_type), DIMENSION(:), POINTER            :: subsys_dens
       ! Embedding potential
-      TYPE(pw_p_type), POINTER                              :: embed_pot
-      TYPE(pw_p_type), POINTER                              :: spin_embed_pot
+      TYPE(pw_type), POINTER                              :: embed_pot
+      TYPE(pw_type), POINTER                              :: spin_embed_pot
       ! Polarizability tensor
       TYPE(polar_env_type), POINTER                         :: polar_env
       ! Resp charges
@@ -649,7 +649,7 @@ CONTAINS
          POINTER                                         :: mscfg_env
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
+      TYPE(pw_type), OPTIONAL, POINTER                   :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mos_last_converged
@@ -1124,7 +1124,7 @@ CONTAINS
          OPTIONAL, POINTER                               :: WannierCentres
       TYPE(almo_scf_env_type), OPTIONAL, POINTER         :: almo_scf_env
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: gradient_history, variable_history
-      TYPE(pw_p_type), OPTIONAL, POINTER                 :: embed_pot, spin_embed_pot
+      TYPE(pw_type), OPTIONAL, POINTER                   :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mos_last_converged
@@ -1458,12 +1458,10 @@ CONTAINS
             END IF
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
-               CALL pw_release(qs_env%embed_pot%pw)
-               DEALLOCATE (qs_env%embed_pot%pw)
+               CALL pw_release(qs_env%embed_pot)
                DEALLOCATE (qs_env%embed_pot)
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
-                  CALL pw_release(qs_env%spin_embed_pot%pw)
-                  DEALLOCATE (qs_env%spin_embed_pot%pw)
+                  CALL pw_release(qs_env%spin_embed_pot)
                   DEALLOCATE (qs_env%spin_embed_pot)
                END IF
             END IF
@@ -1658,12 +1656,10 @@ CONTAINS
             END IF
             ! Embedding potentials if provided as input
             IF (qs_env%given_embed_pot) THEN
-               CALL pw_release(qs_env%embed_pot%pw)
-               DEALLOCATE (qs_env%embed_pot%pw)
+               CALL pw_release(qs_env%embed_pot)
                DEALLOCATE (qs_env%embed_pot)
                IF (ASSOCIATED(qs_env%spin_embed_pot)) THEN
-                  CALL pw_release(qs_env%spin_embed_pot%pw)
-                  DEALLOCATE (qs_env%spin_embed_pot%pw)
+                  CALL pw_release(qs_env%spin_embed_pot)
                   DEALLOCATE (qs_env%spin_embed_pot)
                END IF
             END IF

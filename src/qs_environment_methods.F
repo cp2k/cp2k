@@ -208,10 +208,10 @@ CONTAINS
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
       TYPE(pw_env_type), POINTER                         :: new_pw_env
-      TYPE(pw_p_type), POINTER                           :: embed_pot, external_vxc, rho_nlcc, &
-                                                            rho_nlcc_g, spin_embed_pot, vppl
+      TYPE(pw_p_type), POINTER                           :: external_vxc, rho_nlcc, rho_nlcc_g, vppl
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rho_core, v_hartree_rspace, vee
+      TYPE(pw_type), POINTER                             :: embed_pot, rho_core, spin_embed_pot, &
+                                                            v_hartree_rspace, vee
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
@@ -378,29 +378,26 @@ CONTAINS
             NULLIFY (embed_pot)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, embed_pot=embed_pot)
             IF (ASSOCIATED(embed_pot)) THEN
-               CALL pw_release(embed_pot%pw)
-               DEALLOCATE (embed_pot%pw)
-               DEALLOCATE (embed_pot)
+               CALL pw_release(embed_pot)
+            ELSE
+               ALLOCATE (embed_pot)
             END IF
-            ALLOCATE (embed_pot)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (embed_pot%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, embed_pot%pw, use_data=REALDATA3D)
-            embed_pot%pw%in_space = REALSPACE
+            CALL pw_pool_create_pw(auxbas_pw_pool, embed_pot, use_data=REALDATA3D)
+            embed_pot%in_space = REALSPACE
             CALL set_qs_env(qs_env, embed_pot=embed_pot)
 
             NULLIFY (spin_embed_pot)
             CALL get_qs_env(qs_env, pw_env=new_pw_env, spin_embed_pot=spin_embed_pot)
             IF (ASSOCIATED(spin_embed_pot)) THEN
-               CALL pw_release(spin_embed_pot%pw)
-               DEALLOCATE (spin_embed_pot%pw)
+               CALL pw_release(spin_embed_pot)
                DEALLOCATE (spin_embed_pot)
+            ELSE
+               ALLOCATE (spin_embed_pot)
             END IF
-            ALLOCATE (spin_embed_pot)
             CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (spin_embed_pot%pw)
-            CALL pw_pool_create_pw(auxbas_pw_pool, spin_embed_pot%pw, use_data=REALDATA3D)
-            spin_embed_pot%pw%in_space = REALSPACE
+            CALL pw_pool_create_pw(auxbas_pw_pool, spin_embed_pot, use_data=REALDATA3D)
+            spin_embed_pot%in_space = REALSPACE
             CALL set_qs_env(qs_env, spin_embed_pot=spin_embed_pot)
          END IF
 

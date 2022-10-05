@@ -1814,21 +1814,21 @@ CONTAINS
          CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=v_rspace_embed(ispin)%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(v_rspace_embed(ispin)%pw)
-         ns1 = SIZE(qs_env%embed_pot%pw%cr3d)
+         ns1 = SIZE(qs_env%embed_pot%cr3d)
          ns2 = SIZE(v_rspace_embed(ispin)%pw%cr3d)
          IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
 
-         v_rspace_embed(ispin)%pw%cr3d(:, :, :) = qs_env%embed_pot%pw%cr3d
+         v_rspace_embed(ispin)%pw%cr3d(:, :, :) = qs_env%embed_pot%cr3d
          embed_corr_local = 0.0_dp
 
          ! Spin embedding potential in open-shell case
          IF (dft_control%nspins .EQ. 2) THEN
-            ns1 = SIZE(qs_env%spin_embed_pot%pw%cr3d)
+            ns1 = SIZE(qs_env%spin_embed_pot%cr3d)
             IF (ns1 .NE. ns2) CPABORT("Subsystem grids must be identical")
             IF (ispin .EQ. 1) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%pw%cr3d(:, :, :) + qs_env%spin_embed_pot%pw%cr3d
+               v_rspace_embed(ispin)%pw%cr3d(:, :, :) + qs_env%spin_embed_pot%cr3d
             IF (ispin .EQ. 2) v_rspace_embed(ispin)%pw%cr3d(:, :, :) = &
-               v_rspace_embed(ispin)%pw%cr3d(:, :, :) - qs_env%spin_embed_pot%pw%cr3d
+               v_rspace_embed(ispin)%pw%cr3d(:, :, :) - qs_env%spin_embed_pot%cr3d
          END IF
          ! Integrate the density*potential
          embed_corr_local = accurate_dot_product(v_rspace_embed(ispin)%pw%cr3d, rho_r(ispin)%pw%cr3d)* &

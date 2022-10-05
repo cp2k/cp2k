@@ -647,7 +647,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(pw_type), INTENT(INOUT)                     :: xc_den
+      TYPE(pw_type), INTENT(INOUT)                       :: xc_den
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_density'
 
