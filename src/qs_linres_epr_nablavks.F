@@ -147,11 +147,11 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_r, rho2_r, rho_r, v_rspace_new, &
                                                             v_tau_rspace
-      TYPE(pw_p_type), POINTER :: v_coulomb_gspace, v_coulomb_gtemp, v_coulomb_rtemp, &
-         v_hartree_gspace, v_hartree_gtemp, v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: pwx, pwy, pwz, rho_tot_gspace
+      TYPE(pw_type) :: rho_tot_gspace, v_coulomb_gspace, v_coulomb_gtemp, v_coulomb_rtemp, &
+         v_hartree_gspace, v_hartree_gtemp, v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
+      TYPE(pw_type), POINTER                             :: pwx, pwy, pwz
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_p_type), DIMENSION(:, :), POINTER      :: nablavks_set
@@ -283,16 +283,11 @@ CONTAINS
 !   Add Hartree potential
 !   -------------------------------------
 
-      ALLOCATE (v_hartree_gspace)
-      ALLOCATE (v_hartree_gtemp)
-      ALLOCATE (v_hartree_rtemp)
-
-      ALLOCATE (v_hartree_gspace%pw, v_hartree_gtemp%pw, v_hartree_rtemp%pw, rho_tot_gspace)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gtemp%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gtemp, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rtemp%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rtemp, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
@@ -311,7 +306,7 @@ CONTAINS
                                skip_nuclear_density=.NOT. gapw)
 
       CALL pw_poisson_solve(poisson_env, rho_tot_gspace, ehartree, &
-                            v_hartree_gspace%pw)
+                            v_hartree_gspace)
 
       !   -------------------------------------
       !   Atomic grids part
@@ -446,30 +441,25 @@ CONTAINS
 
       END IF ! gapw
 
-      CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
-      CALL pw_derive(v_hartree_gtemp%pw, (/1, 0, 0/))
-      CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
-      CALL pw_copy(v_hartree_rtemp%pw, pwx)
+      CALL pw_copy(v_hartree_gspace, v_hartree_gtemp)
+      CALL pw_derive(v_hartree_gtemp, (/1, 0, 0/))
+      CALL pw_transfer(v_hartree_gtemp, v_hartree_rtemp)
+      CALL pw_copy(v_hartree_rtemp, pwx)
 
-      CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
-      CALL pw_derive(v_hartree_gtemp%pw, (/0, 1, 0/))
-      CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
-      CALL pw_copy(v_hartree_rtemp%pw, pwy)
+      CALL pw_copy(v_hartree_gspace, v_hartree_gtemp)
+      CALL pw_derive(v_hartree_gtemp, (/0, 1, 0/))
+      CALL pw_transfer(v_hartree_gtemp, v_hartree_rtemp)
+      CALL pw_copy(v_hartree_rtemp, pwy)
 
-      CALL pw_copy(v_hartree_gspace%pw, v_hartree_gtemp%pw)
-      CALL pw_derive(v_hartree_gtemp%pw, (/0, 0, 1/))
-      CALL pw_transfer(v_hartree_gtemp%pw, v_hartree_rtemp%pw)
-      CALL pw_copy(v_hartree_rtemp%pw, pwz)
+      CALL pw_copy(v_hartree_gspace, v_hartree_gtemp)
+      CALL pw_derive(v_hartree_gtemp, (/0, 0, 1/))
+      CALL pw_transfer(v_hartree_gtemp, v_hartree_rtemp)
+      CALL pw_copy(v_hartree_rtemp, pwz)
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gtemp%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rtemp%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gtemp)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rtemp)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
-      DEALLOCATE (v_hartree_gspace%pw, v_hartree_gtemp%pw, v_hartree_rtemp%pw, rho_tot_gspace)
-
-      DEALLOCATE (v_hartree_gspace)
-      DEALLOCATE (v_hartree_gtemp)
-      DEALLOCATE (v_hartree_rtemp)
 
 !   -------------------------------------
 !   Add Coulomb potential
@@ -515,26 +505,21 @@ CONTAINS
 
             IF (gth_gspace) THEN
 
-               ALLOCATE (v_coulomb_gspace)
-               ALLOCATE (v_coulomb_gtemp)
-               ALLOCATE (v_coulomb_rtemp)
-
-               ALLOCATE (v_coulomb_gspace%pw, v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_gspace%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_gspace, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_gtemp%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_gtemp, &
                                       use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_rtemp%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, v_coulomb_rtemp, &
                                       use_data=REALDATA3D, in_space=REALSPACE)
 
-               CALL pw_zero(v_coulomb_gspace%pw)
+               CALL pw_zero(v_coulomb_gspace)
 
                DO iat = 1, natom ! natom = # atoms for ikind
 
                   iatom = atom_list(iat)
                   ratom = particle_set(iatom)%r
 
-                  DO ig = v_coulomb_gspace%pw%pw_grid%first_gne0, v_coulomb_gspace%pw%pw_grid%ngpts_cut_local
+                  DO ig = v_coulomb_gspace%pw_grid%first_gne0, v_coulomb_gspace%pw_grid%ngpts_cut_local
                      gtemp = 0.0_dp
                      ! gtemp = - fourpi * charge / cell%deth * &
                      !         EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
@@ -546,89 +531,84 @@ CONTAINS
                         CASE (1)
                            gtemp = gtemp + &
                                    (twopi)**(1.5_dp)/(cell%deth*(2.0_dp*alpha)**(1.5_dp))* &
-                                   EXP(-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
+                                   EXP(-v_coulomb_gspace%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
                                    ! C1
                                    +cexp_ppl(1) &
                                    )
                         CASE (2)
                            gtemp = gtemp + &
                                    (twopi)**(1.5_dp)/(cell%deth*(2.0_dp*alpha)**(1.5_dp))* &
-                                   EXP(-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
+                                   EXP(-v_coulomb_gspace%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
                                    ! C1
                                    +cexp_ppl(1) &
                                    ! C2
                                    + cexp_ppl(2)/(2.0_dp*alpha)* &
-                                   (3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
+                                   (3.0_dp - v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
                                    )
                         CASE (3)
                            gtemp = gtemp + &
                                    (twopi)**(1.5_dp)/(cell%deth*(2.0_dp*alpha)**(1.5_dp))* &
-                                   EXP(-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
+                                   EXP(-v_coulomb_gspace%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
                                    ! C1
                                    +cexp_ppl(1) &
                                    ! C2
                                    + cexp_ppl(2)/(2.0_dp*alpha)* &
-                                   (3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
+                                   (3.0_dp - v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
                                    ! C3
                                    + cexp_ppl(3)/(2.0_dp*alpha)**2* &
-                                   (15.0_dp - 10.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
-                                    + (v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2) &
+                                   (15.0_dp - 10.0_dp*v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha) &
+                                    + (v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha))**2) &
                                    )
                         CASE (4)
                            gtemp = gtemp + &
                                    (twopi)**(1.5_dp)/(cell%deth*(2.0_dp*alpha)**(1.5_dp))* &
-                                   EXP(-v_coulomb_gspace%pw%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
+                                   EXP(-v_coulomb_gspace%pw_grid%gsq(ig)/(4.0_dp*alpha))*( &
                                    ! C1
                                    +cexp_ppl(1) &
                                    ! C2
                                    + cexp_ppl(2)/(2.0_dp*alpha)* &
-                                   (3.0_dp - v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
+                                   (3.0_dp - v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha)) &
                                    ! C3
                                    + cexp_ppl(3)/(2.0_dp*alpha)**2* &
-                                   (15.0_dp - 10.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
-                                    + (v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2) &
+                                   (15.0_dp - 10.0_dp*v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha) &
+                                    + (v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha))**2) &
                                    ! C4
                                    + cexp_ppl(4)/(2.0_dp*alpha)**3* &
-                                   (105.0_dp - 105.0_dp*v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha) &
-                                    + 21.0_dp*(v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**2 &
-                                    - (v_coulomb_gspace%pw%pw_grid%gsq(ig)/(2.0_dp*alpha))**3) &
+                                   (105.0_dp - 105.0_dp*v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha) &
+                                    + 21.0_dp*(v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha))**2 &
+                                    - (v_coulomb_gspace%pw_grid%gsq(ig)/(2.0_dp*alpha))**3) &
                                    )
                         END SELECT
 
                      END IF
 
-                     arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:, ig), ratom)
+                     arg = DOT_PRODUCT(v_coulomb_gspace%pw_grid%g(:, ig), ratom)
 
                      gtemp = gtemp*CMPLX(COS(arg), -SIN(arg), KIND=dp)
-                     v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig) + gtemp
+                     v_coulomb_gspace%cc(ig) = v_coulomb_gspace%cc(ig) + gtemp
                   END DO
-                  IF (v_coulomb_gspace%pw%pw_grid%have_g0) v_coulomb_gspace%pw%cc(1) = 0.0_dp
+                  IF (v_coulomb_gspace%pw_grid%have_g0) v_coulomb_gspace%cc(1) = 0.0_dp
 
                END DO
 
-               CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-               CALL pw_derive(v_coulomb_gtemp%pw, (/1, 0, 0/))
-               CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-               CALL pw_axpy(v_coulomb_rtemp%pw, pwx)
+               CALL pw_copy(v_coulomb_gspace, v_coulomb_gtemp)
+               CALL pw_derive(v_coulomb_gtemp, (/1, 0, 0/))
+               CALL pw_transfer(v_coulomb_gtemp, v_coulomb_rtemp)
+               CALL pw_axpy(v_coulomb_rtemp, pwx)
 
-               CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-               CALL pw_derive(v_coulomb_gtemp%pw, (/0, 1, 0/))
-               CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-               CALL pw_axpy(v_coulomb_rtemp%pw, pwy)
+               CALL pw_copy(v_coulomb_gspace, v_coulomb_gtemp)
+               CALL pw_derive(v_coulomb_gtemp, (/0, 1, 0/))
+               CALL pw_transfer(v_coulomb_gtemp, v_coulomb_rtemp)
+               CALL pw_axpy(v_coulomb_rtemp, pwy)
 
-               CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-               CALL pw_derive(v_coulomb_gtemp%pw, (/0, 0, 1/))
-               CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-               CALL pw_axpy(v_coulomb_rtemp%pw, pwz)
+               CALL pw_copy(v_coulomb_gspace, v_coulomb_gtemp)
+               CALL pw_derive(v_coulomb_gtemp, (/0, 0, 1/))
+               CALL pw_transfer(v_coulomb_gtemp, v_coulomb_rtemp)
+               CALL pw_axpy(v_coulomb_rtemp, pwz)
 
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_gspace%pw)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_gtemp%pw)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_rtemp%pw)
-               DEALLOCATE (v_coulomb_gspace%pw, v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-
-               DEALLOCATE (v_coulomb_gspace)
-               DEALLOCATE (v_coulomb_gtemp)
-               DEALLOCATE (v_coulomb_rtemp)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_gspace)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_gtemp)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_coulomb_rtemp)
             ELSE
 
                ! Attic of the atomic parallellisation
@@ -871,13 +851,9 @@ CONTAINS
 !   Add V_xc potential
 !   -------------------------------------
 
-      ALLOCATE (v_xc_gtemp)
-      ALLOCATE (v_xc_rtemp)
-
-      ALLOCATE (v_xc_gtemp%pw, v_xc_rtemp%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_xc_gtemp%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_xc_gtemp, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_xc_rtemp%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_xc_rtemp, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
       xc_section => section_vals_get_subs_vals(input, "PROPERTIES%LINRES%EPR%PRINT%G_TENSOR%XC")
@@ -895,23 +871,23 @@ CONTAINS
 
          DO ispin = 1, nspins
 
-            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
-            CALL pw_derive(v_xc_gtemp%pw, (/1, 0, 0/))
-            CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp)
+            CALL pw_derive(v_xc_gtemp, (/1, 0, 0/))
+            CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(1, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
 
-            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
-            CALL pw_derive(v_xc_gtemp%pw, (/0, 1, 0/))
-            CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp)
+            CALL pw_derive(v_xc_gtemp, (/0, 1, 0/))
+            CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(2, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
 
-            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp%pw)
-            CALL pw_derive(v_xc_gtemp%pw, (/0, 0, 1/))
-            CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+            CALL pw_transfer(v_rspace_new(ispin)%pw, v_xc_gtemp)
+            CALL pw_derive(v_xc_gtemp, (/0, 0, 1/))
+            CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace_new(ispin)%pw)
             DEALLOCATE (v_rspace_new(ispin)%pw)
@@ -925,23 +901,23 @@ CONTAINS
 
          DO ispin = 1, nspins
 
-            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
-            CALL pw_derive(v_xc_gtemp%pw, (/1, 0, 0/))
-            CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp)
+            CALL pw_derive(v_xc_gtemp, (/1, 0, 0/))
+            CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(1, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
 
-            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
-            CALL pw_derive(v_xc_gtemp%pw, (/0, 1, 0/))
-            CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp)
+            CALL pw_derive(v_xc_gtemp, (/0, 1, 0/))
+            CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(2, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
 
-            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp%pw)
-            CALL pw_derive(v_xc_gtemp%pw, (/0, 0, 1/))
-            CALL pw_transfer(v_xc_gtemp%pw, v_xc_rtemp%pw)
+            CALL pw_transfer(v_tau_rspace(ispin)%pw, v_xc_gtemp)
+            CALL pw_derive(v_xc_gtemp, (/0, 0, 1/))
+            CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
-            CALL pw_axpy(v_xc_rtemp%pw, rho_r(1)%pw)
+            CALL pw_axpy(v_xc_rtemp, rho_r(1)%pw)
 
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace(ispin)%pw)
             DEALLOCATE (v_tau_rspace(ispin)%pw)
@@ -951,12 +927,8 @@ CONTAINS
          DEALLOCATE (v_tau_rspace)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_gtemp%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_rtemp%pw)
-      DEALLOCATE (v_xc_gtemp%pw, v_xc_rtemp%pw)
-
-      DEALLOCATE (v_xc_gtemp)
-      DEALLOCATE (v_xc_rtemp)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_gtemp)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_rtemp)
 
       IF (gapw .OR. gapw_xc) THEN
          CALL calculate_vxc_atom(qs_env=qs_env, energy_only=.FALSE., exc1=exc1, &
@@ -969,15 +941,13 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, lr_section, &
                                            "EPR%PRINT%NABLAVKS_CUBES"), cp_p_file)) THEN
-         ALLOCATE (wf_r)
-         ALLOCATE (wf_r%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, wf_r, &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
          DO idir = 1, 3
-            CALL pw_zero(wf_r%pw)
+            CALL pw_zero(wf_r)
             CALL qs_rho_get(nablavks_set(idir, 1)%rho, rho_r=rho_r)
-            CALL pw_copy(rho_r(1)%pw, wf_r%pw) ! RA
+            CALL pw_copy(rho_r(1)%pw, wf_r) ! RA
             filename = "nablavks"
             mpi_io = .TRUE.
             WRITE (ext, '(a2,I1,a5)') "_d", idir, ".cube"
@@ -985,7 +955,7 @@ CONTAINS
                                            extension=TRIM(ext), middle_name=TRIM(filename), &
                                            log_filename=.FALSE., file_position="REWIND", &
                                            mpi_io=mpi_io)
-            CALL cp_pw_to_cube(wf_r%pw, unit_nr, "NABLA V_KS ", &
+            CALL cp_pw_to_cube(wf_r, unit_nr, "NABLA V_KS ", &
                                particles=particles, &
                                stride=section_get_ivals(lr_section, &
                                                         "EPR%PRINT%NABLAVKS_CUBES%STRIDE"), &
@@ -993,9 +963,7 @@ CONTAINS
             CALL cp_print_key_finished_output(unit_nr, logger, lr_section, &
                                               "EPR%PRINT%NABLAVKS_CUBES", mpi_io=mpi_io)
          END DO
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-         DEALLOCATE (wf_r%pw)
-         DEALLOCATE (wf_r)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, lr_section, &
