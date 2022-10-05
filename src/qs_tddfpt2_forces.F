@@ -550,14 +550,14 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_g_aux, rho_r, rho_r_aux, &
                                                             rhoz_g_aux, rhoz_r_aux, tau_r, &
                                                             tau_r_aux, trho_g, trho_r, v_xc, &
                                                             v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
+                                                            v_hartree_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhoz_aux, trho
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, xc_section
@@ -575,12 +575,11 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
-      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace%pw, v_hartree_rspace%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace, &
                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_rspace, &
                              use_data=REALDATA3D, in_space=REALSPACE)
 
       ALLOCATE (trho_r(nspins), trho_g(nspins))
@@ -591,13 +590,13 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, trho_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
-      CALL pw_zero(rho_tot_gspace%pw)
+      CALL pw_zero(rho_tot_gspace)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_pe(ispin)%matrix, &
                                  rho=trho_r(ispin)%pw, &
                                  rho_gspace=trho_g(ispin)%pw, &
                                  total_rho=total_rho)
-         CALL pw_axpy(trho_g(ispin)%pw, rho_tot_gspace%pw)
+         CALL pw_axpy(trho_g(ispin)%pw, rho_tot_gspace)
          IF (ABS(total_rho) > 1.e-08_dp) THEN
             logger => cp_get_default_logger()
             IF (logger%para_env%ionode) THEN
@@ -613,10 +612,10 @@ CONTAINS
          END IF
       END DO
       ! calculate associated hartree potential
-      CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, thartree, &
-                            v_hartree_gspace%pw)
-      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
-      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_poisson_solve(poisson_env, rho_tot_gspace, thartree, &
+                            v_hartree_gspace)
+      CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
+      CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
 
       ! Fxc*drho term
       CALL get_qs_env(qs_env, rho=rho)
@@ -647,16 +646,15 @@ CONTAINS
       DO ispin = 1, nspins
          CALL dbcsr_set(matrix_hz(ispin)%matrix, 0.0_dp)
          CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
-         CALL pw_axpy(v_hartree_rspace%pw, v_xc(ispin)%pw)
+         CALL pw_axpy(v_hartree_rspace, v_xc(ispin)%pw)
          CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin)%pw, &
                                  hmat=matrix_hz(ispin), &
                                  calculate_forces=.FALSE.)
       END DO
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
-      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw, rho_tot_gspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, trho_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, trho_g(ispin)%pw)
