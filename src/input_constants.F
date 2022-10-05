@@ -1097,13 +1097,16 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: kg_cholesky = 3001
 
    ! non-scf energy corrections
+   INTEGER, PARAMETER, PUBLIC               :: ec_functional_harris = 2001, &
+                                               ec_functional_dc = 2002
+
+   ! Energy correction solver
    INTEGER, PARAMETER, PUBLIC               :: ec_diagonalization = 1001, &
                                                ec_curvy_steps = 1002, &
                                                ec_matrix_sign = 1003, &
                                                ec_matrix_trs4 = 1004, &
                                                ec_matrix_tc2 = 1005, &
                                                ec_ot_diag = 1006
-   INTEGER, PARAMETER, PUBLIC               :: ec_functional_harris = 2001
 
    ! response solver for energy correction
    INTEGER, PARAMETER, PUBLIC               :: ec_ot_atomic = 1, &

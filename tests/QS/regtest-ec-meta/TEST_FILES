@@ -1,0 +1,20 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+# FORCE: PADE - TPSS MO solver
+N2_pade_tpss.inp                              11      1e-12                -19.529546812850718
+# FORCE: TPSS - PADE MO solver
+N2_tpss_pade.inp                              11      1e-12                -19.795492393131141
+# FORCE: PADE - BR89 AO solver
+N2_pade_br89.inp                              11      1e-12                -19.519044036224891
+# FORCE: BR89 - PADE AO solver
+N2_br89_pade.inp                              11      1e-12                -19.795370307536491
+# STRESS: PADE - TPSS MO solver
+N2_pade_tpss_stress.inp                       31      1e-05                 -5.01969865527E+02
+# STRESS: TPSS - PADE MO solver
+N2_tpss_pade_stress.inp                       31      1e-05                 -5.02652401254E+02
+# STRESS: PADE - BR89 AO solver
+N2_pade_br89_stress.inp                       31      1e-05                 -5.03273252086E+02
+# STRESS: BR89 - PADE AO solver
+N2_br89_pade_stress.inp                       31      1e-05                 -5.02543292201E+02
+#EOF

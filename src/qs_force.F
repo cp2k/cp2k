@@ -290,7 +290,8 @@ CONTAINS
          CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
                                  calculate_forces=.TRUE.)
       ELSEIF (perform_ec) THEN
-         !
+         ! Calculates core and grid based forces
+         CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
       ELSE
          ! Dispersion energy and forces are calculated in qs_energy?
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.TRUE.)
@@ -340,10 +341,6 @@ CONTAINS
       ELSEIF (.NOT. perform_ec) THEN
          ! Compute grid-based forces
          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
-      END IF
-
-      IF (perform_ec) THEN
-         CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)
       END IF
 
       ! Excited state forces
@@ -398,6 +395,9 @@ CONTAINS
                CALL get_qs_env(qs_env, ec_env=ec_env)
                energy%hartree = ec_env%ehartree
                energy%exc = ec_env%exc
+               IF (dft_control%do_admm) THEN
+                  energy%exc_aux_fit = ec_env%exc_aux_fit
+               END IF
             END IF
             DO i = 1, 3
                virial%pv_ehartree(i, i) = virial%pv_ehartree(i, i) &

@@ -30,11 +30,12 @@ MODULE ec_environment
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE ec_env_types,                    ONLY: energy_correction_type
    USE input_constants,                 ONLY: &
-        ec_diagonalization, ec_functional_harris, ec_matrix_sign, ec_matrix_tc2, ec_matrix_trs4, &
-        ec_ot_atomic, ec_ot_diag, ec_ot_gs, kg_cholesky, ls_cluster_atomic, ls_cluster_molecular, &
-        ls_s_inversion_hotelling, ls_s_inversion_none, ls_s_inversion_sign_sqrt, &
-        ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, ls_s_preconditioner_none, &
-        ls_s_sqrt_ns, ls_s_sqrt_proot, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+        ec_diagonalization, ec_functional_dc, ec_functional_harris, ec_matrix_sign, ec_matrix_tc2, &
+        ec_matrix_trs4, ec_ot_atomic, ec_ot_diag, ec_ot_gs, kg_cholesky, ls_cluster_atomic, &
+        ls_cluster_molecular, ls_s_inversion_hotelling, ls_s_inversion_none, &
+        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
+        ls_s_preconditioner_none, ls_s_sqrt_ns, ls_s_sqrt_proot, xc_vdw_fun_nonloc, &
+        xc_vdw_fun_pairpot
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_vals_get,&
@@ -76,10 +77,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Allocates and intitializes ec_env
-!> \param qs_env ...
-!> \param ec_env the object to create
-!> \param dft_section ...
-!> \param ec_section Parameters for the energy correction and method to solve it
+!> \param qs_env The QS environment
+!> \param ec_env The energy correction environment (the object to create)
+!> \param dft_section The DFT section
+!> \param ec_section The energy correction input section
 !> \par History
 !>       2019.09 created
 !> \author JGH
@@ -97,11 +98,11 @@ CONTAINS
    END SUBROUTINE ec_env_create
 
 ! **************************************************************************************************
-!> \brief Initializes ec_env
-!> \param qs_env ...
-!> \param ec_env ...
-!> \param dft_section ...
-!> \param ec_section Parameters for the energy correction and method to solve it
+!> \brief Initializes energy correction environment
+!> \param qs_env The QS environment
+!> \param ec_env The energy correction environment
+!> \param dft_section The DFT section
+!> \param ec_section The energy correction input section
 !> \par History
 !>       2019.09 created
 !> \author JGH
@@ -246,10 +247,30 @@ CONTAINS
          !
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, basis_type="HARRIS")
          CALL init_orbital_pointers(maxlgto + 1)
+         !
+         ! Density-corrected DFT must be performed with the same basis as ground-state
+         CALL uppercase(ec_env%basis)
+         ! Basis may only differ from ground-state if explicitly added
+         IF (ec_env%energy_functional == ec_functional_dc .AND. ec_env%basis == "HARRIS") THEN
+            DO ikind = 1, nkind
+               qs_kind => qs_kind_set(ikind)
+               ! Basis sets of ground-state
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
+               ! Basis sets of energy correction
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
+
+               IF (basis_set%name .NE. harris_basis%name) THEN
+                  CPABORT("DC-DFT: Correction and ground state need to use the same basis")
+               END IF
+            END DO
+         END IF
+         !
          ! set functional
          SELECT CASE (ec_env%energy_functional)
          CASE (ec_functional_harris)
             ec_env%ec_name = "Harris"
+         CASE (ec_functional_dc)
+            ec_env%ec_name = "DC-DFT"
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT
@@ -429,8 +450,8 @@ CONTAINS
    END SUBROUTINE ec_ls_create
 
 ! **************************************************************************************************
-!> \brief Initializes linear scaling environment for LS based solver of
-!>        Harris energy functional and parses input section
+!> \brief Print out the energy correction input section
+!>
 !> \param ec_env ...
 !> \param unit_nr ...
 !> \par History
@@ -451,119 +472,134 @@ CONTAINS
       WRITE (unit_nr, '(T2,A)') &
          "!"//REPEAT("-", 29)//" Energy Correction "//REPEAT("-", 29)//"!"
 
-      ! Algorithm
-      SELECT CASE (ec_env%ks_solver)
-      CASE (ec_diagonalization)
-         WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "DIAGONALIZATION"
-      CASE (ec_ot_diag)
-         WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "OT DIAGONALIZATION"
-      CASE (ec_matrix_sign)
-         WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "MATRIX_SIGN"
-      CASE (ec_matrix_trs4)
-         WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "TRS4"
-         CALL cite_reference(Niklasson2003)
-      CASE (ec_matrix_tc2)
-         WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "TC2"
-         CALL cite_reference(Niklasson2014)
+      ! Type of energy correction
+      SELECT CASE (ec_env%energy_functional)
+      CASE (ec_functional_harris)
+         WRITE (unit_nr, '(T2,A,T61,A20)') "Energy Correction: ", "HARRIS FUNCTIONAL"
+      CASE (ec_functional_dc)
+         WRITE (unit_nr, '(T2,A,T61,A20)') "Energy Correction: ", "DC-DFT"
       END SELECT
+      WRITE (unit_nr, '()')
 
-      ! Harris functional parameters
+      ! Energy correction parameters
       WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps_default:", ec_env%eps_default
 
       CALL uppercase(ec_env%basis)
       SELECT CASE (ec_env%basis)
       CASE ("ORBITAL")
-         WRITE (unit_nr, '(T2,A,T61,A20)') "Harris basis: ", "ORBITAL"
+         WRITE (unit_nr, '(T2,A,T61,A20)') "EC basis: ", "ORBITAL"
       CASE ("PRIMITIVE")
-         WRITE (unit_nr, '(T2,A,T61,A20)') "Harris basis: ", "PRIMITIVE"
+         WRITE (unit_nr, '(T2,A,T61,A20)') "EC basis: ", "PRIMITIVE"
       CASE ("HARRIS")
-         WRITE (unit_nr, '(T2,A,T61,A20)') "Harris Basis: ", "HARRIS"
+         WRITE (unit_nr, '(T2,A,T61,A20)') "EC Basis: ", "HARRIS"
       END SELECT
-      WRITE (unit_nr, '()')
 
-      ! MAO
-      IF (ec_env%mao) THEN
-         WRITE (unit_nr, '(T2,A,T61,L20)') "MAO:", ec_env%mao
-         WRITE (unit_nr, '(T2,A,T61,I20)') "MAO_MAX_ITER:", ec_env%mao_max_iter
-         WRITE (unit_nr, '(T2,A,T61,E20.3)') "MAO_EPS_GRAD:", ec_env%mao_eps_grad
-         WRITE (unit_nr, '()')
-      END IF
+      ! Parameters for Harris functional solver
+      IF (ec_env%energy_functional == ec_functional_harris) THEN
 
-      ! Parameters depending on chosen algorithm to solve Harris functional
-      IF (.NOT. ec_env%use_ls_solver) THEN
-
-         WRITE (unit_nr, '(T2,A)') "MO Solver"
-         WRITE (unit_nr, '()')
-
+         ! Algorithm
          SELECT CASE (ec_env%ks_solver)
          CASE (ec_diagonalization)
-
-            SELECT CASE (ec_env%factorization)
-            CASE (kg_cholesky)
-               WRITE (unit_nr, '(T2,A,T61,A20)') "Factorization: ", "CHOLESKY"
-            END SELECT
-
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "DIAGONALIZATION"
          CASE (ec_ot_diag)
-
-            ! OT Diagonalization
-            ! Initial guess : 1) block diagonal initial guess
-            !                 2) GS-density matrix (might require trafo if basis diff)
-
-            SELECT CASE (ec_env%ec_initial_guess)
-            CASE (ec_ot_atomic)
-               WRITE (unit_nr, '(T2,A,T61,A20)') "OT Diag initial guess: ", "ATOMIC"
-            CASE (ec_ot_gs)
-               WRITE (unit_nr, '(T2,A,T61,A20)') "OT Diag initial guess: ", "GROUND STATE DM"
-            END SELECT
-
-         CASE DEFAULT
-            CPABORT("Unknown Diagonalization algorithm for Harris functional")
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "OT DIAGONALIZATION"
+         CASE (ec_matrix_sign)
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "MATRIX_SIGN"
+         CASE (ec_matrix_trs4)
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "TRS4"
+            CALL cite_reference(Niklasson2003)
+         CASE (ec_matrix_tc2)
+            WRITE (unit_nr, '(T2,A,T61,A20)') "Algorithm: ", "TC2"
+            CALL cite_reference(Niklasson2014)
          END SELECT
-
-      ELSE
-
-         WRITE (unit_nr, '(T2,A)') "AO Solver"
          WRITE (unit_nr, '()')
 
-         ls_env => ec_env%ls_env
-         WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps_filter:", ls_env%eps_filter
-         WRITE (unit_nr, '(T2,A,T61,L20)') "fixed chemical potential (mu)", ls_env%fixed_mu
-         WRITE (unit_nr, '(T2,A,T61,L20)') "Computing inv(S):", ls_env%needs_s_inv
-         WRITE (unit_nr, '(T2,A,T61,L20)') "Computing sqrt(S):", ls_env%use_s_sqrt
-         WRITE (unit_nr, '(T2,A,T61,L20)') "Computing S preconditioner ", ls_env%has_s_preconditioner
-         WRITE (unit_nr, '(T2,A,T61,L20)') "has unit metric:", ls_env%has_unit_metric
-         WRITE (unit_nr, '(T2,A,T61,L20)') "Use single precision matrices", &
-            ls_env%ls_mstruct%single_precision
-
-         IF (ls_env%use_s_sqrt) THEN
-            SELECT CASE (ls_env%s_sqrt_method)
-            CASE (ls_s_sqrt_ns)
-               WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "NEWTONSCHULZ"
-            CASE (ls_s_sqrt_proot)
-               WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "PROOT"
-            CASE DEFAULT
-               CPABORT("Unknown sqrt method.")
-            END SELECT
-            WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", ls_env%s_sqrt_order
+         ! MAO
+         IF (ec_env%mao) THEN
+            WRITE (unit_nr, '(T2,A,T61,L20)') "MAO:", ec_env%mao
+            WRITE (unit_nr, '(T2,A,T61,L20)') "MAO_IOLEVEL:", ec_env%mao_iolevel
+            WRITE (unit_nr, '(T2,A,T61,I20)') "MAO_MAX_ITER:", ec_env%mao_max_iter
+            WRITE (unit_nr, '(T2,A,T61,E20.3)') "MAO_EPS_GRAD:", ec_env%mao_eps_grad
+            WRITE (unit_nr, '(T2,A,T61,E20.3)') "MAO_EPS1:", ec_env%mao_eps1
+            WRITE (unit_nr, '()')
          END IF
 
-         SELECT CASE (ls_env%s_preconditioner_type)
-         CASE (ls_s_preconditioner_none)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "NONE"
-         CASE (ls_s_preconditioner_atomic)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "ATOMIC"
-         CASE (ls_s_preconditioner_molecular)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "MOLECULAR"
-         END SELECT
+         ! Parameters for linear response solver
+         IF (.NOT. ec_env%use_ls_solver) THEN
 
-         SELECT CASE (ls_env%ls_mstruct%cluster_type)
-         CASE (ls_cluster_atomic)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Cluster type", ADJUSTR("ATOMIC")
-         CASE (ls_cluster_molecular)
-            WRITE (unit_nr, '(T2,A,T61,A20)') "Cluster type", ADJUSTR("MOLECULAR")
-         CASE DEFAULT
-            CPABORT("Unknown cluster type")
-         END SELECT
+            WRITE (unit_nr, '(T2,A)') "MO Solver"
+            WRITE (unit_nr, '()')
+
+            SELECT CASE (ec_env%ks_solver)
+            CASE (ec_diagonalization)
+
+               SELECT CASE (ec_env%factorization)
+               CASE (kg_cholesky)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "Factorization: ", "CHOLESKY"
+               END SELECT
+
+            CASE (ec_ot_diag)
+
+               ! OT Diagonalization
+               ! Initial guess : 1) block diagonal initial guess
+               !                 2) GS-density matrix (might require trafo if basis diff)
+
+               SELECT CASE (ec_env%ec_initial_guess)
+               CASE (ec_ot_atomic)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "OT Diag initial guess: ", "ATOMIC"
+               CASE (ec_ot_gs)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "OT Diag initial guess: ", "GROUND STATE DM"
+               END SELECT
+
+            CASE DEFAULT
+               CPABORT("Unknown Diagonalization algorithm for Harris functional")
+            END SELECT
+
+         ELSE
+
+            WRITE (unit_nr, '(T2,A)') "AO Solver"
+            WRITE (unit_nr, '()')
+
+            ls_env => ec_env%ls_env
+            WRITE (unit_nr, '(T2,A,T61,E20.3)') "eps_filter:", ls_env%eps_filter
+            WRITE (unit_nr, '(T2,A,T61,L20)') "fixed chemical potential (mu)", ls_env%fixed_mu
+            WRITE (unit_nr, '(T2,A,T61,L20)') "Computing inv(S):", ls_env%needs_s_inv
+            WRITE (unit_nr, '(T2,A,T61,L20)') "Computing sqrt(S):", ls_env%use_s_sqrt
+            WRITE (unit_nr, '(T2,A,T61,L20)') "Computing S preconditioner ", ls_env%has_s_preconditioner
+            WRITE (unit_nr, '(T2,A,T61,L20)') "Use single precision matrices", &
+               ls_env%ls_mstruct%single_precision
+
+            IF (ls_env%use_s_sqrt) THEN
+               SELECT CASE (ls_env%s_sqrt_method)
+               CASE (ls_s_sqrt_ns)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "NEWTONSCHULZ"
+               CASE (ls_s_sqrt_proot)
+                  WRITE (unit_nr, '(T2,A,T61,A20)') "S sqrt method:", "PROOT"
+               CASE DEFAULT
+                  CPABORT("Unknown sqrt method.")
+               END SELECT
+               WRITE (unit_nr, '(T2,A,T61,I20)') "S sqrt order:", ls_env%s_sqrt_order
+            END IF
+
+            SELECT CASE (ls_env%s_preconditioner_type)
+            CASE (ls_s_preconditioner_none)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "NONE"
+            CASE (ls_s_preconditioner_atomic)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "ATOMIC"
+            CASE (ls_s_preconditioner_molecular)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "S preconditioner type ", "MOLECULAR"
+            END SELECT
+
+            SELECT CASE (ls_env%ls_mstruct%cluster_type)
+            CASE (ls_cluster_atomic)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Cluster type", ADJUSTR("ATOMIC")
+            CASE (ls_cluster_molecular)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Cluster type", ADJUSTR("MOLECULAR")
+            CASE DEFAULT
+               CPABORT("Unknown cluster type")
+            END SELECT
+
+         END IF
 
       END IF
 
