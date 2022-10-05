@@ -1352,8 +1352,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: v_qmmm_rspace
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
+      TYPE(pw_type)                                      :: v_qmmm_rspace
       TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env_loc
       TYPE(section_vals_type), POINTER                   :: input_section, print_section
 
@@ -1368,8 +1368,7 @@ CONTAINS
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, print_section, "PROGRAM_RUN_INFO", extension=".qmmmLog")
       CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools)
-      ALLOCATE (v_qmmm_rspace%pw)
-      CALL pw_pool_create_pw(pw_pools(1)%pool, v_qmmm_rspace%pw, &
+      CALL pw_pool_create_pw(pw_pools(1)%pool, v_qmmm_rspace, &
                              use_data=REALDATA3D, in_space=REALSPACE)
       ALLOCATE (Num_Forces(3, num_mm_atoms))
       ks_qmmm_env_loc => qs_env%ks_qmmm_env
@@ -1381,7 +1380,7 @@ CONTAINS
             energy = 0.0_dp
             Diff: DO K = 1, 2
                mm_particles(IndMM)%r(J) = Coord_save + (-1)**K*Dx
-               CALL pw_zero(v_qmmm_rspace%pw)
+               CALL pw_zero(v_qmmm_rspace)
                SELECT CASE (qmmm_env%qmmm_coupl_type)
                CASE (do_qmmm_coulomb)
                   CPABORT("Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.")
@@ -1406,7 +1405,7 @@ CONTAINS
                   IF (iw > 0) WRITE (iw, '(T3,A)') "Unknown Coupling..."
                   CPABORT("")
                END SELECT
-               energy(K) = pw_integral_ab(rho, v_qmmm_rspace%pw)
+               energy(K) = pw_integral_ab(rho, v_qmmm_rspace)
             END DO Diff
             IF (iw > 0) THEN
                WRITE (iw, '(A,I6,A,I3,A,2F15.9)') &
@@ -1448,8 +1447,7 @@ CONTAINS
       END SELECT
       CALL cp_print_key_finished_output(iw, logger, print_section, "PROGRAM_RUN_INFO")
 
-      CALL pw_pool_give_back_pw(pw_pools(1)%pool, v_qmmm_rspace%pw)
-      DEALLOCATE (v_qmmm_rspace%pw)
+      CALL pw_pool_give_back_pw(pw_pools(1)%pool, v_qmmm_rspace)
       DEALLOCATE (Num_Forces)
       CALL timestop(handle)
 100   FORMAT(I5, 2F15.9, " ( ", F7.2, " ) ", 2F15.9, " ( ", F7.2, " ) ", 2F15.9, " ( ", F7.2, " ) ")
