@@ -1218,8 +1218,6 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'flipud_bounds_local'
-
       bndsl_out(1, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(2, 1)
       bndsl_out(2, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(1, 1)
       IF (bndsl_out(1, 1) .EQ. bounds(2, 1) + 2) bndsl_out(1, 1) = bndsl_out(1, 1) - 1
@@ -1246,8 +1244,6 @@ CONTAINS
 
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fliplr_bounds_local'
 
       bndsl_out(1, 1) = bndsl_in(1, 1)
       bndsl_out(2, 1) = bndsl_in(2, 1)
@@ -1276,8 +1272,6 @@ CONTAINS
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'flipbf_bounds_local'
-
       bndsl_out(1, 1) = bndsl_in(1, 1)
       bndsl_out(2, 1) = bndsl_in(2, 1)
 
@@ -1304,8 +1298,6 @@ CONTAINS
 
       INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bndsl_in, bounds
       INTEGER, DIMENSION(2, 3)                           :: bndsl_out
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'rot180_bounds_local'
 
       bndsl_out(1, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(2, 1)
       bndsl_out(2, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(1, 1)

@@ -89,8 +89,6 @@ MODULE pw_spline_utils
                                                      spl3_1d_transf_border1 = &
                                                      (/0.517977704_dp, 0.464044595_dp, 0.17977701e-1_dp/)
 
-   INTEGER, SAVE, PRIVATE :: last_precond_id = 0
-
    PUBLIC :: pw_spline3_interpolate_values_g, &
              pw_spline3_deriv_g
    PUBLIC :: pw_spline_scale_deriv
