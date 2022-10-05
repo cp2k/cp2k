@@ -58,7 +58,7 @@ MODULE ec_orth_solver
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type, pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -1138,7 +1138,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_G, matrix_s, rho1_ao, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
+      TYPE(pw_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
                                                             v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho1_g, rho1_r, rho_r, tau1_r, v_xc, &
                                                             v_xc_tau
@@ -1183,17 +1183,16 @@ CONTAINS
                       poisson_env=poisson_env)
 
       ! Calculate the NSC Hartree potential
-      ALLOCATE (v_hartree_gspace%pw, rho_tot_gspace%pw, v_hartree_rspace%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=v_hartree_gspace%pw, &
+                             pw=v_hartree_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=rho_tot_gspace%pw, &
+                             pw=rho_tot_gspace, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=v_hartree_rspace%pw, &
+                             pw=v_hartree_rspace, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
@@ -1239,20 +1238,20 @@ CONTAINS
       END IF
 
       ! take trial density to build G^{H}[B]
-      CALL pw_zero(rho_tot_gspace%pw)
+      CALL pw_zero(rho_tot_gspace)
       DO ispin = 1, nspins
-         CALL pw_axpy(rho1_g(ispin)%pw, rho_tot_gspace%pw)
+         CALL pw_axpy(rho1_g(ispin)%pw, rho_tot_gspace)
       END DO
 
       ! get Hartree potential from rho_tot_gspace
-      CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, &
-                            vhartree=v_hartree_gspace%pw)
-      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
-      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_poisson_solve(poisson_env, rho_tot_gspace, &
+                            vhartree=v_hartree_gspace)
+      CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
+      CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
 
       ! Add v_xc + v_H
       DO ispin = 1, nspins
-         CALL pw_axpy(v_hartree_rspace%pw, v_xc(ispin)%pw)
+         CALL pw_axpy(v_hartree_rspace, v_xc(ispin)%pw)
       END DO
       IF (nspins == 1) THEN
          CALL pw_scale(v_xc(1)%pw, 2.0_dp)
@@ -1324,10 +1323,9 @@ CONTAINS
       CALL commutator(matrix_G, matrix_p, matrix_Ax, eps_filter, .FALSE., 1.0_dp, 1.0_dp)
 
       ! release pw grids
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
-      DEALLOCATE (v_hartree_gspace%pw, v_hartree_rspace%pw, rho_tot_gspace%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
          DEALLOCATE (v_xc(ispin)%pw)

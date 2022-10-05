@@ -647,7 +647,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(section_vals_type), POINTER                   :: xc_section
-      TYPE(pw_p_type), INTENT(INOUT)                     :: xc_den
+      TYPE(pw_type), INTENT(INOUT)                     :: xc_den
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_density'
 
@@ -665,7 +665,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL pw_zero(xc_den%pw)
+      CALL pw_zero(xc_den)
 
       CALL get_ks_env(ks_env, &
                       dft_control=dft_control, &
@@ -729,11 +729,11 @@ CONTAINS
             END DO
          END IF
          !
-         ovol = 1.0_dp/xc_den%pw%pw_grid%dvol
-         CALL pw_copy(exc_r, xc_den%pw)
+         ovol = 1.0_dp/xc_den%pw_grid%dvol
+         CALL pw_copy(exc_r, xc_den)
          DO ispin = 1, nspins
-!deb        CALL pw_multiply(xc_den%pw, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-ovol)
-            CALL pw_multiply(xc_den%pw, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-1.0_dp)
+!deb        CALL pw_multiply(xc_den, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-ovol)
+            CALL pw_multiply(xc_den, vxc_rho(ispin)%pw, rho_r(ispin)%pw, alpha=-1.0_dp)
          END DO
          ! remove arrays
          DO ispin = 1, nspins

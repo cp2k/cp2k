@@ -49,7 +49,7 @@ MODULE molecular_states
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type, pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -98,7 +98,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(dbcsr_type), POINTER                          :: Hks, matrix_S
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), INTENT(INOUT)                     :: wf_r, wf_g
+      TYPE(pw_type), INTENT(INOUT)                     :: wf_r
+      TYPE(pw_type), INTENT(IN)                     :: wf_g
       TYPE(section_vals_type), POINTER                   :: loc_print_section
       TYPE(particle_list_type), POINTER                  :: particles
       CHARACTER(LEN=*), INTENT(IN)                       :: tag
@@ -322,8 +323,8 @@ CONTAINS
             DO i = 1, ns
                IF (evals(i) < eval_range(1) .OR. evals(i) > eval_range(2)) CYCLE
 
-               CALL calculate_wavefunction(rot_e_vectors, i, wf_r%pw, &
-                                           wf_g%pw, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
+               CALL calculate_wavefunction(rot_e_vectors, i, wf_r, &
+                                           wf_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                            pw_env)
 
                WRITE (filename, '(a9,I4.4,a1,I5.5,a4)') "MOLECULE_", imol, "_", i, tag
@@ -333,7 +334,7 @@ CONTAINS
                unit_nr = cp_print_key_unit_nr(logger, loc_print_section, "MOLECULAR_STATES%CUBES", &
                                               extension=".cube", middle_name=TRIM(filename), log_filename=.FALSE., &
                                               mpi_io=mpi_io)
-               CALL cp_pw_to_cube(wf_r%pw, unit_nr, particles=particles, title=title, &
+               CALL cp_pw_to_cube(wf_r, unit_nr, particles=particles, title=title, &
                                   stride=section_get_ivals(loc_print_section, &
                                                            "MOLECULAR_STATES%CUBES%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, loc_print_section, &

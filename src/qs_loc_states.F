@@ -27,7 +27,7 @@ MODULE qs_loc_states
    USE molecular_states,                ONLY: construct_molecular_states
    USE molecule_types,                  ONLY: molecule_type
    USE particle_list_types,             ONLY: particle_list_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type, pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
@@ -72,7 +72,8 @@ CONTAINS
       TYPE(qs_loc_env_new_type), POINTER                 :: qs_loc_env
       TYPE(section_vals_type), POINTER                   :: loc_section
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_local
-      TYPE(pw_p_type)                                    :: wf_r, wf_g
+      TYPE(pw_type), INTENT(INOUT)                     :: wf_r
+      TYPE(pw_type), INTENT(IN)                                    :: wf_g
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeff
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: evals
