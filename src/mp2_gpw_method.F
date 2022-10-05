@@ -53,8 +53,8 @@ MODULE mp2_gpw_method
                                               pw_pool_type
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
-                                              pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
@@ -170,10 +170,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(group_dist_d1_type)                           :: gd_exchange
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type)                                    :: pot_g, psi_a, rho_g, rho_r
-      TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: psi_i
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: pot_g, psi_a, rho_g, rho_r
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: psi_i
       TYPE(task_list_type), POINTER                      :: task_list_sub
 
       CALL timeset(routineN, handle)
@@ -247,7 +247,7 @@ CONTAINS
 
       virtual = nmo - homo
 
-      wfn_size = REAL(SIZE(rho_r%pw%cr3d), KIND=dp)
+      wfn_size = REAL(SIZE(rho_r%cr3d), KIND=dp)
       CALL mp_max(wfn_size, para_env%group)
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
@@ -394,11 +394,10 @@ CONTAINS
 
       ALLOCATE (psi_i(my_I_occupied_start:my_I_occupied_end))
       DO i = my_I_occupied_start, my_I_occupied_end
-         ALLOCATE (psi_i(i)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, psi_i(i)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, psi_i(i), &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL calculate_wavefunction(mo_coeff, i, psi_i(i)%pw, rho_g%pw, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, i, psi_i(i), rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
                                      pw_env_sub, external_vector=my_Cocc(:, i - my_I_occupied_start + 1))
       END DO
@@ -417,7 +416,7 @@ CONTAINS
          IF (calc_ex) BIb_C = 0.0_dp
 
          ! psi_a
-         CALL calculate_wavefunction(mo_coeff, a, psi_a%pw, rho_g%pw, atomic_kind_set, &
+         CALL calculate_wavefunction(mo_coeff, a, psi_a, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
                                      pw_env_sub, external_vector=my_Cvirt(:, a - (homo + my_A_virtual_start) + 1))
          i_counter = 0
@@ -425,14 +424,14 @@ CONTAINS
             i_counter = i_counter + 1
 
             ! potential
-            rho_r%pw%cr3d = psi_i(i)%pw%cr3d*psi_a%pw%cr3d
-            CALL pw_transfer(rho_r%pw, rho_g%pw)
+            rho_r%cr3d = psi_i(i)%cr3d*psi_a%cr3d
+            CALL pw_transfer(rho_r, rho_g)
             CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, qs_env%mp2_env%potential_parameter)
 
             ! and finally (ia|munu)
             CALL timeset(routineN//"_int", handle3)
             CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-            CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, qs_env=qs_env, &
+            CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
                                     calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                     pw_env_external=pw_env_sub, task_list_external=task_list_sub)
             CALL timestop(handle3)
@@ -582,8 +581,7 @@ CONTAINS
       END IF
 
       DO i = my_I_occupied_start, my_I_occupied_end
-         CALL pw_release(psi_i(i)%pw)
-         DEALLOCATE (psi_i(i)%pw)
+         CALL pw_release(psi_i(i))
       END DO
       DEALLOCATE (psi_i)
 

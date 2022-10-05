@@ -117,7 +117,7 @@ CONTAINS
                                        potential_parameter, mat_munu, qs_env, task_list_sub)
 
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: mo_coeff
-      TYPE(pw_p_type), INTENT(INOUT)                     :: psi_L, rho_g
+      TYPE(pw_type), INTENT(INOUT)                       :: psi_L, rho_g
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
@@ -129,7 +129,7 @@ CONTAINS
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: external_vector
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, pot_g
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_r, pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -142,7 +142,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! pseudo psi_L
-      CALL calculate_wavefunction(mo_coeff, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
+      CALL calculate_wavefunction(mo_coeff, 1, psi_L, rho_g, atomic_kind_set, &
                                   qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                   basis_type="RI_AUX", &
                                   external_vector=external_vector)
@@ -151,7 +151,7 @@ CONTAINS
 
       ! and finally (K|mu nu)
       CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-      CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, qs_env=qs_env, &
+      CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
                               calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                               pw_env_external=pw_env_sub, task_list_external=task_list_sub)
 
@@ -203,9 +203,9 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type)                                    :: pot_g, psi_L, rho_g, rho_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: pot_g, psi_L, rho_g, rho_r
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
          POINTER                                         :: rs_descs
@@ -226,7 +226,7 @@ CONTAINS
          i_counter = i_counter + 1
 
          ! pseudo psi_L
-         CALL collocate_single_gaussian(psi_L%pw, rho_g%pw, atomic_kind_set, &
+         CALL collocate_single_gaussian(psi_L, rho_g, atomic_kind_set, &
                                         qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                         required_function=LLL, basis_type="RI_AUX")
 
@@ -240,7 +240,7 @@ CONTAINS
          DO i = 1, SIZE(rs_v)
             CALL rs_grid_retain(rs_v(i)%rs_grid)
          END DO
-         CALL potential_pw2rs(rs_v, rho_r%pw, pw_env_sub)
+         CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
          CALL timestop(handle2)
 
@@ -393,10 +393,10 @@ CONTAINS
                                             kind_of, atom_of_kind, G_PQ_local, force, h_stress, para_env_sub, &
                                             dft_control, psi_L, factor)
 
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_r
       INTEGER, INTENT(IN)                                :: LLL
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_g
       TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), INTENT(IN), &
@@ -406,10 +406,11 @@ CONTAINS
       TYPE(cell_type), INTENT(IN), POINTER               :: cell
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_p_type), INTENT(INOUT)                     :: pot_g
+      TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g_copy, dvg(3)
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy
+      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: G_PQ_local
       TYPE(qs_force_type), DIMENSION(:), INTENT(IN), &
@@ -417,7 +418,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
-      TYPE(pw_p_type), INTENT(INOUT)                     :: psi_L
+      TYPE(pw_type), INTENT(INOUT)                       :: psi_L
       REAL(KIND=dp), INTENT(IN)                          :: factor
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_2c'
@@ -429,9 +430,9 @@ CONTAINS
       ! calculate potential associated to the single aux function
       CALL timeset(routineN//"_wf_pot", handle2)
       ! pseudo psi_L
-      CALL pw_zero(rho_r%pw)
-      CALL pw_zero(rho_g%pw)
-      CALL collocate_single_gaussian(rho_r%pw, rho_g%pw, atomic_kind_set, &
+      CALL pw_zero(rho_r)
+      CALL pw_zero(rho_g)
+      CALL collocate_single_gaussian(rho_r, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, &
                                      pw_env_sub, required_function=LLL, basis_type='RI_AUX')
       IF (use_virial) THEN
@@ -443,15 +444,15 @@ CONTAINS
 
       IF (use_virial) THEN
          ! make a copy of the density in G space
-         CALL pw_copy(rho_g%pw, rho_g_copy%pw)
+         CALL pw_copy(rho_g, rho_g_copy)
 
          ! add the volume contribution to the virial due to
          ! the (P|Q) integrals, first we put the full gamme_PQ
          ! pseudo wave-function into grid in order to calculate the
          ! hartree potential derivatives
-         CALL pw_zero(psi_L%pw)
-         CALL pw_zero(rho_g%pw)
-         CALL calculate_wavefunction(matrix, 1, psi_L%pw, rho_g%pw, atomic_kind_set, &
+         CALL pw_zero(psi_L)
+         CALL pw_zero(rho_g)
+         CALL calculate_wavefunction(matrix, 1, psi_L, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                      basis_type="RI_AUX", &
                                      external_vector=0.5_dp*factor*G_PQ_local)
@@ -483,7 +484,7 @@ CONTAINS
                                                task_list_sub)
 
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r
+      TYPE(pw_type), INTENT(IN)                          :: rho_r
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
@@ -498,7 +499,7 @@ CONTAINS
       ! integrate the potential of the single gaussian and update
       ! 3-center forces
       CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-      CALL integrate_v_rspace(rho_r%pw, hmat=mat_munu, pmat=matrix_P_munu, &
+      CALL integrate_v_rspace(rho_r, hmat=mat_munu, pmat=matrix_P_munu, &
                               qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.FALSE., gapw=.FALSE., &
                               pw_env_external=pw_env_sub, &
                               task_list_external=task_list_sub)
@@ -538,15 +539,16 @@ CONTAINS
                                                qs_kind_set, particle_set, cell, LLL, force, dft_control)
 
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_r, rho_g
       TYPE(task_list_type), INTENT(IN), POINTER          :: task_list_sub
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(qs_ks_env_type), INTENT(IN), POINTER          :: ks_env
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_p_type), INTENT(INOUT)                     :: pot_g
+      TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_g_copy, dvg(3)
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_g_copy
+      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
@@ -583,11 +585,11 @@ CONTAINS
 
       ! put the gamma density on grid
       CALL timeset(routineN//"_Gpot", handle2)
-      CALL pw_zero(rho_r%pw)
-      CALL pw_zero(rho_g%pw)
+      CALL pw_zero(rho_r)
+      CALL pw_zero(rho_g)
       CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix, &
-                              rho=rho_r%pw, &
-                              rho_gspace=rho_g%pw, &
+                              rho=rho_r, &
+                              rho_gspace=rho_g, &
                               task_list_external=task_list_sub, &
                               pw_env_external=pw_env_sub, &
                               ks_env=ks_env)
@@ -605,7 +607,7 @@ CONTAINS
       DO i = 1, SIZE(rs_v)
          CALL rs_grid_retain(rs_v(i)%rs_grid)
       END DO
-      CALL potential_pw2rs(rs_v, rho_r%pw, pw_env_sub)
+      CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
       offset = 0
       DO iatom = 1, SIZE(kind_of)
@@ -736,7 +738,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE virial_gpw_potential(rho_g_copy, pot_g, rho_g, dvg, h_stress, potential_parameter, para_env_sub)
 
-      TYPE(pw_p_type)                                    :: rho_g_copy, pot_g, rho_g, dvg(3)
+      TYPE(pw_type), INTENT(IN)                          :: rho_g_copy, pot_g
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_g
+      TYPE(pw_p_type), INTENT(IN)                        :: dvg(3)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: h_stress
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env_sub
@@ -750,18 +754,18 @@ CONTAINS
       ! add the volume contribution
       CALL timeset(routineN, handle)
       e_hartree = 0.0_dp
-      e_hartree = pw_integral_ab(rho_g_copy%pw, pot_g%pw)
+      e_hartree = pw_integral_ab(rho_g_copy, pot_g)
 
       DO alpha = 1, 3
          comp = 0
          comp(alpha) = 1
-         CALL pw_copy(pot_g%pw, rho_g%pw)
-         CALL pw_derive(rho_g%pw, comp)
-         CALL factor_virial_gpw(rho_g%pw, potential_parameter)
+         CALL pw_copy(pot_g, rho_g)
+         CALL pw_derive(rho_g, comp)
+         CALL factor_virial_gpw(rho_g, potential_parameter)
          h_stress(alpha, alpha) = h_stress(alpha, alpha) - e_hartree/REAL(para_env_sub%num_pe, dp)
          DO beta = alpha, 3
             h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                    - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi/REAL(para_env_sub%num_pe, dp)
+                                    - 2.0_dp*pw_integral_ab(rho_g, dvg(beta)%pw)/fourpi/REAL(para_env_sub%num_pe, dp)
             h_stress(beta, alpha) = h_stress(alpha, beta)
          END DO
       END DO
@@ -776,7 +780,7 @@ CONTAINS
 !> \param potential_parameter parameters of potential V(g)
 ! **************************************************************************************************
    SUBROUTINE factor_virial_gpw(pw, potential_parameter)
-      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      TYPE(pw_type), INTENT(IN)                          :: pw
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: i
@@ -860,7 +864,7 @@ CONTAINS
                                   G_PQ_local, cell, force, use_virial, h_stress, para_env_sub, dft_control)
 
       TYPE(pw_env_type), INTENT(IN), POINTER             :: pw_env_sub
-      TYPE(pw_p_type), INTENT(IN)                        :: pot_r
+      TYPE(pw_type), INTENT(IN)                          :: pot_r
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of, atom_of_kind
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -899,7 +903,7 @@ CONTAINS
       DO i = 1, SIZE(rs_v)
          CALL rs_grid_retain(rs_v(i)%rs_grid)
       END DO
-      CALL potential_pw2rs(rs_v, pot_r%pw, pw_env_sub)
+      CALL potential_pw2rs(rs_v, pot_r, pw_env_sub)
 
       offset = 0
       DO iatom = 1, SIZE(kind_of)
@@ -1036,7 +1040,7 @@ CONTAINS
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
-      TYPE(pw_p_type), INTENT(OUT)                       :: rho_r, rho_g, pot_g, psi_L
+      TYPE(pw_type), INTENT(OUT)                         :: rho_r, rho_g, pot_g, psi_L
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          INTENT(IN), POINTER                             :: sab_orb_sub
 
@@ -1087,23 +1091,22 @@ CONTAINS
                                  pw_env_external=pw_env_sub, sab_orb_external=sab_orb_sub)
 
       ! get some of the grids ready
-      ALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw, psi_L%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, rho_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, pot_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, psi_L%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, psi_L, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
 
       ! run the FFT once, to set up buffers and to take into account the memory
-      rho_r%pw%cr3d = 0.0D0
-      CALL pw_transfer(rho_r%pw, rho_g%pw)
+      rho_r%cr3d = 0.0D0
+      CALL pw_transfer(rho_r, rho_g)
 
       CALL timestop(handle)
 
@@ -1134,7 +1137,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: auxbas_pw_pool
-      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, rho_g, pot_g, psi_L
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_r, rho_g, pot_g, psi_L
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cleanup_gpw'
 
@@ -1144,11 +1147,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! and now free the whole lot
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L%pw)
-      DEALLOCATE (rho_r%pw, rho_g%pw, pot_g%pw, psi_L%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_g)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L)
 
       CALL deallocate_task_list(task_list_sub)
       CALL pw_env_release(pw_env_sub, para_env=para_env_sub)
@@ -1175,9 +1177,10 @@ CONTAINS
 !> \param no_transfer whether NOT to transform potential from g-space to r-space (default: do it)
 ! **************************************************************************************************
    SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter, dvg, no_transfer)
-      TYPE(pw_p_type), INTENT(IN)                        :: pot_r, rho_g
+      TYPE(pw_type), INTENT(INOUT)                       :: pot_r
+      TYPE(pw_type), INTENT(IN)                          :: rho_g
       TYPE(pw_poisson_type), INTENT(IN), POINTER         :: poisson_env
-      TYPE(pw_p_type), INTENT(IN)                        :: pot_g
+      TYPE(pw_type), INTENT(INOUT)                       :: pot_g
       TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(pw_p_type), DIMENSION(3), INTENT(IN), &
          OPTIONAL                                        :: dvg
@@ -1201,29 +1204,29 @@ CONTAINS
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
       IF (my_potential_type /= do_potential_id) THEN
-         CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw, dvhartree=dvg)
-         IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, potential_parameter%omega)
-         IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g%pw, potential_parameter%omega)
-         IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g%pw, potential_parameter%cutoff_radius)
-         IF (my_potential_type == do_potential_mix_cl) CALL pw_gauss_damp_mix(pot_g%pw, potential_parameter%omega, &
+         CALL pw_poisson_solve(poisson_env, rho_g, vhartree=pot_g, dvhartree=dvg)
+         IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g, potential_parameter%omega)
+         IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g, potential_parameter%omega)
+         IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g, potential_parameter%cutoff_radius)
+         IF (my_potential_type == do_potential_mix_cl) CALL pw_gauss_damp_mix(pot_g, potential_parameter%omega, &
                                                                               potential_parameter%scale_coulomb, &
                                                                               potential_parameter%scale_longrange)
-         IF (my_transfer) CALL pw_transfer(pot_g%pw, pot_r%pw)
+         IF (my_transfer) CALL pw_transfer(pot_g, pot_r)
       ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output
-         CALL pw_copy(rho_g%pw, pot_g%pw)
+         CALL pw_copy(rho_g, pot_g)
          IF (PRESENT(dvg)) THEN
          DO idir = 1, 3
-            CALL pw_copy(pot_g%pw, dvg(idir)%pw)
+            CALL pw_copy(pot_g, dvg(idir)%pw)
             comp = 0
             comp(idir) = 1
             CALL pw_derive(dvg(idir)%pw, comp)
          END DO
          END IF
-         IF (my_transfer) CALL pw_transfer(rho_g%pw, pot_r%pw)
+         IF (my_transfer) CALL pw_transfer(rho_g, pot_r)
       END IF
 
-      IF (my_transfer) CALL pw_scale(pot_r%pw, pot_r%pw%pw_grid%dvol)
+      IF (my_transfer) CALL pw_scale(pot_r, pot_r%pw_grid%dvol)
       CALL timestop(handle)
 
    END SUBROUTINE calc_potential_gpw
