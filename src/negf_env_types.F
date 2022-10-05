@@ -858,7 +858,7 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE negf_env_init_v_hartree(v_hartree, contact_env, contact_control)
-      TYPE(pw_type), INTENT(OUT)                         :: v_hartree
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree
       TYPE(negf_env_contact_type), DIMENSION(:), &
          INTENT(in)                                      :: contact_env
       TYPE(negf_control_contact_type), DIMENSION(:), &
