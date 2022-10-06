@@ -189,9 +189,9 @@ CONTAINS
                                                             q0, rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drho, thetas
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: thetas_g
-      TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:, :)      :: drho_r
-      TYPE(pw_type), POINTER                             :: tmp_g, tmp_r, vxc_g, vxc_r
+      TYPE(pw_type)                                      :: tmp_g, tmp_r, vxc_g, vxc_r
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: thetas_g
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:, :)        :: drho_r
 
       CALL timeset(routineN, handle)
 
@@ -220,8 +220,6 @@ CONTAINS
       const = 1.0_dp/(3.0_dp*SQRT(pi)*b_value**1.5_dp)/(pi**0.75_dp)
 
       ! temporary arrays for FFT
-      NULLIFY (tmp_g, tmp_r)
-      ALLOCATE (tmp_g, tmp_r)
       CALL pw_pool_create_pw(pw_pool, tmp_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       CALL pw_pool_create_pw(pw_pool, tmp_r, use_data=REALDATA3D, in_space=REALSPACE)
 
@@ -229,12 +227,11 @@ CONTAINS
       ALLOCATE (drho_r(3, nspin))
       DO ispin = 1, nspin
          DO idir = 1, 3
-            ALLOCATE (drho_r(idir, ispin)%pw)
-            CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin)%pw, &
+            CALL pw_pool_create_pw(pw_pool, drho_r(idir, ispin), &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_transfer(rho_g(ispin)%pw, tmp_g)
             CALL pw_derive(tmp_g, nd(:, idir))
-            CALL pw_transfer(tmp_g, drho_r(idir, ispin)%pw)
+            CALL pw_transfer(tmp_g, drho_r(idir, ispin))
          END DO
       END DO
 
@@ -295,7 +292,7 @@ CONTAINS
                DO q = 0, n(2) - 1
                   DO p = 0, n(1) - 1
                      s = r*n(2)*n(1) + q*n(1) + p + 1
-                     drho(s, i) = drho(s, i) + drho_r(i, ispin)%pw%cr3d(p + lo(1), q + lo(2), r + lo(3))
+                     drho(s, i) = drho(s, i) + drho_r(i, ispin)%cr3d(p + lo(1), q + lo(2), r + lo(3))
                   END DO
                END DO
             END DO
@@ -400,11 +397,10 @@ CONTAINS
             END DO
          END DO
 !$OMP END PARALLEL DO
-         ALLOCATE (thetas_g(i)%pw)
-         CALL pw_pool_create_pw(pw_pool, thetas_g(i)%pw, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_transfer(tmp_r, thetas_g(i)%pw)
+         CALL pw_pool_create_pw(pw_pool, thetas_g(i), use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+         CALL pw_transfer(tmp_r, thetas_g(i))
       END DO
-      grid => thetas_g(1)%pw%pw_grid
+      grid => thetas_g(1)%pw_grid
       !! ---------------------------------------------------------------------------------------------
       !! Carry out the integration in equation 8 of SOLER.  This also turns the thetas array into the
       !! precursor to the u_i(k) array which is inverse fourier transformed to get the u_i(r) functions
@@ -447,7 +443,7 @@ CONTAINS
             n(i) = hi(i) - lo(i) + 1
          END DO
          DO i = 1, dispersion_env%nqs
-            CALL pw_transfer(thetas_g(i)%pw, tmp_r)
+            CALL pw_transfer(thetas_g(i), tmp_r)
 !$OMP PARALLEL DO DEFAULT(NONE)                        &
 !$OMP             SHARED(i,n,lo,thetas,tmp_r)          &
 !$OMP             COLLAPSE(3)
@@ -482,8 +478,6 @@ CONTAINS
             potential(:) = (0.5_dp*potential(:) + beta)*dispersion_env%scale_rvv10
             hpot(:) = 0.5_dp*dispersion_env%scale_rvv10*hpot(:)
          END SELECT
-         NULLIFY (vxc_r)
-         ALLOCATE (vxc_r)
          CALL pw_pool_create_pw(pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
          DO i = 1, 3
             lo(i) = LBOUND(vxc_r%cr3d, i)
@@ -527,7 +521,7 @@ CONTAINS
                      DO p = 0, n(1) - 1
                         tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) = tmp_r%cr3d(p + lo(1), q + lo(2), r + lo(3)) &
                                                                       + hpot(r*n(2)*n(1) + q*n(1) + p + 1) &
-                                                                      *drho_r(idir, ispin)%pw%cr3d(p + lo(1), q + lo(2), r + lo(3))
+                                                                      *drho_r(idir, ispin)%cr3d(p + lo(1), q + lo(2), r + lo(3))
                      END DO
                   END DO
                END DO
@@ -540,9 +534,6 @@ CONTAINS
          END DO
          CALL pw_transfer(vxc_r, tmp_g)
          CALL pw_pool_give_back_pw(pw_pool, vxc_r)
-         DEALLOCATE (vxc_r)
-         NULLIFY (vxc_r)
-         ALLOCATE (vxc_r, vxc_g)
          CALL pw_pool_create_pw(xc_pw_pool, vxc_r, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_pool_create_pw(xc_pw_pool, vxc_g, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          CALL pw_transfer(tmp_g, vxc_g)
@@ -552,25 +543,21 @@ CONTAINS
          END DO
          CALL pw_pool_give_back_pw(xc_pw_pool, vxc_r)
          CALL pw_pool_give_back_pw(xc_pw_pool, vxc_g)
-         DEALLOCATE (vxc_r, vxc_g)
          DEALLOCATE (q0, dq0_drho, dq0_dgradrho)
       END IF
 
       DEALLOCATE (thetas)
 
       DO i = 1, dispersion_env%nqs
-         CALL pw_pool_give_back_pw(pw_pool, thetas_g(i)%pw)
-         DEALLOCATE (thetas_g(i)%pw)
+         CALL pw_pool_give_back_pw(pw_pool, thetas_g(i))
       END DO
       DO ispin = 1, nspin
          DO idir = 1, 3
-            CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin)%pw)
-            DEALLOCATE (drho_r(idir, ispin)%pw)
+            CALL pw_pool_give_back_pw(pw_pool, drho_r(idir, ispin))
          END DO
       END DO
       CALL pw_pool_give_back_pw(pw_pool, tmp_r)
       CALL pw_pool_give_back_pw(pw_pool, tmp_g)
-      DEALLOCATE (tmp_r, tmp_g)
 
       DEALLOCATE (rho, drho, drho_r, thetas_g)
 
@@ -592,7 +579,7 @@ CONTAINS
 !>    OpenMP added: Aug 2016  MTucker
 ! **************************************************************************************************
    SUBROUTINE vdW_energy(thetas_g, dispersion_env, vdW_xc_energy, energy_only, virial)
-      TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: thetas_g
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: thetas_g
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), INTENT(OUT)                         :: vdW_xc_energy
       LOGICAL, INTENT(IN)                                :: energy_only
@@ -618,7 +605,7 @@ CONTAINS
       virial_thread(:, :) = 0.0_dp ! always initialize to avoid floating point exceptions in OMP REDUCTION
 
       vdW_xc_energy = 0._dp
-      grid => thetas_g(1)%pw%pw_grid
+      grid => thetas_g(1)%pw_grid
 
       IF (grid%grid_span == HALFSPACE) THEN
          g_multiplier = 2._dp
@@ -660,7 +647,7 @@ CONTAINS
             IF (use_virial) CALL interpolate_dkernel_dk(g, dkernel_of_dk, dispersion_env)
          END IF
          DO iq = 1, nqs
-            theta(iq) = thetas_g(iq)%pw%cc(ig)
+            theta(iq) = thetas_g(iq)%cc(ig)
          END DO
          DO q2_i = 1, nqs
             uu = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -699,7 +686,7 @@ CONTAINS
 !$OMP DO
          DO ig = 1, grid%ngpts_cut_local
             DO iq = 1, nqs
-               thetas_g(iq)%pw%cc(ig) = u_vdW(ig, iq)
+               thetas_g(iq)%cc(ig) = u_vdW(ig, iq)
             END DO
          END DO
 !$OMP END DO
@@ -906,7 +893,7 @@ CONTAINS
 !> \par History
 !>     Created:  MTucker, Aug 2016
 ! **************************************************************************************************
-   SUBROUTINE calculate_exponent(hi, alpha, exponent)
+   ELEMENTAL SUBROUTINE calculate_exponent(hi, alpha, exponent)
       INTEGER, INTENT(in)                                :: hi
       REAL(dp), INTENT(in)                               :: alpha
       REAL(dp), INTENT(out)                              :: exponent
@@ -933,7 +920,7 @@ CONTAINS
 !> \par History
 !>     Created:  MTucker, Aug 2016
 ! **************************************************************************************************
-   SUBROUTINE calculate_exponent_derivative(hi, alpha, exponent, derivative)
+   ELEMENTAL SUBROUTINE calculate_exponent_derivative(hi, alpha, exponent, derivative)
       INTEGER, INTENT(in)                                :: hi
       REAL(dp), INTENT(in)                               :: alpha
       REAL(dp), INTENT(out)                              :: exponent, derivative
@@ -1074,7 +1061,7 @@ CONTAINS
 !> \param dq0_dgradrho ...
 !> \param dispersion_env ...
 ! **************************************************************************************************
-   SUBROUTINE get_q0_on_grid_rvv10(total_rho, gradient_rho, q0, dq0_drho, dq0_dgradrho, dispersion_env)
+   PURE SUBROUTINE get_q0_on_grid_rvv10(total_rho, gradient_rho, q0, dq0_drho, dq0_dgradrho, dispersion_env)
       !!
       !! more specifically it calculates the following
       !!
@@ -1232,7 +1219,7 @@ CONTAINS
 !> \param q0 ...
 !> \param dispersion_env ...
 ! **************************************************************************************************
-   SUBROUTINE get_q0_on_grid_eo_rvv10(total_rho, gradient_rho, q0, dispersion_env)
+   PURE SUBROUTINE get_q0_on_grid_eo_rvv10(total_rho, gradient_rho, q0, dispersion_env)
 
       REAL(dp), INTENT(IN)                               :: total_rho(:), gradient_rho(:, :)
       REAL(dp), INTENT(OUT)                              :: q0(:)
