@@ -1490,6 +1490,8 @@ CONTAINS
       TYPE(dbt_type)                                     :: ks_t, ks_tmp, rho_ao_t, rho_ao_tmp, &
                                                             t_3c_1, t_3c_3, tensor_old
 
+      IF (.NOT. fac > EPSILON(0.0_dp)) RETURN
+
       CALL timeset(routineN, handle)
 
       NULLIFY (para_env)
@@ -1544,7 +1546,6 @@ CONTAINS
 
       memory_3c = 0.0_dp
       DO ispin = 1, nspins
-         IF (.NOT. fac > EPSILON(0.0_dp)) CYCLE
 
          CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_2(1, 1), nze_3c, occ_3c)
 
@@ -3565,22 +3566,23 @@ CONTAINS
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: i_RI, nkind, nspins, unit_nr
+      INTEGER                                            :: i_RI, ibasis, nkind, nspins, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       LOGICAL                                            :: mult_by_S, print_density, print_ri_metric
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: density_coeffs, density_coeffs_2
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type), POINTER                          :: matrix_s_fm
+      TYPE(cp_fm_type)                                   :: matrix_s_fm
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dbcsr_type), DIMENSION(1)                     :: matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_2d_type), POINTER                :: dist_2d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
-         DIMENSION(:), TARGET                            :: basis_set_RI
-      TYPE(gto_basis_set_type), POINTER                  :: ri_basis
+         DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl_2c
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -3589,9 +3591,9 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input, print_section
 
       NULLIFY (rho_ao, input, print_section, logger, rho, particle_set, qs_kind_set, ri_basis, nl_2c, &
-               dist_2d, col_bsize, row_bsize, para_env, blacs_env, fm_struct, matrix_s_fm)
+               dist_2d, col_bsize, row_bsize, para_env, blacs_env, fm_struct, orb_basis, dft_control)
 
-      CALL get_qs_env(qs_env, input=input)
+      CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
       logger => cp_get_default_logger()
       print_density = .FALSE.
       print_ri_metric = .FALSE.
@@ -3610,13 +3612,17 @@ CONTAINS
          !Recalculated the RI_metric 2c-integrals, as it is cheap, and not stored
          CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, particle_set=particle_set, &
                          distribution_2d=dist_2d, para_env=para_env, blacs_env=blacs_env)
-         ALLOCATE (basis_set_RI(nkind))
+         ALLOCATE (basis_set_RI(nkind), basis_set_AO(nkind))
          CALL basis_set_list_setup(basis_set_RI, ri_data%ri_basis_type, qs_kind_set)
          CALL get_particle_set(particle_set, qs_kind_set, basis=basis_set_RI)
+         CALL basis_set_list_setup(basis_set_AO, ri_data%orb_basis_type, qs_kind_set)
+         CALL get_particle_set(particle_set, qs_kind_set, basis=basis_set_AO)
 
-         DO i_RI = 1, nkind
-            ri_basis => basis_set_RI(i_RI)%gto_basis_set
+         DO ibasis = 1, nkind
+            ri_basis => basis_set_RI(ibasis)%gto_basis_set
             CALL init_interaction_radii_orb_basis(ri_basis, ri_data%eps_pgf_orb)
+            orb_basis => basis_set_AO(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(orb_basis, ri_data%eps_pgf_orb)
          END DO
 
          CALL cp_dbcsr_dist2d_to_dist(dist_2d, dbcsr_dist)
@@ -3643,9 +3649,11 @@ CONTAINS
 
          CALL section_vals_val_get(print_section, "RI_DENSITY_COEFFS%MULTIPLY_BY_RI_2C_INTEGRALS", l_val=mult_by_s)
 
-         CALL get_RI_density_coeffs(density_coeffs, matrix_s(1), rho_ao, 1, mult_by_s, ri_data, qs_env)
+         CALL get_RI_density_coeffs(density_coeffs, matrix_s(1), rho_ao, 1, basis_set_AO, basis_set_RI, &
+                                    mult_by_s, ri_data, qs_env)
          IF (nspins == 2) &
-            CALL get_RI_density_coeffs(density_coeffs_2, matrix_s(1), rho_ao, 2, mult_by_s, ri_data, qs_env)
+            CALL get_RI_density_coeffs(density_coeffs_2, matrix_s(1), rho_ao, 2, basis_set_AO, &
+                                       basis_set_RI, mult_by_s, ri_data, qs_env)
 
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%HF%RI%PRINT%RI_DENSITY_COEFFS", &
                                         extension=".dat", file_status="REPLACE", &
@@ -3694,6 +3702,13 @@ CONTAINS
 
       !clean-up
       IF (print_density .OR. print_ri_metric) THEN
+         DO ibasis = 1, nkind
+            ri_basis => basis_set_RI(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(ri_basis, dft_control%qs_control%eps_pgf_orb)
+            orb_basis => basis_set_AO(ibasis)%gto_basis_set
+            CALL init_interaction_radii_orb_basis(orb_basis, dft_control%qs_control%eps_pgf_orb)
+         END DO
+
          CALL dbcsr_release(matrix_s(1))
          DEALLOCATE (row_bsize, col_bsize)
       END IF
@@ -3706,33 +3721,38 @@ CONTAINS
 !> \param ri_2c_ints ...
 !> \param rho_ao ...
 !> \param ispin ...
+!> \param basis_set_AO ...
+!> \param basis_set_RI ...
 !> \param multiply_by_S ...
 !> \param ri_data ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE get_RI_density_coeffs(density_coeffs, ri_2c_ints, rho_ao, ispin, multiply_by_S, ri_data, qs_env)
+   SUBROUTINE get_RI_density_coeffs(density_coeffs, ri_2c_ints, rho_ao, ispin, basis_set_AO, &
+                                    basis_set_RI, multiply_by_S, ri_data, qs_env)
 
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: density_coeffs
       TYPE(dbcsr_type), INTENT(INOUT)                    :: ri_2c_ints
       TYPE(dbcsr_p_type), DIMENSION(:, :)                :: rho_ao
       INTEGER, INTENT(IN)                                :: ispin
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_set_AO, basis_set_RI
       LOGICAL, INTENT(IN)                                :: multiply_by_S
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_RI_density_coeffs'
 
-      INTEGER                                            :: a, b, handle, i_mem, idx, j_mem, &
-                                                            n_dependent, n_mem, n_mem_RI, &
-                                                            nblk_per_thread, nblks
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_ranges_AO, batch_ranges_RI, dist1, &
-                                                            dist2, dist3, idx1, idx2, idx3
+      INTEGER                                            :: a, b, handle, i_mem, idx, mp_comm_t3c, &
+                                                            n_dependent, n_mem, n_mem_RI, natom, &
+                                                            nblk_per_thread, nblks, nkind
+      INTEGER(int_8)                                     :: nze
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_block_end, batch_block_start, &
+                                                            dist1, dist2, dist3, dummy1, dummy2, &
+                                                            idx1, idx2, idx3
       INTEGER, DIMENSION(2)                              :: ind, pdims_2d
-      INTEGER, DIMENSION(2, 1)                           :: bounds_i
-      INTEGER, DIMENSION(2, 2)                           :: bounds_j
-      INTEGER, DIMENSION(3)                              :: dims_3c, pdims_3d
-      LOGICAL                                            :: found
-      REAL(dp)                                           :: threshold
+      INTEGER, DIMENSION(2, 3)                           :: bounds_cpy
+      INTEGER, DIMENSION(3)                              :: dims_3c, pcoord_3d, pdims_3d
+      LOGICAL                                            :: calc_ints, found
+      REAL(dp)                                           :: occ, threshold
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: blk
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: blk_3d
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -3741,11 +3761,17 @@ CONTAINS
       TYPE(dbt_distribution_type)                        :: dist_2d, dist_3d
       TYPE(dbt_iterator_type)                            :: iter
       TYPE(dbt_pgrid_type)                               :: pgrid_2d, pgrid_3d
-      TYPE(dbt_type) :: density_coeffs_t, density_tmp, rho_ao_t, rho_ao_t_3d, rho_ao_tmp, &
-         t2c_ri_ints, t2c_ri_inv, t2c_ri_tmp, tensor_old
+      TYPE(dbt_type)                                     :: density_coeffs_t, density_tmp, rho_ao_t, &
+                                                            rho_ao_t_3d, rho_ao_tmp, t2c_ri_ints, &
+                                                            t2c_ri_inv, t2c_ri_tmp
+      TYPE(dbt_type), DIMENSION(1, 1)                    :: t_3c_int_batched
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_3d_type)                         :: dist_nl3c
+      TYPE(neighbor_list_3c_type)                        :: nl_3c
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      NULLIFY (dft_control, para_env, blacs_env)
+      NULLIFY (dft_control, para_env, blacs_env, particle_set, qs_kind_set)
 
       CALL timeset(routineN, handle)
 
@@ -3757,7 +3783,8 @@ CONTAINS
          CPABORT("Can only calculate and print the RI density coefficients within the RHO flavor of RI-HFX")
       END IF
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env, blacs_env=blacs_env)
+      CALL get_qs_env(qs_env, dft_control=dft_control, para_env=para_env, blacs_env=blacs_env, nkind=nkind, &
+                      particle_set=particle_set, qs_kind_set=qs_kind_set, natom=natom)
       n_mem = ri_data%n_mem
       n_mem_RI = ri_data%n_mem_RI
 
@@ -3905,53 +3932,62 @@ CONTAINS
       DEALLOCATE (dist1, dist2)
 
       CALL dbt_get_info(ri_data%t_3c_int_ctr_3(1, 1), nfull_total=dims_3c)
-      CALL dbt_copy(ri_data%t_3c_int_ctr_2(1, 1), ri_data%t_3c_int_ctr_3(1, 1), order=[2, 1, 3], move_data=.TRUE.)
-      CALL dbt_create(ri_data%t_3c_int_ctr_3(1, 1), tensor_old)
 
-      ALLOCATE (batch_ranges_RI(ri_data%n_mem_RI + 1))
-      ALLOCATE (batch_ranges_AO(ri_data%n_mem + 1))
-      batch_ranges_RI(:ri_data%n_mem_RI) = ri_data%starts_array_RI_mem_block(:)
-      batch_ranges_RI(ri_data%n_mem_RI + 1) = ri_data%ends_array_RI_mem_block(ri_data%n_mem_RI) + 1
-      batch_ranges_AO(:ri_data%n_mem) = ri_data%starts_array_mem_block(:)
-      batch_ranges_AO(ri_data%n_mem + 1) = ri_data%ends_array_mem_block(ri_data%n_mem) + 1
+      ! The 3c integrals tensor, in case we compute them here
+      CALL create_3c_tensor(t_3c_int_batched(1, 1), dist1, dist2, dist3, ri_data%pgrid, &
+                            ri_data%bsizes_RI, ri_data%bsizes_AO, ri_data%bsizes_AO, map1=[1], map2=[2, 3], &
+                            name="(RI | AO AO)")
 
-      CALL dbt_batched_contract_init(ri_data%t_3c_int_ctr_3(1, 1), batch_range_1=batch_ranges_RI, &
-                                     batch_range_2=batch_ranges_AO)
-      CALL dbt_batched_contract_init(tensor_old, batch_range_1=batch_ranges_RI, &
-                                     batch_range_2=batch_ranges_AO)
-      CALL dbt_batched_contract_init(rho_ao_t_3d, batch_range_1=batch_ranges_AO)
+      CALL dbt_mp_environ_pgrid(ri_data%pgrid, pdims_3d, pcoord_3d)
+      CALL mp_cart_create(ri_data%pgrid%mp_comm_2d, 3, pdims_3d, pcoord_3d, mp_comm_t3c)
+      CALL distribution_3d_create(dist_nl3c, dist1, dist2, dist3, nkind, particle_set, &
+                                  mp_comm_t3c, own_comm=.TRUE.)
+      DEALLOCATE (dist1, dist2, dist3)
 
-      DO i_mem = 1, n_mem_RI
-         bounds_i(:, 1) = [ri_data%starts_array_RI_mem(i_mem), ri_data%ends_array_RI_mem(i_mem)]
-         DO j_mem = 1, n_mem
-            bounds_j(:, 1) = [ri_data%starts_array_mem(j_mem), ri_data%ends_array_mem(j_mem)]
-            bounds_j(:, 2) = [1, dims_3c(3)]
+      CALL build_3c_neighbor_lists(nl_3c, basis_set_RI, basis_set_AO, basis_set_AO, dist_nl3c, ri_data%ri_metric, &
+                                   "HFX_3c_nl", qs_env, op_pos=1, sym_jk=.TRUE., own_dist=.TRUE.)
 
-            !(pq|R) * (R|S)^-1
-            CALL dbt_batched_contract_init(t2c_ri_inv)
-            CALL dbt_contract(1.0_dp, t2c_ri_inv, ri_data%t_3c_int_ctr_3(1, 1), 0.0_dp, tensor_old, &
-                              contract_1=[2], notcontract_1=[1], &
-                              contract_2=[1], notcontract_2=[2, 3], &
-                              map_1=[1], map_2=[2, 3], filter_eps=ri_data%filter_eps_storage, &
-                              bounds_2=bounds_i, bounds_3=bounds_j)
-            CALL dbt_batched_contract_finalize(t2c_ri_inv)
+      n_mem = ri_data%n_mem
+      CALL create_tensor_batches(ri_data%bsizes_RI, n_mem, dummy1, dummy2, batch_block_start, batch_block_end)
 
-            !P_pq (pq|S)
-            CALL dbt_batched_contract_init(density_tmp)
-            CALL dbt_contract(1.0_dp, tensor_old, rho_ao_t_3d, 0.0_dp, density_tmp, &
-                              contract_1=[2, 3], notcontract_1=[1], &
-                              contract_2=[1, 2], notcontract_2=[3], &
-                              map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps)
-            CALL dbt_batched_contract_finalize(density_tmp)
-            CALL dbt_copy(density_tmp, density_coeffs_t, move_data=.TRUE., summation=.TRUE.)
+      calc_ints = .FALSE.
+      CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_2(1, 1), nze, occ)
+      IF (nze == 0) calc_ints = .TRUE.
 
-         END DO !j_mem
-      END DO !i_mem
-      CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_3(1, 1))
-      CALL dbt_batched_contract_finalize(tensor_old)
-      CALL dbt_batched_contract_finalize(rho_ao_t_3d)
+      DO i_mem = 1, n_mem
+         IF (calc_ints) THEN
+            CALL build_3c_integrals(t_3c_int_batched, ri_data%filter_eps, qs_env, nl_3c, &
+                                    basis_set_RI, basis_set_AO, basis_set_AO, &
+                                    ri_data%ri_metric, int_eps=ri_data%eps_schwarz, op_pos=1, &
+                                    desymmetrize=.FALSE., &
+                                    bounds_i=[batch_block_start(i_mem), batch_block_end(i_mem)])
+            CALL dbt_copy(t_3c_int_batched(1, 1), ri_data%t_3c_int_ctr_3(1, 1), order=[1, 3, 2])
+            CALL dbt_copy(t_3c_int_batched(1, 1), ri_data%t_3c_int_ctr_3(1, 1), move_data=.TRUE., summation=.TRUE.)
+            CALL dbt_filter(ri_data%t_3c_int_ctr_3(1, 1), ri_data%filter_eps)
+         ELSE
+            bounds_cpy(:, 2) = [SUM(ri_data%bsizes_RI(1:batch_block_start(i_mem) - 1)) + 1, &
+                                SUM(ri_data%bsizes_RI(1:batch_block_end(i_mem)))]
+            bounds_cpy(:, 1) = [1, SUM(ri_data%bsizes_AO)]
+            bounds_cpy(:, 3) = [1, SUM(ri_data%bsizes_AO)]
+            CALL dbt_copy(ri_data%t_3c_int_ctr_2(1, 1), ri_data%t_3c_int_ctr_3(1, 1), &
+                          order=[2, 1, 3], bounds=bounds_cpy)
+         END IF
 
-      CALL dbt_copy(ri_data%t_3c_int_ctr_3(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3], move_data=.TRUE.)
+         !contract the integrals with the density P_pq (pq|R)
+         CALL dbt_contract(1.0_dp, ri_data%t_3c_int_ctr_3(1, 1), rho_ao_t_3d, 0.0_dp, density_tmp, &
+                           contract_1=[2, 3], notcontract_1=[1], &
+                           contract_2=[1, 2], notcontract_2=[3], &
+                           map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps)
+         CALL dbt_clear(ri_data%t_3c_int_ctr_3(1, 1))
+
+         !contract the above vector with the inverse metric
+         CALL dbt_contract(1.0_dp, t2c_ri_inv, density_tmp, 1.0_dp, density_coeffs_t, &
+                           contract_1=[2], notcontract_1=[1], &
+                           contract_2=[1], notcontract_2=[2], &
+                           map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps)
+
+      END DO
+      CALL neighbor_list_3c_destroy(nl_3c)
 
       IF (multiply_by_s) THEN
          CALL dbt_contract(1.0_dp, t2c_ri_ints, density_coeffs_t, 0.0_dp, density_tmp, &
@@ -3987,10 +4023,10 @@ CONTAINS
       CALL dbt_destroy(t2c_ri_ints)
       CALL dbt_destroy(t2c_ri_inv)
       CALL dbt_destroy(density_tmp)
-      CALL dbt_destroy(tensor_old)
       CALL dbt_destroy(rho_ao_t)
       CALL dbt_destroy(rho_ao_t_3d)
       CALL dbt_destroy(density_coeffs_t)
+      CALL dbt_destroy(t_3c_int_batched(1, 1))
       CALL dbt_pgrid_destroy(pgrid_2d)
       CALL dbt_distribution_destroy(dist_2d)
       CALL dbt_pgrid_destroy(pgrid_3d)
