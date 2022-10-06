@@ -1021,7 +1021,7 @@ CONTAINS
 !> \param siepmann ...
 !> \param gal ...
 !> \param gal21 ...
-!> \param tp ...
+!> \param tab ...
 !> \author Teodoro Laino [Teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_reallocate(p, lb1_new, ub1_new, lj, lj_charmm, williams, &
@@ -2356,7 +2356,7 @@ CONTAINS
 !> \author Alex Mironenko, Da Teng 2019-2022
 ! **************************************************************************************************
    SUBROUTINE pair_potential_tab_create(tab)
-      TYPE(tab_pot_type), POINTER                         :: tab
+      TYPE(tab_pot_type), POINTER                        :: tab
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tab_create', &
          routineP = moduleN//':'//routineN
@@ -2373,7 +2373,7 @@ CONTAINS
 !> \param tab_dest ...
 ! **************************************************************************************************
    SUBROUTINE pair_potential_tab_copy(tab_source, tab_dest)
-      TYPE(tab_pot_type), POINTER                         :: tab_source, tab_dest
+      TYPE(tab_pot_type), POINTER                        :: tab_source, tab_dest
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tab_copy', &
          routineP = moduleN//':'//routineN
@@ -2400,7 +2400,7 @@ CONTAINS
 !> \param tab ...
 ! **************************************************************************************************
    SUBROUTINE pair_potential_tab_clean(tab)
-      TYPE(tab_pot_type), POINTER                         :: tab
+      TYPE(tab_pot_type), POINTER                        :: tab
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tab_clean', &
          routineP = moduleN//':'//routineN
@@ -2422,7 +2422,7 @@ CONTAINS
 !> \param tab ...
 ! **************************************************************************************************
    SUBROUTINE pair_potential_tab_release(tab)
-      TYPE(tab_pot_type), POINTER                         :: tab
+      TYPE(tab_pot_type), POINTER                        :: tab
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tab_release', &
          routineP = moduleN//':'//routineN

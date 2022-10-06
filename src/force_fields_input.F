@@ -67,7 +67,7 @@ MODULE force_fields_input
         ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, &
         lj_charmm_type, no_potential_single_allocation, pair_potential_p_type, &
         pair_potential_reallocate, potential_single_allocation, quip_type, siepmann_type, &
-        tersoff_type, tab_pot_type, tab_type, wl_type
+        tab_pot_type, tab_type, tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
