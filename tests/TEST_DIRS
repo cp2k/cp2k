@@ -3,9 +3,9 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
-QS/regtest-dcdft-force                                      libxc
-QS/regtest-dcdft-stress                                     libxc
-QS/regtest-ec-stress                                        libxc
+QS/regtest-dcdft-force                                      libint libxc
+QS/regtest-dcdft-stress                                     libint libxc
+QS/regtest-ec-stress                                        libint libxc
 QS/regtest-ri-rpa-grad                                      libint
 QS/regtest-sos-mp2-grad                                     libint
 QS/regtest-ri-rpa                                           libint
