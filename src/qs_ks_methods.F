@@ -476,7 +476,7 @@ CONTAINS
       IF (qs_env%qmmm) THEN
          CALL qmmm_calculate_energy(qs_env=qs_env, &
                                     rho=rho_r, &
-                                    v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace, &
+                                    v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace%pw, &
                                     qmmm_energy=energy%qmmm_el)
          IF (qs_env%qmmm_env_qm%image_charge) THEN
             CALL calculate_image_pot(v_hartree_rspace=v_hartree_rspace, &

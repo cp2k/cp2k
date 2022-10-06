@@ -157,7 +157,7 @@ CONTAINS
    SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho
-      TYPE(pw_p_type), INTENT(IN)                        :: v_qmmm
+      TYPE(pw_type), INTENT(IN)                          :: v_qmmm
       REAL(KIND=dp), INTENT(INOUT)                       :: qmmm_energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy'
@@ -184,13 +184,13 @@ CONTAINS
 
       qmmm_energy = 0.0_dp
       DO ispin = 1, dft_control%nspins
-         qmmm_energy = qmmm_energy + pw_integral_ab(rho(ispin)%pw, v_qmmm%pw)
+         qmmm_energy = qmmm_energy + pw_integral_ab(rho(ispin)%pw, v_qmmm)
       END DO
       IF (dft_control%qs_control%gapw) THEN
          CALL get_qs_env(qs_env=qs_env, &
                          rho0_s_rs=rho0_s_rs)
          CPASSERT(ASSOCIATED(rho0_s_rs))
-         qmmm_energy = qmmm_energy + pw_integral_ab(rho0_s_rs, v_qmmm%pw)
+         qmmm_energy = qmmm_energy + pw_integral_ab(rho0_s_rs, v_qmmm)
       END IF
 
       CALL cp_print_key_finished_output(output_unit, logger, input, &
