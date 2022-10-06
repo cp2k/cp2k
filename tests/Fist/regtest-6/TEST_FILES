@@ -44,8 +44,8 @@ siepmann_sprik_OH.inp                                  2    1.0E-14          -0.
 siepmann_sprik_H3O.inp                                 2    1.0E-14            -0.559829150856E-01
 siepmann_sprik_O.inp                                   2    1.0E-14            -0.576203680700E-01
 #Tabulated potential test
-tabpot_total.inp                                      12    1.0E-14             -2.196556655374748
-tabpot_cgo-cgo.inp                                    12    1.0E-14              1.822518208510981
-tabpot_cgo-res.inp                                    12    1.0E-14             -6.383543979427067
-tabpot_res-res.inp                                    12    1.0E-14              2.364469115541450
+tabpot_total.inp                                      11    1.0E-14             -2.196556655374748
+tabpot_cgo-cgo.inp                                    11    1.0E-14              1.822518208510981
+tabpot_cgo-res.inp                                    11    1.0E-14             -6.383543979427067
+tabpot_res-res.inp                                    11    1.0E-14              2.364469115541450
 #EOF
