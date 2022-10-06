@@ -523,7 +523,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: r1, r2
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
-      TYPE(pw_p_type), POINTER                           :: rho0
+      TYPE(pw_type), POINTER                             :: rho0
       TYPE(shell_kind_type), POINTER                     :: shell
 
       NULLIFY (shell)
@@ -623,9 +623,9 @@ CONTAINS
       END IF
 
       IF (p2 == 0) THEN
-         CALL dg_get_patch(rho0%pw, rhos1, q1, ex1, ey1, ez1)
+         CALL dg_get_patch(rho0, rhos1, q1, ex1, ey1, ez1)
       ELSE
-         CALL dg_get_patch(rho0%pw, rhos1, rhos2, q1, q2, ex1, ey1, ez1, ex2, ey2, ez2)
+         CALL dg_get_patch(rho0, rhos1, rhos2, q1, q2, ex1, ey1, ez1, ex2, ey2, ez2)
       END IF
 
    END SUBROUTINE get_patch
@@ -662,7 +662,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: q1, q2
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(dg_rho0_type), POINTER                        :: dg_rho0
-      TYPE(pw_p_type), POINTER                           :: rho0
+      TYPE(pw_type), POINTER                             :: rho0
       TYPE(shell_kind_type), POINTER                     :: shell
 
       NULLIFY (shell)
@@ -733,9 +733,9 @@ CONTAINS
       END IF
 
       IF (p2 == 0) THEN
-         CALL dg_get_patch(rho0%pw, rhos1, q1, ex1, ey1, ez1)
+         CALL dg_get_patch(rho0, rhos1, q1, ex1, ey1, ez1)
       ELSE
-         CALL dg_get_patch(rho0%pw, rhos1, rhos2, q1, q2, &
+         CALL dg_get_patch(rho0, rhos1, rhos2, q1, q2, &
                            ex1, ey1, ez1, ex2, ey2, ez2)
       END IF
 
