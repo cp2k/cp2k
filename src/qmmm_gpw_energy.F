@@ -136,7 +136,7 @@ CONTAINS
       !
       ! Initializing vectors:
       !        Zeroing v_qmmm_rspace
-      CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace%pw)
+      CALL pw_zero(ks_qmmm_env_loc%v_qmmm_rspace)
       IF (dft_control%qs_control%semi_empirical) THEN
          ! SEMIEMPIRICAL
          SELECT CASE (qmmm_env%qmmm_coupl_type)
@@ -185,7 +185,7 @@ CONTAINS
             interp_section => section_vals_get_subs_vals(input_section, &
                                                          "QMMM%INTERPOLATOR")
             CALL qmmm_elec_with_gaussian(qmmm_env=qmmm_env, &
-                                         v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace%pw, &
+                                         v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace, &
                                          mm_particles=mm_particles, &
                                          aug_pools=qmmm_env%aug_pools, &
                                          para_env=para_env, &
@@ -209,7 +209,7 @@ CONTAINS
             mpi_io = .TRUE.
             iw2 = cp_print_key_unit_nr(logger, print_section, "POTENTIAL", &
                                        extension=".qmmmLog", mpi_io=mpi_io)
-            CALL cp_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw, iw2, &
+            CALL cp_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace, iw2, &
                                particles=particles, &
                                stride=section_get_ivals(print_section, "POTENTIAL%STRIDE"), &
                                title="QM/MM: MM ELECTROSTATIC POTENTIAL ", &

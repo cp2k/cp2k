@@ -871,7 +871,7 @@ CONTAINS
          ! correct for the fact that v_hartree is scaled by dvol, and has the opposite sign
          IF (qs_env%qmmm) THEN
             ! If it's a QM/MM run let's remove the contribution of the MM potential out of the Hartree pot
-            vj = -v_hartree_pw%cr3d(jx, jy, jz)/dvol + qs_env%ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx, jy, jz)
+            vj = -v_hartree_pw%cr3d(jx, jy, jz)/dvol + qs_env%ks_qmmm_env%v_qmmm_rspace%cr3d(jx, jy, jz)
          ELSE
             vj = -v_hartree_pw%cr3d(jx, jy, jz)/dvol
          END IF
@@ -1208,7 +1208,7 @@ CONTAINS
          vhartree(ip) = -v_hartree_pw%cr3d(jx, jy, jz)/dvol
          IF (qs_env%qmmm) THEN
             !taking into account that v_qmmm has also opposite sign
-            vhartree(ip) = vhartree(ip) + qs_env%ks_qmmm_env%v_qmmm_rspace%pw%cr3d(jx, jy, jz)
+            vhartree(ip) = vhartree(ip) + qs_env%ks_qmmm_env%v_qmmm_rspace%cr3d(jx, jy, jz)
          END IF
          rhs = rhs + 2.0_dp*vhartree(ip)*vpot(ip)
       END DO

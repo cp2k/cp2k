@@ -136,9 +136,9 @@ CONTAINS
       END IF
 
       ! calculate the image/metal potential with the optimized coefficients
-      ALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace%pw)
+      ALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace)
       CALL calculate_potential_metal(v_metal_rspace= &
-                                     qs_env%ks_qmmm_env%v_metal_rspace%pw, coeff=qs_env%image_coeff, &
+                                     qs_env%ks_qmmm_env%v_metal_rspace, coeff=qs_env%image_coeff, &
                                      rho_hartree_gspace=rho_hartree_gspace, &
                                      energy=energy, qs_env=qs_env)
 

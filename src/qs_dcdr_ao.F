@@ -264,6 +264,7 @@ CONTAINS
                              rho1_r, rho1_g_pw, tau1_r, auxbas_pw_pool, xc_section, gapw=.FALSE.)
 
       v_rspace_new = v_xc(1)%pw
+      DEALLOCATE (v_xc(1)%pw)
       DEALLOCATE (v_xc)
 
       ! Done calculating the potentials

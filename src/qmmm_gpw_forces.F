@@ -218,7 +218,7 @@ CONTAINS
          IF (gapw) THEN
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
                CALL pw_transfer(rho_core, rho_tot_r)
-               energy%qmmm_nu = pw_integral_ab(rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw)
+               energy%qmmm_nu = pw_integral_ab(rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace)
                NULLIFY (rho_tot_r2)
                ALLOCATE (rho_tot_r2)
                CALL pw_pool_create_pw(auxbas_pool, rho_tot_r2, &
@@ -240,7 +240,7 @@ CONTAINS
             !
             ! Computes the QM/MM Nuclear Electrostatic Potential
             !
-            energy%qmmm_nu = pw_integral_ab(rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw)
+            energy%qmmm_nu = pw_integral_ab(rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace)
          END IF
          IF (need_f) THEN
             !

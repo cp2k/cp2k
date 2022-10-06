@@ -476,7 +476,7 @@ CONTAINS
       IF (qs_env%qmmm) THEN
          CALL qmmm_calculate_energy(qs_env=qs_env, &
                                     rho=rho_r, &
-                                    v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace%pw, &
+                                    v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace, &
                                     qmmm_energy=energy%qmmm_el)
          IF (qs_env%qmmm_env_qm%image_charge) THEN
             CALL calculate_image_pot(v_hartree_rspace=v_hartree_rspace, &
@@ -486,7 +486,7 @@ CONTAINS
                                      qs_env=qs_env)
             IF (.NOT. just_energy) THEN
                CALL add_image_pot_to_hartree_pot(v_hartree=v_hartree_rspace, &
-                                                 v_metal=qs_env%ks_qmmm_env%v_metal_rspace%pw, &
+                                                 v_metal=qs_env%ks_qmmm_env%v_metal_rspace, &
                                                  qs_env=qs_env)
                IF (calculate_forces) THEN
                   CALL integrate_potential_devga_rspace( &
@@ -495,12 +495,12 @@ CONTAINS
                      qmmm_env=qs_env%qmmm_env_qm, qs_env=qs_env)
                END IF
             END IF
-            CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace%pw)
-            DEALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace%pw)
+            CALL pw_release(qs_env%ks_qmmm_env%v_metal_rspace)
+            DEALLOCATE (qs_env%ks_qmmm_env%v_metal_rspace)
          END IF
          IF (.NOT. just_energy) THEN
             CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace, &
-                                         v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace%pw, scale=1.0_dp)
+                                         v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace, scale=1.0_dp)
          END IF
       END IF
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace)
