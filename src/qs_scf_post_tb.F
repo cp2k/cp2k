@@ -1361,9 +1361,10 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: elf_r, rho_g, rho_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: elf_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
@@ -1393,11 +1394,10 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       DO ispin = 1, dft_control%nspins
-         ALLOCATE (elf_r(ispin)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin)%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin), &
                                 use_data=REALDATA3D, &
                                 in_space=REALSPACE)
-         CALL pw_zero(elf_r(ispin)%pw)
+         CALL pw_zero(elf_r(ispin))
       END DO
 
       IF (iounit > 0) THEN
@@ -1428,12 +1428,11 @@ CONTAINS
                "ELF is written in cube file format to the file:", ADJUSTR(TRIM(filename))
          END IF
 
-         CALL cp_pw_to_cube(elf_r(ispin)%pw, unit_nr, title, particles=particles, &
+         CALL cp_pw_to_cube(elf_r(ispin), unit_nr, title, particles=particles, &
                             stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
          CALL cp_print_key_finished_output(unit_nr, logger, elf_section, '', mpi_io=mpi_io)
 
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin)%pw)
-         DEALLOCATE (elf_r(ispin)%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin))
       END DO
 
       DEALLOCATE (elf_r)

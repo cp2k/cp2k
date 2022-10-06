@@ -1451,9 +1451,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: elf_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), ALLOCATABLE, DIMENSION(:)           :: elf_r
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: elf_section
 
@@ -1464,7 +1464,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%ELF_CUBE"), cp_p_file)) THEN
 
-         NULLIFY (dft_control, pw_env, auxbas_pw_pool, pw_pools, particles, subsys, elf_r)
+         NULLIFY (dft_control, pw_env, auxbas_pw_pool, pw_pools, particles, subsys)
          CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env, subsys=subsys)
          CALL qs_subsys_get(subsys, particles=particles)
 
@@ -1475,11 +1475,10 @@ CONTAINS
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                             pw_pools=pw_pools)
             DO ispin = 1, dft_control%nspins
-               ALLOCATE (elf_r(ispin)%pw)
-               CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin)%pw, &
+               CALL pw_pool_create_pw(auxbas_pw_pool, elf_r(ispin), &
                                       use_data=REALDATA3D, &
                                       in_space=REALSPACE)
-               CALL pw_zero(elf_r(ispin)%pw)
+               CALL pw_zero(elf_r(ispin))
             END DO
 
             IF (output_unit > 0) THEN
@@ -1514,12 +1513,11 @@ CONTAINS
                      TRIM(filename)
                END IF
 
-               CALL cp_pw_to_cube(elf_r(ispin)%pw, unit_nr, title, particles=particles, &
+               CALL cp_pw_to_cube(elf_r(ispin), unit_nr, title, particles=particles, &
                                   stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%ELF_CUBE", mpi_io=mpi_io)
 
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin)%pw)
-               DEALLOCATE (elf_r(ispin)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, elf_r(ispin))
             END DO
 
             ! deallocate
