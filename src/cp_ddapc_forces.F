@@ -75,7 +75,7 @@ CONTAINS
    RECURSIVE SUBROUTINE ewald_ddapc_force(qs_env, coeff, apply_qmmm_periodic, &
                                           factor, multipole_section, cell, particle_set, radii, dq, charges)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), POINTER                             :: coeff
+      TYPE(pw_type), INTENT(IN), POINTER                 :: coeff
       LOGICAL, INTENT(IN)                                :: apply_qmmm_periodic
       REAL(KIND=dp), INTENT(IN)                          :: factor
       TYPE(section_vals_type), POINTER                   :: multipole_section

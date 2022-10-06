@@ -182,7 +182,6 @@ CONTAINS
          IF (ASSOCIATED(ex_env%vh_rspace)) THEN
             vh_rspace => ex_env%vh_rspace
          ELSE
-            ALLOCATE (ex_env%vh_rspace)
             NULLIFY (vh_rspace)
          END IF
          vxc_rspace => ex_env%vxc_rspace

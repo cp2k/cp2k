@@ -127,7 +127,7 @@ CONTAINS
    SUBROUTINE sccs(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs, h_stress)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_type), POINTER                             :: rho_tot_gspace, v_hartree_gspace, v_sccs
+      TYPE(pw_type), INTENT(INOUT)                       :: rho_tot_gspace, v_hartree_gspace, v_sccs
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
          OPTIONAL                                        :: h_stress
 
@@ -218,9 +218,6 @@ CONTAINS
       sccs_control => dft_control%sccs_control
 
       CPASSERT(ASSOCIATED(qs_env))
-      CPASSERT(ASSOCIATED(rho_tot_gspace))
-      CPASSERT(ASSOCIATED(v_hartree_gspace))
-      CPASSERT(ASSOCIATED(v_sccs))
 
       IF (PRESENT(h_stress)) THEN
          calculate_stress_tensor = .TRUE.

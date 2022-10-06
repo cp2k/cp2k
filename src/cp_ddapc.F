@@ -48,7 +48,6 @@ MODULE cp_ddapc
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type,&
                                               pw_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -87,8 +86,8 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_spin_ddapc_rest_r
+      TYPE(pw_type), INTENT(IN)                          :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_type), POINTER                             :: v_spin_ddapc_rest_r
       TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
@@ -102,7 +101,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_p_type)                                    :: v_spin_ddapc_rest_g
+      TYPE(pw_type)                                      :: v_spin_ddapc_rest_g
       TYPE(pw_type), POINTER                             :: v_hartree_rspace
 
       NULLIFY (v_hartree_rspace, dft_control)
@@ -140,11 +139,12 @@ CONTAINS
       dft_control%qs_control%ddapc_explicit_potential = explicit_potential
       dft_control%qs_control%ddapc_restraint_is_spin = ddapc_restraint_is_spin
       IF (explicit_potential) THEN
-         ALLOCATE (v_spin_ddapc_rest_g%pw, v_spin_ddapc_rest_r%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_g%pw, &
+         CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_g, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         CALL pw_zero(v_spin_ddapc_rest_g%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_r%pw, &
+         CALL pw_zero(v_spin_ddapc_rest_g)
+         NULLIFY (v_spin_ddapc_rest_r)
+         ALLOCATE (v_spin_ddapc_rest_r)
+         CALL pw_pool_create_pw(auxbas_pw_pool, v_spin_ddapc_rest_r, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
       END IF
 
@@ -168,11 +168,11 @@ CONTAINS
 
       ! CJM Copying the real-space Hartree potential to KS_ENV
       IF ((.NOT. just_energy) .OR. et_coupling_calc) THEN
-         CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace)
+         CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
          CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
          IF (explicit_potential) THEN
-            CALL pw_transfer(v_spin_ddapc_rest_g%pw, v_spin_ddapc_rest_r%pw)
-            CALL pw_scale(v_spin_ddapc_rest_r%pw, v_spin_ddapc_rest_r%pw%pw_grid%dvol)
+            CALL pw_transfer(v_spin_ddapc_rest_g, v_spin_ddapc_rest_r)
+            CALL pw_scale(v_spin_ddapc_rest_r, v_spin_ddapc_rest_r%pw_grid%dvol)
             IF (et_coupling_calc) THEN
                IF (qs_env%et_coupling%keep_matrix) THEN
                   IF (qs_env%et_coupling%first_run) THEN
@@ -181,7 +181,7 @@ CONTAINS
                      CALL dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1, 1)%matrix, &
                                      name="ET_RESTRAINT_MATRIX_B")
                      CALL dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp)
-                     CALL integrate_v_rspace(v_spin_ddapc_rest_r%pw, &
+                     CALL integrate_v_rspace(v_spin_ddapc_rest_r, &
                                              hmat=qs_env%et_coupling%rest_mat(1), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)
                      qs_env%et_coupling%order_p = &
@@ -194,7 +194,7 @@ CONTAINS
                      CALL dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1, 1)%matrix, &
                                      name="ET_RESTRAINT_MATRIX_B")
                      CALL dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp)
-                     CALL integrate_v_rspace(v_spin_ddapc_rest_r%pw, &
+                     CALL integrate_v_rspace(v_spin_ddapc_rest_r, &
                                              hmat=qs_env%et_coupling%rest_mat(2), &
                                              qs_env=qs_env, calculate_forces=.FALSE.)
                   END IF
@@ -204,8 +204,7 @@ CONTAINS
       END IF
 
       IF (explicit_potential) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_g%pw)
-         DEALLOCATE (v_spin_ddapc_rest_g%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_spin_ddapc_rest_g)
       END IF
       CALL timestop(handle)
 
@@ -232,9 +231,9 @@ CONTAINS
    SUBROUTINE cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace, &
                                 calculate_forces, Itype_of_density)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type)                                    :: rho_tot_gspace
+      TYPE(pw_type), INTENT(IN)                          :: rho_tot_gspace
       REAL(KIND=dp), INTENT(INOUT)                       :: energy
-      TYPE(pw_p_type)                                    :: v_hartree_gspace
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
       CHARACTER(LEN=*)                                   :: Itype_of_density
 
@@ -299,7 +298,7 @@ CONTAINS
                            qout1=charges, &
                            out_radii=radii, &
                            dq_out=dq, &
-                           ext_rho_tot_g=rho_tot_gspace%pw, &
+                           ext_rho_tot_g=rho_tot_gspace, &
                            Itype_of_density=Itype_of_density)
          ELSE
             CALL get_ddapc(qs_env, &
@@ -307,7 +306,7 @@ CONTAINS
                            density_fit_section, &
                            qout1=charges, &
                            out_radii=radii, &
-                           ext_rho_tot_g=rho_tot_gspace%pw, &
+                           ext_rho_tot_g=rho_tot_gspace, &
                            Itype_of_density=Itype_of_density)
          END IF
          ! Evaluate the Ewald contribution to the decoupling/coupling E2 and E3
@@ -327,7 +326,7 @@ CONTAINS
                                  radii, &
                                  charges)
          ! Modify the Hartree potential due to the decoupling/recoupling
-         energy = 0.5_dp*pw_integral_ab(rho_tot_gspace%pw, v_hartree_gspace%pw)
+         energy = 0.5_dp*pw_integral_ab(rho_tot_gspace, v_hartree_gspace)
          IF (need_f) THEN
             CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_qm, &
                                    .FALSE., 1.0_dp, multipole_section, cell, particle_set, &
@@ -367,7 +366,7 @@ CONTAINS
                                 v_spin_ddapc_rest_g, ddapc_restraint_control, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: energy_res
-      TYPE(pw_p_type)                                    :: v_hartree_gspace, v_spin_ddapc_rest_g
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace, v_spin_ddapc_rest_g
       TYPE(ddapc_restraint_type), POINTER                :: ddapc_restraint_control
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
 
@@ -470,9 +469,9 @@ CONTAINS
    SUBROUTINE cp_ddapc_apply_RF(qs_env, rho_tot_gspace, energy, &
                                 v_hartree_gspace, calculate_forces, Itype_of_density)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type)                                    :: rho_tot_gspace
+      TYPE(pw_type), INTENT(IN)                          :: rho_tot_gspace
       REAL(KIND=dp), INTENT(INOUT)                       :: energy
-      TYPE(pw_p_type)                                    :: v_hartree_gspace
+      TYPE(pw_type), INTENT(IN)                          :: v_hartree_gspace
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces
       CHARACTER(LEN=*)                                   :: Itype_of_density
 
@@ -518,7 +517,7 @@ CONTAINS
                            qout1=charges, &
                            out_radii=radii, &
                            dq_out=dq, &
-                           ext_rho_tot_g=rho_tot_gspace%pw, &
+                           ext_rho_tot_g=rho_tot_gspace, &
                            Itype_of_density=Itype_of_density)
          ELSE
             CALL get_ddapc(qs_env, &
@@ -526,7 +525,7 @@ CONTAINS
                            density_fit_section, &
                            qout1=charges, &
                            out_radii=radii, &
-                           ext_rho_tot_g=rho_tot_gspace%pw, &
+                           ext_rho_tot_g=rho_tot_gspace, &
                            Itype_of_density=Itype_of_density)
          END IF
          ! Evaluate the Ewald contribution to the decoupling/coupling E2 and E3
@@ -542,7 +541,7 @@ CONTAINS
                                  radii, &
                                  charges)
          ! Modify the Hartree potential due to the reaction field
-         energy = 0.5_dp*pw_integral_ab(rho_tot_gspace%pw, v_hartree_gspace%pw)
+         energy = 0.5_dp*pw_integral_ab(rho_tot_gspace, v_hartree_gspace)
          IF (need_f) THEN
             CALL solvation_ddapc_force(qs_env, solvation_section, particle_set, &
                                        radii, dq, charges)

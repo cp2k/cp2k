@@ -712,7 +712,7 @@ CONTAINS
                                 qs_env, dft_control, rho, poisson_env, just_energy, &
                                 calculate_forces, auxbas_pw_pool)
 
-      TYPE(pw_p_type), INTENT(INOUT)                     :: v_sic_rspace
+      TYPE(pw_type), POINTER                             :: v_sic_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -725,8 +725,8 @@ CONTAINS
       REAL(kind=dp)                                      :: ener, full_scaling, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: store_forces
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
-      TYPE(pw_p_type)                                    :: work_rho, work_v
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g
+      TYPE(pw_type)                                      :: work_rho, work_v
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
 
       NULLIFY (mo_array, rho_g)
@@ -740,11 +740,10 @@ CONTAINS
       ! OK, right now we like two spins to do sic, could be relaxed for AD
       CPASSERT(dft_control%nspins == 2)
 
-      ALLOCATE (work_rho%pw, work_v%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_rho%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, work_rho, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_pool_create_pw(auxbas_pw_pool, work_v%pw, &
+      CALL pw_pool_create_pw(auxbas_pw_pool, work_v, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
 
@@ -753,20 +752,20 @@ CONTAINS
       ! Hartree sic corrections
       SELECT CASE (dft_control%sic_method_id)
       CASE (sic_mauri_us, sic_mauri_spz)
-         CALL pw_copy(rho_g(1)%pw, work_rho%pw)
-         CALL pw_axpy(rho_g(2)%pw, work_rho%pw, alpha=-1._dp)
-         CALL pw_poisson_solve(poisson_env, work_rho%pw, ener, work_v%pw)
+         CALL pw_copy(rho_g(1)%pw, work_rho)
+         CALL pw_axpy(rho_g(2)%pw, work_rho, alpha=-1._dp)
+         CALL pw_poisson_solve(poisson_env, work_rho, ener, work_v)
       CASE (sic_ad)
          ! find out how many elecs we have
          CALL get_qs_env(qs_env, mos=mo_array)
          CALL get_mo_set(mo_set=mo_array(1)%mo_set, nelectron=nelec_a)
          CALL get_mo_set(mo_set=mo_array(2)%mo_set, nelectron=nelec_b)
          nelec = nelec_a + nelec_b
-         CALL pw_copy(rho_g(1)%pw, work_rho%pw)
-         CALL pw_axpy(rho_g(2)%pw, work_rho%pw)
+         CALL pw_copy(rho_g(1)%pw, work_rho)
+         CALL pw_axpy(rho_g(2)%pw, work_rho)
          scaling = 1.0_dp/REAL(nelec, KIND=dp)
-         CALL pw_scale(work_rho%pw, scaling)
-         CALL pw_poisson_solve(poisson_env, work_rho%pw, ener, work_v%pw)
+         CALL pw_scale(work_rho, scaling)
+         CALL pw_poisson_solve(poisson_env, work_rho, ener, work_v)
       CASE DEFAULT
          CPABORT("Unknown sic method id")
       END SELECT
@@ -816,18 +815,17 @@ CONTAINS
       END IF
 
       IF (.NOT. just_energy) THEN
-         ALLOCATE (v_sic_rspace%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, v_sic_rspace%pw, &
+         ALLOCATE (v_sic_rspace)
+         CALL pw_pool_create_pw(auxbas_pw_pool, v_sic_rspace, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_transfer(work_v%pw, v_sic_rspace%pw)
+         CALL pw_transfer(work_v, v_sic_rspace)
          ! also take into account the scaling (in addition to the volume element)
-         CALL pw_scale(v_sic_rspace%pw, &
-                       dft_control%sic_scaling_a*v_sic_rspace%pw%pw_grid%dvol)
+         CALL pw_scale(v_sic_rspace, &
+                       dft_control%sic_scaling_a*v_sic_rspace%pw_grid%dvol)
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_rho%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v%pw)
-      DEALLOCATE (work_rho%pw, work_v%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_rho)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, work_v)
 
    END SUBROUTINE calc_v_sic_rspace
 
@@ -1214,7 +1212,7 @@ CONTAINS
       TYPE(pw_type), POINTER                             :: vppl_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_new, v_rspace_new_aux_fit, &
                                                             v_tau_rspace, v_tau_rspace_aux_fit
-      TYPE(pw_p_type)                                    :: v_efield_rspace, v_sic_rspace, &
+      TYPE(pw_type), POINTER                             :: v_efield_rspace, v_sic_rspace, &
                                                             v_spin_ddapc_rest_r, v_sccs_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: v_rspace_embed
       TYPE(cdft_control_type), POINTER                   :: cdft_control
@@ -1310,14 +1308,14 @@ CONTAINS
                IF (dft_control%qs_control%ddapc_restraint_is_spin) THEN
                   IF (ispin == 1) THEN
                      v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                   + v_spin_ddapc_rest_r%pw%cr3d
+                                                   + v_spin_ddapc_rest_r%cr3d
                   ELSE
                      v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                   - v_spin_ddapc_rest_r%pw%cr3d
+                                                   - v_spin_ddapc_rest_r%cr3d
                   END IF
                ELSE
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                + v_spin_ddapc_rest_r%pw%cr3d
+                                                + v_spin_ddapc_rest_r%cr3d
                END IF
             END IF
             ! CDFT constraint contribution
@@ -1349,7 +1347,7 @@ CONTAINS
             ! The efield contribution
             IF (dft_control%apply_efield_field) THEN
                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                             v_efield_rspace%pw%cr3d
+                                             v_efield_rspace%cr3d
             END IF
             ! functional derivative of the Hartree energy wrt the density in the presence of dielectric
             ! (vhartree + v_eps); v_eps is nonzero only if the dielectric constant is defind as a function
@@ -1362,7 +1360,7 @@ CONTAINS
             ! Add SCCS contribution
             IF (dft_control%do_sccs) THEN
                v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                             v_sccs_rspace%pw%cr3d
+                                             v_sccs_rspace%cr3d
             END IF
             ! External electrostatic potential
             IF (dft_control%apply_external_potential) THEN
@@ -1381,13 +1379,13 @@ CONTAINS
             CASE (sic_mauri_us, sic_mauri_spz)
                IF (ispin == 1) THEN
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d - &
-                                                v_sic_rspace%pw%cr3d
+                                                v_sic_rspace%cr3d
                ELSE
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
-                                                v_sic_rspace%pw%cr3d
+                                                v_sic_rspace%cr3d
                END IF
             CASE (sic_ad)
-               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d - v_sic_rspace%pw%cr3d
+               v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d - v_sic_rspace%cr3d
             CASE (sic_eo)
                ! NOTHING TO BE DONE
             END SELECT
@@ -1447,8 +1445,8 @@ CONTAINS
          SELECT CASE (dft_control%sic_method_id)
          CASE (sic_none)
          CASE (sic_mauri_us, sic_mauri_spz, sic_ad)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sic_rspace%pw)
-            DEALLOCATE (v_sic_rspace%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_sic_rspace)
+            DEALLOCATE (v_sic_rspace)
          END SELECT
          DEALLOCATE (v_rspace_new)
 
@@ -1459,7 +1457,7 @@ CONTAINS
          DO ispin = 1, nspins
             ! the efield contribution
             IF (dft_control%apply_efield_field) THEN
-               v_rspace%cr3d = v_rspace%cr3d + v_efield_rspace%pw%cr3d
+               v_rspace%cr3d = v_rspace%cr3d + v_efield_rspace%cr3d
             END IF
             ! extra contribution attributed to the dependency of the dielectric constant to the charge density
             IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
@@ -1468,7 +1466,7 @@ CONTAINS
             END IF
             ! Add SCCS contribution
             IF (dft_control%do_sccs) THEN
-               v_rspace%cr3d = v_rspace%cr3d + v_sccs_rspace%pw%cr3d
+               v_rspace%cr3d = v_rspace%cr3d + v_sccs_rspace%cr3d
             END IF
             ! DFT embedding
             IF (dft_control%apply_embed_pot) THEN
