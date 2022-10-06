@@ -180,7 +180,7 @@ CONTAINS
                                   work_matrices, debug_forces)
       ELSE
          IF (ASSOCIATED(ex_env%vh_rspace)) THEN
-            vh_rspace => ex_env%vh_rspace%pw
+            vh_rspace => ex_env%vh_rspace
          ELSE
             ALLOCATE (ex_env%vh_rspace)
             NULLIFY (vh_rspace)
@@ -217,7 +217,7 @@ CONTAINS
          NULLIFY (vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace)
          ALLOCATE (vh_rspace)
          CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, ehartree, exc)
-         ex_env%vh_rspace%pw => vh_rspace
+         ex_env%vh_rspace => vh_rspace
          ex_env%vxc_rspace => vxc_rspace
          ex_env%vtau_rspace => vtau_rspace
          ex_env%vadmm_rspace => vadmm_rspace
