@@ -49,7 +49,7 @@ MODULE dm_ls_scf_qs
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
@@ -655,12 +655,12 @@ CONTAINS
 
       INTEGER                                            :: handle
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
-      TYPE(dbcsr_type), POINTER                          :: matrix_p_qs
+      TYPE(dbcsr_type), TARGET                           :: matrix_p_qs
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: wf_g, wf_r
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: wf_g, wf_r
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -677,7 +677,6 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
 
       ! convert the density matrix (ls style) to QS style
-      ALLOCATE (matrix_p_qs)
       CALL dbcsr_copy(matrix_p_qs, matrix_ks(1)%matrix)
       CALL dbcsr_set(matrix_p_qs, 0.0_dp) !zero matrix creation
       CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls, ls_scf_env%ls_mstruct, covariant=.FALSE.)
@@ -686,32 +685,29 @@ CONTAINS
       CALL pw_env_get(pw_env=pw_env, &
                       auxbas_pw_pool=auxbas_pw_pool, &
                       pw_pools=pw_pools)
-      ALLOCATE (wf_r%pw, wf_g%pw)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=wf_r%pw, &
+                             pw=wf_r, &
                              use_data=REALDATA3D, &
                              in_space=REALSPACE)
-      CALL pw_zero(wf_r%pw)
+      CALL pw_zero(wf_r)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool, &
-                             pw=wf_g%pw, &
+                             pw=wf_g, &
                              use_data=COMPLEXDATA1D, &
                              in_space=RECIPROCALSPACE)
-      CALL pw_zero(wf_g%pw)
+      CALL pw_zero(wf_g)
       CALL calculate_rho_elec(matrix_p=matrix_p_qs, &
-                              rho=wf_r%pw, &
-                              rho_gspace=wf_g%pw, &
+                              rho=wf_r, &
+                              rho_gspace=wf_g, &
                               ks_env=ks_env)
 
       ! write this to a cube
-      CALL cp_pw_to_cube(wf_r%pw, unit_nr=unit_nr, title=title, &
+      CALL cp_pw_to_cube(wf_r, unit_nr=unit_nr, title=title, &
                          particles=particles, stride=stride)
 
       !free memory
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r%pw)
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g%pw)
-      DEALLOCATE (wf_r%pw, wf_g%pw)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_r)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, wf_g)
       CALL dbcsr_release(matrix_p_qs)
-      DEALLOCATE (matrix_p_qs)
 
       CALL timestop(handle)
 
