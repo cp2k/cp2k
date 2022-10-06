@@ -1342,7 +1342,7 @@ CONTAINS
                      CPABORT("Unknown constraint type.")
                   END SELECT
                   v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d &
-                                                + sign*cdft_control%group(igroup)%weight%pw%cr3d* &
+                                                + sign*cdft_control%group(igroup)%weight%cr3d* &
                                                 cdft_control%strength(igroup)
                END DO
             END IF

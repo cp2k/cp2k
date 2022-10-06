@@ -27,7 +27,8 @@ MODULE qs_cdft_types
                                               dp
    USE outer_scf_control_types,         ONLY: outer_scf_control_type,&
                                               qs_outer_scf_type
-   USE pw_types,                        ONLY: pw_p_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
    USE qs_cdft_opt_types,               ONLY: cdft_opt_type_release
 #include "./base/base_uses.f90"
 
@@ -209,12 +210,12 @@ MODULE qs_cdft_types
       REAL(KIND=dp), POINTER, &
          DIMENSION(:, :, :, :)             :: gradients_z
       ! The weight function of this constraint group
-      TYPE(pw_p_type)                      :: weight
+      TYPE(pw_type), POINTER                      :: weight
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic_dr
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: hw_rho_atomic_charge
-      TYPE(pw_p_type)             :: hw_rho_total_constraint
-      TYPE(pw_p_type)          :: hw_rho_total
+      TYPE(pw_type)             :: hw_rho_total_constraint
+      TYPE(pw_type)          :: hw_rho_total
    END TYPE cdft_group_type
 
    TYPE cdft_control_type

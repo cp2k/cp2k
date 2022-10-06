@@ -83,8 +83,8 @@ CONTAINS
             IF (cdft_control%need_pot) THEN
                ! First SCF iteraration => allocate storage
                DO igroup = 1, SIZE(cdft_control%group)
-                  ALLOCATE (cdft_control%group(igroup)%weight%pw)
-                  CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%weight%pw, &
+                  ALLOCATE (cdft_control%group(igroup)%weight)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%group(igroup)%weight, &
                                          use_data=REALDATA3D, in_space=REALSPACE)
                   ! Sanity check
                   IF (cdft_control%group(igroup)%constraint_type /= cdft_charge_constraint &
@@ -108,8 +108,8 @@ CONTAINS
                                 "The number of constraint atoms exceeds the total number of atoms.")
             ELSE
                DO igroup = 1, SIZE(cdft_control%group)
-                  inv_vol = 1.0_dp/cdft_control%group(igroup)%weight%pw%pw_grid%dvol
-                  CALL pw_scale(cdft_control%group(igroup)%weight%pw, inv_vol)
+                  inv_vol = 1.0_dp/cdft_control%group(igroup)%weight%pw_grid%dvol
+                  CALL pw_scale(cdft_control%group(igroup)%weight, inv_vol)
                END DO
             END IF
             ! Build/Integrate CDFT constraints with selected population analysis method
@@ -119,7 +119,7 @@ CONTAINS
                CALL hirshfeld_constraint(qs_env, calc_pot=cdft_control%need_pot, calculate_forces=calculate_forces)
             END IF
             DO igroup = 1, SIZE(cdft_control%group)
-               CALL pw_scale(cdft_control%group(igroup)%weight%pw, cdft_control%group(igroup)%weight%pw%pw_grid%dvol)
+               CALL pw_scale(cdft_control%group(igroup)%weight, cdft_control%group(igroup)%weight%pw_grid%dvol)
             END DO
             IF (cdft_control%need_pot) cdft_control%need_pot = .FALSE.
          CASE DEFAULT

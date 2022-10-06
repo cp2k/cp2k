@@ -1099,7 +1099,7 @@ CONTAINS
             CALL dbcsr_copy(cdft_control%wmat(ivar)%matrix, matrix_s(1)%matrix, &
                             name="ET_RESTRAINT_MATRIX")
             CALL dbcsr_set(cdft_control%wmat(ivar)%matrix, 0.0_dp)
-            CALL integrate_v_rspace(cdft_control%group(ivar)%weight%pw, &
+            CALL integrate_v_rspace(cdft_control%group(ivar)%weight, &
                                     hmat=cdft_control%wmat(ivar), qs_env=qs_env, &
                                     calculate_forces=.FALSE., &
                                     gapw=dft_control%qs_control%gapw)
@@ -1156,8 +1156,8 @@ CONTAINS
          CALL get_qs_env(qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          DO iatom = 1, SIZE(cdft_control%group)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight%pw)
-            DEALLOCATE (cdft_control%group(iatom)%weight%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight)
+            DEALLOCATE (cdft_control%group(iatom)%weight)
          END DO
          IF (cdft_control%atomic_charges) THEN
             DO iatom = 1, cdft_control%natoms

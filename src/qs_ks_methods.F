@@ -731,8 +731,8 @@ CONTAINS
       IF (calculate_forces .AND. dft_control%qs_control%cdft) THEN
          IF (.NOT. cdft_control%transfer_pot) THEN
             DO iatom = 1, SIZE(cdft_control%group)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight%pw)
-               DEALLOCATE (cdft_control%group(iatom)%weight%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(iatom)%weight)
+               DEALLOCATE (cdft_control%group(iatom)%weight)
             END DO
             IF (cdft_control%atomic_charges) THEN
                DO iatom = 1, cdft_control%natoms
