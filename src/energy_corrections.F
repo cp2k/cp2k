@@ -2930,7 +2930,6 @@ CONTAINS
                DO ispin = 1, nspins
                   DO idir = 1, 3
                      CALL dbcsr_dot(ec_env%matrix_z(ispin)%matrix, moments(idir)%matrix, tmp)
-                     IF (logger%para_env%mepos == 1) WRITE (*, *) "ec_properties rdip(idir)", idir, tmp
                      rdip(idir) = rdip(idir) + tmp
                   END DO
                END DO

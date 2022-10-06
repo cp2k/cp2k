@@ -3,7 +3,7 @@
 # see regtest/TEST_FILES
 # Density-corrected DFT Force tests
 # LDA - LDA
-N2_t01.inp                                            11      1e-12                -19.811978822953012
+N2_t01.inp                                            11      1e-11                -19.811978822953012
 # LDA - PBE
 N2_t02.inp                                            11      1e-11                -19.918999952069047
 # PBE - LDA
