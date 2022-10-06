@@ -52,7 +52,8 @@ MODULE hirshfeld_methods
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_p_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -293,7 +294,7 @@ CONTAINS
       ! normalization function on grid
       CALL calculate_hirshfeld_normalization(qs_env, hirshfeld_env)
       ! check normalization
-      tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw)
+      tnfun = pw_integrate_function(hirshfeld_env%fnorm)
       tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
       !
       ALLOCATE (rhonorm)
@@ -307,7 +308,7 @@ CONTAINS
       DO is = 1, SIZE(rho_r)
          IF (rho_r_valid) THEN
             CALL hfun_scale(rhonorm%pw%cr3d, rho_r(is)%pw%cr3d, &
-                            hirshfeld_env%fnorm%pw%cr3d)
+                            hirshfeld_env%fnorm%cr3d)
          ELSE
             CPABORT("We need rho in real space")
          END IF
@@ -403,13 +404,13 @@ CONTAINS
          ! normalization function on grid
          CALL calculate_hirshfeld_normalization(qs_env, hirshfeld_env)
          ! check normalization
-         tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw)
+         tnfun = pw_integrate_function(hirshfeld_env%fnorm)
          tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
          ! loop over spins
          DO is = 1, SIZE(rho_r)
             IF (rho_r_valid) THEN
                CALL hfun_scale(rhonorm%pw%cr3d, rho_r(is)%pw%cr3d, &
-                               hirshfeld_env%fnorm%pw%cr3d)
+                               hirshfeld_env%fnorm%cr3d)
             ELSE
                CPABORT("We need rho in real space")
             END IF
@@ -466,8 +467,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), POINTER                           :: fnorm
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: fnorm
       TYPE(realspace_grid_desc_type), POINTER            :: auxbas_rs_desc
       TYPE(realspace_grid_type), POINTER                 :: rs_rho
 
@@ -537,17 +538,15 @@ CONTAINS
       NULLIFY (fnorm)
       CALL get_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
       IF (ASSOCIATED(fnorm)) THEN
-         CALL pw_release(fnorm%pw)
-         DEALLOCATE (fnorm%pw)
+         CALL pw_release(fnorm)
          DEALLOCATE (fnorm)
       END IF
       ALLOCATE (fnorm)
-      ALLOCATE (fnorm%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, fnorm%pw, use_data=REALDATA3D)
-      fnorm%pw%in_space = REALSPACE
+      CALL pw_pool_create_pw(auxbas_pw_pool, fnorm, use_data=REALDATA3D)
+      fnorm%in_space = REALSPACE
       CALL set_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
 
-      CALL rs_pw_transfer(rs_rho, fnorm%pw, rs2pw)
+      CALL rs_pw_transfer(rs_rho, fnorm, rs2pw)
       CALL rs_grid_release(rs_rho)
 
       CALL timestop(handle)

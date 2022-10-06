@@ -1176,8 +1176,7 @@ CONTAINS
             END IF
          ELSE IF (cdft_control%type == outer_scf_hirshfeld_constraint) THEN
             IF (ASSOCIATED(cdft_control%hirshfeld_control%hirshfeld_env%fnorm)) THEN
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
-               DEALLOCATE (cdft_control%hirshfeld_control%hirshfeld_env%fnorm%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%hirshfeld_control%hirshfeld_env%fnorm)
             END IF
          END IF
          IF (ASSOCIATED(cdft_control%charges_fragment)) DEALLOCATE (cdft_control%charges_fragment)
