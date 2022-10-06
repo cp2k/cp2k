@@ -726,8 +726,6 @@ CONTAINS
                CALL pw_release(ks_env%v_hartree_rspace)
                DEALLOCATE (ks_env%v_hartree_rspace)
             END IF
-            IF (ASSOCIATED(ks_env%matrix_ks_im)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
             CALL kpoint_transitional_release(ks_env%matrix_ks)
             CALL kpoint_transitional_release(ks_env%matrix_ks_im)

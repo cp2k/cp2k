@@ -46,7 +46,6 @@ MODULE rt_delta_pulse
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-   USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
@@ -57,12 +56,11 @@ MODULE rt_delta_pulse
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: twopi
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE mathconstants,                   ONLY: one,&
                                               twopi,&
                                               zero
    USE moments_utils,                   ONLY: get_reference_point
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -115,7 +113,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues, ref_point
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: eigenvectors, mat_ks, mat_tmp, momentum, &
+      TYPE(cp_fm_type)                                   :: eigenvectors, mat_ks, mat_tmp, momentum, &
                                                             S_chol, virtuals
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_r, matrix_rv, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -206,7 +204,6 @@ CONTAINS
       fm_struct => rtp%ao_ao_fmstruct
 
       ! create matrices and get Cholesky decomposition of S
-      NULLIFY (mat_ks, eigenvectors, S_chol)
       CALL cp_fm_create(mat_ks, matrix_struct=fm_struct, name="mat_ks")
       CALL cp_fm_create(eigenvectors, matrix_struct=fm_struct, name="eigenvectors")
       CALL cp_fm_create(S_chol, matrix_struct=fm_struct, name="S_chol")
@@ -321,7 +318,7 @@ CONTAINS
       INTEGER                                            :: handle, i, nao, nmo
       REAL(KIND=dp), DIMENSION(3)                        :: kvec
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_type), POINTER                          :: S_inv_fm, tmp
+      TYPE(cp_fm_type)                                   :: S_inv_fm, tmp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -355,7 +352,6 @@ CONTAINS
       CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
 
       ! need inverse of overlap matrix
-      NULLIFY (S_inv_fm, tmp)
       CALL cp_fm_create(S_inv_fm, matrix_struct=rtp%ao_ao_fmstruct, name="S_inv_fm")
       CALL cp_fm_create(tmp, matrix_struct=rtp%ao_ao_fmstruct, name="tmp_mat")
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_inv_fm)
@@ -404,7 +400,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues, ref_point
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: eigenvectors, mat_ks, perturbation, &
+      TYPE(cp_fm_type)                                   :: eigenvectors, mat_ks, perturbation, &
                                                             S_chol, virtuals
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_mag, matrix_nl, &
                                                             matrix_s
@@ -441,7 +437,6 @@ CONTAINS
       CALL get_reference_point(rcc, qs_env=qs_env, reference=gauge_orig, ref_point=ref_point)
 
       ! Create fm matrices
-      NULLIFY (S_chol, eigenvectors, mat_ks)
       CALL cp_fm_create(S_chol, matrix_struct=rtp%ao_ao_fmstruct, name='Cholesky S')
       CALL cp_fm_create(eigenvectors, matrix_struct=rtp%ao_ao_fmstruct, name="gs evecs fm")
       CALL cp_fm_create(mat_ks, matrix_struct=rtp%ao_ao_fmstruct, name='KS matrix')
@@ -537,13 +532,13 @@ CONTAINS
             END IF
          END DO
 
-         CALL cp_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1)%matrix, 0.0_dp, perturbation)
+         CALL parallel_gemm('T', 'N', nvirt, nmo, nao, 1.0_dp, virtuals, mos_new(2*ispin - 1)%matrix, 0.0_dp, perturbation)
 
          DEALLOCATE (eigenvalues)
 
          ! now obtain the initial condition in mos_old
          CALL cp_fm_to_fm(eigenvectors, mos_old(2*ispin - 1)%matrix, nmo, 1, 1)
-         CALL cp_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, perturbation, 0.0_dp, mos_old(2*ispin)%matrix)
+         CALL parallel_gemm("N", "N", nao, nmo, nvirt, 1.0_dp, virtuals, perturbation, 0.0_dp, mos_old(2*ispin)%matrix)
 
          CALL cp_fm_release(virtuals)
          CALL cp_fm_release(perturbation)
@@ -576,10 +571,10 @@ CONTAINS
       INTEGER                                            :: im, ispin, j, nao, nmo, nspins, re
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type), POINTER                         :: oo_c, oo_v, oo_vt
+      TYPE(cp_cfm_type)                                  :: oo_c, oo_v, oo_vt
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: coeffs_tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: oo_1, oo_2, S_fm, tmp
+      TYPE(cp_fm_type)                                   :: oo_1, oo_2, S_fm, tmp
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -614,13 +609,13 @@ CONTAINS
          CALL cp_fm_create(tmp, matrix_struct=coeffs(2*ispin - 1)%matrix%matrix_struct, name="tmp_mat")
          ! get the complex overlap matrix in MO basis
          ! x^T S x + y^T S y + i (-y^TS x+x^T S y)
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, mat_S, mos_old(2*i - 1)%matrix, 0.0_dp, tmp)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*i - 1)%matrix, tmp, 0.0_dp, oo_1)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, -1.0_dp, mos_old(2*i)%matrix, tmp, 0.0_dp, oo_2)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_fm, coeffs(2*ispin - 1)%matrix, 0.0_dp, tmp)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin - 1)%matrix, tmp, 0.0_dp, oo_1)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, -1.0_dp, coeffs(2*ispin)%matrix, tmp, 0.0_dp, oo_2)
 
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, mat_S, mos_old(2*i)%matrix, 0.0_dp, tmp)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*i)%matrix, tmp, 1.0_dp, oo_1)
-         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, mos_old(2*i - 1)%matrix, tmp, 1.0_dp, oo_2)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, S_fm, coeffs(2*ispin)%matrix, 0.0_dp, tmp)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin)%matrix, tmp, 1.0_dp, oo_1)
+         CALL parallel_gemm("T", "N", nmo, nmo, nao, 1.0_dp, coeffs(2*ispin - 1)%matrix, tmp, 1.0_dp, oo_2)
          CALL cp_fm_release(tmp)
 
          ! complex Löwdin
@@ -649,6 +644,8 @@ CONTAINS
          NULLIFY (coeffs_tmp)
          ALLOCATE (coeffs_tmp(2))
          DO j = 1, 2
+            NULLIFY (coeffs_tmp(j)%matrix)
+            ALLOCATE (coeffs_tmp(j)%matrix)
             CALL cp_fm_create(coeffs_tmp(j)%matrix, matrix_struct=coeffs(2*(ispin - 1) + j)%matrix%matrix_struct)
          END DO
 
