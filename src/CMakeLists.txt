@@ -1374,15 +1374,15 @@ target_link_libraries(
   $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
   $<$<BOOL:${CP2K_USE_LIBINT2}>:CP2K_Libint2::int2>
   DBCSR::dbcsr
+$ $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
   $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
-  $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_pxgemm>
-  $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
+  $<$<BOOL:${CP2K_USE_COSMA}>:costa::costa>
   $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cufft>
   $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cufftw>
   $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cublas>
   $<$<BOOL:${CP2K_USE_CUDA}>:CUDA::cudart>
   $<$<BOOL:${CP2K_USE_HIP}>:hip::hipfft>
-  $<$<BOOL:${CP2K_USE_HIP}>:roc::hipblas>
+  $<$<BOOL:${CP2K_USE_HIP}>:rocm::hipblas>
   $<$<BOOL:${CP2K_USE_HIP}>:hip::device>
   CP2K_SCALAPACK::scalapack
   $<$<BOOL:${CP2K_USE_LIBXSMM}>:CP2K_LibXSMM::libxsmmf>
