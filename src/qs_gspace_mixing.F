@@ -86,7 +86,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), POINTER                             :: rho_tmp
+      TYPE(pw_type)                                      :: rho_tmp
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CALL timeset(routineN, handle)
@@ -109,7 +109,6 @@ CONTAINS
 
          IF (nspin == 2) THEN
             CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            ALLOCATE (rho_tmp)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
                                    rho_tmp, &
                                    use_data=COMPLEXDATA1D, &
@@ -148,7 +147,6 @@ CONTAINS
                CALL pw_axpy(rho_g(1)%pw, rho_g(2)%pw, -1.0_dp)
                CALL pw_scale(rho_g(2)%pw, -1.0_dp)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tmp)
-               DEALLOCATE (rho_tmp)
             END IF
             CALL timestop(handle)
             RETURN
@@ -182,7 +180,6 @@ CONTAINS
             CALL pw_axpy(rho_g(1)%pw, rho_g(2)%pw, -1.0_dp)
             CALL pw_scale(rho_g(2)%pw, -1.0_dp)
             CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tmp)
-            DEALLOCATE (rho_tmp)
          END IF
 
          DO ispin = 1, nspin
