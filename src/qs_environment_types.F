@@ -502,8 +502,8 @@ CONTAINS
                          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
                          sab_xb, sab_xtb_nonbond, sab_almo, sab_kp, particle_set, energy, force, &
                          matrix_h, matrix_h_im, matrix_ks, matrix_ks_im, matrix_vxc, run_rtp, rtp, &
-                         matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, & 
-                         matrix_s_RI_aux_kp, matrix_s, matrix_s_RI_aux, matrix_w, &
+                         matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, &
+                         matrix_w_kp, matrix_s_RI_aux_kp, matrix_s, matrix_s_RI_aux, matrix_w, &
                          matrix_p_mp2, matrix_p_mp2_admm, rho, &
                          rho_buffer, rho_xc, pw_env, ewald_env, ewald_pw, active_space, &
                          mpools, input, para_env, blacs_env, scf_control, rel_control, kinetic, qs_charges, &
