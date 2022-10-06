@@ -19,7 +19,7 @@ MODULE pair_potential_util
    USE mathconstants,                   ONLY: ifac
    USE pair_potential_types,            ONLY: &
         b4_type, bm_type, ea_type, ft_type, ftd_type, gp_type, gw_type, ip_type, lj_charmm_type, &
-        lj_type, not_initialized, pair_potential_single_type, wl_type
+        lj_type, not_initialized, pair_potential_single_type, tab_type, wl_type
    USE physcon,                         ONLY: bohr,&
                                               evolt
 #include "./base/base_uses.f90"
@@ -48,7 +48,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: r, energy_cutoff
       REAL(KIND=dp)                                      :: value
 
-      INTEGER                                            :: i, index, j, n
+      INTEGER                                            :: i, index, index1, index2, j, n
       REAL(KIND=dp)                                      :: bd6, bd8, dampsum, f6, f8, lvalue, pp, &
                                                             qq, scale, xf
 
@@ -132,6 +132,20 @@ CONTAINS
             ELSEIF (r > pot%set(j)%buck4r%r3) THEN
                pp = -pot%set(j)%buck4r%c/r**6
             END IF
+            lvalue = pp
+         ELSE IF (pot%type(j) == tab_type) THEN
+            index1 = FLOOR((r - pot%set(j)%tab%r(1))/pot%set(j)%tab%dr) + 1
+            index2 = index1 + 1
+            IF (index2 > pot%set(j)%tab%npoints) THEN
+               index2 = pot%set(j)%tab%npoints
+               index1 = index2 - 1
+            ELSEIF (index1 < 1) THEN
+               index1 = 1
+               index2 = 2
+            END IF
+            pp = pot%set(j)%tab%e(index1) + (r - pot%set(j)%tab%r(index1))* &
+                 (pot%set(j)%tab%e(index2) - pot%set(j)%tab%e(index1))/ &
+                 (pot%set(j)%tab%r(index2) - pot%set(j)%tab%r(index1))
             lvalue = pp
          ELSE IF (pot%type(j) == bm_type) THEN
             lvalue = pot%set(j)%buckmo%f0*(pot%set(j)%buckmo%b1 + pot%set(j)%buckmo%b2)* &

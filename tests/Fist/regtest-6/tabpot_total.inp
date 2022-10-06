@@ -1,0 +1,78 @@
+&GLOBAL
+  PROJECT acetone
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &NEIGHBOR_LISTS
+      VERLET_SKIN [angstrom] 2.0
+    &END NEIGHBOR_LISTS
+    &FORCEFIELD
+
+      &BOND
+        ATOMS CGO RES
+        KIND AMBER
+        K [angstrom^-2kcalmol] 0.0
+        R0 [angstrom] 1.800
+      &END BOND
+    
+      &NONBONDED
+        &TABPOT
+          ATOMS CGO CGO
+          PARM_FILE_NAME Pair_CGO-CGO.table
+        &END TABPOT
+        &TABPOT
+          ATOMS RES RES
+          PARM_FILE_NAME Pair_RES-RES.table
+        &END TABPOT
+        &TABPOT
+          ATOMS CGO RES
+          PARM_FILE_NAME Pair_CGO-RES.table
+        &END TABPOT
+      &END NONBONDED
+    
+      &SPLINE
+        EMAX_SPLINE 1E9
+        EPS_SPLINE 1E-6
+        R0_NB 1.0
+        RCUT_NB  20.0
+      &END SPLINE
+    &END FORCEFIELD
+
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+
+  &END MM
+ 
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 41.5 41.5 41.5
+      PERIODIC XYZ
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_FORMAT XYZ
+      COORD_FILE_NAME ../sample_xyz/acetone_cg.xyz
+      MOL_CHECK TRUE
+      CONN_FILE_FORMAT PSF
+      CONN_FILE_NAME ../sample_psf/acetone_cg.psf
+    &END TOPOLOGY
+
+    &KIND CGO
+        ELEMENT O
+    &END KIND
+    &KIND RES
+        ELEMENT H
+        MASS 42.08
+    &END KIND
+
+  &END SUBSYS
+&END FORCE_EVAL
+
+
+

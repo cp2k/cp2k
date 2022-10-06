@@ -60,7 +60,7 @@ MODULE input_cp2k_mm
    PUBLIC :: create_mm_section, create_dipoles_section
    PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, &
              create_Goodwin_section, &
-             create_GENPOT_section, create_neighbor_lists_section
+             create_GENPOT_section, create_TABPOT_section, create_neighbor_lists_section
    PUBLIC :: create_CHARGE_section
 !***
 CONTAINS
@@ -1211,6 +1211,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_Gal21_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_TABPOT_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -2673,6 +2677,47 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_Gal21_section
+
+! **************************************************************************************************
+!> \brief This section specifies the input parameters for TABPOT  potential type
+!> \param section the section to create
+!> \author teo, Alex Mironenko, Da Teng
+! **************************************************************************************************
+   SUBROUTINE create_TABPOT_section(section)
+
+      TYPE(section_type), POINTER                        :: section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_TABPOT_section', &
+         routineP = moduleN//':'//routineN
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, name="TABPOT", &
+                          description="This section specifies the input parameters for TABPOT potential type.", &
+                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
+                          description="Defines the atomic kind involved", &
+                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
+                          n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
+                          variants=(/"PARMFILE"/), &
+                          description="Specifies the filename that contains the tabulated NONBONDED potential. "// &
+                          "File structure: the third line of the potential file contains a title. "// &
+                          "The 4th line contains: 'N', number of data points, 'R', lower bound of distance, distance cutoff. "// &
+                          "Follow "// &
+                          "in order npoints lines for index, distance [A], energy [kcal/mol], and force [kcal/mol/A]", &
+                          usage="PARM_FILE_NAME {FILENAME}", default_lc_val="")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_TABPOT_section
 
 ! **************************************************************************************************
 !> \brief This section specifies the input parameters for the subsection GCN of GAL19 and GAL21

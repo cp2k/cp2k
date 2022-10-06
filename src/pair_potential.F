@@ -32,7 +32,7 @@ MODULE pair_potential
         b4_type, bm_type, compare_pot, ea_type, ft_type, ftd_type, gal21_type, gal_type, gp_type, &
         gw_type, ip_type, list_pot, lj_charmm_type, lj_type, multi_type, nn_type, &
         pair_potential_pp_type, pair_potential_single_type, potential_single_allocation, &
-        quip_type, siepmann_type, tersoff_type, wl_type
+        quip_type, siepmann_type, tersoff_type, tab_type, wl_type
    USE pair_potential_util,             ONLY: ener_pot,&
                                               ener_zbl,&
                                               zbl_matching_polinomial
@@ -186,7 +186,7 @@ CONTAINS
             DO k = 1, SIZE(pot%type)
                SELECT CASE (pot%type(k))
                CASE (lj_type, lj_charmm_type, wl_type, gw_type, ft_type, ftd_type, ip_type, &
-                     b4_type, bm_type, gp_type, ea_type, quip_type)
+                     b4_type, bm_type, gp_type, ea_type, quip_type, tab_type)
                   pot%no_pp = .FALSE.
                CASE (tersoff_type)
                   pot%no_mb = .FALSE.
@@ -628,6 +628,8 @@ CONTAINS
             nvar = 30 + nvar
          CASE (nn_type)
             nvar = nvar
+         CASE (tab_type)
+            nvar = 4 + nvar
          CASE DEFAULT
             CPABORT("")
          END SELECT
@@ -781,6 +783,11 @@ CONTAINS
                         pot_par(nk, 28) = potparm%pot(i, j)%pot%set(1)%gal21%AH2
                         pot_par(nk, 29) = potparm%pot(i, j)%pot%set(1)%gal21%BH1
                         pot_par(nk, 30) = potparm%pot(i, j)%pot%set(1)%gal21%BH2
+                     CASE (tab_type)
+                        pot_par(nk, 1) = potparm%pot(i, j)%pot%set(1)%tab%dr
+                        pot_par(nk, 2) = potparm%pot(i, j)%pot%set(1)%tab%rcut
+                        pot_par(nk, 3) = potparm%pot(i, j)%pot%set(1)%tab%npoints
+                        pot_par(nk, 4) = potparm%pot(i, j)%pot%set(1)%tab%index
                      CASE (nn_type)
                         ! no checks
                      CASE DEFAULT
