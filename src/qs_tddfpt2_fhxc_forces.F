@@ -90,7 +90,8 @@ MODULE qs_tddfpt2_fhxc_forces
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -175,14 +176,13 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rhox_tot_gspace, xv_hartree_gspace, &
-                                                            xv_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
                                                             rho_g_aux, rho_r_aux, rhox_g, &
                                                             rhox_g_aux, rhox_r, rhox_r_aux, &
                                                             tau_r_aux
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), POINTER                             :: xv_hartree_gspace, xv_hartree_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rhox, rhox_aux
@@ -279,51 +279,56 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, rhox_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
       END DO
-      ALLOCATE (rhox_tot_gspace%pw)
-      CALL pw_pool_create_pw(auxbas_pw_pool, rhox_tot_gspace%pw, &
-                             use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
 
-      CALL pw_zero(rhox_tot_gspace%pw)
-      DO ispin = 1, nspins
-         IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
-         CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
-                                 rho=rhox_r(ispin)%pw, rho_gspace=rhox_g(ispin)%pw)
-         CALL pw_axpy(rhox_g(ispin)%pw, rhox_tot_gspace%pw)
-         IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
-      END DO
-
-      CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force, para_env=para_env)
-
-      IF (.NOT. is_rks_triplets) THEN
-         ALLOCATE (xv_hartree_rspace%pw, xv_hartree_gspace%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_rspace%pw, &
-                                use_data=REALDATA3D, in_space=REALSPACE)
-         CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_gspace%pw, &
+      BLOCK
+         TYPE(pw_type) :: rhox_tot_gspace
+         CALL pw_pool_create_pw(auxbas_pw_pool, rhox_tot_gspace, &
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-         ! calculate associated hartree potential
-         CALL pw_poisson_solve(poisson_env, rhox_tot_gspace%pw, xehartree, &
-                               xv_hartree_gspace%pw)
-         CALL pw_transfer(xv_hartree_gspace%pw, xv_hartree_rspace%pw)
-         CALL pw_scale(xv_hartree_rspace%pw, xv_hartree_rspace%pw%pw_grid%dvol)
-         !
-         IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
-         NULLIFY (matrix_hx)
-         CALL dbcsr_allocate_matrix_set(matrix_hx, nspins)
+         CALL pw_zero(rhox_tot_gspace)
          DO ispin = 1, nspins
-            ALLOCATE (matrix_hx(ispin)%matrix)
-            CALL dbcsr_create(matrix_hx(ispin)%matrix, template=matrix_s(1)%matrix)
-            CALL dbcsr_copy(matrix_hx(ispin)%matrix, matrix_s(1)%matrix)
-            CALL dbcsr_set(matrix_hx(ispin)%matrix, 0.0_dp)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace%pw, &
-                                    pmat=matrix_px1(ispin), &
-                                    hmat=matrix_hx(ispin), calculate_forces=.TRUE.)
+            IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
+            CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
+                                    rho=rhox_r(ispin)%pw, rho_gspace=rhox_g(ispin)%pw)
+            CALL pw_axpy(rhox_g(ispin)%pw, rhox_tot_gspace)
+            IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
          END DO
-         IF (debug_forces) THEN
-            fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
-            CALL mp_sum(fodeb, para_env%group)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]   ", fodeb
+
+         CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force, para_env=para_env)
+
+         IF (.NOT. is_rks_triplets) THEN
+            NULLIFY (xv_hartree_rspace, xv_hartree_gspace)
+            ALLOCATE (xv_hartree_rspace, xv_hartree_gspace)
+            CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_rspace, &
+                                   use_data=REALDATA3D, in_space=REALSPACE)
+            CALL pw_pool_create_pw(auxbas_pw_pool, xv_hartree_gspace, &
+                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            ! calculate associated hartree potential
+            CALL pw_poisson_solve(poisson_env, rhox_tot_gspace, xehartree, &
+                                  xv_hartree_gspace)
+            CALL pw_transfer(xv_hartree_gspace, xv_hartree_rspace)
+            CALL pw_scale(xv_hartree_rspace, xv_hartree_rspace%pw_grid%dvol)
+            !
+            IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
+            NULLIFY (matrix_hx)
+            CALL dbcsr_allocate_matrix_set(matrix_hx, nspins)
+            DO ispin = 1, nspins
+               ALLOCATE (matrix_hx(ispin)%matrix)
+               CALL dbcsr_create(matrix_hx(ispin)%matrix, template=matrix_s(1)%matrix)
+               CALL dbcsr_copy(matrix_hx(ispin)%matrix, matrix_s(1)%matrix)
+               CALL dbcsr_set(matrix_hx(ispin)%matrix, 0.0_dp)
+               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace, &
+                                       pmat=matrix_px1(ispin), &
+                                       hmat=matrix_hx(ispin), calculate_forces=.TRUE.)
+            END DO
+            IF (debug_forces) THEN
+               fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
+               CALL mp_sum(fodeb, para_env%group)
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]   ", fodeb
+            END IF
          END IF
-      END IF
+
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace)
+      END BLOCK
 
       ! XC
       NULLIFY (fxc_rho, fxc_tau, gxc_rho, gxc_tau)
@@ -578,8 +583,6 @@ CONTAINS
 
       END IF
 
-      CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_tot_gspace%pw)
-      DEALLOCATE (rhox_tot_gspace%pw)
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rhox_g(ispin)%pw)
@@ -587,9 +590,9 @@ CONTAINS
       END DO
       DEALLOCATE (rhox_r, rhox_g)
       IF (.NOT. is_rks_triplets) THEN
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_rspace%pw)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_gspace%pw)
-         DEALLOCATE (xv_hartree_rspace%pw, xv_hartree_gspace%pw)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_rspace)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, xv_hartree_gspace)
+         DEALLOCATE (xv_hartree_rspace, xv_hartree_gspace)
       END IF
 
       ! HFX
