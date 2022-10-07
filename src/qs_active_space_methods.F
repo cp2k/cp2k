@@ -214,10 +214,9 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mos_localized
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type)                                   :: mo_virt, fm_dummy
-      TYPE(cp_fm_type), POINTER                          :: fm_ref, fm_target, &
-                                                            fm_target_active, fm_target_inactive, &
-                                                            fmat, mo_coeff
+      TYPE(cp_fm_type)                                   :: fm_dummy, mo_virt
+      TYPE(cp_fm_type), POINTER                          :: fm_ref, fm_target, fm_target_active, &
+                                                            fm_target_inactive, fmat, mo_coeff
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_csr_type), POINTER                      :: eri_mat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao, s_matrix
