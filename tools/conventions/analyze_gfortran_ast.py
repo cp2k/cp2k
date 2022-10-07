@@ -19,6 +19,7 @@ re_conv = re.compile(
 )  # ignores integers
 
 
+# ======================================================================================
 def process_log_file(fhandle):
     public_symbols = set()
     used_symbols = set()
@@ -28,7 +29,7 @@ def process_log_file(fhandle):
 
     module_name = None
 
-    curr_symbol = curr_procedure = stat_var = stat_stm = None
+    cur_sym = cur_proc = stat_var = stat_stm = None
     skip_until_DT_END = False
 
     for line in fhandle:
@@ -49,111 +50,72 @@ def process_log_file(fhandle):
             elif stat_stm == "ALLOCATE" and tokens[0] == "ASSIGN":
                 pass  # skip lines, it's part of the ALLOCATE statement
             else:
-                lprint(
-                    'Found %s with unchecked STAT in "%s"' % (stat_stm, curr_procedure)
-                )
+                lprint(f'Found {stat_stm} with unchecked STAT in "{cur_proc}"')
                 stat_var = stat_stm = None  # reset
 
         elif line.startswith("procedure name ="):
-            curr_procedure = line.split("=")[1].strip()
+            cur_proc = line.split("=")[1].strip()
             if not module_name:
-                module_name = curr_procedure
+                module_name = cur_proc
 
         elif line.startswith("symtree: ") or len(line) == 0:
-            curr_symbol = None
+            cur_sym = None
             if len(line) == 0:
                 continue
-            curr_symbol = re_symbol.match(line).group(1)
+            cur_sym = re_symbol.match(line).group(1)
 
         elif line.startswith("attributes:"):
-            if "USE-ASSOC" in line:
+            is_imported = "USE-ASSOC" in line
+            is_param = "PARAMETER" in line
+            is_func = "FUNCTION" in line
+            is_impl_save = "IMPLICIT-SAVE" in line
+            is_impl_type = "IMPLICIT-TYPE" in line
+            is_module_name = cur_proc == module_name
+
+            if is_imported:
                 mod = re_use.search(line).group(1)
-                used_symbols.add(mod + "::" + curr_symbol)
+                used_symbols.add(mod + "::" + cur_sym)
                 if "MODULE  USE-ASSOC" in line and mod.lower() not in USE_EXCEPTIONS:
-                    lprint(
-                        'Module "{}" USEd without ONLY clause or not PRIVATE'.format(
-                            mod
-                        )
-                    )
+                    lprint(f'Module "{mod}" USEd without ONLY clause or not PRIVATE')
+
             # if(("SAVE" in line) and ("PARAMETER" not in line) and ("PUBLIC" in line)):
-            #    print(loc+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is PUBLIC-SAVE')
-            if (
-                ("IMPLICIT-SAVE" in line)
-                and ("PARAMETER" not in line)
-                and ("USE-ASSOC" not in line)
-                and (curr_procedure != module_name)
-            ):
-                lprint(
-                    'Symbol "'
-                    + curr_symbol
-                    + '" in procedure "'
-                    + curr_procedure
-                    + '" is IMPLICIT-SAVE'
-                )
-            if (
-                ("IMPLICIT-TYPE" in line)
-                and ("USE-ASSOC" not in line)
-                and ("FUNCTION" not in line)
-            ):  # TODO sure about last clause?
-                lprint(
-                    'Symbol "'
-                    + curr_symbol
-                    + '" in procedure "'
-                    + curr_procedure
-                    + '" is IMPLICIT-TYPE'
-                )
+            #    print(loc+': Symbol "'+cur_sym+'" in procedure "'+cur_proc+'" is PUBLIC-SAVE')
+
+            if is_impl_save and not is_param and not is_imported and not is_module_name:
+                lprint(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is IMPLICIT-SAVE')
+
+            if is_impl_type and not is_imported and not is_func:
+                lprint(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is IMPLICIT-TYPE')
+
             if "THREADPRIVATE" in line:
-                lprint(
-                    'Symbol "'
-                    + curr_symbol
-                    + '" in procedure "'
-                    + curr_procedure
-                    + '" is THREADPRIVATE'
-                )
+                lprint(f'Symbol "{cur_sym}" in procedure "{cur_proc}" is THREADPRIVATE')
+
             if "PUBLIC" in line:
-                public_symbols.add(module_name + "::" + curr_symbol)
+                public_symbols.add(module_name + "::" + cur_sym)
 
         elif line.startswith("!$OMP PARALLEL"):
             if "DEFAULT(NONE)" not in line:
-                lprint(
-                    'OMP PARALLEL without DEFAULT(NONE) found in "'
-                    + curr_procedure
-                    + '"'
-                )
+                lprint(f'OMP PARALLEL without DEFAULT(NONE) found in "{cur_proc}"')
 
         elif line.startswith("CALL"):
             if tokens[1].lower() in BANNED_CALL:
-                lprint(
-                    "Found CALL " + tokens[1] + ' in procedure "' + curr_procedure + '"'
-                )
+                lprint(f'Found CALL {tokens[1]} in procedure "{cur_proc}"')
             elif tokens[1].lower().startswith("_gfortran_arandom_"):
-                lprint('Found CALL RANDOM_NUMBER in procedure "' + curr_procedure + '"')
+                lprint(f'Found CALL RANDOM_NUMBER in procedure "{cur_proc}"')
             elif tokens[1].lower().startswith("_gfortran_random_seed_"):
-                lprint('Found CALL RANDOM_SEED in procedure "' + curr_procedure + '"')
+                lprint(f'Found CALL RANDOM_SEED in procedure "{cur_proc}"')
 
         elif tokens and tokens[0] in BANNED_STM:
-            lprint(
-                "Found "
-                + tokens[0]
-                + ' statement in procedure "'
-                + curr_procedure
-                + '"'
-            )
+            lprint(f'Found {tokens[0]} statement in procedure "{cur_proc}"')
 
         elif line.startswith("WRITE"):
             unit = tokens[1].split("=")[1]
             if unit.isdigit():
-                lprint(
-                    'Found WRITE statement with hardcoded unit in "'
-                    + curr_procedure
-                    + '"'
-                )
+                lprint(f'Found WRITE statement with hardcoded unit in "{cur_proc}"')
 
         elif line.startswith("DEALLOCATE") and "STAT=" in line:
             if ":ignore __final_" not in line:  # skip over auto-generated destructors
-                lprint(
-                    'Found DEALLOCATE with STAT argument in "' + curr_procedure + '"'
-                )
+                lprint(f'Found DEALLOCATE with STAT argument in "{cur_proc}"')
 
         elif "STAT=" in line:  # catches also IOSTAT
             stat_var = line.split("STAT=", 1)[1].split()[0]
@@ -161,15 +123,14 @@ def process_log_file(fhandle):
             skip_until_DT_END = stat_stm in ("READ", "WRITE")
 
         elif "_gfortran_float" in line:
-            lprint('Found FLOAT in "' + curr_procedure + '"')
+            lprint(f'Found FLOAT in "{cur_proc}"')
 
         elif re_conv.search(line):
             for m in re_conv.finditer(line):
                 args = parse_args(line[m.end() :])
                 if not re.match(r"\((kind = )?[48]\)", args[-1]):
                     lprint(
-                        'Found lossy conversion %s without KIND argument in "%s"'
-                        % (m.group(1), curr_procedure)
+                        f'Found lossy conversion {m.group(1)} without KIND argument in "{cur_proc}"'
                     )
 
     # check for run-away DT_END search
@@ -178,6 +139,7 @@ def process_log_file(fhandle):
     return (public_symbols, used_symbols)
 
 
+# ======================================================================================
 def parse_args(line):
     assert line[0] == "("
     parentheses = 1
@@ -197,6 +159,7 @@ def parse_args(line):
     raise Exception("Could not find matching parentheses")
 
 
+# ======================================================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Checks the given ASTs for violations of the coding conventions",
@@ -222,3 +185,5 @@ in the cp2k arch-file.
 
         with open(fn, encoding="utf8") as fhandle:
             process_log_file(fhandle)
+
+# EOF
