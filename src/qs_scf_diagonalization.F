@@ -150,7 +150,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
       INTEGER                                            :: ispin, nspin
-      LOGICAL                                            :: do_level_shift, use_jacobi
+      LOGICAL                                            :: do_level_shift, owns_ortho, use_jacobi
       REAL(KIND=dp)                                      :: diis_error, eps_diis
       TYPE(cp_fm_type), POINTER                          :: ortho
       TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr
@@ -229,6 +229,12 @@ CONTAINS
             ortho => scf_env%ortho
          END IF
 
+         owns_ortho = .FALSE.
+         IF (.NOT. ASSOCIATED(ortho)) THEN
+            ALLOCATE (ortho)
+            owns_ortho = .TRUE.
+         END IF
+
          DO ispin = 1, nspin
             IF (do_level_shift) THEN
                CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix, &
@@ -251,8 +257,16 @@ CONTAINS
                                 use_jacobi=use_jacobi)
             END IF
          END DO
+
+         IF (owns_ortho) DEALLOCATE (ortho)
       ELSE
          ortho => scf_env%ortho
+
+         owns_ortho = .FALSE.
+         IF (.NOT. ASSOCIATED(ortho)) THEN
+            ALLOCATE (ortho)
+            owns_ortho = .TRUE.
+         END IF
 
          IF (do_level_shift) THEN
          DO ispin = 1, nspin
@@ -278,6 +292,8 @@ CONTAINS
                                   jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
          END DO
          END IF
+
+         IF (owns_ortho) DEALLOCATE (ortho)
       END IF
 
    END SUBROUTINE general_eigenproblem
