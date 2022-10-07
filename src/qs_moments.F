@@ -22,6 +22,8 @@ MODULE qs_moments
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Mattiat2019,&
+                                              cite_reference
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -1800,6 +1802,7 @@ CONTAINS
       my_velreprs = .FALSE.
       IF (PRESENT(vel_reprs)) my_velreprs = vel_reprs
       IF (PRESENT(com_nl)) my_com_nl = com_nl
+      IF (my_velreprs) CALL cite_reference(Mattiat2019)
 
       ! reference point
       CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
