@@ -158,14 +158,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_coulomb(A_ia_rspace, rho_ia_g, local_rho_set, hartree_local, &
                                    qs_env, sub_env, gapw, work_v_gspace, work_v_rspace)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
       TYPE(pw_type), POINTER                             :: rho_ia_g
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       LOGICAL, INTENT(IN)                                :: gapw
-      TYPE(pw_p_type), INTENT(inout)                     :: work_v_gspace, work_v_rspace
+      TYPE(pw_type), INTENT(inout)                       :: work_v_gspace, work_v_rspace
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_coulomb'
 
@@ -193,14 +193,14 @@ CONTAINS
          CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rho_ia_g)
       END IF
 
-      CALL pw_poisson_solve(poisson_env, rho_ia_g, pair_energy, work_v_gspace%pw)
-      CALL pw_transfer(work_v_gspace%pw, work_v_rspace%pw)
+      CALL pw_poisson_solve(poisson_env, rho_ia_g, pair_energy, work_v_gspace)
+      CALL pw_transfer(work_v_gspace, work_v_rspace)
 
       ! (i a || j b) = ( i_alpha a_alpha + i_beta a_beta || j_alpha b_alpha + j_beta b_beta) =
       !                tr (Cj_alpha^T * [J_i{alpha}a{alpha}_munu + J_i{beta}a{beta}_munu] * Cb_alpha) +
       !                tr (Cj_beta^T * [J_i{alpha}a{alpha}_munu + J_i{beta}a{beta}_munu] * Cb_beta)
       DO ispin = 1, nspins
-         CALL pw_axpy(work_v_rspace%pw, A_ia_rspace(ispin)%pw, alpha)
+         CALL pw_axpy(work_v_rspace, A_ia_rspace(ispin), alpha)
       END DO
 
       IF (gapw) THEN
@@ -208,8 +208,8 @@ CONTAINS
                                  hartree_local%ecoul_1c, &
                                  local_rho_set, &
                                  sub_env%para_env, tddft=.TRUE.)
-         CALL pw_scale(work_v_rspace%pw, work_v_rspace%pw%pw_grid%dvol)
-         CALL integrate_vhg0_rspace(qs_env, work_v_rspace%pw, sub_env%para_env, &
+         CALL pw_scale(work_v_rspace, work_v_rspace%pw_grid%dvol)
+         CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
                                     calculate_forces=.FALSE., &
                                     local_rho_set=local_rho_set)
       END IF
@@ -232,7 +232,7 @@ CONTAINS
 !> \param work_v_xc_tau ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_xc(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
@@ -251,7 +251,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(work_v_xc)
          ! pw2 = pw2 + alpha * pw1
-         CALL pw_axpy(work_v_xc(ispin)%pw, A_ia_rspace(ispin)%pw, kernel_env%alpha)
+         CALL pw_axpy(work_v_xc(ispin)%pw, A_ia_rspace(ispin), kernel_env%alpha)
       END DO
 
    END SUBROUTINE tddfpt_apply_xc
@@ -278,7 +278,7 @@ CONTAINS
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_xc_analytic(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
@@ -372,7 +372,7 @@ CONTAINS
 !> \param work_v_xc_tau ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_xc_fd(A_ia_rspace, kernel_env, rho_ia_struct, is_rks_triplets, pw_env, work_v_xc, work_v_xc_tau)
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: A_ia_rspace
+      TYPE(pw_type), DIMENSION(:), INTENT(IN)            :: A_ia_rspace
       TYPE(full_kernel_env_type), INTENT(in)             :: kernel_env
       TYPE(qs_rho_type), POINTER                         :: rho_ia_struct
       LOGICAL, INTENT(in)                                :: is_rks_triplets
