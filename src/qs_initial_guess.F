@@ -147,10 +147,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: nelectron_spin
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, elec_conf, nelec_kind, &
                                                             sort_kind
-      LOGICAL                                            :: did_guess, do_hfx_ri_mo, do_kpoints, &
-                                                            do_std_diag, exist, has_unit_metric, &
-                                                            natom_mismatch, need_mos, need_wm, &
-                                                            ofgpw
+      LOGICAL :: did_guess, do_hfx_ri_mo, do_kpoints, do_std_diag, exist, has_unit_metric, &
+         natom_mismatch, need_mos, need_wm, ofgpw, owns_ortho
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: buff, buff2
       REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
       REAL(KIND=dp)                                      :: checksum, eps, length, maxocc, occ, &
@@ -534,6 +532,7 @@ CONTAINS
             CPABORT("calculate_first_density_matrix: core_guess not implemented for k-points")
          END IF
 
+         owns_ortho = .FALSE.
          IF (.NOT. ASSOCIATED(work1)) THEN
             need_wm = .TRUE.
             CPASSERT(.NOT. ASSOCIATED(work2))
@@ -541,6 +540,10 @@ CONTAINS
          ELSE
             need_wm = .FALSE.
             CPASSERT(ASSOCIATED(work2))
+            IF (.NOT. ASSOCIATED(ortho)) THEN
+               ALLOCATE (ortho)
+               owns_ortho = .TRUE.
+            END IF
          END IF
 
          IF (need_wm) THEN
@@ -610,6 +613,8 @@ CONTAINS
             DEALLOCATE (ortho, work2, work1(1)%matrix)
             DEALLOCATE (work1)
             NULLIFY (work1, work2, ortho)
+         ELSE IF (owns_ortho) THEN
+            DEALLOCATE (ortho)
          END IF
 
          did_guess = .TRUE.
