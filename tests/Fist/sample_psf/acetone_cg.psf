@@ -1,0 +1,1285 @@
+PSF
+
+       5 !NTITLE
+ REMARKS original generated structure x-plor psf file
+ REMARKS topology ace.rtf 
+ REMARKS topology qm_modified.rtf 
+ REMARKS segment QM { first NONE; last NONE; auto angles dihedrals }
+ REMARKS segment MM { first NONE; last NONE; auto angles dihedrals }
+
+    1000 !NATOM
+       1 MM   1    CG   CGO  CGO   -0.000000       16.0000           0
+       2 MM   1    CG   RES  RES    0.000000       42.0800           0
+       3 MM   2    CG   CGO  CGO   -0.000000       16.0000           0
+       4 MM   2    CG   RES  RES    0.000000       42.0800           0
+       5 MM   3    CG   CGO  CGO   -0.000000       16.0000           0
+       6 MM   3    CG   RES  RES    0.000000       42.0800           0
+       7 MM   4    CG   CGO  CGO   -0.000000       16.0000           0
+       8 MM   4    CG   RES  RES    0.000000       42.0800           0
+       9 MM   5    CG   CGO  CGO   -0.000000       16.0000           0
+      10 MM   5    CG   RES  RES    0.000000       42.0800           0
+      11 MM   6    CG   CGO  CGO   -0.000000       16.0000           0
+      12 MM   6    CG   RES  RES    0.000000       42.0800           0
+      13 MM   7    CG   CGO  CGO   -0.000000       16.0000           0
+      14 MM   7    CG   RES  RES    0.000000       42.0800           0
+      15 MM   8    CG   CGO  CGO   -0.000000       16.0000           0
+      16 MM   8    CG   RES  RES    0.000000       42.0800           0
+      17 MM   9    CG   CGO  CGO   -0.000000       16.0000           0
+      18 MM   9    CG   RES  RES    0.000000       42.0800           0
+      19 MM   10   CG   CGO  CGO   -0.000000       16.0000           0
+      20 MM   10   CG   RES  RES    0.000000       42.0800           0
+      21 MM   11   CG   CGO  CGO   -0.000000       16.0000           0
+      22 MM   11   CG   RES  RES    0.000000       42.0800           0
+      23 MM   12   CG   CGO  CGO   -0.000000       16.0000           0
+      24 MM   12   CG   RES  RES    0.000000       42.0800           0
+      25 MM   13   CG   CGO  CGO   -0.000000       16.0000           0
+      26 MM   13   CG   RES  RES    0.000000       42.0800           0
+      27 MM   14   CG   CGO  CGO   -0.000000       16.0000           0
+      28 MM   14   CG   RES  RES    0.000000       42.0800           0
+      29 MM   15   CG   CGO  CGO   -0.000000       16.0000           0
+      30 MM   15   CG   RES  RES    0.000000       42.0800           0
+      31 MM   16   CG   CGO  CGO   -0.000000       16.0000           0
+      32 MM   16   CG   RES  RES    0.000000       42.0800           0
+      33 MM   17   CG   CGO  CGO   -0.000000       16.0000           0
+      34 MM   17   CG   RES  RES    0.000000       42.0800           0
+      35 MM   18   CG   CGO  CGO   -0.000000       16.0000           0
+      36 MM   18   CG   RES  RES    0.000000       42.0800           0
+      37 MM   19   CG   CGO  CGO   -0.000000       16.0000           0
+      38 MM   19   CG   RES  RES    0.000000       42.0800           0
+      39 MM   20   CG   CGO  CGO   -0.000000       16.0000           0
+      40 MM   20   CG   RES  RES    0.000000       42.0800           0
+      41 MM   21   CG   CGO  CGO   -0.000000       16.0000           0
+      42 MM   21   CG   RES  RES    0.000000       42.0800           0
+      43 MM   22   CG   CGO  CGO   -0.000000       16.0000           0
+      44 MM   22   CG   RES  RES    0.000000       42.0800           0
+      45 MM   23   CG   CGO  CGO   -0.000000       16.0000           0
+      46 MM   23   CG   RES  RES    0.000000       42.0800           0
+      47 MM   24   CG   CGO  CGO   -0.000000       16.0000           0
+      48 MM   24   CG   RES  RES    0.000000       42.0800           0
+      49 MM   25   CG   CGO  CGO   -0.000000       16.0000           0
+      50 MM   25   CG   RES  RES    0.000000       42.0800           0
+      51 MM   26   CG   CGO  CGO   -0.000000       16.0000           0
+      52 MM   26   CG   RES  RES    0.000000       42.0800           0
+      53 MM   27   CG   CGO  CGO   -0.000000       16.0000           0
+      54 MM   27   CG   RES  RES    0.000000       42.0800           0
+      55 MM   28   CG   CGO  CGO   -0.000000       16.0000           0
+      56 MM   28   CG   RES  RES    0.000000       42.0800           0
+      57 MM   29   CG   CGO  CGO   -0.000000       16.0000           0
+      58 MM   29   CG   RES  RES    0.000000       42.0800           0
+      59 MM   30   CG   CGO  CGO   -0.000000       16.0000           0
+      60 MM   30   CG   RES  RES    0.000000       42.0800           0
+      61 MM   31   CG   CGO  CGO   -0.000000       16.0000           0
+      62 MM   31   CG   RES  RES    0.000000       42.0800           0
+      63 MM   32   CG   CGO  CGO   -0.000000       16.0000           0
+      64 MM   32   CG   RES  RES    0.000000       42.0800           0
+      65 MM   33   CG   CGO  CGO   -0.000000       16.0000           0
+      66 MM   33   CG   RES  RES    0.000000       42.0800           0
+      67 MM   34   CG   CGO  CGO   -0.000000       16.0000           0
+      68 MM   34   CG   RES  RES    0.000000       42.0800           0
+      69 MM   35   CG   CGO  CGO   -0.000000       16.0000           0
+      70 MM   35   CG   RES  RES    0.000000       42.0800           0
+      71 MM   36   CG   CGO  CGO   -0.000000       16.0000           0
+      72 MM   36   CG   RES  RES    0.000000       42.0800           0
+      73 MM   37   CG   CGO  CGO   -0.000000       16.0000           0
+      74 MM   37   CG   RES  RES    0.000000       42.0800           0
+      75 MM   38   CG   CGO  CGO   -0.000000       16.0000           0
+      76 MM   38   CG   RES  RES    0.000000       42.0800           0
+      77 MM   39   CG   CGO  CGO   -0.000000       16.0000           0
+      78 MM   39   CG   RES  RES    0.000000       42.0800           0
+      79 MM   40   CG   CGO  CGO   -0.000000       16.0000           0
+      80 MM   40   CG   RES  RES    0.000000       42.0800           0
+      81 MM   41   CG   CGO  CGO   -0.000000       16.0000           0
+      82 MM   41   CG   RES  RES    0.000000       42.0800           0
+      83 MM   42   CG   CGO  CGO   -0.000000       16.0000           0
+      84 MM   42   CG   RES  RES    0.000000       42.0800           0
+      85 MM   43   CG   CGO  CGO   -0.000000       16.0000           0
+      86 MM   43   CG   RES  RES    0.000000       42.0800           0
+      87 MM   44   CG   CGO  CGO   -0.000000       16.0000           0
+      88 MM   44   CG   RES  RES    0.000000       42.0800           0
+      89 MM   45   CG   CGO  CGO   -0.000000       16.0000           0
+      90 MM   45   CG   RES  RES    0.000000       42.0800           0
+      91 MM   46   CG   CGO  CGO   -0.000000       16.0000           0
+      92 MM   46   CG   RES  RES    0.000000       42.0800           0
+      93 MM   47   CG   CGO  CGO   -0.000000       16.0000           0
+      94 MM   47   CG   RES  RES    0.000000       42.0800           0
+      95 MM   48   CG   CGO  CGO   -0.000000       16.0000           0
+      96 MM   48   CG   RES  RES    0.000000       42.0800           0
+      97 MM   49   CG   CGO  CGO   -0.000000       16.0000           0
+      98 MM   49   CG   RES  RES    0.000000       42.0800           0
+      99 MM   50   CG   CGO  CGO   -0.000000       16.0000           0
+     100 MM   50   CG   RES  RES    0.000000       42.0800           0
+     101 MM   51   CG   CGO  CGO   -0.000000       16.0000           0
+     102 MM   51   CG   RES  RES    0.000000       42.0800           0
+     103 MM   52   CG   CGO  CGO   -0.000000       16.0000           0
+     104 MM   52   CG   RES  RES    0.000000       42.0800           0
+     105 MM   53   CG   CGO  CGO   -0.000000       16.0000           0
+     106 MM   53   CG   RES  RES    0.000000       42.0800           0
+     107 MM   54   CG   CGO  CGO   -0.000000       16.0000           0
+     108 MM   54   CG   RES  RES    0.000000       42.0800           0
+     109 MM   55   CG   CGO  CGO   -0.000000       16.0000           0
+     110 MM   55   CG   RES  RES    0.000000       42.0800           0
+     111 MM   56   CG   CGO  CGO   -0.000000       16.0000           0
+     112 MM   56   CG   RES  RES    0.000000       42.0800           0
+     113 MM   57   CG   CGO  CGO   -0.000000       16.0000           0
+     114 MM   57   CG   RES  RES    0.000000       42.0800           0
+     115 MM   58   CG   CGO  CGO   -0.000000       16.0000           0
+     116 MM   58   CG   RES  RES    0.000000       42.0800           0
+     117 MM   59   CG   CGO  CGO   -0.000000       16.0000           0
+     118 MM   59   CG   RES  RES    0.000000       42.0800           0
+     119 MM   60   CG   CGO  CGO   -0.000000       16.0000           0
+     120 MM   60   CG   RES  RES    0.000000       42.0800           0
+     121 MM   61   CG   CGO  CGO   -0.000000       16.0000           0
+     122 MM   61   CG   RES  RES    0.000000       42.0800           0
+     123 MM   62   CG   CGO  CGO   -0.000000       16.0000           0
+     124 MM   62   CG   RES  RES    0.000000       42.0800           0
+     125 MM   63   CG   CGO  CGO   -0.000000       16.0000           0
+     126 MM   63   CG   RES  RES    0.000000       42.0800           0
+     127 MM   64   CG   CGO  CGO   -0.000000       16.0000           0
+     128 MM   64   CG   RES  RES    0.000000       42.0800           0
+     129 MM   65   CG   CGO  CGO   -0.000000       16.0000           0
+     130 MM   65   CG   RES  RES    0.000000       42.0800           0
+     131 MM   66   CG   CGO  CGO   -0.000000       16.0000           0
+     132 MM   66   CG   RES  RES    0.000000       42.0800           0
+     133 MM   67   CG   CGO  CGO   -0.000000       16.0000           0
+     134 MM   67   CG   RES  RES    0.000000       42.0800           0
+     135 MM   68   CG   CGO  CGO   -0.000000       16.0000           0
+     136 MM   68   CG   RES  RES    0.000000       42.0800           0
+     137 MM   69   CG   CGO  CGO   -0.000000       16.0000           0
+     138 MM   69   CG   RES  RES    0.000000       42.0800           0
+     139 MM   70   CG   CGO  CGO   -0.000000       16.0000           0
+     140 MM   70   CG   RES  RES    0.000000       42.0800           0
+     141 MM   71   CG   CGO  CGO   -0.000000       16.0000           0
+     142 MM   71   CG   RES  RES    0.000000       42.0800           0
+     143 MM   72   CG   CGO  CGO   -0.000000       16.0000           0
+     144 MM   72   CG   RES  RES    0.000000       42.0800           0
+     145 MM   73   CG   CGO  CGO   -0.000000       16.0000           0
+     146 MM   73   CG   RES  RES    0.000000       42.0800           0
+     147 MM   74   CG   CGO  CGO   -0.000000       16.0000           0
+     148 MM   74   CG   RES  RES    0.000000       42.0800           0
+     149 MM   75   CG   CGO  CGO   -0.000000       16.0000           0
+     150 MM   75   CG   RES  RES    0.000000       42.0800           0
+     151 MM   76   CG   CGO  CGO   -0.000000       16.0000           0
+     152 MM   76   CG   RES  RES    0.000000       42.0800           0
+     153 MM   77   CG   CGO  CGO   -0.000000       16.0000           0
+     154 MM   77   CG   RES  RES    0.000000       42.0800           0
+     155 MM   78   CG   CGO  CGO   -0.000000       16.0000           0
+     156 MM   78   CG   RES  RES    0.000000       42.0800           0
+     157 MM   79   CG   CGO  CGO   -0.000000       16.0000           0
+     158 MM   79   CG   RES  RES    0.000000       42.0800           0
+     159 MM   80   CG   CGO  CGO   -0.000000       16.0000           0
+     160 MM   80   CG   RES  RES    0.000000       42.0800           0
+     161 MM   81   CG   CGO  CGO   -0.000000       16.0000           0
+     162 MM   81   CG   RES  RES    0.000000       42.0800           0
+     163 MM   82   CG   CGO  CGO   -0.000000       16.0000           0
+     164 MM   82   CG   RES  RES    0.000000       42.0800           0
+     165 MM   83   CG   CGO  CGO   -0.000000       16.0000           0
+     166 MM   83   CG   RES  RES    0.000000       42.0800           0
+     167 MM   84   CG   CGO  CGO   -0.000000       16.0000           0
+     168 MM   84   CG   RES  RES    0.000000       42.0800           0
+     169 MM   85   CG   CGO  CGO   -0.000000       16.0000           0
+     170 MM   85   CG   RES  RES    0.000000       42.0800           0
+     171 MM   86   CG   CGO  CGO   -0.000000       16.0000           0
+     172 MM   86   CG   RES  RES    0.000000       42.0800           0
+     173 MM   87   CG   CGO  CGO   -0.000000       16.0000           0
+     174 MM   87   CG   RES  RES    0.000000       42.0800           0
+     175 MM   88   CG   CGO  CGO   -0.000000       16.0000           0
+     176 MM   88   CG   RES  RES    0.000000       42.0800           0
+     177 MM   89   CG   CGO  CGO   -0.000000       16.0000           0
+     178 MM   89   CG   RES  RES    0.000000       42.0800           0
+     179 MM   90   CG   CGO  CGO   -0.000000       16.0000           0
+     180 MM   90   CG   RES  RES    0.000000       42.0800           0
+     181 MM   91   CG   CGO  CGO   -0.000000       16.0000           0
+     182 MM   91   CG   RES  RES    0.000000       42.0800           0
+     183 MM   92   CG   CGO  CGO   -0.000000       16.0000           0
+     184 MM   92   CG   RES  RES    0.000000       42.0800           0
+     185 MM   93   CG   CGO  CGO   -0.000000       16.0000           0
+     186 MM   93   CG   RES  RES    0.000000       42.0800           0
+     187 MM   94   CG   CGO  CGO   -0.000000       16.0000           0
+     188 MM   94   CG   RES  RES    0.000000       42.0800           0
+     189 MM   95   CG   CGO  CGO   -0.000000       16.0000           0
+     190 MM   95   CG   RES  RES    0.000000       42.0800           0
+     191 MM   96   CG   CGO  CGO   -0.000000       16.0000           0
+     192 MM   96   CG   RES  RES    0.000000       42.0800           0
+     193 MM   97   CG   CGO  CGO   -0.000000       16.0000           0
+     194 MM   97   CG   RES  RES    0.000000       42.0800           0
+     195 MM   98   CG   CGO  CGO   -0.000000       16.0000           0
+     196 MM   98   CG   RES  RES    0.000000       42.0800           0
+     197 MM   99   CG   CGO  CGO   -0.000000       16.0000           0
+     198 MM   99   CG   RES  RES    0.000000       42.0800           0
+     199 MM   100  CG   CGO  CGO   -0.000000       16.0000           0
+     200 MM   100  CG   RES  RES    0.000000       42.0800           0
+     201 MM   101  CG   CGO  CGO   -0.000000       16.0000           0
+     202 MM   101  CG   RES  RES    0.000000       42.0800           0
+     203 MM   102  CG   CGO  CGO   -0.000000       16.0000           0
+     204 MM   102  CG   RES  RES    0.000000       42.0800           0
+     205 MM   103  CG   CGO  CGO   -0.000000       16.0000           0
+     206 MM   103  CG   RES  RES    0.000000       42.0800           0
+     207 MM   104  CG   CGO  CGO   -0.000000       16.0000           0
+     208 MM   104  CG   RES  RES    0.000000       42.0800           0
+     209 MM   105  CG   CGO  CGO   -0.000000       16.0000           0
+     210 MM   105  CG   RES  RES    0.000000       42.0800           0
+     211 MM   106  CG   CGO  CGO   -0.000000       16.0000           0
+     212 MM   106  CG   RES  RES    0.000000       42.0800           0
+     213 MM   107  CG   CGO  CGO   -0.000000       16.0000           0
+     214 MM   107  CG   RES  RES    0.000000       42.0800           0
+     215 MM   108  CG   CGO  CGO   -0.000000       16.0000           0
+     216 MM   108  CG   RES  RES    0.000000       42.0800           0
+     217 MM   109  CG   CGO  CGO   -0.000000       16.0000           0
+     218 MM   109  CG   RES  RES    0.000000       42.0800           0
+     219 MM   110  CG   CGO  CGO   -0.000000       16.0000           0
+     220 MM   110  CG   RES  RES    0.000000       42.0800           0
+     221 MM   111  CG   CGO  CGO   -0.000000       16.0000           0
+     222 MM   111  CG   RES  RES    0.000000       42.0800           0
+     223 MM   112  CG   CGO  CGO   -0.000000       16.0000           0
+     224 MM   112  CG   RES  RES    0.000000       42.0800           0
+     225 MM   113  CG   CGO  CGO   -0.000000       16.0000           0
+     226 MM   113  CG   RES  RES    0.000000       42.0800           0
+     227 MM   114  CG   CGO  CGO   -0.000000       16.0000           0
+     228 MM   114  CG   RES  RES    0.000000       42.0800           0
+     229 MM   115  CG   CGO  CGO   -0.000000       16.0000           0
+     230 MM   115  CG   RES  RES    0.000000       42.0800           0
+     231 MM   116  CG   CGO  CGO   -0.000000       16.0000           0
+     232 MM   116  CG   RES  RES    0.000000       42.0800           0
+     233 MM   117  CG   CGO  CGO   -0.000000       16.0000           0
+     234 MM   117  CG   RES  RES    0.000000       42.0800           0
+     235 MM   118  CG   CGO  CGO   -0.000000       16.0000           0
+     236 MM   118  CG   RES  RES    0.000000       42.0800           0
+     237 MM   119  CG   CGO  CGO   -0.000000       16.0000           0
+     238 MM   119  CG   RES  RES    0.000000       42.0800           0
+     239 MM   120  CG   CGO  CGO   -0.000000       16.0000           0
+     240 MM   120  CG   RES  RES    0.000000       42.0800           0
+     241 MM   121  CG   CGO  CGO   -0.000000       16.0000           0
+     242 MM   121  CG   RES  RES    0.000000       42.0800           0
+     243 MM   122  CG   CGO  CGO   -0.000000       16.0000           0
+     244 MM   122  CG   RES  RES    0.000000       42.0800           0
+     245 MM   123  CG   CGO  CGO   -0.000000       16.0000           0
+     246 MM   123  CG   RES  RES    0.000000       42.0800           0
+     247 MM   124  CG   CGO  CGO   -0.000000       16.0000           0
+     248 MM   124  CG   RES  RES    0.000000       42.0800           0
+     249 MM   125  CG   CGO  CGO   -0.000000       16.0000           0
+     250 MM   125  CG   RES  RES    0.000000       42.0800           0
+     251 MM   126  CG   CGO  CGO   -0.000000       16.0000           0
+     252 MM   126  CG   RES  RES    0.000000       42.0800           0
+     253 MM   127  CG   CGO  CGO   -0.000000       16.0000           0
+     254 MM   127  CG   RES  RES    0.000000       42.0800           0
+     255 MM   128  CG   CGO  CGO   -0.000000       16.0000           0
+     256 MM   128  CG   RES  RES    0.000000       42.0800           0
+     257 MM   129  CG   CGO  CGO   -0.000000       16.0000           0
+     258 MM   129  CG   RES  RES    0.000000       42.0800           0
+     259 MM   130  CG   CGO  CGO   -0.000000       16.0000           0
+     260 MM   130  CG   RES  RES    0.000000       42.0800           0
+     261 MM   131  CG   CGO  CGO   -0.000000       16.0000           0
+     262 MM   131  CG   RES  RES    0.000000       42.0800           0
+     263 MM   132  CG   CGO  CGO   -0.000000       16.0000           0
+     264 MM   132  CG   RES  RES    0.000000       42.0800           0
+     265 MM   133  CG   CGO  CGO   -0.000000       16.0000           0
+     266 MM   133  CG   RES  RES    0.000000       42.0800           0
+     267 MM   134  CG   CGO  CGO   -0.000000       16.0000           0
+     268 MM   134  CG   RES  RES    0.000000       42.0800           0
+     269 MM   135  CG   CGO  CGO   -0.000000       16.0000           0
+     270 MM   135  CG   RES  RES    0.000000       42.0800           0
+     271 MM   136  CG   CGO  CGO   -0.000000       16.0000           0
+     272 MM   136  CG   RES  RES    0.000000       42.0800           0
+     273 MM   137  CG   CGO  CGO   -0.000000       16.0000           0
+     274 MM   137  CG   RES  RES    0.000000       42.0800           0
+     275 MM   138  CG   CGO  CGO   -0.000000       16.0000           0
+     276 MM   138  CG   RES  RES    0.000000       42.0800           0
+     277 MM   139  CG   CGO  CGO   -0.000000       16.0000           0
+     278 MM   139  CG   RES  RES    0.000000       42.0800           0
+     279 MM   140  CG   CGO  CGO   -0.000000       16.0000           0
+     280 MM   140  CG   RES  RES    0.000000       42.0800           0
+     281 MM   141  CG   CGO  CGO   -0.000000       16.0000           0
+     282 MM   141  CG   RES  RES    0.000000       42.0800           0
+     283 MM   142  CG   CGO  CGO   -0.000000       16.0000           0
+     284 MM   142  CG   RES  RES    0.000000       42.0800           0
+     285 MM   143  CG   CGO  CGO   -0.000000       16.0000           0
+     286 MM   143  CG   RES  RES    0.000000       42.0800           0
+     287 MM   144  CG   CGO  CGO   -0.000000       16.0000           0
+     288 MM   144  CG   RES  RES    0.000000       42.0800           0
+     289 MM   145  CG   CGO  CGO   -0.000000       16.0000           0
+     290 MM   145  CG   RES  RES    0.000000       42.0800           0
+     291 MM   146  CG   CGO  CGO   -0.000000       16.0000           0
+     292 MM   146  CG   RES  RES    0.000000       42.0800           0
+     293 MM   147  CG   CGO  CGO   -0.000000       16.0000           0
+     294 MM   147  CG   RES  RES    0.000000       42.0800           0
+     295 MM   148  CG   CGO  CGO   -0.000000       16.0000           0
+     296 MM   148  CG   RES  RES    0.000000       42.0800           0
+     297 MM   149  CG   CGO  CGO   -0.000000       16.0000           0
+     298 MM   149  CG   RES  RES    0.000000       42.0800           0
+     299 MM   150  CG   CGO  CGO   -0.000000       16.0000           0
+     300 MM   150  CG   RES  RES    0.000000       42.0800           0
+     301 MM   151  CG   CGO  CGO   -0.000000       16.0000           0
+     302 MM   151  CG   RES  RES    0.000000       42.0800           0
+     303 MM   152  CG   CGO  CGO   -0.000000       16.0000           0
+     304 MM   152  CG   RES  RES    0.000000       42.0800           0
+     305 MM   153  CG   CGO  CGO   -0.000000       16.0000           0
+     306 MM   153  CG   RES  RES    0.000000       42.0800           0
+     307 MM   154  CG   CGO  CGO   -0.000000       16.0000           0
+     308 MM   154  CG   RES  RES    0.000000       42.0800           0
+     309 MM   155  CG   CGO  CGO   -0.000000       16.0000           0
+     310 MM   155  CG   RES  RES    0.000000       42.0800           0
+     311 MM   156  CG   CGO  CGO   -0.000000       16.0000           0
+     312 MM   156  CG   RES  RES    0.000000       42.0800           0
+     313 MM   157  CG   CGO  CGO   -0.000000       16.0000           0
+     314 MM   157  CG   RES  RES    0.000000       42.0800           0
+     315 MM   158  CG   CGO  CGO   -0.000000       16.0000           0
+     316 MM   158  CG   RES  RES    0.000000       42.0800           0
+     317 MM   159  CG   CGO  CGO   -0.000000       16.0000           0
+     318 MM   159  CG   RES  RES    0.000000       42.0800           0
+     319 MM   160  CG   CGO  CGO   -0.000000       16.0000           0
+     320 MM   160  CG   RES  RES    0.000000       42.0800           0
+     321 MM   161  CG   CGO  CGO   -0.000000       16.0000           0
+     322 MM   161  CG   RES  RES    0.000000       42.0800           0
+     323 MM   162  CG   CGO  CGO   -0.000000       16.0000           0
+     324 MM   162  CG   RES  RES    0.000000       42.0800           0
+     325 MM   163  CG   CGO  CGO   -0.000000       16.0000           0
+     326 MM   163  CG   RES  RES    0.000000       42.0800           0
+     327 MM   164  CG   CGO  CGO   -0.000000       16.0000           0
+     328 MM   164  CG   RES  RES    0.000000       42.0800           0
+     329 MM   165  CG   CGO  CGO   -0.000000       16.0000           0
+     330 MM   165  CG   RES  RES    0.000000       42.0800           0
+     331 MM   166  CG   CGO  CGO   -0.000000       16.0000           0
+     332 MM   166  CG   RES  RES    0.000000       42.0800           0
+     333 MM   167  CG   CGO  CGO   -0.000000       16.0000           0
+     334 MM   167  CG   RES  RES    0.000000       42.0800           0
+     335 MM   168  CG   CGO  CGO   -0.000000       16.0000           0
+     336 MM   168  CG   RES  RES    0.000000       42.0800           0
+     337 MM   169  CG   CGO  CGO   -0.000000       16.0000           0
+     338 MM   169  CG   RES  RES    0.000000       42.0800           0
+     339 MM   170  CG   CGO  CGO   -0.000000       16.0000           0
+     340 MM   170  CG   RES  RES    0.000000       42.0800           0
+     341 MM   171  CG   CGO  CGO   -0.000000       16.0000           0
+     342 MM   171  CG   RES  RES    0.000000       42.0800           0
+     343 MM   172  CG   CGO  CGO   -0.000000       16.0000           0
+     344 MM   172  CG   RES  RES    0.000000       42.0800           0
+     345 MM   173  CG   CGO  CGO   -0.000000       16.0000           0
+     346 MM   173  CG   RES  RES    0.000000       42.0800           0
+     347 MM   174  CG   CGO  CGO   -0.000000       16.0000           0
+     348 MM   174  CG   RES  RES    0.000000       42.0800           0
+     349 MM   175  CG   CGO  CGO   -0.000000       16.0000           0
+     350 MM   175  CG   RES  RES    0.000000       42.0800           0
+     351 MM   176  CG   CGO  CGO   -0.000000       16.0000           0
+     352 MM   176  CG   RES  RES    0.000000       42.0800           0
+     353 MM   177  CG   CGO  CGO   -0.000000       16.0000           0
+     354 MM   177  CG   RES  RES    0.000000       42.0800           0
+     355 MM   178  CG   CGO  CGO   -0.000000       16.0000           0
+     356 MM   178  CG   RES  RES    0.000000       42.0800           0
+     357 MM   179  CG   CGO  CGO   -0.000000       16.0000           0
+     358 MM   179  CG   RES  RES    0.000000       42.0800           0
+     359 MM   180  CG   CGO  CGO   -0.000000       16.0000           0
+     360 MM   180  CG   RES  RES    0.000000       42.0800           0
+     361 MM   181  CG   CGO  CGO   -0.000000       16.0000           0
+     362 MM   181  CG   RES  RES    0.000000       42.0800           0
+     363 MM   182  CG   CGO  CGO   -0.000000       16.0000           0
+     364 MM   182  CG   RES  RES    0.000000       42.0800           0
+     365 MM   183  CG   CGO  CGO   -0.000000       16.0000           0
+     366 MM   183  CG   RES  RES    0.000000       42.0800           0
+     367 MM   184  CG   CGO  CGO   -0.000000       16.0000           0
+     368 MM   184  CG   RES  RES    0.000000       42.0800           0
+     369 MM   185  CG   CGO  CGO   -0.000000       16.0000           0
+     370 MM   185  CG   RES  RES    0.000000       42.0800           0
+     371 MM   186  CG   CGO  CGO   -0.000000       16.0000           0
+     372 MM   186  CG   RES  RES    0.000000       42.0800           0
+     373 MM   187  CG   CGO  CGO   -0.000000       16.0000           0
+     374 MM   187  CG   RES  RES    0.000000       42.0800           0
+     375 MM   188  CG   CGO  CGO   -0.000000       16.0000           0
+     376 MM   188  CG   RES  RES    0.000000       42.0800           0
+     377 MM   189  CG   CGO  CGO   -0.000000       16.0000           0
+     378 MM   189  CG   RES  RES    0.000000       42.0800           0
+     379 MM   190  CG   CGO  CGO   -0.000000       16.0000           0
+     380 MM   190  CG   RES  RES    0.000000       42.0800           0
+     381 MM   191  CG   CGO  CGO   -0.000000       16.0000           0
+     382 MM   191  CG   RES  RES    0.000000       42.0800           0
+     383 MM   192  CG   CGO  CGO   -0.000000       16.0000           0
+     384 MM   192  CG   RES  RES    0.000000       42.0800           0
+     385 MM   193  CG   CGO  CGO   -0.000000       16.0000           0
+     386 MM   193  CG   RES  RES    0.000000       42.0800           0
+     387 MM   194  CG   CGO  CGO   -0.000000       16.0000           0
+     388 MM   194  CG   RES  RES    0.000000       42.0800           0
+     389 MM   195  CG   CGO  CGO   -0.000000       16.0000           0
+     390 MM   195  CG   RES  RES    0.000000       42.0800           0
+     391 MM   196  CG   CGO  CGO   -0.000000       16.0000           0
+     392 MM   196  CG   RES  RES    0.000000       42.0800           0
+     393 MM   197  CG   CGO  CGO   -0.000000       16.0000           0
+     394 MM   197  CG   RES  RES    0.000000       42.0800           0
+     395 MM   198  CG   CGO  CGO   -0.000000       16.0000           0
+     396 MM   198  CG   RES  RES    0.000000       42.0800           0
+     397 MM   199  CG   CGO  CGO   -0.000000       16.0000           0
+     398 MM   199  CG   RES  RES    0.000000       42.0800           0
+     399 MM   200  CG   CGO  CGO   -0.000000       16.0000           0
+     400 MM   200  CG   RES  RES    0.000000       42.0800           0
+     401 MM   201  CG   CGO  CGO   -0.000000       16.0000           0
+     402 MM   201  CG   RES  RES    0.000000       42.0800           0
+     403 MM   202  CG   CGO  CGO   -0.000000       16.0000           0
+     404 MM   202  CG   RES  RES    0.000000       42.0800           0
+     405 MM   203  CG   CGO  CGO   -0.000000       16.0000           0
+     406 MM   203  CG   RES  RES    0.000000       42.0800           0
+     407 MM   204  CG   CGO  CGO   -0.000000       16.0000           0
+     408 MM   204  CG   RES  RES    0.000000       42.0800           0
+     409 MM   205  CG   CGO  CGO   -0.000000       16.0000           0
+     410 MM   205  CG   RES  RES    0.000000       42.0800           0
+     411 MM   206  CG   CGO  CGO   -0.000000       16.0000           0
+     412 MM   206  CG   RES  RES    0.000000       42.0800           0
+     413 MM   207  CG   CGO  CGO   -0.000000       16.0000           0
+     414 MM   207  CG   RES  RES    0.000000       42.0800           0
+     415 MM   208  CG   CGO  CGO   -0.000000       16.0000           0
+     416 MM   208  CG   RES  RES    0.000000       42.0800           0
+     417 MM   209  CG   CGO  CGO   -0.000000       16.0000           0
+     418 MM   209  CG   RES  RES    0.000000       42.0800           0
+     419 MM   210  CG   CGO  CGO   -0.000000       16.0000           0
+     420 MM   210  CG   RES  RES    0.000000       42.0800           0
+     421 MM   211  CG   CGO  CGO   -0.000000       16.0000           0
+     422 MM   211  CG   RES  RES    0.000000       42.0800           0
+     423 MM   212  CG   CGO  CGO   -0.000000       16.0000           0
+     424 MM   212  CG   RES  RES    0.000000       42.0800           0
+     425 MM   213  CG   CGO  CGO   -0.000000       16.0000           0
+     426 MM   213  CG   RES  RES    0.000000       42.0800           0
+     427 MM   214  CG   CGO  CGO   -0.000000       16.0000           0
+     428 MM   214  CG   RES  RES    0.000000       42.0800           0
+     429 MM   215  CG   CGO  CGO   -0.000000       16.0000           0
+     430 MM   215  CG   RES  RES    0.000000       42.0800           0
+     431 MM   216  CG   CGO  CGO   -0.000000       16.0000           0
+     432 MM   216  CG   RES  RES    0.000000       42.0800           0
+     433 MM   217  CG   CGO  CGO   -0.000000       16.0000           0
+     434 MM   217  CG   RES  RES    0.000000       42.0800           0
+     435 MM   218  CG   CGO  CGO   -0.000000       16.0000           0
+     436 MM   218  CG   RES  RES    0.000000       42.0800           0
+     437 MM   219  CG   CGO  CGO   -0.000000       16.0000           0
+     438 MM   219  CG   RES  RES    0.000000       42.0800           0
+     439 MM   220  CG   CGO  CGO   -0.000000       16.0000           0
+     440 MM   220  CG   RES  RES    0.000000       42.0800           0
+     441 MM   221  CG   CGO  CGO   -0.000000       16.0000           0
+     442 MM   221  CG   RES  RES    0.000000       42.0800           0
+     443 MM   222  CG   CGO  CGO   -0.000000       16.0000           0
+     444 MM   222  CG   RES  RES    0.000000       42.0800           0
+     445 MM   223  CG   CGO  CGO   -0.000000       16.0000           0
+     446 MM   223  CG   RES  RES    0.000000       42.0800           0
+     447 MM   224  CG   CGO  CGO   -0.000000       16.0000           0
+     448 MM   224  CG   RES  RES    0.000000       42.0800           0
+     449 MM   225  CG   CGO  CGO   -0.000000       16.0000           0
+     450 MM   225  CG   RES  RES    0.000000       42.0800           0
+     451 MM   226  CG   CGO  CGO   -0.000000       16.0000           0
+     452 MM   226  CG   RES  RES    0.000000       42.0800           0
+     453 MM   227  CG   CGO  CGO   -0.000000       16.0000           0
+     454 MM   227  CG   RES  RES    0.000000       42.0800           0
+     455 MM   228  CG   CGO  CGO   -0.000000       16.0000           0
+     456 MM   228  CG   RES  RES    0.000000       42.0800           0
+     457 MM   229  CG   CGO  CGO   -0.000000       16.0000           0
+     458 MM   229  CG   RES  RES    0.000000       42.0800           0
+     459 MM   230  CG   CGO  CGO   -0.000000       16.0000           0
+     460 MM   230  CG   RES  RES    0.000000       42.0800           0
+     461 MM   231  CG   CGO  CGO   -0.000000       16.0000           0
+     462 MM   231  CG   RES  RES    0.000000       42.0800           0
+     463 MM   232  CG   CGO  CGO   -0.000000       16.0000           0
+     464 MM   232  CG   RES  RES    0.000000       42.0800           0
+     465 MM   233  CG   CGO  CGO   -0.000000       16.0000           0
+     466 MM   233  CG   RES  RES    0.000000       42.0800           0
+     467 MM   234  CG   CGO  CGO   -0.000000       16.0000           0
+     468 MM   234  CG   RES  RES    0.000000       42.0800           0
+     469 MM   235  CG   CGO  CGO   -0.000000       16.0000           0
+     470 MM   235  CG   RES  RES    0.000000       42.0800           0
+     471 MM   236  CG   CGO  CGO   -0.000000       16.0000           0
+     472 MM   236  CG   RES  RES    0.000000       42.0800           0
+     473 MM   237  CG   CGO  CGO   -0.000000       16.0000           0
+     474 MM   237  CG   RES  RES    0.000000       42.0800           0
+     475 MM   238  CG   CGO  CGO   -0.000000       16.0000           0
+     476 MM   238  CG   RES  RES    0.000000       42.0800           0
+     477 MM   239  CG   CGO  CGO   -0.000000       16.0000           0
+     478 MM   239  CG   RES  RES    0.000000       42.0800           0
+     479 MM   240  CG   CGO  CGO   -0.000000       16.0000           0
+     480 MM   240  CG   RES  RES    0.000000       42.0800           0
+     481 MM   241  CG   CGO  CGO   -0.000000       16.0000           0
+     482 MM   241  CG   RES  RES    0.000000       42.0800           0
+     483 MM   242  CG   CGO  CGO   -0.000000       16.0000           0
+     484 MM   242  CG   RES  RES    0.000000       42.0800           0
+     485 MM   243  CG   CGO  CGO   -0.000000       16.0000           0
+     486 MM   243  CG   RES  RES    0.000000       42.0800           0
+     487 MM   244  CG   CGO  CGO   -0.000000       16.0000           0
+     488 MM   244  CG   RES  RES    0.000000       42.0800           0
+     489 MM   245  CG   CGO  CGO   -0.000000       16.0000           0
+     490 MM   245  CG   RES  RES    0.000000       42.0800           0
+     491 MM   246  CG   CGO  CGO   -0.000000       16.0000           0
+     492 MM   246  CG   RES  RES    0.000000       42.0800           0
+     493 MM   247  CG   CGO  CGO   -0.000000       16.0000           0
+     494 MM   247  CG   RES  RES    0.000000       42.0800           0
+     495 MM   248  CG   CGO  CGO   -0.000000       16.0000           0
+     496 MM   248  CG   RES  RES    0.000000       42.0800           0
+     497 MM   249  CG   CGO  CGO   -0.000000       16.0000           0
+     498 MM   249  CG   RES  RES    0.000000       42.0800           0
+     499 MM   250  CG   CGO  CGO   -0.000000       16.0000           0
+     500 MM   250  CG   RES  RES    0.000000       42.0800           0
+     501 MM   251  CG   CGO  CGO   -0.000000       16.0000           0
+     502 MM   251  CG   RES  RES    0.000000       42.0800           0
+     503 MM   252  CG   CGO  CGO   -0.000000       16.0000           0
+     504 MM   252  CG   RES  RES    0.000000       42.0800           0
+     505 MM   253  CG   CGO  CGO   -0.000000       16.0000           0
+     506 MM   253  CG   RES  RES    0.000000       42.0800           0
+     507 MM   254  CG   CGO  CGO   -0.000000       16.0000           0
+     508 MM   254  CG   RES  RES    0.000000       42.0800           0
+     509 MM   255  CG   CGO  CGO   -0.000000       16.0000           0
+     510 MM   255  CG   RES  RES    0.000000       42.0800           0
+     511 MM   256  CG   CGO  CGO   -0.000000       16.0000           0
+     512 MM   256  CG   RES  RES    0.000000       42.0800           0
+     513 MM   257  CG   CGO  CGO   -0.000000       16.0000           0
+     514 MM   257  CG   RES  RES    0.000000       42.0800           0
+     515 MM   258  CG   CGO  CGO   -0.000000       16.0000           0
+     516 MM   258  CG   RES  RES    0.000000       42.0800           0
+     517 MM   259  CG   CGO  CGO   -0.000000       16.0000           0
+     518 MM   259  CG   RES  RES    0.000000       42.0800           0
+     519 MM   260  CG   CGO  CGO   -0.000000       16.0000           0
+     520 MM   260  CG   RES  RES    0.000000       42.0800           0
+     521 MM   261  CG   CGO  CGO   -0.000000       16.0000           0
+     522 MM   261  CG   RES  RES    0.000000       42.0800           0
+     523 MM   262  CG   CGO  CGO   -0.000000       16.0000           0
+     524 MM   262  CG   RES  RES    0.000000       42.0800           0
+     525 MM   263  CG   CGO  CGO   -0.000000       16.0000           0
+     526 MM   263  CG   RES  RES    0.000000       42.0800           0
+     527 MM   264  CG   CGO  CGO   -0.000000       16.0000           0
+     528 MM   264  CG   RES  RES    0.000000       42.0800           0
+     529 MM   265  CG   CGO  CGO   -0.000000       16.0000           0
+     530 MM   265  CG   RES  RES    0.000000       42.0800           0
+     531 MM   266  CG   CGO  CGO   -0.000000       16.0000           0
+     532 MM   266  CG   RES  RES    0.000000       42.0800           0
+     533 MM   267  CG   CGO  CGO   -0.000000       16.0000           0
+     534 MM   267  CG   RES  RES    0.000000       42.0800           0
+     535 MM   268  CG   CGO  CGO   -0.000000       16.0000           0
+     536 MM   268  CG   RES  RES    0.000000       42.0800           0
+     537 MM   269  CG   CGO  CGO   -0.000000       16.0000           0
+     538 MM   269  CG   RES  RES    0.000000       42.0800           0
+     539 MM   270  CG   CGO  CGO   -0.000000       16.0000           0
+     540 MM   270  CG   RES  RES    0.000000       42.0800           0
+     541 MM   271  CG   CGO  CGO   -0.000000       16.0000           0
+     542 MM   271  CG   RES  RES    0.000000       42.0800           0
+     543 MM   272  CG   CGO  CGO   -0.000000       16.0000           0
+     544 MM   272  CG   RES  RES    0.000000       42.0800           0
+     545 MM   273  CG   CGO  CGO   -0.000000       16.0000           0
+     546 MM   273  CG   RES  RES    0.000000       42.0800           0
+     547 MM   274  CG   CGO  CGO   -0.000000       16.0000           0
+     548 MM   274  CG   RES  RES    0.000000       42.0800           0
+     549 MM   275  CG   CGO  CGO   -0.000000       16.0000           0
+     550 MM   275  CG   RES  RES    0.000000       42.0800           0
+     551 MM   276  CG   CGO  CGO   -0.000000       16.0000           0
+     552 MM   276  CG   RES  RES    0.000000       42.0800           0
+     553 MM   277  CG   CGO  CGO   -0.000000       16.0000           0
+     554 MM   277  CG   RES  RES    0.000000       42.0800           0
+     555 MM   278  CG   CGO  CGO   -0.000000       16.0000           0
+     556 MM   278  CG   RES  RES    0.000000       42.0800           0
+     557 MM   279  CG   CGO  CGO   -0.000000       16.0000           0
+     558 MM   279  CG   RES  RES    0.000000       42.0800           0
+     559 MM   280  CG   CGO  CGO   -0.000000       16.0000           0
+     560 MM   280  CG   RES  RES    0.000000       42.0800           0
+     561 MM   281  CG   CGO  CGO   -0.000000       16.0000           0
+     562 MM   281  CG   RES  RES    0.000000       42.0800           0
+     563 MM   282  CG   CGO  CGO   -0.000000       16.0000           0
+     564 MM   282  CG   RES  RES    0.000000       42.0800           0
+     565 MM   283  CG   CGO  CGO   -0.000000       16.0000           0
+     566 MM   283  CG   RES  RES    0.000000       42.0800           0
+     567 MM   284  CG   CGO  CGO   -0.000000       16.0000           0
+     568 MM   284  CG   RES  RES    0.000000       42.0800           0
+     569 MM   285  CG   CGO  CGO   -0.000000       16.0000           0
+     570 MM   285  CG   RES  RES    0.000000       42.0800           0
+     571 MM   286  CG   CGO  CGO   -0.000000       16.0000           0
+     572 MM   286  CG   RES  RES    0.000000       42.0800           0
+     573 MM   287  CG   CGO  CGO   -0.000000       16.0000           0
+     574 MM   287  CG   RES  RES    0.000000       42.0800           0
+     575 MM   288  CG   CGO  CGO   -0.000000       16.0000           0
+     576 MM   288  CG   RES  RES    0.000000       42.0800           0
+     577 MM   289  CG   CGO  CGO   -0.000000       16.0000           0
+     578 MM   289  CG   RES  RES    0.000000       42.0800           0
+     579 MM   290  CG   CGO  CGO   -0.000000       16.0000           0
+     580 MM   290  CG   RES  RES    0.000000       42.0800           0
+     581 MM   291  CG   CGO  CGO   -0.000000       16.0000           0
+     582 MM   291  CG   RES  RES    0.000000       42.0800           0
+     583 MM   292  CG   CGO  CGO   -0.000000       16.0000           0
+     584 MM   292  CG   RES  RES    0.000000       42.0800           0
+     585 MM   293  CG   CGO  CGO   -0.000000       16.0000           0
+     586 MM   293  CG   RES  RES    0.000000       42.0800           0
+     587 MM   294  CG   CGO  CGO   -0.000000       16.0000           0
+     588 MM   294  CG   RES  RES    0.000000       42.0800           0
+     589 MM   295  CG   CGO  CGO   -0.000000       16.0000           0
+     590 MM   295  CG   RES  RES    0.000000       42.0800           0
+     591 MM   296  CG   CGO  CGO   -0.000000       16.0000           0
+     592 MM   296  CG   RES  RES    0.000000       42.0800           0
+     593 MM   297  CG   CGO  CGO   -0.000000       16.0000           0
+     594 MM   297  CG   RES  RES    0.000000       42.0800           0
+     595 MM   298  CG   CGO  CGO   -0.000000       16.0000           0
+     596 MM   298  CG   RES  RES    0.000000       42.0800           0
+     597 MM   299  CG   CGO  CGO   -0.000000       16.0000           0
+     598 MM   299  CG   RES  RES    0.000000       42.0800           0
+     599 MM   300  CG   CGO  CGO   -0.000000       16.0000           0
+     600 MM   300  CG   RES  RES    0.000000       42.0800           0
+     601 MM   301  CG   CGO  CGO   -0.000000       16.0000           0
+     602 MM   301  CG   RES  RES    0.000000       42.0800           0
+     603 MM   302  CG   CGO  CGO   -0.000000       16.0000           0
+     604 MM   302  CG   RES  RES    0.000000       42.0800           0
+     605 MM   303  CG   CGO  CGO   -0.000000       16.0000           0
+     606 MM   303  CG   RES  RES    0.000000       42.0800           0
+     607 MM   304  CG   CGO  CGO   -0.000000       16.0000           0
+     608 MM   304  CG   RES  RES    0.000000       42.0800           0
+     609 MM   305  CG   CGO  CGO   -0.000000       16.0000           0
+     610 MM   305  CG   RES  RES    0.000000       42.0800           0
+     611 MM   306  CG   CGO  CGO   -0.000000       16.0000           0
+     612 MM   306  CG   RES  RES    0.000000       42.0800           0
+     613 MM   307  CG   CGO  CGO   -0.000000       16.0000           0
+     614 MM   307  CG   RES  RES    0.000000       42.0800           0
+     615 MM   308  CG   CGO  CGO   -0.000000       16.0000           0
+     616 MM   308  CG   RES  RES    0.000000       42.0800           0
+     617 MM   309  CG   CGO  CGO   -0.000000       16.0000           0
+     618 MM   309  CG   RES  RES    0.000000       42.0800           0
+     619 MM   310  CG   CGO  CGO   -0.000000       16.0000           0
+     620 MM   310  CG   RES  RES    0.000000       42.0800           0
+     621 MM   311  CG   CGO  CGO   -0.000000       16.0000           0
+     622 MM   311  CG   RES  RES    0.000000       42.0800           0
+     623 MM   312  CG   CGO  CGO   -0.000000       16.0000           0
+     624 MM   312  CG   RES  RES    0.000000       42.0800           0
+     625 MM   313  CG   CGO  CGO   -0.000000       16.0000           0
+     626 MM   313  CG   RES  RES    0.000000       42.0800           0
+     627 MM   314  CG   CGO  CGO   -0.000000       16.0000           0
+     628 MM   314  CG   RES  RES    0.000000       42.0800           0
+     629 MM   315  CG   CGO  CGO   -0.000000       16.0000           0
+     630 MM   315  CG   RES  RES    0.000000       42.0800           0
+     631 MM   316  CG   CGO  CGO   -0.000000       16.0000           0
+     632 MM   316  CG   RES  RES    0.000000       42.0800           0
+     633 MM   317  CG   CGO  CGO   -0.000000       16.0000           0
+     634 MM   317  CG   RES  RES    0.000000       42.0800           0
+     635 MM   318  CG   CGO  CGO   -0.000000       16.0000           0
+     636 MM   318  CG   RES  RES    0.000000       42.0800           0
+     637 MM   319  CG   CGO  CGO   -0.000000       16.0000           0
+     638 MM   319  CG   RES  RES    0.000000       42.0800           0
+     639 MM   320  CG   CGO  CGO   -0.000000       16.0000           0
+     640 MM   320  CG   RES  RES    0.000000       42.0800           0
+     641 MM   321  CG   CGO  CGO   -0.000000       16.0000           0
+     642 MM   321  CG   RES  RES    0.000000       42.0800           0
+     643 MM   322  CG   CGO  CGO   -0.000000       16.0000           0
+     644 MM   322  CG   RES  RES    0.000000       42.0800           0
+     645 MM   323  CG   CGO  CGO   -0.000000       16.0000           0
+     646 MM   323  CG   RES  RES    0.000000       42.0800           0
+     647 MM   324  CG   CGO  CGO   -0.000000       16.0000           0
+     648 MM   324  CG   RES  RES    0.000000       42.0800           0
+     649 MM   325  CG   CGO  CGO   -0.000000       16.0000           0
+     650 MM   325  CG   RES  RES    0.000000       42.0800           0
+     651 MM   326  CG   CGO  CGO   -0.000000       16.0000           0
+     652 MM   326  CG   RES  RES    0.000000       42.0800           0
+     653 MM   327  CG   CGO  CGO   -0.000000       16.0000           0
+     654 MM   327  CG   RES  RES    0.000000       42.0800           0
+     655 MM   328  CG   CGO  CGO   -0.000000       16.0000           0
+     656 MM   328  CG   RES  RES    0.000000       42.0800           0
+     657 MM   329  CG   CGO  CGO   -0.000000       16.0000           0
+     658 MM   329  CG   RES  RES    0.000000       42.0800           0
+     659 MM   330  CG   CGO  CGO   -0.000000       16.0000           0
+     660 MM   330  CG   RES  RES    0.000000       42.0800           0
+     661 MM   331  CG   CGO  CGO   -0.000000       16.0000           0
+     662 MM   331  CG   RES  RES    0.000000       42.0800           0
+     663 MM   332  CG   CGO  CGO   -0.000000       16.0000           0
+     664 MM   332  CG   RES  RES    0.000000       42.0800           0
+     665 MM   333  CG   CGO  CGO   -0.000000       16.0000           0
+     666 MM   333  CG   RES  RES    0.000000       42.0800           0
+     667 MM   334  CG   CGO  CGO   -0.000000       16.0000           0
+     668 MM   334  CG   RES  RES    0.000000       42.0800           0
+     669 MM   335  CG   CGO  CGO   -0.000000       16.0000           0
+     670 MM   335  CG   RES  RES    0.000000       42.0800           0
+     671 MM   336  CG   CGO  CGO   -0.000000       16.0000           0
+     672 MM   336  CG   RES  RES    0.000000       42.0800           0
+     673 MM   337  CG   CGO  CGO   -0.000000       16.0000           0
+     674 MM   337  CG   RES  RES    0.000000       42.0800           0
+     675 MM   338  CG   CGO  CGO   -0.000000       16.0000           0
+     676 MM   338  CG   RES  RES    0.000000       42.0800           0
+     677 MM   339  CG   CGO  CGO   -0.000000       16.0000           0
+     678 MM   339  CG   RES  RES    0.000000       42.0800           0
+     679 MM   340  CG   CGO  CGO   -0.000000       16.0000           0
+     680 MM   340  CG   RES  RES    0.000000       42.0800           0
+     681 MM   341  CG   CGO  CGO   -0.000000       16.0000           0
+     682 MM   341  CG   RES  RES    0.000000       42.0800           0
+     683 MM   342  CG   CGO  CGO   -0.000000       16.0000           0
+     684 MM   342  CG   RES  RES    0.000000       42.0800           0
+     685 MM   343  CG   CGO  CGO   -0.000000       16.0000           0
+     686 MM   343  CG   RES  RES    0.000000       42.0800           0
+     687 MM   344  CG   CGO  CGO   -0.000000       16.0000           0
+     688 MM   344  CG   RES  RES    0.000000       42.0800           0
+     689 MM   345  CG   CGO  CGO   -0.000000       16.0000           0
+     690 MM   345  CG   RES  RES    0.000000       42.0800           0
+     691 MM   346  CG   CGO  CGO   -0.000000       16.0000           0
+     692 MM   346  CG   RES  RES    0.000000       42.0800           0
+     693 MM   347  CG   CGO  CGO   -0.000000       16.0000           0
+     694 MM   347  CG   RES  RES    0.000000       42.0800           0
+     695 MM   348  CG   CGO  CGO   -0.000000       16.0000           0
+     696 MM   348  CG   RES  RES    0.000000       42.0800           0
+     697 MM   349  CG   CGO  CGO   -0.000000       16.0000           0
+     698 MM   349  CG   RES  RES    0.000000       42.0800           0
+     699 MM   350  CG   CGO  CGO   -0.000000       16.0000           0
+     700 MM   350  CG   RES  RES    0.000000       42.0800           0
+     701 MM   351  CG   CGO  CGO   -0.000000       16.0000           0
+     702 MM   351  CG   RES  RES    0.000000       42.0800           0
+     703 MM   352  CG   CGO  CGO   -0.000000       16.0000           0
+     704 MM   352  CG   RES  RES    0.000000       42.0800           0
+     705 MM   353  CG   CGO  CGO   -0.000000       16.0000           0
+     706 MM   353  CG   RES  RES    0.000000       42.0800           0
+     707 MM   354  CG   CGO  CGO   -0.000000       16.0000           0
+     708 MM   354  CG   RES  RES    0.000000       42.0800           0
+     709 MM   355  CG   CGO  CGO   -0.000000       16.0000           0
+     710 MM   355  CG   RES  RES    0.000000       42.0800           0
+     711 MM   356  CG   CGO  CGO   -0.000000       16.0000           0
+     712 MM   356  CG   RES  RES    0.000000       42.0800           0
+     713 MM   357  CG   CGO  CGO   -0.000000       16.0000           0
+     714 MM   357  CG   RES  RES    0.000000       42.0800           0
+     715 MM   358  CG   CGO  CGO   -0.000000       16.0000           0
+     716 MM   358  CG   RES  RES    0.000000       42.0800           0
+     717 MM   359  CG   CGO  CGO   -0.000000       16.0000           0
+     718 MM   359  CG   RES  RES    0.000000       42.0800           0
+     719 MM   360  CG   CGO  CGO   -0.000000       16.0000           0
+     720 MM   360  CG   RES  RES    0.000000       42.0800           0
+     721 MM   361  CG   CGO  CGO   -0.000000       16.0000           0
+     722 MM   361  CG   RES  RES    0.000000       42.0800           0
+     723 MM   362  CG   CGO  CGO   -0.000000       16.0000           0
+     724 MM   362  CG   RES  RES    0.000000       42.0800           0
+     725 MM   363  CG   CGO  CGO   -0.000000       16.0000           0
+     726 MM   363  CG   RES  RES    0.000000       42.0800           0
+     727 MM   364  CG   CGO  CGO   -0.000000       16.0000           0
+     728 MM   364  CG   RES  RES    0.000000       42.0800           0
+     729 MM   365  CG   CGO  CGO   -0.000000       16.0000           0
+     730 MM   365  CG   RES  RES    0.000000       42.0800           0
+     731 MM   366  CG   CGO  CGO   -0.000000       16.0000           0
+     732 MM   366  CG   RES  RES    0.000000       42.0800           0
+     733 MM   367  CG   CGO  CGO   -0.000000       16.0000           0
+     734 MM   367  CG   RES  RES    0.000000       42.0800           0
+     735 MM   368  CG   CGO  CGO   -0.000000       16.0000           0
+     736 MM   368  CG   RES  RES    0.000000       42.0800           0
+     737 MM   369  CG   CGO  CGO   -0.000000       16.0000           0
+     738 MM   369  CG   RES  RES    0.000000       42.0800           0
+     739 MM   370  CG   CGO  CGO   -0.000000       16.0000           0
+     740 MM   370  CG   RES  RES    0.000000       42.0800           0
+     741 MM   371  CG   CGO  CGO   -0.000000       16.0000           0
+     742 MM   371  CG   RES  RES    0.000000       42.0800           0
+     743 MM   372  CG   CGO  CGO   -0.000000       16.0000           0
+     744 MM   372  CG   RES  RES    0.000000       42.0800           0
+     745 MM   373  CG   CGO  CGO   -0.000000       16.0000           0
+     746 MM   373  CG   RES  RES    0.000000       42.0800           0
+     747 MM   374  CG   CGO  CGO   -0.000000       16.0000           0
+     748 MM   374  CG   RES  RES    0.000000       42.0800           0
+     749 MM   375  CG   CGO  CGO   -0.000000       16.0000           0
+     750 MM   375  CG   RES  RES    0.000000       42.0800           0
+     751 MM   376  CG   CGO  CGO   -0.000000       16.0000           0
+     752 MM   376  CG   RES  RES    0.000000       42.0800           0
+     753 MM   377  CG   CGO  CGO   -0.000000       16.0000           0
+     754 MM   377  CG   RES  RES    0.000000       42.0800           0
+     755 MM   378  CG   CGO  CGO   -0.000000       16.0000           0
+     756 MM   378  CG   RES  RES    0.000000       42.0800           0
+     757 MM   379  CG   CGO  CGO   -0.000000       16.0000           0
+     758 MM   379  CG   RES  RES    0.000000       42.0800           0
+     759 MM   380  CG   CGO  CGO   -0.000000       16.0000           0
+     760 MM   380  CG   RES  RES    0.000000       42.0800           0
+     761 MM   381  CG   CGO  CGO   -0.000000       16.0000           0
+     762 MM   381  CG   RES  RES    0.000000       42.0800           0
+     763 MM   382  CG   CGO  CGO   -0.000000       16.0000           0
+     764 MM   382  CG   RES  RES    0.000000       42.0800           0
+     765 MM   383  CG   CGO  CGO   -0.000000       16.0000           0
+     766 MM   383  CG   RES  RES    0.000000       42.0800           0
+     767 MM   384  CG   CGO  CGO   -0.000000       16.0000           0
+     768 MM   384  CG   RES  RES    0.000000       42.0800           0
+     769 MM   385  CG   CGO  CGO   -0.000000       16.0000           0
+     770 MM   385  CG   RES  RES    0.000000       42.0800           0
+     771 MM   386  CG   CGO  CGO   -0.000000       16.0000           0
+     772 MM   386  CG   RES  RES    0.000000       42.0800           0
+     773 MM   387  CG   CGO  CGO   -0.000000       16.0000           0
+     774 MM   387  CG   RES  RES    0.000000       42.0800           0
+     775 MM   388  CG   CGO  CGO   -0.000000       16.0000           0
+     776 MM   388  CG   RES  RES    0.000000       42.0800           0
+     777 MM   389  CG   CGO  CGO   -0.000000       16.0000           0
+     778 MM   389  CG   RES  RES    0.000000       42.0800           0
+     779 MM   390  CG   CGO  CGO   -0.000000       16.0000           0
+     780 MM   390  CG   RES  RES    0.000000       42.0800           0
+     781 MM   391  CG   CGO  CGO   -0.000000       16.0000           0
+     782 MM   391  CG   RES  RES    0.000000       42.0800           0
+     783 MM   392  CG   CGO  CGO   -0.000000       16.0000           0
+     784 MM   392  CG   RES  RES    0.000000       42.0800           0
+     785 MM   393  CG   CGO  CGO   -0.000000       16.0000           0
+     786 MM   393  CG   RES  RES    0.000000       42.0800           0
+     787 MM   394  CG   CGO  CGO   -0.000000       16.0000           0
+     788 MM   394  CG   RES  RES    0.000000       42.0800           0
+     789 MM   395  CG   CGO  CGO   -0.000000       16.0000           0
+     790 MM   395  CG   RES  RES    0.000000       42.0800           0
+     791 MM   396  CG   CGO  CGO   -0.000000       16.0000           0
+     792 MM   396  CG   RES  RES    0.000000       42.0800           0
+     793 MM   397  CG   CGO  CGO   -0.000000       16.0000           0
+     794 MM   397  CG   RES  RES    0.000000       42.0800           0
+     795 MM   398  CG   CGO  CGO   -0.000000       16.0000           0
+     796 MM   398  CG   RES  RES    0.000000       42.0800           0
+     797 MM   399  CG   CGO  CGO   -0.000000       16.0000           0
+     798 MM   399  CG   RES  RES    0.000000       42.0800           0
+     799 MM   400  CG   CGO  CGO   -0.000000       16.0000           0
+     800 MM   400  CG   RES  RES    0.000000       42.0800           0
+     801 MM   401  CG   CGO  CGO   -0.000000       16.0000           0
+     802 MM   401  CG   RES  RES    0.000000       42.0800           0
+     803 MM   402  CG   CGO  CGO   -0.000000       16.0000           0
+     804 MM   402  CG   RES  RES    0.000000       42.0800           0
+     805 MM   403  CG   CGO  CGO   -0.000000       16.0000           0
+     806 MM   403  CG   RES  RES    0.000000       42.0800           0
+     807 MM   404  CG   CGO  CGO   -0.000000       16.0000           0
+     808 MM   404  CG   RES  RES    0.000000       42.0800           0
+     809 MM   405  CG   CGO  CGO   -0.000000       16.0000           0
+     810 MM   405  CG   RES  RES    0.000000       42.0800           0
+     811 MM   406  CG   CGO  CGO   -0.000000       16.0000           0
+     812 MM   406  CG   RES  RES    0.000000       42.0800           0
+     813 MM   407  CG   CGO  CGO   -0.000000       16.0000           0
+     814 MM   407  CG   RES  RES    0.000000       42.0800           0
+     815 MM   408  CG   CGO  CGO   -0.000000       16.0000           0
+     816 MM   408  CG   RES  RES    0.000000       42.0800           0
+     817 MM   409  CG   CGO  CGO   -0.000000       16.0000           0
+     818 MM   409  CG   RES  RES    0.000000       42.0800           0
+     819 MM   410  CG   CGO  CGO   -0.000000       16.0000           0
+     820 MM   410  CG   RES  RES    0.000000       42.0800           0
+     821 MM   411  CG   CGO  CGO   -0.000000       16.0000           0
+     822 MM   411  CG   RES  RES    0.000000       42.0800           0
+     823 MM   412  CG   CGO  CGO   -0.000000       16.0000           0
+     824 MM   412  CG   RES  RES    0.000000       42.0800           0
+     825 MM   413  CG   CGO  CGO   -0.000000       16.0000           0
+     826 MM   413  CG   RES  RES    0.000000       42.0800           0
+     827 MM   414  CG   CGO  CGO   -0.000000       16.0000           0
+     828 MM   414  CG   RES  RES    0.000000       42.0800           0
+     829 MM   415  CG   CGO  CGO   -0.000000       16.0000           0
+     830 MM   415  CG   RES  RES    0.000000       42.0800           0
+     831 MM   416  CG   CGO  CGO   -0.000000       16.0000           0
+     832 MM   416  CG   RES  RES    0.000000       42.0800           0
+     833 MM   417  CG   CGO  CGO   -0.000000       16.0000           0
+     834 MM   417  CG   RES  RES    0.000000       42.0800           0
+     835 MM   418  CG   CGO  CGO   -0.000000       16.0000           0
+     836 MM   418  CG   RES  RES    0.000000       42.0800           0
+     837 MM   419  CG   CGO  CGO   -0.000000       16.0000           0
+     838 MM   419  CG   RES  RES    0.000000       42.0800           0
+     839 MM   420  CG   CGO  CGO   -0.000000       16.0000           0
+     840 MM   420  CG   RES  RES    0.000000       42.0800           0
+     841 MM   421  CG   CGO  CGO   -0.000000       16.0000           0
+     842 MM   421  CG   RES  RES    0.000000       42.0800           0
+     843 MM   422  CG   CGO  CGO   -0.000000       16.0000           0
+     844 MM   422  CG   RES  RES    0.000000       42.0800           0
+     845 MM   423  CG   CGO  CGO   -0.000000       16.0000           0
+     846 MM   423  CG   RES  RES    0.000000       42.0800           0
+     847 MM   424  CG   CGO  CGO   -0.000000       16.0000           0
+     848 MM   424  CG   RES  RES    0.000000       42.0800           0
+     849 MM   425  CG   CGO  CGO   -0.000000       16.0000           0
+     850 MM   425  CG   RES  RES    0.000000       42.0800           0
+     851 MM   426  CG   CGO  CGO   -0.000000       16.0000           0
+     852 MM   426  CG   RES  RES    0.000000       42.0800           0
+     853 MM   427  CG   CGO  CGO   -0.000000       16.0000           0
+     854 MM   427  CG   RES  RES    0.000000       42.0800           0
+     855 MM   428  CG   CGO  CGO   -0.000000       16.0000           0
+     856 MM   428  CG   RES  RES    0.000000       42.0800           0
+     857 MM   429  CG   CGO  CGO   -0.000000       16.0000           0
+     858 MM   429  CG   RES  RES    0.000000       42.0800           0
+     859 MM   430  CG   CGO  CGO   -0.000000       16.0000           0
+     860 MM   430  CG   RES  RES    0.000000       42.0800           0
+     861 MM   431  CG   CGO  CGO   -0.000000       16.0000           0
+     862 MM   431  CG   RES  RES    0.000000       42.0800           0
+     863 MM   432  CG   CGO  CGO   -0.000000       16.0000           0
+     864 MM   432  CG   RES  RES    0.000000       42.0800           0
+     865 MM   433  CG   CGO  CGO   -0.000000       16.0000           0
+     866 MM   433  CG   RES  RES    0.000000       42.0800           0
+     867 MM   434  CG   CGO  CGO   -0.000000       16.0000           0
+     868 MM   434  CG   RES  RES    0.000000       42.0800           0
+     869 MM   435  CG   CGO  CGO   -0.000000       16.0000           0
+     870 MM   435  CG   RES  RES    0.000000       42.0800           0
+     871 MM   436  CG   CGO  CGO   -0.000000       16.0000           0
+     872 MM   436  CG   RES  RES    0.000000       42.0800           0
+     873 MM   437  CG   CGO  CGO   -0.000000       16.0000           0
+     874 MM   437  CG   RES  RES    0.000000       42.0800           0
+     875 MM   438  CG   CGO  CGO   -0.000000       16.0000           0
+     876 MM   438  CG   RES  RES    0.000000       42.0800           0
+     877 MM   439  CG   CGO  CGO   -0.000000       16.0000           0
+     878 MM   439  CG   RES  RES    0.000000       42.0800           0
+     879 MM   440  CG   CGO  CGO   -0.000000       16.0000           0
+     880 MM   440  CG   RES  RES    0.000000       42.0800           0
+     881 MM   441  CG   CGO  CGO   -0.000000       16.0000           0
+     882 MM   441  CG   RES  RES    0.000000       42.0800           0
+     883 MM   442  CG   CGO  CGO   -0.000000       16.0000           0
+     884 MM   442  CG   RES  RES    0.000000       42.0800           0
+     885 MM   443  CG   CGO  CGO   -0.000000       16.0000           0
+     886 MM   443  CG   RES  RES    0.000000       42.0800           0
+     887 MM   444  CG   CGO  CGO   -0.000000       16.0000           0
+     888 MM   444  CG   RES  RES    0.000000       42.0800           0
+     889 MM   445  CG   CGO  CGO   -0.000000       16.0000           0
+     890 MM   445  CG   RES  RES    0.000000       42.0800           0
+     891 MM   446  CG   CGO  CGO   -0.000000       16.0000           0
+     892 MM   446  CG   RES  RES    0.000000       42.0800           0
+     893 MM   447  CG   CGO  CGO   -0.000000       16.0000           0
+     894 MM   447  CG   RES  RES    0.000000       42.0800           0
+     895 MM   448  CG   CGO  CGO   -0.000000       16.0000           0
+     896 MM   448  CG   RES  RES    0.000000       42.0800           0
+     897 MM   449  CG   CGO  CGO   -0.000000       16.0000           0
+     898 MM   449  CG   RES  RES    0.000000       42.0800           0
+     899 MM   450  CG   CGO  CGO   -0.000000       16.0000           0
+     900 MM   450  CG   RES  RES    0.000000       42.0800           0
+     901 MM   451  CG   CGO  CGO   -0.000000       16.0000           0
+     902 MM   451  CG   RES  RES    0.000000       42.0800           0
+     903 MM   452  CG   CGO  CGO   -0.000000       16.0000           0
+     904 MM   452  CG   RES  RES    0.000000       42.0800           0
+     905 MM   453  CG   CGO  CGO   -0.000000       16.0000           0
+     906 MM   453  CG   RES  RES    0.000000       42.0800           0
+     907 MM   454  CG   CGO  CGO   -0.000000       16.0000           0
+     908 MM   454  CG   RES  RES    0.000000       42.0800           0
+     909 MM   455  CG   CGO  CGO   -0.000000       16.0000           0
+     910 MM   455  CG   RES  RES    0.000000       42.0800           0
+     911 MM   456  CG   CGO  CGO   -0.000000       16.0000           0
+     912 MM   456  CG   RES  RES    0.000000       42.0800           0
+     913 MM   457  CG   CGO  CGO   -0.000000       16.0000           0
+     914 MM   457  CG   RES  RES    0.000000       42.0800           0
+     915 MM   458  CG   CGO  CGO   -0.000000       16.0000           0
+     916 MM   458  CG   RES  RES    0.000000       42.0800           0
+     917 MM   459  CG   CGO  CGO   -0.000000       16.0000           0
+     918 MM   459  CG   RES  RES    0.000000       42.0800           0
+     919 MM   460  CG   CGO  CGO   -0.000000       16.0000           0
+     920 MM   460  CG   RES  RES    0.000000       42.0800           0
+     921 MM   461  CG   CGO  CGO   -0.000000       16.0000           0
+     922 MM   461  CG   RES  RES    0.000000       42.0800           0
+     923 MM   462  CG   CGO  CGO   -0.000000       16.0000           0
+     924 MM   462  CG   RES  RES    0.000000       42.0800           0
+     925 MM   463  CG   CGO  CGO   -0.000000       16.0000           0
+     926 MM   463  CG   RES  RES    0.000000       42.0800           0
+     927 MM   464  CG   CGO  CGO   -0.000000       16.0000           0
+     928 MM   464  CG   RES  RES    0.000000       42.0800           0
+     929 MM   465  CG   CGO  CGO   -0.000000       16.0000           0
+     930 MM   465  CG   RES  RES    0.000000       42.0800           0
+     931 MM   466  CG   CGO  CGO   -0.000000       16.0000           0
+     932 MM   466  CG   RES  RES    0.000000       42.0800           0
+     933 MM   467  CG   CGO  CGO   -0.000000       16.0000           0
+     934 MM   467  CG   RES  RES    0.000000       42.0800           0
+     935 MM   468  CG   CGO  CGO   -0.000000       16.0000           0
+     936 MM   468  CG   RES  RES    0.000000       42.0800           0
+     937 MM   469  CG   CGO  CGO   -0.000000       16.0000           0
+     938 MM   469  CG   RES  RES    0.000000       42.0800           0
+     939 MM   470  CG   CGO  CGO   -0.000000       16.0000           0
+     940 MM   470  CG   RES  RES    0.000000       42.0800           0
+     941 MM   471  CG   CGO  CGO   -0.000000       16.0000           0
+     942 MM   471  CG   RES  RES    0.000000       42.0800           0
+     943 MM   472  CG   CGO  CGO   -0.000000       16.0000           0
+     944 MM   472  CG   RES  RES    0.000000       42.0800           0
+     945 MM   473  CG   CGO  CGO   -0.000000       16.0000           0
+     946 MM   473  CG   RES  RES    0.000000       42.0800           0
+     947 MM   474  CG   CGO  CGO   -0.000000       16.0000           0
+     948 MM   474  CG   RES  RES    0.000000       42.0800           0
+     949 MM   475  CG   CGO  CGO   -0.000000       16.0000           0
+     950 MM   475  CG   RES  RES    0.000000       42.0800           0
+     951 MM   476  CG   CGO  CGO   -0.000000       16.0000           0
+     952 MM   476  CG   RES  RES    0.000000       42.0800           0
+     953 MM   477  CG   CGO  CGO   -0.000000       16.0000           0
+     954 MM   477  CG   RES  RES    0.000000       42.0800           0
+     955 MM   478  CG   CGO  CGO   -0.000000       16.0000           0
+     956 MM   478  CG   RES  RES    0.000000       42.0800           0
+     957 MM   479  CG   CGO  CGO   -0.000000       16.0000           0
+     958 MM   479  CG   RES  RES    0.000000       42.0800           0
+     959 MM   480  CG   CGO  CGO   -0.000000       16.0000           0
+     960 MM   480  CG   RES  RES    0.000000       42.0800           0
+     961 MM   481  CG   CGO  CGO   -0.000000       16.0000           0
+     962 MM   481  CG   RES  RES    0.000000       42.0800           0
+     963 MM   482  CG   CGO  CGO   -0.000000       16.0000           0
+     964 MM   482  CG   RES  RES    0.000000       42.0800           0
+     965 MM   483  CG   CGO  CGO   -0.000000       16.0000           0
+     966 MM   483  CG   RES  RES    0.000000       42.0800           0
+     967 MM   484  CG   CGO  CGO   -0.000000       16.0000           0
+     968 MM   484  CG   RES  RES    0.000000       42.0800           0
+     969 MM   485  CG   CGO  CGO   -0.000000       16.0000           0
+     970 MM   485  CG   RES  RES    0.000000       42.0800           0
+     971 MM   486  CG   CGO  CGO   -0.000000       16.0000           0
+     972 MM   486  CG   RES  RES    0.000000       42.0800           0
+     973 MM   487  CG   CGO  CGO   -0.000000       16.0000           0
+     974 MM   487  CG   RES  RES    0.000000       42.0800           0
+     975 MM   488  CG   CGO  CGO   -0.000000       16.0000           0
+     976 MM   488  CG   RES  RES    0.000000       42.0800           0
+     977 MM   489  CG   CGO  CGO   -0.000000       16.0000           0
+     978 MM   489  CG   RES  RES    0.000000       42.0800           0
+     979 MM   490  CG   CGO  CGO   -0.000000       16.0000           0
+     980 MM   490  CG   RES  RES    0.000000       42.0800           0
+     981 MM   491  CG   CGO  CGO   -0.000000       16.0000           0
+     982 MM   491  CG   RES  RES    0.000000       42.0800           0
+     983 MM   492  CG   CGO  CGO   -0.000000       16.0000           0
+     984 MM   492  CG   RES  RES    0.000000       42.0800           0
+     985 MM   493  CG   CGO  CGO   -0.000000       16.0000           0
+     986 MM   493  CG   RES  RES    0.000000       42.0800           0
+     987 MM   494  CG   CGO  CGO   -0.000000       16.0000           0
+     988 MM   494  CG   RES  RES    0.000000       42.0800           0
+     989 MM   495  CG   CGO  CGO   -0.000000       16.0000           0
+     990 MM   495  CG   RES  RES    0.000000       42.0800           0
+     991 MM   496  CG   CGO  CGO   -0.000000       16.0000           0
+     992 MM   496  CG   RES  RES    0.000000       42.0800           0
+     993 MM   497  CG   CGO  CGO   -0.000000       16.0000           0
+     994 MM   497  CG   RES  RES    0.000000       42.0800           0
+     995 MM   498  CG   CGO  CGO   -0.000000       16.0000           0
+     996 MM   498  CG   RES  RES    0.000000       42.0800           0
+     997 MM   499  CG   CGO  CGO   -0.000000       16.0000           0
+     998 MM   499  CG   RES  RES    0.000000       42.0800           0
+     999 MM   500  CG   CGO  CGO   -0.000000       16.0000           0
+    1000 MM   500  CG   RES  RES    0.000000       42.0800           0
+
+     500 !NBOND: bonds
+       1       2       3       4       5       6       7       8 
+       9      10      11      12      13      14      15      16 
+      17      18      19      20      21      22      23      24 
+      25      26      27      28      29      30      31      32 
+      33      34      35      36      37      38      39      40 
+      41      42      43      44      45      46      47      48 
+      49      50      51      52      53      54      55      56 
+      57      58      59      60      61      62      63      64 
+      65      66      67      68      69      70      71      72 
+      73      74      75      76      77      78      79      80 
+      81      82      83      84      85      86      87      88 
+      89      90      91      92      93      94      95      96 
+      97      98      99     100     101     102     103     104 
+     105     106     107     108     109     110     111     112 
+     113     114     115     116     117     118     119     120 
+     121     122     123     124     125     126     127     128 
+     129     130     131     132     133     134     135     136 
+     137     138     139     140     141     142     143     144 
+     145     146     147     148     149     150     151     152 
+     153     154     155     156     157     158     159     160 
+     161     162     163     164     165     166     167     168 
+     169     170     171     172     173     174     175     176 
+     177     178     179     180     181     182     183     184 
+     185     186     187     188     189     190     191     192 
+     193     194     195     196     197     198     199     200 
+     201     202     203     204     205     206     207     208 
+     209     210     211     212     213     214     215     216 
+     217     218     219     220     221     222     223     224 
+     225     226     227     228     229     230     231     232 
+     233     234     235     236     237     238     239     240 
+     241     242     243     244     245     246     247     248 
+     249     250     251     252     253     254     255     256 
+     257     258     259     260     261     262     263     264 
+     265     266     267     268     269     270     271     272 
+     273     274     275     276     277     278     279     280 
+     281     282     283     284     285     286     287     288 
+     289     290     291     292     293     294     295     296 
+     297     298     299     300     301     302     303     304 
+     305     306     307     308     309     310     311     312 
+     313     314     315     316     317     318     319     320 
+     321     322     323     324     325     326     327     328 
+     329     330     331     332     333     334     335     336 
+     337     338     339     340     341     342     343     344 
+     345     346     347     348     349     350     351     352 
+     353     354     355     356     357     358     359     360 
+     361     362     363     364     365     366     367     368 
+     369     370     371     372     373     374     375     376 
+     377     378     379     380     381     382     383     384 
+     385     386     387     388     389     390     391     392 
+     393     394     395     396     397     398     399     400 
+     401     402     403     404     405     406     407     408 
+     409     410     411     412     413     414     415     416 
+     417     418     419     420     421     422     423     424 
+     425     426     427     428     429     430     431     432 
+     433     434     435     436     437     438     439     440 
+     441     442     443     444     445     446     447     448 
+     449     450     451     452     453     454     455     456 
+     457     458     459     460     461     462     463     464 
+     465     466     467     468     469     470     471     472 
+     473     474     475     476     477     478     479     480 
+     481     482     483     484     485     486     487     488 
+     489     490     491     492     493     494     495     496 
+     497     498     499     500     501     502     503     504 
+     505     506     507     508     509     510     511     512 
+     513     514     515     516     517     518     519     520 
+     521     522     523     524     525     526     527     528 
+     529     530     531     532     533     534     535     536 
+     537     538     539     540     541     542     543     544 
+     545     546     547     548     549     550     551     552 
+     553     554     555     556     557     558     559     560 
+     561     562     563     564     565     566     567     568 
+     569     570     571     572     573     574     575     576 
+     577     578     579     580     581     582     583     584 
+     585     586     587     588     589     590     591     592 
+     593     594     595     596     597     598     599     600 
+     601     602     603     604     605     606     607     608 
+     609     610     611     612     613     614     615     616 
+     617     618     619     620     621     622     623     624 
+     625     626     627     628     629     630     631     632 
+     633     634     635     636     637     638     639     640 
+     641     642     643     644     645     646     647     648 
+     649     650     651     652     653     654     655     656 
+     657     658     659     660     661     662     663     664 
+     665     666     667     668     669     670     671     672 
+     673     674     675     676     677     678     679     680 
+     681     682     683     684     685     686     687     688 
+     689     690     691     692     693     694     695     696 
+     697     698     699     700     701     702     703     704 
+     705     706     707     708     709     710     711     712 
+     713     714     715     716     717     718     719     720 
+     721     722     723     724     725     726     727     728 
+     729     730     731     732     733     734     735     736 
+     737     738     739     740     741     742     743     744 
+     745     746     747     748     749     750     751     752 
+     753     754     755     756     757     758     759     760 
+     761     762     763     764     765     766     767     768 
+     769     770     771     772     773     774     775     776 
+     777     778     779     780     781     782     783     784 
+     785     786     787     788     789     790     791     792 
+     793     794     795     796     797     798     799     800 
+     801     802     803     804     805     806     807     808 
+     809     810     811     812     813     814     815     816 
+     817     818     819     820     821     822     823     824 
+     825     826     827     828     829     830     831     832 
+     833     834     835     836     837     838     839     840 
+     841     842     843     844     845     846     847     848 
+     849     850     851     852     853     854     855     856 
+     857     858     859     860     861     862     863     864 
+     865     866     867     868     869     870     871     872 
+     873     874     875     876     877     878     879     880 
+     881     882     883     884     885     886     887     888 
+     889     890     891     892     893     894     895     896 
+     897     898     899     900     901     902     903     904 
+     905     906     907     908     909     910     911     912 
+     913     914     915     916     917     918     919     920 
+     921     922     923     924     925     926     927     928 
+     929     930     931     932     933     934     935     936 
+     937     938     939     940     941     942     943     944 
+     945     946     947     948     949     950     951     952 
+     953     954     955     956     957     958     959     960 
+     961     962     963     964     965     966     967     968 
+     969     970     971     972     973     974     975     976 
+     977     978     979     980     981     982     983     984 
+     985     986     987     988     989     990     991     992 
+     993     994     995     996     997     998     999    1000 
+
+       0 !NTHETA: angles
+
+
+       0 !NPHI: dihedrals
+
+
+       0 !NIMPHI: impropers
+
+
+       0 !NDON: donors
+
+
+       0 !NACC: acceptors
+
+
+       0 !NNB
+
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0       0       0
+       0       0       0       0       0       0
+
+       1       0 !NGRP
+       0       0       0
+

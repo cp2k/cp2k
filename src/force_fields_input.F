@@ -67,7 +67,7 @@ MODULE force_fields_input
         ft_type, ftd_type, gal21_type, gal_type, gp_type, gw_type, ip_type, ipbv_pot_type, &
         lj_charmm_type, no_potential_single_allocation, pair_potential_p_type, &
         pair_potential_reallocate, potential_single_allocation, quip_type, siepmann_type, &
-        tersoff_type, wl_type
+        tab_pot_type, tab_type, tersoff_type, wl_type
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
@@ -101,7 +101,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       INTEGER :: nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, neam, ngal, ngal21, ngd, ngp, &
-         nimpr, nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntersoff, ntors, ntot, nubs, nwl
+         nimpr, nipbv, nlj, nopbend, nquip, nshell, nsiepmann, ntab, ntersoff, ntors, ntot, nubs, &
+         nwl
       LOGICAL                                            :: explicit, unique_spline
       REAL(KIND=dp)                                      :: min_eps_spline_allowed
       TYPE(input_info_type), POINTER                     :: inp_info
@@ -276,6 +277,14 @@ CONTAINS
          IF (explicit) THEN
             CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nquip, quip=.TRUE.)
             CALL read_quip_section(inp_info%nonbonded, tmp_section2, ntot)
+         END IF
+
+         tmp_section2 => section_vals_get_subs_vals(tmp_section, "TABPOT")
+         CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=ntab)
+         ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + ngal + ngal21 + nsiepmann + nquip
+         IF (explicit) THEN
+            CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + ntab, tab=.TRUE.)
+            CALL read_tabpot_section(inp_info%nonbonded, tmp_section2, ntot, para_env, mm_section)
          END IF
       END IF
 
@@ -1604,6 +1613,44 @@ CONTAINS
    END SUBROUTINE read_bm_section
 
 ! **************************************************************************************************
+!> \brief Reads the TABPOT section
+!> \param nonbonded ...
+!> \param section ...
+!> \param start ...
+!> \param para_env ...
+!> \param mm_section ...
+!> \author Alex Mironenko, Da Teng
+! **************************************************************************************************
+   SUBROUTINE read_tabpot_section(nonbonded, section, start, para_env, mm_section)
+      TYPE(pair_potential_p_type), POINTER               :: nonbonded
+      TYPE(section_vals_type), POINTER                   :: section
+      INTEGER, INTENT(IN)                                :: start
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: mm_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_tabpot_section', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
+      INTEGER                                            :: isec, n_items
+
+      CALL section_vals_get(section, n_repetition=n_items)
+      DO isec = 1, n_items
+         CALL section_vals_val_get(section, "ATOMS", i_rep_section=isec, c_vals=atm_names)
+         nonbonded%pot(start + isec)%pot%type = tab_type
+         nonbonded%pot(start + isec)%pot%at1 = atm_names(1)
+         nonbonded%pot(start + isec)%pot%at2 = atm_names(2)
+         CALL uppercase(nonbonded%pot(start + isec)%pot%at1)
+         CALL uppercase(nonbonded%pot(start + isec)%pot%at2)
+         CALL section_vals_val_get(section, "PARM_FILE_NAME", i_rep_section=isec, &
+                                   c_val=nonbonded%pot(start + isec)%pot%set(1)%tab%tabpot_file_name)
+         CALL read_tabpot_data(nonbonded%pot(start + isec)%pot%set(1)%tab, para_env, mm_section)
+         nonbonded%pot(start + isec)%pot%set(1)%tab%index = isec
+      END DO
+   END SUBROUTINE read_tabpot_section
+
+! **************************************************************************************************
 !> \brief Reads the CHARGE section
 !> \param charge_atm ...
 !> \param charge ...
@@ -2196,5 +2243,63 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE read_eam_data
+
+! **************************************************************************************************
+!> \brief reads TABPOT potential from file
+!> \param tab ...
+!> \param para_env ...
+!> \param mm_section ...
+!> \author Da Teng, Alex Mironenko
+! **************************************************************************************************
+   SUBROUTINE read_tabpot_data(tab, para_env, mm_section)
+      TYPE(tab_pot_type), POINTER                        :: tab
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: mm_section
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_tabpot_data', &
+         routineP = moduleN//':'//routineN
+
+      CHARACTER                                          :: d1, d2
+      INTEGER                                            :: d, handle, i, iw
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_parser_type), POINTER                      :: parser
+
+      CALL timeset(routineN, handle)
+      NULLIFY (parser, logger)
+      logger => cp_get_default_logger()
+      iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
+                                extension=".mmLog")
+      IF (iw > 0) WRITE (iw, *) "Reading TABPOT data from: ", TRIM(tab%tabpot_file_name)
+      CALL parser_create(parser, TRIM(tab%tabpot_file_name), para_env=para_env)
+      CALL parser_get_next_line(parser, 1)
+      IF (iw > 0) WRITE (iw, *) "Title: ", parser%input_line
+      CALL parser_get_next_line(parser, 1)
+
+      ! example format: N 1000 R 1.00 20.0
+      ! Assume the data is evenly spaced
+      READ (parser%input_line, *) d1, tab%npoints, d2, tab%dr, tab%rcut
+
+      ! Relocating arrays with the right size
+      CALL reallocate(tab%r, 1, tab%npoints)
+      CALL reallocate(tab%e, 1, tab%npoints)
+      CALL reallocate(tab%f, 1, tab%npoints)
+
+      ! Reading r, e, f
+      DO i = 1, tab%npoints
+         CALL parser_get_next_line(parser, 1)
+         READ (parser%input_line, *) d, tab%r(i), tab%e(i), tab%f(i)
+         tab%r(i) = cp_unit_to_cp2k(tab%r(i), "angstrom")
+         tab%e(i) = cp_unit_to_cp2k(tab%e(i), "kcalmol")
+         tab%f(i) = cp_unit_to_cp2k(tab%f(i), "kcalmol*angstrom^-1")
+      END DO
+
+      tab%dr = tab%r(2) - tab%r(1)
+      tab%rcut = cp_unit_to_cp2k(tab%rcut, "angstrom")
+
+      IF (iw > 0) WRITE (iw, *) "Finished TABPOT data"
+      CALL parser_release(parser)
+      CALL cp_print_key_finished_output(iw, logger, mm_section, "PRINT%FF_INFO")
+      CALL timestop(handle)
+   END SUBROUTINE read_tabpot_data
 
 END MODULE force_fields_input
