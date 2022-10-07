@@ -38,6 +38,7 @@ run_test mypy --strict ./tools/precommit/precommit.py
 run_test mypy --strict ./tools/precommit/check_file_properties.py
 run_test mypy --strict ./tools/precommit/format_makefile.py
 run_test mypy --strict ./tools/docker/generate_dockerfiles.py
+run_test mypy --strict ./tools/conventions/analyze_gfortran_ast.py
 
 # TODO: Find a way to test generate_dashboard.py without git repository.
 #

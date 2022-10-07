@@ -5,6 +5,7 @@
 import argparse
 import re
 from os import path
+from typing import TextIO, List
 
 
 BANNED_STM = ("GOTO", "FORALL", "OPEN", "CLOSE", "STOP")
@@ -20,12 +21,13 @@ re_conv = re.compile(
 
 
 # ======================================================================================
-def process_log_file(fhandle):
+def process_log_file(fhandle: TextIO) -> None:
     public_symbols = set()
     used_symbols = set()
 
-    def lprint(*args, **kwargs):
-        return print("{}:".format(path.basename(fhandle.name)[:-4]), *args, **kwargs)
+    def lprint(message: str) -> None:
+        short_filename = path.basename(fhandle.name)[:-4]
+        print(f"{short_filename}: {message}")
 
     module_name = None
 
@@ -62,9 +64,12 @@ def process_log_file(fhandle):
             cur_sym = None
             if len(line) == 0:
                 continue
-            cur_sym = re_symbol.match(line).group(1)
+            match = re_symbol.match(line)
+            assert match
+            cur_sym = match.group(1)
 
         elif line.startswith("attributes:"):
+            assert module_name and cur_sym
             is_imported = "USE-ASSOC" in line
             is_param = "PARAMETER" in line
             is_func = "FUNCTION" in line
@@ -73,7 +78,9 @@ def process_log_file(fhandle):
             is_module_name = cur_proc == module_name
 
             if is_imported:
-                mod = re_use.search(line).group(1)
+                match = re_use.search(line)
+                assert match
+                mod = match.group(1)
                 used_symbols.add(mod + "::" + cur_sym)
                 if "MODULE  USE-ASSOC" in line and mod.lower() not in USE_EXCEPTIONS:
                     lprint(f'Module "{mod}" USEd without ONLY clause or not PRIVATE')
@@ -136,11 +143,9 @@ def process_log_file(fhandle):
     # check for run-away DT_END search
     assert skip_until_DT_END is False
 
-    return (public_symbols, used_symbols)
-
 
 # ======================================================================================
-def parse_args(line):
+def parse_args(line: str) -> List[str]:
     assert line[0] == "("
     parentheses = 1
     args = list()
