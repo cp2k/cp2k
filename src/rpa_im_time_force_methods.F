@@ -2003,58 +2003,58 @@ CONTAINS
 
             END DO !k_mem
          END DO !j_mem
+         CALL dbt_copy(t_3c_8, t_3c_help_1, move_data=.TRUE.)
+
+         pref = 1.0_dp*fac
+         IF (use_virial) THEN
+            DO k_mem = 1, cut_memory
+               DO i_xyz = 1, 3
+                  CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
+                  CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(k_mem, i_xyz)%ind, &
+                                         force_data%t_3c_der_RI_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+               END DO
+               CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
+                                            force_data%idx_to_at_RI, pref, work_virial, cell, particle_set, &
+                                            do_mp2=.TRUE., deriv_dim=1)
+            END DO
+
+            CALL dbt_copy(t_3c_help_1, t_3c_help_2)
+            CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
+            DO k_mem = 1, cut_memory
+               DO i_xyz = 1, 3
+                  CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
+                  CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(k_mem, i_xyz)%ind, &
+                                         force_data%t_3c_der_AO_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+               END DO
+               CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
+                                            force_data%idx_to_at_AO, pref, work_virial, cell, particle_set, &
+                                            do_mp2=.TRUE., deriv_dim=3)
+            END DO
+         ELSE
+            DO k_mem = 1, cut_memory
+               DO i_xyz = 1, 3
+                  CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
+                  CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(k_mem, i_xyz)%ind, &
+                                         force_data%t_3c_der_RI_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+               END DO
+               CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
+                                            force_data%idx_to_at_RI, pref, do_mp2=.TRUE., deriv_dim=1)
+            END DO
+
+            CALL dbt_copy(t_3c_help_1, t_3c_help_2)
+            CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
+            DO k_mem = 1, cut_memory
+               DO i_xyz = 1, 3
+                  CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
+                  CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(k_mem, i_xyz)%ind, &
+                                         force_data%t_3c_der_AO_comp(k_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
+               END DO
+               CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
+                                            force_data%idx_to_at_AO, pref, do_mp2=.TRUE., deriv_dim=3)
+            END DO
+         END IF
+         CALL dbt_clear(t_3c_help_2)
       END DO !i_mem
-      CALL dbt_copy(t_3c_8, t_3c_help_1, move_data=.TRUE.)
-
-      pref = 1.0_dp*fac
-      IF (use_virial) THEN
-         DO i_mem = 1, cut_memory
-            DO i_xyz = 1, 3
-               CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
-               CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
-                                      force_data%t_3c_der_RI_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
-            END DO
-            CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
-                                         force_data%idx_to_at_RI, pref, work_virial, cell, particle_set, &
-                                         do_mp2=.TRUE., deriv_dim=1)
-         END DO
-
-         CALL dbt_copy(t_3c_help_1, t_3c_help_2)
-         CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
-         DO i_mem = 1, cut_memory
-            DO i_xyz = 1, 3
-               CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
-               CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
-                                      force_data%t_3c_der_AO_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
-            END DO
-            CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
-                                         force_data%idx_to_at_AO, pref, work_virial, cell, particle_set, &
-                                         do_mp2=.TRUE., deriv_dim=3)
-         END DO
-      ELSE
-         DO i_mem = 1, cut_memory
-            DO i_xyz = 1, 3
-               CALL dbt_clear(force_data%t_3c_der_RI(i_xyz))
-               CALL decompress_tensor(force_data%t_3c_der_RI(i_xyz), force_data%t_3c_der_RI_ind(i_mem, i_xyz)%ind, &
-                                      force_data%t_3c_der_RI_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
-            END DO
-            CALL get_force_from_3c_trace(force, t_3c_help_1, force_data%t_3c_der_RI, atom_of_kind, kind_of, &
-                                         force_data%idx_to_at_RI, pref, do_mp2=.TRUE., deriv_dim=1)
-         END DO
-
-         CALL dbt_copy(t_3c_help_1, t_3c_help_2)
-         CALL dbt_copy(t_3c_help_1, t_3c_help_2, order=[1, 3, 2], move_data=.TRUE., summation=.TRUE.)
-         DO i_mem = 1, cut_memory
-            DO i_xyz = 1, 3
-               CALL dbt_clear(force_data%t_3c_der_AO(i_xyz))
-               CALL decompress_tensor(force_data%t_3c_der_AO(i_xyz), force_data%t_3c_der_AO_ind(i_mem, i_xyz)%ind, &
-                                      force_data%t_3c_der_AO_comp(i_mem, i_xyz), mp2_env%ri_rpa_im_time%eps_compress)
-            END DO
-            CALL get_force_from_3c_trace(force, t_3c_help_2, force_data%t_3c_der_AO, atom_of_kind, kind_of, &
-                                         force_data%idx_to_at_AO, pref, do_mp2=.TRUE., deriv_dim=3)
-         END DO
-      END IF
-      CALL dbt_clear(t_3c_help_2)
 
       DO k_mem = 1, n_mem_RI
          DO i_mem = 1, cut_memory
