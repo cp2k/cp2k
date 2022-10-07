@@ -357,7 +357,7 @@ CONTAINS
             cholesky_method_inout = cholesky_method
             CALL eigensolver(matrix_ks_fm=matrix_ks_fm, mo_set=mos_extended, ortho=ortho_fm, &
                              work=work_fm, cholesky_method=cholesky_method_inout, &
-                             do_level_shift=.FALSE., level_shift=0.0_dp, matrix_u_fm=null(), use_jacobi=.FALSE.)
+                             do_level_shift=.FALSE., level_shift=0.0_dp, use_jacobi=.FALSE.)
          END IF
 
          ! -- clean up needless matrices
