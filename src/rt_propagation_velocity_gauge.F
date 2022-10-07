@@ -14,6 +14,8 @@ MODULE rt_propagation_velocity_gauge
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Mattiat2022,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE core_ppnl,                       ONLY: build_core_ppnl
@@ -116,6 +118,8 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Mattiat2022)
 
       my_subtract_nl_term = .FALSE.
       IF (PRESENT(subtract_nl_term)) my_subtract_nl_term = subtract_nl_term

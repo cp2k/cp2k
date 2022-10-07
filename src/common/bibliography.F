@@ -89,7 +89,7 @@ MODULE bibliography
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Lass2018, cp2kqs2020, &
                             Behler2007, Behler2011, Schran2020a, Schran2020b, &
                             Rycroft2009, Thomas2015, Brehm2018, Brehm2020, Shigeta2001, Heinecke2016, &
-                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021
+                            Brehm2021, Bussy2021a, Bussy2021b, Ditler2021, Mattiat2019, Mattiat2022
 
 CONTAINS
 
@@ -4718,6 +4718,38 @@ CONTAINS
                          "DI 10.1063/5.0041056", &
                          "ER"), &
                          DOI="10.1063/5.0041056")
+
+      CALL add_reference(key=Mattiat2019, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Mattiat, Johann", &
+                         "   Luber, Sandra", &
+                         "TI Vibrational (resonance) Raman optical activity with real time time dependent", &
+                         "   density functional theory", &
+                         "SO The Journal of Chemical Physics", &
+                         "PY 2019", &
+                         "VL 151", &
+                         "AR 234110", &
+                         "DI 10.1063/1.5132294", &
+                         "ER"), &
+                         DOI="10.1063/1.5132294")
+
+      CALL add_reference(key=Mattiat2022, ISI_record=s2a( &
+                         "TY JOUR", &
+                         "PT J", &
+                         "AU Mattiat, Johann", &
+                         "   Luber, Sandra", &
+                         "TI Comparison of Length, Velocity, and Symmetric Gauges for the Calculation of", &
+                         "   Absorption and Electric Circular Dichroism Spectra with Real-Time Time-Dependent", &
+                         "   Density Functional Theory", &
+                         "SO The Journal of Chemical Theory and Computation", &
+                         "PY 2022", &
+                         "VL 18", &
+                         "BP 5513", &
+                         "EP 5526", &
+                         "DI 10.1021/acs.jctc.2c00644", &
+                         "ER"), &
+                         DOI="10.1021/acs.jctc.2c00644")
 
    END SUBROUTINE add_all_references
 

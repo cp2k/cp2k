@@ -10,6 +10,9 @@
 ! **************************************************************************************************
 
 MODULE rt_delta_pulse
+   USE bibliography,                    ONLY: Mattiat2019,&
+                                              Mattiat2022,&
+                                              cite_reference
    USE cell_types,                      ONLY: cell_type
    USE commutator_rpnl,                 ONLY: build_com_mom_nl,&
                                               build_com_nl_mag
@@ -149,6 +152,7 @@ CONTAINS
 
       ! calculate non-local commutator if necessary
       IF (com_nl) THEN
+         CALL cite_reference(Mattiat2019)
          NULLIFY (qs_kind_set, sab_orb, sap_ppnl)
          CALL get_qs_env(qs_env, &
                          sap_ppnl=sap_ppnl, &
@@ -170,6 +174,7 @@ CONTAINS
 
       ! calculate dipole moment matrix if required, NOT for periodic boundary conditions!
       IF (len_rep) THEN
+         CALL cite_reference(Mattiat2022)
          IF (periodic_cell) THEN
             CPWARN("This application of the delta pulse is not compatible with PBC!")
          END IF
@@ -414,6 +419,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Mattiat2022)
 
       NULLIFY (rtp, dft_control, matrix_ks, matrix_s, input, mos, cell, sab_orb, sab_all, sap_ppnl, &
                qs_kind_set, particle_set)
