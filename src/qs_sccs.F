@@ -156,16 +156,13 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type), DIMENSION(3)                      :: dphi_tot
-      TYPE(pw_p_type), DIMENSION(5)                      :: work_r3d
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_pw_r
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type), DIMENSION(3)                        :: dln_eps_elec, drho_elec
-      TYPE(pw_type), DIMENSION(3, 3)                     :: d2rho_elec
-      TYPE(pw_type), POINTER :: deps_elec, eps_elec, ln_eps_elec, norm_drho_elec, phi_pol, &
-         phi_solute, phi_tot, rho_elec, rho_iter_old, rho_pol, rho_pw_r_sccs, rho_solute, rho_tot, &
-         rho_tot_zero, theta
+      TYPE(pw_type)                                      :: deps_elec, eps_elec
+      TYPE(pw_type), DIMENSION(3)                        :: dln_eps_elec
+      TYPE(pw_type), POINTER                             :: rho_pw_r_sccs
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -176,32 +173,18 @@ CONTAINS
 
       NULLIFY (auxbas_pw_pool)
       NULLIFY (cp_subsys)
-      NULLIFY (deps_elec)
       NULLIFY (dft_control)
       NULLIFY (energy)
-      NULLIFY (eps_elec)
       NULLIFY (input)
-      NULLIFY (ln_eps_elec)
       NULLIFY (logger)
-      NULLIFY (norm_drho_elec)
       NULLIFY (para_env)
       NULLIFY (particles)
-      NULLIFY (phi_pol)
-      NULLIFY (phi_solute)
-      NULLIFY (phi_tot)
       NULLIFY (poisson_env)
       NULLIFY (pw_env)
       NULLIFY (pw_pools)
       NULLIFY (rho)
-      NULLIFY (rho_elec)
-      NULLIFY (rho_iter_old)
-      NULLIFY (rho_pol)
-      NULLIFY (rho_solute)
-      NULLIFY (rho_tot)
-      NULLIFY (rho_tot_zero)
       NULLIFY (sccs_control)
       NULLIFY (scf_env)
-      NULLIFY (theta)
 
       ! Load data from Quickstep environment
       CALL get_qs_env(qs_env=qs_env, &
@@ -279,26 +262,6 @@ CONTAINS
                                          ignore_should_output=should_output, &
                                          log_filename=.FALSE.)
 
-      ! Get work storage for the 3d grids in r-space
-      DO i = 1, SIZE(work_r3d)
-         ALLOCATE (work_r3d(i)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                work_r3d(i)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-      END DO
-
-      ! Assign total electronic density in r-space
-      rho_elec => work_r3d(1)%pw
-
-      ! Retrieve grid parameters
-      ngpts = rho_elec%pw_grid%ngpts
-      dvol = rho_elec%pw_grid%dvol
-      cell_volume = rho_elec%pw_grid%vol
-      abc(1:3) = REAL(rho_elec%pw_grid%npts(1:3), KIND=dp)*rho_elec%pw_grid%dr(1:3)
-      lb(1:3) = rho_elec%pw_grid%bounds_local(1, 1:3)
-      ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
-
       ! Get rho
       CALL qs_rho_get(rho_struct=rho, &
                       rho_r=rho_pw_r, &
@@ -306,118 +269,54 @@ CONTAINS
 
       ! Retrieve the last rho_iter from the previous SCCS cycle if available
       CPASSERT(ASSOCIATED(rho_pw_r_sccs))
-      rho_iter_old => rho_pw_r_sccs
 
       ! Retrieve the total electronic density in r-space
-      CALL pw_copy(rho_pw_r(1)%pw, rho_elec)
-      DO ispin = 2, nspin
-         CALL pw_axpy(rho_pw_r(ispin)%pw, rho_elec)
-      END DO
-      tot_rho_elec = accurate_sum(rho_elec%cr3d)*dvol
-      CALL mp_sum(tot_rho_elec, para_env%group)
+      BLOCK
+         TYPE(pw_type) :: rho_elec
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                rho_elec, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
 
-      ! Calculate the dielectric (smoothed) function of rho_elec in r-space
-      eps_elec => work_r3d(2)%pw
-      deps_elec => work_r3d(3)%pw
-      ! Relative permittivity or dielectric constant of the solvent (medium)
-      epsilon_solvent = sccs_control%epsilon_solvent
-      SELECT CASE (sccs_control%method_id)
-      CASE (sccs_andreussi)
-         CALL andreussi(rho_elec, eps_elec, deps_elec, epsilon_solvent, sccs_control%rho_max, &
-                        sccs_control%rho_min)
-      CASE (sccs_fattebert_gygi)
-         CALL fattebert_gygi(rho_elec, eps_elec, deps_elec, epsilon_solvent, sccs_control%beta, &
-                             sccs_control%rho_zero)
-      CASE DEFAULT
-         CPABORT("Invalid method specified for SCCS model")
-      END SELECT
+         ! Retrieve grid parameters
+         ngpts = rho_elec%pw_grid%ngpts
+         dvol = rho_elec%pw_grid%dvol
+         cell_volume = rho_elec%pw_grid%vol
+         abc(1:3) = REAL(rho_elec%pw_grid%npts(1:3), KIND=dp)*rho_elec%pw_grid%dr(1:3)
+         lb(1:3) = rho_elec%pw_grid%bounds_local(1, 1:3)
+         ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
 
-      ! Optional output of the dielectric function in cube file format
-      filename = "DIELECTRIC_FUNCTION"
-      cube_path = TRIM(print_path)//"%"//TRIM(filename)
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
-                cp_p_file)) THEN
-         append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
-         my_pos_cube = "REWIND"
-         IF (append_cube) my_pos_cube = "APPEND"
-         mpi_io = .TRUE.
-         cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
-                                          extension=".cube", middle_name=TRIM(filename), &
-                                          file_position=my_pos_cube, log_filename=.FALSE., &
-                                          mpi_io=mpi_io, fout=mpi_filename)
-         IF (output_unit > 0) THEN
-            IF (.NOT. mpi_io) THEN
-               INQUIRE (UNIT=cube_unit, NAME=filename)
-            ELSE
-               filename = mpi_filename
-            END IF
-            WRITE (UNIT=output_unit, FMT="(T3,A)") &
-               "SCCS| The dielectric function is written in cube file format to the file:", &
-               "SCCS| "//TRIM(filename)
-         END IF
-         CALL cp_pw_to_cube(eps_elec, cube_unit, TRIM(filename), particles=particles, &
-                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), &
-                            mpi_io=mpi_io)
-         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
-      END IF
-
-      ! Calculate the (quantum) volume and surface of the solute cavity
-      cavity_surface = 0.0_dp
-      cavity_volume = 0.0_dp
-
-      IF (should_output .AND. (ABS(epsilon_solvent - 1.0_dp) > epstol)) THEN
-
-         ! Initialise the switching function theta
-         theta => work_r3d(4)%pw
-         CALL pw_zero(theta)
-
-         ! Calculate the (quantum) volume of the solute cavity
-         f = 1.0_dp/(epsilon_solvent - 1.0_dp)
-!$OMP    PARALLEL DO DEFAULT(NONE) &
-!$OMP                PRIVATE(i,j,k) &
-!$OMP                SHARED(epsilon_solvent,eps_elec,f,lb,theta,ub)
-         DO k = lb(3), ub(3)
-            DO j = lb(2), ub(2)
-               DO i = lb(1), ub(1)
-                  theta%cr3d(i, j, k) = f*(epsilon_solvent - eps_elec%cr3d(i, j, k))
-               END DO
-            END DO
+         CALL pw_copy(rho_pw_r(1)%pw, rho_elec)
+         DO ispin = 2, nspin
+            CALL pw_axpy(rho_pw_r(ispin)%pw, rho_elec)
          END DO
-!$OMP    END PARALLEL DO
-         cavity_volume = accurate_sum(theta%cr3d)*dvol
-         CALL mp_sum(cavity_volume, para_env%group)
+         tot_rho_elec = accurate_sum(rho_elec%cr3d)*dvol
+         CALL mp_sum(tot_rho_elec, para_env%group)
 
-         ! Calculate the derivative of the electronic density in r-space
-         ! TODO: Could be retrieved from the QS environment
-         DO i = 1, 3
-            CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   drho_elec(i), &
-                                   use_data=REALDATA3D, &
-                                   in_space=REALSPACE)
-         END DO
-         CALL derive(rho_elec, drho_elec, sccs_derivative_fft, pw_env, input)
+         ! Calculate the dielectric (smoothed) function of rho_elec in r-space
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                eps_elec, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                deps_elec, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         ! Relative permittivity or dielectric constant of the solvent (medium)
+         epsilon_solvent = sccs_control%epsilon_solvent
+         SELECT CASE (sccs_control%method_id)
+         CASE (sccs_andreussi)
+            CALL andreussi(rho_elec, eps_elec, deps_elec, epsilon_solvent, sccs_control%rho_max, &
+                           sccs_control%rho_min)
+         CASE (sccs_fattebert_gygi)
+            CALL fattebert_gygi(rho_elec, eps_elec, deps_elec, epsilon_solvent, sccs_control%beta, &
+                                sccs_control%rho_zero)
+         CASE DEFAULT
+            CPABORT("Invalid method specified for SCCS model")
+         END SELECT
 
-         ! Calculate the norm of the gradient of the electronic density in r-space
-         norm_drho_elec => work_r3d(5)%pw
-!$OMP    PARALLEL DO DEFAULT(NONE) &
-!$OMP                PRIVATE(i,j,k) &
-!$OMP                SHARED(drho_elec,lb,norm_drho_elec,ub)
-         DO k = lb(3), ub(3)
-            DO j = lb(2), ub(2)
-               DO i = lb(1), ub(1)
-                  norm_drho_elec%cr3d(i, j, k) = SQRT(drho_elec(1)%cr3d(i, j, k)* &
-                                                      drho_elec(1)%cr3d(i, j, k) + &
-                                                      drho_elec(2)%cr3d(i, j, k)* &
-                                                      drho_elec(2)%cr3d(i, j, k) + &
-                                                      drho_elec(3)%cr3d(i, j, k)* &
-                                                      drho_elec(3)%cr3d(i, j, k))
-               END DO
-            END DO
-         END DO
-!$OMP    END PARALLEL DO
-
-         ! Optional output of the norm of the density gradient in cube file format
-         filename = "DENSITY_GRADIENT"
+         ! Optional output of the dielectric function in cube file format
+         filename = "DIELECTRIC_FUNCTION"
          cube_path = TRIM(print_path)//"%"//TRIM(filename)
          IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
                    cp_p_file)) THEN
@@ -436,397 +335,508 @@ CONTAINS
                   filename = mpi_filename
                END IF
                WRITE (UNIT=output_unit, FMT="(T3,A)") &
-                  "SCCS| The norm of the density gradient is written in cube file format to the file:", &
+                  "SCCS| The dielectric function is written in cube file format to the file:", &
                   "SCCS| "//TRIM(filename)
             END IF
-            CALL cp_pw_to_cube(norm_drho_elec, cube_unit, TRIM(filename), particles=particles, &
+            CALL cp_pw_to_cube(eps_elec, cube_unit, TRIM(filename), particles=particles, &
                                stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), &
                                mpi_io=mpi_io)
             CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
          END IF
 
-         ! Calculate the (quantum) surface of the solute cavity
-         SELECT CASE (sccs_control%method_id)
-         CASE (sccs_andreussi)
-            CALL surface_andreussi(rho_elec, norm_drho_elec, theta, epsilon_solvent, &
-                                   sccs_control%rho_max, sccs_control%rho_min, &
-                                   sccs_control%delta_rho)
-         CASE (sccs_fattebert_gygi)
-            CALL surface_fattebert_gygi(rho_elec, norm_drho_elec, theta, epsilon_solvent, &
-                                        sccs_control%beta, sccs_control%rho_zero, &
-                                        sccs_control%delta_rho)
-         CASE DEFAULT
-            CPABORT("Invalid method specified for SCCS model")
-         END SELECT
-         cavity_surface = accurate_sum(theta%cr3d)*dvol
-         CALL mp_sum(cavity_surface, para_env%group)
+         ! Calculate the (quantum) volume and surface of the solute cavity
+         cavity_surface = 0.0_dp
+         cavity_volume = 0.0_dp
 
-         IF (sccs_control%gamma_solvent > 0.0_dp) THEN
+         IF (should_output .AND. (ABS(epsilon_solvent - 1.0_dp) > epstol)) THEN
 
-            CALL cp_warn(__LOCATION__, &
-                         "Experimental feature requested: The contribution from the "// &
-                         "cavitation energy is added as an extra potential term to the "// &
-                         "Kohn-Sham potential")
+            BLOCK
+               TYPE(pw_type) :: theta, norm_drho_elec
+               TYPE(pw_type), DIMENSION(3)                        :: drho_elec
+               TYPE(pw_type), DIMENSION(3, 3)                     :: d2rho_elec
+               CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                      theta, &
+                                      use_data=REALDATA3D, &
+                                      in_space=REALSPACE)
+               CALL pw_zero(theta)
 
-            ! Calculate the second derivatives of the electronic density in r-space
-            DO di = 1, 3
-               DO dj = 1, 3
+               ! Calculate the (quantum) volume of the solute cavity
+               f = 1.0_dp/(epsilon_solvent - 1.0_dp)
+!$OMP    PARALLEL DO DEFAULT(NONE) &
+!$OMP                PRIVATE(i,j,k) &
+!$OMP                SHARED(epsilon_solvent,eps_elec,f,lb,theta,ub)
+               DO k = lb(3), ub(3)
+                  DO j = lb(2), ub(2)
+                     DO i = lb(1), ub(1)
+                        theta%cr3d(i, j, k) = f*(epsilon_solvent - eps_elec%cr3d(i, j, k))
+                     END DO
+                  END DO
+               END DO
+!$OMP    END PARALLEL DO
+               cavity_volume = accurate_sum(theta%cr3d)*dvol
+               CALL mp_sum(cavity_volume, para_env%group)
+
+               ! Calculate the derivative of the electronic density in r-space
+               ! TODO: Could be retrieved from the QS environment
+               DO i = 1, 3
                   CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                         d2rho_elec(dj, di), &
+                                         drho_elec(i), &
                                          use_data=REALDATA3D, &
                                          in_space=REALSPACE)
                END DO
-               CALL derive(drho_elec(di), d2rho_elec(:, di), sccs_derivative_fft, pw_env, &
-                           input)
-            END DO
+               CALL derive(rho_elec, drho_elec, sccs_derivative_fft, pw_env, input)
 
-            ! Calculate the contribution of the cavitation energy to the Kohn-Sham potential
+               CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                      norm_drho_elec, &
+                                      use_data=REALDATA3D, &
+                                      in_space=REALSPACE)
+
+               ! Calculate the norm of the gradient of the electronic density in r-space
+!$OMP    PARALLEL DO DEFAULT(NONE) &
+!$OMP                PRIVATE(i,j,k) &
+!$OMP                SHARED(drho_elec,lb,norm_drho_elec,ub)
+               DO k = lb(3), ub(3)
+                  DO j = lb(2), ub(2)
+                     DO i = lb(1), ub(1)
+                        norm_drho_elec%cr3d(i, j, k) = SQRT(drho_elec(1)%cr3d(i, j, k)* &
+                                                            drho_elec(1)%cr3d(i, j, k) + &
+                                                            drho_elec(2)%cr3d(i, j, k)* &
+                                                            drho_elec(2)%cr3d(i, j, k) + &
+                                                            drho_elec(3)%cr3d(i, j, k)* &
+                                                            drho_elec(3)%cr3d(i, j, k))
+                     END DO
+                  END DO
+               END DO
+!$OMP    END PARALLEL DO
+
+               ! Optional output of the norm of the density gradient in cube file format
+               filename = "DENSITY_GRADIENT"
+               cube_path = TRIM(print_path)//"%"//TRIM(filename)
+               IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
+                         cp_p_file)) THEN
+                  append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
+                  my_pos_cube = "REWIND"
+                  IF (append_cube) my_pos_cube = "APPEND"
+                  mpi_io = .TRUE.
+                  cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
+                                                   extension=".cube", middle_name=TRIM(filename), &
+                                                   file_position=my_pos_cube, log_filename=.FALSE., &
+                                                   mpi_io=mpi_io, fout=mpi_filename)
+                  IF (output_unit > 0) THEN
+                     IF (.NOT. mpi_io) THEN
+                        INQUIRE (UNIT=cube_unit, NAME=filename)
+                     ELSE
+                        filename = mpi_filename
+                     END IF
+                     WRITE (UNIT=output_unit, FMT="(T3,A)") &
+                        "SCCS| The norm of the density gradient is written in cube file format to the file:", &
+                        "SCCS| "//TRIM(filename)
+                  END IF
+                  CALL cp_pw_to_cube(norm_drho_elec, cube_unit, TRIM(filename), particles=particles, &
+                                     stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), &
+                                     mpi_io=mpi_io)
+                  CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
+               END IF
+
+               ! Calculate the (quantum) surface of the solute cavity
+               SELECT CASE (sccs_control%method_id)
+               CASE (sccs_andreussi)
+                  CALL surface_andreussi(rho_elec, norm_drho_elec, theta, epsilon_solvent, &
+                                         sccs_control%rho_max, sccs_control%rho_min, &
+                                         sccs_control%delta_rho)
+               CASE (sccs_fattebert_gygi)
+                  CALL surface_fattebert_gygi(rho_elec, norm_drho_elec, theta, epsilon_solvent, &
+                                              sccs_control%beta, sccs_control%rho_zero, &
+                                              sccs_control%delta_rho)
+               CASE DEFAULT
+                  CPABORT("Invalid method specified for SCCS model")
+               END SELECT
+               cavity_surface = accurate_sum(theta%cr3d)*dvol
+               CALL mp_sum(cavity_surface, para_env%group)
+
+               IF (sccs_control%gamma_solvent > 0.0_dp) THEN
+
+                  CALL cp_warn(__LOCATION__, &
+                               "Experimental feature requested: The contribution from the "// &
+                               "cavitation energy is added as an extra potential term to the "// &
+                               "Kohn-Sham potential")
+
+                  ! Calculate the second derivatives of the electronic density in r-space
+                  DO di = 1, 3
+                     DO dj = 1, 3
+                        CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                               d2rho_elec(dj, di), &
+                                               use_data=REALDATA3D, &
+                                               in_space=REALSPACE)
+                     END DO
+                     CALL derive(drho_elec(di), d2rho_elec(:, di), sccs_derivative_fft, pw_env, &
+                                 input)
+                  END DO
+
+                  ! Calculate the contribution of the cavitation energy to the Kohn-Sham potential
 !$OMP       PARALLEL DO DEFAULT(NONE) &
 !$OMP                   PRIVATE(di,dj,i,j,k,norm_drho2) &
 !$OMP                   SHARED(d2rho_elec,drho_elec,lb,norm_drho_elec,sccs_control) &
 !$OMP                   SHARED(theta,ub,v_sccs)
-            DO k = lb(3), ub(3)
-               DO j = lb(2), ub(2)
-                  DO i = lb(1), ub(1)
-                     norm_drho2 = norm_drho_elec%cr3d(i, j, k)*norm_drho_elec%cr3d(i, j, k)
-                     DO di = 1, 3
-                        DO dj = 1, 3
-                           v_sccs%cr3d(i, j, k) = sccs_control%gamma_solvent*theta%cr3d(i, j, k)* &
-                                                  (drho_elec(di)%cr3d(i, j, k)* &
-                                                   drho_elec(dj)%cr3d(i, j, k)* &
-                                                   d2rho_elec(di, dj)%cr3d(i, j, k)/norm_drho2 - &
-                                                   d2rho_elec(di, di)%cr3d(i, j, k))/norm_drho2
+                  DO k = lb(3), ub(3)
+                     DO j = lb(2), ub(2)
+                        DO i = lb(1), ub(1)
+                           norm_drho2 = norm_drho_elec%cr3d(i, j, k)*norm_drho_elec%cr3d(i, j, k)
+                           DO di = 1, 3
+                              DO dj = 1, 3
+                                 v_sccs%cr3d(i, j, k) = sccs_control%gamma_solvent*theta%cr3d(i, j, k)* &
+                                                        (drho_elec(di)%cr3d(i, j, k)* &
+                                                         drho_elec(dj)%cr3d(i, j, k)* &
+                                                         d2rho_elec(di, dj)%cr3d(i, j, k)/norm_drho2 - &
+                                                         d2rho_elec(di, di)%cr3d(i, j, k))/norm_drho2
+                              END DO
+                           END DO
                         END DO
                      END DO
                   END DO
-               END DO
-            END DO
 !$OMP       END PARALLEL DO
-            CALL pw_scale(v_sccs, dvol)
-            DO di = 1, 3
-               DO dj = 1, 3
-                  CALL pw_pool_give_back_pw(auxbas_pw_pool, d2rho_elec(dj, di))
+                  CALL pw_scale(v_sccs, dvol)
+                  DO di = 1, 3
+                     DO dj = 1, 3
+                        CALL pw_pool_give_back_pw(auxbas_pw_pool, d2rho_elec(dj, di))
+                     END DO
+                  END DO
+               END IF
+
+               ! Release storage
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, theta)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, norm_drho_elec)
+               DO i = 1, 3
+                  CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_elec(i))
                END DO
-            END DO
+            END BLOCK
+
          END IF
 
-         ! Release storage
-         NULLIFY (theta)
-         DO i = 1, 3
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, drho_elec(i))
-         END DO
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_elec)
+      END BLOCK
 
-      END IF
+      BLOCK
+         TYPE(pw_type) :: rho_tot, phi_tot, rho_solute, rho_tot_zero
+         ! Retrieve the total charge density (core + elec) of the solute in r-space
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                rho_solute, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_zero(rho_solute)
+         CALL pw_transfer(rho_tot_gspace, rho_solute)
+         tot_rho_solute = accurate_sum(rho_solute%cr3d)*dvol
+         CALL mp_sum(tot_rho_solute, para_env%group)
 
-      ! Retrieve the total charge density (core + elec) of the solute in r-space
-      rho_solute => work_r3d(4)%pw
-      CALL pw_zero(rho_solute)
-      CALL pw_transfer(rho_tot_gspace, rho_solute)
-      tot_rho_solute = accurate_sum(rho_solute%cr3d)*dvol
-      CALL mp_sum(tot_rho_solute, para_env%group)
+         ! Reassign work storage to rho_tot_zero, because rho_elec is no longer needed
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                rho_tot_zero, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
 
-      ! Reassign work storage to rho_tot_zero, because rho_elec is no longer needed
-      rho_tot_zero => rho_elec
-      NULLIFY (rho_elec)
-
-      ! Build the initial (rho_iter = 0) total charge density (solute plus polarisation) in r-space
-      ! eps_elec <- ln(eps_elec)
+         ! Build the initial (rho_iter = 0) total charge density (solute plus polarisation) in r-space
+         ! eps_elec <- ln(eps_elec)
 !$OMP PARALLEL DO DEFAULT(NONE) &
 !$OMP             PRIVATE(i,j,k) &
 !$OMP             SHARED(eps_elec,lb,message,output_unit,para_env,ub) &
 !$OMP             SHARED(rho_solute,rho_tot_zero)
-      DO k = lb(3), ub(3)
-         DO j = lb(2), ub(2)
-            DO i = lb(1), ub(1)
-               IF (eps_elec%cr3d(i, j, k) < 1.0_dp) THEN
-                  WRITE (UNIT=message, FMT="(A,ES12.3,A,3(I0,A))") &
-                     "SCCS| Invalid dielectric function value ", eps_elec%cr3d(i, j, k), &
-                     " encountered at grid point (", i, ",", j, ",", k, ")"
-                  CPABORT(message)
-               END IF
-               rho_tot_zero%cr3d(i, j, k) = rho_solute%cr3d(i, j, k)/eps_elec%cr3d(i, j, k)
-               eps_elec%cr3d(i, j, k) = LOG(eps_elec%cr3d(i, j, k))
-            END DO
-         END DO
-      END DO
-!$OMP END PARALLEL DO
-
-      ! Reassign pointers due to new content
-      ln_eps_elec => eps_elec
-      NULLIFY (eps_elec)
-
-      ! Build the derivative of ln_eps_elec
-      DO i = 1, 3
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                dln_eps_elec(i), &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-         CALL pw_zero(dln_eps_elec(i))
-      END DO
-      CALL derive(ln_eps_elec, dln_eps_elec, sccs_control%derivative_method, pw_env, input)
-
-      ! Print header for the SCCS cycle
-      IF (should_output .AND. (output_unit > 0)) THEN
-         IF (print_level > low_print_level) THEN
-            WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12)") &
-               "SCCS| Total electronic charge density ", -tot_rho_elec, &
-               "SCCS| Total charge density (solute)   ", -tot_rho_solute
-            WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.3)") &
-               "SCCS| Volume of the cell           [bohr^3]", cell_volume, &
-               "SCCS|                              [angstrom^3]", &
-               cp_unit_from_cp2k(cell_volume, "angstrom^3")
-            IF (ABS(epsilon_solvent - 1.0_dp) > epstol) THEN
-               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.3)") &
-                  "SCCS| Volume of the solute cavity  [bohr^3]", cavity_volume, &
-                  "SCCS|                              [angstrom^3]", &
-                  cp_unit_from_cp2k(cavity_volume, "angstrom^3"), &
-                  "SCCS| Surface of the solute cavity [bohr^2]", cavity_surface, &
-                  "SCCS|                              [angstrom^2]", &
-                  cp_unit_from_cp2k(cavity_surface, "angstrom^2")
-            END IF
-            WRITE (UNIT=output_unit, FMT="(T3,A)") &
-               "SCCS|", &
-               "SCCS|   Step    Average residual    Maximum residual         E(Hartree) [a.u.]"
-         END IF
-      END IF
-
-      ! Get storage for the derivative of the total potential (field) in r-space
-      DO i = 1, 3
-         ALLOCATE (dphi_tot(i)%pw)
-         CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                dphi_tot(i)%pw, &
-                                use_data=REALDATA3D, &
-                                in_space=REALSPACE)
-      END DO
-
-      ! Reassign work storage to rho_tot, because ln_eps_elec is no longer needed
-      rho_tot => ln_eps_elec
-      NULLIFY (ln_eps_elec)
-
-      ! Initialise the total charge density in r-space rho_tot with rho_tot_zero + rho_iter_zero
-      CALL pw_copy(rho_tot_zero, rho_tot)
-      CALL pw_axpy(rho_iter_old, rho_tot)
-
-      phi_tot => work_r3d(5)%pw
-      CALL pw_zero(phi_tot)
-      NULLIFY (norm_drho_elec)
-
-      ! Main SCCS iteration loop
-      iter = 0
-
-      iter_loop: DO
-
-         ! Increment iteration counter
-         iter = iter + 1
-
-         ! Check if the requested maximum number of SCCS iterations is reached
-         IF (iter > sccs_control%max_iter) THEN
-            IF (output_unit > 0) THEN
-               WRITE (UNIT=output_unit, FMT="(T3,A,/,T3,A,I0,A)") &
-                  "SCCS| Maximum number of SCCS iterations reached", &
-                  "SCCS| Iteration cycle did not converge in ", sccs_control%max_iter, " steps"
-            END IF
-            EXIT iter_loop
-         END IF
-
-         ! Calculate derivative of the current total potential in r-space
-         CALL pw_poisson_solve(poisson_env=poisson_env, &
-                               density=rho_tot, &
-                               vhartree=phi_tot, &
-                               dvhartree=dphi_tot)
-         energy%sccs_hartree = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
-
-         ! Update total charge density (solute plus polarisation) in r-space
-         ! based on the iterated polarisation charge density
-         f = 1.0_dp/fourpi
-         rho_delta_avg = 0.0_dp
-         rho_delta_max = 0.0_dp
-!$OMP    PARALLEL DO DEFAULT(NONE) &
-!$OMP                PRIVATE(i,j,k,rho_delta,rho_iter_new) &
-!$OMP                SHARED(dln_eps_elec,dphi_tot,f,lb,rho_iter_old,ub) &
-!$OMP                SHARED(rho_tot,rho_tot_zero,sccs_control) &
-!$OMP                REDUCTION(+:rho_delta_avg) &
-!$OMP                REDUCTION(MAX:rho_delta_max)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  rho_iter_new = (dln_eps_elec(1)%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k) + &
-                                  dln_eps_elec(2)%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k) + &
-                                  dln_eps_elec(3)%cr3d(i, j, k)*dphi_tot(3)%pw%cr3d(i, j, k))*f
-                  rho_iter_new = rho_iter_old%cr3d(i, j, k) + &
-                                 sccs_control%mixing*(rho_iter_new - rho_iter_old%cr3d(i, j, k))
-                  rho_delta = ABS(rho_iter_new - rho_iter_old%cr3d(i, j, k))
-                  rho_delta_max = MAX(rho_delta, rho_delta_max)
-                  rho_delta_avg = rho_delta_avg + rho_delta
-                  rho_tot%cr3d(i, j, k) = rho_tot_zero%cr3d(i, j, k) + rho_iter_new
-                  rho_iter_old%cr3d(i, j, k) = rho_iter_new
+                  IF (eps_elec%cr3d(i, j, k) < 1.0_dp) THEN
+                     WRITE (UNIT=message, FMT="(A,ES12.3,A,3(I0,A))") &
+                        "SCCS| Invalid dielectric function value ", eps_elec%cr3d(i, j, k), &
+                        " encountered at grid point (", i, ",", j, ",", k, ")"
+                     CPABORT(message)
+                  END IF
+                  rho_tot_zero%cr3d(i, j, k) = rho_solute%cr3d(i, j, k)/eps_elec%cr3d(i, j, k)
+                  eps_elec%cr3d(i, j, k) = LOG(eps_elec%cr3d(i, j, k))
                END DO
             END DO
          END DO
-!$OMP    END PARALLEL DO
+!$OMP END PARALLEL DO
 
-         CALL mp_sum(rho_delta_avg, para_env%group)
-         rho_delta_avg = rho_delta_avg/REAL(ngpts, KIND=dp)
-         CALL mp_max(rho_delta_max, para_env%group)
+         ! Build the derivative of LOG(eps_elec)
+         DO i = 1, 3
+            CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                   dln_eps_elec(i), &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_zero(dln_eps_elec(i))
+         END DO
+         CALL derive(eps_elec, dln_eps_elec, sccs_control%derivative_method, pw_env, input)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, eps_elec)
 
+         ! Print header for the SCCS cycle
          IF (should_output .AND. (output_unit > 0)) THEN
             IF (print_level > low_print_level) THEN
-               IF ((ABS(rho_delta_avg) < 1.0E-8_dp) .OR. &
-                   (ABS(rho_delta_avg) >= 1.0E5_dp)) THEN
-                  WRITE (UNIT=output_unit, FMT="(T3,A,I6,4X,ES16.4,4X,ES16.4,1X,F25.12)") &
-                     "SCCS| ", iter, rho_delta_avg, rho_delta_max, energy%sccs_hartree
-               ELSE
-                  WRITE (UNIT=output_unit, FMT="(T3,A,I6,4X,F16.8,4X,F16.8,1X,F25.12)") &
-                     "SCCS| ", iter, rho_delta_avg, rho_delta_max, energy%sccs_hartree
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.12)") &
+                  "SCCS| Total electronic charge density ", -tot_rho_elec, &
+                  "SCCS| Total charge density (solute)   ", -tot_rho_solute
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.3)") &
+                  "SCCS| Volume of the cell           [bohr^3]", cell_volume, &
+                  "SCCS|                              [angstrom^3]", &
+                  cp_unit_from_cp2k(cell_volume, "angstrom^3")
+               IF (ABS(epsilon_solvent - 1.0_dp) > epstol) THEN
+                  WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.3)") &
+                     "SCCS| Volume of the solute cavity  [bohr^3]", cavity_volume, &
+                     "SCCS|                              [angstrom^3]", &
+                     cp_unit_from_cp2k(cavity_volume, "angstrom^3"), &
+                     "SCCS| Surface of the solute cavity [bohr^2]", cavity_surface, &
+                     "SCCS|                              [angstrom^2]", &
+                     cp_unit_from_cp2k(cavity_surface, "angstrom^2")
+               END IF
+               WRITE (UNIT=output_unit, FMT="(T3,A)") &
+                  "SCCS|", &
+                  "SCCS|   Step    Average residual    Maximum residual         E(Hartree) [a.u.]"
+            END IF
+         END IF
+
+         ! Get storage for the derivative of the total potential (field) in r-space
+         DO i = 1, 3
+            ALLOCATE (dphi_tot(i)%pw)
+            CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                   dphi_tot(i)%pw, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+         END DO
+
+         ! Initialise the total charge density in r-space rho_tot with rho_tot_zero + rho_iter_zero
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                rho_tot, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_copy(rho_tot_zero, rho_tot)
+         CALL pw_axpy(rho_pw_r_sccs, rho_tot)
+
+         CALL pw_pool_create_pw(auxbas_pw_pool, &
+                                phi_tot, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
+         CALL pw_zero(phi_tot)
+
+         ! Main SCCS iteration loop
+         iter = 0
+
+         iter_loop: DO
+
+            ! Increment iteration counter
+            iter = iter + 1
+
+            ! Check if the requested maximum number of SCCS iterations is reached
+            IF (iter > sccs_control%max_iter) THEN
+               IF (output_unit > 0) THEN
+                  WRITE (UNIT=output_unit, FMT="(T3,A,/,T3,A,I0,A)") &
+                     "SCCS| Maximum number of SCCS iterations reached", &
+                     "SCCS| Iteration cycle did not converge in ", sccs_control%max_iter, " steps"
+               END IF
+               EXIT iter_loop
+            END IF
+
+            ! Calculate derivative of the current total potential in r-space
+            CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                  density=rho_tot, &
+                                  vhartree=phi_tot, &
+                                  dvhartree=dphi_tot)
+            energy%sccs_hartree = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
+
+            ! Update total charge density (solute plus polarisation) in r-space
+            ! based on the iterated polarisation charge density
+            f = 1.0_dp/fourpi
+            rho_delta_avg = 0.0_dp
+            rho_delta_max = 0.0_dp
+!$OMP    PARALLEL DO DEFAULT(NONE) &
+!$OMP                PRIVATE(i,j,k,rho_delta,rho_iter_new) &
+!$OMP                SHARED(dln_eps_elec,dphi_tot,f,lb,rho_pw_r_sccs,ub) &
+!$OMP                SHARED(rho_tot,rho_tot_zero,sccs_control) &
+!$OMP                REDUCTION(+:rho_delta_avg) &
+!$OMP                REDUCTION(MAX:rho_delta_max)
+            DO k = lb(3), ub(3)
+               DO j = lb(2), ub(2)
+                  DO i = lb(1), ub(1)
+                     rho_iter_new = (dln_eps_elec(1)%cr3d(i, j, k)*dphi_tot(1)%pw%cr3d(i, j, k) + &
+                                     dln_eps_elec(2)%cr3d(i, j, k)*dphi_tot(2)%pw%cr3d(i, j, k) + &
+                                     dln_eps_elec(3)%cr3d(i, j, k)*dphi_tot(3)%pw%cr3d(i, j, k))*f
+                     rho_iter_new = rho_pw_r_sccs%cr3d(i, j, k) + &
+                                    sccs_control%mixing*(rho_iter_new - rho_pw_r_sccs%cr3d(i, j, k))
+                     rho_delta = ABS(rho_iter_new - rho_pw_r_sccs%cr3d(i, j, k))
+                     rho_delta_max = MAX(rho_delta, rho_delta_max)
+                     rho_delta_avg = rho_delta_avg + rho_delta
+                     rho_tot%cr3d(i, j, k) = rho_tot_zero%cr3d(i, j, k) + rho_iter_new
+                     rho_pw_r_sccs%cr3d(i, j, k) = rho_iter_new
+                  END DO
+               END DO
+            END DO
+!$OMP    END PARALLEL DO
+
+            CALL mp_sum(rho_delta_avg, para_env%group)
+            rho_delta_avg = rho_delta_avg/REAL(ngpts, KIND=dp)
+            CALL mp_max(rho_delta_max, para_env%group)
+
+            IF (should_output .AND. (output_unit > 0)) THEN
+               IF (print_level > low_print_level) THEN
+                  IF ((ABS(rho_delta_avg) < 1.0E-8_dp) .OR. &
+                      (ABS(rho_delta_avg) >= 1.0E5_dp)) THEN
+                     WRITE (UNIT=output_unit, FMT="(T3,A,I6,4X,ES16.4,4X,ES16.4,1X,F25.12)") &
+                        "SCCS| ", iter, rho_delta_avg, rho_delta_max, energy%sccs_hartree
+                  ELSE
+                     WRITE (UNIT=output_unit, FMT="(T3,A,I6,4X,F16.8,4X,F16.8,1X,F25.12)") &
+                        "SCCS| ", iter, rho_delta_avg, rho_delta_max, energy%sccs_hartree
+                  END IF
                END IF
             END IF
-         END IF
 
-         ! Check if the SCCS iteration cycle is converged to the requested tolerance
-         IF (rho_delta_max <= sccs_control%eps_sccs) THEN
-            IF (should_output .AND. (output_unit > 0)) THEN
-               WRITE (UNIT=output_unit, FMT="(T3,A,I0,A)") &
-                  "SCCS| Iteration cycle converged in ", iter, " steps"
+            ! Check if the SCCS iteration cycle is converged to the requested tolerance
+            IF (rho_delta_max <= sccs_control%eps_sccs) THEN
+               IF (should_output .AND. (output_unit > 0)) THEN
+                  WRITE (UNIT=output_unit, FMT="(T3,A,I0,A)") &
+                     "SCCS| Iteration cycle converged in ", iter, " steps"
+               END IF
+               EXIT iter_loop
             END IF
-            EXIT iter_loop
-         END IF
 
-      END DO iter_loop
+         END DO iter_loop
 
-      ! Release work storage which is no longer needed
-      DO i = 1, 3
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, dln_eps_elec(i))
-      END DO
+         ! Release work storage which is no longer needed
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_zero)
+         DO i = 1, 3
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, dln_eps_elec(i))
+         END DO
 
-      ! Optional output of the total charge density in cube file format
-      filename = "TOTAL_CHARGE_DENSITY"
-      cube_path = TRIM(print_path)//"%"//TRIM(filename)
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), cp_p_file)) THEN
-         append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
-         my_pos_cube = "REWIND"
-         IF (append_cube) my_pos_cube = "APPEND"
-         mpi_io = .TRUE.
-         cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
-                                          extension=".cube", middle_name=TRIM(filename), &
-                                          file_position=my_pos_cube, log_filename=.FALSE., &
-                                          mpi_io=mpi_io, fout=mpi_filename)
-         IF (output_unit > 0) THEN
-            IF (.NOT. mpi_io) THEN
-               INQUIRE (UNIT=cube_unit, NAME=filename)
-            ELSE
-               filename = mpi_filename
+         ! Optional output of the total charge density in cube file format
+         filename = "TOTAL_CHARGE_DENSITY"
+         cube_path = TRIM(print_path)//"%"//TRIM(filename)
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), cp_p_file)) THEN
+            append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
+            my_pos_cube = "REWIND"
+            IF (append_cube) my_pos_cube = "APPEND"
+            mpi_io = .TRUE.
+            cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
+                                             extension=".cube", middle_name=TRIM(filename), &
+                                             file_position=my_pos_cube, log_filename=.FALSE., &
+                                             mpi_io=mpi_io, fout=mpi_filename)
+            IF (output_unit > 0) THEN
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=cube_unit, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
+               WRITE (UNIT=output_unit, FMT="(T3,A)") &
+                  "SCCS| The total SCCS charge density is written in cube file format to the file:", &
+                  "SCCS| "//TRIM(filename)
             END IF
-            WRITE (UNIT=output_unit, FMT="(T3,A)") &
-               "SCCS| The total SCCS charge density is written in cube file format to the file:", &
-               "SCCS| "//TRIM(filename)
+            CALL cp_pw_to_cube(rho_tot, cube_unit, TRIM(filename), particles=particles, &
+                               stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
          END IF
-         CALL cp_pw_to_cube(rho_tot, cube_unit, TRIM(filename), particles=particles, &
-                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
-         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
-      END IF
 
-      ! Calculate the total SCCS Hartree energy, potential, and its
-      ! derivatives of the solute and the implicit solvent
-      CALL pw_transfer(rho_tot, rho_tot_gspace)
-      IF (calculate_stress_tensor) THEN
-         ! Request also the calculation of the stress tensor contribution
-         CALL pw_poisson_solve(poisson_env=poisson_env, &
-                               density=rho_tot_gspace, &
-                               ehartree=e_tot, &
-                               vhartree=v_hartree_gspace, &
-                               dvhartree=dphi_tot, &
-                               h_stress=h_stress)
-      ELSE
-         CALL pw_poisson_solve(poisson_env=poisson_env, &
-                               density=rho_tot_gspace, &
-                               ehartree=e_tot, &
-                               vhartree=v_hartree_gspace, &
-                               dvhartree=dphi_tot)
-      END IF
-      CALL pw_transfer(v_hartree_gspace, phi_tot)
-      energy%sccs_hartree = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
+         ! Calculate the total SCCS Hartree energy, potential, and its
+         ! derivatives of the solute and the implicit solvent
+         CALL pw_transfer(rho_tot, rho_tot_gspace)
+         IF (calculate_stress_tensor) THEN
+            ! Request also the calculation of the stress tensor contribution
+            CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                  density=rho_tot_gspace, &
+                                  ehartree=e_tot, &
+                                  vhartree=v_hartree_gspace, &
+                                  dvhartree=dphi_tot, &
+                                  h_stress=h_stress)
+         ELSE
+            CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                  density=rho_tot_gspace, &
+                                  ehartree=e_tot, &
+                                  vhartree=v_hartree_gspace, &
+                                  dvhartree=dphi_tot)
+         END IF
+         CALL pw_transfer(v_hartree_gspace, phi_tot)
+         energy%sccs_hartree = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
 
-      ! Calculate the Hartree energy and potential of the solute only
-      phi_solute => rho_tot_zero
-      CALL pw_zero(phi_solute)
-      NULLIFY (rho_tot_zero)
-      CALL pw_poisson_solve(poisson_env=poisson_env, &
-                            density=rho_solute, &
-                            ehartree=energy%hartree, &
-                            vhartree=phi_solute)
+         ! Calculate the Hartree energy and potential of the solute only
+         BLOCK
+            TYPE(pw_type) :: phi_solute
+            CALL pw_pool_create_pw(auxbas_pw_pool, phi_solute, &
+                                   use_data=REALDATA3D, &
+                                   in_space=REALSPACE)
+            CALL pw_zero(phi_solute)
+            CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                  density=rho_solute, &
+                                  ehartree=energy%hartree, &
+                                  vhartree=phi_solute)
 
-      ! Calculate the polarisation potential
-      ! phi_pol = phi_tot - phi_solute
-      CALL pw_axpy(phi_solute, phi_tot, alpha=-1.0_dp)
-      phi_pol => phi_tot
-      NULLIFY (phi_tot)
+            ! Calculate the polarisation potential (store it in phi_tot)
+            ! phi_pol = phi_tot - phi_solute
+            CALL pw_axpy(phi_solute, phi_tot, alpha=-1.0_dp)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, phi_solute)
+         END BLOCK
 
-      ! Optional output of the SCCS polarisation potential in cube file format
-      filename = "POLARISATION_POTENTIAL"
-      cube_path = TRIM(print_path)//"%"//TRIM(filename)
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
-                cp_p_file)) THEN
-         append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
-         my_pos_cube = "REWIND"
-         IF (append_cube) my_pos_cube = "APPEND"
-         mpi_io = .TRUE.
-         cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
-                                          extension=".cube", middle_name=TRIM(filename), &
-                                          file_position=my_pos_cube, log_filename=.FALSE., &
-                                          mpi_io=mpi_io, fout=mpi_filename)
-         IF (output_unit > 0) THEN
-            IF (.NOT. mpi_io) THEN
-               INQUIRE (UNIT=cube_unit, NAME=filename)
-            ELSE
-               filename = mpi_filename
+         ! Optional output of the SCCS polarisation potential in cube file format
+         filename = "POLARISATION_POTENTIAL"
+         cube_path = TRIM(print_path)//"%"//TRIM(filename)
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
+                   cp_p_file)) THEN
+            append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
+            my_pos_cube = "REWIND"
+            IF (append_cube) my_pos_cube = "APPEND"
+            mpi_io = .TRUE.
+            cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
+                                             extension=".cube", middle_name=TRIM(filename), &
+                                             file_position=my_pos_cube, log_filename=.FALSE., &
+                                             mpi_io=mpi_io, fout=mpi_filename)
+            IF (output_unit > 0) THEN
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=cube_unit, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
+               WRITE (UNIT=output_unit, FMT="(T3,A)") &
+                  "SCCS| The SCCS polarisation potential is written in cube file format to the file:", &
+                  "SCCS| "//TRIM(filename)
             END IF
-            WRITE (UNIT=output_unit, FMT="(T3,A)") &
-               "SCCS| The SCCS polarisation potential is written in cube file format to the file:", &
-               "SCCS| "//TRIM(filename)
+            CALL cp_pw_to_cube(phi_tot, cube_unit, TRIM(filename), particles=particles, &
+                               stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
          END IF
-         CALL cp_pw_to_cube(phi_pol, cube_unit, TRIM(filename), particles=particles, &
-                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
-         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
-      END IF
 
-      ! Calculate the polarisation charge
-      ! rho_pol = rho_tot - rho_solute
-      CALL pw_axpy(rho_solute, rho_tot, alpha=-1.0_dp)
-      rho_pol => rho_tot
-      NULLIFY (rho_tot)
-      polarisation_charge = accurate_sum(rho_pol%cr3d)*dvol
-      CALL mp_sum(polarisation_charge, para_env%group)
+         ! Calculate the polarisation charge (store it in rho_tot)
+         ! rho_pol = rho_tot - rho_solute
+         CALL pw_axpy(rho_solute, rho_tot, alpha=-1.0_dp)
+         polarisation_charge = accurate_sum(rho_tot%cr3d)*dvol
+         CALL mp_sum(polarisation_charge, para_env%group)
 
-      ! Optional output of the SCCS polarisation charge in cube file format
-      filename = "POLARISATION_CHARGE_DENSITY"
-      cube_path = TRIM(print_path)//"%"//TRIM(filename)
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
-                cp_p_file)) THEN
-         append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
-         my_pos_cube = "REWIND"
-         IF (append_cube) my_pos_cube = "APPEND"
-         mpi_io = .TRUE.
-         cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
-                                          extension=".cube", middle_name=TRIM(filename), &
-                                          file_position=my_pos_cube, log_filename=.FALSE., &
-                                          mpi_io=mpi_io, fout=mpi_filename)
-         IF (output_unit > 0) THEN
-            IF (.NOT. mpi_io) THEN
-               INQUIRE (UNIT=cube_unit, NAME=filename)
-            ELSE
-               filename = mpi_filename
+         ! Optional output of the SCCS polarisation charge in cube file format
+         filename = "POLARISATION_CHARGE_DENSITY"
+         cube_path = TRIM(print_path)//"%"//TRIM(filename)
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
+                   cp_p_file)) THEN
+            append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
+            my_pos_cube = "REWIND"
+            IF (append_cube) my_pos_cube = "APPEND"
+            mpi_io = .TRUE.
+            cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
+                                             extension=".cube", middle_name=TRIM(filename), &
+                                             file_position=my_pos_cube, log_filename=.FALSE., &
+                                             mpi_io=mpi_io, fout=mpi_filename)
+            IF (output_unit > 0) THEN
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=cube_unit, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
+               WRITE (UNIT=output_unit, FMT="(T3,A)") &
+                  "SCCS| The SCCS polarisation charge density is written in cube file format to the file:", &
+                  "SCCS| "//TRIM(filename)
             END IF
-            WRITE (UNIT=output_unit, FMT="(T3,A)") &
-               "SCCS| The SCCS polarisation charge density is written in cube file format to the file:", &
-               "SCCS| "//TRIM(filename)
+            CALL cp_pw_to_cube(rho_tot, cube_unit, TRIM(filename), particles=particles, &
+                               stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
          END IF
-         CALL cp_pw_to_cube(rho_pol, cube_unit, TRIM(filename), particles=particles, &
-                            stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), mpi_io=mpi_io)
-         CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
-      END IF
 
-      ! Calculate SCCS polarisation energy
-      energy%sccs_pol = 0.5_dp*pw_integral_ab(rho_solute, phi_pol)
+         ! Calculate SCCS polarisation energy
+         energy%sccs_pol = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_solute)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, phi_tot)
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot)
+      END BLOCK
 
       ! Calculate the Makov-Payne energy correction for charged systems with PBC
       ! Madelung energy of a simple cubic lattice of point charges immersed in neutralising jellium
@@ -894,17 +904,7 @@ CONTAINS
       END DO
 !$OMP END PARALLEL DO
 
-      ! Release work storage
-      NULLIFY (phi_solute)
-      NULLIFY (rho_pol)
-      NULLIFY (deps_elec)
-      NULLIFY (rho_solute)
-      NULLIFY (phi_pol)
-      DO i = 1, SIZE(work_r3d)
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, work_r3d(i)%pw)
-         DEALLOCATE (work_r3d(i)%pw)
-      END DO
-      NULLIFY (rho_iter_old)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, deps_elec)
       DO i = 1, 3
          CALL pw_pool_give_back_pw(auxbas_pw_pool, dphi_tot(i)%pw)
          DEALLOCATE (dphi_tot(i)%pw)
@@ -935,7 +935,7 @@ CONTAINS
    SUBROUTINE andreussi(rho_elec, eps_elec, deps_elec, epsilon_solvent, rho_max, &
                         rho_min)
 
-      TYPE(pw_type), POINTER                             :: rho_elec, eps_elec, deps_elec
+      TYPE(pw_type), INTENT(IN)                          :: rho_elec, eps_elec, deps_elec
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, rho_max, rho_min
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'andreussi'
@@ -1009,7 +1009,7 @@ CONTAINS
    SUBROUTINE fattebert_gygi(rho_elec, eps_elec, deps_elec, epsilon_solvent, beta, &
                              rho_zero)
 
-      TYPE(pw_type), POINTER                             :: rho_elec, eps_elec, deps_elec
+      TYPE(pw_type), INTENT(IN)                          :: rho_elec, eps_elec, deps_elec
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, beta, rho_zero
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fattebert_gygi'
@@ -1081,8 +1081,8 @@ CONTAINS
 
       INTEGER                                            :: border_points, handle, i
       INTEGER, DIMENSION(3)                              :: lb, n, ub
-      TYPE(pw_p_type), DIMENSION(2)                      :: work_g1d
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type), DIMENSION(2)                        :: work_g1d
       TYPE(realspace_grid_desc_type), POINTER            :: rs_desc
       TYPE(realspace_grid_input_type)                    :: input_settings
       TYPE(realspace_grid_type), POINTER                 :: rs_grid
@@ -1119,9 +1119,8 @@ CONTAINS
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
          ! Get work storage for the 1d grids in g-space (derivative calculation)
          DO i = 1, SIZE(work_g1d)
-            ALLOCATE (work_g1d(i)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, &
-                                   work_g1d(i)%pw, &
+                                   work_g1d(i), &
                                    use_data=COMPLEXDATA1D, &
                                    in_space=RECIPROCALSPACE)
          END DO
@@ -1137,13 +1136,13 @@ CONTAINS
          CALL derive_fdm_cd7(f, df, rs_grid)
       CASE (sccs_derivative_fft)
          ! FFT
-         CALL pw_transfer(f, work_g1d(1)%pw)
+         CALL pw_transfer(f, work_g1d(1))
          DO i = 1, 3
             n(:) = 0
             n(i) = 1
-            CALL pw_copy(work_g1d(1)%pw, work_g1d(2)%pw)
-            CALL pw_derive(work_g1d(2)%pw, n(:))
-            CALL pw_transfer(work_g1d(2)%pw, df(i))
+            CALL pw_copy(work_g1d(1), work_g1d(2))
+            CALL pw_derive(work_g1d(2), n(:))
+            CALL pw_transfer(work_g1d(2), df(i))
          END DO
       CASE DEFAULT
          CPABORT("Invalid derivative method for SCCS specified")
@@ -1156,8 +1155,7 @@ CONTAINS
          CALL rs_grid_release_descriptor(rs_desc)
       CASE (sccs_derivative_fft)
          DO i = 1, SIZE(work_g1d)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_g1d(i)%pw)
-            DEALLOCATE (work_g1d(i)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, work_g1d(i))
          END DO
       END SELECT
 
@@ -1185,7 +1183,7 @@ CONTAINS
    SUBROUTINE surface_andreussi(rho_elec, norm_drho_elec, dtheta, &
                                 epsilon_solvent, rho_max, rho_min, delta_rho)
 
-      TYPE(pw_type), POINTER                             :: rho_elec, norm_drho_elec, dtheta
+      TYPE(pw_type), INTENT(IN)                          :: rho_elec, norm_drho_elec, dtheta
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, rho_max, rho_min, &
                                                             delta_rho
 
@@ -1265,7 +1263,7 @@ CONTAINS
    SUBROUTINE surface_fattebert_gygi(rho_elec, norm_drho_elec, dtheta, &
                                      epsilon_solvent, beta, rho_zero, delta_rho)
 
-      TYPE(pw_type), POINTER                             :: rho_elec, norm_drho_elec, dtheta
+      TYPE(pw_type), INTENT(IN)                          :: rho_elec, norm_drho_elec, dtheta
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_solvent, beta, rho_zero, &
                                                             delta_rho
 
