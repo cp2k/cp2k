@@ -105,6 +105,9 @@ def process_log_file(fhandle: TextIO) -> None:
                 lprint(f'OMP PARALLEL without DEFAULT(NONE) found in "{cur_proc}"')
 
         elif line.startswith("CALL"):
+            if "NULL()" in line:
+                lprint(f'Found CALL with NULL() as argument in procedure "{cur_proc}"')
+
             if tokens[1].lower() in BANNED_CALL:
                 lprint(f'Found CALL {tokens[1]} in procedure "{cur_proc}"')
             elif tokens[1].lower().startswith("_gfortran_arandom_"):
