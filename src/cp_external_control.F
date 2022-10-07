@@ -83,14 +83,16 @@ CONTAINS
 !> \param globenv ...
 !> \param target_time ...
 !> \param start_time ...
+!> \param force_check ...
 !> \author MI (10.03.2005)
 ! **************************************************************************************************
-   SUBROUTINE external_control(should_stop, flag, globenv, target_time, start_time)
+   SUBROUTINE external_control(should_stop, flag, globenv, target_time, start_time, force_check)
 
       LOGICAL, INTENT(OUT)                               :: should_stop
       CHARACTER(LEN=*), INTENT(IN)                       :: flag
       TYPE(global_environment_type), OPTIONAL, POINTER   :: globenv
       REAL(dp), OPTIONAL                                 :: target_time, start_time
+      LOGICAL, OPTIONAL                                  :: force_check
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'external_control'
 
@@ -108,6 +110,12 @@ CONTAINS
 
       logger => cp_get_default_logger()
       should_stop = .FALSE.
+
+      IF (PRESENT(force_check)) THEN
+         IF (force_check) THEN
+            check_always = .TRUE.
+         END IF
+      END IF
 
       exit_gname = "EXIT"
       exit_gname_level = TRIM(exit_gname)//"_"//TRIM(flag)

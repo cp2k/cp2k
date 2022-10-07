@@ -100,7 +100,7 @@ MODULE input_cp2k_dft
         wfi_use_prev_wf_method_nr, xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, &
         xas_3p_type, xas_3s_type, xas_4d_type, xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, &
         xas_dip_vel, xas_dscf, xas_none, xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, &
-        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val
+        xas_tp_fh, xas_tp_flex, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, xes_tp_val, manual_selection
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_distribution,         ONLY: create_distribution_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -8797,6 +8797,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ACTIVE_ORBITAL_INDICES", &
+                          description="The indices of the active orbitals. Requires ORBITAL_SELECTION MANUAL!", &
+                          usage="ACTIVE_ORBITAL_INDICES 2 3 {...}", n_var=-1, default_i_vals=(/-1/), &
+                          type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="ISOLATED_SYSTEM", &
                           description="System is treated without any periodic boundary conditions.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -8813,11 +8820,13 @@ CONTAINS
                           description="Method used to select active space orbitals.", &
                           usage="ORBITAL_SELECTION CANONICAL", &
                           default_i_val=casci_canonical, &
-                          enum_c_vals=s2a("CANONICAL", "WANNIER_PROJECTION", "MAO"), &
-                          enum_i_vals=(/casci_canonical, wannier_projection, mao_projection/), &
+                          enum_c_vals=s2a("CANONICAL", "WANNIER_PROJECTION", "MAO", "MANUAL"), &
+                          enum_i_vals=(/casci_canonical, wannier_projection, mao_projection, manual_selection/), &
                           enum_desc=s2a("Select orbitals using energy ordering of canoncial orbitals", &
                                         "Select orbitals from projected Wannier functions", &
-                                        "Select orbitals from modified atomic orbitals"))
+                                        "Select orbitals from modified atomic orbitals", &
+                                        "Select orbitals manually via ACTIVE_ORBITAL_INDICES"))
+
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -8832,6 +8841,19 @@ CONTAINS
                           description="Shell definition for subsapce.", &
                           usage="SUBSPACE_SHELL 3d4s", default_c_val="X", &
                           type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="READ_P_ACTIVE", &
+                          description="Active density matrix must be read", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="P_ACTIVE_FILE_NAME", &
+                          description="Name of the active DM file, may include a path", &
+                          usage="P_ACTIVE_FILE_NAME <FILENAME>", &
+                          type_of_var=lchar_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -8895,6 +8917,12 @@ CONTAINS
                           " You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components", &
                           usage="STRIDE {2 2 2}", n_var=-1, default_i_vals=(/2, 2, 2/), &
                           type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STOP_AFTER_CUBES", &
+                          description="Whether to stop the computation after printing the cubes.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

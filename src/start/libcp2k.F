@@ -622,7 +622,7 @@ CONTAINS
             IF (buf_coords_len < 4*nze .OR. buf_values_len < nze) &
                EXIT try
 
-            CALL active_space_env%eri%eri_foreach(1, eri2array(buf_coords, buf_values))
+            CALL active_space_env%eri%eri_foreach(1, active_space_env%active_orbitals, eri2array(buf_coords, buf_values))
 
             nelem = INT(nze, KIND(nelem))
          END ASSOCIATE

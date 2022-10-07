@@ -542,6 +542,7 @@ CONTAINS
       CALL read_mos_restart_low(mo_array, para_env=para_env, qs_kind_set=qs_kind_set, &
                                 particle_set=particle_set, natom=natom, &
                                 rst_unit=restart_unit, multiplicity=multiplicity, natom_mismatch=natom_mismatch)
+
       IF (PRESENT(natom_mismatch)) THEN
          ! read_mos_restart_low only the io_node returns natom_mismatch, must broadcast it
          CALL mp_bcast(natom_mismatch, source, group)
@@ -1033,10 +1034,6 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "PRINT%MO%MO_INDEX_RANGE", i_vals=mo_index_range)
       CALL section_vals_val_get(dft_section, "PRINT%MO%NDIGITS", i_val=after)
       after = MIN(MAX(after, 1), 16)
-      should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
-                                                       "PRINT%MO"), cp_p_file)
-
-      IF ((.NOT. should_output) .OR. (.NOT. (print_eigvals .OR. print_eigvecs .OR. print_occup))) RETURN
 
       ! Do we print the final MO information after SCF convergence is reached (default: no)
       IF (PRESENT(final_mos)) THEN
@@ -1044,6 +1041,12 @@ CONTAINS
       ELSE
          my_final = .FALSE.
       END IF
+
+      should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
+                                                       "PRINT%MO"), cp_p_file) .OR. my_final
+
+      IF ((.NOT. should_output) .OR. (.NOT. (print_eigvals .OR. print_eigvecs .OR. print_occup))) RETURN
+
       scf_step = MAX(0, logger%iter_info%iteration(logger%iter_info%n_rlevel) - 1)
 
       IF (PRESENT(solver_method)) THEN
