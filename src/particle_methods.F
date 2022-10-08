@@ -480,11 +480,10 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE write_fist_particle_coordinates(particle_set, subsys_section, &
-                                              charges)
+   SUBROUTINE write_fist_particle_coordinates(particle_set, subsys_section, charges)
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: subsys_section
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: charges
 
       CHARACTER(LEN=default_string_length)               :: name, unit_str
       INTEGER                                            :: iatom, ikind, iw, natom
@@ -515,7 +514,7 @@ CONTAINS
                                  mass=mass, &
                                  qeff=qeff, &
                                  shell=shell_kind)
-            IF (ASSOCIATED(charges)) qeff = charges(iatom)
+            IF (PRESENT(charges)) qeff = charges(iatom)
             IF (ASSOCIATED(shell_kind)) THEN
                CALL get_shell(shell=shell_kind, &
                               charge_core=qcore, &
