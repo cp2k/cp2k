@@ -165,8 +165,7 @@ CONTAINS
       CALL write_molecule_kind_set(molecule_kind_set, subsys_section)
 
 !   *** Print the atomic coordinates
-      CALL write_fist_particle_coordinates(particle_set, subsys_section, &
-                                           charges=Null())
+      CALL write_fist_particle_coordinates(particle_set, subsys_section)
       CALL write_particle_distances(particle_set, cell=cell, &
                                     subsys_section=subsys_section)
       CALL write_structure_data(particle_set, cell=cell, &

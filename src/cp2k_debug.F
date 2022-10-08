@@ -255,7 +255,7 @@ CONTAINS
             CALL get_qs_env(force_env%qs_env, qs_kind_set=qs_kind_set)
             CALL write_qs_particle_coordinates(particles, qs_kind_set, subsys_section, "DEBUG")
          CASE DEFAULT
-            CALL write_fist_particle_coordinates(particles, subsys_section, charges=Null())
+            CALL write_fist_particle_coordinates(particles, subsys_section)
          END SELECT
          ! First evaluate energy and forces
          CALL force_env_calc_energy_force(force_env, &
@@ -282,7 +282,7 @@ CONTAINS
                      CALL get_qs_env(force_env%qs_env, qs_kind_set=qs_kind_set)
                      CALL write_qs_particle_coordinates(particles, qs_kind_set, subsys_section, "DEBUG")
                   CASE DEFAULT
-                     CALL write_fist_particle_coordinates(particles, subsys_section, charges=Null())
+                     CALL write_fist_particle_coordinates(particles, subsys_section)
                   END SELECT
                   ! Compute energy
                   CALL force_env_calc_energy_force(force_env, &
