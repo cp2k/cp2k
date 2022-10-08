@@ -444,7 +444,8 @@ CONTAINS
                       matrix_w_kp=matrix_w_kp, &
                       ks_env=ks_env)
       CALL dbcsr_deallocate_matrix_set(matrix_w_kp)
-      CALL set_ks_env(ks_env, matrix_w=Null(), matrix_w_kp=Null())
+      NULLIFY (matrix_w_kp)
+      CALL set_ks_env(ks_env, matrix_w_kp=matrix_w_kp)
 
       DEALLOCATE (atom_of_kind, kind_of)
 

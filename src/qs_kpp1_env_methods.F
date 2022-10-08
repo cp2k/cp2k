@@ -215,7 +215,6 @@ CONTAINS
                                                             output_unit
       LOGICAL                                            :: gapw, gapw_xc, lsd, my_calc_forces
       REAL(KIND=dp)                                      :: alpha, energy_hartree, energy_hartree_1c
-      REAL(KIND=dp), DIMENSION(:, :, :, :), POINTER      :: vxg
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
@@ -377,7 +376,8 @@ CONTAINS
 
       CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
                              rho1_r_pw, rho1_g_pw, tau1_r_pw, auxbas_pw_pool, xc_section, .FALSE., &
-                             NULL(vxg), lsd_singlets, do_excitations, do_triplet, do_tddft, &
+                             lsd_singlets=lsd_singlets, do_excitations=do_excitations, &
+                             do_triplet=do_triplet, do_tddft=do_tddft, &
                              compute_virial=calc_virial, virial_xc=virial)
 
       DO ispin = 1, nspins

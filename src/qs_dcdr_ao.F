@@ -502,7 +502,8 @@ CONTAINS
       INTEGER                                            :: handle, idir
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, rho_r, v_xc, v_xc_tau
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: drho_g, drho_r, dtau_r, rho_r, v_xc, &
+                                                            v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -563,8 +564,9 @@ CONTAINS
                                 rho_r, auxbas_pw_pool, &
                                 xc_section=xc_section)
 
+         NULLIFY (dtau_r)
          CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, my_deriv_set, my_rho_set, &
-                                drho_r, drho_g, NULL(), auxbas_pw_pool, xc_section, gapw=.FALSE.)
+                                drho_r, drho_g, dtau_r, auxbas_pw_pool, xc_section, gapw=.FALSE.)
          IF (ASSOCIATED(v_xc_tau)) CPABORT("Meta functionals are not supported!")
 
          CALL xc_dset_release(my_deriv_set)

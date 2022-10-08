@@ -633,7 +633,8 @@ CONTAINS
       NULLIFY (v_xc, v_xc_tau)
       deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
       IF (deriv2_analytic) THEN
-         CALL qs_fxc_analytic(rho, trho_r, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
+         NULLIFY (tau_r)
+         CALL qs_fxc_analytic(rho, trho_r, tau_r, xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
       ELSE
          CPABORT("NYA 00006")
          NULLIFY (trho)
@@ -714,7 +715,8 @@ CONTAINS
             NULLIFY (v_xc)
             deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
             IF (deriv2_analytic) THEN
-               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
+               NULLIFY (tau_r)
+               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, tau_r, xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
             ELSE
                CPABORT("NYA 00007")
                NULLIFY (rhoz_aux)
