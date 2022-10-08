@@ -98,7 +98,7 @@ CONTAINS
          POINTER                                         :: sab_orb, sap_ppnl
       REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
       INTEGER, INTENT(IN)                                :: nimages
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      INTEGER, DIMENSION(:, :, :), OPTIONAL, POINTER     :: cell_to_index
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: deltaR
@@ -164,6 +164,10 @@ CONTAINS
          natom = SIZE(particle_set)
 
          dokp = (nimages > 1)
+
+         IF (dokp) THEN
+            CPASSERT(PRESENT(cell_to_index) .AND. ASSOCIATED(cell_to_index))
+         END IF
 
          IF (calculate_forces) THEN
             IF (SIZE(matrix_p, 1) == 2) THEN

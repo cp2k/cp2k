@@ -1489,7 +1489,7 @@ CONTAINS
          CALL build_core_ppl(scrm_kp, rho_ao_kp, force, &
                              virial, .TRUE., use_virial, 1, &
                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                             1, NULL(), "ORB")
+                             nimages=1, basis_type="ORB")
          IF (debug_forces) THEN
             deb(1:3) = force(1)%gth_ppl(1:3, 1) - deb(1:3)
             CALL mp_sum(deb, para_env%group)
@@ -1509,7 +1509,7 @@ CONTAINS
          CALL build_core_ppnl(scrm_kp, rho_ao_kp, force, &
                               virial, .TRUE., use_virial, 1, &
                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, dft_control%qs_control%eps_ppnl, &
-                              1, NULL(), "ORB")
+                              nimages=1, basis_type="ORB")
          IF (debug_forces) THEN
             deb(1:3) = force(1)%gth_ppnl(1:3, 1) - deb(1:3)
             CALL mp_sum(deb, para_env%group)
