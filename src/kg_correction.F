@@ -55,7 +55,8 @@ MODULE kg_correction
                                               qs_rho_get,&
                                               qs_rho_release,&
                                               qs_rho_set,&
-                                              qs_rho_type
+                                              qs_rho_type,&
+                                              qs_rho_unset_rho_ao
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -367,10 +368,10 @@ CONTAINS
       END IF
 
       ! clean up rho_struct
-      CALL qs_rho_set(rho_struct, rho_ao=Null())
+      CALL qs_rho_unset_rho_ao(rho_struct)
       CALL qs_rho_release(rho_struct)
       IF (PRESENT(pmat_ext)) THEN
-         CALL qs_rho_set(rho1, rho_ao_kp=Null())
+         CALL qs_rho_unset_rho_ao(rho1)
          CALL qs_rho_release(rho1)
       END IF
 
@@ -538,7 +539,7 @@ CONTAINS
       DEALLOCATE (atomlist, ksmat)
 
       ! clean up rho_struct
-      CALL qs_rho_set(rho_struct, rho_ao=Null())
+      CALL qs_rho_unset_rho_ao(rho_struct)
       CALL qs_rho_release(rho_struct)
 
       CALL timestop(handle)
@@ -847,10 +848,10 @@ CONTAINS
       DEALLOCATE (atomlist, ksmat)
 
       ! clean up rho_struct
-      CALL qs_rho_set(rho_struct, rho_ao=Null())
+      CALL qs_rho_unset_rho_ao(rho_struct)
       CALL qs_rho_release(rho_struct)
       IF (PRESENT(pmat_ext)) THEN
-         CALL qs_rho_set(rho1, rho_ao=Null())
+         CALL qs_rho_unset_rho_ao(rho1)
          CALL qs_rho_release(rho1)
       END IF
       DEALLOCATE (cell_to_index)

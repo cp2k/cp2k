@@ -38,7 +38,7 @@ MODULE qs_rho_types
 
    PUBLIC :: qs_rho_p_type, qs_rho_type
    PUBLIC :: qs_rho_retain, qs_rho_release, &
-             qs_rho_get, qs_rho_set, qs_rho_clear, qs_rho_create
+             qs_rho_get, qs_rho_set, qs_rho_clear, qs_rho_create, qs_rho_unset_rho_ao
 
 ! **************************************************************************************************
 !> \brief keeps the density in various representations, keeping track of
@@ -227,6 +227,17 @@ CONTAINS
          DEALLOCATE (rho_struct%tot_rho_g)
 
    END SUBROUTINE qs_rho_clear
+
+! **************************************************************************************************
+!> \brief Unsets the rho_ao / rho_ao_kp field without calling kpoint_transitional_release().
+!> \param rho_struct ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE qs_rho_unset_rho_ao(rho_struct)
+      TYPE(qs_rho_type), POINTER                         :: rho_struct
+
+      rho_struct%rho_ao = kpoint_transitional_type()
+   END SUBROUTINE qs_rho_unset_rho_ao
 
 ! **************************************************************************************************
 !> \brief returns info about the density described by this object.
