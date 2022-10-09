@@ -228,13 +228,13 @@ static inline void offload_fftDestroy(offload_fftHandle plan) {
  ******************************************************************************/
 static inline void offload_fftExecZ2Z(offload_fftHandle plan,
                                       const double *idata, double *odata,
-                                      offload_fftType type) {
+                                      int direction) {
 #if defined(__OFFLOAD_CUDA)
   OFFLOAD_FFT_CHECK(cufftExecZ2Z(plan, (cufftDoubleComplex *)idata,
-                                 (cufftDoubleComplex *)odata, type));
+                                 (cufftDoubleComplex *)odata, direction));
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_FFT_CHECK(hipfftExecZ2Z(plan, (hipfftDoubleComplex *)idata,
-                                  (hipfftDoubleComplex *)odata, type));
+                                  (hipfftDoubleComplex *)odata, direction));
 #endif
 }
 
