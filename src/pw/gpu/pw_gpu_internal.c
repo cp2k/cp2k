@@ -147,9 +147,9 @@ static void add_plan_to_cache(const int key[4], offload_fftHandle *plan) {
  *          Input/output are DEVICE pointers (data_in, date_out).
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-static void fft_1d(const offload_fftType fft_type, const int n, const int m,
+static void fft_1d(const int direction, const int n, const int m,
                    const double *data_in, double *data_out) {
-  const int key[4] = {1, fft_type, n, m}; // first key entry is dimensions
+  const int key[4] = {1, direction, n, m}; // first key entry is dimensions
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
   if (plan == NULL) {
@@ -158,7 +158,7 @@ static void fft_1d(const offload_fftType fft_type, const int n, const int m,
     int onembed[1] = {0}; // Is ignored, but is not allowed to be NULL.
     int batch = m;
     int istride, idist, ostride, odist;
-    if ((int)fft_type == (int)OFFLOAD_FFT_FORWARD) {
+    if (direction == OFFLOAD_FFT_FORWARD) {
       istride = m;
       idist = 1;
       ostride = 1;
@@ -176,7 +176,7 @@ static void fft_1d(const offload_fftType fft_type, const int n, const int m,
     add_plan_to_cache(key, plan);
   }
 
-  offload_fftExecZ2Z(*plan, data_in, data_out, fft_type);
+  offload_fftExecZ2Z(*plan, data_in, data_out, direction);
 }
 
 /*******************************************************************************
@@ -184,7 +184,7 @@ static void fft_1d(const offload_fftType fft_type, const int n, const int m,
  *          Input/output is a DEVICE pointer (data).
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-static void fft_3d(const offload_fftType fft_type, const int nx, const int ny,
+static void fft_3d(const int direction, const int nx, const int ny,
                    const int nz, double *data) {
   const int key[4] = {3, nx, ny, nz}; // first key entry is dimensions
   offload_fftHandle *plan = lookup_plan_from_cache(key);
@@ -196,7 +196,7 @@ static void fft_3d(const offload_fftType fft_type, const int nx, const int ny,
     add_plan_to_cache(key, plan);
   }
 
-  offload_fftExecZ2Z(*plan, data, data, fft_type);
+  offload_fftExecZ2Z(*plan, data, data, direction);
 }
 
 /*******************************************************************************
