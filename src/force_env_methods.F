@@ -1801,11 +1801,11 @@ CONTAINS
                ! only in spin_embed_subsys
                CALL make_subsys_embed_pot(force_env%sub_force_env(i_force_eval)%force_env%qs_env, &
                                           embed_pot, embed_pot_subsys, spin_embed_pot, spin_embed_pot_subsys, &
-                                          .TRUE.)
+                                          opt_embed%open_shell_embed, .TRUE.)
             ELSE ! Regular case
                CALL make_subsys_embed_pot(force_env%sub_force_env(i_force_eval)%force_env%qs_env, &
                                           embed_pot, embed_pot_subsys, spin_embed_pot, spin_embed_pot_subsys, &
-                                          .FALSE.)
+                                          opt_embed%open_shell_embed, .FALSE.)
             END IF
 
             ! Subtract Coulomb potential difference if needed
@@ -1878,9 +1878,9 @@ CONTAINS
          ! Print embedding potential for restart
          CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                   opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter, &
-                                  spin_embed_pot, opt_embed%grid_opt, .FALSE.)
+                                  spin_embed_pot, opt_embed%open_shell_embed, opt_embed%grid_opt, .FALSE.)
          CALL print_pot_simple_grid(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
-                                    embed_pot, spin_embed_pot, i_iter, .FALSE., &
+                                    embed_pot, spin_embed_pot, i_iter, opt_embed%open_shell_embed, .FALSE., &
                                     force_env%sub_force_env(cluster_subsys_num)%force_env%qs_env)
 
          ! Integrate the potential over density differences and add to w functional; also add regularization contribution
@@ -1927,9 +1927,9 @@ CONTAINS
       ! Print final embedding potential for restart
       CALL print_embed_restart(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
                                opt_embed%dimen_aux, opt_embed%embed_pot_coef, embed_pot, i_iter, &
-                               spin_embed_pot, opt_embed%grid_opt, .TRUE.)
+                               spin_embed_pot, opt_embed%open_shell_embed, opt_embed%grid_opt, .TRUE.)
       CALL print_pot_simple_grid(force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, &
-                                 embed_pot, spin_embed_pot, i_iter, .TRUE., &
+                                 embed_pot, spin_embed_pot, i_iter, opt_embed%open_shell_embed, .TRUE., &
                                  force_env%sub_force_env(cluster_subsys_num)%force_env%qs_env)
 
       ! Print final density difference
@@ -1956,7 +1956,7 @@ CONTAINS
          ! The embedded subsystem corresponds to subsystem #2, where spin change is possible
          CALL make_subsys_embed_pot(force_env%sub_force_env(ref_subsys_number + 1)%force_env%qs_env, &
                                     embed_pot, embed_pot_subsys, spin_embed_pot, spin_embed_pot_subsys, &
-                                    opt_embed%change_spin)
+                                    opt_embed%open_shell_embed, opt_embed%change_spin)
 
          IF (opt_embed%Coulomb_guess) THEN
             embed_pot_subsys%cr3d(:, :, :) = embed_pot_subsys%cr3d(:, :, :) - opt_embed%pot_diff%cr3d(:, :, :)

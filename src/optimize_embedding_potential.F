@@ -701,7 +701,8 @@ CONTAINS
 
       ! Read the potential as a vector in the auxiliary basis
       IF (opt_embed%read_embed_pot) &
-         CALL read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, opt_embed%embed_pot_coef)
+         CALL read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, &
+opt_embed%embed_pot_coef, opt_embed%open_shell_embed)
       ! Read the potential as a cube (two cubes for open shell)
       IF (opt_embed%read_embed_pot_cube) &
          CALL read_embed_pot_cube(embed_pot, spin_embed_pot, section, opt_embed%open_shell_embed)
@@ -755,12 +756,13 @@ CONTAINS
 !> \param section ...
 !> \param embed_pot_coef ...
 ! **************************************************************************************************
-   SUBROUTINE read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, embed_pot_coef)
+   SUBROUTINE read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, embed_pot_coef, open_shell_embed)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(INOUT)                       :: embed_pot
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_coef
+LOGICAL, INTENT(IN) :: open_shell_embed
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: dimen_aux, dimen_restart_basis, &
@@ -775,7 +777,7 @@ CONTAINS
 
       ! Get the vector dimension
       CALL find_aux_dimen(qs_env, dimen_aux)
-      IF (ASSOCIATED(spin_embed_pot)) THEN
+      IF (open_shell_embed) THEN
          dimen_var_aux = dimen_aux*2
       ELSE
          dimen_var_aux = dimen_aux
@@ -850,7 +852,7 @@ CONTAINS
 
       ! Build the embedding potential on the grid
       CALL update_embed_pot(embed_pot_coef, dimen_aux, embed_pot, spin_embed_pot, &
-                            qs_env, .FALSE.)
+                            qs_env, .FALSE., open_shell_embed)
 
       ! Release my_embed_pot_coef
       CALL cp_fm_release(my_embed_pot_coef)
@@ -1061,18 +1063,19 @@ CONTAINS
 !> \param embed_pot_subsys ...
 !> \param spin_embed_pot ...
 !> \param spin_embed_pot_subsys ...
+!> \param open_shell_embed ...
 !> \param change_spin_sign ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE make_subsys_embed_pot(qs_env, embed_pot, embed_pot_subsys, &
-                                    spin_embed_pot, spin_embed_pot_subsys, &
+                                    spin_embed_pot, spin_embed_pot_subsys, open_shell_embed, &
                                     change_spin_sign)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: embed_pot
       TYPE(pw_type), POINTER                             :: embed_pot_subsys
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
       TYPE(pw_type), POINTER                             :: spin_embed_pot_subsys
-      LOGICAL                                            :: change_spin_sign
+      LOGICAL                                            :: open_shell_embed, change_spin_sign
 
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool_subsys
@@ -1093,7 +1096,7 @@ CONTAINS
       ! Hard copy the grid
       embed_pot_subsys%cr3d(:, :, :) = embed_pot%cr3d(:, :, :)
 
-      IF (ASSOCIATED(spin_embed_pot)) THEN
+      IF (open_shell_embed) THEN
          NULLIFY (spin_embed_pot_subsys)
          ALLOCATE (spin_embed_pot_subsys)
          CALL pw_pool_create_pw(auxbas_pw_pool_subsys, spin_embed_pot_subsys, &
@@ -1551,7 +1554,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          IF (opt_embed%leeuwen) THEN
             CALL Leeuwen_Baerends_potential_update(pw_env, embed_pot, spin_embed_pot, diff_rho_r, diff_rho_spin, &
-                                                   rho_r_ref, opt_embed%trust_rad)
+                                                   rho_r_ref, opt_embed%open_shell_embed, opt_embed%trust_rad)
          ELSE
             IF (opt_embed%fab) THEN
                CALL FAB_update(qs_env, rho_r_ref, opt_embed%prev_embed_pot, opt_embed%prev_spin_embed_pot, &
@@ -1699,7 +1702,7 @@ CONTAINS
          ! Update the embedding potential
          CALL update_embed_pot(opt_embed%embed_pot_coef, opt_embed%dimen_aux, embed_pot, &
                                spin_embed_pot, qs_env, opt_embed%add_const_pot, &
-                               opt_embed%const_pot)
+                               opt_embed%open_shell_embed, opt_embed%const_pot)
       END IF ! Grid-based optimization
 
       CALL timestop(handle)
@@ -1736,7 +1739,7 @@ CONTAINS
       CALL grid_regularize(embed_pot, pw_env, opt_embed%lambda, my_reg_term)
       opt_embed%reg_term = opt_embed%reg_term + my_reg_term
 
-      IF (ASSOCIATED(spin_embed_pot)) THEN
+      IF (opt_embed%open_shell_embed) THEN
          CALL pw_axpy(diff_rho_spin, spin_embed_pot, opt_embed%step_len)
          CALL grid_regularize(spin_embed_pot, pw_env, opt_embed%lambda, my_reg_term)
          opt_embed%reg_term = opt_embed%reg_term + my_reg_term
@@ -1759,13 +1762,13 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE update_embed_pot(embed_pot_coef, dimen_aux, embed_pot, spin_embed_pot, &
-                               qs_env, add_const_pot, const_pot)
+                               qs_env, add_const_pot, open_shell_embed, const_pot)
       TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_coef
       INTEGER                                            :: dimen_aux
       TYPE(pw_type), INTENT(INOUT)                       :: embed_pot
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL                                            :: add_const_pot
+      LOGICAL                                            :: add_const_pot, open_shell_embed
       TYPE(pw_type), INTENT(IN), OPTIONAL                :: const_pot
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_embed_pot'
@@ -1817,7 +1820,7 @@ CONTAINS
       wf_vector = 0.0_dp
 
       ! Create auxiliary full matrices for open-shell case
-      IF (ASSOCIATED(spin_embed_pot)) THEN
+      IF (open_shell_embed) THEN
          NULLIFY (blacs_env)
          CALL cp_fm_get_info(matrix=embed_pot_coef, context=blacs_env)
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
@@ -1925,7 +1928,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, psi_L)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g)
 
-      IF (ASSOCIATED(spin_embed_pot)) THEN
+      IF (open_shell_embed) THEN
          CALL cp_fm_release(embed_pot_coef_spin)
          CALL cp_fm_release(embed_pot_coef_spinless)
       END IF
@@ -2526,13 +2529,14 @@ CONTAINS
 !> \param step_len ...
 ! **************************************************************************************************
    SUBROUTINE Leeuwen_Baerends_potential_update(pw_env, embed_pot, spin_embed_pot, diff_rho_r, diff_rho_spin, &
-                                                rho_r_ref, step_len)
+                                                rho_r_ref, open_shell_embed, step_len)
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_type), INTENT(INOUT)                       :: embed_pot
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
       TYPE(pw_type), INTENT(IN)                          :: diff_rho_r, diff_rho_spin
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
-      REAL(KIND=dp)                                      :: step_len
+LOGICAL, INTENT(IN) :: open_shell_embed
+      REAL(KIND=dp)                    , INTENT(IN)                  :: step_len
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Leeuwen_Baerends_potential_update'
 
@@ -2551,7 +2555,7 @@ CONTAINS
       NULLIFY (new_embed_pot)
 
       nspins = 1
-      IF (ASSOCIATED(spin_embed_pot)) nspins = 2
+      IF (open_shell_embed) nspins = 2
       NULLIFY (new_embed_pot)
       ALLOCATE (new_embed_pot(nspins))
       DO i_spin = 1, nspins
@@ -2565,7 +2569,7 @@ CONTAINS
       lb(1:3) = embed_pot%pw_grid%bounds_local(1, 1:3)
       ub(1:3) = embed_pot%pw_grid%bounds_local(2, 1:3)
 
-      IF (.NOT. ASSOCIATED(spin_embed_pot)) THEN
+      IF (.NOT. open_shell_embed) THEN
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k, my_rho) &
 !$OMP                SHARED(new_embed_pot, embed_pot, diff_rho_r, rho_r_ref, lb, ub, rho_cutoff, step_len)
@@ -2763,7 +2767,7 @@ CONTAINS
          ! For the first step previous are set to current
          CALL pw_copy(embed_pot, prev_embed_pot)
          CALL pw_axpy(diff_rho_r, embed_pot, 0.5_dp)
-         IF (ASSOCIATED(spin_embed_pot) .AND. ASSOCIATED(prev_spin_embed_pot)) THEN
+         IF (open_shell_embed) THEN
             CALL pw_copy(spin_embed_pot, prev_spin_embed_pot)
             CALL pw_axpy(diff_rho_r, embed_pot, 0.5_dp)
          END IF
@@ -2799,7 +2803,7 @@ CONTAINS
 
          ! Now, deal with the current density
 
-         IF (.NOT. ASSOCIATED(spin_embed_pot)) THEN
+         IF (.NOT. open_shell_embed) THEN
             ! Reconstruct current density
             CALL pw_copy(diff_rho_r, curr_rho(1)%pw)
             CALL pw_axpy(rho_r_ref(1)%pw, curr_rho(1)%pw, 1.0_dp)
@@ -2913,7 +2917,7 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: v_w
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp)                                      :: vw_cutoff, vw_smooth_cutoff_range
+      REAL(KIND=dp)  , INTENT(IN)                                    :: vw_cutoff, vw_smooth_cutoff_range
 
       REAL(KIND=dp), PARAMETER                           :: one_4 = 0.25_dp, one_8 = 0.125_dp
 
@@ -3199,18 +3203,19 @@ CONTAINS
 !> \param embed_pot ...
 !> \param i_iter ...
 !> \param embed_pot_spin ...
+!> \param open_shell_embed ...
 !> \param grid_opt ...
 !> \param final_one ...
 ! **************************************************************************************************
    SUBROUTINE print_embed_restart(qs_env, dimen_aux, embed_pot_coef, embed_pot, i_iter, &
-                                  embed_pot_spin, grid_opt, final_one)
+                                  embed_pot_spin, open_shell_embed, grid_opt, final_one)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: embed_pot_coef
       TYPE(pw_type), INTENT(IN)                          :: embed_pot
       INTEGER                                            :: i_iter
       TYPE(pw_type), INTENT(IN), POINTER                 :: embed_pot_spin
-      LOGICAL                                            :: grid_opt, final_one
+      LOGICAL                                            :: open_shell_embed, grid_opt, final_one
 
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube, title
       INTEGER                                            :: unit_nr
@@ -3268,7 +3273,7 @@ CONTAINS
 !                            stride=section_get_ivals(dft_section, "QS%OPT_EMBED%EMBED_POT_CUBE%STRIDE"))
          CALL cp_print_key_finished_output(unit_nr, logger, input, &
                                            "DFT%QS%OPT_EMBED%EMBED_POT_CUBE")
-         IF (ASSOCIATED(embed_pot_spin)) THEN ! Print spin part of the embedding potential
+         IF (open_shell_embed) THEN ! Print spin part of the embedding potential
             my_pos_cube = "REWIND"
             IF (.NOT. final_one) THEN
                WRITE (filename, '(a15,I3.3)') "spin_embed_pot_", i_iter
@@ -3296,21 +3301,22 @@ CONTAINS
 !> \param embed_pot ...
 !> \param embed_pot_spin ...
 !> \param i_iter ...
+!> \param open_shell_embed ...
 !> \param final_one ...
 !> \param qs_env_cluster ...
 ! **************************************************************************************************
-   SUBROUTINE print_pot_simple_grid(qs_env, embed_pot, embed_pot_spin, i_iter, &
+   SUBROUTINE print_pot_simple_grid(qs_env, embed_pot, embed_pot_spin, i_iter, open_shell_embed, &
                                     final_one, qs_env_cluster)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: embed_pot
       TYPE(pw_type), INTENT(IN), POINTER                 :: embed_pot_spin
       INTEGER                                            :: i_iter
-      LOGICAL                                            :: final_one
+      LOGICAL                                            :: open_shell_embed, final_one
       TYPE(qs_environment_type), POINTER                 :: qs_env_cluster
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: my_units, unit_nr
-      LOGICAL                                            :: angstrom, bohr, open_shell_embed
+      LOGICAL                                            :: angstrom, bohr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -3319,8 +3325,6 @@ CONTAINS
 
       NULLIFY (input)
       CALL get_qs_env(qs_env=qs_env, input=input, pw_env=pw_env)
-
-      open_shell_embed = ASSOCIATED(embed_pot_spin)
 
       ! Second, cube files
       dft_section => section_vals_get_subs_vals(input, "DFT")
