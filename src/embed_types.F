@@ -70,17 +70,19 @@ MODULE embed_types
 ! **************************************************************************************************
 
    TYPE opt_embed_pot_type
-      TYPE(cp_fm_type), POINTER                 :: embed_pot_coef, embed_pot_grad, &
-                                                   prev_step, step, embed_pot_hess, &
-                                                   prev_embed_pot_coef, prev_embed_pot_grad, &
-                                                   prev_embed_pot_hess, kinetic_mat
+      TYPE(cp_fm_type), POINTER                 :: embed_pot_coef => NULL(), embed_pot_grad => NULL(), &
+                                                   prev_step => NULL(), step => NULL(), embed_pot_hess => NULL(), &
+                                                   prev_embed_pot_coef => NULL(), prev_embed_pot_grad => NULL(), &
+                                                   prev_embed_pot_hess => NULL(), kinetic_mat => NULL()
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: w_func, max_diff, int_diff, int_diff_square, &
                                                    max_grid_step, max_subsys_dens_diff
       INTEGER                                   :: n_iter, i_iter, dimen_aux, last_accepted, dimen_var_aux
       REAL(KIND=dp)                             :: lambda, allowed_decrease, max_trad, min_trad, &
                                                    grad_norm, vw_cutoff, vw_smooth_cutoff_range, eta
-      TYPE(pw_type), POINTER                  :: const_pot, prev_embed_pot, prev_spin_embed_pot, pot_diff
-      TYPE(pw_p_type), DIMENSION(:), POINTER    :: prev_grid_grad, prev_grid_pot, prev_subsys_dens, v_w
+      TYPE(pw_type), POINTER                  :: const_pot => NULL(), prev_embed_pot => NULL(), &
+                                                 prev_spin_embed_pot => NULL(), pot_diff => NULL()
+      TYPE(pw_p_type), DIMENSION(:), POINTER    :: prev_grid_grad => NULL(), prev_grid_pot => NULL(), &
+                                                   prev_subsys_dens => NULL(), v_w => NULL()
       REAL(KIND=dp)                             :: reg_term, trust_rad, conv_max, conv_int, &
                                                    conv_max_spin, conv_int_spin, step_len
       LOGICAL                                   :: accept_step, newton_step, level_shift, steep_desc, &
@@ -89,7 +91,7 @@ MODULE embed_types
                                                    grid_opt, leeuwen, fab, coulomb_guess, fermi_amaldi, &
                                                    diff_guess
       INTEGER, ALLOCATABLE, DIMENSION(:)        :: all_nspins
-      TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri ! Needed to store integrals
+      TYPE(lri_kind_type), DIMENSION(:), POINTER :: lri => NULL() ! Needed to store integrals
 
    END TYPE opt_embed_pot_type
 
