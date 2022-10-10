@@ -1283,9 +1283,9 @@ CONTAINS
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
 
          !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
-         IF (do_im_time .AND. qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
+         IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
             CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
-                                   weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, &
+                                   weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
                                    num_integ_points, unit_nr, qs_env)
          END IF
       ELSE

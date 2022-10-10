@@ -3805,31 +3805,34 @@ CONTAINS
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_cos_tf_w_to_t ...
 !> \param do_laplace ...
+!> \param do_im_time ...
 !> \param num_integ_points ...
 !> \param unit_nr ...
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, &
-                                do_laplace, num_integ_points, unit_nr, qs_env)
+                                do_laplace, do_im_time, num_integ_points, unit_nr, qs_env)
 
       REAL(dp), DIMENSION(:), INTENT(INOUT)              :: tj, wj, tau_tj, tau_wj
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t
-      LOGICAL, INTENT(IN)                                :: do_laplace
+      LOGICAL, INTENT(IN)                                :: do_laplace, do_im_time
       INTEGER, INTENT(IN)                                :: num_integ_points, unit_nr
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: jquad
 
-      IF (.NOT. ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tau_tj)) THEN
-         ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_tj(0:num_integ_points))
-         ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_wj(num_integ_points))
-         qs_env%mp2_env%ri_rpa_im_time%tau_tj(:) = tau_tj(:)
-         qs_env%mp2_env%ri_rpa_im_time%tau_wj(:) = tau_wj(:)
-      ELSE
-         !If weights already stored, we overwrite the new ones
-         tau_tj(:) = qs_env%mp2_env%ri_rpa_im_time%tau_tj(:)
-         tau_wj(:) = qs_env%mp2_env%ri_rpa_im_time%tau_wj(:)
+      IF (do_laplace .OR. do_im_time) THEN
+         IF (.NOT. ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tau_tj) .AND. do_laplace) THEN
+            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_tj(0:num_integ_points))
+            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_wj(num_integ_points))
+            qs_env%mp2_env%ri_rpa_im_time%tau_tj(:) = tau_tj(:)
+            qs_env%mp2_env%ri_rpa_im_time%tau_wj(:) = tau_wj(:)
+         ELSE
+            !If weights already stored, we overwrite the new ones
+            tau_tj(:) = qs_env%mp2_env%ri_rpa_im_time%tau_tj(:)
+            tau_wj(:) = qs_env%mp2_env%ri_rpa_im_time%tau_wj(:)
+         END IF
       END IF
       IF (.NOT. do_laplace) THEN
          IF (.NOT. ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tj)) THEN
@@ -3837,15 +3840,19 @@ CONTAINS
             ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%wj(num_integ_points))
             qs_env%mp2_env%ri_rpa_im_time%tj(:) = tj(:)
             qs_env%mp2_env%ri_rpa_im_time%wj(:) = wj(:)
-            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(num_integ_points, num_integ_points))
-            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
-            qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(:, :) = weights_cos_tf_t_to_w(:, :)
-            qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(:, :) = weights_cos_tf_w_to_t(:, :)
+            IF (do_im_time) THEN
+               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(num_integ_points, num_integ_points))
+               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
+               qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(:, :) = weights_cos_tf_t_to_w(:, :)
+               qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(:, :) = weights_cos_tf_w_to_t(:, :)
+            END IF
          ELSE
             tj(:) = qs_env%mp2_env%ri_rpa_im_time%tj(:)
             wj(:) = qs_env%mp2_env%ri_rpa_im_time%wj(:)
-            weights_cos_tf_t_to_w(:, :) = qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(:, :)
-            weights_cos_tf_w_to_t(:, :) = qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(:, :)
+            IF (do_im_time) THEN
+               weights_cos_tf_t_to_w(:, :) = qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(:, :)
+               weights_cos_tf_w_to_t(:, :) = qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(:, :)
+            END IF
          END IF
       END IF
       IF (unit_nr > 0) THEN
