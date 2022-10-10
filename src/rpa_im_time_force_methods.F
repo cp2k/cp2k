@@ -3813,8 +3813,9 @@ CONTAINS
    SUBROUTINE keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, &
                                 do_laplace, do_im_time, num_integ_points, unit_nr, qs_env)
 
-      REAL(dp), DIMENSION(:), ALLOCATABLE, INTENT(INOUT)              :: tj, wj, tau_tj, tau_wj
-      REAL(dp), DIMENSION(:, :), ALLOCATABLE, INTENT(INOUT)           :: weights_cos_tf_t_to_w, &
+      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: tj, wj, tau_tj, tau_wj
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t
       LOGICAL, INTENT(IN)                                :: do_laplace, do_im_time
       INTEGER, INTENT(IN)                                :: num_integ_points, unit_nr
