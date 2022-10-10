@@ -913,35 +913,43 @@ CONTAINS
          DEALLOCATE (opt_embed%lri)
       END IF
 
-      DO i_dens = 1, SIZE(opt_embed%prev_subsys_dens)
-         CALL pw_release(opt_embed%prev_subsys_dens(i_dens)%pw)
-         DEALLOCATE (opt_embed%prev_subsys_dens(i_dens)%pw)
-      END DO
-      DEALLOCATE (opt_embed%prev_subsys_dens)
+      IF (ASSOCIATED(opt_embed%prev_subsys_dens)) THEN
+         DO i_dens = 1, SIZE(opt_embed%prev_subsys_dens)
+            IF (ASSOCIATED(opt_embed%prev_subsys_dens(i_dens)%pw)) THEN
+               CALL pw_release(opt_embed%prev_subsys_dens(i_dens)%pw)
+               DEALLOCATE (opt_embed%prev_subsys_dens(i_dens)%pw)
+            END IF
+         END DO
+         DEALLOCATE (opt_embed%prev_subsys_dens)
+      END IF
       DEALLOCATE (opt_embed%max_subsys_dens_diff)
 
       DEALLOCATE (opt_embed%all_nspins)
 
-      IF (opt_embed%add_const_pot .AND. (.NOT. opt_embed%grid_opt)) THEN
+      IF (ASSOCIATED(opt_embed%const_pot)) THEN
          CALL pw_release(opt_embed%const_pot)
          DEALLOCATE (opt_embed%const_pot)
       END IF
 
-      IF (opt_embed%Coulomb_guess) THEN
+      IF (ASSOCIATED(opt_embed%pot_diff)) THEN
          CALL pw_release(opt_embed%pot_diff)
          DEALLOCATE (opt_embed%pot_diff)
       END IF
 
-      IF (opt_embed%fab) THEN
+      IF (ASSOCIATED(opt_embed%prev_embed_pot)) THEN
          CALL pw_release(opt_embed%prev_embed_pot)
          DEALLOCATE (opt_embed%prev_embed_pot)
-         IF (ASSOCIATED(opt_embed%prev_spin_embed_pot)) THEN
-            CALL pw_release(opt_embed%prev_spin_embed_pot)
-            DEALLOCATE (opt_embed%prev_spin_embed_pot)
-         END IF
+      END IF
+      IF (ASSOCIATED(opt_embed%prev_spin_embed_pot)) THEN
+         CALL pw_release(opt_embed%prev_spin_embed_pot)
+         DEALLOCATE (opt_embed%prev_spin_embed_pot)
+      END IF
+      IF (ASSOCIATED(opt_embed%v_w)) THEN
          DO i_spin = 1, SIZE(opt_embed%v_w)
-            CALL pw_release(opt_embed%v_w(i_spin)%pw)
-            DEALLOCATE (opt_embed%v_w(i_spin)%pw)
+            IF (ASSOCIATED(opt_embed%v_w(i_spin)%pw)) THEN
+               CALL pw_release(opt_embed%v_w(i_spin)%pw)
+               DEALLOCATE (opt_embed%v_w(i_spin)%pw)
+            END IF
          END DO
          DEALLOCATE (opt_embed%v_w)
       END IF
