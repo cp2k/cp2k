@@ -17,7 +17,7 @@ N2_t06.inp                                            11      5e-12             
 # LDA - BR89 AO solver
 N2_t07.inp                                            11      1e-12                -19.518445253058768
 # BR89 - LDA AO solver
-N2_t08.inp                                            11      1e-12                -19.794774602971181
+N2_t08.inp                                            11      5e-12                -19.794774602971181
 # HFX - PBE
 N2_t09.inp                                            11      1e-12                -19.910974562359936
 # HFX - PBE AO solver
