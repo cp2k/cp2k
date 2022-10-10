@@ -268,6 +268,7 @@ MODULE mp2_types
       REAL(KIND=dp) :: eps_range
       TYPE(libint_potential_type) :: ri_metric
       TYPE(C_ptr)                 :: local_gemm_ctx
+      REAL(dp) :: e_gap, e_range
    END TYPE
 
    TYPE integ_mat_buffer_type

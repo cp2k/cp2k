@@ -85,6 +85,8 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "SCALE_S", r_val=mp2_env%scale_S)
       CALL section_vals_val_get(mp2_section, "SCALE_T", r_val=mp2_env%scale_T)
       CALL section_vals_val_get(mp2_section, "GROUP_SIZE", i_val=mp2_env%mp2_num_proc)
+      CALL section_vals_val_get(mp2_section, "E_GAP", r_val=mp2_env%e_gap)
+      CALL section_vals_val_get(mp2_section, "E_RANGE", r_val=mp2_env%e_range)
 
       CALL section_vals_val_get(mp2_section, "MP2%_SECTION_PARAMETERS_", l_val=do_mp2)
       CALL section_vals_val_get(mp2_section, "MP2%BIG_SEND", l_val=mp2_env%direct_canonical%big_send)

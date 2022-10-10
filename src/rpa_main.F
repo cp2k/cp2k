@@ -289,15 +289,18 @@ CONTAINS
          input_num_integ_groups = mp2_env%ri_laplace%num_integ_groups
 
          ! check the range for the minimax approximation
-         Emin = HUGE(dp)
-         Emax = 0.0_dp
-         DO ispin = 1, nspins
-            IF (homo(ispin) > 0) THEN
-               Emin = MIN(Emin, 2.0_dp*(Eigenval(homo(ispin) + 1, ispin) - Eigenval(homo(ispin), ispin)))
-               Emax = MAX(Emax, 2.0_dp*(MAXVAL(Eigenval(:, ispin)) - MINVAL(Eigenval(:, ispin))))
-            END IF
-         END DO
-         E_Range = Emax/Emin
+         E_Range = mp2_env%e_range
+         IF (mp2_env%e_range <= 1.0_dp .OR. mp2_env%e_gap <= 0.0_dp) THEN
+            Emin = HUGE(dp)
+            Emax = 0.0_dp
+            DO ispin = 1, nspins
+               IF (homo(ispin) > 0) THEN
+                  Emin = MIN(Emin, 2.0_dp*(Eigenval(homo(ispin) + 1, ispin) - Eigenval(homo(ispin), ispin)))
+                  Emax = MAX(Emax, 2.0_dp*(MAXVAL(Eigenval(:, ispin)) - MINVAL(Eigenval(:, ispin))))
+               END IF
+            END DO
+            E_Range = Emax/Emin
+         END IF
          IF (E_Range < 2.0_dp) E_Range = 2.0_dp
          ierr = 0
          CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
@@ -1274,17 +1277,19 @@ CONTAINS
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          do_print = .NOT. do_ic_model .AND. (.NOT. qs_env%mp2_env%ri_rpa_im_time%keep_quad)
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
-                               do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
+                               do_ri_sos_laplace_mp2, do_print, &
+                               tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w)
 
          !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
-         IF (do_im_time .AND. qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
+         IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
             CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
-                                   weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, &
+                                   weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
                                    num_integ_points, unit_nr, qs_env)
          END IF
       ELSE
+         IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
          CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
                                 ext_scaling, a_scaling, tj, wj)

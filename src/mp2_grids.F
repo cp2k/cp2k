@@ -18,6 +18,8 @@ MODULE mp2_grids
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_set
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
@@ -98,9 +100,10 @@ CONTAINS
 
       INTEGER                                            :: handle, ierr, ispin, jquad, nspins
       LOGICAL                                            :: my_do_kpoints, my_open_shell
-      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min, &
+      REAL(KIND=dp)                                      :: Emax, Emin, max_error_min, my_E_Range, &
                                                             scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x_tw
+      TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
@@ -116,20 +119,32 @@ CONTAINS
 
       IF (my_do_kpoints) THEN
          CALL gap_and_max_eig_diff_kpoints(qs_env, para_env, Emin, Emax, e_fermi)
-         E_Range = Emax/Emin
+         my_E_Range = Emax/Emin
       ELSE
-         Emin = HUGE(dp)
-         Emax = 0.0_dp
-         DO ispin = 1, nspins
-            IF (homo(ispin) > 0) THEN
-               Emin = MIN(Emin, Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin))
-               Emax = MAX(Emax, MAXVAL(Eigenval(:, :, ispin)) - MINVAL(Eigenval(:, :, ispin)))
-            END IF
-         END DO
-         E_Range = Emax/Emin
+         IF (qs_env%mp2_env%E_range <= 1.0_dp .OR. qs_env%mp2_env%E_gap <= 0.0_dp) THEN
+            Emin = HUGE(dp)
+            Emax = 0.0_dp
+            DO ispin = 1, nspins
+               IF (homo(ispin) > 0) THEN
+                  Emin = MIN(Emin, Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin))
+                  Emax = MAX(Emax, MAXVAL(Eigenval(:, :, ispin)) - MINVAL(Eigenval(:, :, ispin)))
+               END IF
+            END DO
+            my_E_Range = Emax/Emin
+            qs_env%mp2_env%e_range = my_e_range
+            qs_env%mp2_env%e_gap = Emin
+
+            CALL get_qs_env(qs_env, input=input)
+            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_RANGE", r_val=my_e_range)
+            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_GAP", r_val=emin)
+         ELSE
+            my_E_range = qs_env%mp2_env%E_range
+            Emin = qs_env%mp2_env%E_gap
+            Emax = Emin*my_E_range
+         END IF
       END IF
 
-      IF (num_integ_points > 20 .AND. E_Range < 100.0_dp) THEN
+      IF (num_integ_points > 20 .AND. my_E_Range < 100.0_dp) THEN
          IF (unit_nr > 0) &
             CALL cp_warn(__LOCATION__, &
                          "You requested a large minimax grid (> 20 points) for a small minimax range R (R < 100). "// &
@@ -143,9 +158,9 @@ CONTAINS
          x_tw = 0.0_dp
          ierr = 0
          IF (num_integ_points .LE. 20) THEN
-            CALL get_rpa_minimax_coeff(num_integ_points, E_Range, x_tw, ierr)
+            CALL get_rpa_minimax_coeff(num_integ_points, my_E_Range, x_tw, ierr)
          ELSE
-            CALL get_rpa_minimax_coeff_larger_grid(num_integ_points, E_Range, x_tw)
+            CALL get_rpa_minimax_coeff_larger_grid(num_integ_points, my_E_Range, x_tw)
          END IF
 
          ALLOCATE (tj(num_integ_points))
@@ -165,7 +180,9 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MINIMAX_INFO| Number of integration points:", num_integ_points
             WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "MINIMAX_INFO| Range for the minimax approximation:", E_Range
+               "MINIMAX_INFO| Gap for the minimax approximation:", Emin
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+               "MINIMAX_INFO| Range for the minimax approximation:", my_E_Range
             WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
             DO jquad = 1, num_integ_points
                WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
@@ -190,9 +207,9 @@ CONTAINS
          x_tw = 0.0_dp
 
          IF (num_integ_points .LE. 20) THEN
-            CALL get_exp_minimax_coeff(num_integ_points, E_Range, x_tw)
+            CALL get_exp_minimax_coeff(num_integ_points, my_E_Range, x_tw)
          ELSE
-            CALL get_exp_minimax_coeff_gw(num_integ_points, E_Range, x_tw)
+            CALL get_exp_minimax_coeff_gw(num_integ_points, my_E_Range, x_tw)
          END IF
 
          ! For RPA we include already a factor of two (see later steps)
@@ -214,7 +231,7 @@ CONTAINS
 
          IF (unit_nr > 0 .AND. do_print) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "MINIMAX_INFO| Range for the minimax approximation:", E_Range
+               "MINIMAX_INFO| Range for the minimax approximation:", my_E_Range
             ! For testing the gap
             WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
                "MINIMAX_INFO| Gap:", Emin
@@ -329,7 +346,6 @@ CONTAINS
       IF (my_do_gw .AND. ext_scaling > 0.0_dp) THEN
          a_scaling = ext_scaling
       ELSE
-         a_scaling = 1.0_dp
          CALL calc_scaling_factor(a_scaling, para_env, para_env_RPA, homo, virtual, Eigenval, &
                                   num_integ_points, num_integ_group, color_rpa_group, &
                                   tj, wj, fm_mat_S)
@@ -361,7 +377,7 @@ CONTAINS
    SUBROUTINE calc_scaling_factor(a_scaling_ext, para_env, para_env_RPA, homo, virtual, Eigenval, &
                                   num_integ_points, num_integ_group, color_rpa_group, &
                                   tj_ext, wj_ext, fm_mat_S)
-      REAL(KIND=dp), INTENT(INOUT)                       :: a_scaling_ext
+      REAL(KIND=dp), INTENT(OUT)                         :: a_scaling_ext
       TYPE(cp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
