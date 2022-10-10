@@ -1069,8 +1069,9 @@ CONTAINS
                                     change_spin_sign)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_type), INTENT(IN)                          :: embed_pot
-      TYPE(pw_type), POINTER                             :: embed_pot_subsys, spin_embed_pot, &
-                                                            spin_embed_pot_subsys
+      TYPE(pw_type), POINTER                             :: embed_pot_subsys
+      TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
+      TYPE(pw_type), POINTER                             :: spin_embed_pot_subsys
       LOGICAL                                            :: change_spin_sign
 
       TYPE(pw_env_type), POINTER                         :: pw_env
