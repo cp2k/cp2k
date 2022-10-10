@@ -282,9 +282,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_sap_ints'
 
       INTEGER :: first_col, handle, i, iac, iatom, ikind, ilist, iset, j, jneighbor, katom, kkind, &
-         l, lc_max, lc_min, ldai, ldsab, lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, &
-         maxsgf, na, nb, ncoa, ncoc, nkind, nlist, nneighbor, nnl, np, nppnl, nprjc, nseta, nsgfa, &
-         prjc, sgfa, slot
+         l, lc_max, lc_min, ldai, ldai_nl, ldsab, lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, &
+         maxppnl, maxsgf, na, nb, ncoa, ncoc, nkind, nlist, nneighbor, nnl, np, nppnl, nprjc, &
+         nseta, nsgfa, prjc, sgfa, slot
       INTEGER, DIMENSION(3)                              :: cell_c
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
@@ -339,9 +339,14 @@ CONTAINS
       CALL init_orbital_pointers(maxl + nder + 1)
 
       ldsab = MAX(maxco, ncoset(maxlppnl), maxsgf, maxppnl)
-      ldai = ncoset(maxl + nder + 1)
+      IF (.NOT. my_momentmode) THEN
+         ldai = ncoset(maxl + nder + 1)
+      ELSE
+         ldai = maxco
+      END IF
 
       !set up direct access to basis and potential
+      ldai_nl = 0
       NULLIFY (gpotential, spotential)
       ALLOCATE (basis_set(nkind), gpotential(nkind), spotential(nkind))
       DO ikind = 1, nkind
@@ -356,8 +361,10 @@ CONTAINS
          NULLIFY (spotential(ikind)%sgp_potential)
          IF (ASSOCIATED(gth_potential)) THEN
             gpotential(ikind)%gth_potential => gth_potential
+            ldai_nl = MAX(ldai_nl, ncoset(gth_potential%lprj_ppnl_max))
          ELSE IF (ASSOCIATED(sgp_potential)) THEN
             spotential(ikind)%sgp_potential => sgp_potential
+            ldai_nl = MAX(ldai_nl, sgp_potential%n_nonlocal*ncoset(sgp_potential%lmax))
          END IF
       END DO
 
@@ -400,7 +407,7 @@ CONTAINS
       !calculate the overlap integrals <a|pp>
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (basis_set, gpotential, spotential, maxder, ncoset, my_momentmode, &
+!$OMP SHARED  (basis_set, gpotential, spotential, maxder, ncoset, my_momentmode, ldai_nl, &
 !$OMP          sap_ppnl, sap_int, nkind, ldsab, ldai, nder, nco, my_ref, cell, particle_set, rf) &
 !$OMP PRIVATE (ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
@@ -413,7 +420,11 @@ CONTAINS
       ! allocate work storage
       ALLOCATE (sab(ldsab, ldsab*maxder), work(ldsab, ldsab*maxder))
       sab = 0.0_dp
-      ALLOCATE (ai_work(ldai, ldai, ncoset(nder + 1)))
+      IF (.NOT. my_momentmode) THEN
+         ALLOCATE (ai_work(ldai, ldai, ncoset(nder + 1)))
+      ELSE
+         ALLOCATE (ai_work(ldai, ldai_nl, ncoset(nder + 1)))
+      END IF
       ai_work = 0.0_dp
 
 !$OMP DO SCHEDULE(GUIDED)
