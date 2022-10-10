@@ -3861,7 +3861,7 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MINIMAX_INFO| Number of integration points:", num_integ_points
             WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-               "MINIMAX_INFO| Minimax params (freq gird, scaled):", "Weights", "Abscissas"
+               "MINIMAX_INFO| Minimax params (freq grid, scaled):", "Weights", "Abscissas"
             DO jquad = 1, num_integ_points
                WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
             END DO
