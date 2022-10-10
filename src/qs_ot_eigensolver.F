@@ -106,7 +106,6 @@ CONTAINS
       END IF
 
       NULLIFY (matrix_c) ! fm->dbcsr
-      !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
 
       CALL cp_fm_get_info(matrix_c_fm, nrow_global=n, ncol_global=k) ! fm->dbcsr
       ALLOCATE (matrix_c)
@@ -248,7 +247,7 @@ CONTAINS
             END IF
          END IF
 
-!     *** Eigensolver loop ***
+         ! *** Eigensolver loop ***
          ieigensolver = 0
          eigensolver_loop: DO
 

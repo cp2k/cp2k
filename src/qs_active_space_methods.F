@@ -528,6 +528,7 @@ CONTAINS
          CALL cp_fm_get_info(fm_ref, context=context, para_env=para_env, &
                              nrow_global=nrow_global)
          nvirt = max_orb_ind - nmo
+         nvirt = MAX(nvirt, 0)
          nmo = max_orb_ind
 
          maxocc = 2.0_dp
@@ -749,6 +750,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=fm_ref, nmo=nmo)
                nvirt = max_orb_ind - nmo
+               nvirt = MAX(nvirt, 0)
 
                NULLIFY (evals_virt)
                ALLOCATE (evals_virt(nvirt))
