@@ -46,6 +46,7 @@
       &END HF
       &WF_CORRELATION
         &RI_RPA
+          MINIMAX
           QUADRATURE_POINTS  4
         &END
         &INTEGRALS
