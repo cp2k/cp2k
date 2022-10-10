@@ -3813,8 +3813,8 @@ CONTAINS
    SUBROUTINE keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, &
                                 do_laplace, do_im_time, num_integ_points, unit_nr, qs_env)
 
-      REAL(dp), DIMENSION(:), INTENT(INOUT)              :: tj, wj, tau_tj, tau_wj
-      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: weights_cos_tf_t_to_w, &
+      REAL(dp), DIMENSION(:), ALLOCATABLE, INTENT(INOUT)              :: tj, wj, tau_tj, tau_wj
+      REAL(dp), DIMENSION(:, :), ALLOCATABLE, INTENT(INOUT)           :: weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t
       LOGICAL, INTENT(IN)                                :: do_laplace, do_im_time
       INTEGER, INTENT(IN)                                :: num_integ_points, unit_nr
@@ -3823,7 +3823,7 @@ CONTAINS
       INTEGER                                            :: jquad
 
       IF (do_laplace .OR. do_im_time) THEN
-         IF (.NOT. ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tau_tj) .AND. do_laplace) THEN
+         IF (.NOT. ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tau_tj)) THEN
             ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_tj(0:num_integ_points))
             ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_wj(num_integ_points))
             qs_env%mp2_env%ri_rpa_im_time%tau_tj(:) = tau_tj(:)
