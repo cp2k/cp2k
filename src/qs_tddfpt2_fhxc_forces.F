@@ -43,7 +43,7 @@ MODULE qs_tddfpt2_fhxc_forces
                                               cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_filter, &
+        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_filter, &
         dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
@@ -208,8 +208,8 @@ CONTAINS
          rho_r_aux, rhox_g, rhox_g_aux, rhox_r, rhox_r_aux, rhoxx_g, rhoxx_r, tau_r_aux
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_type)                                      :: xv_hartree_gspace, xv_hartree_rspace, &
-                                                            rhox_tot_gspace
+      TYPE(pw_type)                                      :: rhox_tot_gspace, xv_hartree_gspace, &
+                                                            xv_hartree_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
