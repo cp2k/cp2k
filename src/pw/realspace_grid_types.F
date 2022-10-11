@@ -571,16 +571,14 @@ CONTAINS
 !>        04-2009 created [Iain Bethune]
 !>          (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 ! **************************************************************************************************
-   SUBROUTINE rs_grid_reorder_ranks(desc, real2virtual)
+   PURE SUBROUTINE rs_grid_reorder_ranks(desc, real2virtual)
 
-      TYPE(realspace_grid_desc_type), POINTER            :: desc
+      TYPE(realspace_grid_desc_type), INTENT(INOUT)      :: desc
       INTEGER, DIMENSION(:), INTENT(IN)                  :: real2virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_reorder_ranks'
 
-      INTEGER                                            :: handle, i
-
-      CALL timeset(routineN, handle)
+      INTEGER                                            :: i
 
       desc%real2virtual(:) = real2virtual
 
@@ -594,8 +592,6 @@ CONTAINS
          desc%virtual_group_coor(:) = desc%rank2coord(:, desc%my_virtual_pos)
       END IF
 
-      CALL timestop(handle)
-
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -605,7 +601,7 @@ CONTAINS
 !> \author JGH (17-May-2007)
 ! **************************************************************************************************
    SUBROUTINE rs_grid_print(rs, iounit)
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
       INTEGER, INTENT(in)                                :: iounit
 
       INTEGER                                            :: dir, i, nn
@@ -2010,11 +2006,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rs_grid_set_box(pw_grid, rs)
 
-      TYPE(pw_grid_type), POINTER                        :: pw_grid
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
+      TYPE(realspace_grid_type), INTENT(IN)              :: rs
 
-      CPASSERT(ASSOCIATED(pw_grid))
-      CPASSERT(ASSOCIATED(rs))
       CPASSERT(rs%desc%grid_id == pw_grid%id_nr)
       rs%desc%dh = pw_grid%dh
       rs%desc%dh_inv = pw_grid%dh_inv
