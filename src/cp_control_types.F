@@ -56,6 +56,7 @@ MODULE cp_control_types
       INTEGER                              :: aspc_order
       INTEGER                              :: sc_check_start
       LOGICAL                              :: apply_delta_pulse
+      LOGICAL                              :: apply_delta_pulse_mag
       LOGICAL                              :: periodic
       LOGICAL                              :: linear_scaling
       LOGICAL                              :: write_restart
@@ -64,6 +65,8 @@ MODULE cp_control_types
       REAL(dp)                             :: mcweeny_eps
       INTEGER, DIMENSION(3)                :: delta_pulse_direction
       REAL(KIND=dp)                        :: delta_pulse_scale
+      LOGICAL                              :: velocity_gauge
+      LOGICAL                              :: nl_gauge_transform
    END TYPE rtp_control_type
 ! **************************************************************************************************
 ! \brief Control parameters for DFTB calculations

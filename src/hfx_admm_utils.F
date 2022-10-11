@@ -738,7 +738,8 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_1d, matrix_ks_aux_fit, &
          matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_im, matrix_ks_im, rho_ao_1d, rho_ao_resp
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_ks_orb, rho_ao_orb
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_h_im, matrix_ks_orb, &
+                                                            rho_ao_orb
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
@@ -755,13 +756,14 @@ CONTAINS
 
       NULLIFY (auxbas_pw_pool, dft_control, hfx_sections, input, &
                para_env, poisson_env, pw_env, virial, matrix_ks_im, &
-               matrix_ks_orb, rho_ao_orb, matrix_h, matrix_ks_aux_fit, &
+               matrix_ks_orb, rho_ao_orb, matrix_h, matrix_h_im, matrix_ks_aux_fit, &
                matrix_ks_aux_fit_im, matrix_ks_aux_fit_hfx)
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       input=input, &
                       matrix_h_kp=matrix_h, &
+                      matrix_h_im_kp=matrix_h_im, &
                       para_env=para_env, &
                       pw_env=pw_env, &
                       virial=virial, &
@@ -953,6 +955,15 @@ CONTAINS
 
             !! If required, the calculation of the forces will be done later with adiabatic rescaling
             IF (do_adiabatic_rescaling) hf_energy(irep) = ehfx + ehfxrt
+
+            IF (dft_control%rtp_control%velocity_gauge) THEN
+               CPASSERT(ASSOCIATED(matrix_h_im))
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(matrix_ks_im(ispin)%matrix, matrix_h_im(1, 1)%matrix, &
+                                 1.0_dp, 1.0_dp)
+               END DO
+            END IF
+
          END IF
 
          IF (.NOT. qs_env%run_rtp) THEN

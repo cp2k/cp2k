@@ -22,6 +22,8 @@ MODULE qs_moments
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE bibliography,                    ONLY: Mattiat2019,&
+                                              cite_reference
    USE block_p_types,                   ONLY: block_p_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
@@ -51,10 +53,9 @@ MODULE qs_moments
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
    USE dbcsr_api,                       ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_dot, &
+        dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_trace, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -102,7 +103,7 @@ MODULE qs_moments
 
    ! Public subroutines
    PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix
-   PUBLIC :: build_berry_kpoint_matrix
+   PUBLIC :: build_berry_kpoint_matrix, build_local_magmom_matrix
    PUBLIC :: qs_moment_berry_phase, qs_moment_locop
    PUBLIC :: dipole_deriv_ao
 
@@ -610,6 +611,8 @@ CONTAINS
       DEALLOCATE (work)
       DO i = 1, nm
          NULLIFY (mom_block(i)%block)
+      END DO
+      DO i = 1, M_dim
          DO idir = 1, 3
             NULLIFY (mom_block_der(i, idir)%block)
          END DO
@@ -642,8 +645,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_magmom_matrix'
 
-      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         maxco, maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
+      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, maxco, &
+         maxsgf, natom, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, npgfa, npgfb, &
                                                             nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
@@ -662,7 +665,7 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all
+         POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -671,26 +674,19 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, cell, particle_set, sab_all)
+      NULLIFY (qs_kind_set, cell, particle_set, sab_orb)
       NULLIFY (matrix_s)
 
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
 
       ! magnetic dipoles/angular moments only
       nm = 3
-      CALL dbcsr_allocate_matrix_set(magmom, nm)
 
-      DO i = 1, nm
-         ALLOCATE (magmom(i)%matrix)
-         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, magmom(i)%matrix)
-         CALL dbcsr_set(magmom(i)%matrix, 0.0_dp)
-      END DO
-
-      NULLIFY (qs_kind_set, particle_set, sab_all, cell)
+      NULLIFY (qs_kind_set, particle_set, sab_orb, cell)
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, cell=cell, &
-                      sab_all=sab_all)
+                      sab_orb=sab_orb)
 
       nkind = SIZE(qs_kind_set)
       natom = SIZE(particle_set)
@@ -720,7 +716,7 @@ CONTAINS
             NULLIFY (basis_set_list(ikind)%gto_basis_set)
          END IF
       END DO
-      CALL neighbor_list_iterator_create(nl_iterator, sab_all)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
                                 iatom=iatom, jatom=jatom, r=rab)
@@ -750,18 +746,13 @@ CONTAINS
          sphi_b => basis_set_b%sphi
          zetb => basis_set_b%zet
 
-         IF (inode == 1) last_jatom = 0
-
-         ! this guarantees minimum image convention
-         ! anything else would not make sense
-         IF (jatom == last_jatom) THEN
-            CYCLE
+         IF (iatom <= jatom) THEN
+            irow = iatom
+            icol = jatom
+         ELSE
+            irow = jatom
+            icol = iatom
          END IF
-
-         last_jatom = jatom
-
-         irow = iatom
-         icol = jatom
 
          DO i = 1, nm
             NULLIFY (mint(i)%block)
@@ -809,17 +800,24 @@ CONTAINS
 
                ! Contraction step
                DO i = 1, nm
-
                   CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
                              1.0_dp, mab(1, 1, i), SIZE(mab, 1), &
                              sphi_b(1, sgfb), SIZE(sphi_b, 1), &
                              0.0_dp, work(1, 1), SIZE(work, 1))
 
-                  CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                             work(1, 1), SIZE(work, 1), &
-                             1.0_dp, mint(i)%block(sgfa, sgfb), &
-                             SIZE(mint(i)%block, 1))
+                  IF (iatom <= jatom) THEN
+                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
+                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                work(1, 1), SIZE(work, 1), &
+                                1.0_dp, mint(i)%block(sgfa, sgfb), &
+                                SIZE(mint(i)%block, 1))
+                  ELSE
+                     CALL dgemm("T", "N", nsgfb(jset), nsgfa(iset), ncoa, &
+                                -1.0_dp, work(1, 1), SIZE(work, 1), &
+                                sphi_a(1, sgfa), SIZE(sphi_a, 1), &
+                                1.0_dp, mint(i)%block(sgfb, sgfa), &
+                                SIZE(mint(i)%block, 1))
+                  END IF
 
                END DO
 
@@ -1773,8 +1771,8 @@ CONTAINS
       CHARACTER(LEN=8), ALLOCATABLE, DIMENSION(:)        :: rlab
       CHARACTER(LEN=default_string_length)               :: description
       INTEGER                                            :: akind, handle, i, ia, iatom, idir, &
-                                                            ikind, ispin, ix, iy, iz, l, nm, nmm, &
-                                                            nmom, order
+                                                            ikind, ispin, ix, iy, iz, l, nm, nmom, &
+                                                            order
       LOGICAL                                            :: my_com_nl, my_velreprs
       REAL(dp)                                           :: charge, dd, strace, trace
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: mmom, nlcom_rrv, nlcom_rv, nlcom_rxrv, &
@@ -1792,7 +1790,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
+         POINTER                                         :: sab_all, sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1804,6 +1802,7 @@ CONTAINS
       my_velreprs = .FALSE.
       IF (PRESENT(vel_reprs)) my_velreprs = vel_reprs
       IF (PRESENT(com_nl)) my_com_nl = com_nl
+      IF (my_velreprs) CALL cite_reference(Mattiat2019)
 
       ! reference point
       CALL get_reference_point(rcc, qs_env=qs_env, reference=reference, ref_point=ref_point)
@@ -1811,7 +1810,7 @@ CONTAINS
       ! only allow for moments up to maxl set by basis
       nmom = MIN(nmoments, current_maxl)
       ! electronic contribution
-      NULLIFY (dft_control, rho, cell, particle_set, qs_kind_set, results, para_env, matrix_s, rho_ao, sab_orb)
+      NULLIFY (dft_control, rho, cell, particle_set, qs_kind_set, results, para_env, matrix_s, rho_ao, sab_all, sab_orb)
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       rho=rho, &
@@ -1821,7 +1820,8 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       para_env=para_env, &
                       matrix_s=matrix_s, &
-                      sab_all=sab_orb)
+                      sab_all=sab_all, &
+                      sab_orb=sab_orb)
 
       IF (my_com_nl) THEN
          IF ((nmom >= 1) .AND. my_velreprs) THEN
@@ -1848,7 +1848,7 @@ CONTAINS
          IF (my_velreprs .AND. (nmom >= 2)) THEN
             CALL dbcsr_create(moments(i)%matrix, template=matrix_s(1)%matrix, &
                               matrix_type=dbcsr_type_no_symmetry)
-            CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_orb)
+            CALL cp_dbcsr_alloc_block_from_nbl(moments(i)%matrix, sab_all)
          ELSE
             CALL dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments")
          END IF
@@ -1864,7 +1864,7 @@ CONTAINS
                CALL dbcsr_init_p(moments_der(i, idir)%matrix)
                CALL dbcsr_create(moments_der(i, idir)%matrix, template=matrix_s(1)%matrix, &
                                  matrix_type=dbcsr_type_no_symmetry)
-               CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_orb)
+               CALL cp_dbcsr_alloc_block_from_nbl(moments_der(i, idir)%matrix, sab_all)
                CALL dbcsr_set(moments_der(i, idir)%matrix, 0.0_dp)
             END DO
          END DO
@@ -1884,8 +1884,10 @@ CONTAINS
          ! Allocate matrix to store the matrix product to be traced (dbcsr_dot only works for products of
          ! symmetric matrices)
          NULLIFY (tmp_ao)
-         ALLOCATE (tmp_ao)
-         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
+         CALL dbcsr_init_p(tmp_ao)
+         CALL dbcsr_create(tmp_ao, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry, name="tmp")
+         CALL cp_dbcsr_alloc_block_from_nbl(tmp_ao, sab_all)
+         CALL dbcsr_set(tmp_ao, 0.0_dp)
       END IF
 
       trace = 0.0_dp
@@ -1944,10 +1946,19 @@ CONTAINS
       ! magnetic moments
       IF (magnetic) THEN
          NULLIFY (magmom)
-         CALL build_local_magmom_matrix(qs_env, magmom, nmom, ref_point=rcc)
-         nmm = SIZE(magmom)
-         ALLOCATE (mmom(nmm))
+         CALL dbcsr_allocate_matrix_set(magmom, 3)
+         DO i = 1, SIZE(magmom)
+            CALL dbcsr_init_p(magmom(i)%matrix)
+            CALL dbcsr_create(magmom(i)%matrix, template=matrix_s(1)%matrix, &
+                              matrix_type=dbcsr_type_antisymmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(magmom(i)%matrix, sab_orb)
+            CALL dbcsr_set(magmom(i)%matrix, 0.0_dp)
+         END DO
 
+         CALL build_local_magmom_matrix(qs_env, magmom, nmom, ref_point=rcc)
+
+         ALLOCATE (mmom(SIZE(magmom)))
+         mmom(:) = 0.0_dp
          IF (qs_env%run_rtp) THEN
             ! get imaginary part of the density in rho_ao (the real part is not needed since the trace of the product
             ! of a symmetric (REAL(rho_ao)) and an anti-symmetric (L_AO) matrix is zero)
@@ -1980,8 +1991,6 @@ CONTAINS
             SELECT CASE (order)
 
             CASE (1) ! expectation value of momentum
-               NULLIFY (sab_orb)
-               CALL get_qs_env(qs_env, sab_orb=sab_orb)
                NULLIFY (momentum)
                CALL dbcsr_allocate_matrix_set(momentum, 3)
                DO i = 1, 3
@@ -2092,13 +2101,13 @@ CONTAINS
 
       IF (my_com_nl) THEN
          IF (magnetic) THEN
-            mmom(:) = mmom(:) + nlcom_rxrv(:)
+            mmom(:) = nlcom_rxrv(:)
          END IF
          IF (my_velreprs .AND. (nmom >= 1)) THEN
-            rmom_vel(1:3) = rmom_vel(1:3) + nlcom_rv
+            rmom_vel(1:3) = nlcom_rv
          END IF
          IF (my_velreprs .AND. (nmom >= 2)) THEN
-            rmom_vel(4:9) = rmom_vel(4:9) + nlcom_rrv
+            rmom_vel(4:9) = nlcom_rrv
          END IF
          IF (magnetic .AND. .NOT. my_velreprs) THEN
             CALL print_moments_nl(unit_number, nmom, rlab, mmom=mmom)
@@ -2199,13 +2208,13 @@ CONTAINS
                END IF
                dd = SQRT(SUM(rmom(2:4, 3)**2))*debye
                WRITE (unit_number, "(T3,A)") "Dipole moment [Debye]"
-               WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
+               WRITE (unit_number, "(T5,3(A,A,E16.8,1X),T64,A,T71,F14.8)") &
                   (TRIM(rlab(i)), "=", rmom(i, 3)*debye, i=2, 4), "Total=", dd
             CASE (2)
                WRITE (unit_number, "(T3,A)") "Quadrupole moment [Debye*Angstrom]"
-               WRITE (unit_number, "(T17,3(A,A,F14.8,9X))") &
+               WRITE (unit_number, "(T17,3(A,A,E16.8,9X))") &
                   (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr, i=5, 7)
-               WRITE (unit_number, "(T17,3(A,A,F14.8,9X))") &
+               WRITE (unit_number, "(T17,3(A,A,E16.8,9X))") &
                   (TRIM(rlab(i)), "=", rmom(i, 3)*debye/bohr, i=8, 10)
             CASE (3)
                WRITE (unit_number, "(T3,A)") "Octapole moment [Debye*Angstrom**2]"
@@ -2241,7 +2250,7 @@ CONTAINS
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
                WRITE (unit_number, "(T3,A)") "Orbital angular momentum [a. u.]"
-               WRITE (unit_number, "(T5,3(A,A,F14.8,1X),T60,A,T67,F14.8)") &
+               WRITE (unit_number, "(T5,3(A,A,E16.8,1X),T64,A,T71,F14.8)") &
                   (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
          END IF
@@ -2251,13 +2260,13 @@ CONTAINS
                CASE (1)
                   dd = SQRT(SUM(rmom_vel(1:3)**2))
                   WRITE (unit_number, "(T3,A)") "Expectation value of momentum operator [a. u.]"
-                  WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
+                  WRITE (unit_number, "(T5,3(A,A,E16.8,1X),T64,A,T71,F14.8)") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=1, 3), "Total=", dd
                CASE (2)
                   WRITE (unit_number, "(T3,A)") "Expectation value of quadrupole operator in vel. repr. [a. u.]"
-                  WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+                  WRITE (unit_number, "(T17,3(A,A,E16.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=4, 6)
-                  WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+                  WRITE (unit_number, "(T17,3(A,A,E16.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=7, 9)
                CASE DEFAULT
                END SELECT
@@ -2287,8 +2296,8 @@ CONTAINS
          IF (PRESENT(mmom)) THEN
             IF (nmom >= 1) THEN
                dd = SQRT(SUM(mmom(1:3)**2))
-               WRITE (unit_number, "(T3,A)") "Orbital angular momentum incl. com_nl [a. u.]"
-               WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
+               WRITE (unit_number, "(T3,A)") "Expectation value of rx[r,V_nl] [a. u.]"
+               WRITE (unit_number, "(T5,3(A,A,E16.8,1X),T64,A,T71,F14.8)") &
                   (TRIM(rlab(i + 1)), "=", mmom(i), i=1, 3), "Total=", dd
             END IF
          END IF
@@ -2297,14 +2306,14 @@ CONTAINS
                SELECT CASE (l)
                CASE (1)
                   dd = SQRT(SUM(rmom_vel(1:3)**2))
-                  WRITE (unit_number, "(T3,A)") "Expectation value of momentum operator incl. com_nl [a. u.]"
-                  WRITE (unit_number, "(T5,3(A,A,D14.8,1X),T60,A,T67,F14.8)") &
+                  WRITE (unit_number, "(T3,A)") "Expectation value of [r,V_nl] [a. u.]"
+                  WRITE (unit_number, "(T5,3(A,A,E16.8,1X),T64,A,T71,F14.8)") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=1, 3), "Total=", dd
                CASE (2)
-                  WRITE (unit_number, "(T3,A)") "Expectation value of quadrupole operator in vel. repr. incl. com_nl [a. u.]"
-                  WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+                  WRITE (unit_number, "(T3,A)") "Expectation value of [rr,V_nl] [a. u.]"
+                  WRITE (unit_number, "(T17,3(A,A,E16.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=4, 6)
-                  WRITE (unit_number, "(T17,3(A,A,D14.8,9X))") &
+                  WRITE (unit_number, "(T17,3(A,A,E16.8,9X))") &
                      (TRIM(rlab(i + 1)), "=", rmom_vel(i), i=7, 9)
                CASE DEFAULT
                END SELECT
@@ -2339,7 +2348,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: tmp_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sap_ppnl
+         POINTER                                         :: sab_all, sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -2374,7 +2383,7 @@ CONTAINS
 
       ! imagninary part of the density matrix
       IF (qs_env%run_rtp) THEN
-         NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_orb, sap_ppnl)
+         NULLIFY (cell, matrix_s, particle_set, qs_kind_set, rho, sab_all, sab_orb, sap_ppnl)
          CALL get_qs_env(qs_env, &
                          cell=cell, &
                          dft_control=dft_control, &
@@ -2383,6 +2392,7 @@ CONTAINS
                          qs_kind_set=qs_kind_set, &
                          rho=rho, &
                          sab_orb=sab_orb, &
+                         sab_all=sab_all, &
                          sap_ppnl=sap_ppnl)
 
          eps_ppnl = dft_control%qs_control%eps_ppnl
@@ -2424,34 +2434,36 @@ CONTAINS
 
          ! calculate commutators in AO basis
          IF (calc_rv .AND. calc_rrv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
-                                  matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv, &
+                                  matrix_rrv=matrix_rrv, ref_point=ref_point)
          ELSE IF (calc_rv .AND. calc_rxrv .AND. .NOT. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
-                                  matrix_rxrv=matrix_rxrv, ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv, &
+                                  matrix_rxrv=matrix_rxrv, ref_point=ref_point)
          ELSE IF (calc_rrv .AND. calc_rxrv .AND. .NOT. calc_rv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
-                                  matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rxrv=matrix_rxrv, &
+                                  matrix_rrv=matrix_rrv, ref_point=ref_point)
          ELSE IF (calc_rv .AND. calc_rxrv .AND. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
-                                  matrix_rxrv=matrix_rxrv, matrix_rrv=matrix_rrv, ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv, &
+                                  matrix_rxrv=matrix_rxrv, matrix_rrv=matrix_rrv, ref_point=ref_point)
          ELSE IF (calc_rv .AND. .NOT. calc_rrv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rv=matrix_rv, &
-                                  ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rv=matrix_rv, &
+                                  ref_point=ref_point)
          ELSE IF (calc_rrv .AND. .NOT. calc_rv .AND. .NOT. calc_rxrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rrv=matrix_rrv, &
-                                  ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rrv=matrix_rrv, &
+                                  ref_point=ref_point)
          ELSE IF (calc_rxrv .AND. .NOT. calc_rv .AND. .NOT. calc_rrv) THEN
-            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, matrix_rxrv=matrix_rxrv, &
-                                  ref_point=ref_point, cell=cell)
+            CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, eps_ppnl, particle_set, cell, matrix_rxrv=matrix_rxrv, &
+                                  ref_point=ref_point)
          END IF
 
          NULLIFY (rho_ao)
          CALL qs_rho_get(rho, rho_ao_im=rho_ao)
 
          NULLIFY (tmp_ao)
-         ALLOCATE (tmp_ao)
-         CALL dbcsr_desymmetrize(matrix_s(1)%matrix, tmp_ao)
+         CALL dbcsr_init_p(tmp_ao)
+         CALL dbcsr_create(tmp_ao, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry, name="tmp")
+         CALL cp_dbcsr_alloc_block_from_nbl(tmp_ao, sab_all)
+         CALL dbcsr_set(tmp_ao, 0.0_dp)
 
          IF (calc_rv) THEN
             trace = 0._dp

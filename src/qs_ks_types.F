@@ -155,10 +155,11 @@ MODULE qs_ks_types
                                                                matrix_h, &
                                                                matrix_w, &
                                                                matrix_vxc, &
-                                                               matrix_s_RI_aux
+                                                               matrix_s_RI_aux, &
+                                                               matrix_ks_im, &
+                                                               matrix_h_im
 
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_im => Null(), &
-                                                            matrix_p_mp2 => Null(), &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p_mp2 => Null(), &
                                                             matrix_p_mp2_admm => Null()
 
       TYPE(qs_rho_type), POINTER                            :: rho => Null(), &
@@ -242,6 +243,7 @@ CONTAINS
 !> \param potential_changed ...
 !> \param forces_up_to_date ...
 !> \param matrix_h ...
+!> \param matrix_h_im ...
 !> \param matrix_ks ...
 !> \param matrix_ks_im ...
 !> \param matrix_vxc ...
@@ -252,12 +254,14 @@ CONTAINS
 !> \param matrix_p_mp2 ...
 !> \param matrix_p_mp2_admm ...
 !> \param matrix_h_kp ...
+!> \param matrix_h_im_kp ...
 !> \param matrix_ks_kp ...
 !> \param matrix_vxc_kp ...
 !> \param kinetic_kp ...
 !> \param matrix_s_kp ...
 !> \param matrix_w_kp ...
 !> \param matrix_s_RI_aux_kp ...
+!> \param matrix_ks_im_kp ...
 !> \param rho ...
 !> \param rho_buffer ...
 !> \param rho_xc ...
@@ -320,11 +324,11 @@ CONTAINS
    SUBROUTINE get_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, &
                          potential_changed, forces_up_to_date, &
-                         matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, &
+                         matrix_h, matrix_h_im, matrix_ks, matrix_ks_im, matrix_vxc, &
                          kinetic, matrix_s, &
                          matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm, &
-                         matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
-                         matrix_s_RI_aux_kp, &
+                         matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
+                         matrix_s_RI_aux_kp, matrix_ks_im_kp, &
                          rho, &
                          rho_buffer, rho_xc, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
@@ -343,13 +347,12 @@ CONTAINS
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
-         matrix_vxc, kinetic, matrix_s, matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm
-      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
-                                                            matrix_vxc_kp, kinetic_kp, &
-                                                            matrix_s_kp, matrix_w_kp, &
-                                                            matrix_s_RI_aux_kp
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_h_im, matrix_ks, &
+         matrix_ks_im, matrix_vxc, kinetic, matrix_s, matrix_s_RI_aux, matrix_w, matrix_p_mp2, &
+         matrix_p_mp2_admm
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, POINTER :: matrix_h_kp, matrix_h_im_kp, &
+         matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, matrix_s_RI_aux_kp, &
+         matrix_ks_im_kp
       TYPE(qs_rho_type), OPTIONAL, POINTER               :: rho, rho_buffer, rho_xc
       TYPE(pw_type), OPTIONAL, POINTER                   :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
@@ -404,18 +407,21 @@ CONTAINS
       IF (PRESENT(matrix_s_RI_aux)) matrix_s_RI_aux => get_1d_pointer(ks_env%matrix_s_RI_aux)
       IF (PRESENT(kinetic)) kinetic => get_1d_pointer(ks_env%kinetic)
       IF (PRESENT(matrix_h)) matrix_h => get_1d_pointer(ks_env%matrix_h)
+      IF (PRESENT(matrix_h_im)) matrix_h_im => get_1d_pointer(ks_env%matrix_h_im)
       IF (PRESENT(matrix_w)) matrix_w => get_1d_pointer(ks_env%matrix_w)
       IF (PRESENT(matrix_vxc)) matrix_vxc => get_1d_pointer(ks_env%matrix_vxc)
 
       IF (PRESENT(matrix_ks_kp)) matrix_ks_kp => get_2d_pointer(ks_env%matrix_ks)
+      IF (PRESENT(matrix_ks_im_kp)) matrix_ks_im_kp => get_2d_pointer(ks_env%matrix_ks_im)
       IF (PRESENT(matrix_s_kp)) matrix_s_kp => get_2d_pointer(ks_env%matrix_s)
       IF (PRESENT(matrix_s_RI_aux_kp)) matrix_s_RI_aux_kp => get_2d_pointer(ks_env%matrix_s_RI_aux)
       IF (PRESENT(matrix_w_kp)) matrix_w_kp => get_2d_pointer(ks_env%matrix_w)
       IF (PRESENT(kinetic_kp)) kinetic_kp => get_2d_pointer(ks_env%kinetic)
       IF (PRESENT(matrix_h_kp)) matrix_h_kp => get_2d_pointer(ks_env%matrix_h)
+      IF (PRESENT(matrix_h_im_kp)) matrix_h_im_kp => get_2d_pointer(ks_env%matrix_h_im)
       IF (PRESENT(matrix_vxc_kp)) matrix_vxc_kp => get_2d_pointer(ks_env%matrix_vxc)
+      IF (PRESENT(matrix_ks_im)) matrix_ks_im => get_1d_pointer(ks_env%matrix_ks_im)
 
-      IF (PRESENT(matrix_ks_im)) matrix_ks_im => ks_env%matrix_ks_im
       IF (PRESENT(matrix_p_mp2)) matrix_p_mp2 => ks_env%matrix_p_mp2
       IF (PRESENT(matrix_p_mp2_admm)) matrix_p_mp2_admm => ks_env%matrix_p_mp2_admm
       IF (PRESENT(rho)) rho => ks_env%rho
@@ -495,6 +501,7 @@ CONTAINS
 !> \param potential_changed ...
 !> \param forces_up_to_date ...
 !> \param matrix_h ...
+!> \param matrix_h_im ...
 !> \param matrix_ks ...
 !> \param matrix_ks_im ...
 !> \param matrix_vxc ...
@@ -505,12 +512,14 @@ CONTAINS
 !> \param matrix_p_mp2 ...
 !> \param matrix_p_mp2_admm ...
 !> \param matrix_h_kp ...
+!> \param matrix_h_im_kp ...
 !> \param matrix_ks_kp ...
 !> \param matrix_vxc_kp ...
 !> \param kinetic_kp ...
 !> \param matrix_s_kp ...
 !> \param matrix_w_kp ...
 !> \param matrix_s_RI_aux_kp ...
+!> \param matrix_ks_im_kp ...
 !> \param vppl ...
 !> \param rho_core ...
 !> \param rho_nlcc ...
@@ -549,11 +558,11 @@ CONTAINS
    SUBROUTINE set_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, &
                          potential_changed, forces_up_to_date, &
-                         matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, &
+                         matrix_h, matrix_h_im, matrix_ks, matrix_ks_im, matrix_vxc, &
                          kinetic, matrix_s, &
                          matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm, &
-                         matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
-                         matrix_s_RI_aux_kp, &
+                         matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
+                         matrix_s_RI_aux_kp, matrix_ks_im_kp, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
                          neighbor_list_id, &
                          kpoints, &
@@ -567,13 +576,12 @@ CONTAINS
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
                                                             potential_changed, forces_up_to_date
-      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
-         matrix_vxc, kinetic, matrix_s, matrix_s_RI_aux, matrix_w, matrix_p_mp2, matrix_p_mp2_admm
-      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
-                                                            matrix_vxc_kp, kinetic_kp, &
-                                                            matrix_s_kp, matrix_w_kp, &
-                                                            matrix_s_RI_aux_kp
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_h_im, matrix_ks, &
+         matrix_ks_im, matrix_vxc, kinetic, matrix_s, matrix_s_RI_aux, matrix_w, matrix_p_mp2, &
+         matrix_p_mp2_admm
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, POINTER :: matrix_h_kp, matrix_h_im_kp, &
+         matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, matrix_s_RI_aux_kp, &
+         matrix_ks_im_kp
       TYPE(pw_type), OPTIONAL, POINTER                   :: vppl, rho_core, rho_nlcc, rho_nlcc_g, vee
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
@@ -602,6 +610,9 @@ CONTAINS
       IF (PRESENT(matrix_h)) CALL set_1d_pointer(ks_env%matrix_h, matrix_h)
       IF (PRESENT(matrix_h_kp)) CALL set_2d_pointer(ks_env%matrix_h, matrix_h_kp)
 
+      IF (PRESENT(matrix_h_im)) CALL set_1d_pointer(ks_env%matrix_h_im, matrix_h_im)
+      IF (PRESENT(matrix_h_im_kp)) CALL set_2d_pointer(ks_env%matrix_h_im, matrix_h_im_kp)
+
       IF (PRESENT(matrix_ks)) CALL set_1d_pointer(ks_env%matrix_ks, matrix_ks)
       IF (PRESENT(matrix_ks_kp)) CALL set_2d_pointer(ks_env%matrix_ks, matrix_ks_kp)
 
@@ -620,7 +631,9 @@ CONTAINS
       IF (PRESENT(matrix_s_RI_aux)) CALL set_1d_pointer(ks_env%matrix_s_RI_aux, matrix_s_RI_aux)
       IF (PRESENT(matrix_s_RI_aux_kp)) CALL set_2d_pointer(ks_env%matrix_s_RI_aux, matrix_s_RI_aux_kp)
 
-      IF (PRESENT(matrix_ks_im)) ks_env%matrix_ks_im => matrix_ks_im
+      IF (PRESENT(matrix_ks_im)) CALL set_1d_pointer(ks_env%matrix_ks_im, matrix_ks_im)
+      IF (PRESENT(matrix_ks_im_kp)) CALL set_2d_pointer(ks_env%matrix_ks_im, matrix_ks_im_kp)
+
       IF (PRESENT(matrix_p_mp2)) ks_env%matrix_p_mp2 => matrix_p_mp2
       IF (PRESENT(matrix_p_mp2_admm)) ks_env%matrix_p_mp2_admm => matrix_p_mp2_admm
       IF (PRESENT(rho_core)) ks_env%rho_core => rho_core
@@ -711,11 +724,11 @@ CONTAINS
                CALL pw_release(ks_env%v_hartree_rspace)
                DEALLOCATE (ks_env%v_hartree_rspace)
             END IF
-            IF (ASSOCIATED(ks_env%matrix_ks_im)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
             CALL kpoint_transitional_release(ks_env%matrix_ks)
+            CALL kpoint_transitional_release(ks_env%matrix_ks_im)
             CALL kpoint_transitional_release(ks_env%matrix_h)
+            CALL kpoint_transitional_release(ks_env%matrix_h_im)
             CALL kpoint_transitional_release(ks_env%matrix_vxc)
             CALL kpoint_transitional_release(ks_env%matrix_s)
             CALL kpoint_transitional_release(ks_env%matrix_w)
@@ -812,10 +825,10 @@ CONTAINS
                CALL pw_release(ks_env%v_hartree_rspace)
                DEALLOCATE (ks_env%v_hartree_rspace)
             END IF
-            IF (ASSOCIATED(ks_env%matrix_ks_im)) &
-               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_ks_im)
 
             CALL kpoint_transitional_release(ks_env%matrix_h)
+            CALL kpoint_transitional_release(ks_env%matrix_h_im)
+            CALL kpoint_transitional_release(ks_env%matrix_ks_im)
             CALL kpoint_transitional_release(ks_env%matrix_vxc)
             CALL kpoint_transitional_release(ks_env%matrix_w)
             CALL kpoint_transitional_release(ks_env%kinetic)

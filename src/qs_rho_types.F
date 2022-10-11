@@ -16,7 +16,6 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE qs_rho_types
-   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE dbcsr_api,                       ONLY: dbcsr_p_type
    USE kinds,                           ONLY: dp
    USE kpoint_transitional,             ONLY: get_1d_pointer,&
@@ -69,7 +68,7 @@ MODULE qs_rho_types
    TYPE qs_rho_type
       PRIVATE
       TYPE(kpoint_transitional_type)                 :: rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER      :: rho_ao_im => Null()
+      TYPE(kpoint_transitional_type)                 :: rho_ao_im
       TYPE(pw_p_type), DIMENSION(:), POINTER         :: rho_g => Null(), &
                                                         rho_r => Null(), &
                                                         tau_g => Null(), &
@@ -219,8 +218,8 @@ CONTAINS
 
       CALL kpoint_transitional_release(rho_struct%rho_ao)
 
-      IF (ASSOCIATED(rho_struct%rho_ao_im)) &
-         CALL dbcsr_deallocate_matrix_set(rho_struct%rho_ao_im)
+      CALL kpoint_transitional_release(rho_struct%rho_ao_im)
+
       IF (ASSOCIATED(rho_struct%tot_rho_r)) &
          DEALLOCATE (rho_struct%tot_rho_r)
       IF (ASSOCIATED(rho_struct%tot_rho_g)) &
@@ -246,6 +245,7 @@ CONTAINS
 !> \param rho_ao ...
 !> \param rho_ao_im ...
 !> \param rho_ao_kp ...
+!> \param rho_ao_im_kp ...
 !> \param rho_r ...
 !> \param drho_r ...
 !> \param rho_g ...
@@ -267,7 +267,7 @@ CONTAINS
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_r, drho_r, &
+   SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_ao_im_kp, rho_r, drho_r, &
                          rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
                          drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g, &
                          rho_r_sccs, soft_valid)
@@ -275,7 +275,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: rho_ao_kp
+         POINTER                                         :: rho_ao_kp, rho_ao_im_kp
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r
       TYPE(pw_type), DIMENSION(:, :), OPTIONAL, POINTER  :: drho_r
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_g
@@ -294,7 +294,9 @@ CONTAINS
       IF (PRESENT(rho_ao)) rho_ao => get_1d_pointer(rho_struct%rho_ao)
       IF (PRESENT(rho_ao_kp)) rho_ao_kp => get_2d_pointer(rho_struct%rho_ao)
 
-      IF (PRESENT(rho_ao_im)) rho_ao_im => rho_struct%rho_ao_im
+      IF (PRESENT(rho_ao_im)) rho_ao_im => get_1d_pointer(rho_struct%rho_ao_im)
+      IF (PRESENT(rho_ao_im_kp)) rho_ao_im_kp => get_2d_pointer(rho_struct%rho_ao_im)
+
       IF (PRESENT(rho_r)) rho_r => rho_struct%rho_r
       IF (PRESENT(drho_r)) drho_r => rho_struct%drho_r
       IF (PRESENT(rho_g)) rho_g => rho_struct%rho_g
@@ -321,6 +323,7 @@ CONTAINS
 !> \param rho_ao ...
 !> \param rho_ao_im ...
 !> \param rho_ao_kp ...
+!> \param rho_ao_im_kp ...
 !> \param rho_r ...
 !> \param drho_r ...
 !> \param rho_g ...
@@ -340,7 +343,7 @@ CONTAINS
 !> \param soft_valid ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE qs_rho_set(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_r, drho_r, &
+   SUBROUTINE qs_rho_set(rho_struct, rho_ao, rho_ao_im, rho_ao_kp, rho_ao_im_kp, rho_r, drho_r, &
                          rho_g, drho_g, tau_r, tau_g, rho_r_valid, drho_r_valid, rho_g_valid, &
                          drho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, tot_rho_g, &
                          rho_r_sccs, soft_valid)
@@ -348,7 +351,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_ao, rho_ao_im
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: rho_ao_kp
+         POINTER                                         :: rho_ao_kp, rho_ao_im_kp
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_r
       TYPE(pw_type), DIMENSION(:, :), OPTIONAL, POINTER  :: drho_r
       TYPE(pw_p_type), DIMENSION(:), OPTIONAL, POINTER   :: rho_g
@@ -367,7 +370,9 @@ CONTAINS
       IF (PRESENT(rho_ao)) CALL set_1d_pointer(rho_struct%rho_ao, rho_ao)
       IF (PRESENT(rho_ao_kp)) CALL set_2d_pointer(rho_struct%rho_ao, rho_ao_kp)
 
-      IF (PRESENT(rho_ao_im)) rho_struct%rho_ao_im => rho_ao_im
+      IF (PRESENT(rho_ao_im)) CALL set_1d_pointer(rho_struct%rho_ao_im, rho_ao_im)
+      IF (PRESENT(rho_ao_im_kp)) CALL set_2d_pointer(rho_struct%rho_ao_im, rho_ao_im_kp)
+
       IF (PRESENT(rho_r)) rho_struct%rho_r => rho_r
       IF (PRESENT(rho_g)) rho_struct%rho_g => rho_g
       IF (PRESENT(drho_r)) rho_struct%drho_r => drho_r
