@@ -69,8 +69,6 @@ MODULE qmmm_image_charge
    USE realspace_grid_types,            ONLY: pw2rs,&
                                               realspace_grid_desc_type,&
                                               realspace_grid_type,&
-                                              rs_grid_release,&
-                                              rs_grid_retain,&
                                               rs_pw_transfer
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
@@ -372,7 +370,6 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v)
-      CALL rs_grid_retain(rs_v)
       CALL rs_pw_transfer(rs_v, potential, pw2rs)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -442,8 +439,6 @@ CONTAINS
 
       DEALLOCATE (hab, cores)
 
-      CALL rs_grid_release(rs_v)
-
       CALL timestop(handle)
 
    END SUBROUTINE integrate_potential_ga_rspace
@@ -495,7 +490,6 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v)
-      CALL rs_grid_retain(rs_v)
       CALL rs_pw_transfer(rs_v, potential, pw2rs)
 
       CALL get_qs_env(qs_env=qs_env, &
@@ -568,8 +562,6 @@ CONTAINS
       CALL mp_sum(forces, para_env%group)
 
       DEALLOCATE (hab, pab, cores)
-
-      CALL rs_grid_release(rs_v)
 
       ! print info on gradients if wanted
       CALL print_gradients_image_atoms(forces, qs_env)

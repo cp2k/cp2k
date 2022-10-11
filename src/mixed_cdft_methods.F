@@ -119,8 +119,6 @@ MODULE mixed_cdft_methods
                                               set_mo_set
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs2pw,&
-                                              rs_grid_release,&
-                                              rs_grid_retain,&
                                               rs_grid_zero,&
                                               rs_pw_transfer
    USE util,                            ONLY: sort
@@ -2557,7 +2555,6 @@ CONTAINS
          CALL pw_env_get(pw_env=mixed_cdft%pw_env, auxbas_rs_grid=rs_cavity, &
                          auxbas_pw_pool=auxbas_pw_pool)
          ! be careful in parallel nsmax is chosen with multigrid in mind!
-         CALL rs_grid_retain(rs_cavity)
          CALL rs_grid_zero(rs_cavity)
          ALLOCATE (pab(1, 1))
          nthread = 1
@@ -2616,7 +2613,6 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, cdft_control%becke_control%cavity%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL rs_pw_transfer(rs_cavity, cdft_control%becke_control%cavity%pw, rs2pw)
-         CALL rs_grid_release(rs_cavity)
          CALL hfun_zero(cdft_control%becke_control%cavity%pw%cr3d, &
                         cdft_control%becke_control%eps_cavity, &
                         just_zero=.FALSE., bounds=bounds, work=my_work)

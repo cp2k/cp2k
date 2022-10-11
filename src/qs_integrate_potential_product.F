@@ -63,9 +63,7 @@ MODULE qs_integrate_potential_product
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type,&
-                                              rs_grid_release,&
-                                              rs_grid_retain
+                                              realspace_grid_p_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_methods,               ONLY: rs_copy_to_buffer,&
                                               rs_copy_to_matrices,&
@@ -186,7 +184,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
       DO igrid_level = 1, gridlevel_info%ngrid_levels
-         CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
          distributed_grids = rs_rho(igrid_level)%rs_grid%desc%distributed
       END DO
       ! get mpi group from rs_rho
@@ -541,12 +538,6 @@ CONTAINS
 
       DEALLOCATE (pabt, habt, workt, hdabt, hadbt)
 
-      IF (ASSOCIATED(rs_rho)) THEN
-         DO i = 1, SIZE(rs_rho)
-            CALL rs_grid_release(rs_rho(i)%rs_grid)
-         END DO
-      END IF
-
       CALL timestop(handle)
    END SUBROUTINE integrate_v_dbasis
 
@@ -606,7 +597,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace'
 
       CHARACTER(len=default_string_length)               :: my_basis_type
-      INTEGER                                            :: atom_a, group, handle, i, iatom, &
+      INTEGER                                            :: atom_a, group, handle, iatom, &
                                                             igrid_level, ikind, img, maxco, &
                                                             maxsgf_set, natoms, nimages, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
@@ -709,9 +700,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(pw_env))
       CALL pw_env_get(pw_env, rs_grids=rs_v)
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_retain(rs_v(i)%rs_grid)
-      END DO
 
       ! get mpi group from rs_v
       group = rs_v(1)%rs_grid%desc%group
@@ -812,12 +800,6 @@ CONTAINS
          CALL rs_copy_to_matrices(task_list%hab_buffer, dhmat, task_list)
       END IF
       DEALLOCATE (dhmat)
-
-      IF (ASSOCIATED(rs_v)) THEN
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_release(rs_v(i)%rs_grid)
-         END DO
-      END IF
 
       CALL timestop(handle)
 

@@ -120,10 +120,14 @@ MODULE qs_linres_current
    USE qs_rho_types,                    ONLY: qs_rho_get
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE realspace_grid_types,            ONLY: &
-        realspace_grid_desc_p_type, realspace_grid_desc_type, realspace_grid_p_type, &
-        realspace_grid_type, rs_grid_create, rs_grid_mult_and_add, rs_grid_release, &
-        rs_grid_retain, rs_grid_zero
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                              realspace_grid_desc_type,&
+                                              realspace_grid_p_type,&
+                                              realspace_grid_type,&
+                                              rs_grid_create,&
+                                              rs_grid_mult_and_add,&
+                                              rs_grid_release,&
+                                              rs_grid_zero
    USE rs_pw_interface,                 ONLY: density_rs2pw
    USE task_list_methods,               ONLY: distribute_tasks,&
                                               rs_distribute_matrix,&
@@ -888,8 +892,6 @@ CONTAINS
             CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
             NULLIFY (rs_rho(igrid_level)%rs_grid)
             CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
-         ELSE
-            IF (.NOT. my_retain_rsgrid) CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
          END IF
          CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
          CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
@@ -1243,11 +1245,11 @@ CONTAINS
          CALL rs_grid_release(rs_current(i)%rs_grid)
       END DO
 
-      IF (ASSOCIATED(rs_rho) .AND. .NOT. my_retain_rsgrid) THEN
-         DO i = 1, SIZE(rs_rho)
+      DO i = 1, SIZE(rs_rho)
+         IF (rs_descs(i)%rs_desc%distributed .AND. .NOT. my_retain_rsgrid) THEN
             CALL rs_grid_release(rs_rho(i)%rs_grid)
-         END DO
-      END IF
+         END IF
+      END DO
 
       ! Free the array of grids (grids themselves are released in density_rs2pw)
       DEALLOCATE (rs_current)

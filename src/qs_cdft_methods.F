@@ -74,9 +74,14 @@ MODULE qs_cdft_methods
                                               qs_rho_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
-   USE realspace_grid_types,            ONLY: &
-        realspace_grid_desc_type, realspace_grid_p_type, realspace_grid_type, rs2pw, &
-        rs_grid_create, rs_grid_release, rs_grid_retain, rs_grid_zero, rs_pw_transfer
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_type,&
+                                              realspace_grid_p_type,&
+                                              realspace_grid_type,&
+                                              rs2pw,&
+                                              rs_grid_create,&
+                                              rs_grid_release,&
+                                              rs_grid_zero,&
+                                              rs_pw_transfer
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -714,9 +719,8 @@ CONTAINS
          IF (.NOT. ASSOCIATED(rs_rho_all)) THEN
             CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho_all, &
                             auxbas_pw_pool=auxbas_pw_pool)
-            CALL rs_grid_retain(rs_rho_all)
-            CALL rs_grid_zero(rs_rho_all)
          END IF
+         CALL rs_grid_zero(rs_rho_all)
 
          dr_rs(1) = rs_rho_all%desc%dh(1, 1)
          dr_rs(2) = rs_rho_all%desc%dh(2, 2)
@@ -891,7 +895,6 @@ CONTAINS
 
          IF (igroup == 1) THEN
             CALL rs_pw_transfer(rs_rho_all, cdft_control%group(igroup)%hw_rho_total, rs2pw)
-            IF (.NOT. cdft_control%in_memory) CALL rs_grid_release(rs_rho_all)
          END IF
 
          CALL rs_pw_transfer(rs_rho_constr, cdft_control%group(igroup)%hw_rho_total_constraint, rs2pw)
@@ -1135,7 +1138,6 @@ CONTAINS
             IF (igroup == 1) THEN
                CALL pw_pool_give_back_pw(auxbas_pw_pool, cdft_control%group(1)%hw_rho_total)
             END IF
-            CALL rs_grid_release(rs_rho_all)
          END DO
       END IF
 

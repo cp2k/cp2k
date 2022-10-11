@@ -64,8 +64,6 @@ MODULE hirshfeld_methods
                                               realspace_grid_desc_type,&
                                               realspace_grid_type,&
                                               rs2pw,&
-                                              rs_grid_release,&
-                                              rs_grid_retain,&
                                               rs_grid_zero,&
                                               rs_pw_transfer
 #include "./base/base_uses.f90"
@@ -467,7 +465,6 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc, auxbas_rs_grid=rs_rho, &
                       auxbas_pw_pool=auxbas_pw_pool)
       ! be careful in parallel nsmax is chosen with multigrid in mind!
-      CALL rs_grid_retain(rs_rho)
       CALL rs_grid_zero(rs_rho)
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -535,7 +532,6 @@ CONTAINS
       CALL set_hirshfeld_info(hirshfeld_env, fnorm=fnorm)
 
       CALL rs_pw_transfer(rs_rho, fnorm, rs2pw)
-      CALL rs_grid_release(rs_rho)
 
       CALL timestop(handle)
 
@@ -588,7 +584,6 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_desc=auxbas_rs_desc, &
                       auxbas_rs_grid=rs_v)
-      CALL rs_grid_retain(rs_v)
       CALL rs_pw_transfer(rs_v, rfun, pw2rs)
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
@@ -657,7 +652,6 @@ CONTAINS
 
       END DO
 
-      CALL rs_grid_release(rs_v)
       DEALLOCATE (hab, pab)
 
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)

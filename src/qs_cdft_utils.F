@@ -71,8 +71,6 @@ MODULE qs_cdft_utils
                                               qs_subsys_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                               rs2pw,&
-                                              rs_grid_release,&
-                                              rs_grid_retain,&
                                               rs_grid_zero,&
                                               rs_pw_transfer
 #include "./base/base_uses.f90"
@@ -340,7 +338,6 @@ CONTAINS
          ! Form cavity by summing isolated Gaussian densities over constraint atoms
          NULLIFY (rs_cavity)
          CALL pw_env_get(pw_env, auxbas_rs_grid=rs_cavity, auxbas_pw_pool=auxbas_pw_pool)
-         CALL rs_grid_retain(rs_cavity)
          CALL rs_grid_zero(rs_cavity)
          ALLOCATE (pab(1, 1))
          nthread = 1
@@ -399,7 +396,6 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, becke_control%cavity%pw, &
                                 use_data=REALDATA3D, in_space=REALSPACE)
          CALL rs_pw_transfer(rs_cavity, becke_control%cavity%pw, rs2pw)
-         CALL rs_grid_release(rs_cavity)
          ! Grid points where the Gaussian density falls below eps_cavity are ignored
          ! We can calculate the smallest/largest values along z-direction outside
          ! which the cavity is zero at every point (x, y)
