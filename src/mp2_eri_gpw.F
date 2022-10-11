@@ -68,9 +68,7 @@ MODULE mp2_eri_gpw
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
                                               realspace_grid_desc_p_type,&
-                                              realspace_grid_p_type,&
-                                              rs_grid_release,&
-                                              rs_grid_retain
+                                              realspace_grid_p_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
@@ -185,7 +183,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_eri_2c_integrate_gpw'
 
-      INTEGER :: dir, handle, handle2, i, i_counter, iatom, igrid_level, ikind, ipgf, iset, lb(3), &
+      INTEGER :: dir, handle, handle2, i_counter, iatom, igrid_level, ikind, ipgf, iset, lb(3), &
          LLL, location(3), max_nseta, na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: offset_2d
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
@@ -237,9 +235,6 @@ CONTAINS
          NULLIFY (rs_v)
          NULLIFY (rs_descs)
          CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_retain(rs_v(i)%rs_grid)
-         END DO
          CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
          CALL timestop(handle2)
@@ -344,10 +339,6 @@ CONTAINS
          END DO
          !$OMP END PARALLEL DO
          DEALLOCATE (offset_2d)
-
-         DO i = 1, SIZE(rs_v)
-            CALL rs_grid_release(rs_v(i)%rs_grid)
-         END DO
 
       END DO
 
@@ -564,7 +555,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_2c'
 
-      INTEGER                                            :: atom_a, handle, handle2, i, iatom, &
+      INTEGER                                            :: atom_a, handle, handle2, iatom, &
                                                             igrid_level, ikind, iorb, ipgf, iset, &
                                                             na1, na2, ncoa, nseta, offset, sgfa
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
@@ -604,9 +595,6 @@ CONTAINS
       NULLIFY (rs_v)
       NULLIFY (rs_descs)
       CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_retain(rs_v(i)%rs_grid)
-      END DO
       CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
 
       offset = 0
@@ -716,10 +704,6 @@ CONTAINS
          IF (use_virial) THEN
             h_stress = h_stress + my_virial_a + my_virial_b
          END IF
-      END DO
-
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_release(rs_v(i)%rs_grid)
       END DO
 
       CALL timestop(handle)
@@ -878,7 +862,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential'
 
-      INTEGER                                            :: atom_a, handle, i, iatom, igrid_level, &
+      INTEGER                                            :: atom_a, handle, iatom, igrid_level, &
                                                             ikind, ipgf, iset, na1, na2, ncoa, &
                                                             nseta, offset, sgfa
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
@@ -900,9 +884,6 @@ CONTAINS
       NULLIFY (rs_v)
       NULLIFY (rs_descs)
       CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_retain(rs_v(i)%rs_grid)
-      END DO
       CALL potential_pw2rs(rs_v, pot_r, pw_env_sub)
 
       offset = 0
@@ -1003,9 +984,6 @@ CONTAINS
          END IF
       END DO
 
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_release(rs_v(i)%rs_grid)
-      END DO
       CALL timestop(handle)
 
    END SUBROUTINE

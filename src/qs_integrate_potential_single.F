@@ -65,8 +65,6 @@ MODULE qs_integrate_potential_single
                                               pw2rs,&
                                               realspace_grid_p_type,&
                                               realspace_grid_type,&
-                                              rs_grid_release,&
-                                              rs_grid_retain,&
                                               rs_grid_zero,&
                                               rs_pw_transfer
    USE rs_pw_interface,                 ONLY: potential_pw2rs
@@ -130,7 +128,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
-      CALL rs_grid_retain(rs_v)
 
       CALL rs_pw_transfer(rs_v, rho_rspace, pw2rs)
 
@@ -273,8 +270,6 @@ CONTAINS
 
       END DO
 
-      CALL rs_grid_release(rs_v)
-
       DEALLOCATE (cores)
 
       CALL timestop(handle)
@@ -319,7 +314,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
-      CALL rs_grid_retain(rs_v)
 
       CALL rs_pw_transfer(rs_v, rho_rspace, pw2rs)
 
@@ -474,8 +468,6 @@ CONTAINS
 
       END DO
 
-      CALL rs_grid_release(rs_v)
-
       DEALLOCATE (cores)
 
       CALL timestop(handle)
@@ -533,7 +525,6 @@ CONTAINS
 
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
          CALL pw_env_get(pw_env=pw_env, auxbas_rs_grid=rs_v)
-         CALL rs_grid_retain(rs_v)
 
          CALL rs_pw_transfer(rs_v, v_rspace, pw2rs)
 
@@ -631,8 +622,6 @@ CONTAINS
 
          END DO
 
-         CALL rs_grid_release(rs_v)
-
          DEALLOCATE (hab, pab, cores)
 
       END IF
@@ -700,7 +689,6 @@ CONTAINS
 
       CALL pw_env_get(pw_env, rs_grids=rs_v)
       DO i = 1, SIZE(rs_v)
-         CALL rs_grid_retain(rs_v(i)%rs_grid)
          CALL rs_grid_zero(rs_v(i)%rs_grid)
       END DO
 
@@ -849,10 +837,6 @@ CONTAINS
          DEALLOCATE (hab, pab)
       END DO
 
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_release(rs_v(i)%rs_grid)
-      END DO
-
       CALL timestop(handle)
 
    END SUBROUTINE integrate_v_rspace_one_center
@@ -877,7 +861,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace_diagonal'
 
-      INTEGER :: atom_a, group_size, handle, i, iatom, igrid_level, ikind, ipgf, iset, jpgf, jset, &
+      INTEGER :: atom_a, group_size, handle, iatom, igrid_level, ikind, ipgf, iset, jpgf, jset, &
          m1, maxco, maxsgf_set, my_pos, na1, na2, natom_of_kind, nb1, nb2, ncoa, ncob, nkind, &
          nseta, nsgfa, offset, sgfa, sgfb
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, la_max, la_min, npgfa, &
@@ -909,9 +893,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
       CALL pw_env_get(pw_env, rs_grids=rs_v)
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_retain(rs_v(i)%rs_grid)
-      END DO
       CALL potential_pw2rs(rs_v, v_rspace, pw_env)
 
       gridlevel_info => pw_env%gridlevel_info
@@ -1071,10 +1052,6 @@ CONTAINS
          END DO
          DEALLOCATE (hab, work, hmat)
          IF (calculate_forces) DEALLOCATE (pab, pblk)
-      END DO
-
-      DO i = 1, SIZE(rs_v)
-         CALL rs_grid_release(rs_v(i)%rs_grid)
       END DO
 
       CALL timestop(handle)
