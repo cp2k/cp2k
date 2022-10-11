@@ -39,7 +39,6 @@ MODULE rs_pw_interface
                                               realspace_grid_desc_p_type,&
                                               realspace_grid_p_type,&
                                               rs2pw,&
-                                              rs_grid_release,&
                                               rs_pw_transfer
 #include "../base/base_uses.f90"
 
@@ -137,9 +136,6 @@ CONTAINS
                           cp_to_string(interp_kind))
          END SELECT
       END IF
-      DO igrid_level = 1, SIZE(rs_rho)
-         CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
-      END DO
 
       ! *** give back the pw multi-grids
       CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)

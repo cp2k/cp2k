@@ -1626,6 +1626,9 @@ CONTAINS
 
       ! Merge realspace multi-grids into single planewave grid.
       CALL density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
+      DO ilevel = 1, SIZE(rs_rho)
+         CALL rs_grid_release(rs_rho(ilevel)%rs_grid)
+      END DO
       IF (PRESENT(total_rho)) total_rho = pw_integrate_function(rho, isign=-1)
 
       CALL timestop(handle)

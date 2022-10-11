@@ -34,6 +34,7 @@ MODULE qs_external_density
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_p_type,&
                                               rs_grid_create,&
+                                              rs_grid_release,&
                                               rs_grid_zero
    USE rs_pw_interface,                 ONLY: density_rs2pw
 #include "./base/base_uses.f90"
@@ -197,6 +198,9 @@ CONTAINS
          END IF
 
          CALL density_rs2pw(pw_env, rs_rho_ext, rho=rho_ext_r(1)%pw, rho_gspace=rho_ext_g(1)%pw)
+         DO igrid_level = 1, SIZE(rs_rho_ext)
+            CALL rs_grid_release(rs_rho_ext(igrid_level)%rs_grid)
+         END DO
          tot_rho_r_ext(1) = pw_integrate_function(rho_ext_r(1)%pw, isign=1)
          IF (my_rank == 0) THEN
             WRITE (*, FMT="(T3,A,T61,F20.10)") "ZMP| Total external charge:                    ", &
