@@ -71,7 +71,8 @@ CONTAINS
    SUBROUTINE density_rs2pw(pw_env, rs_rho, rho, rho_gspace)
 
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_p_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_rho
       TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'density_rs2pw'
@@ -160,7 +161,8 @@ CONTAINS
    SUBROUTINE density_rs2pw_basic(pw_env, rs_rho, rho, rho_gspace)
 
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_rho
+      TYPE(realspace_grid_p_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_rho
       TYPE(pw_type), INTENT(INOUT)                       :: rho, rho_gspace
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_rs2pw_basic'
@@ -247,7 +249,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE potential_pw2rs(rs_v, v_rspace, pw_env)
 
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
+      TYPE(realspace_grid_p_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_v
       TYPE(pw_type), INTENT(IN)                          :: v_rspace
       TYPE(pw_env_type), POINTER                         :: pw_env
 

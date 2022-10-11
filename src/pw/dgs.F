@@ -404,7 +404,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE dg_sum_patch_coef(rs, rhos, center)
 
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: rs
       TYPE(pw_type), INTENT(IN)                          :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
 
@@ -474,7 +474,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE dg_sum_patch_arr(rs, rhos, center)
 
-      TYPE(realspace_grid_type), POINTER                 :: rs
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: rs
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
 
@@ -549,7 +549,8 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE dg_sum_patch_force_arr_3d(drpot, rhos, center, force)
 
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
+      TYPE(realspace_grid_p_type), DIMENSION(:), &
+         INTENT(INOUT)                                   :: drpot
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
@@ -628,7 +629,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE dg_sum_patch_force_arr_1d(drpot, rhos, center, force)
 
-      TYPE(realspace_grid_type), POINTER                 :: drpot
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: drpot
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
       REAL(KIND=dp), INTENT(OUT)                         :: force
@@ -705,7 +706,8 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE dg_sum_patch_force_coef_3d(drpot, rhos, center, force)
 
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: drpot
+      TYPE(realspace_grid_p_type), DIMENSION(:), &
+         INTENT(INOUT)                                   :: drpot
       TYPE(pw_type), INTENT(IN)                          :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: force
@@ -779,7 +781,7 @@ CONTAINS
 ! **************************************************************************************************
    PURE SUBROUTINE dg_sum_patch_force_coef_1d(drpot, rhos, center, force)
 
-      TYPE(realspace_grid_type), POINTER                 :: drpot
+      TYPE(realspace_grid_type), INTENT(INOUT)           :: drpot
       TYPE(pw_type), INTENT(IN)                          :: rhos
       INTEGER, DIMENSION(3), INTENT(IN)                  :: center
       REAL(KIND=dp), INTENT(OUT)                         :: force

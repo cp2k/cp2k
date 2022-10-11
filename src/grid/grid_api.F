@@ -283,7 +283,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: zetb
       INTEGER, INTENT(IN)                                :: lb_min
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), TARGET    :: ra, rab
-      TYPE(realspace_grid_type), POINTER                 :: rsgrid
+      TYPE(realspace_grid_type), INTENT(IN)              :: rsgrid
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: pab
       INTEGER, INTENT(IN)                                :: o1, o2
@@ -968,7 +968,8 @@ CONTAINS
       TYPE(grid_task_list_type), INTENT(IN)              :: task_list
       INTEGER, INTENT(IN)                                :: ga_gb_function
       TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
+      TYPE(realspace_grid_p_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_grids
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grid_collocate_task_list'
 
@@ -1040,7 +1041,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: compute_tau, calculate_forces, &
                                                             calculate_virial
       TYPE(offload_buffer_type), INTENT(IN)              :: pab_blocks
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_grids
+      TYPE(realspace_grid_p_type), DIMENSION(:), &
+         INTENT(IN)                                      :: rs_grids
       TYPE(offload_buffer_type), INTENT(INOUT)           :: hab_blocks
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT), &
          TARGET                                          :: forces
