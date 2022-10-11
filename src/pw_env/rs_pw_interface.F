@@ -103,7 +103,6 @@ CONTAINS
 
       IF (gridlevel_info%ngrid_levels == 1) THEN
          CALL rs_pw_transfer(rs_rho(1)%rs_grid, rho, rs2pw)
-         CALL rs_grid_release(rs_rho(1)%rs_grid)
          CALL pw_transfer(rho, rho_gspace)
          IF (rho%pw_grid%spherical) THEN ! rho_gspace = rho
             CALL pw_transfer(rho_gspace, rho)
@@ -112,7 +111,6 @@ CONTAINS
          DO igrid_level = 1, gridlevel_info%ngrid_levels
             CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid, &
                                 mgrid_rspace(igrid_level)%pw, rs2pw)
-            CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
          END DO
 
          ! we want both rho and rho_gspace, the latter for Hartree and co-workers.
@@ -139,6 +137,9 @@ CONTAINS
                           cp_to_string(interp_kind))
          END SELECT
       END IF
+      DO igrid_level = 1, SIZE(rs_rho)
+         CALL rs_grid_release(rs_rho(igrid_level)%rs_grid)
+      END DO
 
       ! *** give back the pw multi-grids
       CALL pw_pools_give_back_pws(pw_pools, mgrid_gspace)
