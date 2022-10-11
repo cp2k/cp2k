@@ -69,7 +69,6 @@ MODULE pw_poisson_types
              pw_green_release
    PUBLIC :: pw_poisson_parameter_type
 
-   INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr = 0
    INTEGER, SAVE, PRIVATE :: last_poisson_id = 0
 
    INTEGER, PARAMETER, PUBLIC               :: pw_poisson_none = 0, &
@@ -152,7 +151,6 @@ MODULE pw_poisson_types
    TYPE greens_fn_type
       INTEGER :: method
       INTEGER :: special_dimension
-      INTEGER :: id_nr
       REAL(KIND=dp) :: radius
       REAL(KIND=dp) :: MT_alpha
       REAL(KIND=dp) :: MT_rel_cutoff
@@ -209,8 +207,6 @@ CONTAINS
       green%slab_size = 0.0_dp
       green%alpha = 0.0_dp
       green%method = PERIODIC3D
-      last_greens_fn_id_nr = last_greens_fn_id_nr + 1
-      green%id_nr = last_greens_fn_id_nr
       green%MT_alpha = 1.0_dp
       green%MT_rel_cutoff = 1.0_dp
       green%p3m = .FALSE.
