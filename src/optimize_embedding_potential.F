@@ -702,7 +702,7 @@ CONTAINS
       ! Read the potential as a vector in the auxiliary basis
       IF (opt_embed%read_embed_pot) &
          CALL read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, &
-opt_embed%embed_pot_coef, opt_embed%open_shell_embed)
+                                    opt_embed%embed_pot_coef, opt_embed%open_shell_embed)
       ! Read the potential as a cube (two cubes for open shell)
       IF (opt_embed%read_embed_pot_cube) &
          CALL read_embed_pot_cube(embed_pot, spin_embed_pot, section, opt_embed%open_shell_embed)
@@ -755,6 +755,7 @@ opt_embed%embed_pot_coef, opt_embed%open_shell_embed)
 !> \param spin_embed_pot ...
 !> \param section ...
 !> \param embed_pot_coef ...
+!> \param open_shell_embed ...
 ! **************************************************************************************************
    SUBROUTINE read_embed_pot_vector(qs_env, embed_pot, spin_embed_pot, section, embed_pot_coef, open_shell_embed)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -762,7 +763,7 @@ opt_embed%embed_pot_coef, opt_embed%open_shell_embed)
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
       TYPE(section_vals_type), POINTER                   :: section
       TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_coef
-LOGICAL, INTENT(IN) :: open_shell_embed
+      LOGICAL, INTENT(IN)                                :: open_shell_embed
 
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: dimen_aux, dimen_restart_basis, &
@@ -1757,6 +1758,7 @@ LOGICAL, INTENT(IN) :: open_shell_embed
 !> \param spin_embed_pot ...
 !> \param qs_env ...
 !> \param add_const_pot ...
+!> \param open_shell_embed ...
 !> \param const_pot ...
 !> \author Vladimir Rybkin
 ! **************************************************************************************************
@@ -2526,6 +2528,7 @@ LOGICAL, INTENT(IN) :: open_shell_embed
 !> \param diff_rho_r ...
 !> \param diff_rho_spin ...
 !> \param rho_r_ref ...
+!> \param open_shell_embed ...
 !> \param step_len ...
 ! **************************************************************************************************
    SUBROUTINE Leeuwen_Baerends_potential_update(pw_env, embed_pot, spin_embed_pot, diff_rho_r, diff_rho_spin, &
@@ -2535,8 +2538,8 @@ LOGICAL, INTENT(IN) :: open_shell_embed
       TYPE(pw_type), INTENT(IN), POINTER                 :: spin_embed_pot
       TYPE(pw_type), INTENT(IN)                          :: diff_rho_r, diff_rho_spin
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r_ref
-LOGICAL, INTENT(IN) :: open_shell_embed
-      REAL(KIND=dp)                    , INTENT(IN)                  :: step_len
+      LOGICAL, INTENT(IN)                                :: open_shell_embed
+      REAL(KIND=dp), INTENT(IN)                          :: step_len
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Leeuwen_Baerends_potential_update'
 
@@ -2917,7 +2920,7 @@ LOGICAL, INTENT(IN) :: open_shell_embed
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN)          :: v_w
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp)  , INTENT(IN)                                    :: vw_cutoff, vw_smooth_cutoff_range
+      REAL(KIND=dp), INTENT(IN)                          :: vw_cutoff, vw_smooth_cutoff_range
 
       REAL(KIND=dp), PARAMETER                           :: one_4 = 0.25_dp, one_8 = 0.125_dp
 
