@@ -153,7 +153,6 @@ MODULE pw_poisson_types
       INTEGER :: method
       INTEGER :: special_dimension
       INTEGER :: id_nr
-      INTEGER :: ref_count
       REAL(KIND=dp) :: radius
       REAL(KIND=dp) :: MT_alpha
       REAL(KIND=dp) :: MT_rel_cutoff
@@ -212,7 +211,6 @@ CONTAINS
       green%method = PERIODIC3D
       last_greens_fn_id_nr = last_greens_fn_id_nr + 1
       green%id_nr = last_greens_fn_id_nr
-      green%ref_count = 1
       green%MT_alpha = 1.0_dp
       green%MT_rel_cutoff = 1.0_dp
       green%p3m = .FALSE.
@@ -442,19 +440,6 @@ CONTAINS
    END SUBROUTINE pw_green_create
 
 ! **************************************************************************************************
-!> \brief retains the type
-!> \param gftype ...
-!> \author Teodoro Laino
-! **************************************************************************************************
-   SUBROUTINE pw_green_retain(gftype)
-      TYPE(greens_fn_type), POINTER                      :: gftype
-
-      CPASSERT(ASSOCIATED(gftype))
-      CPASSERT(gftype%ref_count > 0)
-      gftype%ref_count = gftype%ref_count + 1
-   END SUBROUTINE pw_green_retain
-
-! **************************************************************************************************
 !> \brief destroys the type (deallocates data)
 !> \param gftype ...
 !> \param pw_pool ...
@@ -470,9 +455,6 @@ CONTAINS
       LOGICAL                                            :: can_give_back
 
       IF (ASSOCIATED(gftype)) THEN
-         CPASSERT(gftype%ref_count > 0)
-         gftype%ref_count = gftype%ref_count - 1
-         IF (gftype%ref_count == 0) THEN
             can_give_back = PRESENT(pw_pool)
             IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
             IF (can_give_back) THEN
@@ -509,7 +491,6 @@ CONTAINS
             IF (ASSOCIATED(gftype%p3m_coeff)) &
                DEALLOCATE (gftype%p3m_coeff)
             DEALLOCATE (gftype)
-         END IF
       END IF
       NULLIFY (gftype)
    END SUBROUTINE pw_green_release
@@ -532,7 +513,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: l_arg, prod_arg, val
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: m_assign
 
-      CPASSERT(gftype%ref_count > 0)
       n = gftype%p3m_order
 
       ! calculate the assignment function values
