@@ -1081,7 +1081,7 @@ CONTAINS
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool_orig
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: dct_pw_grid
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(pw_poisson_parameter_type), INTENT(IN)        :: poisson_params
       TYPE(ps_implicit_type), INTENT(INOUT), POINTER     :: ps_implicit_env
 
@@ -1463,7 +1463,7 @@ CONTAINS
    SUBROUTINE apply_inv_laplace_operator_fft(pw_pool, green, pw_in, pw_out)
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(pw_type), INTENT(IN)                          :: pw_in
       TYPE(pw_type), INTENT(INOUT)                       :: pw_out
 
@@ -1512,7 +1512,7 @@ CONTAINS
    SUBROUTINE apply_inv_laplace_operator_dct(pw_pool, green, pw_in, pw_out)
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(pw_type), INTENT(IN)                          :: pw_in
       TYPE(pw_type), INTENT(INOUT)                       :: pw_out
 
@@ -1559,7 +1559,7 @@ CONTAINS
    SUBROUTINE apply_laplace_operator_fft(pw_pool, green, pw_in, pw_out)
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(pw_type), INTENT(IN)                          :: pw_in
       TYPE(pw_type), INTENT(INOUT)                       :: pw_out
 
@@ -1615,7 +1615,7 @@ CONTAINS
    SUBROUTINE apply_laplace_operator_dct(pw_pool, green, pw_in, pw_out)
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(pw_type), INTENT(IN)                          :: pw_in
       TYPE(pw_type), INTENT(INOUT)                       :: pw_out
 
@@ -1671,7 +1671,7 @@ CONTAINS
    SUBROUTINE apply_poisson_operator_fft(pw_pool, green, dielectric, v, density)
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(dielectric_type), INTENT(IN), POINTER         :: dielectric
       TYPE(pw_type), INTENT(IN)                          :: v
       TYPE(pw_type), INTENT(INOUT)                       :: density
@@ -1712,7 +1712,7 @@ CONTAINS
    SUBROUTINE apply_poisson_operator_dct(pw_pool, green, dielectric, v, density)
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(dielectric_type), INTENT(IN), POINTER         :: dielectric
       TYPE(pw_type), INTENT(IN)                          :: v
       TYPE(pw_type), INTENT(INOUT)                       :: density
@@ -1888,7 +1888,7 @@ CONTAINS
                                             QAinvxres_new, pres_error, nabs_error)
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(pw_type), INTENT(IN)                          :: res_new, v_old, v_new
       TYPE(pw_type), INTENT(INOUT)                       :: QAinvxres_new
       REAL(dp), INTENT(OUT)                              :: pres_error, nabs_error
@@ -1939,7 +1939,7 @@ CONTAINS
                                             QAinvxres_new, pres_error, nabs_error)
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
-      TYPE(greens_fn_type), INTENT(IN), POINTER          :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       TYPE(pw_type), INTENT(IN)                          :: res_new, v_old, v_new
       TYPE(pw_type), INTENT(INOUT)                       :: QAinvxres_new
       REAL(dp), INTENT(OUT)                              :: pres_error, nabs_error

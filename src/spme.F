@@ -783,7 +783,7 @@ CONTAINS
 
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: part
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: delta
-      TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       INTEGER, INTENT(IN)                                :: p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
       LOGICAL, INTENT(IN)                                :: is_core, is_shell, unit_charge
@@ -837,7 +837,7 @@ CONTAINS
 
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: part
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: delta
-      TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(greens_fn_type), INTENT(IN)                   :: green
       INTEGER, INTENT(IN)                                :: p
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)     :: rhos
       REAL(KIND=dp), DIMENSION(:), POINTER               :: charges

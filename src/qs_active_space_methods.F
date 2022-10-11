@@ -1619,7 +1619,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_eri_green_create(green, eri_env)
 
-      TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(greens_fn_type), INTENT(INOUT)                :: green
       TYPE(eri_type)                                     :: eri_env
 
       INTEGER                                            :: ig
