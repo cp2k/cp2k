@@ -332,7 +332,6 @@ CONTAINS
 
       IF (ec_env%should_update) THEN
          CALL ec_build_neighborlist(qs_env, ec_env)
-         IF (.NOT. ASSOCIATED(ec_env%vh_rspace)) ALLOCATE (ec_env%vh_rspace)
          CALL ks_ref_potential(qs_env, &
                                ec_env%vh_rspace, &
                                ec_env%vxc_rspace, &

@@ -20,8 +20,8 @@ MODULE exstates_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE pw_types,                        ONLY: pw_p_type,&
-                                              pw_type,&
-                                              pw_release
+                                              pw_release,&
+                                              pw_type
    USE qs_local_rho_types,              ONLY: local_rho_set_release,&
                                               local_rho_type
 #include "./base/base_uses.f90"
@@ -55,7 +55,7 @@ MODULE exstates_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_px1_admm_asymm => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_wx1 => NULL()
-      TYPE(pw_type), POINTER                           :: vh_rspace => NULL()
+      TYPE(pw_type)                                      :: vh_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vxc_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vtau_rspace => NULL()
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: vadmm_rspace => NULL()
@@ -148,10 +148,8 @@ CONTAINS
       INTEGER                                            :: iab
 
       IF (ASSOCIATED(ex_env)) THEN
-         IF (ASSOCIATED(ex_env%vh_rspace)) THEN
+         IF (ASSOCIATED(ex_env%vh_rspace%pw_grid)) THEN
             CALL pw_release(ex_env%vh_rspace)
-            DEALLOCATE (ex_env%vh_rspace)
-            NULLIFY (ex_env%vh_rspace)
          END IF
          IF (ASSOCIATED(ex_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(ex_env%vxc_rspace)

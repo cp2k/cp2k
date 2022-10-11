@@ -374,7 +374,7 @@ CONTAINS
       DO ispin = 1, nspins
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
-                                 rho=rhox_r(ispin), rho_gspace=rhox_g(ispin), &
+                                 rho=rhox_r(ispin)%pw, rho_gspace=rhox_g(ispin)%pw, &
                                  soft_valid=gapw)
          CALL pw_axpy(rhox_g(ispin)%pw, rhox_tot_gspace%pw)
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
@@ -392,7 +392,7 @@ CONTAINS
          DO ispin = 1, nspins
             IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
-                                    rho=rhoxx_r(ispin), rho_gspace=rhoxx_g(ispin), &
+                                    rho=rhoxx_r(ispin)%pw, rho_gspace=rhoxx_g(ispin)%pw, &
                                     soft_valid=gapw_xc)
             IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
          END DO
@@ -408,7 +408,7 @@ CONTAINS
                                 use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
          ! calculate associated hartree potential
          IF (gapw) THEN
-            CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs%pw, rhox_tot_gspace%pw)
+            CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rhox_tot_gspace%pw)
          END IF
          CALL pw_poisson_solve(poisson_env, rhox_tot_gspace%pw, xehartree, &
                                xv_hartree_gspace%pw)
@@ -423,7 +423,7 @@ CONTAINS
             CALL dbcsr_create(matrix_hx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_hx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_hx(ispin)%matrix, 0.0_dp)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace, &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=xv_hartree_rspace%pw, &
                                     pmat=matrix_px1(ispin), hmat=matrix_hx(ispin), &
                                     gapw=gapw, calculate_forces=.TRUE.)
 !deb
@@ -468,7 +468,7 @@ CONTAINS
          IF (gapw) THEN
             IF (debug_forces) fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1)
             CALL Vh_1c_gg_integrals(qs_env, eh1c, hartree_local%ecoul_1c, local_rho_set, para_env, tddft=.TRUE.)
-            CALL integrate_vhg0_rspace(qs_env, xv_hartree_rspace, para_env, calculate_forces=.TRUE., &
+            CALL integrate_vhg0_rspace(qs_env, xv_hartree_rspace%pw, para_env, calculate_forces=.TRUE., &
                                        local_rho_set=local_rho_set)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1) - fodeb(1:3)
@@ -559,7 +559,7 @@ CONTAINS
             CALL dbcsr_copy(matrix_fx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_fx(ispin)%matrix, 0.0_dp)
             CALL pw_scale(fxc_rho(ispin)%pw, fxc_rho(ispin)%pw%pw_grid%dvol)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin)%pw, &
                                     pmat=matrix_px1(ispin), hmat=matrix_fx(ispin), &
                                     gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
 !deb
@@ -583,7 +583,7 @@ CONTAINS
             CALL dbcsr_set(matrix_gx(ispin)%matrix, 0.0_dp)
             CALL pw_scale(gxc_rho(ispin)%pw, gxc_rho(ispin)%pw%pw_grid%dvol)
             CALL pw_scale(gxc_rho(ispin)%pw, 0.5_dp)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin)%pw, &
                                     pmat=matrix_p(ispin), hmat=matrix_gx(ispin), &
                                     gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
             CALL dbcsr_scale(matrix_gx(ispin)%matrix, 2.0_dp)

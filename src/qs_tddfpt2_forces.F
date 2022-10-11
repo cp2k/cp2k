@@ -76,7 +76,8 @@ MODULE qs_tddfpt2_forces
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_density_matrices,             ONLY: calculate_wx_matrix,&
                                               calculate_xwx_matrix
@@ -538,12 +539,12 @@ CONTAINS
          POINTER                                         :: sab, sab_aux_fit
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type)                                    :: rho_tot_gspace, v_hartree_gspace, &
-                                                            v_hartree_rspace
       TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_g_aux, rho_r, rho_r_aux, rhoz_g_aux, &
          rhoz_r_aux, tau_r, tau_r_aux, trho_g, trho_r, trho_xc_g, trho_xc_r, v_xc, v_xc_tau
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: rho_tot_gspace, v_hartree_gspace, &
+                                                            v_hartree_rspace
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_xc, rhoz_aux, trho
@@ -584,7 +585,7 @@ CONTAINS
       IF (gapw_xc) THEN
          ALLOCATE (trho_xc_r(nspins), trho_xc_g(nspins))
          DO ispin = 1, nspins
-            NULLIFY (trho_xc_r(ispin)%pw, trho_xc_g(ispin)%pw)
+            ALLOCATE (trho_xc_r(ispin)%pw, trho_xc_g(ispin)%pw)
             CALL pw_pool_create_pw(auxbas_pw_pool, trho_xc_r(ispin)%pw, &
                                    use_data=REALDATA3D, in_space=REALSPACE)
             CALL pw_pool_create_pw(auxbas_pw_pool, trho_xc_g(ispin)%pw, &
@@ -616,18 +617,18 @@ CONTAINS
       END IF
 
       total_rho = 0.0_dp
-      CALL pw_zero(rho_tot_gspace%pw)
+      CALL pw_zero(rho_tot_gspace)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_pe(ispin)%matrix, &
-                                 rho=trho_r(ispin), &
-                                 rho_gspace=trho_g(ispin), &
+                                 rho=trho_r(ispin)%pw, &
+                                 rho_gspace=trho_g(ispin)%pw, &
                                  soft_valid=gapw, &
                                  total_rho=total_rho(ispin))
-         CALL pw_axpy(trho_g(ispin)%pw, rho_tot_gspace%pw)
+         CALL pw_axpy(trho_g(ispin)%pw, rho_tot_gspace)
          IF (gapw_xc) THEN
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_pe(ispin)%matrix, &
-                                    rho=trho_xc_r(ispin), &
-                                    rho_gspace=trho_xc_g(ispin), &
+                                    rho=trho_xc_r(ispin)%pw, &
+                                    rho_gspace=trho_xc_g(ispin)%pw, &
                                     soft_valid=gapw_xc, &
                                     total_rho=rhotot)
          END IF
@@ -644,7 +645,7 @@ CONTAINS
       IF (gapw) THEN
          CALL get_rho0_mpole(local_rho_set%rho0_mpole, Qlm_tot=Qlm_tot)
          rhotot = rhotot + local_rho_set%rho0_mpole%total_rho0_h
-         CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs%pw, rho_tot_gspace%pw)
+         CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rho_tot_gspace)
       END IF
 
       IF (ABS(rhotot) > 1.e-08_dp) THEN
@@ -662,10 +663,10 @@ CONTAINS
       END IF
 
       ! calculate associated hartree potential
-      CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw, thartree, &
-                            v_hartree_gspace%pw)
-      CALL pw_transfer(v_hartree_gspace%pw, v_hartree_rspace%pw)
-      CALL pw_scale(v_hartree_rspace%pw, v_hartree_rspace%pw%pw_grid%dvol)
+      CALL pw_poisson_solve(poisson_env, rho_tot_gspace, thartree, &
+                            v_hartree_gspace)
+      CALL pw_transfer(v_hartree_gspace, v_hartree_rspace)
+      CALL pw_scale(v_hartree_rspace, v_hartree_rspace%pw_grid%dvol)
       IF (gapw) THEN
          CALL Vh_1c_gg_integrals(qs_env, thartree, hartree_local%ecoul_1c, &
                                  local_rho_set, &
@@ -687,9 +688,9 @@ CONTAINS
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
       !
-      NULLIFY (v_xc, v_xc_tau)
       deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
       IF (deriv2_analytic) THEN
+         NULLIFY (v_xc, v_xc_tau)
          IF (gapw_xc) THEN
             CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
             CALL qs_fxc_analytic(rho_xc, trho_xc_r, NULL(), xc_section, auxbas_pw_pool, .FALSE., v_xc, v_xc_tau)
@@ -704,7 +705,7 @@ CONTAINS
          END IF
       ELSE
          CPABORT("NYA 00006")
-         NULLIFY (trho)
+         NULLIFY (v_xc, trho)
          CALL qs_rho_create(trho)
          CALL qs_rho_set(trho, rho_r=trho_r, rho_g=trho_g)
          CALL qs_fxc_fdiff(ks_env, rho, trho, xc_section, 6, .FALSE., v_xc, tau_r)
@@ -720,14 +721,14 @@ CONTAINS
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_hartree_rspace, &
                                     hmat=matrix_hz(ispin), &
                                     calculate_forces=.FALSE.)
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin)%pw, &
                                     hmat=matrix_hz(ispin), &
                                     gapw=gapw_xc, calculate_forces=.FALSE.)
          END DO
       ELSE
          ! vtot = v_xc(ispin) + v_hartree
          DO ispin = 1, nspins
-            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+            CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin)%pw, &
                                     hmat=matrix_hz(ispin), &
                                     gapw=gapw, calculate_forces=.FALSE.)
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_hartree_rspace, &
@@ -749,7 +750,6 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, trho_r(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, trho_g(ispin)%pw)
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
-         DEALLOCATE (trho_r(ispin)%pw, trho_g(ispin)%pw, v_xc(ispin)%pw)
       END DO
       DEALLOCATE (trho_r, trho_g, v_xc)
       IF (gapw_xc) THEN
@@ -762,7 +762,6 @@ CONTAINS
       IF (ASSOCIATED(v_xc_tau)) THEN
          DO ispin = 1, nspins
             CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc_tau(ispin)%pw)
-            DEALLOCATE (v_xc_tau(ispin)%pw)
          END DO
          DEALLOCATE (v_xc_tau)
       END IF
@@ -822,7 +821,6 @@ CONTAINS
                                        task_list_external=task_list_aux_fit)
             END DO
             !
-            NULLIFY (v_xc)
             deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
             IF (deriv2_analytic) THEN
                NULLIFY (tau_r)

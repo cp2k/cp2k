@@ -147,7 +147,6 @@ CONTAINS
       NULLIFY (ec_env%matrix_wz)
       NULLIFY (ec_env%z_admm)
       NULLIFY (ec_env%p_env)
-      NULLIFY (ec_env%vh_rspace)
       NULLIFY (ec_env%vxc_rspace)
       NULLIFY (ec_env%vtau_rspace)
       NULLIFY (ec_env%vadmm_rspace)

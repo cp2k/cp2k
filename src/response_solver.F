@@ -79,6 +79,7 @@ MODULE response_solver
    USE physcon,                         ONLY: pascal
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
+   USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_copy,&
                                               pw_integral_ab,&
@@ -94,9 +95,13 @@ MODULE response_solver
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_create,&
+                                              pw_p_type,&
+                                              pw_type
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
+                                              calculate_ecore_self
    USE qs_density_matrices,             ONLY: calculate_whz_matrix,&
                                               calculate_wz_matrix
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -130,10 +135,9 @@ MODULE response_solver
    USE qs_p_env_types,                  ONLY: p_env_release,&
                                               qs_p_env_type
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
-   USE qs_rho_types,                    ONLY: qs_rho_create,&
-                                              qs_rho_get,&
-                                              qs_rho_set,&
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_vxc,                          ONLY: qs_vxc_create
    USE task_list_types,                 ONLY: task_list_type
    USE virial_methods,                  ONLY: one_third_sum_diag
    USE virial_types,                    ONLY: virial_type
@@ -837,8 +841,8 @@ CONTAINS
                                                             nao, nao_aux, natom, nder, nimages, &
                                                             nspins
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL :: deriv2_analytic, distribute_fock_matrix, do_ex, do_hfx, gapw, gapw_xc, &
-         hfx_treat_lsd_in_core, resp_only, s_mstruct_changed, use_virial
+      LOGICAL :: distribute_fock_matrix, do_ex, do_hfx, gapw, gapw_xc, hfx_treat_lsd_in_core, &
+         resp_only, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
                                                             eps_ppnl, exc, exc_aux_fit, fconv, focc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2, ftot3
@@ -1147,21 +1151,21 @@ CONTAINS
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
       IF (gapw_xc) THEN
          DO ispin = 1, nspins
-            CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
+            CALL pw_transfer(vh_rspace, vhxc_rspace)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=scrm(ispin), pmat=mpa(ispin), &
                                     qs_env=qs_env, calculate_forces=.TRUE.)
          END DO
          DO ispin = 1, nspins
-            CALL pw_transfer(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
+            CALL pw_transfer(vxc_rspace(ispin)%pw, vhxc_rspace)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=scrm(ispin), pmat=mpa(ispin), &
                                     qs_env=qs_env, gapw=gapw_xc, calculate_forces=.TRUE.)
          END DO
       ELSE
          DO ispin = 1, nspins
-            CALL pw_transfer(vh_rspace%pw, vhxc_rspace%pw)
-            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace%pw)
+            CALL pw_transfer(vh_rspace, vhxc_rspace)
+            CALL pw_axpy(vxc_rspace(ispin)%pw, vhxc_rspace)
             CALL integrate_v_rspace(v_rspace=vhxc_rspace, &
                                     hmat=scrm(ispin), pmat=mpa(ispin), &
                                     qs_env=qs_env, gapw=gapw, calculate_forces=.TRUE.)
@@ -1180,10 +1184,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(vtau_rspace)) THEN
-         CPASSERT(.NOT. (gapw .OR. gapw_xc))
-         IF (use_virial) &
-            CALL cp_abort(__LOCATION__, "Stress tensor of the Harris functional with "// &
-                          "tau-dependent functionals not implemented!")
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
          DO ispin = 1, nspins
@@ -1308,9 +1308,9 @@ CONTAINS
       CALL pw_zero(rhoz_tot_gspace)
       DO ispin = 1, nspins
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=mpa(ispin)%matrix, &
-                                 rho=rhoz_r(ispin), rho_gspace=rhoz_g(ispin), &
+                                 rho=rhoz_r(ispin)%pw, rho_gspace=rhoz_g(ispin)%pw, &
                                  soft_valid=gapw)
-         CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace%pw)
+         CALL pw_axpy(rhoz_g(ispin)%pw, rhoz_tot_gspace)
       END DO
 
       IF (ASSOCIATED(vtau_rspace)) THEN

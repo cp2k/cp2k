@@ -164,8 +164,7 @@ MODULE rpa_im_time_force_methods
                                               realspace_grid_p_type,&
                                               rs_grid_release,&
                                               rs_grid_retain
-   USE response_solver,                 ONLY: ks_ref_potential,&
-                                              response_equation_new
+   USE response_solver,                 ONLY: response_equation_new
    USE rpa_hfx,                         ONLY: add_exx_to_rhs
    USE rpa_im_time,                     ONLY: compute_mat_dm_global
    USE rpa_im_time_force_types,         ONLY: im_time_force_type
@@ -3127,6 +3126,7 @@ CONTAINS
       IF (use_virial) THEN
          h_stress = 0.0_dp
          virial%pv_xc = 0.0_dp
+         NULLIFY (vxc_rspace, vtau_rspace, vadmm_rspace)
          CALL ks_ref_potential(qs_env, vh_rspace, vxc_rspace, vtau_rspace, vadmm_rspace, &
                                dummy_real1, dummy_real2, h_stress)
          virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
