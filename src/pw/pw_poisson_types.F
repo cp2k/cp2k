@@ -185,7 +185,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pw_green_create(green, poisson_params, cell_hmat, pw_pool, &
                               mt_super_ref_pw_grid, dct_pw_grid)
-      TYPE(greens_fn_type), POINTER                      :: green
+      TYPE(greens_fn_type), INTENT(OUT)                  :: green
       TYPE(pw_poisson_parameter_type), INTENT(IN)        :: poisson_params
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -199,8 +199,6 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
       TYPE(pw_type), POINTER                             :: dct_gf
 
-      CPASSERT(.NOT. (ASSOCIATED(green)))
-      ALLOCATE (green)
       green%p3m = .FALSE.
       green%special_dimension = 0
       green%radius = 0.0_dp
@@ -445,50 +443,46 @@ CONTAINS
 !>      Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE pw_green_release(gftype, pw_pool)
-      TYPE(greens_fn_type), POINTER                      :: gftype
+      TYPE(greens_fn_type), INTENT(INOUT)                :: gftype
       TYPE(pw_pool_type), OPTIONAL, POINTER              :: pw_pool
 
       LOGICAL                                            :: can_give_back
 
-      IF (ASSOCIATED(gftype)) THEN
-            can_give_back = PRESENT(pw_pool)
-            IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
-            IF (can_give_back) THEN
-               CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn)
-               IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%dct_influence_fn)
-                  DEALLOCATE (gftype%dct_influence_fn)
-               END IF
-               IF (ASSOCIATED(gftype%screen_fn)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%screen_fn)
-                  DEALLOCATE (gftype%screen_fn)
-               END IF
-               IF (ASSOCIATED(gftype%p3m_charge)) THEN
-                  CALL pw_pool_give_back_pw(pw_pool, gftype%p3m_charge)
-                  DEALLOCATE (gftype%p3m_charge)
-               END IF
-            ELSE
-               CALL pw_release(gftype%influence_fn)
-               IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
-                  CALL pw_release(gftype%dct_influence_fn)
-                  DEALLOCATE (gftype%dct_influence_fn)
-               END IF
-               IF (ASSOCIATED(gftype%screen_fn)) THEN
-                  CALL pw_release(gftype%screen_fn)
-                  DEALLOCATE (gftype%screen_fn)
-               END IF
-               IF (ASSOCIATED(gftype%p3m_charge)) THEN
-                  CALL pw_release(gftype%p3m_charge)
-                  DEALLOCATE (gftype%p3m_charge)
-               END IF
-            END IF
-            IF (ASSOCIATED(gftype%p3m_bm2)) &
-               DEALLOCATE (gftype%p3m_bm2)
-            IF (ASSOCIATED(gftype%p3m_coeff)) &
-               DEALLOCATE (gftype%p3m_coeff)
-            DEALLOCATE (gftype)
+      can_give_back = PRESENT(pw_pool)
+      IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
+      IF (can_give_back) THEN
+         CALL pw_pool_give_back_pw(pw_pool, gftype%influence_fn)
+         IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
+            CALL pw_pool_give_back_pw(pw_pool, gftype%dct_influence_fn)
+            DEALLOCATE (gftype%dct_influence_fn)
+         END IF
+         IF (ASSOCIATED(gftype%screen_fn)) THEN
+            CALL pw_pool_give_back_pw(pw_pool, gftype%screen_fn)
+            DEALLOCATE (gftype%screen_fn)
+         END IF
+         IF (ASSOCIATED(gftype%p3m_charge)) THEN
+            CALL pw_pool_give_back_pw(pw_pool, gftype%p3m_charge)
+            DEALLOCATE (gftype%p3m_charge)
+         END IF
+      ELSE
+         CALL pw_release(gftype%influence_fn)
+         IF (ASSOCIATED(gftype%dct_influence_fn)) THEN
+            CALL pw_release(gftype%dct_influence_fn)
+            DEALLOCATE (gftype%dct_influence_fn)
+         END IF
+         IF (ASSOCIATED(gftype%screen_fn)) THEN
+            CALL pw_release(gftype%screen_fn)
+            DEALLOCATE (gftype%screen_fn)
+         END IF
+         IF (ASSOCIATED(gftype%p3m_charge)) THEN
+            CALL pw_release(gftype%p3m_charge)
+            DEALLOCATE (gftype%p3m_charge)
+         END IF
       END IF
-      NULLIFY (gftype)
+      IF (ASSOCIATED(gftype%p3m_bm2)) &
+         DEALLOCATE (gftype%p3m_bm2)
+      IF (ASSOCIATED(gftype%p3m_coeff)) &
+         DEALLOCATE (gftype%p3m_coeff)
    END SUBROUTINE pw_green_release
 
 ! **************************************************************************************************
@@ -652,7 +646,10 @@ CONTAINS
                CALL pw_pools_dealloc(poisson_env%pw_pools)
             END IF
 
-            CALL pw_green_release(poisson_env%green_fft)
+            IF (ASSOCIATED(poisson_env%green_fft)) THEN
+               CALL pw_green_release(poisson_env%green_fft)
+               DEALLOCATE (poisson_env%green_fft)
+            END IF
             CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid)
             CALL ps_wavelet_release(poisson_env%wavelet)
             CALL ps_implicit_release(poisson_env%implicit_env, &

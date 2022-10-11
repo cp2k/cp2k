@@ -1162,7 +1162,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(greens_fn_type), POINTER                      :: green_fft
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pwdummy
@@ -1269,10 +1268,13 @@ CONTAINS
             poisson_params%solver = pw_poisson_analytic
             poisson_params%periodic = cell%perd
             poisson_params%ewald_type = do_ewald_none
-            NULLIFY (green_fft, pwdummy)
-            CALL pw_green_create(green_fft, poisson_params, cell%hmat, auxbas_pw_pool, pwdummy, pwdummy)
-            rho_tot_gspace%cc(:) = rho_tot_gspace%cc(:)*green_fft%influence_fn%cc(:)
-            CALL pw_green_release(green_fft, auxbas_pw_pool)
+            BLOCK
+               TYPE(greens_fn_type)                     :: green_fft
+               NULLIFY (pwdummy)
+               CALL pw_green_create(green_fft, poisson_params, cell%hmat, auxbas_pw_pool, pwdummy, pwdummy)
+               rho_tot_gspace%cc(:) = rho_tot_gspace%cc(:)*green_fft%influence_fn%cc(:)
+               CALL pw_green_release(green_fft, auxbas_pw_pool)
+            END BLOCK
             IF (my_v_hartree) THEN
                CALL pw_pool_create_pw(pool=auxbas_pw_pool, pw=vhartree, &
                                       use_data=REALDATA3D, in_space=REALSPACE)

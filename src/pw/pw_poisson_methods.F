@@ -98,7 +98,10 @@ CONTAINS
       IF (ASSOCIATED(poisson_env%pw_pools)) THEN
          pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
       END IF
-      CALL pw_green_release(poisson_env%green_fft, pw_pool=pw_pool)
+      IF (ASSOCIATED(poisson_env%green_fft)) THEN
+         CALL pw_green_release(poisson_env%green_fft, pw_pool=pw_pool)
+         DEALLOCATE (poisson_env%green_fft)
+      END IF
       poisson_env%rebuild = .TRUE.
 
    END SUBROUTINE pw_poisson_cleanup
@@ -189,6 +192,7 @@ CONTAINS
          CALL pw_poisson_cleanup(poisson_env)
          SELECT CASE (poisson_env%parameters%solver)
          CASE (pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole)
+            ALLOCATE (poisson_env%green_fft)
             CALL pw_green_create(poisson_env%green_fft, cell_hmat=poisson_env%cell_hmat, &
                                  pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                  poisson_params=poisson_env%parameters, &
@@ -199,6 +203,7 @@ CONTAINS
             CALL ps_wavelet_create(poisson_env%parameters, poisson_env%wavelet, &
                                    density%pw_grid)
          CASE (pw_poisson_implicit)
+            ALLOCATE (poisson_env%green_fft)
             CALL pw_green_create(poisson_env%green_fft, cell_hmat=poisson_env%cell_hmat, &
                                  pw_pool=poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                  poisson_params=poisson_env%parameters, &
